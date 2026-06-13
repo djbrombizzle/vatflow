@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VATFLOW — TBFM for VATSIM</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #06090d; color: #c9d6df;
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; font-size: 13px;
+  }
+  ::selection { background: #1d3a4d; }
+  input, select, button { font-family: inherit; outline: none; }
+  input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px #54b8e8; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .relnow { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; }
+
+  header {
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    padding:14px 20px; border-bottom:1px solid #1a232d; background:#0a1016;
+  }
+  .brand { font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:26px;
+           letter-spacing:.06em; color:#e8f0f4; }
+  .brandsub { color:#56676f; font-size:11px; letter-spacing:.12em; }
+  #icaoInput {
+    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
+    padding:7px 10px; width:150px; border-radius:3px; font-size:14px; letter-spacing:.12em;
+  }
+  #meterBtn {
+    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
+    padding:7px 16px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.1em;
+  }
+  #routeSel {
+    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
+    padding:7px 8px; border-radius:3px; font-size:12px;
+  }
+  #aarSel, .aarinput {
+    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
+    padding:6px 8px; border-radius:3px; font-size:13px; width:72px; font-family:inherit;
+  }
+  input[type=number]::-webkit-inner-spin-button { opacity:.4; }
+  .lbl { color:#56676f; font-size:11px; }
+  .hdr-right { margin-left:auto; display:flex; gap:16px; align-items:center; }
+  #feedStatus { font-size:11px; color:#56676f; }
+  #feedStatus.err { color:#f25555; }
+  #clock { color:#e8f0f4; font-size:16px; font-weight:600; }
+
+  .strip {
+    display:flex; gap:24px; flex-wrap:wrap; align-items:baseline;
+    padding:12px 20px; border-bottom:1px solid #1a232d;
+  }
+  .strip .field { font-family:'Barlow Condensed',sans-serif; font-size:30px;
+                  color:#e8f0f4; letter-spacing:.08em; }
+  .stat { display:inline-flex; align-items:baseline; gap:7px; }
+  .stat .k { font-size:10px; color:#56676f; letter-spacing:.1em; }
+  .stat .v { font-size:17px; font-weight:600; color:#e8f0f4; }
+
+  .layout { display:grid; grid-template-columns: 1fr 310px; }
+  @media (max-width:900px){ .layout { grid-template-columns:1fr; } .ladderwrap{border-left:none!important;border-top:1px solid #1a232d;} }
+
+  .filterrow td { padding:3px 6px; border-bottom:1px solid #1a232d; background:#0a1016; }
+  .filterrow input {
+    width:100%; min-width:46px; background:#0c1218; border:1px solid #1f2c38;
+    color:#9fdcff; font-size:10.5px; padding:3px 5px; border-radius:2px; font-family:inherit;
+  }
+  .filterrow input::placeholder { color:#3a4750; }
+  .filterinfo { padding:8px 20px 0; font-size:11px; color:#f5a83d; }
+  .filterinfo .clr { color:#9fdcff; cursor:pointer; text-decoration:underline; margin-left:10px; }
+
+  .edctbtn {
+    background:#3a2d12; color:#f5a83d; border:1px solid #6b4f1d;
+    padding:3px 9px; border-radius:3px; cursor:pointer; font-size:10.5px;
+    letter-spacing:.08em; font-weight:600;
+  }
+  .edctbtn:hover { background:#4d3a15; border-color:#8a6524; }
+  .edctcxl { color:#56676f; cursor:pointer; margin-left:8px; font-size:11px; }
+  .edctcxl:hover { color:#f25555; }
+  @keyframes edctflash { 0%,100%{background:#10331f;} 50%{background:#1a4d2e;} }
+  .edctpulled { color:#57d98a !important; font-weight:600; border:1px solid #2e7d4f;
+                border-radius:3px; padding:2px 6px; animation: edctflash 1.3s ease-in-out infinite; }
+  .edctpulled .sub { color:#3f9e6a; font-weight:400; }
+
+  .tablewrap { overflow-x:auto; padding:4px 0 30px; }
+  table { border-collapse:collapse; width:100%; }
+  th { font-weight:500; color:#56676f; text-align:left; padding:6px 10px;
+       border-bottom:1px solid #1a232d; font-size:11px; letter-spacing:.08em;
+       cursor:pointer; user-select:none; white-space:nowrap; }
+  th:hover { color:#9fdcff; }
+  th.sorted { color:#e8f0f4; }
+  td { padding:7px 10px; border-bottom:1px solid #121a22; white-space:nowrap; }
+  tr:hover td { background:#0d141b; }
+  .footnote { padding:12px 20px; color:#3a4750; font-size:11px; line-height:1.7; }
+
+  .ladderwrap { border-left:1px solid #1a232d; padding:14px 14px 20px; }
+  .ladderhead { font-size:11px; color:#56676f; letter-spacing:.1em; margin-bottom:10px;
+                display:flex; justify-content:space-between; align-items:baseline; }
+  .ladderhead .hint { font-size:9px; color:#3a4750; letter-spacing:.05em; }
+  .ladderscroll { height: calc(100vh - 230px); min-height: 480px; overflow-y:auto;
+                  border:1px solid #121a22; border-radius:3px; background:#080d12;
+                  scrollbar-width:thin; scrollbar-color:#233140 #080d12; }
+  .ladderscroll::-webkit-scrollbar { width:8px; }
+  .ladderscroll::-webkit-scrollbar-track { background:#080d12; }
+  .ladderscroll::-webkit-scrollbar-thumb { background:#233140; border-radius:4px; }
+  .ladder { position:relative; margin:10px 8px; }
+  .ladder .axis { position:absolute; left:44px; top:0; bottom:0; width:1px; background:#233140; }
+  .ladder .gridline { position:absolute; left:38px; width:13px; height:1px; background:#233140; }
+  .ladder .gridtime { position:absolute; left:0; font-size:10px; color:#56676f; }
+  .ladder .freeze { position:absolute; left:38px; right:0; border-top:1px dashed #355063; }
+  .ladder .freeze span { position:absolute; right:0; top:-14px; font-size:9px; color:#355063; letter-spacing:.08em; }
+  .ladder .nowline { position:absolute; left:38px; right:0; border-top:1px solid #2a5870; }
+  .ladder .nowline span { position:absolute; right:0; top:2px; font-size:9px; color:#54b8e8; letter-spacing:.08em; }
+  .ladder .tag { position:absolute; display:flex; align-items:center; gap:5px; }
+  .ladder .tick { width:12px; height:1px; flex:none; }
+  .ladder .lab { font-size:11px; color:#e8f0f4; background:#0c1218; border:1px solid #1f2c38;
+                 padding:2px 6px; white-space:nowrap; }
+  .ladder .lab .t { color:#56676f; }
+  .ladder .empty { position:absolute; inset:0; display:flex; align-items:center;
+                   justify-content:center; color:#3a4750; font-size:11px; }
+
+  .splash { padding:70px 20px; text-align:center; color:#56676f; }
+  .splash h2 { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:500;
+               color:#8fa3af; letter-spacing:.08em; margin:0 0 10px; }
+  .splash p { font-size:12px; line-height:1.8; margin:0; }
+  .msg { padding:50px; text-align:center; color:#56676f; }
+
+  .tabs { display:flex; gap:2px; }
+  .tab { padding:7px 16px; font-size:12px; letter-spacing:.12em; cursor:pointer;
+         color:#56676f; border:1px solid transparent; border-radius:3px; }
+  .tab:hover { color:#9fdcff; }
+  .tab.active { color:#e8f0f4; background:#0c1218; border-color:#233140; }
+
+  #depInput {
+    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
+    padding:7px 10px; width:150px; border-radius:3px; font-size:14px; letter-spacing:.12em;
+  }
+  #depBtn {
+    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
+    padding:7px 16px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.1em;
+  }
+  .tmuform { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+             padding:14px 20px; border-bottom:1px solid #1a232d; }
+  .tmuform input {
+    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
+    padding:7px 10px; width:130px; border-radius:3px; font-size:13px; letter-spacing:.1em;
+  }
+  .tmuform select, .tmurow select {
+    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
+    padding:6px 7px; border-radius:3px; font-size:12px; font-family:inherit;
+  }
+  .tmuform button {
+    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
+    padding:7px 16px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.1em;
+  }
+  .tmuact { color:#9fdcff; cursor:pointer; margin-right:12px; font-size:11px; }
+  .tmuact:hover { text-decoration:underline; }
+  .tmuact.rm { color:#f25555; }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:baseline;gap:10px;">
+    <span class="brand">VATFLOW</span>
+    <span class="brandsub">TIME BASED FLOW MGMT &middot; VATSIM</span>
+  </div>
+  <nav class="tabs">
+    <span class="tab active" data-tab="meter">METER</span>
+    <span class="tab" data-tab="tmu">TMU</span>
+    <span class="tab" data-tab="dep">DEPARTURES</span>
+  </nav>
+  <div id="meterCtl" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <input id="icaoInput" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off">
+    <datalist id="event-fields"></datalist>
+    <button id="meterBtn">METER</button>
+    <span class="lbl" style="margin-left:10px;">AAR</span>
+    <input id="aarSel" type="number" min="1" max="200" value="30" title="Arrivals per hour (1-200)">
+    <span class="lbl" style="margin-left:10px;">ROUTE TRAIL</span>
+    <select id="routeSel"></select>
+  </div>
+  <div id="depCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span class="lbl">MY FIELD</span>
+    <input id="depInput" list="event-fields" placeholder="ICAO (e.g. KLAX)" maxlength="4" autocomplete="off">
+    <button id="depBtn">SET</button>
+  </div>
+  <div class="hdr-right">
+    <span id="feedStatus">FEED — &middot; DB …</span>
+    <span id="clock">--:--:--Z</span>
+  </div>
+</header>
+
+<div id="content"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   VATFLOW — Time Based Flow Management for VATSIM (standalone)
+   Data feed: https://data.vatsim.net/v3/vatsim-data.json (~15 s)
+   Airport DB: github.com/mwgg/Airports (all ICAO lat/lon)
+   ============================================================ */
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const AIRPORT_DB_URL = "https://raw.githubusercontent.com/mwgg/Airports/master/airports.json";
+
+/* Fallback coords for popular event fields if the remote DB is unreachable */
+const FALLBACK_AIRPORTS = {
+  KATL:[33.6367,-84.4281],KBOS:[42.3643,-71.0052],KORD:[41.9786,-87.9048],
+  KJFK:[40.6398,-73.7789],KLGA:[40.7772,-73.8726],KEWR:[40.6925,-74.1687],
+  KLAX:[33.9425,-118.408],KSFO:[37.619,-122.3749],KDEN:[39.8617,-104.6731],
+  KDFW:[32.8968,-97.038],KIAH:[29.9844,-95.3414],KMIA:[25.7932,-80.2906],
+  KMCO:[28.4294,-81.309],KSEA:[47.449,-122.3093],KPHX:[33.4343,-112.0116],
+  KLAS:[36.0801,-115.1522],KCLT:[35.214,-80.9431],KPHL:[39.8719,-75.2411],
+  KDCA:[38.8521,-77.0377],KIAD:[38.9445,-77.4558],KBWI:[39.1754,-76.6683],
+  KSDF:[38.1744,-85.736],KCVG:[39.0488,-84.6678],KMSP:[44.882,-93.2218],
+  KDTW:[42.2124,-83.3534],KSTL:[38.7487,-90.37],KMEM:[35.0424,-89.9767],
+  KBNA:[36.1245,-86.6782],KAUS:[30.1945,-97.6699],KSAN:[32.7336,-117.1897],
+  KPDX:[45.5887,-122.5975],KSLC:[40.7884,-111.9778],KTPA:[27.9755,-82.5332],
+  KFLL:[26.0726,-80.1527],KPIT:[40.4915,-80.2329],KCLE:[41.4117,-81.8498],
+  CYYZ:[43.6772,-79.6306],CYVR:[49.1939,-123.1844],CYUL:[45.4706,-73.7408],
+  CYYC:[51.1139,-114.0203],MMMX:[19.4363,-99.0721],TJSJ:[18.4394,-66.0018],
+  EGLL:[51.4775,-0.4614],EGKK:[51.1481,-0.1903],EGCC:[53.3537,-2.275],
+  EGPH:[55.95,-3.3725],EIDW:[53.4213,-6.2701],LFPG:[49.0128,2.55],
+  EHAM:[52.3086,4.7639],EDDF:[50.0333,8.5706],EDDM:[48.3538,11.7861],
+  EDDB:[52.3667,13.5033],LSZH:[47.4647,8.5492],LOWW:[48.1103,16.5697],
+  LEMD:[40.4936,-3.5668],LEBL:[41.2971,2.0785],LPPT:[38.7813,-9.1359],
+  LIRF:[41.8003,12.2389],LIMC:[45.6306,8.7281],LGAV:[37.9364,23.9445],
+  LTFM:[41.2753,28.7519],UUEE:[55.9726,37.4146],EKCH:[55.6179,12.656],
+  ENGM:[60.1939,11.1004],ESSA:[59.6519,17.9186],EFHK:[60.3172,24.9633],
+  EPWA:[52.1657,20.9671],LKPR:[50.1008,14.26],LHBP:[47.4369,19.2556],
+  OMDB:[25.2528,55.3644],OTHH:[25.2731,51.6081],OERK:[24.9576,46.6988],
+  LLBG:[32.0114,34.8867],VABB:[19.0887,72.8679],VIDP:[28.5665,77.1031],
+  VTBS:[13.6811,100.7473],WSSS:[1.3502,103.9944],WMKK:[2.7456,101.7099],
+  VHHH:[22.3089,113.9146],RJTT:[35.5523,139.7798],RJAA:[35.7647,140.3863],
+  RJBB:[34.4347,135.2441],RKSI:[37.4692,126.4505],ZBAA:[40.0801,116.5846],
+  ZSPD:[31.1434,121.8052],ZGGG:[23.3924,113.2988],RCTP:[25.0777,121.2328],
+  YSSY:[-33.9461,151.1772],YMML:[-37.6733,144.8433],YBBN:[-27.3842,153.1175],
+  NZAA:[-37.0081,174.7917],FAOR:[-26.1392,28.246],HECA:[30.1219,31.4056],
+  GMMN:[33.3675,-7.59],SBGR:[-23.4356,-46.4731],SBGL:[-22.8099,-43.2506],
+  SAEZ:[-34.8222,-58.5358],SCEL:[-33.3928,-70.7858],SKBO:[4.7016,-74.1469],
+  MROC:[9.9939,-84.2088],MPTO:[9.0714,-79.3835]
+};
+
+const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
+
+/* ---------- state ---------- */
+let activeTab = "meter";    // meter | tmu | dep
+let icao = null;            // METER view: arrival field being metered
+let depIcao = null;         // DEPARTURES view: tower controller's field
+const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by all views)
+let vatsim = null;
+let airportDb = null;
+let dbStatus = "loading";   // loading | full | fallback
+let feedStatus = "idle";    // idle | fetching | ok | error
+let lastFetch = null;
+let pollTimer = null;
+let sortKey = "seq";   // active sort column
+let sortDir = 1;       // 1 asc, -1 desc
+const filters = {};    // column key -> filter string
+const issuedEdcts = {}; // callsign -> { t, order, pulledUntil } (manual EDCT records)
+let issueSeq = 0;       // monotonic issuance order, for compression priority
+const EDCT_FLASH_MS = 60000;  // how long a pulled-up EDCT stays highlighted
+let ladderScrollPos = null;  // preserved scroll position; null = scroll to NOW
+
+const DEFAULT_RATE = { aar: 30, trail: 0 };
+const getRate = code => tmuRates[code] || DEFAULT_RATE;
+/* free-form AAR entry: any whole number 1-200 arrivals/hr; null if invalid */
+function parseAar(v) {
+  const n = Math.round(+v);
+  return isFinite(n) && n >= 1 && n <= 200 ? n : null;
+}
+
+/* ---------- math / parsing helpers ---------- */
+const NMR = 3440.065;
+const rad = d => d * Math.PI / 180;
+function gcDist(a1, o1, a2, o2) {
+  const dA = rad(a2 - a1), dO = rad(o2 - o1);
+  const h = Math.sin(dA/2)**2 + Math.cos(rad(a1)) * Math.cos(rad(a2)) * Math.sin(dO/2)**2;
+  return 2 * NMR * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function parseTAS(ct) {
+  if (!ct) return 420;
+  const s = String(ct).trim().toUpperCase();
+  if (s.startsWith("M")) {
+    const mach = parseInt(s.slice(1), 10) / 100;
+    return isNaN(mach) ? 450 : Math.round(mach * 573);
+  }
+  const v = parseInt(s.replace(/^N0?/, ""), 10);
+  return (isNaN(v) || v < 60) ? 420 : v;
+}
+function arrivalGate(route, arr) {
+  if (!route) return "\u2014";
+  const toks = route.toUpperCase().split(/\s+/).map(t => t.split("/")[0].replace(/[^A-Z0-9]/g, ""));
+  for (let i = toks.length - 1; i >= 0; i--) {
+    const t = toks[i];
+    if (!t || t === "DCT" || t === arr) continue;
+    if (/^[A-Z]{5}$/.test(t)) return t;
+    if (/^[A-Z]{3}$/.test(t)) return t;
+    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(t)) return t;
+  }
+  return "\u2014";
+}
+function fmtZ(ms) {
+  if (!ms || !isFinite(ms)) return "----";
+  const d = new Date(ms);
+  return String(d.getUTCHours()).padStart(2,"0") + String(d.getUTCMinutes()).padStart(2,"0");
+}
+function fmtDelay(ms) {
+  const m = Math.round(ms / 60000);
+  return m <= 0 ? "0" : "+" + m;
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function lookup(code) {
+  if (!code) return null;
+  const c = code.toUpperCase();
+  return (airportDb && airportDb[c]) || FALLBACK_AIRPORTS[c] || null;
+}
+
+/* ---------- data loading ---------- */
+fetch(AIRPORT_DB_URL)
+  .then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))
+  .then(j => {
+    const db = {};
+    for (const k in j) {
+      const a = j[k];
+      if (a && a.icao && isFinite(a.lat) && isFinite(a.lon))
+        db[a.icao.toUpperCase()] = [a.lat, a.lon];
+    }
+    airportDb = db; dbStatus = "full"; renderHeaderStatus();
+  })
+  .catch(() => { airportDb = FALLBACK_AIRPORTS; dbStatus = "fallback"; renderHeaderStatus(); });
+
+async function fetchFeed() {
+  feedStatus = "fetching"; renderHeaderStatus();
+  try {
+    const r = await fetch(VATSIM_URL);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    vatsim = await r.json();
+    lastFetch = Date.now();
+    feedStatus = "ok";
+  } catch (e) {
+    feedStatus = "error";
+  }
+  renderHeaderStatus();
+  renderContent();
+}
+
+/* ---------- flow computation ---------- */
+function computeFlow(target) {
+  if (!vatsim || !target) return null;
+  const rate = getRate(target);
+  const arrPt = lookup(target);
+  const now = Date.now();
+  const flights = [];
+
+  for (const p of (vatsim.pilots || [])) {
+    const fp = p.flight_plan;
+    if (!fp || (fp.arrival || "").toUpperCase() !== target) continue;
+    const tas = parseTAS(fp.cruise_tas);
+    const gate = arrivalGate(fp.route, target);
+    const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
+    const dep = (fp.departure || "????").toUpperCase();
+    const distToArr = arrPt ? gcDist(p.latitude, p.longitude, arrPt[0], arrPt[1]) : null;
+    const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
+
+    if (airborne && distToArr != null) {
+      const gs = Math.max(p.groundspeed, 120);
+      const pad = distToArr > 40 ? 4 : distToArr > 15 ? 2 : 0;
+      const eteMs = (distToArr / gs) * 3600000 + pad * 60000;
+      flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
+        status:"AIRBORNE", dist:distToArr, gs:p.groundspeed, eta:now + eteMs,
+        flightTimeMs:null, est:false });
+    } else {
+      const depPt = lookup(dep);
+      let routeNm, est = false;
+      if (depPt && arrPt) routeNm = gcDist(depPt[0], depPt[1], arrPt[0], arrPt[1]) * 1.12;
+      else { routeNm = 300; est = true; }
+      const flightTimeMs = (routeNm / tas) * 3600000 + 14 * 60000;
+      const etd = now + 10 * 60000;
+      flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
+        status:"GROUND", dist:routeNm, gs:p.groundspeed, eta:etd + flightTimeMs,
+        flightTimeMs, est });
+    }
+  }
+
+  for (const pf of (vatsim.prefiles || [])) {
+    const fp = pf.flight_plan;
+    if (!fp || (fp.arrival || "").toUpperCase() !== target) continue;
+    if (flights.some(f => f.callsign === pf.callsign)) continue;
+    const tas = parseTAS(fp.cruise_tas);
+    const gate = arrivalGate(fp.route, target);
+    const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
+    const dep = (fp.departure || "????").toUpperCase();
+    const depPt = lookup(dep);
+    let routeNm, est = false;
+    if (depPt && arrPt) routeNm = gcDist(depPt[0], depPt[1], arrPt[0], arrPt[1]) * 1.12;
+    else { routeNm = 300; est = true; }
+    const flightTimeMs = (routeNm / tas) * 3600000 + 14 * 60000;
+
+    let etd = now + 20 * 60000;
+    if (/^\d{4}$/.test(fp.deptime || "")) {
+      const d = new Date();
+      d.setUTCHours(+fp.deptime.slice(0,2), +fp.deptime.slice(2), 0, 0);
+      let t = d.getTime();
+      if (t < now - 2 * 3600000) t += 24 * 3600000;
+      etd = Math.max(t, now + 20 * 60000);
+    }
+    flights.push({ key:"P-"+pf.callsign, callsign:pf.callsign, type:acft, dep, gate,
+      status:"PROPOSED", dist:routeNm, gs:0, eta:etd + flightTimeMs, flightTimeMs, est });
+  }
+
+  /* ----- metering: two-tier scheduler -----
+     Tier 1 (AIRBORNE): fly their ETA. Early relative to the schedule is
+       fine — DLY is assigned ONLY when spacing with other airborne
+       traffic genuinely requires it: the airport arrival rate interval,
+       and same-arrival-route in-trail. Ground/proposed traffic never
+       delays an airborne aircraft.
+     Tier 2 (GROUND/PROPOSED): slotted into whatever capacity remains
+       around the fixed airborne STAs; all of their delay is absorbed
+       on the ground via EDCT. */
+  const spacing = (3600 / Math.max(rate.aar, 1)) * 1000;   /* runway interval */
+  /* same-route in-trail: AUTO = just the AAR interval (no extra penalty);
+     otherwise the selected minutes-in-trail, never less than the AAR interval */
+  const gateSpacing = Math.max(spacing, rate.trail * 60000);
+  const assigned = [];                                /* {t, gate} occupied slots */
+
+  const airborneF = flights.filter(f => f.status === "AIRBORNE").sort((a,b) => a.eta - b.eta);
+  const groundF   = flights.filter(f => f.status !== "AIRBORNE").sort((a,b) => a.eta - b.eta);
+
+  let prevSta = -Infinity;
+  const lastGateSta = {};
+  for (const f of airborneF) {
+    let sta = Math.max(f.eta, prevSta + spacing);
+    if (f.gate !== "\u2014" && lastGateSta[f.gate] != null)
+      sta = Math.max(sta, lastGateSta[f.gate] + gateSpacing);
+    f.sta = sta;
+    f.delay = sta - f.eta;            /* metering/route delay only */
+    prevSta = sta;
+    if (f.gate !== "\u2014") lastGateSta[f.gate] = sta;
+    assigned.push({ t: sta, gate: f.gate });
+  }
+
+  /* Tier 2a: GROUND flights with a manually ISSUED EDCT keep their issued
+     wheels-up; their slot is fixed and reserved before anyone else slots in. */
+  const groundIssued = groundF.filter(f => f.status === "GROUND" && issuedEdcts[f.callsign] != null);
+  const groundAuto   = groundF.filter(f => !(f.status === "GROUND" && issuedEdcts[f.callsign] != null));
+
+  for (const f of groundIssued) {
+    const rec = issuedEdcts[f.callsign];
+    f.edctIssued = true;
+    f.wheelsUp = rec.t;
+    f.pulled = rec.pulledUntil != null && rec.pulledUntil > now;  /* recently moved earlier */
+    f.sta = f.wheelsUp + f.flightTimeMs;
+    f.delay = Math.max(0, f.sta - f.eta);
+    f.releaseNow = f.wheelsUp <= now + 60000;
+    assigned.push({ t: f.sta, gate: f.gate });
+  }
+
+  /* Tier 2b: everything else on the ground (and proposed) slots around the
+     fixed airborne STAs and issued-EDCT slots. For GROUND flights the
+     resulting wheels-up is only a PROPOSAL until the user issues it. */
+  for (const f of groundAuto) {
+    let cand = f.eta, moved = true;
+    while (moved) {
+      moved = false;
+      for (const s of assigned) {
+        const req = (s.gate !== "\u2014" && s.gate === f.gate) ? gateSpacing : spacing;
+        if (Math.abs(cand - s.t) < req) { cand = s.t + req; moved = true; }
+      }
+    }
+    f.sta = cand;
+    f.delay = cand - f.eta;
+    assigned.push({ t: cand, gate: f.gate });
+    if (f.flightTimeMs != null) {
+      f.edctIssued = false;
+      f.wheelsUp = f.sta - f.flightTimeMs;            /* proposed EDCT / CTD */
+      f.releaseNow = f.wheelsUp <= now + 60000;
+    }
+  }
+
+  /* sequence numbers follow the metered arrival order */
+  flights.sort((a, b) => a.sta - b.sta);
+  flights.forEach((f, i) => { f.seq = i + 1; });
+
+  const demandHr = flights.filter(f => f.eta < now + 3600000).length;
+  const gates = {};
+  for (const f of flights) if (f.gate !== "\u2014") gates[f.gate] = (gates[f.gate] || 0) + 1;
+  const topGates = Object.entries(gates).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const gateColors = {};
+  topGates.forEach(([g], i) => gateColors[g] = GATE_PALETTE[i % GATE_PALETTE.length]);
+
+  return { flights, demandHr, topGates, gateColors, arrPt, now };
+}
+
+const statusColor = f =>
+  f.status === "AIRBORNE" ? "#57d98a" : f.status === "GROUND" ? "#f5a83d" : "#54b8e8";
+
+/* ---------- column sorting ---------- */
+const COLUMNS = [
+  { key:"seq",      label:"#",                num:true },
+  { key:"callsign", label:"CALLSIGN" },
+  { key:"type",     label:"TYPE" },
+  { key:"dep",      label:"DEP" },
+  { key:"gate",     label:"GATE" },
+  { key:"status",   label:"STATUS" },
+  { key:"dist",     label:"DIST NM",          num:true },
+  { key:"gs",       label:"GS",               num:true },
+  { key:"eta",      label:"ETA Z",            num:true },
+  { key:"sta",      label:"STA Z",            num:true },
+  { key:"delay",    label:"DLY MIN",          num:true },
+  { key:"wheelsUp", label:"WHEELS-UP (EDCT)", num:true }
+];
+
+function sortedFlights(flights) {
+  const col = COLUMNS.find(c => c.key === sortKey) || COLUMNS[0];
+  const out = flights.slice();
+  out.sort((a, b) => {
+    let va = a[col.key], vb = b[col.key];
+    if (col.num) {
+      /* missing values (e.g. EDCT for airborne) always sort to the bottom */
+      va = (va == null || !isFinite(va)) ? null : va;
+      vb = (vb == null || !isFinite(vb)) ? null : vb;
+      if (va == null && vb == null) return a.seq - b.seq;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return (va - vb) * sortDir;
+    }
+    va = String(va == null ? "" : va);
+    vb = String(vb == null ? "" : vb);
+    const r = va.localeCompare(vb);
+    return r !== 0 ? r * sortDir : a.seq - b.seq;
+  });
+  return out;
+}
+
+/* ---------- column filtering ---------- */
+function cellText(f, key) {
+  switch (key) {
+    case "seq":      return String(f.seq);
+    case "dist":     return String(Math.round(f.dist));
+    case "gs":       return String(f.gs || "");
+    case "eta":      return fmtZ(f.eta);
+    case "sta":      return fmtZ(f.sta);
+    case "delay":    return String(Math.round(f.delay / 60000));
+    case "wheelsUp": return f.flightTimeMs == null ? "AIRBORNE"
+                          : f.status === "PROPOSED" ? "PENDING"
+                          : f.edctIssued ? fmtZ(f.wheelsUp) : "ISSUE";
+    default:         return String(f[key] == null ? "" : f[key]);
+  }
+}
+function numVal(f, key) {
+  switch (key) {
+    case "seq":      return f.seq;
+    case "dist":     return f.dist;
+    case "gs":       return f.gs;
+    case "delay":    return f.delay / 60000;
+    case "eta":      return +fmtZ(f.eta);
+    case "sta":      return +fmtZ(f.sta);
+    case "wheelsUp": return f.edctIssued && f.wheelsUp != null ? +fmtZ(f.wheelsUp) : null;
+    default:         return null;
+  }
+}
+function passesFilters(f) {
+  for (const k in filters) {
+    const raw = (filters[k] || "").trim();
+    if (!raw) continue;
+    /* numeric comparisons: >10  <250  >=1830  <=5 */
+    const m = raw.match(/^([<>]=?)\s*(\d+(?:\.\d+)?)$/);
+    if (m) {
+      const v = numVal(f, k);
+      if (v == null) return false;
+      const n = +m[2];
+      if (m[1] === ">"  && !(v >  n)) return false;
+      if (m[1] === ">=" && !(v >= n)) return false;
+      if (m[1] === "<"  && !(v <  n)) return false;
+      if (m[1] === "<=" && !(v <= n)) return false;
+    } else if (cellText(f, k).toUpperCase().indexOf(raw.toUpperCase()) === -1) {
+      return false;
+    }
+  }
+  return true;
+}
+const filtersActive = () => Object.keys(filters).some(k => (filters[k] || "").trim() !== "");
+
+/* ---------- rendering ---------- */
+const contentEl = document.getElementById("content");
+
+function renderHeaderStatus() {
+  const el = document.getElementById("feedStatus");
+  const feedTxt =
+    feedStatus === "fetching" ? "FEED \u2592\u2592" :
+    feedStatus === "error" ? "FEED FAIL" :
+    lastFetch ? "FEED " + fmtZ(lastFetch) + "Z" : "FEED \u2014";
+  const dbTxt = dbStatus === "full" ? "GLOBAL" : dbStatus === "fallback" ? "LOCAL" : "\u2026";
+  el.textContent = feedTxt + "  \u00B7  DB " + dbTxt;
+  el.className = feedStatus === "error" ? "err" : "";
+}
+
+function renderContent() {
+  /* preserve focus (filter boxes, TMU form) and ladder scroll across re-renders */
+  let refocus = null;
+  const act = document.activeElement;
+  if (act && act.dataset && (act.dataset.filter || act.dataset.keep)) {
+    refocus = {
+      sel: act.dataset.filter ? 'input[data-filter="' + act.dataset.filter + '"]'
+                              : '[data-keep="' + act.dataset.keep + '"]',
+      s: act.selectionStart, e: act.selectionEnd
+    };
+  }
+  const oldScroll = document.getElementById("ladderScroll");
+  if (oldScroll) ladderScrollPos = oldScroll.scrollTop;
+
+  if (activeTab === "tmu") { renderTMU(); restoreFocus(refocus); return; }
+  if (activeTab === "dep") { renderDep(); restoreFocus(refocus); return; }
+  renderMeter(refocus);
+}
+
+function restoreFocus(refocus) {
+  if (!refocus) return;
+  const el = contentEl.querySelector(refocus.sel);
+  if (el) {
+    el.focus();
+    try { el.setSelectionRange(refocus.s, refocus.e); } catch (e) {}
+  }
+}
+
+function renderMeter(refocus) {
+  if (!icao) {
+    contentEl.innerHTML =
+      '<div class="splash">' +
+      '<h2>SELECT AN EVENT FIELD TO BEGIN METERING</h2>' +
+      '<p>Pick an airport from the list or type any ICAO, set the airport arrival rate (AAR), and press METER.<br>' +
+      'Inbounds are sequenced to scheduled times of arrival; undeparted traffic receives a wheels-up time (EDCT) sized to absorb its delay on the ground.</p>' +
+      '</div>';
+    return;
+  }
+  const flow = computeFlow(icao);
+  if (!flow) {
+    contentEl.innerHTML = '<div class="msg">' +
+      (feedStatus === "error"
+        ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
+        : "Pulling the VATSIM feed\u2026") + '</div>';
+    return;
+  }
+
+  const air = flow.flights.filter(f => f.status === "AIRBORNE").length;
+  const gnd = flow.flights.filter(f => f.status === "GROUND").length;
+  const pro = flow.flights.filter(f => f.status === "PROPOSED").length;
+  const mRate = getRate(icao);
+  const over = flow.demandHr > mRate.aar;
+
+  let h = '<div class="strip">' +
+    '<span class="field">' + esc(icao) + '</span>' +
+    (!flow.arrPt ? '<span style="color:#f25555;font-size:11px;">NO COORDS FOR FIELD \u2014 ETAs estimated</span>' : '') +
+    stat("INBOUND", flow.flights.length) +
+    stat("AIRBORNE", air, "#57d98a") +
+    stat("GROUND", gnd, "#f5a83d") +
+    stat("PROPOSED", pro, "#54b8e8") +
+    stat("DEMAND / AAR (60 MIN)", flow.demandHr + " / " + mRate.aar, over ? "#f25555" : "#57d98a");
+  if (flow.topGates.length) {
+    h += '<span style="font-size:11px;color:#56676f;">GATES ' +
+      flow.topGates.map(([g,n]) =>
+        '<span style="color:' + flow.gateColors[g] + ';margin-left:8px;">' + esc(g) + '\u00B7' + n + '</span>'
+      ).join("") + '</span>';
+  }
+  h += '</div>';
+
+  /* table */
+  h += '<div class="layout"><div class="tablewrap">';
+  if (!flow.flights.length) {
+    h += '<div class="msg">No traffic filed to ' + esc(icao) + ' right now. The feed refreshes every 30 seconds.</div>';
+  } else {
+    const visible = sortedFlights(flow.flights).filter(passesFilters);
+    if (filtersActive()) {
+      h += '<div class="filterinfo">FILTER ACTIVE \u2014 SHOWING ' + visible.length + ' OF ' +
+        flow.flights.length + ' \u00B7 metering, stats and ladder still include all traffic' +
+        '<span class="clr" data-clearfilters>CLEAR FILTERS</span></div>';
+    }
+    h += '<table><thead><tr>' +
+      COLUMNS.map(c => {
+        const active = c.key === sortKey;
+        const arrow = active ? (sortDir === 1 ? " \u25B4" : " \u25BE") : "";
+        return '<th class="' + (active ? "sorted" : "") + '" data-sort="' + c.key + '">' +
+               c.label + arrow + '</th>';
+      }).join("") +
+      '</tr><tr class="filterrow">' +
+      COLUMNS.map(c =>
+        '<td><input data-filter="' + c.key + '" value="' + esc(filters[c.key] || "") +
+        '" placeholder="\u00B7" title="Filter ' + c.label + (c.num ? " \u2014 text match, or >n <n >=n <=n" : "") +
+        '" autocomplete="off"></td>'
+      ).join("") +
+      '</tr></thead><tbody>';
+    visible.forEach(f => {
+      const dlyColor = f.delay > 15*60000 ? "#f25555" : f.delay > 5*60000 ? "#f5a83d" : "#57d98a";
+      let edct;
+      if (f.flightTimeMs == null) {
+        edct = '<span style="color:#3a4750;">AIRBORNE</span>';
+      } else if (f.status === "PROPOSED") {
+        edct = '<span style="color:#54b8e8;">PENDING \u2014 NOT CONNECTED</span>';
+      } else if (!f.edctIssued) {
+        edct = '<button class="edctbtn" data-issue="' + esc(f.callsign) + '" data-wu="' + Math.round(f.wheelsUp) + '">ISSUE EDCT</button>' +
+          '<span style="color:#3a4750;font-size:10px;"> sugg ' + fmtZ(f.wheelsUp) + 'Z</span>';
+      } else if (f.releaseNow) {
+        edct = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
+          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel EDCT">\u2715</span>';
+      } else {
+        const tmin = Math.max(0, Math.round((f.wheelsUp - flow.now) / 60000));
+        const cls = f.pulled ? "edctpulled" : "";
+        const sub = f.pulled ? "sub" : "";
+        edct = '<span class="' + cls + '" style="' + (f.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
+          (f.pulled ? "\u25BC " : "") + fmtZ(f.wheelsUp) + 'Z' +
+          '<span class="' + sub + '" style="' + (f.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
+          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel EDCT">\u2715</span>';
+      }
+      h += '<tr>' +
+        '<td style="color:#56676f;">' + f.seq + '</td>' +
+        '<td style="color:#e8f0f4;font-weight:600;">' + esc(f.callsign) + '</td>' +
+        '<td>' + esc(f.type) + '</td>' +
+        '<td>' + esc(f.dep) + '</td>' +
+        '<td style="color:' + (flow.gateColors[f.gate] || "#8fa3af") + ';">' + esc(f.gate) + '</td>' +
+        '<td style="color:' + statusColor(f) + ';">' + f.status + (f.est ? "*" : "") + '</td>' +
+        '<td>' + Math.round(f.dist) + '</td>' +
+        '<td>' + (f.gs || "\u2014") + '</td>' +
+        '<td>' + fmtZ(f.eta) + '</td>' +
+        '<td style="color:#e8f0f4;">' + fmtZ(f.sta) + '</td>' +
+        '<td style="color:' + dlyColor + ';">' + fmtDelay(f.delay) + '</td>' +
+        '<td>' + edct + '</td>' +
+        '</tr>';
+    });
+    if (!visible.length) {
+      h += '<tr><td colspan="' + COLUMNS.length +
+        '" style="text-align:center;color:#56676f;padding:24px;">NO FLIGHTS MATCH THE ACTIVE FILTERS</td></tr>';
+    }
+    h += '</tbody></table>';
+  }
+  h += '<div class="footnote">* route distance estimated (departure field not in database) \u00B7 ' +
+    'Ground ETD assumes 10 min taxi \u00B7 Proposed ETD = filed dep time (min 20 min from now) \u00B7 ' +
+    'ETE = great circle \u00D7 1.12 at filed TAS + 14 min climb/descent \u00B7 ' +
+    'AIRBORNE: STA = ETA; running early is fine \u2014 DLY assigned only when spacing with other ' +
+    'airborne traffic requires it (AAR interval, plus same-route in-trail per the ROUTE TRAIL setting; ' +
+    'AUTO = AAR interval, no extra penalty) \u00B7 ' +
+    'GROUND/PROPOSED: slotted around fixed airborne STAs; delay absorbed on the ground \u00B7 ' +
+    'EDCTs are MANUAL: the suggested wheels-up updates live until you press ISSUE EDCT, which locks ' +
+    'the time and reserves the slot (\u2715 cancels/re-opens it) \u00B7 ' +
+    'PROPOSED flights show PENDING until the pilot connects \u00B7 ' +
+    'Click any column header to sort (click again to reverse); # restores metered sequence order \u00B7 ' +
+    'Filter boxes under each header: text match, or &gt;n &lt;n &gt;=n &lt;=n on numeric columns ' +
+    '(times as HHMM, delay in minutes); filters affect the table only.</div></div>';
+
+  /* metering ladder — fixed 12 px/min scale inside a scrollable viewport */
+  const PX_PER_MIN = 12;
+  const LADDER_WIN = 120;                       /* minutes of schedule shown */
+  const LH = LADDER_WIN * PX_PER_MIN;
+  const yOf = min => LH - (Math.max(min, 0) / LADDER_WIN) * LH;
+
+  h += '<div class="ladderwrap">' +
+    '<div class="ladderhead"><span>ARRIVAL LADDER \u00B7 ' + LADDER_WIN + ' MIN</span>' +
+    '<span class="hint">SCROLL \u25B4\u25BE \u00B7 NOW AT BOTTOM</span></div>' +
+    '<div class="ladderscroll" id="ladderScroll">' +
+    '<div class="ladder" style="height:' + LH + 'px;"><div class="axis"></div>';
+  for (let k = 0; k <= LADDER_WIN / 10; k++) {
+    const min = k * 10;
+    const y = yOf(min);
+    h += '<div class="gridline" style="top:' + (y-1) + 'px;"></div>' +
+         '<span class="gridtime" style="top:' + (y-7) + 'px;">' + fmtZ(flow.now + min*60000) + '</span>';
+  }
+  h += '<div class="nowline" style="top:' + yOf(0) + 'px;"><span>NOW</span></div>';
+  h += '<div class="freeze" style="top:' + yOf(19) + 'px;"><span>FREEZE</span></div>';
+
+  const ladderFlights = flow.flights
+    .filter(f => f.sta >= flow.now - 60000 && f.sta <= flow.now + LADDER_WIN * 60000)
+    .sort((a, b) => a.sta - b.sta);
+  if (!ladderFlights.length) {
+    h += '<div class="empty">NO STAs IN WINDOW</div>';
+  } else {
+    /* lane staggering: when consecutive tags land within 15 px vertically,
+       push the trailer to the next horizontal lane so labels stay readable */
+    const LANE_X = [56, 168];
+    let prevY = Infinity, lane = 0;
+    for (const f of ladderFlights) {
+      const y = yOf((f.sta - flow.now) / 60000);
+      lane = (prevY - y < 16) ? (lane + 1) % LANE_X.length : 0;
+      prevY = y;
+      const c = flow.gateColors[f.gate] || statusColor(f);
+      const op = f.status === "PROPOSED" ? "0.65" : "1";
+      h += '<div class="tag" style="top:' + (y-8) + 'px;left:' + LANE_X[lane] + 'px;">' +
+        '<div class="tick" style="background:' + c + ';width:' + (lane ? 110 : 12) + 'px;"></div>' +
+        '<span class="lab" style="border-left:3px solid ' + c + ';opacity:' + op + ';">' +
+        esc(f.callsign) + ' <span class="t">' + fmtZ(f.sta) + '</span></span></div>';
+    }
+  }
+  h += '</div></div></div></div>';
+
+  contentEl.innerHTML = h;
+
+  restoreFocus(refocus);
+  /* restore ladder scroll; first render starts at NOW (bottom) */
+  const ls = document.getElementById("ladderScroll");
+  if (ls) ls.scrollTop = (ladderScrollPos == null) ? ls.scrollHeight : ladderScrollPos;
+}
+
+/* ---------- TMU view: set arrival rate programs for any airport ---------- */
+const TRAIL_OPTS = [[0,"AUTO"],[3,"3 MIN"],[5,"5 MIN"],[7,"7 MIN"],[10,"10 MIN"],[15,"15 MIN"],[20,"20 MIN"]];
+const selOpts = (opts, cur) => opts.map(o => {
+  const [v, t] = Array.isArray(o) ? o : [o, o + "/hr"];
+  return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + t + '</option>';
+}).join("");
+
+function renderTMU() {
+  let h = '<div class="tmuform">' +
+    '<span class="lbl">AIRPORT</span>' +
+    '<input id="tmuIcao" data-keep="tmuIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off">' +
+    '<span class="lbl">AAR</span><input id="tmuAar" class="aarinput" data-keep="tmuAar" type="number" min="1" max="200" value="30">' +
+    '<span class="lbl">ROUTE TRAIL</span><select id="tmuTrail">' + selOpts(TRAIL_OPTS, 0) + '</select>' +
+    '<button data-tmuset>SET PROGRAM</button>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Programs apply everywhere: METER view, EDCTs, and the DEPARTURES view.</span>' +
+    '</div>';
+
+  const codes = Object.keys(tmuRates).sort();
+  if (!codes.length) {
+    h += '<div class="splash"><h2>NO TMU PROGRAMS ACTIVE</h2>' +
+      '<p>Set an arrival rate for any airport above. Tower controllers on the DEPARTURES tab will see ' +
+      'EDCTs for traffic bound to programmed fields.<br>Metering an airport on the METER tab also creates a program for it.</p></div>';
+  } else {
+    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+      '<th>AIRPORT</th><th>AAR</th><th>ROUTE TRAIL</th><th>INBOUND</th><th>AIRBORNE</th>' +
+      '<th>GROUND</th><th>PROPOSED</th><th>DEMAND 60 MIN</th><th>STATUS</th><th>ACTIONS</th>' +
+      '</tr></thead><tbody>';
+    for (const code of codes) {
+      const r = tmuRates[code];
+      const flow = computeFlow(code);
+      let inb = "\u2014", air = "\u2014", gnd = "\u2014", pro = "\u2014", dem = "\u2014",
+          st = '<span style="color:#56676f;">NO FEED</span>';
+      if (flow) {
+        inb = flow.flights.length;
+        air = flow.flights.filter(f => f.status === "AIRBORNE").length;
+        gnd = flow.flights.filter(f => f.status === "GROUND").length;
+        pro = flow.flights.filter(f => f.status === "PROPOSED").length;
+        dem = flow.demandHr + " / " + r.aar;
+        st = flow.demandHr > r.aar
+          ? '<span style="color:#f25555;font-weight:600;">OVER CAPACITY</span>'
+          : '<span style="color:#57d98a;">OK</span>';
+      }
+      h += '<tr class="tmurow">' +
+        '<td style="color:#e8f0f4;font-weight:600;">' + esc(code) + '</td>' +
+        '<td><input class="aarinput" type="number" min="1" max="200" data-tmuaar="' + esc(code) +
+        '" data-keep="tmuaar-' + esc(code) + '" value="' + r.aar + '"></td>' +
+        '<td><select data-tmutrail="' + esc(code) + '">' + selOpts(TRAIL_OPTS, r.trail) + '</select></td>' +
+        '<td>' + inb + '</td><td style="color:#57d98a;">' + air + '</td>' +
+        '<td style="color:#f5a83d;">' + gnd + '</td><td style="color:#54b8e8;">' + pro + '</td>' +
+        '<td>' + dem + '</td><td>' + st + '</td>' +
+        '<td><span class="tmuact" data-tmuview="' + esc(code) + '">VIEW</span>' +
+        '<span class="tmuact rm" data-tmurm="' + esc(code) + '">REMOVE</span></td>' +
+        '</tr>';
+    }
+    h += '</tbody></table>' +
+      '<div class="footnote">Rates set here are used by every view in this browser session. ' +
+      'For multi-controller events, publish the rates and have each position enter the same values \u2014 ' +
+      'the schedule is deterministic, so identical rates + the shared VATSIM feed give everyone the same picture.</div></div>';
+  }
+  contentEl.innerHTML = h;
+}
+
+/* ---------- DEPARTURES view: tower controller's field ---------- */
+const DEP_RELEASE_INT = 2 * 60000;   /* min interval between issued releases off the same field */
+const TAXI_FLOOR = 10 * 60000;       /* earliest wheels-up: now + taxi/readiness */
+
+/* Earliest available wheels-up for a GROUND flight, issuance-order priority:
+   constrained ONLY by fixed slots at the destination (airborne traffic and
+   already-issued EDCTs) plus the release interval against other issued
+   EDCTs off the same departure field. Unissued peers do NOT block it —
+   whoever is issued first takes the earliest time. */
+/* Compress issued EDCTs into freed slots. Re-solves every issued EDCT in
+   issuance order, each taking the earliest slot that still respects the
+   destination's arrival spacing (vs airborne traffic + earlier-issued EDCTs)
+   and the same-field release interval. Because this only ever runs after a
+   slot is freed, times can only hold or move EARLIER. Any EDCT that moves
+   earlier is flagged so its box flashes green to alert the controller. */
+function compressEdcts() {
+  const now = Date.now();
+  const recs = Object.entries(issuedEdcts)
+    .map(([cs, r]) => ({ cs, r }))
+    .sort((a, b) => a.r.order - b.r.order);
+  if (!recs.length) return;
+
+  /* resolve each issued flight's live departure/destination/flight-time from the feed */
+  const info = {};
+  const scan = (list, isPrefile) => {
+    for (const x of list) {
+      const fp = x.flight_plan;
+      if (!fp || issuedEdcts[x.callsign] == null) continue;
+      info[x.callsign] = {
+        dep: (fp.departure || "????").toUpperCase(),
+        dest: (fp.arrival || "????").toUpperCase()
+      };
+    }
+  };
+  scan(vatsim ? (vatsim.pilots || []) : [], false);
+
+  const placedByDest = {};   /* dest -> [{t,gate}] arrival slots taken by earlier-issued EDCTs */
+  const placedByDep = {};    /* dep  -> [wheelsUp] releases taken by earlier-issued EDCTs */
+
+  for (const { cs, r } of recs) {
+    const meta = info[cs];
+    if (!meta) continue;                       /* aircraft no longer on the ground/feed */
+    const destFlow = computeFlow(meta.dest);
+    if (!destFlow) continue;
+    const me = destFlow.flights.find(f => f.callsign === cs);
+    if (!me || me.flightTimeMs == null) continue;
+    const rate = getRate(meta.dest);
+    const spacing = 3600000 / Math.max(rate.aar, 1);
+    const gateSpacing = Math.max(spacing, rate.trail * 60000);
+
+    /* fixed arrival slots: airborne traffic + other issued EDCTs not in this run's order yet */
+    const fixed = destFlow.flights
+      .filter(f => f.callsign !== cs && f.status === "AIRBORNE")
+      .map(f => ({ t: f.sta, gate: f.gate }));
+    for (const s of (placedByDest[meta.dest] || [])) fixed.push(s);
+
+    const depWUs = placedByDep[meta.dep] || [];
+
+    let wu = now + TAXI_FLOOR;
+    let moved = true, guard = 0;
+    while (moved && guard++ < 500) {
+      moved = false;
+      let sta = wu + me.flightTimeMs;
+      for (const sl of fixed) {
+        const req = (sl.gate !== "\u2014" && sl.gate === me.gate) ? gateSpacing : spacing;
+        if (Math.abs(sta - sl.t) < req) { sta = sl.t + req; wu = sta - me.flightTimeMs; moved = true; }
+      }
+      for (const o of depWUs) {
+        if (Math.abs(wu - o) < DEP_RELEASE_INT) { wu = o + DEP_RELEASE_INT; moved = true; }
+      }
+    }
+
+    const newSta = wu + me.flightTimeMs;
+    if (wu < r.t - 1000) r.pulledUntil = now + EDCT_FLASH_MS;   /* moved earlier: flash green */
+    r.t = wu;
+    (placedByDest[meta.dest] = placedByDest[meta.dest] || []).push({ t: newSta, gate: me.gate });
+    (placedByDep[meta.dep] = placedByDep[meta.dep] || []).push(wu);
+  }
+}
+
+function earliestEdct(cs, depField, destField) {
+  const flow = computeFlow(destField);
+  if (!flow) return null;
+  const me = flow.flights.find(f => f.callsign === cs);
+  if (!me || me.flightTimeMs == null) return null;
+  const rate = getRate(destField);
+  const spacing = 3600000 / Math.max(rate.aar, 1);
+  const gateSpacing = Math.max(spacing, rate.trail * 60000);
+
+  const fixed = flow.flights
+    .filter(f => f.callsign !== cs && (f.status === "AIRBORNE" || f.edctIssued))
+    .map(f => ({ t: f.sta, gate: f.gate }));
+
+  /* issued EDCTs of other ground aircraft at the same departure airport */
+  const depWUs = [];
+  for (const p of (vatsim.pilots || [])) {
+    const fp = p.flight_plan;
+    if (!fp || p.callsign === cs) continue;
+    if ((fp.departure || "").toUpperCase() !== depField) continue;
+    if (p.groundspeed > 60 && (p.altitude || 0) > 300) continue;   /* already airborne */
+    if (issuedEdcts[p.callsign] != null) depWUs.push(issuedEdcts[p.callsign].t);
+  }
+
+  let wu = Date.now() + TAXI_FLOOR;
+  let moved = true, guard = 0;
+  while (moved && guard++ < 500) {
+    moved = false;
+    let sta = wu + me.flightTimeMs;
+    for (const s of fixed) {
+      const req = (s.gate !== "\u2014" && s.gate === me.gate) ? gateSpacing : spacing;
+      if (Math.abs(sta - s.t) < req) { sta = s.t + req; wu = sta - me.flightTimeMs; moved = true; }
+    }
+    for (const o of depWUs) {
+      if (Math.abs(wu - o) < DEP_RELEASE_INT) { wu = o + DEP_RELEASE_INT; moved = true; }
+    }
+  }
+  return wu;
+}
+
+function renderDep() {
+  if (!depIcao) {
+    contentEl.innerHTML = '<div class="splash"><h2>SET YOUR FIELD</h2>' +
+      '<p>Enter the airport you are working departures from (top right of the header).<br>' +
+      'You\u2019ll see every departure off your field, with EDCTs for any destination that has a TMU program.</p></div>';
+    return;
+  }
+  if (!vatsim) {
+    contentEl.innerHTML = '<div class="msg">' +
+      (feedStatus === "error"
+        ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
+        : "Pulling the VATSIM feed\u2026") + '</div>';
+    return;
+  }
+  const now = Date.now();
+
+  /* collect departures off this field */
+  const deps = [];
+  for (const p of (vatsim.pilots || [])) {
+    const fp = p.flight_plan;
+    if (!fp || (fp.departure || "").toUpperCase() !== depIcao) continue;
+    const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
+    if (airborne) continue;                       /* tower cares about who hasn't departed */
+    deps.push({ callsign: p.callsign, status: "GROUND",
+      type: (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0],
+      dest: (fp.arrival || "????").toUpperCase() });
+  }
+  for (const pf of (vatsim.prefiles || [])) {
+    const fp = pf.flight_plan;
+    if (!fp || (fp.departure || "").toUpperCase() !== depIcao) continue;
+    if (deps.some(d => d.callsign === pf.callsign)) continue;
+    deps.push({ callsign: pf.callsign, status: "PROPOSED",
+      type: (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0],
+      dest: (fp.arrival || "????").toUpperCase() });
+  }
+
+  /* pull metering info from each programmed destination's flow */
+  const flowCache = {};
+  for (const d of deps) {
+    if (tmuRates[d.dest]) {
+      if (!(d.dest in flowCache)) flowCache[d.dest] = computeFlow(d.dest);
+      const fl = flowCache[d.dest];
+      const e = fl && fl.flights.find(f => f.callsign === d.callsign);
+      if (e) { d.entry = e; d.aar = getRate(d.dest).aar; }
+    }
+  }
+  /* order: EDCT'd / metered first by wheels-up, then the rest */
+  deps.sort((a, b) => {
+    const aw = a.entry && a.entry.wheelsUp != null ? a.entry.wheelsUp : Infinity;
+    const bw = b.entry && b.entry.wheelsUp != null ? b.entry.wheelsUp : Infinity;
+    return aw - bw || a.callsign.localeCompare(b.callsign);
+  });
+
+  const metered = deps.filter(d => d.entry).length;
+  const held = deps.filter(d => d.entry && d.entry.edctIssued && !d.entry.releaseNow).length;
+
+  let h = '<div class="strip">' +
+    '<span class="field">' + esc(depIcao) + ' DEPARTURES</span>' +
+    stat("TOTAL", deps.length) +
+    stat("TO METERED FIELDS", metered, "#f5a83d") +
+    stat("HOLDING ON EDCT", held, "#f25555") +
+    '<span style="font-size:11px;color:#56676f;">Destinations with a TMU program: ' +
+    (Object.keys(tmuRates).length ? Object.keys(tmuRates).sort().map(esc).join(", ") : "none \u2014 set them on the TMU tab") +
+    '</span></div>';
+
+  if (!deps.length) {
+    h += '<div class="msg">No undeparted traffic filed out of ' + esc(depIcao) + ' right now.</div>';
+  } else {
+    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+      '<th>CALLSIGN</th><th>TYPE</th><th>DEST</th><th>STATUS</th><th>TMU PGM</th>' +
+      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>WHEELS-UP (EDCT)</th>' +
+      '</tr></thead><tbody>';
+    for (const d of deps) {
+      const e = d.entry;
+      let pgm, sta = "\u2014", dly = "\u2014", edct;
+      if (!tmuRates[d.dest]) {
+        pgm = '<span style="color:#3a4750;">\u2014</span>';
+        edct = '<span style="color:#3a4750;">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+      } else if (!e) {
+        pgm = d.dest in flowCache && !flowCache[d.dest]
+          ? '<span style="color:#56676f;">NO FEED</span>'
+          : esc(String(getRate(d.dest).aar)) + "/hr";
+        edct = '<span style="color:#56676f;">\u2014</span>';
+      } else {
+        pgm = d.aar + "/hr";
+        sta = fmtZ(e.sta);
+        dly = fmtDelay(e.delay);
+        if (d.status === "PROPOSED") {
+          edct = '<span style="color:#54b8e8;">PENDING \u2014 NOT CONNECTED</span>';
+        } else if (!e.edctIssued) {
+          const ewu = earliestEdct(d.callsign, depIcao, d.dest);
+          const wu = ewu != null ? ewu : e.wheelsUp;
+          edct = '<button class="edctbtn" data-issue="' + esc(e.callsign) + '" data-wu="' + Math.round(wu) + '">ISSUE EDCT</button>' +
+            '<span style="color:#3a4750;font-size:10px;"> earliest ' + fmtZ(wu) + 'Z</span>';
+        } else if (e.releaseNow) {
+          edct = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
+            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel EDCT">\u2715</span>';
+        } else {
+          const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
+          const cls = e.pulled ? "edctpulled" : "";
+          const sub = e.pulled ? "sub" : "";
+          edct = '<span class="' + cls + '" style="' + (e.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
+            (e.pulled ? "\u25BC " : "") + fmtZ(e.wheelsUp) + 'Z' +
+            '<span class="' + sub + '" style="' + (e.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
+            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel EDCT">\u2715</span>';
+        }
+      }
+      h += '<tr>' +
+        '<td style="color:#e8f0f4;font-weight:600;">' + esc(d.callsign) + '</td>' +
+        '<td>' + esc(d.type) + '</td>' +
+        '<td>' + esc(d.dest) + '</td>' +
+        '<td style="color:' + (d.status === "GROUND" ? "#f5a83d" : "#54b8e8") + ';">' + d.status + '</td>' +
+        '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + edct + '</td>' +
+        '</tr>';
+    }
+    h += '</tbody></table>' +
+      '<div class="footnote">Departures off ' + esc(depIcao) + ' only (ground + prefiled; airborne drop off this list). ' +
+      'ISSUE EDCT here uses issuance-order priority: the first aircraft issued takes the EARLIEST available time, ' +
+      'constrained only by airborne traffic and already-issued EDCTs at the destination, plus a ' +
+      (DEP_RELEASE_INT / 60000) + '-min release interval between issued EDCTs off this field. ' +
+      'Earliest wheels-up is never sooner than ' + (TAXI_FLOOR / 60000) + ' min from now (taxi). ' +
+      'EDCTs issued here reserve the slot at the destination and show on the METER tab too.</div></div>';
+  }
+  contentEl.innerHTML = h;
+}
+
+function stat(label, value, color) {
+  return '<span class="stat"><span class="k">' + label + '</span>' +
+    '<span class="v"' + (color ? ' style="color:' + color + ';"' : '') + '>' + value + '</span></span>';
+}
+
+/* ---------- wiring ---------- */
+const icaoInput = document.getElementById("icaoInput");
+const aarSel = document.getElementById("aarSel");
+const dl = document.getElementById("event-fields");
+
+Object.keys(FALLBACK_AIRPORTS).sort().forEach(a => {
+  const o = document.createElement("option"); o.value = a; dl.appendChild(o);
+});
+const routeSel = document.getElementById("routeSel");
+[[0,"AUTO"],[3,"3 MIN"],[5,"5 MIN"],[7,"7 MIN"],[10,"10 MIN"],[15,"15 MIN"],[20,"20 MIN"]].forEach(([v,t]) => {
+  const o = document.createElement("option");
+  o.value = v; o.textContent = t; if (v === 0) o.selected = true;
+  routeSel.appendChild(o);
+});
+routeSel.addEventListener("change", () => {
+  if (icao) tmuRates[icao] = { aar: parseAar(aarSel.value) || getRate(icao).aar, trail: +routeSel.value };
+  renderContent();
+});
+
+icaoInput.addEventListener("input", () => { icaoInput.value = icaoInput.value.toUpperCase(); });
+icaoInput.addEventListener("keydown", e => { if (e.key === "Enter") activate(); });
+document.getElementById("meterBtn").addEventListener("click", activate);
+
+/* tabs */
+function setTab(t) {
+  activeTab = t;
+  document.querySelectorAll(".tab").forEach(el =>
+    el.classList.toggle("active", el.dataset.tab === t));
+  document.getElementById("meterCtl").style.display = t === "meter" ? "flex" : "none";
+  document.getElementById("depCtl").style.display = t === "dep" ? "flex" : "none";
+  renderContent();
+}
+document.querySelectorAll(".tab").forEach(el =>
+  el.addEventListener("click", () => setTab(el.dataset.tab)));
+
+/* departures view field */
+const depInput = document.getElementById("depInput");
+function depActivate() {
+  const v = depInput.value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(v)) return;
+  depIcao = v;
+  ensurePolling();
+}
+depInput.addEventListener("input", () => { depInput.value = depInput.value.toUpperCase(); });
+depInput.addEventListener("keydown", e => { if (e.key === "Enter") depActivate(); });
+document.getElementById("depBtn").addEventListener("click", depActivate);
+
+/* TMU page: SET PROGRAM form + inline rate edits (delegated) */
+contentEl.addEventListener("click", e => {
+  if (!e.target.closest("[data-tmuset]")) return;
+  const inp = contentEl.querySelector("#tmuIcao");
+  const v = inp ? inp.value.trim().toUpperCase() : "";
+  if (!/^[A-Z0-9]{4}$/.test(v)) return;
+  const a = parseAar(contentEl.querySelector("#tmuAar").value);
+  if (a == null) return;                          /* invalid AAR entry */
+  tmuRates[v] = { aar: a, trail: +contentEl.querySelector("#tmuTrail").value };
+  ensurePolling();
+  renderContent();
+});
+contentEl.addEventListener("change", e => {
+  const a = e.target.closest("[data-tmuaar]");
+  if (a) {
+    const v = parseAar(a.value);
+    if (v == null) { a.value = tmuRates[a.dataset.tmuaar].aar; return; }
+    tmuRates[a.dataset.tmuaar].aar = v;
+    renderContent();
+    return;
+  }
+  const t = e.target.closest("select[data-tmutrail]");
+  if (t) { tmuRates[t.dataset.tmutrail].trail = +t.value; renderContent(); return; }
+});
+aarSel.addEventListener("change", () => {
+  const a = parseAar(aarSel.value);
+  if (a == null) { aarSel.value = getRate(icao).aar; return; }   /* reject invalid entry */
+  aarSel.value = a;
+  if (icao) tmuRates[icao] = { aar: a, trail: +routeSel.value };
+  renderContent();
+});
+
+/* sortable headers — delegated so it survives every re-render */
+contentEl.addEventListener("click", e => {
+  const issueBtn = e.target.closest("[data-issue]");
+  if (issueBtn) {
+    const wu = +issueBtn.dataset.wu;
+    if (isFinite(wu))
+      issuedEdcts[issueBtn.dataset.issue] = { t: Math.max(wu, Date.now()), order: ++issueSeq, pulledUntil: null };
+    renderContent();
+    return;
+  }
+  const tmuAct = e.target.closest("[data-tmuview],[data-tmurm]");
+  if (tmuAct) {
+    if (tmuAct.dataset.tmuview) {
+      icao = tmuAct.dataset.tmuview;
+      icaoInput.value = icao;
+      syncMeterSelectors();
+      setTab("meter");
+      ladderScrollPos = null;
+      ensurePolling();
+    } else {
+      delete tmuRates[tmuAct.dataset.tmurm];
+      renderContent();
+    }
+    return;
+  }
+  const cxl = e.target.closest("[data-cxl]");
+  if (cxl) {
+    delete issuedEdcts[cxl.dataset.cxl];
+    compressEdcts();      /* pull remaining issued EDCTs up into the freed slot */
+    renderContent();
+    return;
+  }
+  if (e.target.closest("[data-clearfilters]")) {
+    for (const k in filters) delete filters[k];
+    renderContent();
+    return;
+  }
+  const th = e.target.closest("th[data-sort]");
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (sortKey === key) sortDir = -sortDir;
+  else { sortKey = key; sortDir = 1; }
+  renderContent();
+});
+
+/* per-column filters — delegated, focus is preserved across re-renders */
+contentEl.addEventListener("input", e => {
+  const inp = e.target.closest("input[data-filter]");
+  if (!inp) return;
+  filters[inp.dataset.filter] = inp.value;
+  renderContent();
+});
+
+function activate() {
+  const v = icaoInput.value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(v)) return;
+  icao = v;
+  ladderScrollPos = null;          /* new field: snap ladder back to NOW */
+  if (tmuRates[v]) {
+    /* a TMU program already exists for this field: adopt it */
+    aarSel.value = tmuRates[v].aar;
+    routeSel.value = tmuRates[v].trail;
+  } else {
+    /* create a program from the current control values */
+    tmuRates[v] = { aar: parseAar(aarSel.value) || 30, trail: +routeSel.value };
+    aarSel.value = tmuRates[v].aar;
+  }
+  ensurePolling();
+}
+
+function syncMeterSelectors() {
+  const r = getRate(icao);
+  aarSel.value = r.aar;
+  routeSel.value = r.trail;
+}
+
+function ensurePolling() {
+  if (!pollTimer) pollTimer = setInterval(fetchFeed, 30000);
+  fetchFeed();
+}
+
+/* UTC clock + periodic recompute (countdowns, ladder drift) */
+setInterval(() => {
+  const d = new Date();
+  document.getElementById("clock").textContent =
+    String(d.getUTCHours()).padStart(2,"0") + ":" +
+    String(d.getUTCMinutes()).padStart(2,"0") + ":" +
+    String(d.getUTCSeconds()).padStart(2,"0") + "Z";
+}, 1000);
+setInterval(() => { if (icao && vatsim) renderContent(); }, 10000);
+
+renderContent();
+</script>
+</body>
+</html>
