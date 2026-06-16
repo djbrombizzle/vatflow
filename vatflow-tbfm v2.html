@@ -16,6 +16,8 @@
   input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px #54b8e8; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
   .relnow { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; }
+  .released { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; letter-spacing:.06em; }
+  .vfrtag { color:#7d8a93; font-size:11px; letter-spacing:.05em; }
 
   header {
     display:flex; align-items:center; gap:18px; flex-wrap:wrap;
@@ -177,7 +179,7 @@
 <header>
   <div style="display:flex;align-items:baseline;gap:10px;">
     <span class="brand">VATFLOW</span>
-    <span class="brandsub">TIME BASED FLOW MGMT &middot; VATSIM</span>
+    <span class="brandsub">CALL FOR RELEASE PRGM &middot; VATSIM</span>
   </div>
   <nav class="tabs">
     <span class="tab active" data-tab="meter">METER</span>
@@ -279,7 +281,8 @@ let sortKey = "seq";   // active sort column
 let sortDir = 1;       // 1 asc, -1 desc
 const filters = {};    // column key -> filter string
 const issuedEdcts = {}; // callsign -> { t, order, pulledUntil } (manual EDCT records)
-const EDCT_FLASH_MS = 60000;  // how long a pulled-up EDCT stays highlighted
+const EDCT_FLASH_MS = 60000;  // how long a pulled-up CFR stays highlighted
+const CFR_THRESHOLD = 60000;  // wheels-up within this of now = no delay needed -> RELEASED
 let lastWireSeen = "";  // JSON of last synced state, to ignore Firebase echoes
 let ladderScrollPos = null;  // preserved scroll position; null = scroll to NOW
 
@@ -381,29 +384,36 @@ function computeFlow(target) {
     const fp = p.flight_plan;
     if (!fp || (fp.arrival || "").toUpperCase() !== target) continue;
     const tas = parseTAS(fp.cruise_tas);
-    const gate = arrivalGate(fp.route, target);
+    const vfr = /^V/i.test(fp.flight_rules || "");
+    const gate = vfr ? "VFR" : arrivalGate(fp.route, target);
     const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
     const dep = (fp.departure || "????").toUpperCase();
     const distToArr = arrPt ? gcDist(p.latitude, p.longitude, arrPt[0], arrPt[1]) : null;
     const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
+    const arrived = !airborne && p.groundspeed <= 60 && distToArr != null && distToArr < 5;
 
-    if (airborne && distToArr != null) {
+    if (arrived) {
+      /* landed/taxiing at the destination — not a pending departure, no metering */
+      flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
+        status:"ARRIVED", dist:distToArr, gs:p.groundspeed, eta:now, sta:now,
+        delay:0, flightTimeMs:null, est:false, arrived:true, vfr });
+    } else if (airborne && distToArr != null) {
       const gs = Math.max(p.groundspeed, 120);
       const pad = distToArr > 40 ? 4 : distToArr > 15 ? 2 : 0;
       const eteMs = (distToArr / gs) * 3600000 + pad * 60000;
       flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
         status:"AIRBORNE", dist:distToArr, gs:p.groundspeed, eta:now + eteMs,
-        flightTimeMs:null, est:false });
+        sta:now + eteMs, delay:0, flightTimeMs:null, est:false, vfr });
     } else {
       const depPt = lookup(dep);
       let routeNm, est = false;
       if (depPt && arrPt) routeNm = gcDist(depPt[0], depPt[1], arrPt[0], arrPt[1]) * 1.12;
       else { routeNm = 300; est = true; }
       const flightTimeMs = (routeNm / tas) * 3600000 + 14 * 60000;
-      const etd = now + 10 * 60000;
+      const etd = now;   /* assume ready-to-go now; CFR time, if any, is the only delay */
       flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
         status:"GROUND", dist:routeNm, gs:p.groundspeed, eta:etd + flightTimeMs,
-        flightTimeMs, est });
+        sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr });
     }
   }
 
@@ -412,7 +422,8 @@ function computeFlow(target) {
     if (!fp || (fp.arrival || "").toUpperCase() !== target) continue;
     if (flights.some(f => f.callsign === pf.callsign)) continue;
     const tas = parseTAS(fp.cruise_tas);
-    const gate = arrivalGate(fp.route, target);
+    const vfr = /^V/i.test(fp.flight_rules || "");
+    const gate = vfr ? "VFR" : arrivalGate(fp.route, target);
     const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
     const dep = (fp.departure || "????").toUpperCase();
     const depPt = lookup(dep);
@@ -430,7 +441,8 @@ function computeFlow(target) {
       etd = Math.max(t, now + 20 * 60000);
     }
     flights.push({ key:"P-"+pf.callsign, callsign:pf.callsign, type:acft, dep, gate,
-      status:"PROPOSED", dist:routeNm, gs:0, eta:etd + flightTimeMs, flightTimeMs, est });
+      status:"PROPOSED", dist:routeNm, gs:0, eta:etd + flightTimeMs,
+      sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr });
   }
 
   /* ----- metering: two-tier scheduler -----
@@ -448,8 +460,8 @@ function computeFlow(target) {
   const gateSpacing = Math.max(spacing, rate.trail * 60000);
   const assigned = [];                                /* {t, gate} occupied slots */
 
-  const airborneF = flights.filter(f => f.status === "AIRBORNE").sort((a,b) => a.eta - b.eta);
-  const groundF   = flights.filter(f => f.status !== "AIRBORNE").sort((a,b) => a.eta - b.eta);
+  const airborneF = flights.filter(f => f.status === "AIRBORNE" && !f.vfr).sort((a,b) => a.eta - b.eta);
+  const groundF   = flights.filter(f => (f.status === "GROUND" || f.status === "PROPOSED") && !f.vfr).sort((a,b) => a.eta - b.eta);
 
   let prevSta = -Infinity;
   const lastGateSta = {};
@@ -464,7 +476,7 @@ function computeFlow(target) {
     assigned.push({ t: sta, gate: f.gate });
   }
 
-  /* Tier 2a: GROUND flights with a manually ISSUED EDCT keep their issued
+  /* Tier 2a: GROUND flights with a manually issued CFR keep their issued
      wheels-up; their slot is fixed and reserved before anyone else slots in. */
   const groundIssued = groundF.filter(f => f.status === "GROUND" && issuedEdcts[f.callsign] != null);
   const groundAuto   = groundF.filter(f => !(f.status === "GROUND" && issuedEdcts[f.callsign] != null));
@@ -477,12 +489,16 @@ function computeFlow(target) {
     f.sta = f.wheelsUp + f.flightTimeMs;
     f.delay = Math.max(0, f.sta - f.eta);
     f.releaseNow = f.wheelsUp <= now + 60000;
+    f.needsCfr = true;                /* already issued, so it is in the program */
     assigned.push({ t: f.sta, gate: f.gate });
   }
 
   /* Tier 2b: everything else on the ground (and proposed) slots around the
-     fixed airborne STAs and issued-EDCT slots. For GROUND flights the
-     resulting wheels-up is only a PROPOSAL until the user issues it. */
+     fixed airborne STAs and issued-CFR slots. For GROUND flights the
+     resulting wheels-up is only a PROPOSAL until the user issues it. A
+     flight only NEEDS a CFR if metering pushes its wheels-up past now —
+     i.e. the field is at/over capacity or a slot conflict exists. With
+     capacity and no conflict, no delay is needed and it is released. */
   for (const f of groundAuto) {
     let cand = f.eta, moved = true;
     while (moved) {
@@ -497,7 +513,8 @@ function computeFlow(target) {
     assigned.push({ t: cand, gate: f.gate });
     if (f.flightTimeMs != null) {
       f.edctIssued = false;
-      f.wheelsUp = f.sta - f.flightTimeMs;            /* proposed EDCT / CTD */
+      f.wheelsUp = f.sta - f.flightTimeMs;            /* proposed wheels-up / CTD */
+      f.needsCfr = f.wheelsUp > now + CFR_THRESHOLD;  /* delay required? */
       f.releaseNow = f.wheelsUp <= now + 60000;
     }
   }
@@ -506,9 +523,9 @@ function computeFlow(target) {
   flights.sort((a, b) => a.sta - b.sta);
   flights.forEach((f, i) => { f.seq = i + 1; });
 
-  const demandHr = flights.filter(f => f.eta < now + 3600000).length;
+  const demandHr = flights.filter(f => f.status !== "ARRIVED" && !f.vfr && f.eta < now + 3600000).length;
   const gates = {};
-  for (const f of flights) if (f.gate !== "\u2014") gates[f.gate] = (gates[f.gate] || 0) + 1;
+  for (const f of flights) if (f.status !== "ARRIVED" && !f.vfr && f.gate !== "\u2014") gates[f.gate] = (gates[f.gate] || 0) + 1;
   const topGates = Object.entries(gates).sort((a,b) => b[1]-a[1]).slice(0,5);
   const gateColors = {};
   topGates.forEach(([g], i) => gateColors[g] = GATE_PALETTE[i % GATE_PALETTE.length]);
@@ -517,6 +534,7 @@ function computeFlow(target) {
 }
 
 const statusColor = f =>
+  f.status === "ARRIVED" ? "#56676f" :
   f.status === "AIRBORNE" ? "#57d98a" : f.status === "GROUND" ? "#f5a83d" : "#54b8e8";
 
 /* ---------- column sorting ---------- */
@@ -532,7 +550,7 @@ const COLUMNS = [
   { key:"eta",      label:"ETA Z",            num:true },
   { key:"sta",      label:"STA Z",            num:true },
   { key:"delay",    label:"DLY MIN",          num:true },
-  { key:"wheelsUp", label:"WHEELS-UP (EDCT)", num:true }
+  { key:"wheelsUp", label:"CALL FOR RELEASE (CFR)", num:true }
 ];
 
 function sortedFlights(flights) {
@@ -566,9 +584,12 @@ function cellText(f, key) {
     case "eta":      return fmtZ(f.eta);
     case "sta":      return fmtZ(f.sta);
     case "delay":    return String(Math.round(f.delay / 60000));
-    case "wheelsUp": return f.flightTimeMs == null ? "AIRBORNE"
+    case "wheelsUp": return f.status === "ARRIVED" ? "ARRIVED"
+                          : f.vfr ? "VFR"
+                          : f.flightTimeMs == null ? "AIRBORNE"
                           : f.status === "PROPOSED" ? "PENDING"
-                          : f.edctIssued ? fmtZ(f.wheelsUp) : "ISSUE";
+                          : f.edctIssued ? fmtZ(f.wheelsUp)
+                          : f.needsCfr ? "CFR" : "RELEASED";
     default:         return String(f[key] == null ? "" : f[key]);
   }
 }
@@ -654,7 +675,7 @@ function renderMeter(refocus) {
       '<div class="splash">' +
       '<h2>SELECT AN EVENT FIELD TO BEGIN METERING</h2>' +
       '<p>Pick an airport from the list or type any ICAO, set the airport arrival rate (AAR), and press METER.<br>' +
-      'Inbounds are sequenced to scheduled times of arrival; undeparted traffic receives a wheels-up time (EDCT) sized to absorb its delay on the ground.</p>' +
+      'Inbounds are sequenced to scheduled times of arrival; undeparted traffic receives a Call For Release (CFR) time sized to absorb its delay on the ground.</p>' +
       '</div>';
     return;
   }
@@ -670,16 +691,19 @@ function renderMeter(refocus) {
   const air = flow.flights.filter(f => f.status === "AIRBORNE").length;
   const gnd = flow.flights.filter(f => f.status === "GROUND").length;
   const pro = flow.flights.filter(f => f.status === "PROPOSED").length;
+  const arr = flow.flights.filter(f => f.status === "ARRIVED").length;
+  const inbound = flow.flights.length - arr;
   const mRate = getRate(icao);
   const over = flow.demandHr > mRate.aar;
 
   let h = '<div class="strip">' +
     '<span class="field">' + esc(icao) + '</span>' +
     (!flow.arrPt ? '<span style="color:#f25555;font-size:11px;">NO COORDS FOR FIELD \u2014 ETAs estimated</span>' : '') +
-    stat("INBOUND", flow.flights.length) +
+    stat("INBOUND", inbound) +
     stat("AIRBORNE", air, "#57d98a") +
     stat("GROUND", gnd, "#f5a83d") +
     stat("PROPOSED", pro, "#54b8e8") +
+    (arr ? stat("ARRIVED", arr, "#56676f") : "") +
     stat("DEMAND / AAR (60 MIN)", flow.demandHr + " / " + mRate.aar, over ? "#f25555" : "#57d98a");
   if (flow.topGates.length) {
     h += '<span style="font-size:11px;color:#56676f;">GATES ' +
@@ -717,16 +741,22 @@ function renderMeter(refocus) {
     visible.forEach(f => {
       const dlyColor = f.delay > 15*60000 ? "#f25555" : f.delay > 5*60000 ? "#f5a83d" : "#57d98a";
       let edct;
-      if (f.flightTimeMs == null) {
+      if (f.status === "ARRIVED") {
+        edct = '<span style="color:#56676f;">ARRIVED</span>';
+      } else if (f.vfr) {
+        edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+      } else if (f.flightTimeMs == null) {
         edct = '<span style="color:#3a4750;">AIRBORNE</span>';
       } else if (f.status === "PROPOSED") {
         edct = '<span style="color:#54b8e8;">PENDING \u2014 NOT CONNECTED</span>';
+      } else if (!f.edctIssued && !f.needsCfr) {
+        edct = '<span class="released">\u2713 RELEASED</span>';
       } else if (!f.edctIssued) {
-        edct = '<button class="edctbtn" data-issue="' + esc(f.callsign) + '" data-wu="' + Math.round(f.wheelsUp) + '">ISSUE EDCT</button>' +
+        edct = '<button class="edctbtn" data-issue="' + esc(f.callsign) + '" data-wu="' + Math.round(f.wheelsUp) + '">CFR TIME</button>' +
           '<span style="color:#3a4750;font-size:10px;"> sugg ' + fmtZ(f.wheelsUp) + 'Z</span>';
       } else if (f.releaseNow) {
         edct = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
-          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel EDCT">\u2715</span>';
+          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel CFR">\u2715</span>';
       } else {
         const tmin = Math.max(0, Math.round((f.wheelsUp - flow.now) / 60000));
         const cls = f.pulled ? "edctpulled" : "";
@@ -734,7 +764,7 @@ function renderMeter(refocus) {
         edct = '<span class="' + cls + '" style="' + (f.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
           (f.pulled ? "\u25BC " : "") + fmtZ(f.wheelsUp) + 'Z' +
           '<span class="' + sub + '" style="' + (f.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
-          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel EDCT">\u2715</span>';
+          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel CFR">\u2715</span>';
       }
       h += '<tr>' +
         '<td style="color:#56676f;">' + f.seq + '</td>' +
@@ -758,13 +788,13 @@ function renderMeter(refocus) {
     h += '</tbody></table>';
   }
   h += '<div class="footnote">* route distance estimated (departure field not in database) \u00B7 ' +
-    'Ground ETD assumes 10 min taxi \u00B7 Proposed ETD = filed dep time (min 20 min from now) \u00B7 ' +
+    'Ground departures are assumed ready now (no taxi pad) \u00B7 Proposed ETD = filed dep time (min 20 min from now) \u00B7 ' +
     'ETE = great circle \u00D7 1.12 at filed TAS + 14 min climb/descent \u00B7 ' +
     'AIRBORNE: STA = ETA; running early is fine \u2014 DLY assigned only when spacing with other ' +
     'airborne traffic requires it (AAR interval, plus same-route in-trail per the ROUTE TRAIL setting; ' +
     'AUTO = AAR interval, no extra penalty) \u00B7 ' +
     'GROUND/PROPOSED: slotted around fixed airborne STAs; delay absorbed on the ground \u00B7 ' +
-    'EDCTs are MANUAL: the suggested wheels-up updates live until you press ISSUE EDCT, which locks ' +
+    'CFR is MANUAL: when a delay is required the suggested time updates live until you press CFR TIME, which locks ' +
     'the time and reserves the slot (\u2715 cancels/re-opens it) \u00B7 ' +
     'PROPOSED flights show PENDING until the pilot connects \u00B7 ' +
     'Click any column header to sort (click again to reverse); # restores metered sequence order \u00B7 ' +
@@ -792,7 +822,7 @@ function renderMeter(refocus) {
   h += '<div class="freeze" style="top:' + yOf(19) + 'px;"><span>FREEZE</span></div>';
 
   const ladderFlights = flow.flights
-    .filter(f => f.sta >= flow.now - 60000 && f.sta <= flow.now + LADDER_WIN * 60000)
+    .filter(f => f.status !== "ARRIVED" && f.sta >= flow.now - 60000 && f.sta <= flow.now + LADDER_WIN * 60000)
     .sort((a, b) => a.sta - b.sta);
   if (!ladderFlights.length) {
     h += '<div class="empty">NO STAs IN WINDOW</div>';
@@ -837,14 +867,14 @@ function renderTMU() {
     '<span class="lbl">AAR</span><input id="tmuAar" class="aarinput" data-keep="tmuAar" type="number" min="1" max="200" value="30">' +
     '<span class="lbl">ROUTE TRAIL</span><select id="tmuTrail">' + selOpts(TRAIL_OPTS, 0) + '</select>' +
     '<button data-tmuset>SET PROGRAM</button>' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Programs apply everywhere: METER view, EDCTs, and the DEPARTURES view.</span>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Programs apply everywhere: METER view, CFR times, and the DEPARTURES view.</span>' +
     '</div>';
 
   const codes = Object.keys(tmuRates).sort();
   if (!codes.length) {
     h += '<div class="splash"><h2>NO TMU PROGRAMS ACTIVE</h2>' +
       '<p>Set an arrival rate for any airport above. Tower controllers on the DEPARTURES tab will see ' +
-      'EDCTs for traffic bound to programmed fields.<br>Metering an airport on the METER tab also creates a program for it.</p></div>';
+      'CFR times for traffic bound to programmed fields.<br>Metering an airport on the METER tab also creates a program for it.</p></div>';
   } else {
     h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
       '<th>AIRPORT</th><th>AAR</th><th>ROUTE TRAIL</th><th>INBOUND</th><th>AIRBORNE</th>' +
@@ -887,7 +917,7 @@ function renderTMU() {
 
 /* ---------- DEPARTURES view: tower controller's field ---------- */
 const DEP_RELEASE_INT = 2 * 60000;   /* min interval between issued releases off the same field */
-const TAXI_FLOOR = 10 * 60000;       /* earliest wheels-up: now + taxi/readiness */
+const TAXI_FLOOR = 0;                /* no artificial pad; CFR delay only when metering requires it */
 
 /* Earliest available wheels-up for a GROUND flight, issuance-order priority:
    constrained ONLY by fixed slots at the destination (airborne traffic and
@@ -1008,7 +1038,7 @@ function renderDep() {
   if (!depIcao) {
     contentEl.innerHTML = '<div class="splash"><h2>SET YOUR FIELD</h2>' +
       '<p>Enter the airport you are working departures from (top right of the header).<br>' +
-      'You\u2019ll see every departure off your field, with EDCTs for any destination that has a TMU program.</p></div>';
+      'You\u2019ll see every departure off your field, with CFR times for any destination that has a TMU program.</p></div>';
     return;
   }
   if (!vatsim) {
@@ -1029,7 +1059,8 @@ function renderDep() {
     if (airborne) continue;                       /* tower cares about who hasn't departed */
     deps.push({ callsign: p.callsign, status: "GROUND",
       type: (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0],
-      dest: (fp.arrival || "????").toUpperCase() });
+      dest: (fp.arrival || "????").toUpperCase(),
+      vfr: /^V/i.test(fp.flight_rules || "") });
   }
   for (const pf of (vatsim.prefiles || [])) {
     const fp = pf.flight_plan;
@@ -1037,7 +1068,8 @@ function renderDep() {
     if (deps.some(d => d.callsign === pf.callsign)) continue;
     deps.push({ callsign: pf.callsign, status: "PROPOSED",
       type: (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0],
-      dest: (fp.arrival || "????").toUpperCase() });
+      dest: (fp.arrival || "????").toUpperCase(),
+      vfr: /^V/i.test(fp.flight_rules || "") });
   }
 
   /* pull metering info from each programmed destination's flow */
@@ -1057,14 +1089,14 @@ function renderDep() {
     return aw - bw || a.callsign.localeCompare(b.callsign);
   });
 
-  const metered = deps.filter(d => d.entry).length;
-  const held = deps.filter(d => d.entry && d.entry.edctIssued && !d.entry.releaseNow).length;
+  const metered = deps.filter(d => d.entry && !d.vfr).length;
+  const held = deps.filter(d => d.entry && !d.vfr && d.entry.edctIssued && !d.entry.releaseNow).length;
 
   let h = '<div class="strip">' +
     '<span class="field">' + esc(depIcao) + ' DEPARTURES</span>' +
     stat("TOTAL", deps.length) +
     stat("TO METERED FIELDS", metered, "#f5a83d") +
-    stat("HOLDING ON EDCT", held, "#f25555") +
+    stat("HOLDING ON CFR", held, "#f25555") +
     '<span style="font-size:11px;color:#56676f;">Destinations with a TMU program: ' +
     (Object.keys(tmuRates).length ? Object.keys(tmuRates).sort().map(esc).join(", ") : "none \u2014 set them on the TMU tab") +
     '</span></div>';
@@ -1074,12 +1106,15 @@ function renderDep() {
   } else {
     h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
       '<th>CALLSIGN</th><th>TYPE</th><th>DEST</th><th>STATUS</th><th>TMU PGM</th>' +
-      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>WHEELS-UP (EDCT)</th>' +
+      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>CALL FOR RELEASE (CFR)</th>' +
       '</tr></thead><tbody>';
     for (const d of deps) {
       const e = d.entry;
       let pgm, sta = "\u2014", dly = "\u2014", edct;
-      if (!tmuRates[d.dest]) {
+      if (d.vfr) {
+        pgm = '<span class="vfrtag">VFR</span>';
+        edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+      } else if (!tmuRates[d.dest]) {
         pgm = '<span style="color:#3a4750;">\u2014</span>';
         edct = '<span style="color:#3a4750;">NO PROGRAM \u2014 RELEASE AT WILL</span>';
       } else if (!e) {
@@ -1096,11 +1131,15 @@ function renderDep() {
         } else if (!e.edctIssued) {
           const ewu = earliestEdct(d.callsign, depIcao, d.dest);
           const wu = ewu != null ? ewu : e.wheelsUp;
-          edct = '<button class="edctbtn" data-issue="' + esc(e.callsign) + '" data-wu="' + Math.round(wu) + '">ISSUE EDCT</button>' +
-            '<span style="color:#3a4750;font-size:10px;"> earliest ' + fmtZ(wu) + 'Z</span>';
+          if (wu <= now + CFR_THRESHOLD) {
+            edct = '<span class="released">\u2713 RELEASED</span>';
+          } else {
+            edct = '<button class="edctbtn" data-issue="' + esc(e.callsign) + '" data-wu="' + Math.round(wu) + '">CFR TIME</button>' +
+              '<span style="color:#3a4750;font-size:10px;"> earliest ' + fmtZ(wu) + 'Z</span>';
+          }
         } else if (e.releaseNow) {
           edct = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
-            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel EDCT">\u2715</span>';
+            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
         } else {
           const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
           const cls = e.pulled ? "edctpulled" : "";
@@ -1108,7 +1147,7 @@ function renderDep() {
           edct = '<span class="' + cls + '" style="' + (e.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
             (e.pulled ? "\u25BC " : "") + fmtZ(e.wheelsUp) + 'Z' +
             '<span class="' + sub + '" style="' + (e.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
-            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel EDCT">\u2715</span>';
+            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
         }
       }
       h += '<tr>' +
@@ -1124,7 +1163,7 @@ function renderDep() {
       'ISSUE EDCT here uses issuance-order priority: the first aircraft issued takes the EARLIEST available time, ' +
       'constrained only by airborne traffic and already-issued EDCTs at the destination, plus a ' +
       (DEP_RELEASE_INT / 60000) + '-min release interval between issued EDCTs off this field. ' +
-      'Earliest wheels-up is never sooner than ' + (TAXI_FLOOR / 60000) + ' min from now (taxi). ' +
+      'If the field has capacity and no slot conflict exists, no delay is issued and the flight shows RELEASED. ' +
       'EDCTs issued here reserve the slot at the destination and show on the METER tab too.</div></div>';
   }
   contentEl.innerHTML = h;
@@ -1230,11 +1269,9 @@ contentEl.addEventListener("click", e => {
   const tmuAct = e.target.closest("[data-tmuview],[data-tmurm]");
   if (tmuAct) {
     if (tmuAct.dataset.tmuview) {
-      icao = tmuAct.dataset.tmuview;
-      icaoInput.value = icao;
-      syncMeterSelectors();
-      setTab("meter");
-      ladderScrollPos = null;
+      depIcao = tmuAct.dataset.tmuview;
+      depInput.value = depIcao;
+      setTab("dep");
       ensurePolling();
     } else {
       delete tmuRates[tmuAct.dataset.tmurm];
