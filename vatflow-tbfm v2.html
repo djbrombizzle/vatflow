@@ -1617,6 +1617,8 @@ renderContent();
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getDatabase, ref, onValue, update }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   // >>> PASTE YOUR FIREBASE CONFIG HERE <<<
   const FIREBASE_CONFIG = {
@@ -1634,10 +1636,29 @@ renderContent();
     FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY" &&
     !!FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL.indexOf("YOUR_PROJECT") === -1;
 
-  let db = null;
+  let db = null, auth = null, authReady = false;
   if (configReady) {
-    try { db = getDatabase(initializeApp(FIREBASE_CONFIG)); }
-    catch (e) { console.error("Firebase init failed:", e); }
+    try {
+      const app = initializeApp(FIREBASE_CONFIG);
+      db = getDatabase(app);
+      auth = getAuth(app);
+      /* sign in anonymously so locked-down rules (auth != null) allow read/write */
+      onAuthStateChanged(auth, (user) => {
+        authReady = !!user;
+        if (user && window.VFSync && window.VFSync._pendingRoom) {
+          const r = window.VFSync._pendingRoom;
+          window.VFSync._pendingRoom = null;
+          window.VFSync.connect(r);
+        }
+      });
+      signInAnonymously(auth).catch((e) => {
+        console.error("Firebase anonymous sign-in failed:", e);
+        if (window.VATFLOW) window.VATFLOW.setSyncStatus("error");
+      });
+    } catch (e) {
+      console.error("Firebase init failed:", e);
+      db = null;
+    }
   }
 
   window.VFSync = {
@@ -1646,9 +1667,16 @@ renderContent();
     room: null,
     _unsub: null,
     _first: false,
+    _pendingRoom: null,
 
     connect(room) {
       if (!db) { window.VATFLOW.setSyncStatus("noconfig"); return; }
+      if (!authReady) {
+        /* anonymous sign-in still in flight — connect as soon as it lands */
+        this._pendingRoom = room;
+        window.VATFLOW.setSyncStatus("connecting");
+        return;
+      }
       this.disconnect();
       this.room = room;
       this._first = true;
@@ -1678,6 +1706,7 @@ renderContent();
 
     disconnect() {
       if (this._unsub) { try { this._unsub(); } catch (e) {} this._unsub = null; }
+      this._pendingRoom = null;
       this.connected = false;
       this.room = null;
       this._first = false;
