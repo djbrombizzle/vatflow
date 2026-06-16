@@ -124,9 +124,16 @@
   .footnote { padding:12px 20px; color:#3a4750; font-size:11px; line-height:1.7; }
 
   .ladderwrap { border-left:1px solid #1a232d; padding:14px 14px 20px; }
-  .ladderhead { font-size:11px; color:#56676f; letter-spacing:.1em; margin-bottom:10px;
-                display:flex; justify-content:space-between; align-items:baseline; }
-  .ladderhead .hint { font-size:9px; color:#3a4750; letter-spacing:.05em; }
+  .ladderhead { font-size:11px; color:#56676f; letter-spacing:.1em; margin-bottom:4px;
+                display:flex; justify-content:space-between; align-items:center; }
+  .ladderwinctl { display:inline-flex; gap:4px; }
+  .ladderwinctl button {
+    background:#0c1218; border:1px solid #2a3a48; color:#9fdcff; width:24px; height:22px;
+    border-radius:3px; cursor:pointer; font-size:14px; line-height:1; font-family:inherit;
+  }
+  .ladderwinctl button:hover:not(:disabled) { background:#16384c; border-color:#2a5870; }
+  .ladderwinctl button:disabled { color:#3a4750; border-color:#1a232d; cursor:default; }
+  .ladderhint { font-size:9px; color:#3a4750; letter-spacing:.05em; margin-bottom:8px; }
   .ladderscroll { height: calc(100vh - 230px); min-height: 480px; overflow-y:auto;
                   border:1px solid #121a22; border-radius:3px; background:#080d12;
                   scrollbar-width:thin; scrollbar-color:#233140 #080d12; }
@@ -155,11 +162,11 @@
   .splash p { font-size:12px; line-height:1.8; margin:0; }
   .msg { padding:50px; text-align:center; color:#56676f; }
 
-  .tabs { display:flex; gap:2px; }
-  .tab { padding:7px 16px; font-size:12px; letter-spacing:.12em; cursor:pointer;
-         color:#56676f; border:1px solid transparent; border-radius:3px; }
-  .tab:hover { color:#9fdcff; }
-  .tab.active { color:#e8f0f4; background:#0c1218; border-color:#233140; }
+  .tabs { display:flex; gap:4px; }
+  .tab { padding:9px 20px; font-size:14px; font-weight:600; letter-spacing:.1em; cursor:pointer;
+         color:#7d8a93; border:1px solid transparent; border-radius:4px; transition:color .12s, background .12s; }
+  .tab:hover { color:#cfe6f5; background:#0c1218; }
+  .tab.active { color:#e8f0f4; background:#102330; border-color:#2a5870; }
 
   #depInput {
     background:#0c1218; border:1px solid #233140; color:#e8f0f4;
@@ -186,6 +193,37 @@
   .tmuact { color:#9fdcff; cursor:pointer; margin-right:12px; font-size:11px; }
   .tmuact:hover { text-decoration:underline; }
   .tmuact.rm { color:#f25555; }
+
+  .homewrap { padding:20px 24px 40px; max-width:1000px; }
+  .homehead { font-family:'Barlow Condensed',sans-serif; font-size:30px; letter-spacing:.08em;
+              color:#e8f0f4; margin-bottom:18px; }
+  .homesec { font-size:11px; color:#56676f; letter-spacing:.14em; margin:22px 0 10px;
+             border-bottom:1px solid #1a232d; padding-bottom:6px; }
+  .homenone { color:#56676f; font-size:13px; padding:6px 0; }
+  .homelist { display:flex; flex-direction:column; gap:6px; }
+  .homerow { display:flex; align-items:baseline; gap:14px; padding:10px 14px; border-radius:4px;
+             background:#0a1016; border-left:3px solid #2a3a48; }
+  .homerow.ok   { border-left-color:#57d98a; }
+  .homerow.warn { border-left-color:#f5a83d; }
+  .homerow.hi   { border-left-color:#f25555; }
+  .homerow.muted{ border-left-color:#3a4750; }
+  .homefield { font-family:'Barlow Condensed',sans-serif; font-size:21px; letter-spacing:.06em;
+               color:#e8f0f4; min-width:62px; }
+  .hometxt { font-size:14px; color:#c9d6df; flex:1; }
+  .homemeta { font-size:11px; color:#56676f; letter-spacing:.04em; }
+
+  .restrinput {
+    width:100%; background:#0c1218; border:1px solid #1f2c38; color:#e8f0f4;
+    padding:6px 8px; border-radius:3px; font-size:12px; font-family:inherit;
+  }
+  .restrinput:focus { border-color:#54b8e8; }
+  #rfReq, #rfProv {
+    background:#0c1218; border:1px solid #233140; color:#9fdcff;
+    padding:6px 8px; border-radius:3px; font-size:12px; font-family:inherit; letter-spacing:.06em;
+  }
+  @keyframes restrflash { 0%,100%{ background:#3a0f12; } 50%{ background:#7a1d22; } }
+  .restrflash td { animation: restrflash 0.9s ease-in-out infinite; }
+  .restrflash .restrinput { border-color:#f25555; }
 </style>
 </head>
 <body>
@@ -196,8 +234,10 @@
     <span class="brandsub">CALL FOR RELEASE PRGM &middot; VATSIM</span>
   </div>
   <nav class="tabs">
-    <span class="tab active" data-tab="meter">METER</span>
+    <span class="tab active" data-tab="home">HOME</span>
+    <span class="tab" data-tab="meter">METER</span>
     <span class="tab" data-tab="tmu">TMU</span>
+    <span class="tab" data-tab="restrict">RESTRICTIONS</span>
     <span class="tab" data-tab="dep">DEPARTURES</span>
   </nav>
   <div id="meterCtl" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -281,10 +321,12 @@ const FALLBACK_AIRPORTS = {
 const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
 
 /* ---------- state ---------- */
-let activeTab = "meter";    // meter | tmu | dep
+let activeTab = "home";     // home | meter | tmu | restrict | dep
 let icao = null;            // METER view: arrival field being metered
 let depIcao = null;         // DEPARTURES view: tower controller's field
 const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by all views)
+const restrictions = [];    // Current Restrictions entries (shared)
+const restrictFilters = { requesting: "", providing: "" };
 let vatsim = null;
 let airportDb = null;
 let dbStatus = "loading";   // loading | full | fallback
@@ -299,6 +341,7 @@ const EDCT_FLASH_MS = 60000;  // how long a pulled-up CFR stays highlighted
 const CFR_THRESHOLD = 60000;  // wheels-up within this of now = no delay needed -> RELEASED
 let lastWireSeen = "";  // JSON of last synced state, to ignore Firebase echoes
 let ladderScrollPos = null;  // preserved scroll position; null = scroll to NOW
+let ladderWinMin = 120;      // arrival-ladder window (minutes), adjustable in 30-min steps
 
 const DEFAULT_RATE = { aar: 30, trail: 0, mit: 0, gates: [] };
 const getRate = code => tmuRates[code] || DEFAULT_RATE;
@@ -700,7 +743,9 @@ function renderContent() {
   const oldScroll = document.getElementById("ladderScroll");
   if (oldScroll) ladderScrollPos = oldScroll.scrollTop;
 
+  if (activeTab === "home") { renderHome(); restoreFocus(refocus); return; }
   if (activeTab === "tmu") { renderTMU(); restoreFocus(refocus); return; }
+  if (activeTab === "restrict") { renderRestrict(); restoreFocus(refocus); return; }
   if (activeTab === "dep") { renderDep(); restoreFocus(refocus); return; }
   renderMeter(refocus);
 }
@@ -848,17 +893,22 @@ function renderMeter(refocus) {
 
   /* metering ladder — fixed 12 px/min scale inside a scrollable viewport */
   const PX_PER_MIN = 12;
-  const LADDER_WIN = 120;                       /* minutes of schedule shown */
+  const LADDER_WIN = ladderWinMin;              /* minutes of schedule shown (30-min steps) */
   const LH = LADDER_WIN * PX_PER_MIN;
   const yOf = min => LH - (Math.max(min, 0) / LADDER_WIN) * LH;
+  const gridStep = LADDER_WIN <= 90 ? 10 : LADDER_WIN <= 180 ? 15 : 30;  /* keep labels readable */
 
   h += '<div class="ladderwrap">' +
     '<div class="ladderhead"><span>ARRIVAL LADDER \u00B7 ' + LADDER_WIN + ' MIN</span>' +
-    '<span class="hint">SCROLL \u25B4\u25BE \u00B7 NOW AT BOTTOM</span></div>' +
+    '<span class="ladderwinctl">' +
+    '<button data-ladderwin="-30" title="Show 30 min less"' + (LADDER_WIN <= 30 ? ' disabled' : '') + '>\u2212</button>' +
+    '<button data-ladderwin="30" title="Show 30 min more"' + (LADDER_WIN >= 360 ? ' disabled' : '') + '>+</button>' +
+    '</span></div>' +
+    '<div class="ladderhint">SCROLL \u25B4\u25BE \u00B7 NOW AT BOTTOM</div>' +
     '<div class="ladderscroll" id="ladderScroll">' +
     '<div class="ladder" style="height:' + LH + 'px;"><div class="axis"></div>';
-  for (let k = 0; k <= LADDER_WIN / 10; k++) {
-    const min = k * 10;
+  for (let k = 0; k <= LADDER_WIN / gridStep; k++) {
+    const min = k * gridStep;
     const y = yOf(min);
     h += '<div class="gridline" style="top:' + (y-1) + 'px;"></div>' +
          '<span class="gridtime" style="top:' + (y-7) + 'px;">' + fmtZ(flow.now + min*60000) + '</span>';
@@ -898,7 +948,114 @@ function renderMeter(refocus) {
   if (ls) ls.scrollTop = (ladderScrollPos == null) ? ls.scrollHeight : ladderScrollPos;
 }
 
-/* ---------- TMU view: set arrival rate programs for any airport ---------- */
+/* ---------- HOME view: vNAS overview ---------- */
+function renderHome() {
+  const now = Date.now();
+  const codes = Object.keys(tmuRates).sort();
+
+  let h = '<div class="homewrap">' +
+    '<div class="homehead">vNAS \u00B7 VIRTUAL NATIONAL AIRSPACE STATUS</div>';
+
+  /* active TMU programs */
+  h += '<div class="homesec">FLOW PROGRAMS</div>';
+  if (!codes.length) {
+    h += '<div class="homenone">No active flow programs. Set one on the TMU tab.</div>';
+  } else {
+    h += '<div class="homelist">';
+    for (const code of codes) {
+      const r = tmuRates[code];
+      const flow = computeFlow(code);
+      let delayTxt, cls = "ok";
+      if (!flow) {
+        delayTxt = "awaiting data feed"; cls = "muted";
+      } else {
+        const issued = flow.flights.filter(f => f.status === "GROUND" && f.edctIssued);
+        if (!issued.length) {
+          delayTxt = "0 delays";
+        } else {
+          const avgMin = Math.round(
+            issued.reduce((s, f) => s + Math.max(0, f.wheelsUp - now), 0) / issued.length / 60000);
+          if (avgMin <= 0) {
+            delayTxt = "CFRs issued, releasing now";
+          } else {
+            delayTxt = "average delay of " + avgMin + (avgMin === 1 ? " minute" : " minutes");
+            cls = avgMin >= 15 ? "hi" : "warn";
+          }
+        }
+        if (flow.demandHr > r.aar && cls === "ok") cls = "warn";
+      }
+      h += '<div class="homerow ' + cls + '">' +
+        '<span class="homefield">' + esc(code) + '</span>' +
+        '<span class="hometxt">restrictions active \u2014 ' + delayTxt + '</span>' +
+        '</div>';
+    }
+    h += '</div>';
+  }
+
+  /* active restrictions block removed per request */
+
+  h += '<div class="footnote" style="padding:16px 0 0;">Delays shown are the current average ground hold across issued CFRs for each program. ' +
+    'Programs update live from the shared room when connected.</div></div>';
+  contentEl.innerHTML = h;
+}
+
+/* ---------- RESTRICTIONS view: TMU restriction entries ---------- */
+function genId() { return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function renderRestrict() {
+  const now = Date.now();
+  const fReq = restrictFilters.requesting.trim().toUpperCase();
+  const fProv = restrictFilters.providing.trim().toUpperCase();
+
+  let h = '<div class="tmuform">' +
+    '<button data-restradd>+ ADD RESTRICTION</button>' +
+    '<span class="lbl" style="margin-left:14px;">FILTER REQ</span>' +
+    '<input id="rfReq" data-keep="rfReq" placeholder="requesting" autocomplete="off" value="' + esc(restrictFilters.requesting) + '" style="width:120px;">' +
+    '<span class="lbl">FILTER PROV</span>' +
+    '<input id="rfProv" data-keep="rfProv" placeholder="providing" autocomplete="off" value="' + esc(restrictFilters.providing) + '" style="width:120px;">' +
+    (fReq || fProv ? '<span class="tmuact" data-restrclearf style="margin-left:8px;">clear filters</span>' : '') +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Free-form entries, shared live with all connected TMU positions. New rows flash for 30s.</span>' +
+    '</div>';
+
+  const visible = restrictions.filter(x => {
+    if (fReq && (x.requesting || "").toUpperCase().indexOf(fReq) === -1) return false;
+    if (fProv && (x.providing || "").toUpperCase().indexOf(fProv) === -1) return false;
+    return true;
+  });
+
+  if (!restrictions.length) {
+    h += '<div class="homenone" style="padding:40px 20px;">No active restrictions. Click + ADD RESTRICTION to post one.</div>';
+  } else {
+    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+      '<th style="width:16%;">REQUESTING</th><th style="width:16%;">PROVIDING</th>' +
+      '<th>RESTRICTION</th><th style="width:13%;">START TIME</th><th style="width:13%;">STOP TIME</th>' +
+      '<th style="width:60px;"></th></tr></thead><tbody>';
+    if (!visible.length) {
+      h += '<tr><td colspan="6" style="text-align:center;color:#56676f;padding:24px;">NO RESTRICTIONS MATCH THE FILTER</td></tr>';
+    } else {
+      for (const x of visible) {
+        const complete = x.requesting && x.providing && x.restriction && x.start && x.stop;
+        const flash = complete && x.flashUntil && x.flashUntil > now ? " restrflash" : "";
+        h += '<tr class="restrrow' + flash + '">' +
+          restrCell(x.id, "requesting", x.requesting, "ARTCC/TRACON") +
+          restrCell(x.id, "providing", x.providing, "ARTCC/TRACON") +
+          restrCell(x.id, "restriction", x.restriction, "e.g. 20 MIT jets / 250kt") +
+          restrCell(x.id, "start", x.start, "DD/HHMMz") +
+          restrCell(x.id, "stop", x.stop, "DD/HHMMz") +
+          '<td><span class="tmuact rm" data-restrrm="' + esc(x.id) + '">\u2715</span></td>' +
+          '</tr>';
+      }
+    }
+    h += '</tbody></table></div>';
+  }
+  contentEl.innerHTML = h;
+}
+function restrCell(id, field, val, ph) {
+  return '<td><input class="restrinput" data-restrfield="' + field + '" data-restrid="' + esc(id) +
+    '" data-keep="restr-' + esc(id) + '-' + field + '" placeholder="' + ph + '" value="' + esc(val || "") + '"></td>';
+}
+
+
 const TRAIL_OPTS = [[0,"AUTO"],[3,"3 MIN"],[5,"5 MIN"],[7,"7 MIN"],[10,"10 MIN"],[15,"15 MIN"],[20,"20 MIN"]];
 const selOpts = (opts, cur) => opts.map(o => {
   const [v, t] = Array.isArray(o) ? o : [o, o + "/hr"];
@@ -1289,6 +1446,8 @@ function setTab(t) {
     el.classList.toggle("active", el.dataset.tab === t));
   document.getElementById("meterCtl").style.display = t === "meter" ? "flex" : "none";
   document.getElementById("depCtl").style.display = t === "dep" ? "flex" : "none";
+  /* the home overview needs the live feed to compute program delays */
+  if (t === "home" && Object.keys(tmuRates).length) ensurePolling();
   renderContent();
 }
 document.querySelectorAll(".tab").forEach(el =>
@@ -1308,6 +1467,24 @@ document.getElementById("depBtn").addEventListener("click", depActivate);
 
 /* TMU page: SET PROGRAM form + inline rate edits (delegated) */
 contentEl.addEventListener("click", e => {
+  /* ---- Current Restrictions: add / remove / clear filters ---- */
+  if (e.target.closest("[data-restradd]")) {
+    restrictions.unshift({ id: genId(), requesting: "", providing: "", restriction: "",
+      start: "", stop: "", flashUntil: 0 });
+    pushSync(); renderContent();
+    return;
+  }
+  const rRm = e.target.closest("[data-restrrm]");
+  if (rRm) {
+    const i = restrictions.findIndex(x => x.id === rRm.dataset.restrrm);
+    if (i >= 0) { restrictions.splice(i, 1); pushSync(); renderContent(); }
+    return;
+  }
+  if (e.target.closest("[data-restrclearf]")) {
+    restrictFilters.requesting = ""; restrictFilters.providing = "";
+    renderContent();
+    return;
+  }
   /* add a gate restriction to a program */
   const gAdd = e.target.closest("[data-tmugateadd]");
   if (gAdd) {
@@ -1437,6 +1614,13 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
+  const lw = e.target.closest("[data-ladderwin]");
+  if (lw) {
+    const next = ladderWinMin + (+lw.dataset.ladderwin);
+    ladderWinMin = Math.max(30, Math.min(360, next));   /* 30 min .. 6 hr, 30-min steps */
+    renderContent();
+    return;
+  }
   const th = e.target.closest("th[data-sort]");
   if (!th) return;
   const key = th.dataset.sort;
@@ -1457,10 +1641,38 @@ contentEl.addEventListener("input", e => {
     }
     return;
   }
+  /* restriction text fields: commit to model on each keystroke WITHOUT re-render
+     (keeps typing smooth); the value is already shown in the box, periodic refresh
+     and remote updates preserve focus via data-keep */
+  const rf = e.target.closest("input[data-restrfield]");
+  if (rf) {
+    const x = restrictions.find(z => z.id === rf.dataset.restrid);
+    if (x) x[rf.dataset.restrfield] = rf.value;
+    return;
+  }
+  /* restriction filters */
+  if (e.target.id === "rfReq") { restrictFilters.requesting = e.target.value; renderContent(); return; }
+  if (e.target.id === "rfProv") { restrictFilters.providing = e.target.value; renderContent(); return; }
+
   const inp = e.target.closest("input[data-filter]");
   if (!inp) return;
   filters[inp.dataset.filter] = inp.value;
   renderContent();
+});
+/* push restriction edits to the shared room when committed (blur/enter);
+   start the 30s flash the first time an entry has every field filled */
+contentEl.addEventListener("change", e => {
+  const rf = e.target.closest("input[data-restrfield]");
+  if (!rf) return;
+  const x = restrictions.find(z => z.id === rf.dataset.restrid);
+  if (x) {
+    const complete = x.requesting && x.providing && x.restriction && x.start && x.stop;
+    if (complete && !x.flashUntil) {       /* first completion -> flash for 30s */
+      x.flashUntil = Date.now() + 30000;
+      pushSync(); renderContent(); return;
+    }
+  }
+  pushSync();
 });
 
 function activate() {
@@ -1500,7 +1712,14 @@ setInterval(() => {
     String(d.getUTCMinutes()).padStart(2,"0") + ":" +
     String(d.getUTCSeconds()).padStart(2,"0") + "Z";
 }, 1000);
-setInterval(() => { if (icao && vatsim) renderContent(); }, 10000);
+setInterval(() => {
+  if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" || (icao && vatsim)) {
+    /* avoid yanking focus/caret while a restriction field is being typed */
+    const a = document.activeElement;
+    if (a && a.dataset && a.dataset.restrfield) return;
+    renderContent();
+  }
+}, 10000);
 
 /* ============================================================
    Multi-controller sync bridge (talks to the Firebase module below).
@@ -1534,30 +1753,55 @@ function applyRatesFromWire(o) {
   for (const k in tmuRates) delete tmuRates[k];
   if (o) for (const k in o) tmuRates[k] = { aar: o[k].aar, trail: o[k].trail, mit: o[k].mit || 0, gates: normGates(o[k].gates) };
 }
+function restrictionsToWire() {
+  const o = {};
+  for (const x of restrictions) o[x.id] = {
+    id: x.id, requesting: x.requesting || "", providing: x.providing || "",
+    restriction: x.restriction || "", start: x.start || "", stop: x.stop || "",
+    flashUntil: x.flashUntil || 0
+  };
+  return o;
+}
+function applyRestrictionsFromWire(o) {
+  const focused = document.activeElement;
+  const editingId = focused && focused.dataset && focused.dataset.restrid;  /* don't clobber the row being typed */
+  restrictions.length = 0;
+  if (o) {
+    const arr = Object.values(o).filter(x => x && x.id);
+    arr.sort((a, b) => (b.id > a.id ? 1 : -1));   /* newest first (ids embed time) */
+    for (const x of arr) restrictions.push({
+      id: x.id, requesting: x.requesting || "", providing: x.providing || "",
+      restriction: x.restriction || "", start: x.start || "", stop: x.stop || "",
+      flashUntil: x.flashUntil || 0
+    });
+  }
+  return editingId;
+}
 
 /* push current shared state up to the room (no-op unless connected) */
 function pushSync() {
   if (!(window.VFSync && window.VFSync.connected)) return;
-  const edcts = edctsToWire(), rates = ratesToWire();
-  lastWireSeen = JSON.stringify({ e: edcts, r: rates });
-  window.VFSync.pushAll(edcts, rates);
+  const edcts = edctsToWire(), rates = ratesToWire(), restr = restrictionsToWire();
+  lastWireSeen = JSON.stringify({ e: edcts, r: rates, x: restr });
+  window.VFSync.pushAll(edcts, rates, restr);
 }
 
 /* bridge the Firebase module calls into */
 window.VATFLOW = {
-  applyRemote(edctsWire, ratesWire) {
-    const incoming = JSON.stringify({ e: edctsWire || {}, r: ratesWire || {} });
+  applyRemote(edctsWire, ratesWire, restrWire) {
+    const incoming = JSON.stringify({ e: edctsWire || {}, r: ratesWire || {}, x: restrWire || {} });
     if (incoming === lastWireSeen) return;     /* our own echo, or no change */
     lastWireSeen = incoming;
     applyEdctsFromWire(edctsWire);
     applyRatesFromWire(ratesWire);
+    applyRestrictionsFromWire(restrWire);
     if (icao) syncMeterSelectors();
     renderContent();
   },
   hasLocalState() {
-    return Object.keys(issuedEdcts).length > 0 || Object.keys(tmuRates).length > 0;
+    return Object.keys(issuedEdcts).length > 0 || Object.keys(tmuRates).length > 0 || restrictions.length > 0;
   },
-  getWire() { return { edcts: edctsToWire(), rates: ratesToWire() }; },
+  getWire() { return { edcts: edctsToWire(), rates: ratesToWire(), restrictions: restrictionsToWire() }; },
   setSyncStatus(state, room) {
     const el = document.getElementById("syncStatus");
     const btn = document.getElementById("syncBtn");
@@ -1685,18 +1929,19 @@ renderContent();
         const val = snap.val() || {};
         const edcts = val.edcts || {};
         const rates = val.rates || {};
+        const restr = val.restrictions || {};
         if (this._first) {
           this._first = false;
           this.connected = true;
           window.VATFLOW.setSyncStatus("live", room);
-          const empty = Object.keys(edcts).length === 0 && Object.keys(rates).length === 0;
+          const empty = Object.keys(edcts).length === 0 && Object.keys(rates).length === 0 && Object.keys(restr).length === 0;
           if (empty && window.VATFLOW.hasLocalState()) {
             const w = window.VATFLOW.getWire();    /* seed the empty room with our state */
-            this.pushAll(w.edcts, w.rates);
+            this.pushAll(w.edcts, w.rates, w.restrictions);
             return;
           }
         }
-        window.VATFLOW.applyRemote(edcts, rates);
+        window.VATFLOW.applyRemote(edcts, rates, restr);
       }, (err) => {
         console.error("Firebase sync error:", err);
         this.connected = false;
@@ -1713,11 +1958,12 @@ renderContent();
       window.VATFLOW.setSyncStatus("default");
     },
 
-    pushAll(edcts, rates) {
+    pushAll(edcts, rates, restr) {
       if (!db || !this.room) return;
       update(ref(db, "rooms/" + this.room), {
-        edcts: Object.keys(edcts).length ? edcts : null,
-        rates: Object.keys(rates).length ? rates : null
+        edcts: Object.keys(edcts || {}).length ? edcts : null,
+        rates: Object.keys(rates || {}).length ? rates : null,
+        restrictions: Object.keys(restr || {}).length ? restr : null
       }).catch((e) => console.error("Firebase push failed:", e));
     }
   };
