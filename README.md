@@ -1,10 +1,126 @@
-# vatflow
-VATFLOW - TBFM for VATSIM
+# VATFLOW
 
-3 Main menu items at the top METER - TMU - Departures
+**Call For Release (CFR) / Time-Based Flow Management for VATSIM.**
 
-METER = Type in any airport to focus on a single field
+VATFLOW is a single-file web app that helps virtual air traffic controllers manage arrival demand and issue departure release times during VATSIM events. It pulls live traffic from the VATSIM data feed, meters arrivals against an airport rate, and gives ground/departure controllers a clear "release at this time" value for each flight.
 
-TMU = Set a program with a rate for an airport
+Everything runs in one HTML file. No build step, no server, no install.
 
-Departures = if your working a departure airport (Tower) it will show pending departures and any progams active. 
+---
+
+## Quick Start
+
+1. Download `vatflow-tbfm.html`.
+2. Open it in any modern web browser (Chrome, Edge, Firefox, Safari).
+
+That's it. The app connects to the public VATSIM feed automatically.
+
+To coordinate with other controllers in real time, see [Multi-Controller Sync](#multi-controller-sync).
+
+---
+
+## What It Does
+
+- Reads **live VATSIM traffic** every 30 seconds.
+- Meters arrivals to a field against its **Airport Arrival Rate (AAR)**.
+- Calculates and lets you issue **Call For Release (CFR) times** for departures.
+- Applies **miles-in-trail (MIT)** and **minutes-in-trail** restrictions, including per-gate.
+- Adjusts enroute estimates using **winds aloft** from the Aviation Weather Center.
+- Syncs programs, releases, and restrictions across **multiple controllers**.
+
+---
+
+## Pages
+
+| Page | Purpose |
+| --- | --- |
+| **Home** | vNAS overview — a plain-text status board of every active flow program and its average delay. |
+| **Apt Dashboard** | Full arrival picture for one airport: flight table, demand vs. AAR, and a live arrival ladder. |
+| **My Dashboard** | Your personal set of up to 20 departure fields, shown as one combined list of pending departures with CFR controls. |
+| **TMU** | Set rate programs (AAR, trail/MIT, per-gate restrictions) for any airport. |
+| **Restrictions** | Shared free-form restriction entries (requesting, providing, restriction, start/stop). |
+| **Departures** | Single tower field view with CFR controls. |
+
+---
+
+## How to Use It
+
+### 1. Set a program (TMU page)
+
+On the **TMU** page, enter an airport and set its **AAR** (arrivals per hour). Optionally add:
+
+- **Route Trail** — minutes-in-trail spacing.
+- **MIT** — miles-in-trail (overrides minutes when set).
+- **Gate restrictions** — up to 10 per program, each with its own spacing (e.g. `JJEDI4` at 20 MIT, `OZZZI2` at 10 MIT).
+
+Programs apply everywhere: the dashboards, CFR times, and the departures view.
+
+### 2. Watch the arrivals (Apt Dashboard)
+
+Enter the airport code to view its arrival flow. The table is sortable and filterable, and the arrival ladder on the right shows the sequence on a timeline (adjustable in 30-minute steps).
+
+> Rates are set only on the TMU page. The Apt Dashboard is for viewing.
+
+### 3. Issue releases (My Dashboard / Departures)
+
+For any pending ground departure into a metered field, click **CFR TIME** to lock in a wheels-up time. The app reserves that slot, shows a countdown, and flags the flight **RELEASE NOW** when it's due. Cancelling a release automatically compresses the remaining releases into the freed slot.
+
+---
+
+## Multi-Controller Sync
+
+VATFLOW can share state live across positions using Firebase Realtime Database.
+
+1. Enter the same **room name** (e.g. the event name) on each controller's app.
+2. Click **Connect**.
+
+Shared across the room: rate programs, issued CFR times, and restriction entries. Your personal **My Dashboard** airport list stays local to your device.
+
+Status indicator:
+
+- `● LIVE` — connected and syncing.
+- `LOCAL ONLY` — working solo (no sync).
+- `SYNC ERROR` — check your connection or Firebase setup.
+
+> To run sync, you need your own Firebase project (free tier is fine). Paste your Firebase config into the file, enable **Anonymous Authentication**, and set your database rules to require authentication.
+
+---
+
+## Winds Aloft
+
+Enroute time estimates for not-yet-airborne flights are refined using winds-aloft forecasts from the **Aviation Weather Center**. The header shows a `WINDS` indicator with the number of stations loaded.
+
+**Limitations:**
+
+- **US / CONUS only.** Routes outside the coverage area use still-air estimates.
+- **Forecast data**, not real-time. Refreshed hourly.
+- **Applied only to ground and proposed flights.** Airborne aircraft already report true groundspeed.
+- **Requires a CORS proxy.** The AWC API does not allow direct browser requests, so VATFLOW routes the request through a public proxy. If the proxy is unavailable, winds simply don't load and the app falls back to still-air estimates.
+
+---
+
+## Key Terms
+
+| Term | Meaning |
+| --- | --- |
+| **CFR** | Call For Release — a controller-assigned wheels-up time for a departure. |
+| **AAR** | Airport Arrival Rate — how many arrivals per hour a field can accept. |
+| **MIT** | Miles in Trail — required distance between successive aircraft. |
+| **TMU** | Traffic Management Unit — sets the rates and restrictions. |
+| **Gate** | The arrival fix or STAR an aircraft uses to enter the terminal area. |
+| **EDCT** | Expect Departure Clearance Time — the assigned wheels-up time. |
+
+---
+
+## Technical Notes
+
+- **Single file.** All HTML, CSS, and JavaScript live in `vatflow-tbfm.html`. No dependencies to install.
+- **Data sources:** the VATSIM data feed (live traffic), a global airport database (coordinates), and the Aviation Weather Center (winds aloft).
+- **Sync (optional):** Firebase Realtime Database.
+- **Browser-based.** Nothing is installed and no traffic data is stored.
+
+---
+
+## Disclaimer
+
+VATFLOW is a tool for use on the **VATSIM network for simulation purposes only**. It is not for real-world air traffic control or flight planning.
