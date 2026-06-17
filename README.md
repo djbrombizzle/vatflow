@@ -4,7 +4,9 @@
 
 VATFLOW is a single-file web app that helps virtual air traffic controllers manage arrival demand and issue departure release times during VATSIM events. It pulls live traffic from the VATSIM data feed, meters arrivals against an airport rate, and gives ground/departure controllers a clear "release at this time" value for each flight.
 
-Everything runs in one HTML file. No build step, no server, no install.
+Everything runs in one HTML file. No build step, no server, no install. 
+
+Download or test via this link here https://djbrombizzle.github.io/vatflow/vatflow-tbfm%20v2.html
 
 ---
 
