@@ -47,6 +47,11 @@
     padding:6px 7px; border-radius:3px; font-size:12px; width:64px; font-family:inherit;
   }
   .mithint { color:#c792ea; font-size:10px; letter-spacing:.06em; margin-left:6px; }
+  .mydashchips { display:flex; flex-wrap:wrap; gap:8px; padding:12px 20px; border-bottom:1px solid #1a232d; }
+  .apchip { display:inline-flex; align-items:center; gap:8px; background:#102330; border:1px solid #2a5870;
+            color:#cfe6f5; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
+  .apchipx { color:#7d8a93; cursor:pointer; font-size:12px; }
+  .apchipx:hover { color:#f25555; }
   .gaterow td { background:#080d12; border-bottom:1px solid #0d141b; padding:5px 10px; }
   .gatelbl { color:#56676f; font-size:10px; letter-spacing:.1em; }
   .gateinput {
@@ -235,19 +240,17 @@
   </div>
   <nav class="tabs">
     <span class="tab active" data-tab="home">HOME</span>
-    <span class="tab" data-tab="meter">METER</span>
+    <span class="tab" data-tab="meter">APT DASHBOARD</span>
+    <span class="tab" data-tab="mydash">MY DASHBOARD</span>
     <span class="tab" data-tab="tmu">TMU</span>
     <span class="tab" data-tab="restrict">RESTRICTIONS</span>
     <span class="tab" data-tab="dep">DEPARTURES</span>
   </nav>
-  <div id="meterCtl" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+  <div id="meterCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
     <input id="icaoInput" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off">
     <datalist id="event-fields"></datalist>
-    <button id="meterBtn">METER</button>
-    <span class="lbl" style="margin-left:10px;">AAR</span>
-    <input id="aarSel" type="number" min="1" max="200" value="30" title="Arrivals per hour (1-200)">
-    <span class="lbl" style="margin-left:10px;">ROUTE TRAIL</span>
-    <select id="routeSel"></select>
+    <button id="meterBtn">LOAD</button>
+    <span style="font-size:11px;color:#56676f;">Rates are set on the TMU tab</span>
   </div>
   <div id="depCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
     <span class="lbl">MY FIELD</span>
@@ -327,6 +330,10 @@ let depIcao = null;         // DEPARTURES view: tower controller's field
 const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by all views)
 const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
+/* My Dashboard: a personal set of departure fields (up to 20), kept on this device */
+let myAirports = [];
+try { const saved = localStorage.getItem("vatflow_my_airports"); if (saved) myAirports = JSON.parse(saved) || []; } catch (e) {}
+function saveMyAirports() { try { localStorage.setItem("vatflow_my_airports", JSON.stringify(myAirports)); } catch (e) {} }
 let vatsim = null;
 let airportDb = null;
 let dbStatus = "loading";   // loading | full | fallback
@@ -401,6 +408,119 @@ function parseTAS(ct) {
   const v = parseInt(s.replace(/^N0?/, ""), 10);
   return (isNaN(v) || v < 60) ? 420 : v;
 }
+
+/* ===================== WINDS ALOFT (Aviation Weather Center FB tables) =====================
+   AWC blocks CORS, so we fetch the legacy wind/temp text through a CORS proxy, parse the
+   fixed-width FB table by header-column alignment, map station IDs to coords via the airport
+   DB, and derive a route headwind to adjust ground/proposed enroute time estimates.
+   US-only, forecast data, applied only to not-yet-airborne traffic. Fails safe to still air. */
+const WIND_REGIONS = ["bos", "mia", "chi", "dfw", "slc", "sfo"];
+const WIND_PROXIES = [
+  u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  u => "https://corsproxy.io/?url=" + encodeURIComponent(u)
+];
+let windStations = {};                               // ID -> { lat, lon, levels: { alt: {dir,spd} } }
+let windInfo = { status: "off", count: 0, time: null }; // off | loading | ok | error
+let windHwCache = {};
+
+function decodeFB(g) {
+  if (!g || !/^\d{4}/.test(g)) return null;
+  if (g.slice(0, 4) === "9900") return { dir: null, spd: 0 };   /* light & variable */
+  let dd = parseInt(g.slice(0, 2), 10), ss = parseInt(g.slice(2, 4), 10);
+  if (isNaN(dd) || isNaN(ss)) return null;
+  if (dd > 36) { dd -= 50; ss += 100; }              /* WMO: winds 100-199 kt */
+  return { dir: (dd * 10) % 360, spd: ss };
+}
+function parseWindtemp(text) {
+  const stations = {};
+  const lines = String(text).split(/\r?\n/);
+  let levels = null;                                  /* [{alt, center}] */
+  for (const raw of lines) {
+    const line = raw.replace(/\t/g, " ");
+    if (/\bFT\b/.test(line) && /\d{4,5}/.test(line)) {
+      levels = []; let m; const re = /\d{4,5}/g;
+      while ((m = re.exec(line))) levels.push({ alt: +m[0], center: m.index + m[0].length / 2 });
+      continue;
+    }
+    if (!levels) continue;
+    const idm = line.match(/^\s*([A-Z0-9]{3})\s/);
+    if (!idm) continue;
+    const lev = {}; let m; const gre = /\S+/g;
+    gre.lastIndex = idm[0].length - 1;                /* skip the station id token */
+    while ((m = gre.exec(line))) {
+      const tok = m[0], center = m.index + tok.length / 2;
+      let best = null, bd = 1e9;
+      for (const L of levels) { const d = Math.abs(L.center - center); if (d < bd) { bd = d; best = L; } }
+      if (best) { const w = decodeFB(tok); if (w) lev[best.alt] = w; }   /* nearest-column assignment handles missing low levels */
+    }
+    if (Object.keys(lev).length) stations[idm[1]] = { levels: lev };
+  }
+  return stations;
+}
+function parseAlt(a) {
+  if (a == null) return 35000;
+  const s = String(a).toUpperCase().replace(/[^0-9]/g, "");
+  if (!s) return 35000;
+  let n = parseInt(s, 10);
+  if (n <= 600) n *= 100;                             /* FLxxx / hundreds of feet */
+  return n < 1000 ? 35000 : n;
+}
+function bearingDeg(a1, o1, a2, o2) {
+  const y = Math.sin(rad(o2 - o1)) * Math.cos(rad(a2));
+  const x = Math.cos(rad(a1)) * Math.sin(rad(a2)) - Math.sin(rad(a1)) * Math.cos(rad(a2)) * Math.cos(rad(o2 - o1));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+function nearestWind(lat, lon, altFt) {
+  let best = null, bd = 1e9;
+  for (const id in windStations) {
+    const s = windStations[id], d = gcDist(lat, lon, s.lat, s.lon);
+    if (d < bd) { bd = d; best = s; }
+  }
+  if (!best || bd > 600) return null;                 /* no station within ~600 nm */
+  let lvl = null, ld = 1e9;
+  for (const a in best.levels) { const d = Math.abs(+a - altFt); if (d < ld) { ld = d; lvl = best.levels[a]; } }
+  return lvl;
+}
+/* mean headwind (kt) along the route at cruise altitude; + = headwind, − = tailwind; null = no data */
+function routeHeadwind(dep, arr, a1, o1, a2, o2, altFt) {
+  if (!Object.keys(windStations).length) return null;
+  const k = dep + "|" + arr + "|" + Math.round(altFt / 1000);
+  if (k in windHwCache) return windHwCache[k];
+  const course = bearingDeg(a1, o1, a2, o2);
+  let sum = 0, cnt = 0;
+  for (let i = 0; i <= 4; i++) {
+    const f = i / 4, lat = a1 + (a2 - a1) * f, lon = o1 + (o2 - o1) * f;
+    const w = nearestWind(lat, lon, altFt);
+    if (w && w.dir != null && w.spd) { sum += w.spd * Math.cos(rad(w.dir - course)); cnt++; }
+    else if (w && w.spd === 0) cnt++;                 /* calm contributes 0 */
+  }
+  const v = cnt ? sum / cnt : null;
+  windHwCache[k] = v;
+  return v;
+}
+async function fetchWinds() {
+  windInfo.status = "loading"; renderHeaderStatus();
+  const merged = {}; let ok = 0;
+  for (const reg of WIND_REGIONS) {
+    const url = "https://aviationweather.gov/api/data/windtemp?region=" + reg + "&level=low";
+    let text = null;
+    for (const prox of WIND_PROXIES) {
+      try { const r = await fetch(prox(url)); if (r.ok) { text = await r.text(); if (text && /\bFT\b/.test(text)) break; else text = null; } } catch (e) {}
+    }
+    if (text) { Object.assign(merged, parseWindtemp(text)); ok++; }
+  }
+  const out = {}; let count = 0;
+  for (const id in merged) {
+    const pt = lookup("K" + id) || lookup("P" + id) || lookup(id);
+    if (pt) { out[id] = { lat: pt[0], lon: pt[1], levels: merged[id].levels }; count++; }
+  }
+  windStations = out;
+  windHwCache = {};
+  windInfo = { status: count > 0 ? "ok" : "error", count, time: Date.now() };
+  renderHeaderStatus();
+  renderContent();
+}
+/* ===================== end winds aloft ===================== */
 function arrivalGate(route, arr) {
   if (!route) return "\u2014";
   const toks = route.toUpperCase().split(/\s+/).map(t => t.split("/")[0].replace(/[^A-Z0-9]/g, ""));
@@ -443,8 +563,11 @@ fetch(AIRPORT_DB_URL)
         db[a.icao.toUpperCase()] = [a.lat, a.lon];
     }
     airportDb = db; dbStatus = "full"; renderHeaderStatus();
+    fetchWinds();
   })
-  .catch(() => { airportDb = FALLBACK_AIRPORTS; dbStatus = "fallback"; renderHeaderStatus(); });
+  .catch(() => { airportDb = FALLBACK_AIRPORTS; dbStatus = "fallback"; renderHeaderStatus(); fetchWinds(); });
+
+setInterval(fetchWinds, 3600000);   /* refresh winds aloft hourly */
 
 async function fetchFeed() {
   feedStatus = "fetching"; renderHeaderStatus();
@@ -498,11 +621,16 @@ function computeFlow(target) {
       let routeNm, est = false;
       if (depPt && arrPt) routeNm = gcDist(depPt[0], depPt[1], arrPt[0], arrPt[1]) * 1.12;
       else { routeNm = 300; est = true; }
-      const flightTimeMs = (routeNm / tas) * 3600000 + 14 * 60000;
+      let gs = tas, hw = null;
+      if (depPt && arrPt) {
+        hw = routeHeadwind(dep, target, depPt[0], depPt[1], arrPt[0], arrPt[1], parseAlt(fp.altitude));
+        if (hw != null) gs = Math.max(tas * 0.4, Math.min(tas * 1.6, tas - hw));
+      }
+      const flightTimeMs = (routeNm / gs) * 3600000 + 14 * 60000;
       const etd = now;   /* assume ready-to-go now; CFR time, if any, is the only delay */
       flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
         status:"GROUND", dist:routeNm, gs:p.groundspeed, eta:etd + flightTimeMs,
-        sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr });
+        sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw });
     }
   }
 
@@ -519,7 +647,12 @@ function computeFlow(target) {
     let routeNm, est = false;
     if (depPt && arrPt) routeNm = gcDist(depPt[0], depPt[1], arrPt[0], arrPt[1]) * 1.12;
     else { routeNm = 300; est = true; }
-    const flightTimeMs = (routeNm / tas) * 3600000 + 14 * 60000;
+    let gs = tas, hw = null;
+    if (depPt && arrPt) {
+      hw = routeHeadwind(dep, target, depPt[0], depPt[1], arrPt[0], arrPt[1], parseAlt(fp.altitude));
+      if (hw != null) gs = Math.max(tas * 0.4, Math.min(tas * 1.6, tas - hw));
+    }
+    const flightTimeMs = (routeNm / gs) * 3600000 + 14 * 60000;
 
     let etd = now + 20 * 60000;
     if (/^\d{4}$/.test(fp.deptime || "")) {
@@ -531,7 +664,7 @@ function computeFlow(target) {
     }
     flights.push({ key:"P-"+pf.callsign, callsign:pf.callsign, type:acft, dep, gate,
       status:"PROPOSED", dist:routeNm, gs:0, eta:etd + flightTimeMs,
-      sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr });
+      sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw });
   }
 
   /* ----- metering: two-tier scheduler -----
@@ -725,7 +858,11 @@ function renderHeaderStatus() {
     feedStatus === "error" ? "FEED FAIL" :
     lastFetch ? "FEED " + fmtZ(lastFetch) + "Z" : "FEED \u2014";
   const dbTxt = dbStatus === "full" ? "GLOBAL" : dbStatus === "fallback" ? "LOCAL" : "\u2026";
-  el.textContent = feedTxt + "  \u00B7  DB " + dbTxt;
+  const windTxt =
+    windInfo.status === "loading" ? "  \u00B7  WINDS \u2592\u2592" :
+    windInfo.status === "ok" ? "  \u00B7  WINDS " + windInfo.count :
+    windInfo.status === "error" ? "  \u00B7  WINDS \u2014" : "";
+  el.textContent = feedTxt + "  \u00B7  DB " + dbTxt + windTxt;
   el.className = feedStatus === "error" ? "err" : "";
 }
 
@@ -746,6 +883,7 @@ function renderContent() {
   if (activeTab === "home") { renderHome(); restoreFocus(refocus); return; }
   if (activeTab === "tmu") { renderTMU(); restoreFocus(refocus); return; }
   if (activeTab === "restrict") { renderRestrict(); restoreFocus(refocus); return; }
+  if (activeTab === "mydash") { renderMyDash(); restoreFocus(refocus); return; }
   if (activeTab === "dep") { renderDep(); restoreFocus(refocus); return; }
   renderMeter(refocus);
 }
@@ -1055,6 +1193,138 @@ function restrCell(id, field, val, ph) {
     '" data-keep="restr-' + esc(id) + '-' + field + '" placeholder="' + ph + '" value="' + esc(val || "") + '"></td>';
 }
 
+
+/* ---------- MY DASHBOARD: combined pending GROUND departures across a personal airport set ---------- */
+function renderMyDash() {
+  const now = Date.now();
+
+  let h = '<div class="tmuform">' +
+    '<span class="lbl">ADD AIRPORT</span>' +
+    '<input id="mydashIcao" data-keep="mydashIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" style="width:110px;letter-spacing:.12em;">' +
+    '<button data-mydashadd>ADD</button>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + myAirports.length + ' / 20 airports \u00B7 shows pending GROUND departures from all of them as one list</span>' +
+    '</div>';
+
+  h += '<div class="mydashchips">';
+  if (!myAirports.length) {
+    h += '<span style="color:#56676f;font-size:12px;">No airports added yet. Add the fields you are working above.</span>';
+  } else {
+    for (const a of myAirports)
+      h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-mydashrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+  }
+  h += '</div>';
+
+  if (!myAirports.length) { contentEl.innerHTML = h; return; }
+  if (!vatsim) {
+    h += '<div class="msg">' + (feedStatus === "error"
+      ? "Could not reach the VATSIM data feed. It retries every 30 seconds." : "Pulling the VATSIM feed\u2026") + '</div>';
+    contentEl.innerHTML = h; return;
+  }
+
+  const set = new Set(myAirports);
+  const deps = [];
+  for (const p of (vatsim.pilots || [])) {
+    const fp = p.flight_plan;
+    if (!fp) continue;
+    const dep = (fp.departure || "").toUpperCase();
+    if (!set.has(dep)) continue;
+    const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
+    if (airborne) continue;
+    const dest = (fp.arrival || "????").toUpperCase();
+    const destPt = lookup(dest);
+    const distToDest = destPt ? gcDist(p.latitude, p.longitude, destPt[0], destPt[1]) : null;
+    if (p.groundspeed <= 60 && distToDest != null && distToDest < 5) continue;  /* arrived, not pending */
+    deps.push({ callsign: p.callsign, dep, dest,
+      type: (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0],
+      vfr: /^V/i.test(fp.flight_rules || "") });
+  }
+
+  const flowCache = {};
+  for (const d of deps) {
+    if (tmuRates[d.dest]) {
+      if (!(d.dest in flowCache)) flowCache[d.dest] = computeFlow(d.dest);
+      const fl = flowCache[d.dest];
+      const e = fl && fl.flights.find(f => f.callsign === d.callsign);
+      if (e) { d.entry = e; d.aar = getRate(d.dest).aar; }
+    }
+  }
+  deps.sort((a, b) => {
+    const aw = a.entry && a.entry.wheelsUp != null ? a.entry.wheelsUp : Infinity;
+    const bw = b.entry && b.entry.wheelsUp != null ? b.entry.wheelsUp : Infinity;
+    return aw - bw || a.callsign.localeCompare(b.callsign);
+  });
+
+  const metered = deps.filter(d => d.entry && !d.vfr).length;
+  const held = deps.filter(d => d.entry && !d.vfr && d.entry.edctIssued && !d.entry.releaseNow).length;
+
+  h += '<div class="strip">' +
+    '<span class="field">MY DEPARTURES</span>' +
+    stat("PENDING", deps.length) +
+    stat("TO METERED FIELDS", metered, "#f5a83d") +
+    stat("HOLDING ON CFR", held, "#f25555") +
+    '</div>';
+
+  if (!deps.length) {
+    h += '<div class="msg">No pending GROUND departures out of your airports right now.</div>';
+    contentEl.innerHTML = h; return;
+  }
+
+  h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+    '<th>CALLSIGN</th><th>TYPE</th><th>DEP</th><th>DEST</th><th>TMU PGM</th>' +
+    '<th>STA AT DEST Z</th><th>DLY MIN</th><th>CALL FOR RELEASE (CFR)</th>' +
+    '</tr></thead><tbody>';
+  for (const d of deps) {
+    const e = d.entry;
+    let pgm, sta = "\u2014", dly = "\u2014", cfr;
+    if (d.vfr) {
+      pgm = '<span class="vfrtag">VFR</span>';
+      cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+    } else if (!tmuRates[d.dest]) {
+      pgm = '<span style="color:#3a4750;">\u2014</span>';
+      cfr = '<span style="color:#3a4750;">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+    } else if (!e) {
+      pgm = (d.dest in flowCache && !flowCache[d.dest]) ? '<span style="color:#56676f;">NO FEED</span>' : esc(String(getRate(d.dest).aar)) + "/hr";
+      cfr = '<span style="color:#56676f;">\u2014</span>';
+    } else {
+      pgm = d.aar + "/hr";
+      sta = fmtZ(e.sta);
+      dly = fmtDelay(e.delay);
+      if (!e.edctIssued) {
+        const ewu = earliestEdct(d.callsign, d.dep, d.dest);
+        const wu = ewu != null ? ewu : e.wheelsUp;
+        if (wu <= now + CFR_THRESHOLD) {
+          cfr = '<span class="released">\u2713 RELEASED</span>';
+        } else {
+          cfr = '<button class="edctbtn" data-issue="' + esc(e.callsign) + '" data-wu="' + Math.round(wu) + '">CFR TIME</button>' +
+            '<span style="color:#3a4750;font-size:10px;"> earliest ' + fmtZ(wu) + 'Z</span>';
+        }
+      } else if (e.releaseNow) {
+        cfr = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
+          '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
+      } else {
+        const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
+        const cls = e.pulled ? "edctpulled" : "";
+        const sub = e.pulled ? "sub" : "";
+        cfr = '<span class="' + cls + '" style="' + (e.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
+          (e.pulled ? "\u25BC " : "") + fmtZ(e.wheelsUp) + 'Z' +
+          '<span class="' + sub + '" style="' + (e.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
+          '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
+      }
+    }
+    h += '<tr>' +
+      '<td style="color:#e8f0f4;font-weight:600;">' + esc(d.callsign) + '</td>' +
+      '<td>' + esc(d.type) + '</td>' +
+      '<td style="color:#9fdcff;">' + esc(d.dep) + '</td>' +
+      '<td>' + esc(d.dest) + '</td>' +
+      '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + cfr + '</td>' +
+      '</tr>';
+  }
+  h += '</tbody></table>' +
+    '<div class="footnote">One combined list of pending GROUND departures across your airports. ' +
+    'Airborne and arrived aircraft are excluded. CFR machinery matches the other views \u2014 issuing reserves the slot ' +
+    'at the destination and syncs to all positions. Your airport list is saved on this device only.</div></div>';
+  contentEl.innerHTML = h;
+}
 
 const TRAIL_OPTS = [[0,"AUTO"],[3,"3 MIN"],[5,"5 MIN"],[7,"7 MIN"],[10,"10 MIN"],[15,"15 MIN"],[20,"20 MIN"]];
 const selOpts = (opts, cur) => opts.map(o => {
@@ -1418,21 +1688,10 @@ function stat(label, value, color) {
 
 /* ---------- wiring ---------- */
 const icaoInput = document.getElementById("icaoInput");
-const aarSel = document.getElementById("aarSel");
 const dl = document.getElementById("event-fields");
 
 Object.keys(FALLBACK_AIRPORTS).sort().forEach(a => {
   const o = document.createElement("option"); o.value = a; dl.appendChild(o);
-});
-const routeSel = document.getElementById("routeSel");
-[[0,"AUTO"],[3,"3 MIN"],[5,"5 MIN"],[7,"7 MIN"],[10,"10 MIN"],[15,"15 MIN"],[20,"20 MIN"]].forEach(([v,t]) => {
-  const o = document.createElement("option");
-  o.value = v; o.textContent = t; if (v === 0) o.selected = true;
-  routeSel.appendChild(o);
-});
-routeSel.addEventListener("change", () => {
-  if (icao) { const cur = getRate(icao); tmuRates[icao] = { aar: parseAar(aarSel.value) || cur.aar, trail: +routeSel.value, mit: 0, gates: cur.gates || [] }; pushSync(); }
-  renderContent();
 });
 
 icaoInput.addEventListener("input", () => { icaoInput.value = icaoInput.value.toUpperCase(); });
@@ -1446,8 +1705,9 @@ function setTab(t) {
     el.classList.toggle("active", el.dataset.tab === t));
   document.getElementById("meterCtl").style.display = t === "meter" ? "flex" : "none";
   document.getElementById("depCtl").style.display = t === "dep" ? "flex" : "none";
-  /* the home overview needs the live feed to compute program delays */
+  /* views that need the live feed */
   if (t === "home" && Object.keys(tmuRates).length) ensurePolling();
+  if (t === "mydash" && myAirports.length) ensurePolling();
   renderContent();
 }
 document.querySelectorAll(".tab").forEach(el =>
@@ -1568,16 +1828,24 @@ contentEl.addEventListener("change", e => {
     return;
   }
 });
-aarSel.addEventListener("change", () => {
-  const a = parseAar(aarSel.value);
-  if (a == null) { aarSel.value = getRate(icao).aar; return; }   /* reject invalid entry */
-  aarSel.value = a;
-  if (icao) { const cur = getRate(icao); tmuRates[icao] = { aar: a, trail: +routeSel.value, mit: cur.mit || 0, gates: cur.gates || [] }; pushSync(); }
-  renderContent();
-});
 
 /* sortable headers — delegated so it survives every re-render */
 contentEl.addEventListener("click", e => {
+  /* ---- My Dashboard: add / remove personal airports ---- */
+  if (e.target.closest("[data-mydashadd]")) {
+    const inp = document.getElementById("mydashIcao");
+    const v = inp ? inp.value.trim().toUpperCase() : "";
+    if (/^[A-Z0-9]{4}$/.test(v) && myAirports.length < 20 && !myAirports.includes(v)) {
+      myAirports.push(v); saveMyAirports(); ensurePolling(); renderContent();
+    }
+    return;
+  }
+  const myRm = e.target.closest("[data-mydashrm]");
+  if (myRm) {
+    myAirports = myAirports.filter(a => a !== myRm.dataset.mydashrm);
+    saveMyAirports(); renderContent();
+    return;
+  }
   const issueBtn = e.target.closest("[data-issue]");
   if (issueBtn) {
     const wu = +issueBtn.dataset.wu;
@@ -1629,8 +1897,18 @@ contentEl.addEventListener("click", e => {
   renderContent();
 });
 
+contentEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.id === "mydashIcao") {
+    const v = e.target.value.trim().toUpperCase();
+    if (/^[A-Z0-9]{4}$/.test(v) && myAirports.length < 20 && !myAirports.includes(v)) {
+      myAirports.push(v); saveMyAirports(); ensurePolling(); renderContent();
+    }
+  }
+});
+
 /* per-column filters — delegated, focus is preserved across re-renders */
 contentEl.addEventListener("input", e => {
+  if (e.target.id === "mydashIcao") { e.target.value = e.target.value.toUpperCase(); return; }
   const gn = e.target.closest("input[data-tmugatename]");
   if (gn) {
     const r = tmuRates[gn.dataset.tmugatename]; const i = +gn.dataset.idx;
@@ -1679,25 +1957,13 @@ function activate() {
   const v = icaoInput.value.trim().toUpperCase();
   if (!/^[A-Z0-9]{4}$/.test(v)) return;
   icao = v;
-  ladderScrollPos = null;          /* new field: snap ladder back to NOW */
-  if (tmuRates[v]) {
-    /* a TMU program already exists for this field: adopt it */
-    aarSel.value = tmuRates[v].aar;
-    routeSel.value = tmuRates[v].trail;
-  } else {
-    /* create a program from the current control values */
-    tmuRates[v] = { aar: parseAar(aarSel.value) || 30, trail: +routeSel.value, mit: 0, gates: [] };
-    aarSel.value = tmuRates[v].aar;
-    pushSync();
-  }
+  ladderScrollPos = null;          /* snap ladder back to NOW */
+  /* rates are set only on the TMU tab; viewing here uses the existing
+     program if one exists, otherwise the default rate for display */
   ensurePolling();
 }
 
-function syncMeterSelectors() {
-  const r = getRate(icao);
-  aarSel.value = r.aar;
-  routeSel.value = r.trail;
-}
+function syncMeterSelectors() { /* header rate controls removed — rates live on the TMU tab */ }
 
 function ensurePolling() {
   if (!pollTimer) pollTimer = setInterval(fetchFeed, 30000);
@@ -1713,7 +1979,8 @@ setInterval(() => {
     String(d.getUTCSeconds()).padStart(2,"0") + "Z";
 }, 1000);
 setInterval(() => {
-  if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" || (icao && vatsim)) {
+  if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" ||
+      activeTab === "mydash" || activeTab === "dep" || (icao && vatsim)) {
     /* avoid yanking focus/caret while a restriction field is being typed */
     const a = document.activeElement;
     if (a && a.dataset && a.dataset.restrfield) return;
