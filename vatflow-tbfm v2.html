@@ -2541,10 +2541,13 @@ hubBtn.addEventListener("click", () => {
   if (window.VFSync && window.VFSync.connected) window.VFSync.disconnect();   /* one transport at a time */
   window.VFHub.connect();
 });
-/* reflect availability once the Firebase module has loaded */
+/* reflect availability once the Firebase module has loaded; auto-connect to the hub */
 window.addEventListener("load", () => {
   if (window.VFSync && !window.VFSync.available)
     window.VATFLOW.setSyncStatus("default");
+  /* connect to the global hub automatically when a hub URL is configured */
+  if (window.VFHub && window.VFHub.available() && !window.VFHub.connected)
+    window.VFHub.connect();
 });
 
 /* ===================== CONTROLLER ACCESS (password gate) ===================== */
