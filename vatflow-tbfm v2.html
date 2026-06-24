@@ -174,7 +174,22 @@
   th.sorted { color:#e8f0f4; }
   td { padding:7px 10px; border-bottom:1px solid #121a22; white-space:nowrap; }
   tr:hover td { background:#0d141b; }
-  .footnote { padding:12px 20px; color:#3a4750; font-size:11px; line-height:1.7; }
+  .helpwrap { padding:24px 28px 48px; max-width:920px; }
+  .helptitle { font-family:'Barlow Condensed',sans-serif; font-size:32px; letter-spacing:.06em;
+               color:#e8f0f4; margin-bottom:8px; }
+  .helpintro { color:#9fb0ba; font-size:15px; line-height:1.65; margin-bottom:28px; max-width:720px; }
+  .helpsec { font-family:'Barlow Condensed',sans-serif; font-size:20px; letter-spacing:.06em;
+             color:#9fdcff; margin:28px 0 12px; padding-bottom:8px; border-bottom:1px solid #1a232d; }
+  .helpcard { background:#0a1016; border:1px solid #1a232d; border-radius:6px; padding:16px 18px; margin-bottom:14px; }
+  .helpcard h3 { margin:0 0 10px; font-family:'Barlow Condensed',sans-serif; font-size:17px;
+                 letter-spacing:.05em; color:#e8f0f4; }
+  .helplist { margin:0; padding-left:20px; color:#c9d6df; font-size:14px; line-height:1.75; }
+  .helplist li { margin-bottom:6px; }
+  .helplist li b { color:#e8f0f4; font-weight:600; }
+  .helpterms { display:grid; grid-template-columns:130px 1fr; gap:10px 18px; font-size:14px; line-height:1.65; }
+  .helpterms dt { color:#9fdcff; font-weight:600; }
+  .helpterms dd { margin:0; color:#c9d6df; }
+  @media (max-width:600px){ .helpterms { grid-template-columns:1fr; } }
 
   .ladderwrap { border-left:1px solid #1a232d; padding:14px 14px 20px; }
   .ladderhead { font-size:11px; color:#56676f; letter-spacing:.1em; margin-bottom:4px;
@@ -293,6 +308,7 @@
     <span class="tab" data-tab="tmu">TMU</span>
     <span class="tab" data-tab="restrict">RESTRICTIONS</span>
     <span class="tab" data-tab="dep">DEPARTURES</span>
+    <span class="tab" data-tab="help">HELP</span>
   </nav>
   <div id="meterCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
     <input id="icaoInput" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off">
@@ -380,7 +396,7 @@ const FALLBACK_AIRPORTS = {
 const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
 
 /* ---------- state ---------- */
-let activeTab = "home";     // home | meter | tmu | restrict | dep
+let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | help
 let icao = null;            // METER view: arrival field being metered
 let depIcao = null;         // DEPARTURES view: tower controller's field
 const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by all views)
@@ -1073,6 +1089,7 @@ function renderContent() {
   if (oldScroll) ladderScrollPos = oldScroll.scrollTop;
 
   if (activeTab === "home") { renderHome(); restoreFocus(refocus); return; }
+  if (activeTab === "help") { renderHelp(); return; }
   if (activeTab === "tmu") { renderTMU(); restoreFocus(refocus); return; }
   if (activeTab === "restrict") { renderRestrict(); restoreFocus(refocus); return; }
   if (activeTab === "mydash") { renderMyDash(); restoreFocus(refocus); return; }
@@ -1212,19 +1229,7 @@ function renderMeter(refocus) {
     }
     h += '</tbody></table>';
   }
-  h += '<div class="footnote">* route distance estimated (departure field not in database) \u00B7 ' +
-    'Ground departures are assumed ready now (no taxi pad) \u00B7 Proposed ETD = filed dep time (min 20 min from now) \u00B7 ' +
-    'ETE = great circle \u00D7 1.12 at filed TAS + 14 min climb/descent \u00B7 ' +
-    'AIRBORNE: STA = ETA; running early is fine \u2014 DLY assigned only when spacing with other ' +
-    'airborne traffic requires it (AAR interval, plus same-route in-trail per the ROUTE TRAIL setting; ' +
-    'AUTO = AAR interval, no extra penalty) \u00B7 ' +
-    'GROUND/PROPOSED: slotted around fixed airborne STAs; delay absorbed on the ground \u00B7 ' +
-    'CFR is MANUAL: when a delay is required the suggested time updates live until you press CFR TIME, which locks ' +
-    'the time and reserves the slot (\u2715 cancels/re-opens it) \u00B7 ' +
-    'PROPOSED flights show PENDING until the pilot connects \u00B7 ' +
-    'Click any column header to sort (click again to reverse); # restores metered sequence order \u00B7 ' +
-    'Filter boxes under each header: text match, or &gt;n &lt;n &gt;=n &lt;=n on numeric columns ' +
-    '(times as HHMM, delay in minutes); filters affect the table only.</div></div>';
+  h += '</div>';
 
   /* metering ladder — fixed 12 px/min scale inside a scrollable viewport */
   const PX_PER_MIN = 12;
@@ -1327,11 +1332,78 @@ function renderHome() {
     h += '</div>';
   }
 
-  /* active restrictions block removed per request */
-
-  h += '<div class="footnote" style="padding:16px 0 0;">Delays shown are the current average ground hold across issued CFRs for each program. ' +
-    'Programs update live from the shared room when connected.</div></div>';
+  h += '</div>';
   contentEl.innerHTML = h;
+}
+
+/* ---------- HELP view: quick reference ---------- */
+function renderHelp() {
+  const relMin = DEP_RELEASE_INT / 60000;
+  contentEl.innerHTML =
+    '<div class="helpwrap">' +
+    '<div class="helptitle">Quick Reference</div>' +
+    '<p class="helpintro">VATFLOW meters arrivals and issues Call For Release (CFR) times for VATSIM events. ' +
+    'Live traffic comes from the VATSIM feed (refreshes every 30 seconds). Open this tab anytime you need a refresher.</p>' +
+
+    '<div class="helpsec">Pages</div>' +
+    '<div class="helpcard"><h3>HOME</h3><ul class="helplist">' +
+    '<li>Overview of every active flow program and its average delay.</li></ul></div>' +
+    '<div class="helpcard"><h3>APT DASHBOARD</h3><ul class="helplist">' +
+    '<li>Enter an arrival airport and press <b>LOAD</b> to see inbound traffic, demand vs. AAR, and the arrival ladder.</li>' +
+    '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
+    '<li>Sort any column by clicking its header; click again to reverse. Column # restores metered sequence order.</li>' +
+    '<li>Filter boxes under headers: type to match text, or use <b>&gt;n</b> <b>&lt;n</b> <b>&gt;=n</b> <b>&lt;=n</b> on numeric columns (times as HHMM, delay in minutes). Filters affect the table only — stats and the ladder still include all traffic.</li>' +
+    '<li>The arrival ladder scrolls; NOW is at the bottom. Use <b>+</b> / <b>&minus;</b> to widen or narrow the time window.</li></ul></div>' +
+    '<div class="helpcard"><h3>MY DASHBOARD</h3><ul class="helplist">' +
+    '<li>Add up to 20 departure airports you are working. Shows one combined list of pending ground departures from all of them.</li>' +
+    '<li>Airborne and arrived aircraft are excluded. Your airport list is saved on this device only.</li></ul></div>' +
+    '<div class="helpcard"><h3>TMU</h3><ul class="helplist">' +
+    '<li>Set flow programs: <b>AAR</b> (arrivals per hour), <b>ROUTE TRAIL</b> (minutes-in-trail), and optional <b>MIT</b> (miles-in-trail — overrides minutes when set).</li>' +
+    '<li>Add up to 10 <b>gate restrictions</b> per airport for STAR/fix-specific spacing.</li>' +
+    '<li>Programs apply everywhere: APT Dashboard, Departures, and CFR times.</li></ul></div>' +
+    '<div class="helpcard"><h3>RESTRICTIONS</h3><ul class="helplist">' +
+    '<li><b>Restrictions</b> — free-form entries (requesting, providing, restriction text, start/stop times). Shared live when connected.</li>' +
+    '<li><b>Ground Stops</b> — holds ground departures into a named airport. Leave scope blank for a field-wide stop, or enter ARTCC/FIR codes (e.g. ZTL ZJX) to scope by departure region.</li></ul></div>' +
+    '<div class="helpcard"><h3>DEPARTURES</h3><ul class="helplist">' +
+    '<li>Set <b>MY FIELD</b> in the header to your tower airport. Shows ground and prefiled departures only — airborne flights drop off once they leave.</li>' +
+    '<li>CFR controls appear for destinations that have a TMU program.</li></ul></div>' +
+
+    '<div class="helpsec">Call For Release (CFR)</div>' +
+    '<div class="helpcard"><ul class="helplist">' +
+    '<li>CFR is <b>manual</b>. When metering requires a delay, a suggested wheels-up time appears. Press <b>CFR TIME</b> to lock it and reserve the slot.</li>' +
+    '<li><b>RELEASED</b> — no delay needed; release at will.</li>' +
+    '<li><b>RELEASE NOW</b> — wheels-up time has arrived.</li>' +
+    '<li><b>\u2715</b> on an issued CFR cancels it and pulls remaining CFRs into the freed slot.</li>' +
+    '<li>First aircraft issued gets the earliest available time. A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li>' +
+    '<li>VFR flights are never metered. Proposed (not connected) flights show <b>PENDING</b>.</li></ul></div>' +
+
+    '<div class="helpsec">How metering works</div>' +
+    '<div class="helpcard"><ul class="helplist">' +
+    '<li><b>Airborne</b> — flies their ETA. Delay is assigned only when spacing with other traffic requires it (AAR interval plus route/gate trail).</li>' +
+    '<li><b>Ground / Proposed</b> — slotted around fixed airborne arrival times; delay is absorbed on the ground via CFR.</li>' +
+    '<li>ETE uses great-circle distance \u00D7 1.12 at filed cruise speed, plus 14 minutes for climb/descent. US routes may adjust for winds aloft.</li>' +
+    '<li>Ground departures are assumed ready now. Proposed flights use filed departure time (minimum 20 minutes from now).</li>' +
+    '<li>An asterisk (*) on distance means the departure airport was not found in the database — distance is estimated.</li></ul></div>' +
+
+    '<div class="helpsec">Sync &amp; access</div>' +
+    '<div class="helpcard"><ul class="helplist">' +
+    '<li><b>VIEW ONLY</b> (default) — read the schedule and suggested CFR times. Unlock with the control password to issue CFRs and edit programs.</li>' +
+    '<li><b>CONNECT</b> — join a named room to share programs, CFRs, restrictions, and ground stops via Firebase.</li>' +
+    '<li><b>HUB</b> — join the global shared session (no room name needed).</li>' +
+    '<li><b>\u25CF LIVE</b> — connected and syncing. <b>LOCAL ONLY</b> — working solo.</li></ul></div>' +
+
+    '<div class="helpsec">Key terms</div>' +
+    '<dl class="helpterms">' +
+    '<dt>CFR</dt><dd>Call For Release — assigned wheels-up time for a departure.</dd>' +
+    '<dt>AAR</dt><dd>Airport Arrival Rate — arrivals per hour the field can accept.</dd>' +
+    '<dt>MIT</dt><dd>Miles in Trail — required distance between successive aircraft.</dd>' +
+    '<dt>STA</dt><dd>Scheduled Time of Arrival at the destination.</dd>' +
+    '<dt>Gate</dt><dd>Arrival fix or STAR from the filed route.</dd>' +
+    '<dt>TMU</dt><dd>Traffic Management Unit — sets rates and restrictions.</dd>' +
+    '</dl>' +
+
+    '<p class="helpintro" style="margin-top:32px;margin-bottom:0;font-size:13px;">For simulation on VATSIM only — not for real-world ATC or flight planning.</p>' +
+    '</div>';
 }
 
 /* ---------- RESTRICTIONS view: TMU restriction entries ---------- */
@@ -1584,10 +1656,7 @@ function renderMyDash() {
       '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + cfr + '</td>' +
       '</tr>';
   }
-  h += '</tbody></table>' +
-    '<div class="footnote">One combined list of pending GROUND departures across your airports. ' +
-    'Airborne and arrived aircraft are excluded. CFR machinery matches the other views \u2014 issuing reserves the slot ' +
-    'at the destination and syncs to all positions. Your airport list is saved on this device only.</div></div>';
+  h += '</tbody></table></div>';
   contentEl.innerHTML = h;
 }
 
@@ -1692,10 +1761,7 @@ function renderTMU() {
           '</span></td></tr>';
       }
     }
-    h += '</tbody></table>' +
-      '<div class="footnote">Rates set here are used by every view in this browser session. ' +
-      'For multi-controller events, publish the rates and have each position enter the same values \u2014 ' +
-      'the schedule is deterministic, so identical rates + the shared VATSIM feed give everyone the same picture.</div></div>';
+    h += '</tbody></table></div>';
   }
   contentEl.innerHTML = h;
 }
@@ -1961,13 +2027,7 @@ function renderDep() {
         '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + edct + '</td>' +
         '</tr>';
     }
-    h += '</tbody></table>' +
-      '<div class="footnote">Departures off ' + esc(depIcao) + ' only (ground + prefiled; airborne drop off this list). ' +
-      'ISSUE EDCT here uses issuance-order priority: the first aircraft issued takes the EARLIEST available time, ' +
-      'constrained only by airborne traffic and already-issued EDCTs at the destination, plus a ' +
-      (DEP_RELEASE_INT / 60000) + '-min release interval between issued EDCTs off this field. ' +
-      'If the field has capacity and no slot conflict exists, no delay is issued and the flight shows RELEASED. ' +
-      'EDCTs issued here reserve the slot at the destination and show on the METER tab too.</div></div>';
+    h += '</tbody></table></div>';
   }
   contentEl.innerHTML = h;
 }
