@@ -10,14 +10,7 @@ Download or test via this link here https://djbrombizzle.github.io/vatflow/vatfl
 
 ---
 
-## Quick Start
 
-1. Download `vatflow-tbfm.html`.
-2. Open it in any modern web browser (Chrome, Edge, Firefox, Safari).
-
-That's it. The app connects to the public VATSIM feed automatically.
-
-To coordinate with other controllers in real time, see [Multi-Controller Sync](#multi-controller-sync).
 
 ---
 
