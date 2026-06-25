@@ -308,6 +308,7 @@
     <span class="tab" data-tab="tmu">TMU</span>
     <span class="tab" data-tab="restrict">RESTRICTIONS</span>
     <span class="tab" data-tab="dep">DEPARTURES</span>
+    <span class="tab" data-tab="pilot">PILOT</span>
     <span class="tab" data-tab="help">HELP</span>
   </nav>
   <div id="meterCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -320,6 +321,12 @@
     <span class="lbl">MY FIELD</span>
     <input id="depInput" list="event-fields" placeholder="ICAO (e.g. KLAX)" maxlength="4" autocomplete="off">
     <button id="depBtn">SET</button>
+  </div>
+  <div id="pilotCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span class="lbl">MY CID</span>
+    <input id="pilotCidInput" placeholder="VATSIM CID (e.g. 1234567)" maxlength="9" inputmode="numeric" autocomplete="off">
+    <button id="pilotBtn">LOOKUP</button>
+    <span style="font-size:11px;color:#56676f;">View only &middot; your flight, delays &amp; suggested wheels-up</span>
   </div>
   <div class="hdr-right">
     <div id="lockCtl">
@@ -396,9 +403,13 @@ const FALLBACK_AIRPORTS = {
 const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
 
 /* ---------- state ---------- */
-let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | help
+let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | pilot | help
 let icao = null;            // METER view: arrival field being metered
 let depIcao = null;         // DEPARTURES view: tower controller's field
+/* PILOT view: a single VATSIM CID looked up against the live feed (view only) */
+let pilotCid = null;
+try { const savedCid = localStorage.getItem("vatflow_pilot_cid"); if (savedCid) pilotCid = savedCid; } catch (e) {}
+function savePilotCid() { try { if (pilotCid) localStorage.setItem("vatflow_pilot_cid", pilotCid); else localStorage.removeItem("vatflow_pilot_cid"); } catch (e) {} }
 const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by all views)
 const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
@@ -1094,6 +1105,7 @@ function renderContent() {
   if (activeTab === "restrict") { renderRestrict(); restoreFocus(refocus); return; }
   if (activeTab === "mydash") { renderMyDash(); restoreFocus(refocus); return; }
   if (activeTab === "dep") { renderDep(); restoreFocus(refocus); return; }
+  if (activeTab === "pilot") { renderPilot(); restoreFocus(refocus); return; }
   renderMeter(refocus);
 }
 
@@ -1367,6 +1379,10 @@ function renderHelp() {
     '<div class="helpcard"><h3>DEPARTURES</h3><ul class="helplist">' +
     '<li>Set <b>MY FIELD</b> in the header to your tower airport. Shows ground and prefiled departures only — airborne flights drop off once they leave.</li>' +
     '<li>CFR controls appear for destinations that have a TMU program.</li></ul></div>' +
+    '<div class="helpcard"><h3>PILOT</h3><ul class="helplist">' +
+    '<li>For pilots: enter your <b>VATSIM CID</b> in the header and press <b>LOOKUP</b> to see your active flight, filed plan, and any flow delay. View only.</li>' +
+    '<li>If your destination is being metered and you need a delay, the page shows a <b>SUGGESTED WHEELS-UP</b> time. This is computed automatically, so you can self-meter even when no departure controller is online to issue a CFR.</li>' +
+    '<li>If a controller has already issued you a CFR, that assigned time is shown instead. Your CID is saved on this device.</li></ul></div>' +
 
     '<div class="helpsec">Call For Release (CFR)</div>' +
     '<div class="helpcard"><ul class="helplist">' +
@@ -1657,6 +1673,182 @@ function renderMyDash() {
       '</tr>';
   }
   h += '</tbody></table></div>';
+  contentEl.innerHTML = h;
+}
+
+/* ---------- PILOT view ----------
+   A view-only dashboard keyed by a single VATSIM CID. It finds the pilot's
+   live flight (or prefile) in the feed, shows the filed flight plan, and — if
+   the destination is being metered — the flow delay and a SUGGESTED WHEELS-UP
+   time. The suggestion comes straight from the metering engine, so it is
+   available even when no departure controller is online to issue a CFR. */
+function pilotDetail(label, value, color) {
+  return '<div style="display:flex;flex-direction:column;gap:3px;min-width:90px;">' +
+    '<span style="font-size:10px;letter-spacing:.08em;color:#56676f;">' + label + '</span>' +
+    '<span style="font-size:14px;color:' + (color || "#e8f0f4") + ';font-weight:600;">' + value + '</span></div>';
+}
+
+function renderPilot() {
+  const now = Date.now();
+
+  if (!pilotCid) {
+    contentEl.innerHTML =
+      '<div class="splash"><h2>ENTER YOUR VATSIM CID</h2>' +
+      '<p>Type your CID in the header and press LOOKUP to see your active flight, any flow delay, ' +
+      'and your suggested wheels-up time if your destination is being metered.<br>' +
+      'This page is view only \u2014 it never issues a release.</p></div>';
+    return;
+  }
+
+  if (!vatsim) {
+    contentEl.innerHTML = '<div class="msg">' + (feedStatus === "error"
+      ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
+      : "Pulling the VATSIM feed\u2026") + '</div>';
+    return;
+  }
+
+  let rec = null, isPrefile = false;
+  for (const p of (vatsim.pilots || [])) { if (String(p.cid) === pilotCid) { rec = p; break; } }
+  if (!rec) for (const pf of (vatsim.prefiles || [])) { if (String(pf.cid) === pilotCid) { rec = pf; isPrefile = true; break; } }
+
+  if (!rec) {
+    contentEl.innerHTML =
+      '<div class="strip"><span class="field">CID ' + esc(pilotCid) + '</span></div>' +
+      '<div class="msg">No active flight found for CID ' + esc(pilotCid) + '.<br>' +
+      'Connect to VATSIM with a filed flight plan, then press LOOKUP again.</div>';
+    return;
+  }
+
+  const fp = rec.flight_plan;
+  if (!fp) {
+    contentEl.innerHTML =
+      '<div class="strip"><span class="field">' + esc(rec.callsign || ("CID " + pilotCid)) + '</span>' +
+      stat("CID", esc(pilotCid)) + '</div>' +
+      '<div class="msg">You are connected but have not filed a flight plan yet.<br>' +
+      'File a plan and it will appear here.</div>';
+    return;
+  }
+
+  const callsign = rec.callsign || "";
+  const dep = (fp.departure || "????").toUpperCase();
+  const dest = (fp.arrival || "????").toUpperCase();
+  const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
+  const vfr = /^V/i.test(fp.flight_rules || "");
+  const route = (fp.route || "").trim();
+  const alt = (fp.altitude || "").toString().trim();
+  const tas = (fp.cruise_tas || "").toString().trim();
+
+  const flow = computeFlow(dest);
+  const e = flow ? flow.flights.find(f => f.callsign === callsign) : null;
+  const programmed = !!tmuRates[dest];
+  const status = e ? e.status : (isPrefile ? "PROPOSED" : "GROUND");
+  const sc =
+    status === "ARRIVED" ? "#56676f" :
+    status === "AIRBORNE" ? "#57d98a" :
+    status === "GROUND" ? "#f5a83d" : "#54b8e8";
+
+  /* ---- flight info card ---- */
+  let h = '<div class="strip">' +
+    '<span class="field">' + esc(callsign || ("CID " + pilotCid)) + '</span>' +
+    stat("CID", esc(pilotCid)) +
+    stat("STATUS", '<span style="color:' + sc + ';">' + status + '</span>') +
+    (vfr ? stat("RULES", "VFR") : "") +
+    '</div>';
+
+  h += '<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;' +
+    'background:#0c1218;border:1px solid #1f2c38;border-radius:5px;padding:14px 18px;margin:4px 0 14px;">' +
+    pilotDetail("DEP", esc(dep), "#9fdcff") +
+    pilotDetail("DEST", esc(dest), "#9fdcff") +
+    pilotDetail("AIRCRAFT", esc(acft)) +
+    (alt ? pilotDetail("ALT", esc(alt)) : "") +
+    (tas ? pilotDetail("TAS", esc(tas) + " kt") : "") +
+    (e && e.eta && status !== "ARRIVED" && status !== "GROUND" && status !== "PROPOSED"
+      ? pilotDetail("ETA", fmtZ(e.eta) + "Z") : "") +
+    '</div>';
+
+  if (route) {
+    h += '<div style="background:#0c1218;border:1px solid #1f2c38;border-radius:5px;padding:10px 14px;margin-bottom:14px;">' +
+      '<span style="font-size:10px;letter-spacing:.08em;color:#56676f;">ROUTE</span><br>' +
+      '<span style="font-size:12px;color:#c9d6df;word-break:break-word;line-height:1.6;">' + esc(route) + '</span></div>';
+  }
+
+  /* ---- delay / release panel ---- */
+  const gs = (!vfr && status !== "ARRIVED") ? groundStopFor(dep, dest) : null;
+  const panel = (title, body, accent) =>
+    '<div style="background:#0c1218;border:1px solid ' + (accent || "#1f2c38") + ';border-left:4px solid ' +
+    (accent || "#1f2c38") + ';border-radius:5px;padding:16px 18px;">' +
+    '<div style="font-size:11px;letter-spacing:.08em;color:#56676f;margin-bottom:8px;">' + title + '</div>' +
+    body + '</div>';
+
+  let body;
+  if (vfr) {
+    body = panel("FLOW STATUS",
+      '<span style="font-size:15px;color:#57d98a;font-weight:600;">VFR \u2014 not metered. Depart at will.</span>');
+  } else if (status === "ARRIVED") {
+    body = panel("FLOW STATUS",
+      '<span style="font-size:15px;color:#56676f;font-weight:600;">Arrived at ' + esc(dest) + '.</span>');
+  } else if (gs) {
+    body = panel("GROUND STOP",
+      '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>' +
+      '<div style="margin-top:8px;font-size:12px;color:#c9d6df;">A ground stop is in effect for traffic into ' +
+      esc(dest) + '. Do not depart until it lifts or you are released.</div>', "#f25555");
+  } else if (!programmed) {
+    body = panel("FLOW STATUS",
+      '<span style="font-size:15px;color:#57d98a;font-weight:600;">No flow program at ' + esc(dest) +
+      ' \u2014 no delay expected. Depart at will.</span>');
+  } else if (!e) {
+    body = panel("FLOW STATUS",
+      '<span style="font-size:13px;color:#56676f;">' + esc(dest) +
+      ' is being metered, but your flight is not yet in the picture. It updates every 30 seconds.</span>');
+  } else if (status === "AIRBORNE") {
+    body = panel("AIRBORNE \u2014 SEQUENCED TO " + esc(dest),
+      '<div style="display:flex;gap:26px;flex-wrap:wrap;">' +
+      pilotDetail("PROGRAM", getRate(dest).aar + "/hr") +
+      pilotDetail("SCHED. ARRIVAL", fmtZ(e.sta) + "Z") +
+      pilotDetail("DELAY", fmtDelay(e.delay), e.delay > 15*60000 ? "#f25555" : e.delay > 5*60000 ? "#f5a83d" : "#57d98a") +
+      '</div>');
+  } else {
+    /* GROUND / PROPOSED into a metered field */
+    const issued = issuedEdcts[callsign] != null;
+    let wu = issued ? issuedEdcts[callsign].t : null;
+    if (wu == null) {
+      const ewu = earliestEdct(callsign, dep, dest);
+      wu = ewu != null ? ewu : e.wheelsUp;
+    }
+    const hold = wu != null ? Math.max(0, wu - now) : 0;
+    const needsDelay = wu != null && wu > now + CFR_THRESHOLD;
+
+    if (!needsDelay) {
+      body = panel("SUGGESTED RELEASE",
+        '<span class="released" style="font-size:16px;">\u2713 NO DELAY \u2014 DEPART AT WILL</span>' +
+        '<div style="margin-top:8px;font-size:12px;color:#c9d6df;">' + esc(dest) +
+        ' has capacity for you right now (program ' + getRate(dest).aar + '/hr).</div>', "#57d98a");
+    } else {
+      const tmin = Math.round(hold / 60000);
+      const label = issued ? "ASSIGNED CALL FOR RELEASE (CFR)" : "SUGGESTED WHEELS-UP";
+      const accent = issued ? "#f5a83d" : "#54b8e8";
+      body = panel(label,
+        '<div style="font-size:30px;font-weight:700;color:' + accent + ';letter-spacing:.04em;">' +
+        fmtZ(wu) + 'Z' +
+        '<span style="font-size:14px;color:#56676f;font-weight:400;"> (T\u2212' + tmin + 'm)</span></div>' +
+        '<div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:12px;">' +
+        pilotDetail("PROGRAM", getRate(dest).aar + "/hr") +
+        pilotDetail("GROUND DELAY", fmtDelay(hold), hold > 15*60000 ? "#f25555" : hold > 5*60000 ? "#f5a83d" : "#57d98a") +
+        pilotDetail("SCHED. ARRIVAL", fmtZ(e.sta) + "Z") +
+        '</div>' +
+        '<div style="margin-top:12px;font-size:12px;color:#c9d6df;line-height:1.6;">' +
+        (issued
+          ? 'A controller has issued this CFR. Plan to be wheels-up at the time above.'
+          : 'No controller has issued a release. This is the system\u2019s suggested wheels-up time \u2014 ' +
+            'use it to self-meter if no departure controller is online. It may change as traffic updates.') +
+        '</div>', accent);
+    }
+  }
+
+  h += body;
+  h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">Tracking CID ' + esc(pilotCid) +
+    ' \u00B7 change it in the header \u00B7 updates every 30s \u00B7 view only.</div>';
+
   contentEl.innerHTML = h;
 }
 
@@ -2056,9 +2248,11 @@ function setTab(t) {
     el.classList.toggle("active", el.dataset.tab === t));
   document.getElementById("meterCtl").style.display = t === "meter" ? "flex" : "none";
   document.getElementById("depCtl").style.display = t === "dep" ? "flex" : "none";
+  document.getElementById("pilotCtl").style.display = t === "pilot" ? "flex" : "none";
   /* views that need the live feed */
   if (t === "home" && Object.keys(tmuRates).length) ensurePolling();
   if (t === "mydash" && myAirports.length) ensurePolling();
+  if (t === "pilot" && pilotCid) ensurePolling();
   renderContent();
 }
 document.querySelectorAll(".tab").forEach(el =>
@@ -2075,6 +2269,21 @@ function depActivate() {
 depInput.addEventListener("input", () => { depInput.value = depInput.value.toUpperCase(); });
 depInput.addEventListener("keydown", e => { if (e.key === "Enter") depActivate(); });
 document.getElementById("depBtn").addEventListener("click", depActivate);
+
+/* pilot view: VATSIM CID lookup (view only) */
+const pilotCidInput = document.getElementById("pilotCidInput");
+function pilotActivate() {
+  const v = pilotCidInput.value.replace(/\D/g, "");
+  if (!v) return;
+  pilotCid = v;
+  savePilotCid();
+  ensurePolling();
+  renderContent();
+}
+pilotCidInput.addEventListener("input", () => { pilotCidInput.value = pilotCidInput.value.replace(/\D/g, ""); });
+pilotCidInput.addEventListener("keydown", e => { if (e.key === "Enter") pilotActivate(); });
+document.getElementById("pilotBtn").addEventListener("click", pilotActivate);
+if (pilotCid) pilotCidInput.value = pilotCid;
 
 /* TMU page: SET PROGRAM form + inline rate edits (delegated) */
 contentEl.addEventListener("click", e => {
@@ -2374,7 +2583,7 @@ setInterval(() => {
 }, 1000);
 setInterval(() => {
   if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" ||
-      activeTab === "mydash" || activeTab === "dep" || (icao && vatsim)) {
+      activeTab === "mydash" || activeTab === "dep" || activeTab === "pilot" || (icao && vatsim)) {
     /* avoid yanking focus/caret while a restriction field is being typed */
     const a = document.activeElement;
     if (a && a.dataset && a.dataset.restrfield) return;
