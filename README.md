@@ -29,12 +29,13 @@ Download or test via this link here https://djbrombizzle.github.io/vatflow/vatfl
 
 | Page | Purpose |
 | --- | --- |
-| **Home** | vNAS overview — a plain-text status board of every active flow program and its average delay. |
+| **Home** | vNAS overview — flow program delays and departure taxi time averages from the Taxi Monitor. |
 | **Apt Dashboard** | Full arrival picture for one airport: flight table, demand vs. AAR, and a live arrival ladder. |
 | **My Dashboard** | Your personal set of up to 20 departure fields, shown as one combined list of pending departures with CFR controls. |
 | **TMU** | Set rate programs (AAR, trail/MIT, per-gate restrictions) for any airport. |
 | **Restrictions** | Shared free-form restriction entries (requesting, providing, restriction, start/stop). |
 | **Departures** | Single tower field view with CFR controls. |
+| **Taxi Monitor** | Measure ground-to-roll taxi times at your departure field; logs samples locally and feeds HOME summaries. |
 
 ---
 
