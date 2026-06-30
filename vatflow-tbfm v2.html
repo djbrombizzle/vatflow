@@ -355,10 +355,10 @@
     <button id="depBtn">SET</button>
   </div>
   <div id="taximonCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
-    <span class="lbl">MY FIELD</span>
+    <span class="lbl">ADD FIELD</span>
     <input id="taximonInput" list="event-fields" placeholder="ICAO (e.g. KATL)" maxlength="4" autocomplete="off">
-    <button id="taximonBtn">SET</button>
-    <span style="font-size:11px;color:#56676f;">Taxi timer: 10 kt start &middot; 60 kt or climb stop</span>
+    <button id="taximonBtn">ADD</button>
+    <span style="font-size:11px;color:#56676f;">Up to 5 airports &middot; taxi times sync live via Firebase</span>
   </div>
   <div id="pilotCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
     <span class="lbl">MY CID</span>
@@ -445,12 +445,23 @@ const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
 let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | taximon | pilot | help
 let icao = null;            // METER view: arrival field being metered
 let depIcao = null;         // DEPARTURES view: tower controller's field
-let taxiMonIcao = "";       // TAXI MONITOR view: departure field to measure taxi times
-try { const savedTaxiMon = localStorage.getItem("vatflow_taxi_mon_icao"); if (savedTaxiMon) taxiMonIcao = savedTaxiMon; } catch (e) {}
-function saveTaxiMonIcao() { try { if (taxiMonIcao) localStorage.setItem("vatflow_taxi_mon_icao", taxiMonIcao); else localStorage.removeItem("vatflow_taxi_mon_icao"); } catch (e) {} }
-const taxiSessions = {};    // callsign -> { airport, phase, startMs, baseAlt, lastGs, lastAlt }
-let taxiHistory = [];       // [{ airport, callsign, startMs, endMs, durationMs }]
+let taxiMonAirports = [];   // TAXI MONITOR: up to 5 departure fields to measure
+try {
+  const savedTaxiArr = localStorage.getItem("vatflow_taxi_mon_airports");
+  if (savedTaxiArr) taxiMonAirports = JSON.parse(savedTaxiArr) || [];
+  else {
+    const savedTaxiOne = localStorage.getItem("vatflow_taxi_mon_icao");
+    if (savedTaxiOne) taxiMonAirports = [savedTaxiOne];
+  }
+} catch (e) {}
+function saveTaxiMonAirports() {
+  try { localStorage.setItem("vatflow_taxi_mon_airports", JSON.stringify(taxiMonAirports)); } catch (e) {}
+}
+function taxiMonHasAirports() { return taxiMonAirports.length > 0; }
+const taxiSessions = {};    // field|callsign -> { airport, phase, startMs, baseAlt, lastGs, lastAlt }
+let taxiHistory = [];       // [{ id, airport, callsign, startMs, endMs, durationMs }]
 try { const savedTaxiHist = localStorage.getItem("vatflow_taxi_history"); if (savedTaxiHist) taxiHistory = JSON.parse(savedTaxiHist) || []; } catch (e) {}
+const TAXI_MON_MAX = 5;
 /* PILOT view: a single VATSIM CID looked up against the live feed (view only) */
 let pilotCid = null;
 try { const savedCid = localStorage.getItem("vatflow_pilot_cid"); if (savedCid) pilotCid = savedCid; } catch (e) {}
@@ -1008,6 +1019,59 @@ function fmtTaxiDuration(ms) {
   return m + ":" + String(s).padStart(2, "0");
 }
 
+function taxiSessKey(field, callsign) { return field + "|" + callsign; }
+
+function taxiSampleId(airport, callsign, endMs) {
+  return fbKey(airport + "_" + callsign + "_" + endMs);
+}
+
+function taxiSamplesToWire() {
+  const o = {};
+  for (const h of taxiHistory) {
+    const id = h.id || taxiSampleId(h.airport, h.callsign, h.endMs);
+    o[id] = {
+      airport: h.airport, callsign: h.callsign,
+      startMs: h.startMs, endMs: h.endMs, durationMs: h.durationMs
+    };
+  }
+  return o;
+}
+
+function applyTaxiFromWire(o) {
+  if (!o) return false;
+  let changed = false;
+  for (const id in o) {
+    const v = o[id];
+    if (!v || !v.airport || !v.endMs) continue;
+    if (taxiHistory.some(h => (h.id || taxiSampleId(h.airport, h.callsign, h.endMs)) === id)) continue;
+    taxiHistory.push({
+      id, airport: v.airport, callsign: v.callsign,
+      startMs: v.startMs, endMs: v.endMs, durationMs: v.durationMs
+    });
+    changed = true;
+  }
+  if (changed) {
+    pruneTaxiHistory();
+    try { localStorage.setItem("vatflow_taxi_history", JSON.stringify(taxiHistory)); } catch (e) {}
+  }
+  return changed;
+}
+
+function addTaxiSample(entry) {
+  const id = taxiSampleId(entry.airport, entry.callsign, entry.endMs);
+  if (taxiHistory.some(h => (h.id || taxiSampleId(h.airport, h.callsign, h.endMs)) === id)) return false;
+  const rec = { id, airport: entry.airport, callsign: entry.callsign,
+    startMs: entry.startMs, endMs: entry.endMs, durationMs: entry.durationMs };
+  taxiHistory.push(rec);
+  saveTaxiHistory();
+  pushTaxiSync(id, rec);
+  return true;
+}
+
+function pushTaxiSync(id, entry) {
+  if (window.VFSync && window.VFSync.pushTaxiSample) window.VFSync.pushTaxiSample(id, entry);
+}
+
 function isDepartureGround(p, field) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
@@ -1020,58 +1084,59 @@ function isDepartureGround(p, field) {
 }
 
 function updateTaxiMonitor() {
-  if (!taxiMonIcao || !vatsim) return;
-  const field = taxiMonIcao;
+  if (!taxiMonAirports.length || !vatsim) return;
   const now = Date.now();
-  const activeCs = new Set();
+  const activeKeys = new Set();
 
-  for (const p of (vatsim.pilots || [])) {
-    if (!isDepartureGround(p, field)) continue;
-    const cs = p.callsign;
-    activeCs.add(cs);
-    const gs = p.groundspeed || 0;
-    const alt = p.altitude || 0;
-    let sess = taxiSessions[cs];
+  for (const field of taxiMonAirports) {
+    for (const p of (vatsim.pilots || [])) {
+      if (!isDepartureGround(p, field)) continue;
+      const cs = p.callsign;
+      const key = taxiSessKey(field, cs);
+      activeKeys.add(key);
+      const gs = p.groundspeed || 0;
+      const alt = p.altitude || 0;
+      let sess = taxiSessions[key];
 
-    if (!sess || sess.airport !== field || sess.phase === "done") {
-      if (gs > TAXI_GS_START) {
-        sess = { airport: field, phase: "rolling", startMs: now, baseAlt: alt, lastGs: gs, lastAlt: alt };
-      } else {
-        sess = { airport: field, phase: "watching", startMs: null, baseAlt: alt, lastGs: gs, lastAlt: alt };
-      }
-      taxiSessions[cs] = sess;
-    }
-
-    if (sess.phase === "watching" && gs > TAXI_GS_START) {
-      sess.phase = "rolling";
-      sess.startMs = now;
-      sess.baseAlt = alt;
-    }
-
-    if (sess.phase === "rolling" && sess.startMs != null) {
-      const climbed = alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT;
-      if (gs > TAXI_GS_STOP || climbed) {
-        const durationMs = now - sess.startMs;
-        if (durationMs > 0) {
-          taxiHistory.push({ airport: field, callsign: cs, startMs: sess.startMs, endMs: now, durationMs });
-          saveTaxiHistory();
+      if (!sess || sess.airport !== field || sess.phase === "done") {
+        if (gs > TAXI_GS_START) {
+          sess = { airport: field, phase: "rolling", startMs: now, baseAlt: alt, lastGs: gs, lastAlt: alt };
+        } else {
+          sess = { airport: field, phase: "watching", startMs: null, baseAlt: alt, lastGs: gs, lastAlt: alt };
         }
-        sess.phase = "done";
+        taxiSessions[key] = sess;
       }
-    }
 
-    sess.lastGs = gs;
-    sess.lastAlt = alt;
+      if (sess.phase === "watching" && gs > TAXI_GS_START) {
+        sess.phase = "rolling";
+        sess.startMs = now;
+        sess.baseAlt = alt;
+      }
+
+      if (sess.phase === "rolling" && sess.startMs != null) {
+        const climbed = alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT;
+        if (gs > TAXI_GS_STOP || climbed) {
+          const durationMs = now - sess.startMs;
+          if (durationMs > 0) {
+            addTaxiSample({ airport: field, callsign: cs, startMs: sess.startMs, endMs: now, durationMs });
+          }
+          sess.phase = "done";
+        }
+      }
+
+      sess.lastGs = gs;
+      sess.lastAlt = alt;
+    }
   }
 
-  for (const cs of Object.keys(taxiSessions)) {
-    if (!activeCs.has(cs) || taxiSessions[cs].phase === "done") delete taxiSessions[cs];
+  for (const key of Object.keys(taxiSessions)) {
+    if (!activeKeys.has(key) || taxiSessions[key].phase === "done") delete taxiSessions[key];
   }
 }
 
 function getTaxiAirportCodes() {
   const codes = new Set();
-  if (taxiMonIcao) codes.add(taxiMonIcao);
+  for (const a of taxiMonAirports) codes.add(a);
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   for (const h of taxiHistory) {
     if (h.endMs >= cutoff) codes.add(h.airport);
@@ -1683,7 +1748,7 @@ function renderHome() {
   h += '<div class="homesec">DEPARTURE TAXI TIMES</div>';
   const taxiCodes = getTaxiAirportCodes();
   if (!taxiCodes.length) {
-    h += '<div class="homenone">No taxi samples yet. Set a field on the TAXI MONITOR tab.</div>';
+    h += '<div class="homenone">No taxi samples yet. Add airports on the TAXI MONITOR tab.</div>';
   } else {
     h += '<div class="homelist">';
     for (const code of taxiCodes) {
@@ -1748,9 +1813,9 @@ function renderHelp() {
     '<li>Set <b>MY FIELD</b> in the header to your tower airport. Shows ground and prefiled departures only — airborne flights drop off once they leave.</li>' +
     '<li>CFR controls appear for destinations that have a TMU program.</li></ul></div>' +
     '<div class="helpcard"><h3>TAXI MONITOR</h3><ul class="helplist">' +
-    '<li>Set <b>MY FIELD</b> in the header to the departure airport you are monitoring.</li>' +
+    '<li>Add up to <b>5 departure airports</b> to monitor simultaneously.</li>' +
     '<li>Tracks ground departures: timer starts when groundspeed exceeds <b>10 kt</b>, stops at <b>60 kt</b> or when altitude climbs 100 ft from the roll start.</li>' +
-    '<li>Completed taxi times are logged on this device and summarized on the <b>HOME</b> tab.</li></ul></div>' +
+    '<li>Completed taxi times sync live via <b>Firebase</b> so all visitors see the same samples. Summarized on the <b>HOME</b> tab.</li></ul></div>' +
     '<div class="helpcard"><h3>PILOT</h3><ul class="helplist">' +
     '<li>For pilots: enter your <b>VATSIM CID</b> in the header and press <b>LOOKUP</b> to see your active flight, filed plan, and any flow delay. View only.</li>' +
     '<li>If your destination is being metered and you need a delay, the page shows a <b>SUGGESTED WHEELS-UP</b> time. This is computed automatically, so you can self-meter even when no departure controller is online to issue a CFR.</li>' +
@@ -1777,6 +1842,7 @@ function renderHelp() {
     '<div class="helpcard"><ul class="helplist">' +
     '<li><b>VIEW ONLY</b> (default) — read the schedule and suggested CFR times. Unlock with the control password to issue CFRs and edit programs.</li>' +
     '<li><b>CONNECT</b> — join a named room to share programs, CFRs, restrictions, and ground stops via Firebase.</li>' +
+    '<li><b>Taxi times</b> sync globally via Firebase (<code>taximon/samples</code>) — all site visitors share the same taxi log.</li>' +
     '<li><b>HUB</b> — join the global shared session (no room name needed).</li>' +
     '<li><b>\u25CF LIVE</b> — connected and syncing. <b>LOCAL ONLY</b> — working solo.</li></ul></div>' +
 
@@ -2857,75 +2923,93 @@ function renderDep() {
 }
 
 function renderTaxiMonitor() {
-  if (!taxiMonIcao) {
-    contentEl.innerHTML = '<div class="splash"><h2>SET YOUR FIELD</h2>' +
-      '<p>Enter the airport you are monitoring departures from (top right of the header).<br>' +
-      'Taxi timers start when groundspeed exceeds 10 kt and stop at 60 kt or when altitude begins climbing.</p></div>';
-    return;
+  let h = '<div class="tmuform">' +
+    '<span class="lbl">ADD AIRPORT</span>' +
+    '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" style="width:110px;letter-spacing:.12em;">' +
+    '<button data-taximonadd>ADD</button>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
+    ' airports &middot; timer: 10 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
+    '</div>';
+
+  h += '<div class="mydashchips">';
+  if (!taxiMonAirports.length) {
+    h += '<span style="color:#56676f;font-size:12px;">No airports added yet. Add up to ' + TAXI_MON_MAX + ' departure fields to monitor.</span>';
+  } else {
+    for (const a of taxiMonAirports)
+      h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-taximon-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
+  h += '</div>';
+
+  if (!taxiMonAirports.length) { contentEl.innerHTML = h; return; }
   if (!vatsim) {
-    contentEl.innerHTML = '<div class="msg">' +
+    h += '<div class="msg">' +
       (feedStatus === "error"
         ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
         : "Pulling the VATSIM feed\u2026") + '</div>';
+    contentEl.innerHTML = h;
     return;
   }
 
   const now = Date.now();
-  const field = taxiMonIcao;
   const rows = [];
   let watching = 0, rolling = 0;
 
-  for (const p of (vatsim.pilots || [])) {
-    if (!isDepartureGround(p, field)) continue;
-    const fp = p.flight_plan;
-    const gs = p.groundspeed || 0;
-    const alt = p.altitude || 0;
-    const sess = taxiSessions[p.callsign];
-    let phase = "WATCHING", taxiTxt = "\u2014";
-    if (sess && sess.phase === "rolling" && sess.startMs != null) {
-      phase = "ROLLING";
-      rolling++;
-      taxiTxt = fmtTaxiDuration(now - sess.startMs);
-    } else {
-      watching++;
+  for (const field of taxiMonAirports) {
+    for (const p of (vatsim.pilots || [])) {
+      if (!isDepartureGround(p, field)) continue;
+      const fp = p.flight_plan;
+      const gs = p.groundspeed || 0;
+      const alt = p.altitude || 0;
+      const sess = taxiSessions[taxiSessKey(field, p.callsign)];
+      let phase = "WATCHING", taxiTxt = "\u2014";
+      if (sess && sess.phase === "rolling" && sess.startMs != null) {
+        phase = "ROLLING";
+        rolling++;
+        taxiTxt = fmtTaxiDuration(now - sess.startMs);
+      } else {
+        watching++;
+      }
+      rows.push({
+        field,
+        callsign: p.callsign,
+        dest: (fp.arrival || "????").toUpperCase(),
+        gs, alt, phase, taxiTxt
+      });
     }
-    rows.push({
-      callsign: p.callsign,
-      dest: (fp.arrival || "????").toUpperCase(),
-      gs, alt, phase, taxiTxt
-    });
   }
   rows.sort((a, b) => {
     const order = { ROLLING: 0, WATCHING: 1 };
-    return (order[a.phase] || 2) - (order[b.phase] || 2) || a.callsign.localeCompare(b.callsign);
+    return (order[a.phase] || 2) - (order[b.phase] || 2) ||
+      a.field.localeCompare(b.field) || a.callsign.localeCompare(b.callsign);
   });
 
   const utcMidnight = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
-  const fieldSamples = taxiHistory.filter(h => h.airport === field);
-  const todaySamples = fieldSamples.filter(h => h.endMs >= utcMidnight);
+  const monSamples = taxiHistory.filter(h => taxiMonAirports.includes(h.airport));
+  const todaySamples = monSamples.filter(h => h.endMs >= utcMidnight);
   const avgTodayMin = todaySamples.length
     ? Math.round(todaySamples.reduce((s, h) => s + h.durationMs, 0) / todaySamples.length / 60000)
     : null;
-  const recentDone = fieldSamples.slice().sort((a, b) => b.endMs - a.endMs).slice(0, 10);
+  const recentDone = monSamples.slice().sort((a, b) => b.endMs - a.endMs).slice(0, 15);
 
-  let h = '<div class="strip">' +
-    '<span class="field">' + esc(field) + ' TAXI MONITOR</span>' +
+  h += '<div class="strip">' +
+    '<span class="field">TAXI MONITOR</span>' +
+    stat("FIELDS", taxiMonAirports.length) +
     stat("ROLLING", rolling, rolling ? "#f5a83d" : "") +
     stat("WATCHING", watching) +
     stat("AVG TODAY", avgTodayMin != null ? avgTodayMin + " min" : "\u2014") +
-    stat("SAMPLES", fieldSamples.length) +
+    stat("SAMPLES", monSamples.length) +
     '</div>';
 
   if (!rows.length) {
-    h += '<div class="msg">No ground departures at ' + esc(field) + ' right now.</div>';
+    h += '<div class="msg">No ground departures at monitored fields right now.</div>';
   } else {
     h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
-      '<th>CALLSIGN</th><th>DEST</th><th>GS</th><th>ALT</th><th>PHASE</th><th>TAXI TIME</th>' +
+      '<th>FIELD</th><th>CALLSIGN</th><th>DEST</th><th>GS</th><th>ALT</th><th>PHASE</th><th>TAXI TIME</th>' +
       '</tr></thead><tbody>';
     for (const r of rows) {
       const phaseColor = r.phase === "ROLLING" ? "#f5a83d" : "#54b8e8";
       h += '<tr>' +
+        '<td style="color:#9fdcff;font-weight:600;">' + esc(r.field) + '</td>' +
         '<td style="color:#e8f0f4;font-weight:600;">' + esc(r.callsign) + '</td>' +
         '<td>' + esc(r.dest) + '</td>' +
         '<td>' + r.gs + '</td>' +
@@ -2938,12 +3022,13 @@ function renderTaxiMonitor() {
   }
 
   if (recentDone.length) {
-    h += '<div style="padding:0 20px 24px;font-size:11px;color:#56676f;letter-spacing:.1em;">RECENT COMPLETED</div>' +
+    h += '<div style="padding:0 20px 24px;font-size:11px;color:#56676f;letter-spacing:.1em;">RECENT COMPLETED (ALL MONITORED FIELDS)</div>' +
       '<div class="tablewrap" style="padding-bottom:24px;"><table><thead><tr>' +
-      '<th>CALLSIGN</th><th>DURATION</th><th>COMPLETED Z</th>' +
+      '<th>FIELD</th><th>CALLSIGN</th><th>DURATION</th><th>COMPLETED Z</th>' +
       '</tr></thead><tbody>';
     for (const s of recentDone) {
       h += '<tr>' +
+        '<td style="color:#9fdcff;font-weight:600;">' + esc(s.airport) + '</td>' +
         '<td style="color:#e8f0f4;font-weight:600;">' + esc(s.callsign) + '</td>' +
         '<td>' + fmtTaxiDuration(s.durationMs) + ' (' + Math.round(s.durationMs / 60000) + ' min)</td>' +
         '<td>' + fmtZ(s.endMs) + 'Z</td>' +
@@ -2983,7 +3068,7 @@ function setTab(t) {
   document.getElementById("pilotCtl").style.display = t === "pilot" ? "flex" : "none";
   /* views that need the live feed */
   if (t === "home" && (Object.keys(tmuRates).length || getTaxiAirportCodes().length)) ensurePolling();
-  if (t === "taximon" && taxiMonIcao) ensurePolling();
+  if (t === "taximon" && taxiMonHasAirports()) ensurePolling();
   if (t === "mydash" && myDashHasFilters()) ensurePolling();
   if (t === "pilot" && pilotCid) ensurePolling();
   renderContent();
@@ -3005,18 +3090,22 @@ document.getElementById("depBtn").addEventListener("click", depActivate);
 
 /* taxi monitor view field */
 const taximonInput = document.getElementById("taximonInput");
-function taximonActivate() {
-  const v = taximonInput.value.trim().toUpperCase();
-  if (!/^[A-Z0-9]{4}$/.test(v)) return;
-  taxiMonIcao = v;
-  saveTaxiMonIcao();
+function taximonAddAirport(v) {
+  const code = v.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(code)) return false;
+  if (taxiMonAirports.length >= TAXI_MON_MAX || taxiMonAirports.includes(code)) return false;
+  taxiMonAirports.push(code);
+  saveTaxiMonAirports();
   ensurePolling();
   renderContent();
+  return true;
+}
+function taximonActivate() {
+  if (taximonAddAirport(taximonInput.value)) taximonInput.value = "";
 }
 taximonInput.addEventListener("input", () => { taximonInput.value = taximonInput.value.toUpperCase(); });
 taximonInput.addEventListener("keydown", e => { if (e.key === "Enter") taximonActivate(); });
 document.getElementById("taximonBtn").addEventListener("click", taximonActivate);
-if (taxiMonIcao) taximonInput.value = taxiMonIcao;
 
 /* pilot view: VATSIM CID lookup (view only) */
 const pilotCidInput = document.getElementById("pilotCidInput");
@@ -3222,6 +3311,20 @@ contentEl.addEventListener("change", e => {
 
 /* sortable headers — delegated so it survives every re-render */
 contentEl.addEventListener("click", e => {
+  /* ---- Taxi Monitor: add / remove monitored airports ---- */
+  if (e.target.closest("[data-taximonadd]")) {
+    const inp = document.getElementById("taximonPageIcao");
+    const v = inp ? inp.value : "";
+    if (taximonAddAirport(v) && inp) inp.value = "";
+    return;
+  }
+  const taxiRm = e.target.closest("[data-taximon-rm]");
+  if (taxiRm) {
+    taxiMonAirports = taxiMonAirports.filter(a => a !== taxiRm.getAttribute("data-taximon-rm"));
+    saveTaxiMonAirports();
+    renderContent();
+    return;
+  }
   /* ---- My Dashboard: add / remove personal airports, ARTCCs, and approach sectors ---- */
   if (e.target.closest("[data-mydashadd]")) {
     const inp = document.getElementById("mydashIcao");
@@ -3649,6 +3752,9 @@ window.VATFLOW = {
     if (icao) syncMeterSelectors();
     renderContent();
   },
+  applyTaxiRemote(taxiWire) {
+    if (applyTaxiFromWire(taxiWire)) renderContent();
+  },
   hasLocalState() {
     return Object.keys(issuedEdcts).length > 0 || Object.keys(tmuRates).length > 0 || restrictions.length > 0 || groundStops.length > 0;
   },
@@ -3896,10 +4002,13 @@ renderContent();
       /* sign in anonymously so locked-down rules (auth != null) allow read/write */
       onAuthStateChanged(auth, (user) => {
         authReady = !!user;
-        if (user && window.VFSync && window.VFSync._pendingRoom) {
-          const r = window.VFSync._pendingRoom;
-          window.VFSync._pendingRoom = null;
-          window.VFSync.connect(r);
+        if (user) {
+          if (window.VFSync) window.VFSync.startTaxiSync();
+          if (window.VFSync && window.VFSync._pendingRoom) {
+            const r = window.VFSync._pendingRoom;
+            window.VFSync._pendingRoom = null;
+            window.VFSync.connect(r);
+          }
         }
       });
       signInAnonymously(auth).catch((e) => {
@@ -3917,8 +4026,28 @@ renderContent();
     connected: false,
     room: null,
     _unsub: null,
+    _taxiUnsub: null,
     _first: false,
     _pendingRoom: null,
+
+    startTaxiSync() {
+      if (!db || this._taxiUnsub) return;
+      this._taxiUnsub = onValue(ref(db, "taximon/samples"), (snap) => {
+        const val = snap.val() || {};
+        if (window.VATFLOW && window.VATFLOW.applyTaxiRemote) window.VATFLOW.applyTaxiRemote(val);
+      }, (err) => console.error("Taxi sync listen error:", err));
+    },
+
+    pushTaxiSample(id, entry) {
+      if (!db || !id || !entry) return;
+      update(ref(db, "taximon/samples/" + id), {
+        airport: entry.airport,
+        callsign: entry.callsign,
+        startMs: entry.startMs,
+        endMs: entry.endMs,
+        durationMs: entry.durationMs
+      }).catch((e) => console.error("Firebase taxi push failed:", e));
+    },
 
     connect(room) {
       if (!db) { window.VATFLOW.setSyncStatus("noconfig"); return; }
