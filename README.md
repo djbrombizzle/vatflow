@@ -35,7 +35,7 @@ Download or test via this link here https://djbrombizzle.github.io/vatflow/vatfl
 | **TMU** | Set rate programs (AAR, trail/MIT, per-gate restrictions) for any airport. |
 | **Restrictions** | Shared free-form restriction entries (requesting, providing, restriction, start/stop). |
 | **Departures** | Single tower field view with CFR controls. |
-| **Taxi Monitor** | Measure ground-to-roll taxi times at your departure field; logs samples locally and feeds HOME summaries. |
+| **Taxi Monitor** | Monitor up to 5 departure fields at once; taxi times sync live via Firebase for all visitors. |
 
 ---
 
@@ -60,6 +60,12 @@ Enter the airport code to view its arrival flow. The table is sortable and filte
 ### 3. Issue releases (My Dashboard / Departures)
 
 For any pending ground departure into a metered field, click **CFR TIME** to lock in a wheels-up time. The app reserves that slot, shows a countdown, and flags the flight **RELEASE NOW** when it's due. Cancelling a release automatically compresses the remaining releases into the freed slot.
+
+### 4. Monitor taxi times (Taxi Monitor)
+
+Add up to **5 departure airports** on the **Taxi Monitor** tab. The app watches ground departures at each field and times the roll from 10 kt groundspeed until 60 kt or altitude climb. Completed samples sync live via **Firebase** (`taximon/samples`) so every visitor sees the same data. Averages appear on **Home** with increasing/decreasing trend and volume context.
+
+Your monitored airport list is saved on this device; completed taxi samples are shared globally across all users.
 
 ---
 
@@ -112,7 +118,7 @@ Enroute time estimates for not-yet-airborne flights are refined using winds-alof
 
 - **Single file.** All HTML, CSS, and JavaScript live in `vatflow-tbfm.html`. No dependencies to install.
 - **Data sources:** the VATSIM data feed (live traffic), a global airport database (coordinates), and the Aviation Weather Center (winds aloft).
-- **Sync (optional):** Firebase Realtime Database.
+- **Sync (optional):** Firebase Realtime Database — room sync for programs/CFRs; global taxi sample sync for all visitors.
 - **Browser-based.** Nothing is installed and no traffic data is stored.
 
 ---
