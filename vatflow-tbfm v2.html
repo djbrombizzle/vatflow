@@ -381,6 +381,7 @@
 <div id="content"></div>
 <div id="gsPopup" style="display:none;"></div>
 
+<script src="approach-sector-data.js"></script>
 <script>
 "use strict";
 
@@ -456,17 +457,12 @@ function canControl() { return controllerUnlocked; }
 const groundStops = [];     // ground stop entries (shared): {id,airport,scope,until,updated,flashUntil}
 /* ARTCC/FIR boundary polygons (lazy-loaded from VAT-Spy when needed) */
 const BOUNDARIES_URL = "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";
-/* Approach/TRACON sector lookup (VAT-Spy airport assignments + SimAware sector IDs) */
-const VATSPY_DAT_URL = "https://cdn.jsdelivr.net/gh/vatsimnetwork/vatspy-data-project@master/VATSpy.dat";
-const TRACON_PREFIX_URLS = [
-  "tracon-prefix-map.json",
-  "https://cdn.jsdelivr.net/gh/djbrombizzle/vatflow@main/tracon-prefix-map.json"
-];
+/* Approach/TRACON sector lookup — embedded in approach-sector-data.js (no network fetch) */
+let traconPrefixMap = typeof TRACON_PREFIX_MAP !== "undefined" ? TRACON_PREFIX_MAP : null;
+let vatspyApproach = typeof VATSPY_APPROACH_MAP !== "undefined" ? VATSPY_APPROACH_MAP : null;
+function approachSectorDataReady() { return !!(traconPrefixMap && vatspyApproach); }
 let firPolys = null;        // { ID: [ outerRing, ... ] }  ring = [[lon,lat],...]
 let boundariesStatus = "idle"; // idle | loading | ok | error
-let traconPrefixMap = null; // { A80: ["ATL","AHN",...], ... } from SimAware TRACON
-let vatspyApproach = null;  // { KATL: "ATL", ... } from VATSpy.dat
-let approachDataStatus = "idle"; // idle | loading | ok | error
 let scopeCache = {};        // dep|scopeKey -> bool
 const announcedGs = {};     // gs id -> true (popup already shown)
 /* My Dashboard: personal departure filters (airports, ARTCCs, approach sectors), kept on this device */
@@ -790,56 +786,6 @@ async function loadBoundaries() {
   }
   renderHeaderStatus(); renderContent();
 }
-function fetchWithTimeout(url, ms) {
-  return Promise.race([
-    fetch(url),
-    new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms || 20000))
-  ]);
-}
-async function fetchTraconPrefixMap() {
-  for (const url of TRACON_PREFIX_URLS) {
-    try {
-      const r = await fetchWithTimeout(url, 15000);
-      if (r.ok) return await r.json();
-    } catch (e) { /* try next source */ }
-  }
-  throw new Error("tracon prefix map unavailable");
-}
-function parseVatspyApproach(text) {
-  const map = {};
-  let inAirports = false;
-  for (const line of String(text || "").split("\n")) {
-    if (line === "[Airports]") { inAirports = true; continue; }
-    if (line.startsWith("[")) { if (inAirports) break; inAirports = false; continue; }
-    if (!inAirports || !line.trim()) continue;
-    const c = line.split("|");
-    if (c.length >= 5) {
-      const ic = c[0].trim().toUpperCase();
-      const appr = c[4].trim().toUpperCase();
-      if (ic && appr) map[ic] = appr;
-    }
-  }
-  return map;
-}
-async function loadApproachSectorData() {
-  if (approachDataStatus === "loading" || approachDataStatus === "ok") return;
-  approachDataStatus = "loading"; renderHeaderStatus();
-  try {
-    const [prefixMap, datR] = await Promise.all([
-      fetchTraconPrefixMap(),
-      fetchWithTimeout(VATSPY_DAT_URL, 20000)
-    ]);
-    if (!datR.ok) throw new Error("VATSpy.dat " + datR.status);
-    traconPrefixMap = prefixMap;
-    vatspyApproach = parseVatspyApproach(await datR.text());
-    if (!traconPrefixMap || !vatspyApproach) throw new Error("empty approach data");
-    approachDataStatus = "ok"; scopeCache = {};
-  } catch (e) {
-    console.error("Approach sector data load failed:", e);
-    approachDataStatus = "error";
-  }
-  renderHeaderStatus(); renderContent();
-}
 function pointInRing(lon, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -936,9 +882,6 @@ function fmtUntil(u) {
 function ensureBoundariesIfNeeded() {
   if (myArtccs.length || groundStops.some(g => g.airport && scopeTokens(g.scope).length)) {
     if (boundariesStatus !== "ok" && boundariesStatus !== "loading") loadBoundaries();
-  }
-  if (myApproachSectors.length) {
-    if (approachDataStatus !== "ok" && approachDataStatus !== "loading") loadApproachSectorData();
   }
 }
 /* show a 30s dismissible popup for any newly-issued ground stop (on every page) */
@@ -1792,7 +1735,7 @@ function renderMyDash() {
     h += '<span style="color:#56676f;font-size:12px;">No airports added yet.</span>';
   } else {
     for (const a of myAirports)
-      h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-mydashrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+      h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-airport-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
   h += '</div>';
 
@@ -1808,7 +1751,7 @@ function renderMyDash() {
     h += '<span style="color:#56676f;font-size:12px;">No ARTCCs added yet. Example: ZJX, ZNY, ZTL.</span>';
   } else {
     for (const a of myArtccs)
-      h += '<span class="artccchip">' + esc(a) + '<span class="apchipx" data-mydashartccrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+      h += '<span class="artccchip">' + esc(a) + '<span class="apchipx" data-artcc-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
   h += '</div>';
 
@@ -1824,15 +1767,17 @@ function renderMyDash() {
     h += '<span style="color:#56676f;font-size:12px;">No approach sectors added yet. Example: A80 (ATL APP), I90 (Houston APP), N90.</span>';
   } else {
     for (const a of myApproachSectors)
-      h += '<span class="approachchip">' + esc(a) + '<span class="apchipx" data-mydashapproachrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+      h += '<span class="approachchip">' + esc(a) + '<span class="apchipx" data-appr-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
   h += '</div>';
 
   if (!myDashHasFilters()) { contentEl.innerHTML = h; return; }
-  const loadingBoundaries = (myArtccs.length && boundariesStatus === "loading") ||
-    (myApproachSectors.length && approachDataStatus === "loading");
-  if (loadingBoundaries) {
-    h += '<div class="msg">Loading airspace data\u2026</div>';
+  if (myArtccs.length && boundariesStatus === "loading") {
+    h += '<div class="msg">Loading ARTCC boundaries\u2026</div>';
+    contentEl.innerHTML = h; return;
+  }
+  if (myApproachSectors.length && !approachSectorDataReady()) {
+    h += '<div class="msg" style="color:#f25555;">Approach sector data is missing. Keep <b>approach-sector-data.js</b> in the same folder as this page.</div>';
     contentEl.innerHTML = h; return;
   }
   if (!vatsim) {
@@ -1887,8 +1832,6 @@ function renderMyDash() {
     h += '<div class="msg">No pending GROUND departures out of ' + myDashScopeLabel() + ' right now.</div>';
     if (myArtccs.length && boundariesStatus === "error")
       h += '<div class="msg" style="color:#f25555;">ARTCC boundary data is unavailable \u2014 only individually added airports and approach sectors are being matched.</div>';
-    if (myApproachSectors.length && approachDataStatus === "error")
-      h += '<div class="msg" style="color:#f25555;">Approach sector data is unavailable \u2014 only individually added airports and ARTCCs are being matched.</div>';
     contentEl.innerHTML = h; return;
   }
 
@@ -2996,21 +2939,21 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
-  const myRm = e.target.closest("[data-mydashrm]");
+  const myRm = e.target.closest("[data-airport-rm]");
   if (myRm) {
-    myAirports = myAirports.filter(a => a !== myRm.dataset.mydashrm);
+    myAirports = myAirports.filter(a => a !== myRm.getAttribute("data-airport-rm"));
     saveMyAirports(); renderContent();
     return;
   }
-  const myArtccRm = e.target.closest("[data-mydashartccrm]");
+  const myArtccRm = e.target.closest("[data-artcc-rm]");
   if (myArtccRm) {
-    myArtccs = myArtccs.filter(a => a !== myArtccRm.dataset.mydashartccrm);
+    myArtccs = myArtccs.filter(a => a !== myArtccRm.getAttribute("data-artcc-rm"));
     saveMyArtccs(); scopeCache = {}; renderContent();
     return;
   }
-  const myApproachRm = e.target.closest("[data-mydashapproachrm]");
+  const myApproachRm = e.target.closest("[data-appr-rm]");
   if (myApproachRm) {
-    myApproachSectors = myApproachSectors.filter(a => a !== myApproachRm.dataset.mydashapproachrm);
+    myApproachSectors = myApproachSectors.filter(a => a !== myApproachRm.getAttribute("data-appr-rm"));
     saveMyApproachSectors(); scopeCache = {}; renderContent();
     return;
   }
