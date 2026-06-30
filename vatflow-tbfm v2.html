@@ -18,6 +18,7 @@
   .relnow { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; }
   .released { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; letter-spacing:.06em; }
   .vfrtag { color:#7d8a93; font-size:11px; letter-spacing:.05em; }
+  .excludedtag { color:#a89fd4; font-size:11px; letter-spacing:.05em; }
 
   header {
     display:flex; align-items:center; gap:18px; flex-wrap:wrap;
@@ -492,8 +493,65 @@ try { const lw = +localStorage.getItem("vatflow_ladder_w");
       if (lw) ladderWidth = Math.max(LADDER_W_MIN, Math.min(LADDER_W_MAX, lw)); } catch (e) {}
 function saveLadderWidth() { try { localStorage.setItem("vatflow_ladder_w", String(Math.round(ladderWidth))); } catch (e) {} }
 
-const DEFAULT_RATE = { aar: 30, trail: 0, mit: 0, gates: [] };
+const DEFAULT_RATE = { aar: 30, trail: 0, mit: 0, gates: [], excludeWake: [], excludeTypes: [], includeTypes: [], jetsOnly: false, unknownInclude: true };
 const getRate = code => tmuRates[code] || DEFAULT_RATE;
+/* aircraft engine reference: piston | turboprop | jet — bundled lookup for jetsOnly filtering */
+let aircraftRef = null;
+const FALLBACK_AIRCRAFT_REF = {
+  A10:"jet",A124:"jet",A19N:"jet",A20N:"jet",A21N:"jet",A306:"jet",A310:"jet",A318:"jet",A319:"jet",A320:"jet",A321:"jet",A332:"jet",A333:"jet",A339:"jet",A343:"jet",A359:"jet",A388:"jet",
+  AT43:"turboprop",AT45:"turboprop",AT46:"turboprop",AT72:"turboprop",AT75:"turboprop",AT76:"turboprop",
+  B712:"jet",B722:"jet",B732:"jet",B733:"jet",B734:"jet",B735:"jet",B736:"jet",B737:"jet",B738:"jet",B739:"jet",
+  B742:"jet",B744:"jet",B748:"jet",B752:"jet",B753:"jet",B762:"jet",B763:"jet",B764:"jet",B772:"jet",B773:"jet",B77L:"jet",B77W:"jet",B788:"jet",B789:"jet",B78X:"jet",
+  BE20:"turboprop",BE36:"piston",BE58:"piston",BE99:"turboprop",C152:"piston",C172:"piston",C182:"piston",C208:"turboprop",C25A:"jet",C25B:"jet",C510:"jet",C550:"jet",C56X:"jet",C680:"jet",C700:"jet",C750:"jet",
+  CL30:"jet",CL35:"jet",CL60:"jet",CRJ2:"jet",CRJ7:"jet",CRJ9:"jet",CRJX:"jet",
+  DA20:"piston",DA40:"piston",DA42:"piston",DC10:"jet",DC93:"jet",DH8A:"turboprop",DH8B:"turboprop",DH8C:"turboprop",DH8D:"turboprop",
+  E110:"turboprop",E120:"turboprop",E135:"jet",E145:"jet",E170:"jet",E175:"jet",E190:"jet",E195:"jet",E290:"jet",E295:"jet",E35L:"jet",E50P:"turboprop",E55P:"jet",E75L:"jet",E75S:"jet",
+  F16:"jet",F18:"jet",FA7X:"jet",FA8X:"jet",GALX:"jet",GLF4:"jet",GLF5:"jet",GLF6:"jet",
+  H25B:"jet",HDJT:"jet",IL76:"jet",LJ35:"jet",LJ45:"jet",LJ60:"jet",MD11:"jet",
+  PA28:"piston",PA31:"turboprop",PA34:"piston",PA44:"piston",PA46:"piston",PC12:"turboprop",PC24:"jet",
+  RJ85:"jet",SB20:"turboprop",SF34:"turboprop",SF50:"jet",  SR22:"piston",TBM9:"turboprop"
+};
+function getAircraftEngine(type) {
+  if (!aircraftRef) aircraftRef = FALLBACK_AIRCRAFT_REF;
+  return aircraftRef[String(type || "").toUpperCase()] || null;
+}
+function normExcludeWake(v) {
+  const arr = Array.isArray(v) ? v : String(v || "").split(/[,\s]+/);
+  return arr.map(x => x.trim().toUpperCase()).filter(x => /^[LMHJ]$/.test(x));
+}
+function normTypeList(v) {
+  const arr = Array.isArray(v) ? v : String(v || "").split(/[,\s]+/);
+  return arr.map(x => x.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")).filter(x => x.length >= 2 && x.length <= 4);
+}
+function normRate(o) {
+  return {
+    aar: o.aar, trail: +o.trail || 0, mit: +o.mit || 0, gates: normGates(o.gates),
+    excludeWake: normExcludeWake(o.excludeWake),
+    excludeTypes: normTypeList(o.excludeTypes),
+    includeTypes: normTypeList(o.includeTypes),
+    jetsOnly: !!o.jetsOnly,
+    unknownInclude: o.unknownInclude !== false
+  };
+}
+function parseAircraftFromFp(fp) {
+  const type = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0].toUpperCase();
+  const wake = ((fp.aircraft || "").split("/")[0] || "").toUpperCase();
+  return { type, wake: /^[LMHJ]$/.test(wake) ? wake : "" };
+}
+function isExcludedFromProgram(f, rate) {
+  if (!rate || rate === DEFAULT_RATE) return false;
+  if (f.wake && rate.excludeWake && rate.excludeWake.includes(f.wake)) return true;
+  if (rate.excludeTypes && rate.excludeTypes.length && rate.excludeTypes.includes(f.type)) return true;
+  if (rate.includeTypes && rate.includeTypes.length && !rate.includeTypes.includes(f.type)) return true;
+  if (rate.jetsOnly) {
+    const eng = getAircraftEngine(f.type);
+    if (eng === "piston") return true;
+    if (!eng && f.wake === "L") return true;
+    if (!eng && !rate.unknownInclude) return true;
+  }
+  return false;
+}
+function isMetered(f) { return !f.vfr && !f.excluded; }
 /* free-form AAR entry: any whole number 1-200 arrivals/hr; null if invalid */
 function parseAar(v) {
   const n = Math.round(+v);
@@ -838,9 +896,16 @@ async function fetchFeed() {
 function computeFlow(target) {
   if (!vatsim || !target) return null;
   const rate = getRate(target);
+  const hasProgram = !!tmuRates[target];
   const arrPt = lookup(target);
   const now = Date.now();
   const flights = [];
+
+  const pushFlight = (base) => {
+    if (hasProgram) base.excluded = isExcludedFromProgram(base, rate);
+    else base.excluded = false;
+    flights.push(base);
+  };
 
   for (const p of (vatsim.pilots || [])) {
     const fp = p.flight_plan;
@@ -848,7 +913,7 @@ function computeFlow(target) {
     const tas = parseTAS(fp.cruise_tas);
     const vfr = /^V/i.test(fp.flight_rules || "");
     const gate = vfr ? "VFR" : arrivalGate(fp.route, target);
-    const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
+    const ac = parseAircraftFromFp(fp);
     const dep = (fp.departure || "????").toUpperCase();
     const distToArr = arrPt ? gcDist(p.latitude, p.longitude, arrPt[0], arrPt[1]) : null;
     const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
@@ -856,14 +921,14 @@ function computeFlow(target) {
 
     if (arrived) {
       /* landed/taxiing at the destination — not a pending departure, no metering */
-      flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
+      pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,
         status:"ARRIVED", dist:distToArr, gs:p.groundspeed, eta:now, sta:now,
         delay:0, flightTimeMs:null, est:false, arrived:true, vfr });
     } else if (airborne && distToArr != null) {
       const gs = Math.max(p.groundspeed, 120);
       const pad = distToArr > 40 ? 4 : distToArr > 15 ? 2 : 0;
       const eteMs = (distToArr / gs) * 3600000 + pad * 60000;
-      flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
+      pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,
         status:"AIRBORNE", dist:distToArr, gs:p.groundspeed, eta:now + eteMs,
         sta:now + eteMs, delay:0, flightTimeMs:null, est:false, vfr });
     } else {
@@ -878,7 +943,7 @@ function computeFlow(target) {
       }
       const flightTimeMs = (routeNm / gs) * 3600000 + 14 * 60000;
       const etd = now;   /* assume ready-to-go now; CFR time, if any, is the only delay */
-      flights.push({ key:p.callsign, callsign:p.callsign, type:acft, dep, gate,
+      pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,
         status:"GROUND", dist:routeNm, gs:p.groundspeed, eta:etd + flightTimeMs,
         sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw });
     }
@@ -891,7 +956,7 @@ function computeFlow(target) {
     const tas = parseTAS(fp.cruise_tas);
     const vfr = /^V/i.test(fp.flight_rules || "");
     const gate = vfr ? "VFR" : arrivalGate(fp.route, target);
-    const acft = (fp.aircraft_short || fp.aircraft_faa || "ZZZZ").split("/")[0];
+    const ac = parseAircraftFromFp(fp);
     const dep = (fp.departure || "????").toUpperCase();
     const depPt = lookup(dep);
     let routeNm, est = false;
@@ -912,7 +977,7 @@ function computeFlow(target) {
       if (t < now - 2 * 3600000) t += 24 * 3600000;
       etd = Math.max(t, now + 20 * 60000);
     }
-    flights.push({ key:"P-"+pf.callsign, callsign:pf.callsign, type:acft, dep, gate,
+    pushFlight({ key:"P-"+pf.callsign, callsign:pf.callsign, type:ac.type, wake:ac.wake, dep, gate,
       status:"PROPOSED", dist:routeNm, gs:0, eta:etd + flightTimeMs,
       sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw });
   }
@@ -931,8 +996,8 @@ function computeFlow(target) {
      wins, else the program-wide minutes/MIT, never below the AAR interval. */
   const assigned = [];                                /* {t, gate} occupied slots */
 
-  const airborneF = flights.filter(f => f.status === "AIRBORNE" && !f.vfr).sort((a,b) => a.eta - b.eta);
-  const groundF   = flights.filter(f => (f.status === "GROUND" || f.status === "PROPOSED") && !f.vfr).sort((a,b) => a.eta - b.eta);
+  const airborneF = flights.filter(f => f.status === "AIRBORNE" && isMetered(f)).sort((a,b) => a.eta - b.eta);
+  const groundF   = flights.filter(f => (f.status === "GROUND" || f.status === "PROPOSED") && isMetered(f)).sort((a,b) => a.eta - b.eta);
 
   let prevSta = -Infinity;
   const lastGateSta = {};
@@ -994,9 +1059,9 @@ function computeFlow(target) {
   flights.sort((a, b) => a.sta - b.sta);
   flights.forEach((f, i) => { f.seq = i + 1; });
 
-  const demandHr = flights.filter(f => f.status !== "ARRIVED" && !f.vfr && f.eta < now + 3600000).length;
+  const demandHr = flights.filter(f => f.status !== "ARRIVED" && isMetered(f) && f.eta < now + 3600000).length;
   const gates = {};
-  for (const f of flights) if (f.status !== "ARRIVED" && !f.vfr && f.gate !== "\u2014") gates[f.gate] = (gates[f.gate] || 0) + 1;
+  for (const f of flights) if (f.status !== "ARRIVED" && isMetered(f) && f.gate !== "\u2014") gates[f.gate] = (gates[f.gate] || 0) + 1;
   const topGates = Object.entries(gates).sort((a,b) => b[1]-a[1]).slice(0,5);
   const gateColors = {};
   topGates.forEach(([g], i) => gateColors[g] = GATE_PALETTE[i % GATE_PALETTE.length]);
@@ -1227,6 +1292,8 @@ function renderMeter(refocus) {
         edct = '<span style="color:#56676f;">ARRIVED</span>';
       } else if (f.vfr) {
         edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+      } else if (f.excluded) {
+        edct = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
       } else if (f.flightTimeMs == null) {
         edct = '<span style="color:#3a4750;">AIRBORNE</span>';
       } else if (f.status === "PROPOSED") {
@@ -1302,7 +1369,7 @@ function renderMeter(refocus) {
   h += '<div class="freeze" style="top:' + yOf(19) + 'px;"><span>FREEZE</span></div>';
 
   const ladderFlights = flow.flights
-    .filter(f => f.status !== "ARRIVED" && f.sta >= flow.now - 60000 && f.sta <= flow.now + LADDER_WIN * 60000)
+    .filter(f => f.status !== "ARRIVED" && isMetered(f) && f.sta >= flow.now - 60000 && f.sta <= flow.now + LADDER_WIN * 60000)
     .sort((a, b) => a.sta - b.sta);
   if (!ladderFlights.length) {
     h += '<div class="empty">NO STAs IN WINDOW</div>';
@@ -1406,6 +1473,7 @@ function renderHelp() {
     '<li>Set flow programs: <b>AAR</b> (arrivals per hour), <b>ROUTE TRAIL</b> (minutes-in-trail), and optional <b>MIT</b> (miles-in-trail — overrides minutes when set).</li>' +
     '<li><b>Rate Calculator</b> sub-tab: enter airport tier, max AAR, full staffing, and controllers on duty to get a recommended AAR; optional position checklist refines the estimate; <b>Apply to program</b> copies the result into the active TMU program.</li>' +
     '<li>Add up to 10 <b>gate restrictions</b> per airport for STAR/fix-specific spacing.</li>' +
+    '<li><b>Aircraft exclusion</b> on each program: exclude wake category L (most props), <b>jets/turbines only</b> (uses a bundled type reference), or comma-separated ICAO types (e.g. C172, PA28). Excluded traffic still appears on the dashboard but does not consume AAR slots or receive CFRs. VFR is always excluded separately.</li>' +
     '<li>Programs apply everywhere: APT Dashboard, Departures, and CFR times.</li></ul></div>' +
     '<div class="helpcard"><h3>RESTRICTIONS</h3><ul class="helplist">' +
     '<li><b>Restrictions</b> — free-form entries (requesting, providing, restriction text, start/stop times). Shared live when connected.</li>' +
@@ -1425,7 +1493,7 @@ function renderHelp() {
     '<li><b>RELEASE NOW</b> — wheels-up time has arrived.</li>' +
     '<li><b>\u2715</b> on an issued CFR cancels it and pulls remaining CFRs into the freed slot.</li>' +
     '<li>First aircraft issued gets the earliest available time. A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li>' +
-    '<li>VFR flights are never metered. Proposed (not connected) flights show <b>PENDING</b>.</li></ul></div>' +
+    '<li>VFR flights are never metered. Aircraft excluded by the TMU program show <b>EXCLUDED \u2014 NO CFR</b>. Proposed (not connected) flights show <b>PENDING</b>.</li></ul></div>' +
 
     '<div class="helpsec">How metering works</div>' +
     '<div class="helpcard"><ul class="helplist">' +
@@ -1633,8 +1701,8 @@ function renderMyDash() {
     return aw - bw || a.callsign.localeCompare(b.callsign);
   });
 
-  const metered = deps.filter(d => d.entry && !d.vfr).length;
-  const held = deps.filter(d => d.entry && !d.vfr && d.entry.edctIssued && !d.entry.releaseNow).length;
+  const metered = deps.filter(d => d.entry && isMetered(d.entry)).length;
+  const held = deps.filter(d => d.entry && isMetered(d.entry) && d.entry.edctIssued && !d.entry.releaseNow).length;
 
   h += '<div class="strip">' +
     '<span class="field">MY DEPARTURES</span>' +
@@ -1658,6 +1726,9 @@ function renderMyDash() {
     if (d.vfr) {
       pgm = '<span class="vfrtag">VFR</span>';
       cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+    } else if (e && e.excluded) {
+      pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
+      cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
     } else if (!tmuRates[d.dest]) {
       pgm = '<span style="color:#3a4750;">\u2014</span>';
       cfr = '<span style="color:#3a4750;">NO PROGRAM \u2014 RELEASE AT WILL</span>';
@@ -1818,6 +1889,11 @@ function renderPilot() {
   if (vfr) {
     body = panel("FLOW STATUS",
       '<span style="font-size:15px;color:#57d98a;font-weight:600;">VFR \u2014 not metered. Depart at will.</span>');
+  } else if (e && e.excluded) {
+    body = panel("FLOW STATUS",
+      '<span class="excludedtag" style="font-size:15px;font-weight:600;">Excluded from the flow program at ' + esc(dest) +
+      ' \u2014 depart at will.</span>' +
+      '<div style="margin-top:8px;font-size:12px;color:#c9d6df;">Your aircraft type is not included in metering for this field.</div>');
   } else if (status === "ARRIVED") {
     body = panel("FLOW STATUS",
       '<span style="font-size:15px;color:#56676f;font-weight:600;">Arrived at ' + esc(dest) + '.</span>');
@@ -2006,6 +2082,9 @@ function renderTMUPrograms() {
     '<span class="lbl">ROUTE TRAIL</span><select id="tmuTrail">' + selOpts(TRAIL_OPTS, 0) + '</select>' +
     '<span class="lbl">MIT</span><input id="tmuMit" class="mitinput" data-keep="tmuMit" type="number" min="0" max="300" placeholder="nm">' +
     '<button data-tmuset>SET PROGRAM</button>' +
+    '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;"><input type="checkbox" id="tmuExclLight" data-keep="tmuExclLight"> Excl wake L</label>' +
+    '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;"><input type="checkbox" id="tmuJetsOnly" data-keep="tmuJetsOnly"> Jets/turbines only</label>' +
+    '<span class="lbl">EXCL TYPES</span><input id="tmuExclTypes" data-keep="tmuExclTypes" placeholder="C172,PA28" style="width:130px;font-size:12px;">' +
     '<span style="font-size:11px;color:#56676f;margin-left:10px;">Programs apply everywhere: METER view, CFR times, and the DEPARTURES view. ' +
     'ROUTE TRAIL is minutes-in-trail; type a value in MIT (nm) to override it with miles-in-trail (converted at ~' + MIT_NOMINAL_KT + ' kt). Leave MIT blank for AUTO/minutes.</span>' +
     '</div>';
@@ -2089,6 +2168,27 @@ function renderTMUPrograms() {
           (gateRules.length ? ' \u2014 gates listed above use their own spacing; everything else uses the airport-wide default' : '') +
           '</span></td></tr>';
       }
+      /* aircraft exclusion rules */
+      const exclL = (r.excludeWake || []).includes("L");
+      const exclTypesStr = (r.excludeTypes || []).join(",");
+      h += '<tr class="gaterow"><td style="text-align:right;color:#3a4750;">\u21B3</td><td colspan="9">' +
+        '<span class="gatelbl">EXCLUDE</span> ';
+      if (ctl) {
+        h += '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;margin-right:12px;">' +
+          '<input type="checkbox" data-tmuexcllight="' + esc(code) + '"' + (exclL ? ' checked' : '') + '> Wake L</label>' +
+          '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;margin-right:12px;">' +
+          '<input type="checkbox" data-tmujetsonly="' + esc(code) + '"' + (r.jetsOnly ? ' checked' : '') + '> Jets/turbines only</label>' +
+          '<input class="gateinput" placeholder="types C172,PA28" data-tmuexcltypes="' + esc(code) +
+          '" data-keep="tmuexcltypes-' + esc(code) + '" value="' + esc(exclTypesStr) + '" style="width:150px;">';
+      } else {
+        const parts = [];
+        if (exclL) parts.push("wake L");
+        if (r.jetsOnly) parts.push("jets/turbines only");
+        if (exclTypesStr) parts.push("types " + exclTypesStr);
+        h += parts.length ? esc(parts.join(" \u00B7 ")) : '<span style="color:#3a4750;">none</span>';
+      }
+      h += '<span style="color:#3a4750;font-size:10px;margin-left:10px;">Excluded traffic still shows on the dashboard but does not consume AAR slots or receive CFRs.</span>' +
+        '</td></tr>';
     }
     h += '</tbody></table></div>';
   }
@@ -2227,7 +2327,7 @@ function compressEdcts() {
 
     /* fixed arrival slots: airborne traffic + other issued EDCTs not in this run's order yet */
     const fixed = destFlow.flights
-      .filter(f => f.callsign !== cs && f.status === "AIRBORNE")
+      .filter(f => f.callsign !== cs && f.status === "AIRBORNE" && isMetered(f))
       .map(f => ({ t: f.sta, gate: f.gate }));
     for (const s of (placedByDest[meta.dest] || [])) fixed.push(s);
 
@@ -2264,7 +2364,7 @@ function earliestEdct(cs, depField, destField) {
   const spacing = 3600000 / Math.max(rate.aar, 1);
 
   const fixed = flow.flights
-    .filter(f => f.callsign !== cs && (f.status === "AIRBORNE" || f.edctIssued))
+    .filter(f => f.callsign !== cs && (f.status === "AIRBORNE" || f.edctIssued) && isMetered(f))
     .map(f => ({ t: f.sta, gate: f.gate }));
 
   /* issued EDCTs of other ground aircraft at the same departure airport */
@@ -2355,8 +2455,8 @@ function renderDep() {
     return aw - bw || a.callsign.localeCompare(b.callsign);
   });
 
-  const metered = deps.filter(d => d.entry && !d.vfr && !d.arrived).length;
-  const held = deps.filter(d => d.entry && !d.vfr && !d.arrived && d.entry.edctIssued && !d.entry.releaseNow).length;
+  const metered = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived).length;
+  const held = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived && d.entry.edctIssued && !d.entry.releaseNow).length;
   const arrCnt = deps.filter(d => d.arrived).length;
 
   let h = '<div class="strip">' +
@@ -2385,7 +2485,10 @@ function renderDep() {
       } else if (d.vfr) {
         pgm = '<span class="vfrtag">VFR</span>';
         edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
-      } else if (!d.vfr && !d.arrived && groundStopFor(depIcao, d.dest)) {
+      } else if (e && e.excluded) {
+        pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
+        edct = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
+      } else if (!d.arrived && groundStopFor(depIcao, d.dest)) {
         const gs = groundStopFor(depIcao, d.dest);
         pgm = tmuRates[d.dest] ? (d.aar || getRate(d.dest).aar) + "/hr" : '<span style="color:#3a4750;">\u2014</span>';
         if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
@@ -2526,7 +2629,12 @@ contentEl.addEventListener("click", e => {
       aar: rec.aar,
       trail: existing ? existing.trail : 0,
       mit: existing ? existing.mit : 0,
-      gates: existing && existing.gates ? existing.gates : []
+      gates: existing && existing.gates ? existing.gates : [],
+      excludeWake: existing ? (existing.excludeWake || []) : [],
+      excludeTypes: existing ? (existing.excludeTypes || []) : [],
+      includeTypes: existing ? (existing.includeTypes || []) : [],
+      jetsOnly: existing ? !!existing.jetsOnly : false,
+      unknownInclude: existing ? existing.unknownInclude !== false : true
     };
     pushSync(); ensurePolling(); tmuSub = "programs"; renderContent();
     return;
@@ -2593,7 +2701,19 @@ contentEl.addEventListener("click", e => {
   if (a == null) return;                          /* invalid AAR entry */
   const mitEl = contentEl.querySelector("#tmuMit");
   const mit = parseMit(mitEl ? mitEl.value : "");
-  tmuRates[v] = { aar: a, trail: +contentEl.querySelector("#tmuTrail").value, mit: mit == null ? 0 : mit, gates: (tmuRates[v] && tmuRates[v].gates) || [] };
+  const exclLight = contentEl.querySelector("#tmuExclLight");
+  const exclJets = contentEl.querySelector("#tmuJetsOnly");
+  const exclTypesEl = contentEl.querySelector("#tmuExclTypes");
+  const prev = tmuRates[v];
+  tmuRates[v] = normRate({
+    aar: a, trail: +contentEl.querySelector("#tmuTrail").value, mit: mit == null ? 0 : mit,
+    gates: (prev && prev.gates) || [],
+    excludeWake: exclLight && exclLight.checked ? ["L"] : [],
+    excludeTypes: exclTypesEl ? exclTypesEl.value : "",
+    includeTypes: prev ? prev.includeTypes : [],
+    jetsOnly: exclJets && exclJets.checked,
+    unknownInclude: prev ? prev.unknownInclude !== false : true
+  });
   pushSync();
   ensurePolling();
   renderContent();
@@ -2621,6 +2741,29 @@ contentEl.addEventListener("change", e => {
     if (v == null) { m.value = tmuRates[m.dataset.tmumit].mit || ""; return; }  /* reject invalid */
     tmuRates[m.dataset.tmumit].mit = v;       /* >0 overrides minutes; 0 reverts to dropdown */
     pushSync(); renderContent(); return;
+  }
+  const exclL = e.target.closest("[data-tmuexcllight]");
+  if (exclL) {
+    const r = tmuRates[exclL.dataset.tmuexcllight];
+    if (r) {
+      const w = normExcludeWake(r.excludeWake).filter(x => x !== "L");
+      if (exclL.checked) w.push("L");
+      r.excludeWake = w;
+      pushSync(); renderContent();
+    }
+    return;
+  }
+  const exclJ = e.target.closest("[data-tmujetsonly]");
+  if (exclJ) {
+    const r = tmuRates[exclJ.dataset.tmujetsonly];
+    if (r) { r.jetsOnly = exclJ.checked; pushSync(); renderContent(); }
+    return;
+  }
+  const exclT = e.target.closest("[data-tmuexcltypes]");
+  if (exclT) {
+    const r = tmuRates[exclT.dataset.tmuexcltypes];
+    if (r) { r.excludeTypes = normTypeList(exclT.value); pushSync(); renderContent(); }
+    return;
   }
   /* ---- per-gate restriction edits ---- */
   const gt = e.target.closest("select[data-tmugatetrail]");
@@ -2941,7 +3084,16 @@ function edctsToWire() {
 }
 function ratesToWire() {
   const o = {};
-  for (const k in tmuRates) o[k] = { aar: tmuRates[k].aar, trail: tmuRates[k].trail, mit: tmuRates[k].mit || 0, gates: (tmuRates[k].gates || []).map(g => ({ name: g.name, trail: g.trail || 0, mit: g.mit || 0 })) };
+  for (const k in tmuRates) {
+    const r = tmuRates[k];
+    o[k] = {
+      aar: r.aar, trail: r.trail, mit: r.mit || 0,
+      gates: (r.gates || []).map(g => ({ name: g.name, trail: g.trail || 0, mit: g.mit || 0 })),
+      excludeWake: r.excludeWake || [], excludeTypes: r.excludeTypes || [],
+      includeTypes: r.includeTypes || [], jetsOnly: !!r.jetsOnly,
+      unknownInclude: r.unknownInclude !== false
+    };
+  }
   return o;
 }
 function applyEdctsFromWire(o) {
@@ -2953,7 +3105,7 @@ function applyEdctsFromWire(o) {
 }
 function applyRatesFromWire(o) {
   for (const k in tmuRates) delete tmuRates[k];
-  if (o) for (const k in o) tmuRates[k] = { aar: o[k].aar, trail: o[k].trail, mit: o[k].mit || 0, gates: normGates(o[k].gates) };
+  if (o) for (const k in o) tmuRates[k] = normRate(o[k]);
 }
 function restrictionsToWire() {
   const o = {};
