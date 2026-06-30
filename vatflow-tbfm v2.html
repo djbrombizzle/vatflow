@@ -271,6 +271,23 @@
   .tmuact:hover { text-decoration:underline; }
   .tmuact.rm { color:#f25555; }
 
+  .calcpanel { padding:20px 24px 40px; max-width:720px; }
+  .calcpanel .helpcard { margin-top:18px; }
+  .calcresult { font-family:'Barlow Condensed',sans-serif; font-size:52px; font-weight:600;
+                letter-spacing:.04em; line-height:1.1; margin:8px 0 4px; }
+  .calcresult.ok { color:#57d98a; }
+  .calcresult.warn { color:#f5a83d; }
+  .calcresult.bad { color:#f25555; }
+  .calcresult.none { color:#56676f; font-size:28px; }
+  .calcdetail { font-size:13px; color:#9fb0ba; line-height:1.65; margin-bottom:4px; }
+  .calcformula { font-size:11px; color:#56676f; letter-spacing:.04em; }
+  .calcpositions { display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:10px; }
+  .calcpositions label { display:inline-flex; align-items:center; gap:6px; font-size:12px;
+                         color:#c9d6df; cursor:pointer; user-select:none; }
+  .calcpositions input { accent-color:#54b8e8; width:14px; height:14px; cursor:pointer; }
+  .calctoggle { color:#9fdcff; cursor:pointer; font-size:11px; letter-spacing:.06em; margin-left:10px; }
+  .calctoggle:hover { text-decoration:underline; }
+
   .homewrap { padding:20px 24px 40px; max-width:1000px; }
   .homehead { font-family:'Barlow Condensed',sans-serif; font-size:30px; letter-spacing:.08em;
               color:#e8f0f4; margin-bottom:18px; }
@@ -423,6 +440,7 @@ const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by 
 const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
+let tmuSub = "programs";  // TMU page sub-tab: programs | calc
 /* ---- controller access: the app is VIEW-ONLY until unlocked with the control password ----
    On the hub, the password is enforced server-side (CONTROL_PASSWORD env var) — real security.
    Off the hub (Firebase/local), it is checked against CONTROL_PASSWORD_LOCAL below (a soft gate). */
@@ -1386,6 +1404,7 @@ function renderHelp() {
     '<li>Airborne and arrived aircraft are excluded. Your airport list is saved on this device only.</li></ul></div>' +
     '<div class="helpcard"><h3>TMU</h3><ul class="helplist">' +
     '<li>Set flow programs: <b>AAR</b> (arrivals per hour), <b>ROUTE TRAIL</b> (minutes-in-trail), and optional <b>MIT</b> (miles-in-trail — overrides minutes when set).</li>' +
+    '<li><b>Rate Calculator</b> sub-tab: enter airport tier, max AAR, full staffing, and controllers on duty to get a recommended AAR; optional position checklist refines the estimate; <b>Apply to program</b> copies the result into the active TMU program.</li>' +
     '<li>Add up to 10 <b>gate restrictions</b> per airport for STAR/fix-specific spacing.</li>' +
     '<li>Programs apply everywhere: APT Dashboard, Departures, and CFR times.</li></ul></div>' +
     '<div class="helpcard"><h3>RESTRICTIONS</h3><ul class="helplist">' +
@@ -1873,7 +1892,110 @@ const selOpts = (opts, cur) => opts.map(o => {
   return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + t + '</option>';
 }).join("");
 
+/* ---------- TMU rate calculator: staffing -> recommended AAR ---------- */
+const RATE_CALC_TIERS = {
+  small:  { label: "Small",  maxAar: 20,  fullStaff: 2 },
+  medium: { label: "Medium", maxAar: 45,  fullStaff: 4 },
+  large:  { label: "Large",  maxAar: 80,  fullStaff: 5 },
+  hub:    { label: "Hub",    maxAar: 120, fullStaff: 6 }
+};
+const RATE_CALC_HUB_ICAOS = { KATL:1, KORD:1, KLAX:1, KJFK:1, KDFW:1, KMIA:1, KPHX:1, KCLT:1, KSEA:1, KSFO:1 };
+const RATE_CALC_LARGE_ICAOS = { KDEN:1, KIAH:1, KEWR:1, KMCO:1, KLAS:1, KBOS:1, KDTW:1, KMSP:1, KPHL:1 };
+const RATE_CALC_MEDIUM_ICAOS = { KDCA:1, KBWI:1, KSLC:1, KSAN:1, KPDX:1, KSTL:1, KAUS:1, KBNA:1, KRDU:1 };
+const RATE_CALC_POSITIONS = [
+  { key: "app", label: "Approach (APP)", weight: 0.40 },
+  { key: "twr", label: "Tower (TWR)", weight: 0.35 },
+  { key: "gnd", label: "Ground (GND)", weight: 0.12 },
+  { key: "del", label: "Delivery (DEL)", weight: 0.05 },
+  { key: "sup", label: "Coordinator (SUP)", weight: 0.05 },
+  { key: "atis", label: "ATIS / other", weight: 0.03 }
+];
+const rateCalc = {
+  icao: "", tier: "hub", maxAar: 120, fullStaff: 6, onDuty: 2,
+  usePositions: false, advancedOpen: false,
+  positions: { app: true, twr: true, gnd: false, del: false, sup: false, atis: false }
+};
+try {
+  const saved = localStorage.getItem("vatflow_rate_calc");
+  if (saved) {
+    const p = JSON.parse(saved);
+    if (p && typeof p === "object") {
+      if (p.icao != null) rateCalc.icao = String(p.icao);
+      if (p.tier in RATE_CALC_TIERS) rateCalc.tier = p.tier;
+      if (+p.maxAar) rateCalc.maxAar = +p.maxAar;
+      if (+p.fullStaff) rateCalc.fullStaff = +p.fullStaff;
+      if (+p.onDuty != null) rateCalc.onDuty = +p.onDuty;
+      if (p.usePositions) rateCalc.usePositions = true;
+      if (p.advancedOpen) rateCalc.advancedOpen = true;
+      if (p.positions && typeof p.positions === "object") {
+        for (const k in p.positions) if (k in rateCalc.positions) rateCalc.positions[k] = !!p.positions[k];
+      }
+    }
+  }
+} catch (e) {}
+function saveRateCalc() {
+  try {
+    localStorage.setItem("vatflow_rate_calc", JSON.stringify({
+      icao: rateCalc.icao, tier: rateCalc.tier, maxAar: rateCalc.maxAar,
+      fullStaff: rateCalc.fullStaff, onDuty: rateCalc.onDuty,
+      usePositions: rateCalc.usePositions, advancedOpen: rateCalc.advancedOpen,
+      positions: rateCalc.positions
+    }));
+  } catch (e) {}
+}
+function tierForIcao(code) {
+  if (RATE_CALC_HUB_ICAOS[code]) return "hub";
+  if (RATE_CALC_LARGE_ICAOS[code]) return "large";
+  if (RATE_CALC_MEDIUM_ICAOS[code]) return "medium";
+  return "small";
+}
+function applyRateCalcTier(tier) {
+  const t = RATE_CALC_TIERS[tier];
+  if (!t) return;
+  rateCalc.tier = tier;
+  rateCalc.maxAar = t.maxAar;
+  rateCalc.fullStaff = t.fullStaff;
+}
+function calcRecommendedAar({ maxAar, fullStaff, onDuty, exponent, positions, usePositions }) {
+  const max = Math.max(1, Math.round(+maxAar) || 1);
+  const full = Math.max(1, Math.round(+fullStaff) || 1);
+  const duty = Math.max(0, Math.round(+onDuty) || 0);
+  const alpha = exponent != null ? +exponent : 1;
+  if (duty < 1) return { aar: 0, factor: 0, pct: 0, limitedBy: "staff", warning: "No controllers on duty" };
+  const ratio = Math.min(1, duty / full);
+  let factor = Math.pow(ratio, alpha);
+  let limitedBy = "headcount";
+  if (usePositions && positions) {
+    let posFactor = 0;
+    for (const p of RATE_CALC_POSITIONS) if (positions[p.key]) posFactor += p.weight;
+    if (factor > posFactor) limitedBy = "positions";
+    factor = Math.min(factor, posFactor);
+    if (!positions.app && !positions.twr) {
+      const cap = 0.15;
+      if (factor > cap) { factor = cap; limitedBy = "critical"; }
+    }
+  }
+  let aar = Math.round(max * factor);
+  let warning = null;
+  if (aar < 1) { aar = 0; warning = "Insufficient staffing for IFR arrivals"; }
+  else {
+    const clamped = parseAar(aar);
+    if (clamped == null) aar = 200;
+    else aar = clamped;
+  }
+  return { aar, factor, pct: Math.round(factor * 100), limitedBy, warning };
+}
+
 function renderTMU() {
+  const subBar = '<div class="subtabs">' +
+    '<span class="subtab' + (tmuSub === "programs" ? " active" : "") + '" data-tmusub="programs">PROGRAMS</span>' +
+    '<span class="subtab' + (tmuSub === "calc" ? " active" : "") + '" data-tmusub="calc">RATE CALCULATOR</span>' +
+    '</div>';
+  if (tmuSub === "calc") { contentEl.innerHTML = subBar + renderTMURateCalc(); return; }
+  contentEl.innerHTML = subBar + renderTMUPrograms();
+}
+
+function renderTMUPrograms() {
   const ctl = canControl();
   let h = "";
   if (ctl) {
@@ -1970,7 +2092,88 @@ function renderTMU() {
     }
     h += '</tbody></table></div>';
   }
-  contentEl.innerHTML = h;
+  return h;
+}
+
+function renderTMURateCalc() {
+  const ctl = canControl();
+  const result = calcRecommendedAar({
+    maxAar: rateCalc.maxAar, fullStaff: rateCalc.fullStaff, onDuty: rateCalc.onDuty,
+    exponent: 1, positions: rateCalc.positions, usePositions: rateCalc.usePositions
+  });
+  const tierOpts = Object.keys(RATE_CALC_TIERS).map(k =>
+    '<option value="' + k + '"' + (rateCalc.tier === k ? ' selected' : '') + '>' +
+    RATE_CALC_TIERS[k].label + ' (' + RATE_CALC_TIERS[k].maxAar + '/hr, ' + RATE_CALC_TIERS[k].fullStaff + ' staff)</option>'
+  ).join("");
+  let resultCls = "none", resultTxt = "\u2014";
+  if (result.aar > 0) {
+    resultCls = result.pct >= 70 ? "ok" : result.pct >= 40 ? "warn" : "bad";
+    resultTxt = result.aar + '<span style="font-size:28px;color:#9fb0ba;font-weight:500;"> /hr</span>';
+  } else if (result.warning) {
+    resultTxt = result.warning;
+  }
+  const limitedTxt = result.limitedBy === "positions" ? "position mix"
+    : result.limitedBy === "critical" ? "missing APP/TWR"
+    : "headcount";
+  const validIcao = /^[A-Z0-9]{4}$/.test(rateCalc.icao);
+  let h = '<div class="calcpanel">' +
+    '<div class="tmuform" style="border-bottom:none;padding-bottom:0;">' +
+    '<span class="lbl">AIRPORT</span>' +
+    '<input id="rateCalcIcao" data-keep="rateCalcIcao" data-ratecalc-field="icao" list="event-fields" maxlength="4" ' +
+    'placeholder="ICAO" autocomplete="off" value="' + esc(rateCalc.icao) + '" style="width:110px;">' +
+    '<span class="lbl">TIER</span>' +
+    '<select id="rateCalcTier" data-ratecalc-field="tier">' + tierOpts + '</select>' +
+    '<span class="lbl">MAX AAR</span>' +
+    '<input id="rateCalcMaxAar" class="aarinput" data-keep="rateCalcMaxAar" data-ratecalc-field="maxAar" type="number" min="1" max="200" value="' + rateCalc.maxAar + '">' +
+    '<span class="lbl">FULL STAFF</span>' +
+    '<input id="rateCalcFullStaff" data-keep="rateCalcFullStaff" data-ratecalc-field="fullStaff" type="number" min="1" max="20" value="' + rateCalc.fullStaff + '" style="width:64px;">' +
+    '<span class="lbl">ON DUTY</span>' +
+    '<input id="rateCalcOnDuty" data-keep="rateCalcOnDuty" data-ratecalc-field="onDuty" type="number" min="0" max="20" value="' + rateCalc.onDuty + '" style="width:64px;">' +
+  '</div>' +
+    '<div class="tmuform" style="border-bottom:none;padding-top:8px;">' +
+    '<span class="calctoggle" data-ratecalc-adv="' + (rateCalc.advancedOpen ? "0" : "1") + '">' +
+    (rateCalc.advancedOpen ? '\u25BE hide' : '\u25B8 show') + ' position checklist</span>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Refines the estimate when specific positions are open.</span>' +
+    '</div>';
+  if (rateCalc.advancedOpen) {
+    h += '<div class="tmuform" style="border-bottom:none;padding-top:0;">' +
+      '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c9d6df;cursor:pointer;margin-right:14px;">' +
+      '<input type="checkbox" data-ratecalc-field="usePositions"' + (rateCalc.usePositions ? ' checked' : '') + '> Use position weights</label>' +
+      '<div class="calcpositions">';
+    for (const p of RATE_CALC_POSITIONS) {
+      h += '<label><input type="checkbox" data-ratecalc-pos="' + p.key + '"' +
+        (rateCalc.positions[p.key] ? ' checked' : '') + '> ' + esc(p.label) + '</label>';
+    }
+    h += '</div></div>';
+  }
+  h += '<div class="helpcard">' +
+    '<h3>RECOMMENDED AAR</h3>' +
+    '<div class="calcresult ' + resultCls + '">' + resultTxt + '</div>';
+  if (result.aar > 0) {
+    h += '<div class="calcdetail">' + result.pct + '% of max capacity \u00B7 ' +
+      rateCalc.onDuty + ' of ' + rateCalc.fullStaff + ' controllers \u00B7 limited by ' + limitedTxt + '</div>' +
+      '<div class="calcformula">maxAAR \u00D7 (onDuty / fullStaff) = ' + rateCalc.maxAar +
+      ' \u00D7 (' + rateCalc.onDuty + ' / ' + rateCalc.fullStaff + ') = ' + result.aar + '/hr</div>';
+  } else if (result.warning) {
+    h += '<div class="calcdetail">' + esc(result.warning) + '</div>';
+  }
+  if (ctl && validIcao && result.aar > 0) {
+    h += '<div style="margin-top:16px;">' +
+      '<button data-ratecalc-apply>APPLY TO PROGRAM</button>' +
+      '<span style="font-size:11px;color:#56676f;margin-left:10px;">Sets AAR for ' + esc(rateCalc.icao) +
+      ' on the Programs sub-tab (preserves trail/MIT/gates).</span></div>';
+  } else if (!ctl && validIcao && result.aar > 0) {
+    h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">View only \u2014 unlock control to apply this rate to a program.</div>';
+  }
+  h += '</div>' +
+    '<div class="helpcard" style="margin-top:14px;"><h3>How it works</h3>' +
+    '<ul class="helplist" style="font-size:13px;">' +
+    '<li>Select an <b>airport tier</b> to pre-fill max AAR and full staffing, or enter your own values.</li>' +
+    '<li><b>Recommended AAR</b> = max AAR \u00D7 (controllers on duty / full staffing).</li>' +
+    '<li>Example: a hub at 120/hr with 6 full positions and 2 on duty \u2192 <b>40/hr</b>.</li>' +
+    '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
+    '</ul></div></div>';
+  return h;
 }
 
 /* ---------- DEPARTURES view: tower controller's field ---------- */
@@ -2305,6 +2508,35 @@ contentEl.addEventListener("click", e => {
   /* ---- Restrictions page sub-tabs ---- */
   const sub = e.target.closest("[data-restrsub]");
   if (sub) { restrictSub = sub.dataset.restrsub; renderContent(); return; }
+  /* ---- TMU page sub-tabs ---- */
+  const tmuSubBtn = e.target.closest("[data-tmusub]");
+  if (tmuSubBtn) { tmuSub = tmuSubBtn.dataset.tmusub; renderContent(); return; }
+  /* ---- Rate calculator: apply / advanced toggle ---- */
+  if (e.target.closest("[data-ratecalc-apply]")) {
+    if (!canControl()) return;
+    const code = rateCalc.icao.trim().toUpperCase();
+    if (!/^[A-Z0-9]{4}$/.test(code)) return;
+    const rec = calcRecommendedAar({
+      maxAar: rateCalc.maxAar, fullStaff: rateCalc.fullStaff, onDuty: rateCalc.onDuty,
+      exponent: 1, positions: rateCalc.positions, usePositions: rateCalc.usePositions
+    });
+    if (rec.aar < 1) return;
+    const existing = tmuRates[code];
+    tmuRates[code] = {
+      aar: rec.aar,
+      trail: existing ? existing.trail : 0,
+      mit: existing ? existing.mit : 0,
+      gates: existing && existing.gates ? existing.gates : []
+    };
+    pushSync(); ensurePolling(); tmuSub = "programs"; renderContent();
+    return;
+  }
+  const adv = e.target.closest("[data-ratecalc-adv]");
+  if (adv) {
+    rateCalc.advancedOpen = adv.dataset.ratecalcAdv === "1";
+    saveRateCalc(); renderContent();
+    return;
+  }
   /* ---- Ground stops: add / remove ---- */
   if (e.target.closest("[data-gsadd]")) {
     groundStops.unshift({ id: genId(), airport: "", scope: "", until: "", updated: "", flashUntil: 0 });
@@ -2501,6 +2733,27 @@ contentEl.addEventListener("keydown", e => {
 /* per-column filters — delegated, focus is preserved across re-renders */
 contentEl.addEventListener("input", e => {
   if (e.target.id === "mydashIcao") { e.target.value = e.target.value.toUpperCase(); return; }
+  /* rate calculator fields */
+  const rcPos = e.target.closest("input[data-ratecalc-pos]");
+  if (rcPos) {
+    rateCalc.positions[rcPos.dataset.ratecalcPos] = rcPos.checked;
+    saveRateCalc(); renderContent();
+    return;
+  }
+  const rcField = e.target.closest("[data-ratecalc-field]");
+  if (rcField) {
+    const f = rcField.dataset.ratecalcField;
+    if (f === "icao") {
+      rateCalc.icao = rcField.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+      rcField.value = rateCalc.icao;
+      if (rateCalc.icao.length === 4) applyRateCalcTier(tierForIcao(rateCalc.icao));
+      saveRateCalc(); renderContent();
+    } else if (f === "usePositions") {
+      rateCalc.usePositions = rcField.checked;
+      saveRateCalc(); renderContent();
+    }
+    return;
+  }
   const gn = e.target.closest("input[data-tmugatename]");
   if (gn) {
     const r = tmuRates[gn.dataset.tmugatename]; const i = +gn.dataset.idx;
@@ -2538,6 +2791,37 @@ contentEl.addEventListener("input", e => {
 /* push restriction edits to the shared room when committed (blur/enter);
    start the 30s flash the first time an entry has every field filled */
 contentEl.addEventListener("change", e => {
+  if (e.target.id === "rateCalcTier") {
+    applyRateCalcTier(e.target.value);
+    saveRateCalc(); renderContent();
+    return;
+  }
+  const rcPos = e.target.closest("input[data-ratecalc-pos]");
+  if (rcPos) {
+    rateCalc.positions[rcPos.dataset.ratecalcPos] = rcPos.checked;
+    saveRateCalc(); renderContent();
+    return;
+  }
+  const rcField = e.target.closest("[data-ratecalc-field]");
+  if (rcField) {
+    const f = rcField.dataset.ratecalcField;
+    if (f === "maxAar") {
+      const v = parseAar(rcField.value);
+      if (v != null) rateCalc.maxAar = v;
+      else rcField.value = rateCalc.maxAar;
+    } else if (f === "fullStaff") {
+      const v = Math.max(1, Math.min(20, Math.round(+rcField.value) || 1));
+      rateCalc.fullStaff = v; rcField.value = v;
+      if (rateCalc.onDuty > v) rateCalc.onDuty = v;
+    } else if (f === "onDuty") {
+      const v = Math.max(0, Math.min(rateCalc.fullStaff, Math.round(+rcField.value) || 0));
+      rateCalc.onDuty = v; rcField.value = v;
+    } else if (f === "usePositions") {
+      rateCalc.usePositions = rcField.checked;
+    }
+    saveRateCalc(); renderContent();
+    return;
+  }
   const gf = e.target.closest("input[data-gsfield]");
   if (gf) {
     const x = groundStops.find(z => z.id === gf.dataset.gsid);
