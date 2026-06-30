@@ -53,6 +53,8 @@
             color:#cfe6f5; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
   .apchipx { color:#7d8a93; cursor:pointer; font-size:12px; }
   .apchipx:hover { color:#f25555; }
+  .artccchip { display:inline-flex; align-items:center; gap:8px; background:#1a1830; border:1px solid #4a3a70;
+               color:#e0d4ff; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
 
   .subtabs { display:flex; gap:6px; padding:12px 20px 0; }
   .subtab { padding:6px 16px; font-size:12px; font-weight:600; letter-spacing:.1em; cursor:pointer;
@@ -456,10 +458,16 @@ let firPolys = null;        // { ID: [ outerRing, ... ] }  ring = [[lon,lat],...
 let boundariesStatus = "idle"; // idle | loading | ok | error
 let scopeCache = {};        // dep|scopeKey -> bool
 const announcedGs = {};     // gs id -> true (popup already shown)
-/* My Dashboard: a personal set of departure fields (up to 20), kept on this device */
+/* My Dashboard: personal departure filters (airports and/or ARTCCs), kept on this device */
 let myAirports = [];
 try { const saved = localStorage.getItem("vatflow_my_airports"); if (saved) myAirports = JSON.parse(saved) || []; } catch (e) {}
 function saveMyAirports() { try { localStorage.setItem("vatflow_my_airports", JSON.stringify(myAirports)); } catch (e) {} }
+let myArtccs = [];
+try { const savedArtcc = localStorage.getItem("vatflow_my_artccs"); if (savedArtcc) myArtccs = JSON.parse(savedArtcc) || []; } catch (e) {}
+function saveMyArtccs() { try { localStorage.setItem("vatflow_my_artccs", JSON.stringify(myArtccs)); } catch (e) {} }
+function myDashHasFilters() { return myAirports.length > 0 || myArtccs.length > 0; }
+function normArtcc(v) { return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+function validArtcc(v) { const s = normArtcc(v); return /^[A-Z][A-Z0-9]{2,4}$/.test(s); }
 let vatsim = null;
 let airportDb = null;
 let dbStatus = "loading";   // loading | full | fallback
@@ -784,6 +792,39 @@ function airportInScope(depIcao, toks) {
   }
   return (scopeCache[key] = hit);
 }
+/* boundary ids for an ARTCC/FIR code (parent + sub-sectors, e.g. ZJX -> KZJX, KZJX-A, ...) */
+function artccBoundaryIds(artcc) {
+  if (!firPolys || !artcc) return [];
+  const t = normArtcc(artcc);
+  const bases = [t];
+  if (t.length === 3) bases.push("K" + t);
+  else if (t.startsWith("K") && t.length === 4) bases.push(t.slice(1));
+  const ids = [];
+  for (const id of Object.keys(firPolys)) {
+    if (bases.some(b => id === b || id.startsWith(b + "-"))) ids.push(id);
+  }
+  return ids;
+}
+/* is a departure airport inside the typed ARTCC/FIR boundary? */
+function airportInArtcc(depIcao, artcc) {
+  if (!firPolys || !artcc) return false;
+  const key = depIcao + "|artcc:" + normArtcc(artcc);
+  if (key in scopeCache) return scopeCache[key];
+  const pt = lookup(depIcao);
+  if (!pt) return (scopeCache[key] = false);
+  const lon = pt[1], lat = pt[0];
+  for (const id of artccBoundaryIds(artcc)) {
+    for (const ring of firPolys[id]) if (pointInRing(lon, lat, ring)) return (scopeCache[key] = true);
+  }
+  return (scopeCache[key] = false);
+}
+function depMatchesMyDash(depIcao) {
+  const dep = (depIcao || "").toUpperCase();
+  if (myAirports.includes(dep)) return true;
+  if (!myArtccs.length || !firPolys) return false;
+  for (const a of myArtccs) if (airportInArtcc(dep, a)) return true;
+  return false;
+}
 /* the active ground stop affecting a dep->dest flight, or null */
 function groundStopFor(dep, dest) {
   if (!groundStops.length) return null;
@@ -801,9 +842,10 @@ function fmtUntil(u) {
   if (!s) return "?";
   return /z$/i.test(s) ? s.toUpperCase() : s + "Z";
 }
-/* if any scoped ground stop is active, make sure boundaries are loaded */
+/* if any scoped ground stop or My Dashboard ARTCC filter is active, load boundaries */
 function ensureBoundariesIfNeeded() {
   if (boundariesStatus === "ok" || boundariesStatus === "loading") return;
+  if (myArtccs.length) { loadBoundaries(); return; }
   if (groundStops.some(g => g.airport && scopeTokens(g.scope).length)) loadBoundaries();
 }
 /* show a 30s dismissible popup for any newly-issued ground stop (on every page) */
@@ -1654,27 +1696,46 @@ function renderMyDash() {
 
   h += '<div class="mydashchips">';
   if (!myAirports.length) {
-    h += '<span style="color:#56676f;font-size:12px;">No airports added yet. Add the fields you are working above.</span>';
+    h += '<span style="color:#56676f;font-size:12px;">No airports added yet.</span>';
   } else {
     for (const a of myAirports)
       h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-mydashrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
   h += '</div>';
 
-  if (!myAirports.length) { contentEl.innerHTML = h; return; }
+  h += '<div class="tmuform" style="border-top:1px solid #1a232d;">' +
+    '<span class="lbl">ADD ARTCC</span>' +
+    '<input id="mydashArtcc" data-keep="mydashArtcc" maxlength="5" placeholder="ZJX" autocomplete="off" style="width:80px;letter-spacing:.12em;">' +
+    '<button data-mydashartccadd>ADD</button>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + myArtccs.length + ' / 10 ARTCCs \u00B7 includes all GROUND departures from airports inside each FIR boundary (VAT-Spy)</span>' +
+    '</div>';
+
+  h += '<div class="mydashchips">';
+  if (!myArtccs.length) {
+    h += '<span style="color:#56676f;font-size:12px;">No ARTCCs added yet. Example: ZJX, ZNY, ZTL.</span>';
+  } else {
+    for (const a of myArtccs)
+      h += '<span class="artccchip">' + esc(a) + '<span class="apchipx" data-mydashartccrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+  }
+  h += '</div>';
+
+  if (!myDashHasFilters()) { contentEl.innerHTML = h; return; }
+  if (myArtccs.length && boundariesStatus === "loading") {
+    h += '<div class="msg">Loading ARTCC/FIR boundaries from VAT-Spy\u2026</div>';
+    contentEl.innerHTML = h; return;
+  }
   if (!vatsim) {
     h += '<div class="msg">' + (feedStatus === "error"
       ? "Could not reach the VATSIM data feed. It retries every 30 seconds." : "Pulling the VATSIM feed\u2026") + '</div>';
     contentEl.innerHTML = h; return;
   }
 
-  const set = new Set(myAirports);
   const deps = [];
   for (const p of (vatsim.pilots || [])) {
     const fp = p.flight_plan;
     if (!fp) continue;
     const dep = (fp.departure || "").toUpperCase();
-    if (!set.has(dep)) continue;
+    if (!depMatchesMyDash(dep)) continue;
     const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
     if (airborne) continue;
     const dest = (fp.arrival || "????").toUpperCase();
@@ -1712,7 +1773,11 @@ function renderMyDash() {
     '</div>';
 
   if (!deps.length) {
-    h += '<div class="msg">No pending GROUND departures out of your airports right now.</div>';
+    const scope = myArtccs.length && myAirports.length ? "your airports and ARTCCs"
+      : myArtccs.length ? "your ARTCCs" : "your airports";
+    h += '<div class="msg">No pending GROUND departures out of ' + scope + ' right now.</div>';
+    if (myArtccs.length && boundariesStatus === "error")
+      h += '<div class="msg" style="color:#f25555;">ARTCC boundary data is unavailable \u2014 only individually added airports are being matched.</div>';
     contentEl.innerHTML = h; return;
   }
 
@@ -2572,7 +2637,7 @@ function setTab(t) {
   document.getElementById("pilotCtl").style.display = t === "pilot" ? "flex" : "none";
   /* views that need the live feed */
   if (t === "home" && Object.keys(tmuRates).length) ensurePolling();
-  if (t === "mydash" && myAirports.length) ensurePolling();
+  if (t === "mydash" && myDashHasFilters()) ensurePolling();
   if (t === "pilot" && pilotCid) ensurePolling();
   renderContent();
 }
@@ -2795,7 +2860,7 @@ contentEl.addEventListener("change", e => {
 
 /* sortable headers — delegated so it survives every re-render */
 contentEl.addEventListener("click", e => {
-  /* ---- My Dashboard: add / remove personal airports ---- */
+  /* ---- My Dashboard: add / remove personal airports and ARTCCs ---- */
   if (e.target.closest("[data-mydashadd]")) {
     const inp = document.getElementById("mydashIcao");
     const v = inp ? inp.value.trim().toUpperCase() : "";
@@ -2804,10 +2869,24 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
+  if (e.target.closest("[data-mydashartccadd]")) {
+    const inp = document.getElementById("mydashArtcc");
+    const v = normArtcc(inp ? inp.value : "");
+    if (validArtcc(v) && myArtccs.length < 10 && !myArtccs.includes(v)) {
+      myArtccs.push(v); saveMyArtccs(); ensureBoundariesIfNeeded(); ensurePolling(); renderContent();
+    }
+    return;
+  }
   const myRm = e.target.closest("[data-mydashrm]");
   if (myRm) {
     myAirports = myAirports.filter(a => a !== myRm.dataset.mydashrm);
     saveMyAirports(); renderContent();
+    return;
+  }
+  const myArtccRm = e.target.closest("[data-mydashartccrm]");
+  if (myArtccRm) {
+    myArtccs = myArtccs.filter(a => a !== myArtccRm.dataset.mydashartccrm);
+    saveMyArtccs(); scopeCache = {}; renderContent();
     return;
   }
   const issueBtn = e.target.closest("[data-issue]");
@@ -2871,11 +2950,18 @@ contentEl.addEventListener("keydown", e => {
       myAirports.push(v); saveMyAirports(); ensurePolling(); renderContent();
     }
   }
+  if (e.key === "Enter" && e.target.id === "mydashArtcc") {
+    const v = normArtcc(e.target.value);
+    if (validArtcc(v) && myArtccs.length < 10 && !myArtccs.includes(v)) {
+      myArtccs.push(v); saveMyArtccs(); ensureBoundariesIfNeeded(); ensurePolling(); renderContent();
+    }
+  }
 });
 
 /* per-column filters — delegated, focus is preserved across re-renders */
 contentEl.addEventListener("input", e => {
   if (e.target.id === "mydashIcao") { e.target.value = e.target.value.toUpperCase(); return; }
+  if (e.target.id === "mydashArtcc") { e.target.value = normArtcc(e.target.value); return; }
   /* rate calculator fields */
   const rcPos = e.target.closest("input[data-ratecalc-pos]");
   if (rcPos) {
