@@ -51,7 +51,7 @@
   .mydashchips { display:flex; flex-wrap:wrap; gap:8px; padding:12px 20px; border-bottom:1px solid #1a232d; }
   .apchip { display:inline-flex; align-items:center; gap:8px; background:#102330; border:1px solid #2a5870;
             color:#cfe6f5; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
-  .apchipx { color:#7d8a93; cursor:pointer; font-size:12px; }
+  .apchipx { color:#7d8a93; cursor:pointer; font-size:12px; padding:2px 4px; user-select:none; }
   .apchipx:hover { color:#f25555; }
   .artccchip { display:inline-flex; align-items:center; gap:8px; background:#1a1830; border:1px solid #4a3a70;
                color:#e0d4ff; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
@@ -826,6 +826,11 @@ function artccBoundaryIds(artcc) {
   }
   return ids;
 }
+/* My Dashboard ARTCC airport overrides where VAT-Spy polygons differ from operational assignments */
+const ARTCC_AIRPORT_OVERRIDES = {
+  ZJX: { include: ["KMCO"], exclude: ["KTPA"] },
+  ZMA: { include: ["KTPA"], exclude: ["KMCO"] }
+};
 /* is a departure airport inside the typed ARTCC/FIR boundary? */
 function airportInArtcc(depIcao, artcc) {
   if (!firPolys || !artcc) return false;
@@ -838,6 +843,16 @@ function airportInArtcc(depIcao, artcc) {
     for (const ring of firPolys[id]) if (pointInRing(lon, lat, ring)) return (scopeCache[key] = true);
   }
   return (scopeCache[key] = false);
+}
+function airportInMyDashArtcc(depIcao, artcc) {
+  const dep = (depIcao || "").toUpperCase();
+  const id = normArtcc(artcc);
+  const ovr = ARTCC_AIRPORT_OVERRIDES[id];
+  if (ovr) {
+    if (ovr.exclude && ovr.exclude.includes(dep)) return false;
+    if (ovr.include && ovr.include.includes(dep)) return true;
+  }
+  return airportInArtcc(dep, artcc);
 }
 /* is a departure airport assigned to the typed approach/TRACON sector? */
 function airportInApproachSector(depIcao, sector) {
@@ -854,7 +869,7 @@ function depMatchesMyDash(depIcao) {
   const dep = (depIcao || "").toUpperCase();
   if (myAirports.includes(dep)) return true;
   if (myArtccs.length && firPolys) {
-    for (const a of myArtccs) if (airportInArtcc(dep, a)) return true;
+    for (const a of myArtccs) if (airportInMyDashArtcc(dep, a)) return true;
   }
   if (myApproachSectors.length && traconPrefixMap && vatspyApproach) {
     for (const s of myApproachSectors) if (airportInApproachSector(dep, s)) return true;
