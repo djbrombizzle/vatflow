@@ -55,6 +55,8 @@
   .apchipx:hover { color:#f25555; }
   .artccchip { display:inline-flex; align-items:center; gap:8px; background:#1a1830; border:1px solid #4a3a70;
                color:#e0d4ff; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
+  .approachchip { display:inline-flex; align-items:center; gap:8px; background:#102818; border:1px solid #2a7048;
+                  color:#d4ffe8; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
 
   .subtabs { display:flex; gap:6px; padding:12px 20px 0; }
   .subtab { padding:6px 16px; font-size:12px; font-weight:600; letter-spacing:.1em; cursor:pointer;
@@ -452,22 +454,40 @@ let controllerUnlocked = false;      // false = view only
 let ctrlPw = null;                   // entered password held in memory for hub auth
 function canControl() { return controllerUnlocked; }
 const groundStops = [];     // ground stop entries (shared): {id,airport,scope,until,updated,flashUntil}
-/* ARTCC/FIR boundary polygons (lazy-loaded from VAT-Spy only when a scoped ground stop is active) */
+/* ARTCC/FIR boundary polygons (lazy-loaded from VAT-Spy when needed) */
 const BOUNDARIES_URL = "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";
+/* Approach/TRACON sector polygons (lazy-loaded from SimAware TRACON when needed) */
+const TRACON_BOUNDARIES_URL = "https://github.com/vatsimnetwork/simaware-tracon-project/releases/latest/download/TRACONBoundaries.geojson";
 let firPolys = null;        // { ID: [ outerRing, ... ] }  ring = [[lon,lat],...]
 let boundariesStatus = "idle"; // idle | loading | ok | error
+let traconPolys = null;
+let traconStatus = "idle";   // idle | loading | ok | error
 let scopeCache = {};        // dep|scopeKey -> bool
 const announcedGs = {};     // gs id -> true (popup already shown)
-/* My Dashboard: personal departure filters (airports and/or ARTCCs), kept on this device */
+/* My Dashboard: personal departure filters (airports, ARTCCs, approach sectors), kept on this device */
 let myAirports = [];
 try { const saved = localStorage.getItem("vatflow_my_airports"); if (saved) myAirports = JSON.parse(saved) || []; } catch (e) {}
 function saveMyAirports() { try { localStorage.setItem("vatflow_my_airports", JSON.stringify(myAirports)); } catch (e) {} }
 let myArtccs = [];
 try { const savedArtcc = localStorage.getItem("vatflow_my_artccs"); if (savedArtcc) myArtccs = JSON.parse(savedArtcc) || []; } catch (e) {}
 function saveMyArtccs() { try { localStorage.setItem("vatflow_my_artccs", JSON.stringify(myArtccs)); } catch (e) {} }
-function myDashHasFilters() { return myAirports.length > 0 || myArtccs.length > 0; }
+let myApproachSectors = [];
+try { const savedAppr = localStorage.getItem("vatflow_my_approach"); if (savedAppr) myApproachSectors = JSON.parse(savedAppr) || []; } catch (e) {}
+function saveMyApproachSectors() { try { localStorage.setItem("vatflow_my_approach", JSON.stringify(myApproachSectors)); } catch (e) {} }
+function myDashHasFilters() { return myAirports.length > 0 || myArtccs.length > 0 || myApproachSectors.length > 0; }
 function normArtcc(v) { return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 function validArtcc(v) { const s = normArtcc(v); return /^[A-Z][A-Z0-9]{2,4}$/.test(s); }
+function normApproachSector(v) { return normArtcc(v); }
+function validApproachSector(v) { const s = normApproachSector(v); return /^[A-Z][A-Z0-9]{1,4}$/.test(s); }
+function myDashScopeLabel() {
+  const parts = [];
+  if (myAirports.length) parts.push("your airports");
+  if (myArtccs.length) parts.push("your ARTCCs");
+  if (myApproachSectors.length) parts.push("your approach sectors");
+  if (!parts.length) return "your filters";
+  if (parts.length === 1) return parts[0];
+  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+}
 let vatsim = null;
 let airportDb = null;
 let dbStatus = "loading";   // loading | full | fallback
@@ -765,6 +785,30 @@ async function loadBoundaries() {
   }
   renderHeaderStatus(); renderContent();
 }
+async function loadTraconBoundaries() {
+  if (traconStatus === "loading" || traconStatus === "ok") return;
+  traconStatus = "loading"; renderHeaderStatus();
+  try {
+    const r = await fetch(TRACON_BOUNDARIES_URL);
+    if (!r.ok) throw new Error(r.status);
+    const gj = await r.json();
+    const polys = {};
+    for (const f of (gj.features || [])) {
+      const id = (f.properties && f.properties.id || "").toUpperCase();
+      if (!id || !f.geometry) continue;
+      const rings = [];
+      const g = f.geometry;
+      if (g.type === "Polygon") { if (g.coordinates[0]) rings.push(g.coordinates[0]); }
+      else if (g.type === "MultiPolygon") { for (const poly of g.coordinates) if (poly[0]) rings.push(poly[0]); }
+      if (rings.length) (polys[id] = polys[id] || []).push(...rings);
+    }
+    traconPolys = polys; traconStatus = "ok"; scopeCache = {};
+  } catch (e) {
+    console.error("TRACON boundary load failed:", e);
+    traconStatus = "error";
+  }
+  renderHeaderStatus(); renderContent();
+}
 function pointInRing(lon, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -818,11 +862,29 @@ function airportInArtcc(depIcao, artcc) {
   }
   return (scopeCache[key] = false);
 }
+/* is a departure airport inside the typed approach/TRACON sector boundary? */
+function airportInApproachSector(depIcao, sector) {
+  if (!traconPolys || !sector) return false;
+  const id = normApproachSector(sector);
+  const key = depIcao + "|appr:" + id;
+  if (key in scopeCache) return scopeCache[key];
+  const rings = traconPolys[id];
+  if (!rings) return (scopeCache[key] = false);
+  const pt = lookup(depIcao);
+  if (!pt) return (scopeCache[key] = false);
+  const lon = pt[1], lat = pt[0];
+  for (const ring of rings) if (pointInRing(lon, lat, ring)) return (scopeCache[key] = true);
+  return (scopeCache[key] = false);
+}
 function depMatchesMyDash(depIcao) {
   const dep = (depIcao || "").toUpperCase();
   if (myAirports.includes(dep)) return true;
-  if (!myArtccs.length || !firPolys) return false;
-  for (const a of myArtccs) if (airportInArtcc(dep, a)) return true;
+  if (myArtccs.length && firPolys) {
+    for (const a of myArtccs) if (airportInArtcc(dep, a)) return true;
+  }
+  if (myApproachSectors.length && traconPolys) {
+    for (const s of myApproachSectors) if (airportInApproachSector(dep, s)) return true;
+  }
   return false;
 }
 /* the active ground stop affecting a dep->dest flight, or null */
@@ -842,11 +904,14 @@ function fmtUntil(u) {
   if (!s) return "?";
   return /z$/i.test(s) ? s.toUpperCase() : s + "Z";
 }
-/* if any scoped ground stop or My Dashboard ARTCC filter is active, load boundaries */
+/* if any scoped ground stop or My Dashboard airspace filter is active, load boundaries */
 function ensureBoundariesIfNeeded() {
-  if (boundariesStatus === "ok" || boundariesStatus === "loading") return;
-  if (myArtccs.length) { loadBoundaries(); return; }
-  if (groundStops.some(g => g.airport && scopeTokens(g.scope).length)) loadBoundaries();
+  if (myArtccs.length || groundStops.some(g => g.airport && scopeTokens(g.scope).length)) {
+    if (boundariesStatus !== "ok" && boundariesStatus !== "loading") loadBoundaries();
+  }
+  if (myApproachSectors.length) {
+    if (traconStatus !== "ok" && traconStatus !== "loading") loadTraconBoundaries();
+  }
 }
 /* show a 30s dismissible popup for any newly-issued ground stop (on every page) */
 function maybeAnnounceGroundStops() {
@@ -1719,9 +1784,27 @@ function renderMyDash() {
   }
   h += '</div>';
 
+  h += '<div class="tmuform" style="border-top:1px solid #1a232d;">' +
+    '<span class="lbl">ADD APPROACH</span>' +
+    '<input id="mydashApproach" data-keep="mydashApproach" maxlength="5" placeholder="A80" autocomplete="off" style="width:80px;letter-spacing:.12em;">' +
+    '<button data-mydashapproachadd>ADD</button>' +
+    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + myApproachSectors.length + ' / 10 sectors \u00B7 includes GROUND departures from airports inside each TRACON boundary (SimAware)</span>' +
+    '</div>';
+
+  h += '<div class="mydashchips">';
+  if (!myApproachSectors.length) {
+    h += '<span style="color:#56676f;font-size:12px;">No approach sectors added yet. Example: A80 (ATL APP), I90 (Houston APP), N90.</span>';
+  } else {
+    for (const a of myApproachSectors)
+      h += '<span class="approachchip">' + esc(a) + '<span class="apchipx" data-mydashapproachrm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+  }
+  h += '</div>';
+
   if (!myDashHasFilters()) { contentEl.innerHTML = h; return; }
-  if (myArtccs.length && boundariesStatus === "loading") {
-    h += '<div class="msg">Loading ARTCC/FIR boundaries from VAT-Spy\u2026</div>';
+  const loadingBoundaries = (myArtccs.length && boundariesStatus === "loading") ||
+    (myApproachSectors.length && traconStatus === "loading");
+  if (loadingBoundaries) {
+    h += '<div class="msg">Loading airspace boundaries\u2026</div>';
     contentEl.innerHTML = h; return;
   }
   if (!vatsim) {
@@ -1773,11 +1856,11 @@ function renderMyDash() {
     '</div>';
 
   if (!deps.length) {
-    const scope = myArtccs.length && myAirports.length ? "your airports and ARTCCs"
-      : myArtccs.length ? "your ARTCCs" : "your airports";
-    h += '<div class="msg">No pending GROUND departures out of ' + scope + ' right now.</div>';
+    h += '<div class="msg">No pending GROUND departures out of ' + myDashScopeLabel() + ' right now.</div>';
     if (myArtccs.length && boundariesStatus === "error")
-      h += '<div class="msg" style="color:#f25555;">ARTCC boundary data is unavailable \u2014 only individually added airports are being matched.</div>';
+      h += '<div class="msg" style="color:#f25555;">ARTCC boundary data is unavailable \u2014 only individually added airports and approach sectors are being matched.</div>';
+    if (myApproachSectors.length && traconStatus === "error")
+      h += '<div class="msg" style="color:#f25555;">Approach sector boundary data is unavailable \u2014 only individually added airports and ARTCCs are being matched.</div>';
     contentEl.innerHTML = h; return;
   }
 
@@ -2860,7 +2943,7 @@ contentEl.addEventListener("change", e => {
 
 /* sortable headers — delegated so it survives every re-render */
 contentEl.addEventListener("click", e => {
-  /* ---- My Dashboard: add / remove personal airports and ARTCCs ---- */
+  /* ---- My Dashboard: add / remove personal airports, ARTCCs, and approach sectors ---- */
   if (e.target.closest("[data-mydashadd]")) {
     const inp = document.getElementById("mydashIcao");
     const v = inp ? inp.value.trim().toUpperCase() : "";
@@ -2877,6 +2960,14 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
+  if (e.target.closest("[data-mydashapproachadd]")) {
+    const inp = document.getElementById("mydashApproach");
+    const v = normApproachSector(inp ? inp.value : "");
+    if (validApproachSector(v) && myApproachSectors.length < 10 && !myApproachSectors.includes(v)) {
+      myApproachSectors.push(v); saveMyApproachSectors(); ensureBoundariesIfNeeded(); ensurePolling(); renderContent();
+    }
+    return;
+  }
   const myRm = e.target.closest("[data-mydashrm]");
   if (myRm) {
     myAirports = myAirports.filter(a => a !== myRm.dataset.mydashrm);
@@ -2887,6 +2978,12 @@ contentEl.addEventListener("click", e => {
   if (myArtccRm) {
     myArtccs = myArtccs.filter(a => a !== myArtccRm.dataset.mydashartccrm);
     saveMyArtccs(); scopeCache = {}; renderContent();
+    return;
+  }
+  const myApproachRm = e.target.closest("[data-mydashapproachrm]");
+  if (myApproachRm) {
+    myApproachSectors = myApproachSectors.filter(a => a !== myApproachRm.dataset.mydashapproachrm);
+    saveMyApproachSectors(); scopeCache = {}; renderContent();
     return;
   }
   const issueBtn = e.target.closest("[data-issue]");
@@ -2956,12 +3053,19 @@ contentEl.addEventListener("keydown", e => {
       myArtccs.push(v); saveMyArtccs(); ensureBoundariesIfNeeded(); ensurePolling(); renderContent();
     }
   }
+  if (e.key === "Enter" && e.target.id === "mydashApproach") {
+    const v = normApproachSector(e.target.value);
+    if (validApproachSector(v) && myApproachSectors.length < 10 && !myApproachSectors.includes(v)) {
+      myApproachSectors.push(v); saveMyApproachSectors(); ensureBoundariesIfNeeded(); ensurePolling(); renderContent();
+    }
+  }
 });
 
 /* per-column filters — delegated, focus is preserved across re-renders */
 contentEl.addEventListener("input", e => {
   if (e.target.id === "mydashIcao") { e.target.value = e.target.value.toUpperCase(); return; }
   if (e.target.id === "mydashArtcc") { e.target.value = normArtcc(e.target.value); return; }
+  if (e.target.id === "mydashApproach") { e.target.value = normApproachSector(e.target.value); return; }
   /* rate calculator fields */
   const rcPos = e.target.closest("input[data-ratecalc-pos]");
   if (rcPos) {
