@@ -140,8 +140,9 @@
   .stat .k { font-size:10px; color:#56676f; letter-spacing:.1em; }
   .stat .v { font-size:17px; font-weight:600; color:#e8f0f4; }
 
-  .layout { display:grid; grid-template-columns: 1fr 310px; }
-  @media (max-width:900px){ .layout { grid-template-columns:1fr; } .ladderwrap{border-left:none!important;border-top:1px solid #1a232d;} }
+  .layout { display:grid; grid-template-columns: 1fr var(--ladder-w, 360px); }
+  @media (max-width:900px){ .layout { grid-template-columns:1fr; } .ladderwrap{border-left:none!important;border-top:1px solid #1a232d;} .ladderresize{display:none!important;} }
+  body.ladder-resizing { cursor:ew-resize; user-select:none; }
 
   .filterrow td { padding:3px 6px; border-bottom:1px solid #1a232d; background:#0a1016; }
   .filterrow input {
@@ -191,7 +192,15 @@
   .helpterms dd { margin:0; color:#c9d6df; }
   @media (max-width:600px){ .helpterms { grid-template-columns:1fr; } }
 
-  .ladderwrap { border-left:1px solid #1a232d; padding:14px 14px 20px; }
+  .ladderwrap { position:relative; border-left:1px solid #1a232d; padding:14px 14px 20px; }
+  .ladderresize { position:absolute; left:-4px; top:0; bottom:0; width:9px; cursor:ew-resize;
+                  z-index:6; touch-action:none; }
+  .ladderresize::before { content:""; position:absolute; left:3px; top:0; bottom:0; width:1px;
+                  background:transparent; transition:background .12s; }
+  .ladderresize:hover::before, .ladderresize.dragging::before { background:#2a5870; box-shadow:0 0 0 1px #2a5870; }
+  .ladderresize::after { content:""; position:absolute; left:1px; top:50%; transform:translateY(-50%);
+                  width:5px; height:34px; border-radius:3px; background:transparent; transition:background .12s; }
+  .ladderresize:hover::after, .ladderresize.dragging::after { background:#2a5870; }
   .ladderhead { font-size:11px; color:#56676f; letter-spacing:.1em; margin-bottom:4px;
                 display:flex; justify-content:space-between; align-items:center; }
   .ladderwinctl { display:inline-flex; gap:4px; }
@@ -459,6 +468,11 @@ function lockedCfrHtml(e, now, suggestedWu) {
 let lastWireSeen = "";  // JSON of last synced state, to ignore Firebase echoes
 let ladderScrollPos = null;  // preserved scroll position; null = scroll to NOW
 let ladderWinMin = 120;      // arrival-ladder window (minutes), adjustable in 30-min steps
+const LADDER_W_MIN = 300, LADDER_W_MAX = 900;
+let ladderWidth = 360;       // arrival-ladder column width (px), drag the left border to resize
+try { const lw = +localStorage.getItem("vatflow_ladder_w");
+      if (lw) ladderWidth = Math.max(LADDER_W_MIN, Math.min(LADDER_W_MAX, lw)); } catch (e) {}
+function saveLadderWidth() { try { localStorage.setItem("vatflow_ladder_w", String(Math.round(ladderWidth))); } catch (e) {} }
 
 const DEFAULT_RATE = { aar: 30, trail: 0, mit: 0, gates: [] };
 const getRate = code => tmuRates[code] || DEFAULT_RATE;
@@ -1163,7 +1177,7 @@ function renderMeter(refocus) {
   h += '</div>';
 
   /* table */
-  h += '<div class="layout"><div class="tablewrap">';
+  h += '<div class="layout" style="--ladder-w:' + Math.round(ladderWidth) + 'px;"><div class="tablewrap">';
   if (!flow.flights.length) {
     h += '<div class="msg">No traffic filed to ' + esc(icao) + ' right now. The feed refreshes every 30 seconds.</div>';
   } else {
@@ -1251,6 +1265,7 @@ function renderMeter(refocus) {
   const gridStep = LADDER_WIN <= 90 ? 10 : LADDER_WIN <= 180 ? 15 : 30;  /* keep labels readable */
 
   h += '<div class="ladderwrap">' +
+    '<div class="ladderresize" id="ladderResize" title="Drag to resize the arrival ladder"></div>' +
     '<div class="ladderhead"><span>ARRIVAL LADDER \u00B7 ' + LADDER_WIN + ' MIN</span>' +
     '<span class="ladderwinctl">' +
     '<button data-ladderwin="-30" title="Show 30 min less"' + (LADDER_WIN <= 30 ? ' disabled' : '') + '>\u2212</button>' +
@@ -1365,7 +1380,7 @@ function renderHelp() {
     '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
     '<li>Sort any column by clicking its header; click again to reverse. Column # restores metered sequence order.</li>' +
     '<li>Filter boxes under headers: type to match text, or use <b>&gt;n</b> <b>&lt;n</b> <b>&gt;=n</b> <b>&lt;=n</b> on numeric columns (times as HHMM, delay in minutes). Filters affect the table only — stats and the ladder still include all traffic.</li>' +
-    '<li>The arrival ladder scrolls; NOW is at the bottom. Use <b>+</b> / <b>&minus;</b> to widen or narrow the time window.</li></ul></div>' +
+    '<li>The arrival ladder scrolls; NOW is at the bottom. Use <b>+</b> / <b>&minus;</b> to widen or narrow the time window. Drag the ladder\u2019s left border to make the panel wider or narrower &mdash; the size is remembered.</li></ul></div>' +
     '<div class="helpcard"><h3>MY DASHBOARD</h3><ul class="helplist">' +
     '<li>Add up to 20 departure airports you are working. Shows one combined list of pending ground departures from all of them.</li>' +
     '<li>Airborne and arrived aircraft are excluded. Your airport list is saved on this device only.</li></ul></div>' +
@@ -2555,6 +2570,39 @@ document.getElementById("gsPopup").addEventListener("click", e => {
     clearTimeout(showGsPopup._t);
   }
 });
+
+/* drag the left border of the arrival ladder to resize its width (persisted) */
+(function setupLadderResize() {
+  let dragging = false, startX = 0, startW = 0, handle = null;
+  contentEl.addEventListener("pointerdown", e => {
+    const h = e.target.closest("#ladderResize");
+    if (!h) return;
+    e.preventDefault();
+    dragging = true; startX = e.clientX; startW = ladderWidth; handle = h;
+    h.classList.add("dragging");
+    document.body.classList.add("ladder-resizing");
+    try { h.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  contentEl.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    /* the ladder sits on the right; dragging its left border leftward widens it */
+    const w = Math.max(LADDER_W_MIN, Math.min(LADDER_W_MAX, startW - (e.clientX - startX)));
+    ladderWidth = w;
+    const layout = contentEl.querySelector(".layout");
+    if (layout) layout.style.setProperty("--ladder-w", Math.round(w) + "px");
+  });
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    if (handle) handle.classList.remove("dragging");
+    handle = null;
+    document.body.classList.remove("ladder-resizing");
+    saveLadderWidth();
+  }
+  contentEl.addEventListener("pointerup", endDrag);
+  contentEl.addEventListener("pointercancel", endDrag);
+  window.addEventListener("pointerup", endDrag);
+})();
 
 function activate() {
   const v = icaoInput.value.trim().toUpperCase();
