@@ -1813,7 +1813,8 @@ function renderHelp() {
     '<li>Set <b>MY FIELD</b> in the header to your tower airport. Shows ground and prefiled departures only — airborne flights drop off once they leave.</li>' +
     '<li>CFR controls appear for destinations that have a TMU program.</li></ul></div>' +
     '<div class="helpcard"><h3>TAXI MONITOR</h3><ul class="helplist">' +
-    '<li>Add up to <b>5 departure airports</b> to monitor simultaneously.</li>' +
+    '<li><b>View only</b> for visitors. Adding or removing the up to <b>5 monitored airports</b> is <b>TMU access only</b> \u2014 unlock with the control password first.</li>' +
+    '<li>The monitored field list is <b>shared</b> via Firebase, so every visitor sees the same airports a controller has added.</li>' +
     '<li>Tracks ground departures: timer starts when groundspeed exceeds <b>10 kt</b>, stops at <b>60 kt</b> or when altitude climbs 100 ft from the roll start.</li>' +
     '<li>Completed taxi times sync live via <b>Firebase</b> so all visitors see the same samples. Summarized on the <b>HOME</b> tab.</li></ul></div>' +
     '<div class="helpcard"><h3>PILOT</h3><ul class="helplist">' +
@@ -1842,7 +1843,7 @@ function renderHelp() {
     '<div class="helpcard"><ul class="helplist">' +
     '<li><b>VIEW ONLY</b> (default) — read the schedule and suggested CFR times. Unlock with the control password to issue CFRs and edit programs.</li>' +
     '<li><b>CONNECT</b> — join a named room to share programs, CFRs, restrictions, and ground stops via Firebase.</li>' +
-    '<li><b>Taxi times</b> sync globally via Firebase (<code>taximon/samples</code>) — all site visitors share the same taxi log.</li>' +
+    '<li><b>Taxi times</b> sync globally via Firebase (<code>taximon/samples</code>) — all site visitors share the same taxi log. The monitored field list (<code>taximon/airports</code>) is shared too and can only be changed by an unlocked controller.</li>' +
     '<li><b>HUB</b> — join the global shared session (no room name needed).</li>' +
     '<li><b>\u25CF LIVE</b> — connected and syncing. <b>LOCAL ONLY</b> — working solo.</li></ul></div>' +
 
@@ -2923,20 +2924,30 @@ function renderDep() {
 }
 
 function renderTaxiMonitor() {
-  let h = '<div class="tmuform">' +
-    '<span class="lbl">ADD AIRPORT</span>' +
-    '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" style="width:110px;letter-spacing:.12em;">' +
-    '<button data-taximonadd>ADD</button>' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
-    ' airports &middot; timer: 10 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
-    '</div>';
+  const ctl = canControl();
+  let h = "";
+  if (ctl) {
+    h += '<div class="tmuform">' +
+      '<span class="lbl">ADD AIRPORT</span>' +
+      '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" style="width:110px;letter-spacing:.12em;">' +
+      '<button data-taximonadd>ADD</button>' +
+      '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
+      ' airports &middot; timer: 10 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
+      '</div>';
+  } else {
+    h += '<div class="viewonly">VIEW ONLY \u2014 unlock with the control password to add or remove monitored airports.</div>';
+  }
 
   h += '<div class="mydashchips">';
   if (!taxiMonAirports.length) {
-    h += '<span style="color:#56676f;font-size:12px;">No airports added yet. Add up to ' + TAXI_MON_MAX + ' departure fields to monitor.</span>';
+    h += '<span style="color:#56676f;font-size:12px;">' +
+      (ctl ? 'No airports added yet. Add up to ' + TAXI_MON_MAX + ' departure fields to monitor.'
+           : 'No airports are being monitored yet.') + '</span>';
   } else {
     for (const a of taxiMonAirports)
-      h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-taximon-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
+      h += '<span class="apchip">' + esc(a) +
+        (ctl ? '<span class="apchipx" data-taximon-rm="' + esc(a) + '" title="Remove">\u2715</span>' : '') +
+        '</span>';
   }
   h += '</div>';
 
@@ -3064,7 +3075,7 @@ function setTab(t) {
     el.classList.toggle("active", el.dataset.tab === t));
   document.getElementById("meterCtl").style.display = t === "meter" ? "flex" : "none";
   document.getElementById("depCtl").style.display = t === "dep" ? "flex" : "none";
-  document.getElementById("taximonCtl").style.display = t === "taximon" ? "flex" : "none";
+  document.getElementById("taximonCtl").style.display = (t === "taximon" && canControl()) ? "flex" : "none";
   document.getElementById("pilotCtl").style.display = t === "pilot" ? "flex" : "none";
   /* views that need the live feed */
   if (t === "home" && (Object.keys(tmuRates).length || getTaxiAirportCodes().length)) ensurePolling();
@@ -3091,11 +3102,13 @@ document.getElementById("depBtn").addEventListener("click", depActivate);
 /* taxi monitor view field */
 const taximonInput = document.getElementById("taximonInput");
 function taximonAddAirport(v) {
+  if (!canControl()) return false;    /* TMU access only — view-only visitors cannot add fields */
   const code = v.trim().toUpperCase();
   if (!/^[A-Z0-9]{4}$/.test(code)) return false;
   if (taxiMonAirports.length >= TAXI_MON_MAX || taxiMonAirports.includes(code)) return false;
   taxiMonAirports.push(code);
   saveTaxiMonAirports();
+  if (window.VFSync && window.VFSync.pushTaxiAirport) window.VFSync.pushTaxiAirport(code, true);
   ensurePolling();
   renderContent();
   return true;
@@ -3320,8 +3333,11 @@ contentEl.addEventListener("click", e => {
   }
   const taxiRm = e.target.closest("[data-taximon-rm]");
   if (taxiRm) {
-    taxiMonAirports = taxiMonAirports.filter(a => a !== taxiRm.getAttribute("data-taximon-rm"));
+    if (!canControl()) return;        /* TMU access only — view-only visitors cannot remove fields */
+    const rmCode = taxiRm.getAttribute("data-taximon-rm");
+    taxiMonAirports = taxiMonAirports.filter(a => a !== rmCode);
     saveTaxiMonAirports();
+    if (window.VFSync && window.VFSync.pushTaxiAirport) window.VFSync.pushTaxiAirport(rmCode, false);
     renderContent();
     return;
   }
@@ -3755,6 +3771,19 @@ window.VATFLOW = {
   applyTaxiRemote(taxiWire) {
     if (applyTaxiFromWire(taxiWire)) renderContent();
   },
+  applyTaxiAirportsRemote(val) {
+    /* rebuild the shared monitored-airport list from the Firebase map */
+    const list = Object.keys(val || {})
+      .filter(k => val[k])
+      .map(k => String(k).toUpperCase())
+      .sort()
+      .slice(0, TAXI_MON_MAX);
+    if (JSON.stringify(list) === JSON.stringify(taxiMonAirports)) return;
+    taxiMonAirports = list;
+    saveTaxiMonAirports();
+    if (activeTab === "taximon" || activeTab === "home") ensurePolling();
+    renderContent();
+  },
   hasLocalState() {
     return Object.keys(issuedEdcts).length > 0 || Object.keys(tmuRates).length > 0 || restrictions.length > 0 || groundStops.length > 0;
   },
@@ -3895,6 +3924,9 @@ function updateLockUI() {
   }
   pwInput.style.display = "none";
   pwGo.style.display = "none";
+  /* the Taxi Monitor "ADD FIELD" header control is TMU-access only */
+  const tmCtl = document.getElementById("taximonCtl");
+  if (tmCtl) tmCtl.style.display = (activeTab === "taximon" && controllerUnlocked) ? "flex" : "none";
 }
 function showPwEntry() {
   pwInput.style.display = "";
@@ -4027,6 +4059,7 @@ renderContent();
     room: null,
     _unsub: null,
     _taxiUnsub: null,
+    _airportsUnsub: null,
     _first: false,
     _pendingRoom: null,
 
@@ -4036,6 +4069,14 @@ renderContent();
         const val = snap.val() || {};
         if (window.VATFLOW && window.VATFLOW.applyTaxiRemote) window.VATFLOW.applyTaxiRemote(val);
       }, (err) => console.error("Taxi sync listen error:", err));
+      /* the monitored-airport list is shared globally too, so every visitor sees
+         the same fields; only controllers can change it (see pushTaxiAirport). */
+      if (!this._airportsUnsub) {
+        this._airportsUnsub = onValue(ref(db, "taximon/airports"), (snap) => {
+          const val = snap.val() || {};
+          if (window.VATFLOW && window.VATFLOW.applyTaxiAirportsRemote) window.VATFLOW.applyTaxiAirportsRemote(val);
+        }, (err) => console.error("Taxi airports listen error:", err));
+      }
     },
 
     pushTaxiSample(id, entry) {
@@ -4047,6 +4088,13 @@ renderContent();
         endMs: entry.endMs,
         durationMs: entry.durationMs
       }).catch((e) => console.error("Firebase taxi push failed:", e));
+    },
+
+    /* add (on=true) or remove (on=false) a shared monitored airport */
+    pushTaxiAirport(code, on) {
+      if (!db || !code) return;
+      update(ref(db, "taximon/airports"), { [code]: on ? true : null })
+        .catch((e) => console.error("Firebase taxi airport push failed:", e));
     },
 
     connect(room) {
