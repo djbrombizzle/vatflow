@@ -61,7 +61,7 @@ Enter the airport code to view its arrival flow. The table is sortable and filte
 
 For any pending ground departure into a metered field, click **CFR TIME** to lock in the earliest available wheels-up time. The app reserves that slot, shows a countdown, and flags the flight **RELEASE NOW** when it's due.
 
-Alternatively, ask the pilot for their estimated wheels-up time, enter it as **HHMMz** in the **Ready Time** column, and press **Set**. VATFLOW assigns the closest valid release at or after that time (never before). Cancelling a release automatically compresses the remaining releases into the freed slot.
+Alternatively, ask the pilot for their estimated wheels-up time, enter it as **HHMMz** in the **Ready Time** column on **Departures**, **My Dashboard**, or **Apt Dashboard**, and press **Set** — no control password required. VATFLOW assigns the closest valid release at or after that time (never before). Cancelling a release automatically compresses the remaining releases into the freed slot.
 
 ### 4. Monitor taxi times (Taxi Monitor)
 

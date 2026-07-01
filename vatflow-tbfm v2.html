@@ -1753,6 +1753,7 @@ const COLUMNS = [
   { key:"eta",      label:"ETA Z",            num:true },
   { key:"sta",      label:"STA Z",            num:true },
   { key:"delay",    label:"DLY MIN",          num:true },
+  { key:"readyTime", label:"READY TIME" },
   { key:"wheelsUp", label:"CALL FOR RELEASE (CFR)", num:true }
 ];
 
@@ -1787,6 +1788,10 @@ function cellText(f, key) {
     case "eta":      return fmtZ(f.eta);
     case "sta":      return fmtZ(f.sta);
     case "delay":    return String(Math.round(f.delay / 60000));
+    case "readyTime": {
+      const rec = issuedEdcts[f.callsign];
+      return rec && rec.ready ? fmtZ(rec.ready) : "";
+    }
     case "wheelsUp": return f.status === "ARRIVED" ? "ARRIVED"
                           : f.vfr ? "VFR"
                           : f.flightTimeMs == null ? "AIRBORNE"
@@ -1964,30 +1969,13 @@ function renderMeter(refocus) {
     visible.forEach(f => {
       const dlyCls = delayClass(f.delay);
       const gs = (f.status === "GROUND" && !f.vfr) ? groundStopFor(f.dep, icao) : null;
-      let edct;
-      if (f.status === "ARRIVED") {
-        edct = '<span class="cell-muted">Arrived</span>';
-      } else if (f.vfr) {
-        edct = '<span class="vfrtag">VFR \u2014 no CFR</span>';
-      } else if (f.excluded) {
-        edct = '<span class="excludedtag">Excluded \u2014 no CFR</span>';
-      } else if (f.flightTimeMs == null) {
-        edct = '<span class="cell-dim">Airborne</span>';
-      } else if (f.status === "PROPOSED") {
-        edct = '<span class="cell-info">Pending \u2014 not connected</span>';
-      } else if (gs) {
-        edct = '<span class="gsflag"><span class="status-dot alert pulse"></span> GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
-      } else if (!canControl()) {
-        edct = lockedCfrHtml(f, flow.now, f.wheelsUp);
-      } else if (!f.edctIssued && !f.needsCfr) {
-        edct = cfrReleasedHtml();
-      } else if (!f.edctIssued) {
-        edct = cfrIssueHtml(f.callsign, f.wheelsUp);
-      } else if (f.releaseNow) {
-        edct = cfrNowHtml(f.callsign);
-      } else {
-        edct = cfrCountdownHtml(f.wheelsUp, flow.now, f.pulled, f.callsign);
-      }
+      const rowOpts = {
+        arrived: f.status === "ARRIVED",
+        vfr: f.vfr,
+        gs
+      };
+      const ready = readyTimeCell(f.callsign, f.dep, icao, f, f.status, rowOpts);
+      const edct = cfrCell(f.callsign, f.dep, icao, f, flow.now, f.status, rowOpts);
       const gateColor = flow.gateColors[f.gate] || "";
       h += '<tr>' +
         '<td class="cell-muted">' + f.seq + '</td>' +
@@ -2001,6 +1989,7 @@ function renderMeter(refocus) {
         '<td>' + fmtZ(f.eta) + '</td>' +
         '<td class="cell-strong">' + fmtZ(f.sta) + '</td>' +
         '<td class="' + dlyCls + '">' + fmtDelay(f.delay) + '</td>' +
+        '<td>' + ready + '</td>' +
         '<td>' + edct + '</td>' +
         '</tr>';
     });
@@ -2183,6 +2172,7 @@ function renderHelp() {
     '<details class="help-acc"><summary>Apt Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Enter an arrival airport and press <b>Load</b> to see inbound traffic, demand vs. AAR, and the arrival ladder.</li>' +
     '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
+    '<li><b>Ready Time</b> — anyone can enter pilot-estimated wheels-up (HHMMz); no control password required.</li>' +
     '<li>Sort any column by clicking its header; click again to reverse.</li>' +
     '<li>Filter boxes under headers support text match or <b>&gt;n</b> <b>&lt;n</b> on numeric columns.</li>' +
     '<li>The arrival ladder scrolls; NOW is at the bottom. Drag the left border to resize the panel.</li></ul></div></details>' +
@@ -2211,7 +2201,7 @@ function renderHelp() {
     '<details class="help-acc" open><summary>CFR workflow</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock a suggested wheels-up and reserve the slot.</li>' +
     '<li><b>Ready Time</b> — ask the pilot for estimated wheels-up, enter HHMMz in the <b>Ready Time</b> column, and press <b>Set</b>. ' +
-    'The app assigns the closest valid release <b>at or after</b> that time (never before).</li>' +
+    'No control password is required. The app assigns the closest valid release <b>at or after</b> that time (never before).</li>' +
     '<li><b>Released</b> — no delay needed; release at will.</li>' +
     '<li><b>Release now</b> — wheels-up time has arrived.</li>' +
     '<li>Cancel an issued CFR to pull remaining CFRs into the freed slot.</li>' +
@@ -3122,6 +3112,44 @@ function earliestEdctAfter(cs, depField, destField, floorMs) {
   return solveEarliestWheelsUp(cs, depField, destField, floorMs);
 }
 
+function isReadyTimeEligible(e, status, dest, opts) {
+  if (opts.arrived || opts.vfr || (e && e.excluded) || opts.gs) return false;
+  if (!tmuRates[dest]) return false;
+  if (!e || e.flightTimeMs == null) return false;
+  if (status === "PROPOSED" || status === "AIRBORNE") return false;
+  return true;
+}
+function readyTimeCell(callsign, dep, dest, e, status, opts) {
+  const dim = '<span class="cell-dim">\u2014</span>';
+  if (!isReadyTimeEligible(e, status, dest, opts)) return dim;
+  const rec = issuedEdcts[callsign];
+  if (rec && rec.ready) return readyTimeDisplayHtml(rec.ready);
+  if (!e.edctIssued) return readyTimeInputHtml(callsign, dep, dest);
+  return dim;
+}
+function cfrCell(callsign, dep, dest, e, now, status, opts) {
+  if (opts.arrived) return '<span class="cell-muted">Arrived</span>';
+  if (opts.vfr) return '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+  if (e && e.excluded) return '<span class="excludedtag">Excluded \u2014 no CFR</span>';
+  if (e && e.flightTimeMs == null) return '<span class="cell-dim">Airborne</span>';
+  if (status === "PROPOSED") return '<span class="cell-info">Pending \u2014 not connected</span>';
+  if (opts.gs) {
+    return '<span class="gsflag"><span class="status-dot alert pulse"></span> GS \u2013 ' +
+      esc(fmtUntil(opts.gs.until)) + '</span>';
+  }
+  if (!tmuRates[dest]) return '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+  if (!e) return '<span class="cell-muted">\u2014</span>';
+  if (!canControl()) return lockedCfrHtml(e, now, e.wheelsUp);
+  if (!e.edctIssued && !e.needsCfr) return cfrReleasedHtml();
+  if (!e.edctIssued) {
+    const ewu = earliestEdct(callsign, dep, dest);
+    const wu = ewu != null ? ewu : e.wheelsUp;
+    return wu <= now + CFR_THRESHOLD ? cfrReleasedHtml() : cfrIssueHtml(callsign, wu);
+  }
+  if (e.releaseNow) return cfrNowHtml(callsign);
+  return cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign);
+}
+
 /* shared Ready Time + CFR cells for Departures and My Dashboard rows */
 function departureReleaseCells(d, e, now, depField, flowCache) {
   const callsign = d.callsign;
@@ -3130,55 +3158,57 @@ function departureReleaseCells(d, e, now, depField, flowCache) {
   const arrived = d.arrived;
   const status = d.status;
   const dim = '<span class="cell-dim">\u2014</span>';
-  let pgm, sta = "\u2014", dly = "\u2014", ready = dim, cfr;
-  const issuedRec = issuedEdcts[callsign];
-  const showReady = (ms) => { ready = readyTimeDisplayHtml(ms); };
+  let pgm, sta = "\u2014", dly = "\u2014";
+  const gs = (!arrived && !vfr) ? groundStopFor(depField, dest) : null;
+  const opts = { arrived, vfr, gs };
+  const ready = readyTimeCell(callsign, depField, dest, e, status, opts);
 
   if (arrived) {
     pgm = dim;
-    cfr = '<span class="cell-muted">Arrived</span>';
   } else if (vfr) {
     pgm = '<span class="vfrtag">VFR</span>';
-    cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
   } else if (e && e.excluded) {
     pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(dest).aar)) + "/hr";
-    cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
-  } else if (!arrived && groundStopFor(depField, dest)) {
-    const gs = groundStopFor(depField, dest);
+  } else if (gs) {
     pgm = tmuRates[dest] ? (d.aar || getRate(dest).aar) + "/hr" : dim;
     if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
-    cfr = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
   } else if (!tmuRates[dest]) {
     pgm = dim;
-    cfr = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
   } else if (!e) {
     pgm = dest in flowCache && !flowCache[dest]
       ? '<span class="cell-muted">No feed</span>'
       : esc(String(getRate(dest).aar)) + "/hr";
-    cfr = '<span class="cell-muted">\u2014</span>';
-  } else if (!canControl() && status !== "PROPOSED") {
-    pgm = d.aar + "/hr"; sta = fmtZ(e.sta); dly = fmtDelay(e.delay);
-    if (issuedRec && issuedRec.ready) showReady(issuedRec.ready);
-    cfr = lockedCfrHtml(e, now, e.wheelsUp);
   } else {
     pgm = d.aar + "/hr";
     sta = fmtZ(e.sta);
     dly = fmtDelay(e.delay);
-    if (status === "PROPOSED") {
-      cfr = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
-    } else if (!e.edctIssued) {
-      ready = readyTimeInputHtml(callsign, depField, dest);
-      const ewu = earliestEdct(callsign, depField, dest);
-      const wu = ewu != null ? ewu : e.wheelsUp;
-      cfr = wu <= now + CFR_THRESHOLD ? cfrReleasedHtml() : cfrIssueHtml(callsign, wu);
-    } else {
-      if (issuedRec && issuedRec.ready) showReady(issuedRec.ready);
-      if (e.releaseNow) {
-        cfr = cfrNowHtml(callsign);
-      } else {
-        cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign);
-      }
-    }
+  }
+
+  let cfr;
+  if (arrived) {
+    cfr = '<span class="cell-muted">Arrived</span>';
+  } else if (vfr) {
+    cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+  } else if (e && e.excluded) {
+    cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
+  } else if (gs) {
+    cfr = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
+  } else if (!tmuRates[dest]) {
+    cfr = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+  } else if (!e) {
+    cfr = '<span class="cell-muted">\u2014</span>';
+  } else if (!canControl() && status !== "PROPOSED") {
+    cfr = lockedCfrHtml(e, now, e.wheelsUp);
+  } else if (status === "PROPOSED") {
+    cfr = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
+  } else if (!e.edctIssued) {
+    const ewu = earliestEdct(callsign, depField, dest);
+    const wu = ewu != null ? ewu : e.wheelsUp;
+    cfr = wu <= now + CFR_THRESHOLD ? cfrReleasedHtml() : cfrIssueHtml(callsign, wu);
+  } else if (e.releaseNow) {
+    cfr = cfrNowHtml(callsign);
+  } else {
+    cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign);
   }
   return { pgm, sta, dly, ready, cfr };
 }
@@ -3767,7 +3797,6 @@ contentEl.addEventListener("click", e => {
   }
   const readyBtn = e.target.closest("[data-ready-submit]");
   if (readyBtn) {
-    if (!canControl()) return;
     const cs = readyBtn.dataset.readyCs;
     const dep = readyBtn.dataset.readyDep;
     const dest = readyBtn.dataset.readyDest;
@@ -3785,7 +3814,7 @@ contentEl.addEventListener("click", e => {
     issuedEdcts[cs] = {
       t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null, ready: floor
     };
-    pushSync();
+    pushSyncEdcts();
     renderContent();
     return;
   }
@@ -4150,6 +4179,18 @@ function pushSync() {
   const edcts = edctsToWire(), rates = ratesToWire(), restr = restrictionsToWire(), gs = groundStopsToWire();
   lastWireSeen = JSON.stringify({ e: edcts, r: rates, x: restr, g: gs });
   if (fbOn) window.VFSync.pushAll(edcts, rates, restr, gs);
+  if (hubOn) window.VFHub.push(edcts, rates, restr, gs);
+}
+
+/* push issued CFRs only — allowed without controller password (e.g. ready-time entry) */
+function pushSyncEdcts() {
+  const fbOn = window.VFSync && window.VFSync.connected;
+  const hubOn = window.VFHub && window.VFHub.connected;
+  if (!fbOn && !hubOn) return;
+  const edcts = edctsToWire();
+  const rates = ratesToWire(), restr = restrictionsToWire(), gs = groundStopsToWire();
+  lastWireSeen = JSON.stringify({ e: edcts, r: rates, x: restr, g: gs });
+  if (fbOn) window.VFSync.pushEdcts(edcts);
   if (hubOn) window.VFHub.push(edcts, rates, restr, gs);
 }
 
@@ -4558,6 +4599,13 @@ renderContent();
         restrictions: Object.keys(restr || {}).length ? restr : null,
         groundStops: Object.keys(gs || {}).length ? gs : null
       }).catch((e) => console.error("Firebase push failed:", e));
+    },
+
+    pushEdcts(edcts) {
+      if (!db || !this.room) return;
+      update(ref(db, "rooms/" + this.room), {
+        edcts: Object.keys(edcts || {}).length ? edcts : null
+      }).catch((e) => console.error("Firebase edcts push failed:", e));
     }
   };
 
