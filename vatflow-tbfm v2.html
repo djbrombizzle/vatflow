@@ -1135,13 +1135,10 @@ function updateTaxiMonitor() {
 }
 
 function getTaxiAirportCodes() {
-  const codes = new Set();
-  for (const a of taxiMonAirports) codes.add(a);
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  for (const h of taxiHistory) {
-    if (h.endMs >= cutoff) codes.add(h.airport);
-  }
-  return [...codes].sort();
+  /* Reflect only the shared, controller-managed monitored list. Older taxi
+     samples for airports that are no longer monitored stay in the log but must
+     not resurface on HOME (that made stale fields look "stuck"). */
+  return [...new Set(taxiMonAirports)].sort();
 }
 
 function computeTaxiSummary(airport) {
@@ -1748,7 +1745,7 @@ function renderHome() {
   h += '<div class="homesec">DEPARTURE TAXI TIMES</div>';
   const taxiCodes = getTaxiAirportCodes();
   if (!taxiCodes.length) {
-    h += '<div class="homenone">No taxi samples yet. Add airports on the TAXI MONITOR tab.</div>';
+    h += '<div class="homenone">No departure fields are being monitored. A controller can add them on the TAXI MONITOR tab.</div>';
   } else {
     h += '<div class="homelist">';
     for (const code of taxiCodes) {
