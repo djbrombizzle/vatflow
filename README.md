@@ -63,7 +63,7 @@ For any pending ground departure into a metered field, click **CFR TIME** to loc
 
 Alternatively, ask the pilot for their estimated wheels-up time, enter it as **HHMMz** in the **Ready Time** column on **Departures**, **My Dashboard**, or **Apt Dashboard**, and press **Set** — no control password required. VATFLOW assigns the closest valid release at or after that time (never before).
 
-After CFRs are issued, use the **▲ / ▼** controls on the CFR column to swap release times with the flight ahead or behind on the same route — useful when taxiway order does not match issuance order.
+After CFRs are issued, use the **Swap with…** menu on an issued CFR row to exchange release times with another flight on the same route — useful when taxiway order does not match issuance order.
 
 ### 4. Monitor taxi times (Taxi Monitor)
 
