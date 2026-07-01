@@ -1366,7 +1366,7 @@ fetch(AIRPORT_DB_URL)
 setInterval(fetchWinds, 3600000);   /* refresh winds aloft hourly */
 
 /* ---------- taxi monitor ---------- */
-const TAXI_GS_START = 10;
+const TAXI_GS_START = 5;
 const TAXI_GS_STOP = 60;
 const TAXI_ALT_CLIMB_FT = 100;
 const TAXI_HISTORY_MAX = 200;
@@ -2203,7 +2203,7 @@ function renderHelp() {
     '<li><b>Ready Time</b> column — enter pilot-estimated wheels-up (HHMMz) and press <b>Set</b> for a release at or after that time.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
-    '<li>Tracks ground departures from 10 kt to 60 kt or climb.</li></ul></div></details>' +
+    '<li>Tracks ground departures from 5 kt to 60 kt or climb.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Enter your VATSIM CID to see your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
 
@@ -3303,7 +3303,7 @@ function renderTaxiMonitor() {
       '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" class="input-narrow--110">' +
       '<button data-taximonadd>ADD</button>' +
       '<span class="form-note">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
-      ' airports &middot; timer: 10 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
+      ' airports &middot; timer: 5 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
       '</div>';
   } else {
     h += '<div class="viewonly">View only \u2014 unlock with the control password to add or remove monitored airports.</div>';
