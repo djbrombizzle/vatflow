@@ -4,389 +4,699 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VATFLOW — TBFM for VATSIM</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh; background: #06090d; color: #c9d6df;
-    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; font-size: 13px;
-  }
-  ::selection { background: #1d3a4d; }
-  input, select, button { font-family: inherit; outline: none; }
-  input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px #54b8e8; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-  .relnow { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; }
-  .released { animation: pulse 1.4s ease-in-out infinite; color:#57d98a; font-weight:600; letter-spacing:.06em; }
-  .vfrtag { color:#7d8a93; font-size:11px; letter-spacing:.05em; }
-  .excludedtag { color:#a89fd4; font-size:11px; letter-spacing:.05em; }
+/* VATFLOW design system — injected into vatflow-tbfm v2.html */
+:root {
+  --bg: #080b10;
+  --surface: #0e1319;
+  --surface-2: #121820;
+  --elevated: #161e28;
+  --border: #1e2834;
+  --border-hi: #2a3848;
+  --text: #d4dde6;
+  --text-dim: #8a97a3;
+  --text-muted: #5c6b78;
+  --accent: #e8a838;
+  --accent-dim: rgba(232, 168, 56, 0.12);
+  --accent-text: #f5c76a;
+  --ok: #4caf7a;
+  --warn: #d4923a;
+  --alert: #d45c5c;
+  --info: #5ba8c9;
+  --purple: #7b6eb8;
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --header-h: 96px;
+  --radius: 6px;
+  --radius-sm: 4px;
+}
 
-  header {
-    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-    padding:14px 20px; border-bottom:1px solid #1a232d; background:#0a1016;
-  }
-  .brand { font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:26px;
-           letter-spacing:.06em; color:#e8f0f4; }
-  .brandsub { color:#56676f; font-size:11px; letter-spacing:.12em; }
-  #icaoInput {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:7px 10px; width:150px; border-radius:3px; font-size:14px; letter-spacing:.12em;
-  }
-  #meterBtn {
-    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
-    padding:7px 16px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.1em;
-  }
-  #routeSel {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:7px 8px; border-radius:3px; font-size:12px;
-  }
-  #aarSel, .aarinput {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:6px 8px; border-radius:3px; font-size:13px; width:72px; font-family:inherit;
-  }
-  .mitinput {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:6px 7px; border-radius:3px; font-size:12px; width:64px; font-family:inherit;
-  }
-  .mithint { color:#c792ea; font-size:10px; letter-spacing:.06em; margin-left:6px; }
-  .mydashchips { display:flex; flex-wrap:wrap; gap:8px; padding:12px 20px; border-bottom:1px solid #1a232d; }
-  .apchip { display:inline-flex; align-items:center; gap:8px; background:#102330; border:1px solid #2a5870;
-            color:#cfe6f5; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
-  .apchipx { color:#7d8a93; cursor:pointer; font-size:12px; padding:2px 4px; user-select:none; }
-  .apchipx:hover { color:#f25555; }
-  .artccchip { display:inline-flex; align-items:center; gap:8px; background:#1a1830; border:1px solid #4a3a70;
-               color:#e0d4ff; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
-  .approachchip { display:inline-flex; align-items:center; gap:8px; background:#102818; border:1px solid #2a7048;
-                  color:#d4ffe8; padding:5px 10px; border-radius:14px; font-size:13px; letter-spacing:.1em; font-weight:600; }
+* { box-sizing: border-box; }
 
-  .subtabs { display:flex; gap:6px; padding:12px 20px 0; }
-  .subtab { padding:6px 16px; font-size:12px; font-weight:600; letter-spacing:.1em; cursor:pointer;
-            color:#7d8a93; border:1px solid #233140; border-radius:4px 4px 0 0; border-bottom:none; }
-  .subtab:hover { color:#cfe6f5; }
-  .subtab.active { color:#e8f0f4; background:#102330; border-color:#2a5870; }
-  .subbadge { background:#7a1d22; color:#ffd9d9; border-radius:8px; padding:1px 6px; font-size:10px; margin-left:4px; }
+body {
+  margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.45;
+}
 
-  @keyframes gsflagblink { 0%,100%{ background:#7a1d22; color:#fff; } 50%{ background:#3a0f12; color:#ffb3b3; } }
-  .gsflag { display:inline-block; padding:3px 9px; border-radius:3px; font-weight:700; font-size:12px;
-            letter-spacing:.08em; animation:gsflagblink 0.8s ease-in-out infinite; border:1px solid #f25555; }
-  @keyframes gsflash { 0%,100%{ background:#3a0f12; } 50%{ background:#7a1d22; } }
-  .gsflash td { animation:gsflash 0.9s ease-in-out infinite; }
-  .gsflash .restrinput { border-color:#f25555; }
+::selection { background: rgba(232, 168, 56, 0.25); }
 
-  #gsPopup {
-    position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:1000;
-    display:flex; align-items:center; gap:14px; max-width:90%;
-    background:#5a1419; border:2px solid #f25555; border-radius:6px;
-    padding:12px 16px; box-shadow:0 8px 28px rgba(0,0,0,.55);
-  }
-  .gspoptitle { font-weight:700; letter-spacing:.1em; color:#fff; font-size:14px; white-space:nowrap; }
-  .gspopbody { color:#ffe2e2; font-size:13px; }
-  .gspopbody b { color:#fff; }
-  .gspopx { color:#ffd9d9; cursor:pointer; font-size:15px; padding:0 4px; margin-left:6px; }
-  .gspopx:hover { color:#fff; }
-  .gaterow td { background:#080d12; border-bottom:1px solid #0d141b; padding:5px 10px; }
-  .gatelbl { color:#56676f; font-size:10px; letter-spacing:.1em; }
-  .gateinput {
-    background:#0c1218; border:1px solid #2a3a48; color:#9fdcff;
-    padding:5px 7px; border-radius:3px; font-size:12px; width:96px; letter-spacing:.1em;
-    font-family:inherit; text-transform:uppercase;
-  }
-  .gateadd { color:#57d98a; cursor:pointer; font-size:11px; letter-spacing:.06em; }
-  .gateadd:hover { text-decoration:underline; }
-  input[type=number]::-webkit-inner-spin-button { opacity:.4; }
-  .lbl { color:#56676f; font-size:11px; }
-  .hdr-right { margin-left:auto; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
-  #syncCtl { display:flex; gap:6px; align-items:center; }
-  #roomInput {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:6px 8px; width:110px; border-radius:3px; font-size:12px; letter-spacing:.08em;
-    font-family:inherit;
-  }
-  #syncBtn, #hubBtn {
-    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
-    padding:6px 12px; border-radius:3px; cursor:pointer; font-size:11px; letter-spacing:.08em;
-  }
-  #hubBtn { background:#1c2f1c; color:#9fe6b0; border-color:#2f6a3a; }
-  #hubBtn:disabled, #syncBtn:disabled { opacity:.4; cursor:default; }
-  #lockCtl { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
-  #lockBtn {
-    padding:6px 12px; border-radius:3px; cursor:pointer; font-size:11px; letter-spacing:.08em;
-    font-family:inherit; border:1px solid;
-  }
-  #lockBtn.locked   { background:#3a2a0c; color:#f5c451; border-color:#6a4e15; }
-  #lockBtn.unlocked { background:#13402a; color:#7fe0a6; border-color:#2f6a3a; }
-  #pwInput {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:6px 8px; width:140px; border-radius:3px; font-size:12px; font-family:inherit;
-  }
-  #pwGo {
-    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
-    padding:6px 10px; border-radius:3px; cursor:pointer; font-size:11px;
-  }
-  #lockMsg { font-size:11px; color:#7d8a93; }
-  #lockMsg.lockerr { color:#f25555; }
-  .viewonly { padding:14px 20px; color:#f5c451; font-size:12px; letter-spacing:.06em;
-              background:#1a1408; border-bottom:1px solid #3a2a0c; }
-  .lockcfr { color:#8fa3af; font-size:12px; }
-  #syncStatus { font-size:11px; }
-  .synclocal { color:#56676f; }
-  .synclive  { color:#57d98a; }
-  .syncerr   { color:#f25555; }
-  #feedStatus { font-size:11px; color:#56676f; }
-  #feedStatus.err { color:#f25555; }
-  #clock { color:#e8f0f4; font-size:16px; font-weight:600; }
+input, select, button { font-family: inherit; outline: none; }
+input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
 
-  .strip {
-    display:flex; gap:24px; flex-wrap:wrap; align-items:baseline;
-    padding:12px 20px; border-bottom:1px solid #1a232d;
-  }
-  .strip .field { font-family:'Barlow Condensed',sans-serif; font-size:30px;
-                  color:#e8f0f4; letter-spacing:.08em; }
-  .stat { display:inline-flex; align-items:baseline; gap:7px; }
-  .stat .k { font-size:10px; color:#56676f; letter-spacing:.1em; }
-  .stat .v { font-size:17px; font-weight:600; color:#e8f0f4; }
+.hidden { display: none !important; }
 
-  .layout { display:grid; grid-template-columns: 1fr var(--ladder-w, 360px); }
-  @media (max-width:900px){ .layout { grid-template-columns:1fr; } .ladderwrap{border-left:none!important;border-top:1px solid #1a232d;} .ladderresize{display:none!important;} }
-  body.ladder-resizing { cursor:ew-resize; user-select:none; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes dotpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(212, 146, 58, 0.5); } 50% { box-shadow: 0 0 0 4px rgba(212, 146, 58, 0); } }
 
-  .filterrow td { padding:3px 6px; border-bottom:1px solid #1a232d; background:#0a1016; }
-  .filterrow input {
-    width:100%; min-width:46px; background:#0c1218; border:1px solid #1f2c38;
-    color:#9fdcff; font-size:10.5px; padding:3px 5px; border-radius:2px; font-family:inherit;
-  }
-  .filterrow input::placeholder { color:#3a4750; }
-  .filterinfo { padding:8px 20px 0; font-size:11px; color:#f5a83d; }
-  .filterinfo .clr { color:#9fdcff; cursor:pointer; text-decoration:underline; margin-left:10px; }
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+.status-dot.ok { background: var(--ok); }
+.status-dot.warn { background: var(--warn); }
+.status-dot.alert { background: var(--alert); }
+.status-dot.live { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.status-dot.muted { background: var(--text-muted); }
+.status-dot.pulse { animation: dotpulse 1.4s ease-in-out infinite; }
 
-  .edctbtn {
-    background:#3a2d12; color:#f5a83d; border:1px solid #6b4f1d;
-    padding:3px 9px; border-radius:3px; cursor:pointer; font-size:10.5px;
-    letter-spacing:.08em; font-weight:600;
-  }
-  .edctbtn:hover { background:#4d3a15; border-color:#8a6524; }
-  .edctcxl { color:#56676f; cursor:pointer; margin-left:8px; font-size:11px; }
-  .edctcxl:hover { color:#f25555; }
-  @keyframes edctflash { 0%,100%{background:#10331f;} 50%{background:#1a4d2e;} }
-  .edctpulled { color:#57d98a !important; font-weight:600; border:1px solid #2e7d4f;
-                border-radius:3px; padding:2px 6px; animation: edctflash 1.3s ease-in-out infinite; }
-  .edctpulled .sub { color:#3f9e6a; font-weight:400; }
+/* ---------- header ---------- */
+.app-header {
+  position: sticky; top: 0; z-index: 500;
+  background: linear-gradient(180deg, rgba(14, 19, 25, 0.98), rgba(8, 11, 16, 0.94));
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
 
-  .tablewrap { overflow-x:auto; padding:4px 0 30px; }
-  table { border-collapse:collapse; width:100%; }
-  th { font-weight:500; color:#56676f; text-align:left; padding:6px 10px;
-       border-bottom:1px solid #1a232d; font-size:11px; letter-spacing:.08em;
-       cursor:pointer; user-select:none; white-space:nowrap; }
-  th:hover { color:#9fdcff; }
-  th.sorted { color:#e8f0f4; }
-  td { padding:7px 10px; border-bottom:1px solid #121a22; white-space:nowrap; }
-  tr:hover td { background:#0d141b; }
-  .helpwrap { padding:24px 28px 48px; max-width:920px; }
-  .helptitle { font-family:'Barlow Condensed',sans-serif; font-size:32px; letter-spacing:.06em;
-               color:#e8f0f4; margin-bottom:8px; }
-  .helpintro { color:#9fb0ba; font-size:15px; line-height:1.65; margin-bottom:28px; max-width:720px; }
-  .helpsec { font-family:'Barlow Condensed',sans-serif; font-size:20px; letter-spacing:.06em;
-             color:#9fdcff; margin:28px 0 12px; padding-bottom:8px; border-bottom:1px solid #1a232d; }
-  .helpcard { background:#0a1016; border:1px solid #1a232d; border-radius:6px; padding:16px 18px; margin-bottom:14px; }
-  .helpcard h3 { margin:0 0 10px; font-family:'Barlow Condensed',sans-serif; font-size:17px;
-                 letter-spacing:.05em; color:#e8f0f4; }
-  .helplist { margin:0; padding-left:20px; color:#c9d6df; font-size:14px; line-height:1.75; }
-  .helplist li { margin-bottom:6px; }
-  .helplist li b { color:#e8f0f4; font-weight:600; }
-  .helpterms { display:grid; grid-template-columns:130px 1fr; gap:10px 18px; font-size:14px; line-height:1.65; }
-  .helpterms dt { color:#9fdcff; font-weight:600; }
-  .helpterms dd { margin:0; color:#c9d6df; }
-  @media (max-width:600px){ .helpterms { grid-template-columns:1fr; } }
+.header-top {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 20px 8px; border-bottom: 1px solid var(--border);
+}
 
-  .ladderwrap { position:relative; border-left:1px solid #1a232d; padding:14px 14px 20px; }
-  .ladderresize { position:absolute; left:-4px; top:0; bottom:0; width:9px; cursor:ew-resize;
-                  z-index:6; touch-action:none; }
-  .ladderresize::before { content:""; position:absolute; left:3px; top:0; bottom:0; width:1px;
-                  background:transparent; transition:background .12s; }
-  .ladderresize:hover::before, .ladderresize.dragging::before { background:#2a5870; box-shadow:0 0 0 1px #2a5870; }
-  .ladderresize::after { content:""; position:absolute; left:1px; top:50%; transform:translateY(-50%);
-                  width:5px; height:34px; border-radius:3px; background:transparent; transition:background .12s; }
-  .ladderresize:hover::after, .ladderresize.dragging::after { background:#2a5870; }
-  .ladderhead { font-size:11px; color:#56676f; letter-spacing:.1em; margin-bottom:4px;
-                display:flex; justify-content:space-between; align-items:center; }
-  .ladderwinctl { display:inline-flex; gap:4px; }
-  .ladderwinctl button {
-    background:#0c1218; border:1px solid #2a3a48; color:#9fdcff; width:24px; height:22px;
-    border-radius:3px; cursor:pointer; font-size:14px; line-height:1; font-family:inherit;
-  }
-  .ladderwinctl button:hover:not(:disabled) { background:#16384c; border-color:#2a5870; }
-  .ladderwinctl button:disabled { color:#3a4750; border-color:#1a232d; cursor:default; }
-  .ladderhint { font-size:9px; color:#3a4750; letter-spacing:.05em; margin-bottom:8px; }
-  .ladderscroll { height: calc(100vh - 230px); min-height: 480px; overflow-y:auto;
-                  border:1px solid #121a22; border-radius:3px; background:#080d12;
-                  scrollbar-width:thin; scrollbar-color:#233140 #080d12; }
-  .ladderscroll::-webkit-scrollbar { width:8px; }
-  .ladderscroll::-webkit-scrollbar-track { background:#080d12; }
-  .ladderscroll::-webkit-scrollbar-thumb { background:#233140; border-radius:4px; }
-  .ladder { position:relative; margin:10px 8px; }
-  .ladder .axis { position:absolute; left:44px; top:0; bottom:0; width:1px; background:#233140; }
-  .ladder .gridline { position:absolute; left:38px; width:13px; height:1px; background:#233140; }
-  .ladder .gridtime { position:absolute; left:0; font-size:10px; color:#56676f; }
-  .ladder .freeze { position:absolute; left:38px; right:0; border-top:1px dashed #355063; }
-  .ladder .freeze span { position:absolute; right:0; top:-14px; font-size:9px; color:#355063; letter-spacing:.08em; }
-  .ladder .nowline { position:absolute; left:38px; right:0; border-top:1px solid #2a5870; }
-  .ladder .nowline span { position:absolute; right:0; top:2px; font-size:9px; color:#54b8e8; letter-spacing:.08em; }
-  .ladder .tag { position:absolute; display:flex; align-items:center; gap:5px; }
-  .ladder .tick { width:12px; height:1px; flex:none; }
-  .ladder .lab { font-size:11px; color:#e8f0f4; background:#0c1218; border:1px solid #1f2c38;
-                 padding:2px 6px; white-space:nowrap; }
-  .ladder .lab .t { color:#56676f; }
-  .ladder .empty { position:absolute; inset:0; display:flex; align-items:center;
-                   justify-content:center; color:#3a4750; font-size:11px; }
+.brand-block {
+  display: flex; align-items: center; gap: 12px;
+}
 
-  .splash { padding:70px 20px; text-align:center; color:#56676f; }
-  .splash h2 { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:500;
-               color:#8fa3af; letter-spacing:.08em; margin:0 0 10px; }
-  .splash p { font-size:12px; line-height:1.8; margin:0; }
-  .msg { padding:50px; text-align:center; color:#56676f; }
+.brand-mark {
+  width: 28px; height: 28px; flex-shrink: 0; color: var(--accent);
+}
 
-  .tabs { display:flex; gap:4px; }
-  .tab { padding:9px 20px; font-size:14px; font-weight:600; letter-spacing:.1em; cursor:pointer;
-         color:#7d8a93; border:1px solid transparent; border-radius:4px; transition:color .12s, background .12s; }
-  .tab:hover { color:#cfe6f5; background:#0c1218; }
-  .tab.active { color:#e8f0f4; background:#102330; border-color:#2a5870; }
+.brand-text { display: flex; flex-direction: column; gap: 1px; }
 
-  #depInput {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:7px 10px; width:150px; border-radius:3px; font-size:14px; letter-spacing:.12em;
-  }
-  #depBtn {
-    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
-    padding:7px 16px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.1em;
-  }
-  .tmuform { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-             padding:14px 20px; border-bottom:1px solid #1a232d; }
-  .tmuform input {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:7px 10px; width:130px; border-radius:3px; font-size:13px; letter-spacing:.1em;
-  }
-  .tmuform select, .tmurow select {
-    background:#0c1218; border:1px solid #233140; color:#e8f0f4;
-    padding:6px 7px; border-radius:3px; font-size:12px; font-family:inherit;
-  }
-  .tmuform button {
-    background:#16384c; color:#9fdcff; border:1px solid #2a5870;
-    padding:7px 16px; border-radius:3px; cursor:pointer; font-size:12px; letter-spacing:.1em;
-  }
-  .tmuact { color:#9fdcff; cursor:pointer; margin-right:12px; font-size:11px; }
-  .tmuact:hover { text-decoration:underline; }
-  .tmuact.rm { color:#f25555; }
+.brand {
+  font-family: var(--font-display); font-weight: 600; font-size: 24px;
+  letter-spacing: 0.04em; color: var(--text); line-height: 1;
+}
 
-  .calcpanel { padding:20px 24px 40px; max-width:720px; }
-  .calcpanel .helpcard { margin-top:18px; }
-  .calcresult { font-family:'Barlow Condensed',sans-serif; font-size:52px; font-weight:600;
-                letter-spacing:.04em; line-height:1.1; margin:8px 0 4px; }
-  .calcresult.ok { color:#57d98a; }
-  .calcresult.warn { color:#f5a83d; }
-  .calcresult.bad { color:#f25555; }
-  .calcresult.none { color:#56676f; font-size:28px; }
-  .calcdetail { font-size:13px; color:#9fb0ba; line-height:1.65; margin-bottom:4px; }
-  .calcformula { font-size:11px; color:#56676f; letter-spacing:.04em; }
-  .calcpositions { display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:10px; }
-  .calcpositions label { display:inline-flex; align-items:center; gap:6px; font-size:12px;
-                         color:#c9d6df; cursor:pointer; user-select:none; }
-  .calcpositions input { accent-color:#54b8e8; width:14px; height:14px; cursor:pointer; }
-  .calctoggle { color:#9fdcff; cursor:pointer; font-size:11px; letter-spacing:.06em; margin-left:10px; }
-  .calctoggle:hover { text-decoration:underline; }
+.brandsub { color: var(--text-muted); font-size: 11px; letter-spacing: 0.02em; }
 
-  .homewrap { padding:20px 24px 40px; max-width:1000px; }
-  .homehead { font-family:'Barlow Condensed',sans-serif; font-size:30px; letter-spacing:.08em;
-              color:#e8f0f4; margin-bottom:18px; }
-  .homesec { font-size:11px; color:#56676f; letter-spacing:.14em; margin:22px 0 10px;
-             border-bottom:1px solid #1a232d; padding-bottom:6px; }
-  .homenone { color:#56676f; font-size:13px; padding:6px 0; }
-  .homelist { display:flex; flex-direction:column; gap:6px; }
-  .homerow { display:flex; align-items:baseline; gap:14px; padding:10px 14px; border-radius:4px;
-             background:#0a1016; border-left:3px solid #2a3a48; }
-  .homerow.ok   { border-left-color:#57d98a; }
-  .homerow.warn { border-left-color:#f5a83d; }
-  .homerow.hi   { border-left-color:#f25555; }
-  .homerow.muted{ border-left-color:#3a4750; }
-  .homefield { font-family:'Barlow Condensed',sans-serif; font-size:21px; letter-spacing:.06em;
-               color:#e8f0f4; min-width:62px; }
-  .hometxt { font-size:14px; color:#c9d6df; flex:1; }
-  .homemeta { font-size:11px; color:#56676f; letter-spacing:.04em; }
+.header-tools {
+  margin-left: auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
 
-  .restrinput {
-    width:100%; background:#0c1218; border:1px solid #1f2c38; color:#e8f0f4;
-    padding:6px 8px; border-radius:3px; font-size:12px; font-family:inherit;
-  }
-  .restrinput:focus { border-color:#54b8e8; }
-  #rfReq, #rfProv {
-    background:#0c1218; border:1px solid #233140; color:#9fdcff;
-    padding:6px 8px; border-radius:3px; font-size:12px; font-family:inherit; letter-spacing:.06em;
-  }
-  @keyframes restrflash { 0%,100%{ background:#3a0f12; } 50%{ background:#7a1d22; } }
-  .restrflash td { animation: restrflash 0.9s ease-in-out infinite; }
-  .restrflash .restrinput { border-color:#f25555; }
+.header-nav {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 6px 20px 8px;
+}
+
+.tab-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.tab-ctl { display: none; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tab-ctl.show { display: flex; }
+
+.hint-text { font-size: 11px; color: var(--text-muted); }
+
+.feed-pill {
+  font-family: var(--font-data); font-size: 10px; color: var(--text-muted);
+  padding: 4px 8px; border-radius: var(--radius-sm);
+  background: var(--elevated); border: 1px solid var(--border);
+}
+.feed-pill.err { color: var(--alert); border-color: rgba(212, 92, 92, 0.4); }
+
+.sync-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; padding: 4px 8px; border-radius: var(--radius-sm);
+  background: var(--elevated); border: 1px solid var(--border);
+}
+.sync-pill.synclocal { color: var(--text-muted); }
+.sync-pill.synclive { color: var(--ok); border-color: rgba(76, 175, 122, 0.35); }
+.sync-pill.syncerr { color: var(--alert); border-color: rgba(212, 92, 92, 0.35); }
+
+.clock {
+  font-family: var(--font-data); color: var(--text); font-size: 15px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.clock small { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-left: 1px; }
+
+/* ---------- buttons ---------- */
+.btn-primary {
+  background: var(--accent); color: #1a1205; border: 1px solid var(--accent);
+  padding: 7px 16px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+  transition: background 0.12s, border-color 0.12s;
+}
+.btn-primary:hover { background: #f0b84a; border-color: #f0b84a; }
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+.btn-secondary {
+  background: var(--elevated); color: var(--text); border: 1px solid var(--border-hi);
+  padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+  transition: background 0.12s, border-color 0.12s;
+}
+.btn-secondary:hover { background: #1c2632; border-color: #3a4a5a; }
+.btn-secondary:disabled { opacity: 0.4; cursor: default; }
+
+.btn-ghost {
+  background: transparent; color: var(--text-dim); border: 1px solid transparent;
+  padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 11px;
+}
+.btn-ghost:hover { color: var(--text); background: var(--elevated); }
+
+.btn-icon {
+  background: transparent; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 14px; padding: 0 4px; margin-left: 6px; line-height: 1;
+  border-radius: var(--radius-sm);
+}
+.btn-icon:hover { color: var(--alert); background: rgba(212, 92, 92, 0.1); }
+
+/* ---------- inputs ---------- */
+.field-input {
+  background: var(--surface-2); border: 1px solid var(--border-hi); color: var(--text);
+  padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px;
+  font-family: var(--font-data); letter-spacing: 0.06em;
+}
+.field-input--wide { width: 150px; }
+.field-input--room { width: 110px; font-size: 12px; }
+.field-input--pw { width: 140px; font-size: 12px; }
+
+#icaoInput, #depInput, #taximonInput, #pilotCidInput, #roomInput, #pwInput,
+.aarinput, .mitinput, .gateinput, .restrinput, .tmuform input, #rfReq, #rfProv {
+  background: var(--surface-2); border: 1px solid var(--border-hi); color: var(--text);
+  border-radius: var(--radius-sm); font-family: var(--font-data);
+}
+#icaoInput, #depInput { padding: 7px 10px; width: 150px; font-size: 14px; letter-spacing: 0.06em; }
+#taximonInput, #pilotCidInput { padding: 7px 10px; width: 150px; font-size: 13px; }
+#roomInput { padding: 6px 8px; width: 110px; font-size: 12px; }
+#pwInput { padding: 6px 8px; width: 140px; font-size: 12px; }
+.aarinput { padding: 6px 8px; font-size: 13px; width: 72px; }
+.mitinput { padding: 6px 7px; font-size: 12px; width: 64px; }
+.gateinput { padding: 5px 7px; font-size: 12px; width: 96px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-text); }
+.restrinput { width: 100%; padding: 6px 8px; font-size: 12px; }
+.restrinput:focus { border-color: var(--accent); }
+#rfReq, #rfProv { padding: 6px 8px; font-size: 12px; color: var(--accent-text); letter-spacing: 0.04em; }
+
+#meterBtn, #depBtn, #taximonBtn, #pilotBtn, #syncBtn, #pwGo, .tmuform button, .edctbtn {
+  cursor: pointer; border-radius: var(--radius-sm); font-size: 12px; letter-spacing: 0.02em;
+}
+#meterBtn, #depBtn, #taximonBtn, #pilotBtn, #syncBtn, .tmuform button {
+  background: var(--accent); color: #1a1205; border: 1px solid var(--accent);
+  padding: 7px 16px; font-weight: 600;
+}
+#meterBtn:hover, #depBtn:hover, #taximonBtn:hover, #pilotBtn:hover, #syncBtn:hover, .tmuform button:hover {
+  background: #f0b84a; border-color: #f0b84a;
+}
+#hubBtn, #pwGo {
+  background: var(--elevated); color: var(--text); border: 1px solid var(--border-hi);
+  padding: 6px 12px; font-weight: 500;
+}
+#hubBtn:hover, #pwGo:hover { background: #1c2632; }
+#hubBtn:disabled, #syncBtn:disabled { opacity: 0.4; cursor: default; }
+
+.edctbtn {
+  background: var(--accent-dim); color: var(--accent-text); border: 1px solid rgba(232, 168, 56, 0.35);
+  padding: 3px 9px; font-size: 10.5px; font-weight: 600; font-family: var(--font-data);
+}
+.edctbtn:hover { background: rgba(232, 168, 56, 0.22); border-color: var(--accent); }
+
+#lockCtl { display: flex; align-items: center; gap: 6px; }
+#lockBtn {
+  padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 11px; letter-spacing: 0.02em; border: 1px solid;
+}
+#lockBtn.locked { background: var(--accent-dim); color: var(--accent-text); border-color: rgba(232, 168, 56, 0.4); }
+#lockBtn.unlocked { background: rgba(76, 175, 122, 0.12); color: var(--ok); border-color: rgba(76, 175, 122, 0.35); }
+
+#syncCtl { display: flex; gap: 6px; align-items: center; }
+#lockMsg { font-size: 11px; color: var(--text-muted); }
+#lockMsg.lockerr { color: var(--alert); }
+
+.lbl { color: var(--text-muted); font-size: 11px; font-weight: 500; }
+.mithint { color: var(--purple); font-size: 10px; letter-spacing: 0.04em; margin-left: 6px; }
+
+.viewonly {
+  padding: 14px 20px; color: var(--accent-text); font-size: 12px;
+  background: var(--accent-dim); border-bottom: 1px solid rgba(232, 168, 56, 0.2);
+}
+.viewonly--inline { padding: 0; border: none; background: none; font-size: 11px; }
+
+.lockcfr { color: var(--text-dim); font-size: 12px; font-family: var(--font-data); }
+
+/* ---------- CFR badges ---------- */
+.cfr-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-data); font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: var(--radius-sm);
+}
+.cfr-badge--now {
+  background: var(--accent-dim); color: var(--accent-text);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.cfr-badge--released { background: rgba(76, 175, 122, 0.12); color: var(--ok); }
+.cfr-badge--countdown { color: var(--warn); }
+.cfr-badge--countdown .cfr-sub { color: var(--text-muted); font-weight: 400; }
+.cfr-badge--pulled {
+  color: var(--ok); border: 1px solid rgba(76, 175, 122, 0.4);
+  animation: edctflash 1.3s ease-in-out infinite;
+}
+.cfr-badge--pulled .cfr-sub { color: #3a9a6a; font-weight: 400; }
+
+.relnow, .released { /* legacy aliases */ }
+.relnow { display: none; }
+.released { display: none; }
+
+.vfrtag { color: var(--text-dim); font-size: 11px; }
+.excludedtag { color: var(--purple); font-size: 11px; }
+
+.edctcxl { color: var(--text-muted); cursor: pointer; margin-left: 8px; font-size: 13px;
+  background: transparent; border: none; padding: 0 4px; }
+.edctcxl:hover { color: var(--alert); }
+
+@keyframes edctflash { 0%, 100% { background: rgba(76, 175, 122, 0.08); } 50% { background: rgba(76, 175, 122, 0.18); } }
+.edctpulled { color: var(--ok) !important; font-weight: 600; border: 1px solid rgba(76, 175, 122, 0.4);
+  border-radius: var(--radius-sm); padding: 2px 6px; animation: edctflash 1.3s ease-in-out infinite; }
+.edctpulled .sub { color: #3a9a6a; font-weight: 400; }
+
+.cfr-sugg { color: var(--text-muted); font-size: 10px; font-family: var(--font-data); }
+
+/* ---------- chips ---------- */
+.mydashchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+
+.chip, .apchip, .artccchip, .approachchip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 10px; border-radius: var(--radius);
+  font-family: var(--font-data); font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  background: var(--elevated); border: 1px solid var(--border-hi); color: var(--text);
+}
+.apchip, .chip--airport { border-left: 3px solid var(--info); }
+.artccchip, .chip--artcc { border-left: 3px solid var(--purple); }
+.approachchip, .chip--approach { border-left: 3px solid var(--ok); }
+.apchipx { color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 2px 4px; user-select: none; border: none; background: none; }
+.apchipx:hover { color: var(--alert); }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; }
+.tab-group { display: flex; gap: 2px; align-items: center; }
+.tab-group + .tab-group {
+  border-left: 1px solid var(--border); margin-left: 8px; padding-left: 8px;
+}
+.tab {
+  font-family: var(--font-ui); padding: 8px 14px; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.01em; cursor: pointer; color: var(--text-dim);
+  border: 1px solid transparent; border-radius: var(--radius); transition: color 0.12s, background 0.12s;
+}
+.tab:hover { color: var(--text); background: var(--elevated); }
+.tab.active {
+  color: var(--text); background: var(--accent-dim);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.subtabs { display: flex; gap: 6px; padding: 12px 20px 0; }
+.subtab {
+  padding: 6px 16px; font-size: 12px; font-weight: 500; letter-spacing: 0.02em; cursor: pointer;
+  color: var(--text-dim); border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; border-bottom: none;
+}
+.subtab:hover { color: var(--text); }
+.subtab.active { color: var(--text); background: var(--surface); border-color: var(--border-hi); }
+.subbadge { background: rgba(212, 92, 92, 0.25); color: #ffc9c9; border-radius: 8px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
+
+/* ---------- ground stop ---------- */
+@keyframes gsflagblink { 0%, 100% { background: rgba(212, 92, 92, 0.25); color: #fff; } 50% { background: rgba(212, 92, 92, 0.1); color: #ffb3b3; } }
+.gsflag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: var(--radius-sm); font-weight: 700; font-size: 11px;
+  font-family: var(--font-data); animation: gsflagblink 0.8s ease-in-out infinite;
+  border: 1px solid var(--alert);
+}
+@keyframes gsflash { 0%, 100% { background: rgba(212, 92, 92, 0.08); } 50% { background: rgba(212, 92, 92, 0.18); } }
+.gsflash td { animation: gsflash 0.9s ease-in-out infinite; }
+.gsflash .restrinput { border-color: var(--alert); }
+
+#gsPopup {
+  position: fixed; top: calc(var(--header-h) + 8px); left: 50%; transform: translateX(-50%); z-index: 1000;
+  display: flex; align-items: center; gap: 14px; max-width: 90%;
+  background: rgba(90, 20, 25, 0.96); border: 1px solid var(--alert); border-radius: var(--radius);
+  padding: 12px 16px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+}
+.gspoptitle { font-weight: 700; letter-spacing: 0.04em; color: #fff; font-size: 13px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px; }
+.gspopbody { color: #ffe2e2; font-size: 13px; }
+.gspopbody b { color: #fff; }
+.gspopx { color: #ffd9d9; cursor: pointer; font-size: 15px; padding: 0 4px; margin-left: 6px; border: none; background: none; }
+.gspopx:hover { color: #fff; }
+
+.gaterow td { background: var(--bg); border-bottom: 1px solid var(--border); padding: 5px 10px; }
+.gatelbl { color: var(--text-muted); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+.gateadd { color: var(--ok); cursor: pointer; font-size: 11px; }
+.gateadd:hover { text-decoration: underline; }
+input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+
+/* ---------- status strip ---------- */
+.strip {
+  display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline;
+  padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.strip .field { font-family: var(--font-display); font-size: 30px; color: var(--text); letter-spacing: 0.06em; }
+.stat { display: inline-flex; align-items: baseline; gap: 7px; }
+.stat .k { font-size: 10px; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.stat .v { font-size: 17px; font-weight: 600; color: var(--text); font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.stat-ok { color: var(--ok) !important; }
+.stat-warn { color: var(--warn) !important; }
+.stat-alert { color: var(--alert) !important; }
+.stat-info { color: var(--info) !important; }
+.stat-muted { color: var(--text-muted) !important; }
+
+.strip-warn { color: var(--alert); font-size: 11px; }
+.strip-gates { font-size: 11px; color: var(--text-muted); }
+.gate-tag { margin-left: 8px; font-family: var(--font-data); }
+
+/* ---------- table ---------- */
+.layout { display: grid; grid-template-columns: 1fr var(--ladder-w, 360px); }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .ladderwrap { border-left: none !important; border-top: 1px solid var(--border); }
+  .ladderresize { display: none !important; }
+}
+body.ladder-resizing { cursor: ew-resize; user-select: none; }
+
+.filterrow td { padding: 3px 6px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.filterrow input {
+  width: 100%; min-width: 46px; background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--accent-text); font-size: 10.5px; padding: 3px 5px; border-radius: 2px;
+  font-family: var(--font-data);
+}
+.filterrow input::placeholder { color: var(--text-muted); }
+.filterinfo { padding: 8px 20px 0; font-size: 11px; color: var(--warn); }
+.filterinfo .clr { color: var(--accent-text); cursor: pointer; text-decoration: underline; margin-left: 10px; }
+
+.tablewrap { overflow-x: auto; padding: 4px 0 30px; }
+table { border-collapse: collapse; width: 100%; font-family: var(--font-data); }
+th {
+  font-weight: 500; color: var(--text-muted); text-align: left; padding: 6px 10px;
+  border-bottom: 2px solid var(--border); font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; cursor: pointer; user-select: none; white-space: nowrap;
+}
+th:hover { color: var(--accent-text); }
+th.sorted { color: var(--text); }
+td {
+  padding: 7px 10px; border-bottom: 1px solid rgba(30, 40, 52, 0.6);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+tbody tr:nth-child(even) td { background: rgba(0, 0, 0, 0.12); }
+tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+.cell-muted { color: var(--text-muted); }
+.cell-dim { color: var(--text-muted); }
+.cell-strong { color: var(--text); font-weight: 600; }
+.cell-ok { color: var(--ok); }
+.cell-warn { color: var(--warn); }
+.cell-alert { color: var(--alert); }
+.cell-info { color: var(--info); }
+.cell-empty { text-align: center; color: var(--text-muted); padding: 24px; }
+.cell-gate { /* color set inline for gate hue */ }
+
+.td-w-16 { width: 16%; }
+.td-w-13 { width: 13%; }
+.td-w-26 { width: 26%; }
+.td-w-60 { width: 60px; }
+
+/* ---------- ladder ---------- */
+.ladderwrap { position: relative; border-left: 1px solid var(--border); padding: 14px 14px 20px; }
+.ladderresize { position: absolute; left: -4px; top: 0; bottom: 0; width: 9px; cursor: ew-resize; z-index: 6; touch-action: none; }
+.ladderresize::before { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: transparent; transition: background 0.12s; }
+.ladderresize:hover::before, .ladderresize.dragging::before { background: var(--border-hi); }
+.ladderresize::after { content: ""; position: absolute; left: 1px; top: 50%; transform: translateY(-50%); width: 5px; height: 34px; border-radius: 3px; background: transparent; transition: background 0.12s; }
+.ladderresize:hover::after, .ladderresize.dragging::after { background: var(--border-hi); }
+.ladderhead { font-size: 11px; color: var(--text-muted); letter-spacing: 0.06em; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; }
+.ladderwinctl { display: inline-flex; gap: 4px; }
+.ladderwinctl button {
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--accent-text);
+  width: 24px; height: 22px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; line-height: 1;
+}
+.ladderwinctl button:hover:not(:disabled) { background: var(--elevated); border-color: var(--border-hi); }
+.ladderwinctl button:disabled { color: var(--text-muted); border-color: var(--border); cursor: default; }
+.ladderhint { font-size: 9px; color: var(--text-muted); margin-bottom: 8px; }
+.ladderscroll {
+  height: calc(100vh - 230px); min-height: 480px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg);
+  scrollbar-width: thin; scrollbar-color: var(--border-hi) var(--bg);
+}
+.ladderscroll::-webkit-scrollbar { width: 8px; }
+.ladderscroll::-webkit-scrollbar-track { background: var(--bg); }
+.ladderscroll::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; }
+.ladder { position: relative; margin: 10px 8px; }
+.ladder .axis { position: absolute; left: 44px; top: 0; bottom: 0; width: 1px; background: var(--border-hi); }
+.ladder .gridline { position: absolute; left: 38px; width: 13px; height: 1px; background: var(--border); }
+.ladder .gridtime { position: absolute; left: 0; font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; width: 36px; }
+.ladder .freeze { position: absolute; left: 38px; right: 0; border-top: 1px dashed var(--text-muted); }
+.ladder .freeze span { position: absolute; right: 0; top: -14px; font-size: 9px; color: var(--text-muted); letter-spacing: 0.06em; }
+.ladder .nowline {
+  position: absolute; left: 38px; right: 0; border-top: 1px solid var(--accent);
+  box-shadow: 0 0 8px var(--accent-dim);
+}
+.ladder .nowline span { position: absolute; right: 0; top: 2px; font-size: 9px; color: var(--accent-text); letter-spacing: 0.06em; }
+.ladder .tag { position: absolute; display: flex; align-items: center; gap: 5px; }
+.ladder .tick { width: 12px; height: 1px; flex: none; }
+.ladder .lab {
+  font-size: 11px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px 6px; white-space: nowrap;
+}
+.ladder .lab .t { color: var(--text-muted); }
+.ladder .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px; }
+
+/* ---------- empty states ---------- */
+.splash, .emptystate {
+  max-width: 480px; margin: 48px auto; padding: 32px 28px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  text-align: left;
+}
+.splash h2, .emptystate h2 {
+  font-family: var(--font-display); font-size: 22px; font-weight: 500;
+  color: var(--text); letter-spacing: 0.04em; margin: 0 0 10px;
+}
+.splash p, .emptystate p { font-size: 13px; line-height: 1.65; margin: 0 0 16px; color: var(--text-dim); }
+.emptystate .emptystate-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.msg { padding: 50px 20px; text-align: center; color: var(--text-muted); }
+
+/* ---------- TMU / calc ---------- */
+.tmuform {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+}
+.tmuform input { padding: 7px 10px; width: 130px; font-size: 13px; letter-spacing: 0.04em; }
+.tmuform select, .tmurow select {
+  background: var(--surface-2); border: 1px solid var(--border-hi); color: var(--text);
+  padding: 6px 7px; border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font-data);
+}
+.tmuact { color: var(--accent-text); cursor: pointer; margin-right: 12px; font-size: 11px; }
+.tmuact:hover { text-decoration: underline; }
+.tmuact.rm { color: var(--alert); }
+.tmuform--border-top { border-top: 1px solid var(--border); }
+
+.calcpanel { padding: 20px 24px 40px; max-width: 720px; }
+.calcpanel .helpcard { margin-top: 18px; }
+.calcresult { font-family: var(--font-display); font-size: 52px; font-weight: 600; letter-spacing: 0.04em; line-height: 1.1; margin: 8px 0 4px; }
+.calcresult.ok { color: var(--ok); }
+.calcresult.warn { color: var(--warn); }
+.calcresult.bad { color: var(--alert); }
+.calcresult.none { color: var(--text-muted); font-size: 28px; }
+.calcdetail { font-size: 13px; color: var(--text-dim); line-height: 1.65; margin-bottom: 4px; }
+.calcformula { font-size: 11px; color: var(--text-muted); }
+.calcpositions { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
+.calcpositions label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
+.calcpositions input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+.calctoggle { color: var(--accent-text); cursor: pointer; font-size: 11px; margin-left: 10px; }
+.calctoggle:hover { text-decoration: underline; }
+
+/* ---------- home ---------- */
+.homewrap { padding: 20px 24px 40px; max-width: 1000px; }
+.homehead { font-family: var(--font-display); font-size: 28px; letter-spacing: 0.04em; color: var(--text); margin-bottom: 18px; }
+.homesec { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin: 22px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.homenone { color: var(--text-muted); font-size: 13px; padding: 6px 0; }
+.homenone--pad { padding: 40px 20px; }
+.homelist { display: flex; flex-direction: column; gap: 8px; }
+.homerow {
+  display: grid; grid-template-columns: 72px 1fr auto; align-items: center; gap: 14px;
+  padding: 12px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-hi);
+}
+.homerow.ok { border-left-color: var(--ok); }
+.homerow.warn { border-left-color: var(--warn); }
+.homerow.hi { border-left-color: var(--alert); }
+.homerow.muted { border-left-color: var(--text-muted); }
+.homefield { font-family: var(--font-display); font-size: 21px; letter-spacing: 0.04em; color: var(--text); }
+.hometxt { font-size: 14px; color: var(--text-dim); }
+.homemeta {
+  font-family: var(--font-data); font-size: 11px; color: var(--text-muted);
+  padding: 3px 8px; border-radius: var(--radius-sm); background: var(--elevated);
+  border: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ---------- help ---------- */
+.helpwrap { padding: 24px 28px 48px; max-width: 1100px; }
+.help-layout { display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: start; }
+@media (max-width: 768px) { .help-layout { grid-template-columns: 1fr; } .help-nav { display: none; } }
+.help-nav { position: sticky; top: calc(var(--header-h) + 16px); }
+.help-nav a {
+  display: block; padding: 6px 0; font-size: 13px; color: var(--text-dim); text-decoration: none;
+}
+.help-nav a:hover { color: var(--accent-text); }
+.help-quickstart {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; padding: 14px 16px;
+  background: var(--accent-dim); border: 1px solid rgba(232, 168, 56, 0.25); border-radius: var(--radius);
+}
+.help-quickstart span { font-size: 12px; color: var(--text-dim); }
+.help-quickstart b { color: var(--accent-text); }
+.helptitle { font-family: var(--font-display); font-size: 32px; letter-spacing: 0.04em; color: var(--text); margin-bottom: 8px; }
+.helpintro { color: var(--text-dim); font-size: 15px; line-height: 1.65; margin-bottom: 28px; max-width: 720px; }
+.helpintro--footer { margin-top: 32px; margin-bottom: 0; font-size: 13px; }
+.helpsec { font-family: var(--font-display); font-size: 20px; letter-spacing: 0.04em; color: var(--accent-text); margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.helpcard, details.help-acc {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 10px; overflow: hidden;
+}
+details.help-acc summary {
+  padding: 14px 18px; cursor: pointer; font-family: var(--font-display); font-size: 16px;
+  color: var(--text); letter-spacing: 0.03em; list-style: none; user-select: none;
+}
+details.help-acc summary::-webkit-details-marker { display: none; }
+details.help-acc summary::after { content: "+"; float: right; color: var(--text-muted); font-weight: 400; }
+details.help-acc[open] summary::after { content: "\2212"; }
+details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
+.help-acc-body { padding: 14px 18px 16px; }
+.helpcard h3 { margin: 0 0 10px; font-family: var(--font-display); font-size: 17px; color: var(--text); }
+.helplist { margin: 0; padding-left: 20px; color: var(--text-dim); font-size: 14px; line-height: 1.75; }
+.helplist li { margin-bottom: 6px; }
+.helplist li b { color: var(--text); font-weight: 600; }
+.helpterms { display: grid; grid-template-columns: 130px 1fr; gap: 10px 18px; font-size: 14px; line-height: 1.65; }
+.helpterms dt { color: var(--accent-text); font-weight: 600; }
+.helpterms dd { margin: 0; color: var(--text-dim); }
+@media (max-width: 600px) { .helpterms { grid-template-columns: 1fr; } }
+
+@keyframes restrflash { 0%, 100% { background: rgba(212, 92, 92, 0.08); } 50% { background: rgba(212, 92, 92, 0.18); } }
+.restrflash td { animation: restrflash 0.9s ease-in-out infinite; }
+.restrflash .restrinput { border-color: var(--alert); }
+
+.pilot-hero { font-size: 16px; }
+.form-note { font-size: 11px; color: var(--text-muted); margin-left: 10px; }
+.form-note--sm { margin-left: 8px; }
+.input-narrow { width: 120px; }
+.input-narrow--80 { width: 80px; }
+.input-narrow--110 { width: 110px; }
+.tablewrap--short { padding-bottom: 20px; }
+
+.pilot-card {
+  display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 18px; margin: 4px 0 14px;
+}
+.pilot-detail { display: flex; flex-direction: column; gap: 3px; min-width: 90px; }
+.pilot-detail .k { font-size: 10px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; }
+.pilot-detail .v { font-size: 14px; color: var(--text); font-weight: 600; font-family: var(--font-data); }
+.pilot-detail .v.info { color: var(--info); }
+.pilot-detail .v.ok { color: var(--ok); }
+.pilot-detail .v.warn { color: var(--warn); }
+.pilot-detail .v.alert { color: var(--alert); }
+.pilot-route {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; margin-bottom: 14px;
+}
+.pilot-route .k { font-size: 10px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; }
+.pilot-route .v { font-size: 12px; color: var(--text-dim); word-break: break-word; line-height: 1.6; font-family: var(--font-data); }
+.pilot-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  border-left: 4px solid var(--border-hi); padding: 16px 18px;
+}
+.pilot-panel.alert { border-left-color: var(--alert); border-color: rgba(212, 92, 92, 0.35); }
+.pilot-panel.ok { border-left-color: var(--ok); border-color: rgba(76, 175, 122, 0.35); }
+.pilot-panel .k { font-size: 11px; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
+.pilot-hero { font-size: 15px; font-weight: 600; }
+.pilot-hero.ok { color: var(--ok); }
+.pilot-hero.warn { color: var(--warn); }
+.pilot-hero.muted { color: var(--text-muted); }
+.pilot-card--flat { margin: 0; padding: 0; border: none; background: transparent; }
+.pilot-card--flat-mt { margin: 12px 0 0; padding: 0; border: none; background: transparent; }
+.pilot-wu { font-size: 30px; }
+.pilot-wu-sub { font-size: 14px; }
+.tmu-ok { color: var(--ok); font-weight: 600; }
+.tmu-over { color: var(--alert); font-weight: 600; }
+.tmu-check { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text); cursor: pointer; }
+.tmu-check input { accent-color: var(--accent); }
+
 </style>
 </head>
 <body>
 
-<header>
-  <div style="display:flex;align-items:baseline;gap:10px;">
-    <span class="brand">VATFLOW</span>
-    <span class="brandsub">CALL FOR RELEASE PRGM &middot; VATSIM</span>
-  </div>
-  <nav class="tabs">
-    <span class="tab active" data-tab="home">HOME</span>
-    <span class="tab" data-tab="meter">APT DASHBOARD</span>
-    <span class="tab" data-tab="mydash">MY DASHBOARD</span>
-    <span class="tab" data-tab="tmu">TMU</span>
-    <span class="tab" data-tab="restrict">RESTRICTIONS</span>
-    <span class="tab" data-tab="dep">DEPARTURES</span>
-    <span class="tab" data-tab="taximon">TAXI MONITOR</span>
-    <span class="tab" data-tab="pilot">PILOT</span>
-    <span class="tab" data-tab="help">HELP</span>
-  </nav>
-  <div id="meterCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
-    <input id="icaoInput" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off">
-    <datalist id="event-fields"></datalist>
-    <button id="meterBtn">LOAD</button>
-    <span style="font-size:11px;color:#56676f;">Rates are set on the TMU tab</span>
-  </div>
-  <div id="depCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
-    <span class="lbl">MY FIELD</span>
-    <input id="depInput" list="event-fields" placeholder="ICAO (e.g. KLAX)" maxlength="4" autocomplete="off">
-    <button id="depBtn">SET</button>
-  </div>
-  <div id="taximonCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
-    <span class="lbl">ADD FIELD</span>
-    <input id="taximonInput" list="event-fields" placeholder="ICAO (e.g. KATL)" maxlength="4" autocomplete="off">
-    <button id="taximonBtn">ADD</button>
-    <span style="font-size:11px;color:#56676f;">Up to 5 airports &middot; taxi times sync live via Firebase</span>
-  </div>
-  <div id="pilotCtl" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">
-    <span class="lbl">MY CID</span>
-    <input id="pilotCidInput" placeholder="VATSIM CID (e.g. 1234567)" maxlength="9" inputmode="numeric" autocomplete="off">
-    <button id="pilotBtn">LOOKUP</button>
-    <span style="font-size:11px;color:#56676f;">View only &middot; your flight, delays &amp; suggested wheels-up</span>
-  </div>
-  <div class="hdr-right">
-    <div id="lockCtl">
-      <button id="lockBtn" class="locked">VIEW ONLY</button>
-      <input id="pwInput" type="password" placeholder="control password" autocomplete="off" style="display:none;">
-      <button id="pwGo" style="display:none;">GO</button>
-      <span id="lockMsg"></span>
+<header class="app-header">
+  <div class="header-top">
+    <div class="brand-block">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 22 L14 6 L24 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 18 L20 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="14" cy="20" r="1.5" fill="currentColor"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand">VATFLOW</span>
+        <span class="brandsub">Call For Release &middot; VATSIM</span>
+      </div>
     </div>
-    <div id="syncCtl">
-      <span class="lbl">ROOM</span>
-      <input id="roomInput" placeholder="event name" maxlength="24" autocomplete="off">
-      <button id="syncBtn">CONNECT</button>
-      <button id="hubBtn" title="Connect to the global VATFLOW hub — one shared session, no room name">HUB</button>
-      <span id="syncStatus" class="synclocal">LOCAL ONLY</span>
+    <div class="header-tools">
+      <div id="lockCtl">
+        <button id="lockBtn" class="locked">View only</button>
+        <input id="pwInput" type="password" placeholder="control password" autocomplete="off" class="hidden">
+        <button id="pwGo" class="btn-secondary hidden">Go</button>
+        <span id="lockMsg"></span>
+      </div>
+      <div id="syncCtl">
+        <span class="lbl">Room</span>
+        <input id="roomInput" placeholder="event name" maxlength="24" autocomplete="off">
+        <button id="syncBtn" class="btn-primary">Connect</button>
+        <button id="hubBtn" class="btn-secondary" title="Connect to the global VATFLOW hub — one shared session, no room name">Hub</button>
+        <span id="syncStatus" class="sync-pill synclocal"><span class="status-dot muted"></span><span class="sync-label">Local</span></span>
+      </div>
+      <span id="feedStatus" class="feed-pill">FEED &mdash; &middot; DB &hellip;</span>
+      <span id="clock" class="clock">--:--:--<small>Z</small></span>
     </div>
-    <span id="feedStatus">FEED — &middot; DB …</span>
-    <span id="clock">--:--:--Z</span>
+  </div>
+  <div class="header-nav">
+    <nav class="tabs">
+      <div class="tab-group">
+        <span class="tab active" data-tab="home">Home</span>
+        <span class="tab" data-tab="meter">Apt Dashboard</span>
+        <span class="tab" data-tab="mydash">My Dashboard</span>
+        <span class="tab" data-tab="dep">Departures</span>
+      </div>
+      <div class="tab-group">
+        <span class="tab" data-tab="tmu">TMU</span>
+        <span class="tab" data-tab="restrict">Restrictions</span>
+        <span class="tab" data-tab="taximon">Taxi Monitor</span>
+      </div>
+      <div class="tab-group">
+        <span class="tab" data-tab="pilot">Pilot</span>
+        <span class="tab" data-tab="help">Help</span>
+      </div>
+    </nav>
+    <div class="tab-controls">
+      <div id="meterCtl" class="tab-ctl">
+        <input id="icaoInput" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off">
+        <datalist id="event-fields"></datalist>
+        <button id="meterBtn" type="button">Load</button>
+        <span class="hint-text">Rates are set on the TMU tab</span>
+      </div>
+      <div id="depCtl" class="tab-ctl">
+        <span class="lbl">My field</span>
+        <input id="depInput" list="event-fields" placeholder="ICAO (e.g. KLAX)" maxlength="4" autocomplete="off">
+        <button id="depBtn" type="button">Set</button>
+      </div>
+      <div id="taximonCtl" class="tab-ctl">
+        <span class="lbl">Add field</span>
+        <input id="taximonInput" list="event-fields" placeholder="ICAO (e.g. KATL)" maxlength="4" autocomplete="off">
+        <button id="taximonBtn" type="button">Add</button>
+        <span class="hint-text">Up to 5 airports &middot; taxi times sync live</span>
+      </div>
+      <div id="pilotCtl" class="tab-ctl">
+        <span class="lbl">My CID</span>
+        <input id="pilotCidInput" placeholder="VATSIM CID (e.g. 1234567)" maxlength="9" inputmode="numeric" autocomplete="off">
+        <button id="pilotBtn" type="button">Lookup</button>
+        <span class="hint-text">View only &middot; your flight, delays &amp; suggested wheels-up</span>
+      </div>
+    </div>
   </div>
 </header>
 
 <div id="content"></div>
-<div id="gsPopup" style="display:none;"></div>
+<div id="gsPopup" class="hidden"></div>
 
 <script src="approach-sector-data.js"></script>
 <script>
@@ -526,16 +836,41 @@ const issuedEdcts = {}; // callsign -> { t, order, pulledUntil } (manual EDCT re
 const EDCT_FLASH_MS = 60000;  // how long a pulled-up CFR stays highlighted
 const CFR_THRESHOLD = 60000;  // wheels-up within this of now = no delay needed -> RELEASED
 /* read-only CFR cell shown when the viewer is not an authenticated controller */
+function cfrReleasedHtml() {
+  return '<span class="cfr-badge cfr-badge--released"><span class="status-dot ok"></span> Released</span>';
+}
+function cfrNowHtml(callsign) {
+  return '<span class="cfr-badge cfr-badge--now"><span class="status-dot warn pulse"></span> Release now</span>' +
+    '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
+}
+function cfrCountdownHtml(wheelsUp, now, pulled, callsign) {
+  const tmin = Math.max(0, Math.round((wheelsUp - now) / 60000));
+  if (pulled) {
+    return '<span class="cfr-badge cfr-badge--pulled">\u25BC ' + fmtZ(wheelsUp) + 'Z' +
+      '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
+      '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
+  }
+  return '<span class="cfr-badge cfr-badge--countdown">' + fmtZ(wheelsUp) + 'Z' +
+    '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
+    '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
+}
+function cfrIssueHtml(callsign, wheelsUp) {
+  return '<button class="edctbtn" data-issue="' + esc(callsign) + '" data-wu="' + Math.round(wheelsUp) + '">CFR time</button>' +
+    '<span class="cfr-sugg">sugg ' + fmtZ(wheelsUp) + 'Z</span>';
+}
+function delayClass(ms) {
+  return ms > 15 * 60000 ? "cell-alert" : ms > 5 * 60000 ? "cell-warn" : "cell-ok";
+}
 function lockedCfrHtml(e, now, suggestedWu) {
   if (!e.edctIssued) {
     const wu = suggestedWu != null ? suggestedWu : e.wheelsUp;
-    if (wu == null || wu <= now + CFR_THRESHOLD) return '<span class="released">\u2713 RELEASED</span>';
+    if (wu == null || wu <= now + CFR_THRESHOLD) return cfrReleasedHtml();
     return '<span class="lockcfr">CFR ~' + fmtZ(wu) + 'Z</span>';
   }
-  if (e.releaseNow) return '<span class="relnow" style="cursor:default;">\u25B2 DUE</span>';
+  if (e.releaseNow) return '<span class="cfr-badge cfr-badge--now"><span class="status-dot warn pulse"></span> Due</span>';
   const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
-  return '<span style="color:#f5a83d;font-weight:600;">' + fmtZ(e.wheelsUp) +
-    'Z<span style="color:#56676f;font-weight:400;"> (T\u2212' + tmin + 'm)</span></span>';
+  return '<span class="cfr-badge cfr-badge--countdown">' + fmtZ(e.wheelsUp) + 'Z' +
+    '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>';
 }
 let lastWireSeen = "";  // JSON of last synced state, to ignore Firebase echoes
 let ladderScrollPos = null;  // preserved scroll position; null = scroll to NOW
@@ -936,14 +1271,15 @@ function maybeAnnounceGroundStops() {
 function showGsPopup(gs) {
   const el = document.getElementById("gsPopup");
   if (!el) return;
-  el.innerHTML = '<span class="gspoptitle">\u26D4 GROUND STOP</span>' +
+  el.innerHTML = '<span class="gspoptitle"><span class="status-dot alert pulse"></span> Ground stop</span>' +
     '<span class="gspopbody"><b>' + esc((gs.airport || "?").toUpperCase()) + '</b>' +
-    (gs.scope ? ' \u00B7 ' + esc(gs.scope.toUpperCase()) : ' \u00B7 ALL DEPARTURES') +
+    (gs.scope ? ' \u00B7 ' + esc(gs.scope.toUpperCase()) : ' \u00B7 all departures') +
     ' \u00B7 until ' + esc(fmtUntil(gs.until)) + '</span>' +
-    '<span class="gspopx" data-gspopx>\u2715</span>';
+    '<button class="gspopx" data-gspopx aria-label="Dismiss">\u00D7</button>';
+  el.classList.remove("hidden");
   el.style.display = "flex";
   clearTimeout(showGsPopup._t);
-  showGsPopup._t = setTimeout(() => { el.style.display = "none"; }, 30000);
+  showGsPopup._t = setTimeout(() => { el.classList.add("hidden"); el.style.display = "none"; }, 30000);
 }
 /* ===================== end ground stops ===================== */
 function arrivalGate(route, arr) {
@@ -1474,7 +1810,7 @@ function renderHeaderStatus() {
     windInfo.status === "ok" ? "  \u00B7  WINDS " + windInfo.count :
     windInfo.status === "error" ? "  \u00B7  WINDS \u2014" : "";
   el.textContent = feedTxt + "  \u00B7  DB " + dbTxt + windTxt;
-  el.className = feedStatus === "error" ? "err" : "";
+  el.className = "feed-pill" + (feedStatus === "error" ? " err" : "");
 }
 
 function renderContent() {
@@ -1515,11 +1851,20 @@ function restoreFocus(refocus) {
 function renderMeter(refocus) {
   if (!icao) {
     contentEl.innerHTML =
-      '<div class="splash">' +
-      '<h2>SELECT AN EVENT FIELD TO BEGIN METERING</h2>' +
-      '<p>Pick an airport from the list or type any ICAO, set the airport arrival rate (AAR), and press METER.<br>' +
-      'Inbounds are sequenced to scheduled times of arrival; undeparted traffic receives a Call For Release (CFR) time sized to absorb its delay on the ground.</p>' +
-      '</div>';
+      '<div class="emptystate">' +
+      '<h2>Apt Dashboard</h2>' +
+      '<p>Enter an arrival airport and press Load to view inbound traffic, demand vs. AAR, and the arrival ladder.</p>' +
+      '<div class="emptystate-actions">' +
+      '<input id="splashIcao" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off" class="field-input field-input--wide">' +
+      '<button type="button" class="btn-primary" id="splashLoad">Load</button>' +
+      '</div></div>';
+    const si = document.getElementById("splashIcao");
+    const sl = document.getElementById("splashLoad");
+    if (si && sl) {
+      si.addEventListener("input", () => { si.value = si.value.toUpperCase(); });
+      si.addEventListener("keydown", e => { if (e.key === "Enter") { icaoInput.value = si.value; activate(); } });
+      sl.addEventListener("click", () => { icaoInput.value = si.value; activate(); });
+    }
     return;
   }
   const flow = computeFlow(icao);
@@ -1541,17 +1886,17 @@ function renderMeter(refocus) {
 
   let h = '<div class="strip">' +
     '<span class="field">' + esc(icao) + '</span>' +
-    (!flow.arrPt ? '<span style="color:#f25555;font-size:11px;">NO COORDS FOR FIELD \u2014 ETAs estimated</span>' : '') +
+    (!flow.arrPt ? '<span class="strip-warn">No coords for field \u2014 ETAs estimated</span>' : '') +
     stat("INBOUND", inbound) +
-    stat("AIRBORNE", air, "#57d98a") +
-    stat("GROUND", gnd, "#f5a83d") +
-    stat("PROPOSED", pro, "#54b8e8") +
-    (arr ? stat("ARRIVED", arr, "#56676f") : "") +
-    stat("DEMAND / AAR (60 MIN)", flow.demandHr + " / " + mRate.aar, over ? "#f25555" : "#57d98a");
+    stat("AIRBORNE", air, "stat-ok") +
+    stat("GROUND", gnd, "stat-warn") +
+    stat("PROPOSED", pro, "stat-info") +
+    (arr ? stat("ARRIVED", arr, "stat-muted") : "") +
+    stat("DEMAND / AAR (60 MIN)", flow.demandHr + " / " + mRate.aar, over ? "stat-alert" : "stat-ok");
   if (flow.topGates.length) {
-    h += '<span style="font-size:11px;color:#56676f;">GATES ' +
+    h += '<span class="strip-gates">Gates ' +
       flow.topGates.map(([g,n]) =>
-        '<span style="color:' + flow.gateColors[g] + ';margin-left:8px;">' + esc(g) + '\u00B7' + n + '</span>'
+        '<span class="gate-tag" style="color:' + flow.gateColors[g] + ';">' + esc(g) + '\u00B7' + n + '</span>'
       ).join("") + '</span>';
   }
   h += '</div>';
@@ -1582,58 +1927,51 @@ function renderMeter(refocus) {
       ).join("") +
       '</tr></thead><tbody>';
     visible.forEach(f => {
-      const dlyColor = f.delay > 15*60000 ? "#f25555" : f.delay > 5*60000 ? "#f5a83d" : "#57d98a";
+      const dlyCls = delayClass(f.delay);
       const gs = (f.status === "GROUND" && !f.vfr) ? groundStopFor(f.dep, icao) : null;
       let edct;
       if (f.status === "ARRIVED") {
-        edct = '<span style="color:#56676f;">ARRIVED</span>';
+        edct = '<span class="cell-muted">Arrived</span>';
       } else if (f.vfr) {
-        edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+        edct = '<span class="vfrtag">VFR \u2014 no CFR</span>';
       } else if (f.excluded) {
-        edct = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
+        edct = '<span class="excludedtag">Excluded \u2014 no CFR</span>';
       } else if (f.flightTimeMs == null) {
-        edct = '<span style="color:#3a4750;">AIRBORNE</span>';
+        edct = '<span class="cell-dim">Airborne</span>';
       } else if (f.status === "PROPOSED") {
-        edct = '<span style="color:#54b8e8;">PENDING \u2014 NOT CONNECTED</span>';
+        edct = '<span class="cell-info">Pending \u2014 not connected</span>';
       } else if (gs) {
-        edct = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
+        edct = '<span class="gsflag"><span class="status-dot alert pulse"></span> GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
       } else if (!canControl()) {
         edct = lockedCfrHtml(f, flow.now, f.wheelsUp);
       } else if (!f.edctIssued && !f.needsCfr) {
-        edct = '<span class="released">\u2713 RELEASED</span>';
+        edct = cfrReleasedHtml();
       } else if (!f.edctIssued) {
-        edct = '<button class="edctbtn" data-issue="' + esc(f.callsign) + '" data-wu="' + Math.round(f.wheelsUp) + '">CFR TIME</button>' +
-          '<span style="color:#3a4750;font-size:10px;"> sugg ' + fmtZ(f.wheelsUp) + 'Z</span>';
+        edct = cfrIssueHtml(f.callsign, f.wheelsUp);
       } else if (f.releaseNow) {
-        edct = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
-          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel CFR">\u2715</span>';
+        edct = cfrNowHtml(f.callsign);
       } else {
-        const tmin = Math.max(0, Math.round((f.wheelsUp - flow.now) / 60000));
-        const cls = f.pulled ? "edctpulled" : "";
-        const sub = f.pulled ? "sub" : "";
-        edct = '<span class="' + cls + '" style="' + (f.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
-          (f.pulled ? "\u25BC " : "") + fmtZ(f.wheelsUp) + 'Z' +
-          '<span class="' + sub + '" style="' + (f.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
-          '<span class="edctcxl" data-cxl="' + esc(f.callsign) + '" title="Cancel CFR">\u2715</span>';
+        edct = cfrCountdownHtml(f.wheelsUp, flow.now, f.pulled, f.callsign);
       }
+      const gateColor = flow.gateColors[f.gate] || "";
       h += '<tr>' +
-        '<td style="color:#56676f;">' + f.seq + '</td>' +
-        '<td style="color:#e8f0f4;font-weight:600;">' + esc(f.callsign) + '</td>' +
+        '<td class="cell-muted">' + f.seq + '</td>' +
+        '<td class="cell-strong">' + esc(f.callsign) + '</td>' +
         '<td>' + esc(f.type) + '</td>' +
         '<td>' + esc(f.dep) + '</td>' +
-        '<td style="color:' + (flow.gateColors[f.gate] || "#8fa3af") + ';">' + esc(f.gate) + '</td>' +
-        '<td style="color:' + statusColor(f) + ';">' + f.status + (f.est ? "*" : "") + '</td>' +
+        '<td class="cell-gate"' + (gateColor ? ' style="color:' + gateColor + ';"' : '') + '>' + esc(f.gate) + '</td>' +
+        '<td class="' + (f.status === "AIRBORNE" ? "cell-ok" : f.status === "GROUND" ? "cell-warn" : f.status === "PROPOSED" ? "cell-info" : "cell-muted") + '">' + f.status + (f.est ? "*" : "") + '</td>' +
         '<td>' + Math.round(f.dist) + '</td>' +
         '<td>' + (f.gs || "\u2014") + '</td>' +
         '<td>' + fmtZ(f.eta) + '</td>' +
-        '<td style="color:#e8f0f4;">' + fmtZ(f.sta) + '</td>' +
-        '<td style="color:' + dlyColor + ';">' + fmtDelay(f.delay) + '</td>' +
+        '<td class="cell-strong">' + fmtZ(f.sta) + '</td>' +
+        '<td class="' + dlyCls + '">' + fmtDelay(f.delay) + '</td>' +
         '<td>' + edct + '</td>' +
         '</tr>';
     });
     if (!visible.length) {
       h += '<tr><td colspan="' + COLUMNS.length +
-        '" style="text-align:center;color:#56676f;padding:24px;">NO FLIGHTS MATCH THE ACTIVE FILTERS</td></tr>';
+        '" class="cell-empty">No flights match the active filters</td></tr>';
     }
     h += '</tbody></table>';
   }
@@ -1703,10 +2041,10 @@ function renderHome() {
   const codes = Object.keys(tmuRates).sort();
 
   let h = '<div class="homewrap">' +
-    '<div class="homehead">vNAS \u00B7 VIRTUAL NATIONAL AIRSPACE STATUS</div>';
+    '<div class="homehead">vNAS &middot; Virtual National Airspace Status</div>';
 
   /* active TMU programs */
-  h += '<div class="homesec">FLOW PROGRAMS</div>';
+  h += '<div class="homesec">Flow programs</div>';
   if (!codes.length) {
     h += '<div class="homenone">No active flow programs. Set one on the TMU tab.</div>';
   } else {
@@ -1733,16 +2071,19 @@ function renderHome() {
         }
         if (flow.demandHr > r.aar && cls === "ok") cls = "warn";
       }
+      let meta = "";
+      if (flow && r) meta = "AAR " + r.aar;
       h += '<div class="homerow ' + cls + '">' +
         '<span class="homefield">' + esc(code) + '</span>' +
-        '<span class="hometxt">restrictions active \u2014 ' + delayTxt + '</span>' +
+        '<span class="hometxt">Restrictions active \u2014 ' + delayTxt + '</span>' +
+        (meta ? '<span class="homemeta">' + esc(meta) + '</span>' : '<span></span>') +
         '</div>';
     }
     h += '</div>';
   }
 
   /* departure taxi time summaries */
-  h += '<div class="homesec">DEPARTURE TAXI TIMES</div>';
+  h += '<div class="homesec">Departure taxi times</div>';
   const taxiCodes = getTaxiAirportCodes();
   if (!taxiCodes.length) {
     h += '<div class="homenone">No departure fields are being monitored. A controller can add them on the TAXI MONITOR tab.</div>';
@@ -1763,9 +2104,11 @@ function renderHome() {
         else if (sum.trend !== "stable") delayTxt += " with light volume";
         cls = sum.avgMin >= 15 ? "hi" : sum.avgMin >= 10 ? "warn" : "ok";
       }
+      let meta = sum ? "avg " + sum.avgMin + " min" : "";
       h += '<div class="homerow ' + cls + '">' +
         '<span class="homefield">' + esc(code) + '</span>' +
-        '<span class="hometxt">' + delayTxt + '</span>' +
+        '<span class="hometxt">' + delayTxt.charAt(0).toUpperCase() + delayTxt.slice(1) + '</span>' +
+        (meta ? '<span class="homemeta">' + esc(meta) + '</span>' : '<span></span>') +
         '</div>';
     }
     h += '</div>';
@@ -1780,71 +2123,77 @@ function renderHelp() {
   const relMin = DEP_RELEASE_INT / 60000;
   contentEl.innerHTML =
     '<div class="helpwrap">' +
-    '<div class="helptitle">Quick Reference</div>' +
+    '<div class="helptitle">Quick reference</div>' +
     '<p class="helpintro">VATFLOW meters arrivals and issues Call For Release (CFR) times for VATSIM events. ' +
-    'Live traffic comes from the VATSIM feed (refreshes every 30 seconds). Open this tab anytime you need a refresher.</p>' +
+    'Live traffic comes from the VATSIM feed (refreshes every 30 seconds).</p>' +
+    '<div class="help-quickstart">' +
+    '<span><b>1.</b> Set AAR on TMU</span>' +
+    '<span><b>2.</b> Watch arrivals on Apt Dashboard</span>' +
+    '<span><b>3.</b> Issue CFR times on Departures</span>' +
+    '</div>' +
+    '<div class="help-layout">' +
+    '<nav class="help-nav">' +
+    '<a href="#help-pages">Pages</a>' +
+    '<a href="#help-cfr">CFR</a>' +
+    '<a href="#help-metering">Metering</a>' +
+    '<a href="#help-sync">Sync</a>' +
+    '<a href="#help-terms">Terms</a>' +
+    '</nav>' +
+    '<div class="help-main">' +
 
-    '<div class="helpsec">Pages</div>' +
-    '<div class="helpcard"><h3>HOME</h3><ul class="helplist">' +
+    '<div class="helpsec" id="help-pages">Pages</div>' +
+    '<details class="help-acc" open><summary>Home</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Overview of every active flow program and its average delay.</li>' +
-    '<li><b>Departure taxi times</b> — per-airport averages from the Taxi Monitor, with trend and volume context.</li></ul></div>' +
-    '<div class="helpcard"><h3>APT DASHBOARD</h3><ul class="helplist">' +
-    '<li>Enter an arrival airport and press <b>LOAD</b> to see inbound traffic, demand vs. AAR, and the arrival ladder.</li>' +
+    '<li><b>Departure taxi times</b> — per-airport averages from the Taxi Monitor, with trend and volume context.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>Apt Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Enter an arrival airport and press <b>Load</b> to see inbound traffic, demand vs. AAR, and the arrival ladder.</li>' +
     '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
-    '<li>Sort any column by clicking its header; click again to reverse. Column # restores metered sequence order.</li>' +
-    '<li>Filter boxes under headers: type to match text, or use <b>&gt;n</b> <b>&lt;n</b> <b>&gt;=n</b> <b>&lt;=n</b> on numeric columns (times as HHMM, delay in minutes). Filters affect the table only — stats and the ladder still include all traffic.</li>' +
-    '<li>The arrival ladder scrolls; NOW is at the bottom. Use <b>+</b> / <b>&minus;</b> to widen or narrow the time window. Drag the ladder\u2019s left border to make the panel wider or narrower &mdash; the size is remembered.</li></ul></div>' +
-    '<div class="helpcard"><h3>MY DASHBOARD</h3><ul class="helplist">' +
-    '<li>Add up to 20 departure airports you are working. Shows one combined list of pending ground departures from all of them.</li>' +
-    '<li>Airborne and arrived aircraft are excluded. Your airport list is saved on this device only.</li></ul></div>' +
-    '<div class="helpcard"><h3>TMU</h3><ul class="helplist">' +
-    '<li>Set flow programs: <b>AAR</b> (arrivals per hour), <b>ROUTE TRAIL</b> (minutes-in-trail), and optional <b>MIT</b> (miles-in-trail — overrides minutes when set).</li>' +
-    '<li><b>Rate Calculator</b> sub-tab: enter airport tier, max AAR, full staffing, and controllers on duty to get a recommended AAR; optional position checklist refines the estimate; <b>Apply to program</b> copies the result into the active TMU program.</li>' +
+    '<li>Sort any column by clicking its header; click again to reverse.</li>' +
+    '<li>Filter boxes under headers support text match or <b>&gt;n</b> <b>&lt;n</b> on numeric columns.</li>' +
+    '<li>The arrival ladder scrolls; NOW is at the bottom. Drag the left border to resize the panel.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>My Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Add up to 20 departure airports. Shows one combined list of pending ground departures.</li>' +
+    '<li>Your airport list is saved on this device only.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>TMU</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Set flow programs: <b>AAR</b>, <b>route trail</b>, and optional <b>MIT</b>.</li>' +
+    '<li><b>Rate Calculator</b> sub-tab recommends an AAR from staffing inputs.</li>' +
     '<li>Add up to 10 <b>gate restrictions</b> per airport for STAR/fix-specific spacing.</li>' +
-    '<li><b>Aircraft exclusion</b> on each program: exclude wake category L (most props), <b>jets/turbines only</b> (uses a bundled type reference), or comma-separated ICAO types (e.g. C172, PA28). Excluded traffic still appears on the dashboard but does not consume AAR slots or receive CFRs. VFR is always excluded separately.</li>' +
-    '<li>Programs apply everywhere: APT Dashboard, Departures, and CFR times.</li></ul></div>' +
-    '<div class="helpcard"><h3>RESTRICTIONS</h3><ul class="helplist">' +
-    '<li><b>Restrictions</b> — free-form entries (requesting, providing, restriction text, start/stop times). Shared live when connected.</li>' +
-    '<li><b>Ground Stops</b> — holds ground departures into a named airport. Leave scope blank for a field-wide stop, or enter ARTCC/FIR codes (e.g. ZTL ZJX) to scope by departure region.</li></ul></div>' +
-    '<div class="helpcard"><h3>DEPARTURES</h3><ul class="helplist">' +
-    '<li>Set <b>MY FIELD</b> in the header to your tower airport. Shows ground and prefiled departures only — airborne flights drop off once they leave.</li>' +
-    '<li>CFR controls appear for destinations that have a TMU program.</li></ul></div>' +
-    '<div class="helpcard"><h3>TAXI MONITOR</h3><ul class="helplist">' +
-    '<li><b>View only</b> for visitors. Adding or removing the up to <b>5 monitored airports</b> is <b>TMU access only</b> \u2014 unlock with the control password first.</li>' +
-    '<li>The monitored field list is <b>shared</b> via Firebase, so every visitor sees the same airports a controller has added.</li>' +
-    '<li>Tracks ground departures: timer starts when groundspeed exceeds <b>10 kt</b>, stops at <b>60 kt</b> or when altitude climbs 100 ft from the roll start.</li>' +
-    '<li>Completed taxi times sync live via <b>Firebase</b> so all visitors see the same samples. Summarized on the <b>HOME</b> tab.</li></ul></div>' +
-    '<div class="helpcard"><h3>PILOT</h3><ul class="helplist">' +
-    '<li>For pilots: enter your <b>VATSIM CID</b> in the header and press <b>LOOKUP</b> to see your active flight, filed plan, and any flow delay. View only.</li>' +
-    '<li>If your destination is being metered and you need a delay, the page shows a <b>SUGGESTED WHEELS-UP</b> time. This is computed automatically, so you can self-meter even when no departure controller is online to issue a CFR.</li>' +
-    '<li>If a controller has already issued you a CFR, that assigned time is shown instead. Your CID is saved on this device.</li></ul></div>' +
+    '<li><b>Aircraft exclusion</b> options per program. VFR is always excluded.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>Restrictions</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Free-form restriction entries shared live when connected.</li>' +
+    '<li><b>Ground stops</b> hold ground departures into a named airport.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>Departures</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Set your tower field in the header. Shows ground and prefiled departures only.</li>' +
+    '<li>CFR controls appear for destinations with a TMU program.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
+    '<li>Tracks ground departures from 10 kt to 60 kt or climb.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Enter your VATSIM CID to see your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
 
-    '<div class="helpsec">Call For Release (CFR)</div>' +
-    '<div class="helpcard"><ul class="helplist">' +
-    '<li>CFR is <b>manual</b>. When metering requires a delay, a suggested wheels-up time appears. Press <b>CFR TIME</b> to lock it and reserve the slot.</li>' +
-    '<li><b>RELEASED</b> — no delay needed; release at will.</li>' +
-    '<li><b>RELEASE NOW</b> — wheels-up time has arrived.</li>' +
-    '<li><b>\u2715</b> on an issued CFR cancels it and pulls remaining CFRs into the freed slot.</li>' +
-    '<li>First aircraft issued gets the earliest available time. A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li>' +
-    '<li>VFR flights are never metered. Aircraft excluded by the TMU program show <b>EXCLUDED \u2014 NO CFR</b>. Proposed (not connected) flights show <b>PENDING</b>.</li></ul></div>' +
+    '<div class="helpsec" id="help-cfr">Call For Release</div>' +
+    '<details class="help-acc" open><summary>CFR workflow</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock a suggested wheels-up and reserve the slot.</li>' +
+    '<li><b>Released</b> — no delay needed; release at will.</li>' +
+    '<li><b>Release now</b> — wheels-up time has arrived.</li>' +
+    '<li>Cancel an issued CFR to pull remaining CFRs into the freed slot.</li>' +
+    '<li>A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li></ul></div></details>' +
 
-    '<div class="helpsec">How metering works</div>' +
-    '<div class="helpcard"><ul class="helplist">' +
-    '<li><b>Airborne</b> — flies their ETA. Delay is assigned only when spacing with other traffic requires it (AAR interval plus route/gate trail).</li>' +
-    '<li><b>Ground / Proposed</b> — slotted around fixed airborne arrival times; delay is absorbed on the ground via CFR.</li>' +
-    '<li>ETE uses great-circle distance \u00D7 1.12 at filed cruise speed, plus 14 minutes for climb/descent. US routes may adjust for winds aloft.</li>' +
-    '<li>Ground departures are assumed ready now. Proposed flights use filed departure time (minimum 20 minutes from now).</li>' +
-    '<li>An asterisk (*) on distance means the departure airport was not found in the database — distance is estimated.</li></ul></div>' +
+    '<div class="helpsec" id="help-metering">How metering works</div>' +
+    '<details class="help-acc"><summary>Sequencing logic</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li><b>Airborne</b> — flies their ETA; delay assigned only when spacing requires it.</li>' +
+    '<li><b>Ground / Proposed</b> — slotted around airborne arrivals; delay absorbed via CFR.</li>' +
+    '<li>ETE uses great-circle distance at filed cruise speed, plus climb/descent time.</li>' +
+    '<li>US routes may adjust for winds aloft.</li></ul></div></details>' +
 
-    '<div class="helpsec">Sync &amp; access</div>' +
-    '<div class="helpcard"><ul class="helplist">' +
-    '<li><b>VIEW ONLY</b> (default) — read the schedule and suggested CFR times. Unlock with the control password to issue CFRs and edit programs.</li>' +
-    '<li><b>CONNECT</b> — join a named room to share programs, CFRs, restrictions, and ground stops via Firebase.</li>' +
-    '<li><b>Taxi times</b> sync globally via Firebase (<code>taximon/samples</code>) — all site visitors share the same taxi log. The monitored field list (<code>taximon/airports</code>) is shared too and can only be changed by an unlocked controller.</li>' +
-    '<li><b>HUB</b> — join the global shared session (no room name needed).</li>' +
-    '<li><b>\u25CF LIVE</b> — connected and syncing. <b>LOCAL ONLY</b> — working solo.</li></ul></div>' +
+    '<div class="helpsec" id="help-sync">Sync &amp; access</div>' +
+    '<details class="help-acc"><summary>Multi-controller sync</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li><b>View only</b> (default) — unlock with the control password to issue CFRs.</li>' +
+    '<li><b>Connect</b> — join a named room to share programs, CFRs, and restrictions.</li>' +
+    '<li><b>Hub</b> — join the global shared session (no room name needed).</li>' +
+    '<li><span class="status-dot live"></span> <b>Live</b> — connected and syncing.</li></ul></div></details>' +
 
-    '<div class="helpsec">Key terms</div>' +
+    '<div class="helpsec" id="help-terms">Key terms</div>' +
     '<dl class="helpterms">' +
     '<dt>CFR</dt><dd>Call For Release — assigned wheels-up time for a departure.</dd>' +
     '<dt>AAR</dt><dd>Airport Arrival Rate — arrivals per hour the field can accept.</dd>' +
@@ -1854,8 +2203,8 @@ function renderHelp() {
     '<dt>TMU</dt><dd>Traffic Management Unit — sets rates and restrictions.</dd>' +
     '</dl>' +
 
-    '<p class="helpintro" style="margin-top:32px;margin-bottom:0;font-size:13px;">For simulation on VATSIM only — not for real-world ATC or flight planning.</p>' +
-    '</div>';
+    '<p class="helpintro helpintro--footer">For simulation on VATSIM only — not for real-world ATC or flight planning.</p>' +
+    '</div></div></div>';
 }
 
 /* ---------- RESTRICTIONS view: TMU restriction entries ---------- */
@@ -1864,8 +2213,8 @@ function genId() { return "r" + Date.now().toString(36) + Math.random().toString
 function renderRestrict() {
   const now = Date.now();
   const subBar = '<div class="subtabs">' +
-    '<span class="subtab' + (restrictSub === "restr" ? " active" : "") + '" data-restrsub="restr">RESTRICTIONS</span>' +
-    '<span class="subtab' + (restrictSub === "gs" ? " active" : "") + '" data-restrsub="gs">GROUND STOPS' +
+    '<span class="subtab' + (restrictSub === "restr" ? " active" : "") + '" data-restrsub="restr">Restrictions</span>' +
+    '<span class="subtab' + (restrictSub === "gs" ? " active" : "") + '" data-restrsub="gs">Ground stops' +
     (groundStops.filter(g => g.airport).length ? ' <span class="subbadge">' + groundStops.filter(g => g.airport).length + '</span>' : '') +
     '</span></div>';
 
@@ -1876,13 +2225,13 @@ function renderRestrict() {
   const ctl = canControl();
 
   let h = subBar + '<div class="tmuform">' +
-    (ctl ? '<button data-restradd>+ ADD RESTRICTION</button>' : '<span class="viewonly" style="margin:0;">VIEW ONLY</span>') +
+    (ctl ? '<button data-restradd>+ ADD RESTRICTION</button>' : '<span class="viewonly viewonly--inline">View only</span>') +
     '<span class="lbl" style="margin-left:14px;">FILTER REQ</span>' +
-    '<input id="rfReq" data-keep="rfReq" placeholder="requesting" autocomplete="off" value="' + esc(restrictFilters.requesting) + '" style="width:120px;">' +
+    '<input id="rfReq" data-keep="rfReq" placeholder="requesting" autocomplete="off" value="' + esc(restrictFilters.requesting) + '" class="input-narrow">' +
     '<span class="lbl">FILTER PROV</span>' +
-    '<input id="rfProv" data-keep="rfProv" placeholder="providing" autocomplete="off" value="' + esc(restrictFilters.providing) + '" style="width:120px;">' +
+    '<input id="rfProv" data-keep="rfProv" placeholder="providing" autocomplete="off" value="' + esc(restrictFilters.providing) + '" class="input-narrow">' +
     (fReq || fProv ? '<span class="tmuact" data-restrclearf style="margin-left:8px;">clear filters</span>' : '') +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Free-form entries, shared live with all connected TMU positions. New rows flash for 30s.</span>' +
+    '<span class="form-note">Free-form entries, shared live with all connected TMU positions. New rows flash for 30s.</span>' +
     '</div>';
 
   const visible = restrictions.filter(x => {
@@ -1892,14 +2241,14 @@ function renderRestrict() {
   });
 
   if (!restrictions.length) {
-    h += '<div class="homenone" style="padding:40px 20px;">No active restrictions.' + (ctl ? ' Click + ADD RESTRICTION to post one.' : '') + '</div>';
+    h += '<div class="homenone homenone--pad">No active restrictions.' + (ctl ? ' Click + ADD RESTRICTION to post one.' : '') + '</div>';
   } else {
-    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
-      '<th style="width:16%;">REQUESTING</th><th style="width:16%;">PROVIDING</th>' +
-      '<th>RESTRICTION</th><th style="width:13%;">START TIME</th><th style="width:13%;">STOP TIME</th>' +
-      (ctl ? '<th style="width:60px;"></th>' : '') + '</tr></thead><tbody>';
+    h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
+      '<th class="td-w-16">REQUESTING</th><th class="td-w-16">PROVIDING</th>' +
+      '<th>RESTRICTION</th><th class="td-w-13">START TIME</th><th class="td-w-13">STOP TIME</th>' +
+      (ctl ? '<th class="td-w-60"></th>' : '') + '</tr></thead><tbody>';
     if (!visible.length) {
-      h += '<tr><td colspan="' + (ctl ? 6 : 5) + '" style="text-align:center;color:#56676f;padding:24px;">NO RESTRICTIONS MATCH THE FILTER</td></tr>';
+      h += '<tr><td colspan="' + (ctl ? 6 : 5) + '" class="cell-empty">NO RESTRICTIONS MATCH THE FILTER</td></tr>';
     } else {
       for (const x of visible) {
         const complete = x.requesting && x.providing && x.restriction && x.start && x.stop;
@@ -1932,19 +2281,19 @@ function renderGroundStops(now) {
     : boundariesStatus === "ok" ? "boundaries loaded"
     : boundariesStatus === "error" ? "boundary data unavailable \u2014 scope matching limited" : "";
   let h = '<div class="tmuform">' +
-    (ctl ? '<button data-gsadd>+ ADD GROUND STOP</button>' : '<span class="viewonly" style="margin:0;">VIEW ONLY</span>') +
-    '<span style="font-size:11px;color:#56676f;margin-left:12px;">Holds GROUND departures into the named airport that originate inside the scoped ARTCC/FIR(s). ' +
+    (ctl ? '<button data-gsadd>+ ADD GROUND STOP</button>' : '<span class="viewonly viewonly--inline">View only</span>') +
+    '<span class="form-note">Holds GROUND departures into the named airport that originate inside the scoped ARTCC/FIR(s). ' +
     'Leave SCOPE blank for a field-wide stop. ' + (bStat ? '<span style="color:#7d8a93;">\u00B7 ' + bStat + '</span>' : '') + '</span>' +
     '</div>';
 
   if (!groundStops.length) {
-    h += '<div class="homenone" style="padding:40px 20px;">No active ground stops.' + (ctl ? ' Click + ADD GROUND STOP to issue one.' : '') + '</div>';
+    h += '<div class="homenone homenone--pad">No active ground stops.' + (ctl ? ' Click + ADD GROUND STOP to issue one.' : '') + '</div>';
     return h;
   }
-  h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
-    '<th style="width:16%;">AIRPORT</th><th style="width:26%;">SCOPE (ARTCC/FIR)</th>' +
-    '<th style="width:16%;">UNTIL (Zxxxx)</th><th>UPDATED (date/time)</th>' +
-    (ctl ? '<th style="width:60px;"></th>' : '') + '</tr></thead><tbody>';
+  h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
+    '<th class="td-w-16">AIRPORT</th><th class="td-w-26">SCOPE (ARTCC/FIR)</th>' +
+    '<th class="td-w-16">UNTIL (Zxxxx)</th><th>UPDATED (date/time)</th>' +
+    (ctl ? '<th class="td-w-60"></th>' : '') + '</tr></thead><tbody>';
   for (const x of groundStops) {
     const flash = x.airport && x.flashUntil && x.flashUntil > now ? " gsflash" : "";
     if (ctl) {
@@ -1957,7 +2306,7 @@ function renderGroundStops(now) {
         '</tr>';
     } else {
       h += '<tr class="restrrow' + flash + '">' +
-        '<td style="color:#e8f0f4;font-weight:600;">' + esc(x.airport) + '</td>' +
+        '<td class="cell-strong">' + esc(x.airport) + '</td>' +
         '<td>' + esc(x.scope || "ALL DEPARTURES") + '</td>' +
         '<td>' + esc(fmtUntil(x.until)) + '</td><td>' + esc(x.updated) + '</td></tr>';
     }
@@ -1981,46 +2330,46 @@ function renderMyDash() {
 
   let h = '<div class="tmuform">' +
     '<span class="lbl">ADD AIRPORT</span>' +
-    '<input id="mydashIcao" data-keep="mydashIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" style="width:110px;letter-spacing:.12em;">' +
+    '<input id="mydashIcao" data-keep="mydashIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" class="input-narrow--110">' +
     '<button data-mydashadd>ADD</button>' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + myAirports.length + ' / 20 airports \u00B7 shows pending GROUND departures from all of them as one list</span>' +
+    '<span class="form-note">' + myAirports.length + ' / 20 airports \u00B7 shows pending GROUND departures from all of them as one list</span>' +
     '</div>';
 
   h += '<div class="mydashchips">';
   if (!myAirports.length) {
-    h += '<span style="color:#56676f;font-size:12px;">No airports added yet.</span>';
+    h += '<span class="cell-muted">No airports added yet.</span>';
   } else {
     for (const a of myAirports)
       h += '<span class="apchip">' + esc(a) + '<span class="apchipx" data-airport-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
   h += '</div>';
 
-  h += '<div class="tmuform" style="border-top:1px solid #1a232d;">' +
+  h += '<div class="tmuform tmuform--border-top">' +
     '<span class="lbl">ADD ARTCC</span>' +
-    '<input id="mydashArtcc" data-keep="mydashArtcc" maxlength="5" placeholder="ZJX" autocomplete="off" style="width:80px;letter-spacing:.12em;">' +
+    '<input id="mydashArtcc" data-keep="mydashArtcc" maxlength="5" placeholder="ZJX" autocomplete="off" class="input-narrow--80">' +
     '<button data-mydashartccadd>ADD</button>' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + myArtccs.length + ' / 10 ARTCCs \u00B7 includes all GROUND departures from airports inside each FIR boundary (VAT-Spy)</span>' +
+    '<span class="form-note">' + myArtccs.length + ' / 10 ARTCCs \u00B7 includes all GROUND departures from airports inside each FIR boundary (VAT-Spy)</span>' +
     '</div>';
 
   h += '<div class="mydashchips">';
   if (!myArtccs.length) {
-    h += '<span style="color:#56676f;font-size:12px;">No ARTCCs added yet. Example: ZJX, ZNY, ZTL.</span>';
+    h += '<span class="cell-muted">No ARTCCs added yet. Example: ZJX, ZNY, ZTL.</span>';
   } else {
     for (const a of myArtccs)
       h += '<span class="artccchip">' + esc(a) + '<span class="apchipx" data-artcc-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
   }
   h += '</div>';
 
-  h += '<div class="tmuform" style="border-top:1px solid #1a232d;">' +
+  h += '<div class="tmuform tmuform--border-top">' +
     '<span class="lbl">ADD APPROACH</span>' +
-    '<input id="mydashApproach" data-keep="mydashApproach" maxlength="5" placeholder="A80" autocomplete="off" style="width:80px;letter-spacing:.12em;">' +
+    '<input id="mydashApproach" data-keep="mydashApproach" maxlength="5" placeholder="A80" autocomplete="off" class="input-narrow--80">' +
     '<button data-mydashapproachadd>ADD</button>' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + myApproachSectors.length + ' / 10 sectors \u00B7 GROUND departures from airports in each TRACON sector (VAT-Spy + SimAware)</span>' +
+    '<span class="form-note">' + myApproachSectors.length + ' / 10 sectors \u00B7 GROUND departures from airports in each TRACON sector (VAT-Spy + SimAware)</span>' +
     '</div>';
 
   h += '<div class="mydashchips">';
   if (!myApproachSectors.length) {
-    h += '<span style="color:#56676f;font-size:12px;">No approach sectors added yet. Example: A80 (ATL APP), I90 (Houston APP), N90.</span>';
+    h += '<span class="cell-muted">No approach sectors added yet. Example: A80 (ATL APP), I90 (Houston APP), N90.</span>';
   } else {
     for (const a of myApproachSectors)
       h += '<span class="approachchip">' + esc(a) + '<span class="apchipx" data-appr-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
@@ -2033,7 +2382,7 @@ function renderMyDash() {
     contentEl.innerHTML = h; return;
   }
   if (myApproachSectors.length && !approachSectorDataReady()) {
-    h += '<div class="msg" style="color:#f25555;">Approach sector data is missing. Keep <b>approach-sector-data.js</b> in the same folder as this page.</div>';
+    h += '<div class="msg cell-alert">Approach sector data is missing. Keep <b>approach-sector-data.js</b> in the same folder as this page.</div>';
     contentEl.innerHTML = h; return;
   }
   if (!vatsim) {
@@ -2080,18 +2429,18 @@ function renderMyDash() {
   h += '<div class="strip">' +
     '<span class="field">MY DEPARTURES</span>' +
     stat("PENDING", deps.length) +
-    stat("TO METERED FIELDS", metered, "#f5a83d") +
-    stat("HOLDING ON CFR", held, "#f25555") +
+    stat("TO METERED FIELDS", metered, "stat-warn") +
+    stat("HOLDING ON CFR", held, "stat-alert") +
     '</div>';
 
   if (!deps.length) {
     h += '<div class="msg">No pending GROUND departures out of ' + myDashScopeLabel() + ' right now.</div>';
     if (myArtccs.length && boundariesStatus === "error")
-      h += '<div class="msg" style="color:#f25555;">ARTCC boundary data is unavailable \u2014 only individually added airports and approach sectors are being matched.</div>';
+      h += '<div class="msg cell-alert">ARTCC boundary data is unavailable \u2014 only individually added airports and approach sectors are being matched.</div>';
     contentEl.innerHTML = h; return;
   }
 
-  h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+  h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
     '<th>CALLSIGN</th><th>TYPE</th><th>DEP</th><th>DEST</th><th>TMU PGM</th>' +
     '<th>STA AT DEST Z</th><th>DLY MIN</th><th>CALL FOR RELEASE (CFR)</th>' +
     '</tr></thead><tbody>';
@@ -2105,16 +2454,16 @@ function renderMyDash() {
       pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
       cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
     } else if (!tmuRates[d.dest]) {
-      pgm = '<span style="color:#3a4750;">\u2014</span>';
-      cfr = '<span style="color:#3a4750;">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+      pgm = '<span class="cell-dim">\u2014</span>';
+      cfr = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
     } else if (groundStopFor(d.dep, d.dest)) {
       const gs = groundStopFor(d.dep, d.dest);
       pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
       if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
       cfr = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
     } else if (!e) {
-      pgm = (d.dest in flowCache && !flowCache[d.dest]) ? '<span style="color:#56676f;">NO FEED</span>' : esc(String(getRate(d.dest).aar)) + "/hr";
-      cfr = '<span style="color:#56676f;">\u2014</span>';
+      pgm = (d.dest in flowCache && !flowCache[d.dest]) ? '<span class="cell-muted">No feed</span>' : esc(String(getRate(d.dest).aar)) + "/hr";
+      cfr = '<span class="cell-muted">\u2014</span>';
     } else if (!canControl()) {
       pgm = d.aar + "/hr"; sta = fmtZ(e.sta); dly = fmtDelay(e.delay);
       cfr = lockedCfrHtml(e, now, e.wheelsUp);
@@ -2126,28 +2475,20 @@ function renderMyDash() {
         const ewu = earliestEdct(d.callsign, d.dep, d.dest);
         const wu = ewu != null ? ewu : e.wheelsUp;
         if (wu <= now + CFR_THRESHOLD) {
-          cfr = '<span class="released">\u2713 RELEASED</span>';
+          cfr = cfrReleasedHtml();
         } else {
-          cfr = '<button class="edctbtn" data-issue="' + esc(e.callsign) + '" data-wu="' + Math.round(wu) + '">CFR TIME</button>' +
-            '<span style="color:#3a4750;font-size:10px;"> earliest ' + fmtZ(wu) + 'Z</span>';
+          cfr = cfrIssueHtml(e.callsign, wu);
         }
       } else if (e.releaseNow) {
-        cfr = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
-          '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
+        cfr = cfrNowHtml(e.callsign);
       } else {
-        const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
-        const cls = e.pulled ? "edctpulled" : "";
-        const sub = e.pulled ? "sub" : "";
-        cfr = '<span class="' + cls + '" style="' + (e.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
-          (e.pulled ? "\u25BC " : "") + fmtZ(e.wheelsUp) + 'Z' +
-          '<span class="' + sub + '" style="' + (e.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
-          '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
+        cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, e.callsign);
       }
     }
     h += '<tr>' +
-      '<td style="color:#e8f0f4;font-weight:600;">' + esc(d.callsign) + '</td>' +
+      '<td class="cell-strong">' + esc(d.callsign) + '</td>' +
       '<td>' + esc(d.type) + '</td>' +
-      '<td style="color:#9fdcff;">' + esc(d.dep) + '</td>' +
+      '<td class="cell-info">' + esc(d.dep) + '</td>' +
       '<td>' + esc(d.dest) + '</td>' +
       '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + cfr + '</td>' +
       '</tr>';
@@ -2162,10 +2503,9 @@ function renderMyDash() {
    the destination is being metered — the flow delay and a SUGGESTED WHEELS-UP
    time. The suggestion comes straight from the metering engine, so it is
    available even when no departure controller is online to issue a CFR. */
-function pilotDetail(label, value, color) {
-  return '<div style="display:flex;flex-direction:column;gap:3px;min-width:90px;">' +
-    '<span style="font-size:10px;letter-spacing:.08em;color:#56676f;">' + label + '</span>' +
-    '<span style="font-size:14px;color:' + (color || "#e8f0f4") + ';font-weight:600;">' + value + '</span></div>';
+function pilotDetail(label, value, colorClass) {
+  return '<div class="pilot-detail"><span class="k">' + label + '</span>' +
+    '<span class="v' + (colorClass ? ' ' + colorClass : '') + '">' + value + '</span></div>';
 }
 
 function renderPilot() {
@@ -2173,10 +2513,20 @@ function renderPilot() {
 
   if (!pilotCid) {
     contentEl.innerHTML =
-      '<div class="splash"><h2>ENTER YOUR VATSIM CID</h2>' +
-      '<p>Type your CID in the header and press LOOKUP to see your active flight, any flow delay, ' +
-      'and your suggested wheels-up time if your destination is being metered.<br>' +
-      'This page is view only \u2014 it never issues a release.</p></div>';
+      '<div class="emptystate">' +
+      '<h2>Pilot lookup</h2>' +
+      '<p>Enter your VATSIM CID in the header and press Lookup to see your active flight, any flow delay, ' +
+      'and your suggested wheels-up time if your destination is being metered.</p>' +
+      '<div class="emptystate-actions">' +
+      '<input id="splashCid" placeholder="VATSIM CID" maxlength="9" inputmode="numeric" autocomplete="off" class="field-input field-input--wide">' +
+      '<button type="button" class="btn-primary" id="splashPilot">Lookup</button>' +
+      '</div></div>';
+    const sc = document.getElementById("splashCid");
+    const sp = document.getElementById("splashPilot");
+    if (sc && sp) {
+      sp.addEventListener("click", () => { pilotCidInput.value = sc.value; pilotActivate(); });
+      sc.addEventListener("keydown", e => { if (e.key === "Enter") { pilotCidInput.value = sc.value; pilotActivate(); } });
+    }
     return;
   }
 
@@ -2222,23 +2572,22 @@ function renderPilot() {
   const e = flow ? flow.flights.find(f => f.callsign === callsign) : null;
   const programmed = !!tmuRates[dest];
   const status = e ? e.status : (isPrefile ? "PROPOSED" : "GROUND");
-  const sc =
-    status === "ARRIVED" ? "#56676f" :
-    status === "AIRBORNE" ? "#57d98a" :
-    status === "GROUND" ? "#f5a83d" : "#54b8e8";
+  const statusCls =
+    status === "ARRIVED" ? "stat-muted" :
+    status === "AIRBORNE" ? "stat-ok" :
+    status === "GROUND" ? "stat-warn" : "stat-info";
 
   /* ---- flight info card ---- */
   let h = '<div class="strip">' +
     '<span class="field">' + esc(callsign || ("CID " + pilotCid)) + '</span>' +
     stat("CID", esc(pilotCid)) +
-    stat("STATUS", '<span style="color:' + sc + ';">' + status + '</span>') +
+    stat("STATUS", '<span class="' + statusCls + '">' + status + '</span>') +
     (vfr ? stat("RULES", "VFR") : "") +
     '</div>';
 
-  h += '<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;' +
-    'background:#0c1218;border:1px solid #1f2c38;border-radius:5px;padding:14px 18px;margin:4px 0 14px;">' +
-    pilotDetail("DEP", esc(dep), "#9fdcff") +
-    pilotDetail("DEST", esc(dest), "#9fdcff") +
+  h += '<div class="pilot-card">' +
+    pilotDetail("DEP", esc(dep), "info") +
+    pilotDetail("DEST", esc(dest), "info") +
     pilotDetail("AIRCRAFT", esc(acft)) +
     (alt ? pilotDetail("ALT", esc(alt)) : "") +
     (tas ? pilotDetail("TAS", esc(tas) + " kt") : "") +
@@ -2247,50 +2596,47 @@ function renderPilot() {
     '</div>';
 
   if (route) {
-    h += '<div style="background:#0c1218;border:1px solid #1f2c38;border-radius:5px;padding:10px 14px;margin-bottom:14px;">' +
-      '<span style="font-size:10px;letter-spacing:.08em;color:#56676f;">ROUTE</span><br>' +
-      '<span style="font-size:12px;color:#c9d6df;word-break:break-word;line-height:1.6;">' + esc(route) + '</span></div>';
+    h += '<div class="pilot-route"><span class="k">Route</span><br>' +
+      '<span class="v">' + esc(route) + '</span></div>';
   }
 
   /* ---- delay / release panel ---- */
   const gs = (!vfr && status !== "ARRIVED") ? groundStopFor(dep, dest) : null;
-  const panel = (title, body, accent) =>
-    '<div style="background:#0c1218;border:1px solid ' + (accent || "#1f2c38") + ';border-left:4px solid ' +
-    (accent || "#1f2c38") + ';border-radius:5px;padding:16px 18px;">' +
-    '<div style="font-size:11px;letter-spacing:.08em;color:#56676f;margin-bottom:8px;">' + title + '</div>' +
-    body + '</div>';
+  const panel = (title, body, extraCls) =>
+    '<div class="pilot-panel' + (extraCls ? ' ' + extraCls : '') + '">' +
+    '<div class="k">' + title + '</div>' + body + '</div>';
 
   let body;
   if (vfr) {
-    body = panel("FLOW STATUS",
-      '<span style="font-size:15px;color:#57d98a;font-weight:600;">VFR \u2014 not metered. Depart at will.</span>');
+    body = panel("Flow status",
+      '<span class="pilot-hero ok">VFR \u2014 not metered. Depart at will.</span>');
   } else if (e && e.excluded) {
-    body = panel("FLOW STATUS",
-      '<span class="excludedtag" style="font-size:15px;font-weight:600;">Excluded from the flow program at ' + esc(dest) +
+    body = panel("Flow status",
+      '<span class="pilot-hero ok">Excluded from the flow program at ' + esc(dest) +
       ' \u2014 depart at will.</span>' +
-      '<div style="margin-top:8px;font-size:12px;color:#c9d6df;">Your aircraft type is not included in metering for this field.</div>');
+      '<div class="pilot-sub">Your aircraft type is not included in metering for this field.</div>');
   } else if (status === "ARRIVED") {
-    body = panel("FLOW STATUS",
-      '<span style="font-size:15px;color:#56676f;font-weight:600;">Arrived at ' + esc(dest) + '.</span>');
+    body = panel("Flow status",
+      '<span class="pilot-hero muted">Arrived at ' + esc(dest) + '.</span>');
   } else if (gs) {
-    body = panel("GROUND STOP",
-      '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>' +
-      '<div style="margin-top:8px;font-size:12px;color:#c9d6df;">A ground stop is in effect for traffic into ' +
-      esc(dest) + '. Do not depart until it lifts or you are released.</div>', "#f25555");
+    body = panel("Ground stop",
+      '<span class="gsflag"><span class="status-dot alert pulse"></span> GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>' +
+      '<div class="pilot-sub">A ground stop is in effect for traffic into ' +
+      esc(dest) + '. Do not depart until it lifts or you are released.</div>', "alert");
   } else if (!programmed) {
-    body = panel("FLOW STATUS",
-      '<span style="font-size:15px;color:#57d98a;font-weight:600;">No flow program at ' + esc(dest) +
+    body = panel("Flow status",
+      '<span class="pilot-hero ok">No flow program at ' + esc(dest) +
       ' \u2014 no delay expected. Depart at will.</span>');
   } else if (!e) {
-    body = panel("FLOW STATUS",
-      '<span style="font-size:13px;color:#56676f;">' + esc(dest) +
+    body = panel("Flow status",
+      '<span class="pilot-hero muted">' + esc(dest) +
       ' is being metered, but your flight is not yet in the picture. It updates every 30 seconds.</span>');
   } else if (status === "AIRBORNE") {
-    body = panel("AIRBORNE \u2014 SEQUENCED TO " + esc(dest),
-      '<div style="display:flex;gap:26px;flex-wrap:wrap;">' +
+    body = panel("Airborne \u2014 sequenced to " + esc(dest),
+      '<div class="pilot-card pilot-card--flat">' +
       pilotDetail("PROGRAM", getRate(dest).aar + "/hr") +
       pilotDetail("SCHED. ARRIVAL", fmtZ(e.sta) + "Z") +
-      pilotDetail("DELAY", fmtDelay(e.delay), e.delay > 15*60000 ? "#f25555" : e.delay > 5*60000 ? "#f5a83d" : "#57d98a") +
+      pilotDetail("DELAY", fmtDelay(e.delay), delayClass(e.delay).replace("cell-", "")) +
       '</div>');
   } else {
     /* GROUND / PROPOSED into a metered field */
@@ -2304,34 +2650,33 @@ function renderPilot() {
     const needsDelay = wu != null && wu > now + CFR_THRESHOLD;
 
     if (!needsDelay) {
-      body = panel("SUGGESTED RELEASE",
-        '<span class="released" style="font-size:16px;">\u2713 NO DELAY \u2014 DEPART AT WILL</span>' +
-        '<div style="margin-top:8px;font-size:12px;color:#c9d6df;">' + esc(dest) +
-        ' has capacity for you right now (program ' + getRate(dest).aar + '/hr).</div>', "#57d98a");
+      body = panel("Suggested release",
+        '<span class="pilot-hero ok"><span class="status-dot ok"></span> No delay \u2014 depart at will</span>' +
+        '<div class="pilot-sub">' + esc(dest) +
+        ' has capacity for you right now (program ' + getRate(dest).aar + '/hr).</div>', "ok");
     } else {
       const tmin = Math.round(hold / 60000);
-      const label = issued ? "ASSIGNED CALL FOR RELEASE (CFR)" : "SUGGESTED WHEELS-UP";
-      const accent = issued ? "#f5a83d" : "#54b8e8";
+      const label = issued ? "Assigned call for release" : "Suggested wheels-up";
       body = panel(label,
-        '<div style="font-size:30px;font-weight:700;color:' + accent + ';letter-spacing:.04em;">' +
+        '<div class="calcresult ' + (issued ? "warn" : "none") + ' pilot-wu">' +
         fmtZ(wu) + 'Z' +
-        '<span style="font-size:14px;color:#56676f;font-weight:400;"> (T\u2212' + tmin + 'm)</span></div>' +
-        '<div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:12px;">' +
+        '<span class="cfr-sub pilot-wu-sub"> (T\u2212' + tmin + 'm)</span></div>' +
+        '<div class="pilot-card pilot-card--flat-mt">' +
         pilotDetail("PROGRAM", getRate(dest).aar + "/hr") +
-        pilotDetail("GROUND DELAY", fmtDelay(hold), hold > 15*60000 ? "#f25555" : hold > 5*60000 ? "#f5a83d" : "#57d98a") +
+        pilotDetail("GROUND DELAY", fmtDelay(hold), delayClass(hold).replace("cell-", "")) +
         pilotDetail("SCHED. ARRIVAL", fmtZ(e.sta) + "Z") +
         '</div>' +
-        '<div style="margin-top:12px;font-size:12px;color:#c9d6df;line-height:1.6;">' +
+        '<div class="pilot-sub">' +
         (issued
           ? 'A controller has issued this CFR. Plan to be wheels-up at the time above.'
           : 'No controller has issued a release. This is the system\u2019s suggested wheels-up time \u2014 ' +
             'use it to self-meter if no departure controller is online. It may change as traffic updates.') +
-        '</div>', accent);
+        '</div>', issued ? "warn" : "");
     }
   }
 
   h += body;
-  h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">Tracking CID ' + esc(pilotCid) +
+  h += '<div class="hint-text form-note" style="margin-top:14px;">Tracking CID ' + esc(pilotCid) +
     ' \u00B7 change it in the header \u00B7 updates every 30s \u00B7 view only.</div>';
 
   contentEl.innerHTML = h;
@@ -2439,8 +2784,8 @@ function calcRecommendedAar({ maxAar, fullStaff, onDuty, exponent, positions, us
 
 function renderTMU() {
   const subBar = '<div class="subtabs">' +
-    '<span class="subtab' + (tmuSub === "programs" ? " active" : "") + '" data-tmusub="programs">PROGRAMS</span>' +
-    '<span class="subtab' + (tmuSub === "calc" ? " active" : "") + '" data-tmusub="calc">RATE CALCULATOR</span>' +
+    '<span class="subtab' + (tmuSub === "programs" ? " active" : "") + '" data-tmusub="programs">Programs</span>' +
+    '<span class="subtab' + (tmuSub === "calc" ? " active" : "") + '" data-tmusub="calc">Rate calculator</span>' +
     '</div>';
   if (tmuSub === "calc") { contentEl.innerHTML = subBar + renderTMURateCalc(); return; }
   contentEl.innerHTML = subBar + renderTMUPrograms();
@@ -2460,20 +2805,20 @@ function renderTMUPrograms() {
     '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;"><input type="checkbox" id="tmuExclLight" data-keep="tmuExclLight"> Excl wake L</label>' +
     '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;"><input type="checkbox" id="tmuJetsOnly" data-keep="tmuJetsOnly"> Jets/turbines only</label>' +
     '<span class="lbl">EXCL TYPES</span><input id="tmuExclTypes" data-keep="tmuExclTypes" placeholder="C172,PA28" style="width:130px;font-size:12px;">' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Programs apply everywhere: METER view, CFR times, and the DEPARTURES view. ' +
+    '<span class="form-note">Programs apply everywhere: METER view, CFR times, and the DEPARTURES view. ' +
     'ROUTE TRAIL is minutes-in-trail; type a value in MIT (nm) to override it with miles-in-trail (converted at ~' + MIT_NOMINAL_KT + ' kt). Leave MIT blank for AUTO/minutes.</span>' +
     '</div>';
   } else {
-    h += '<div class="viewonly">VIEW ONLY \u2014 unlock with the control password to set programs.</div>';
+    h += '<div class="viewonly">View only \u2014 unlock with the control password to set programs.</div>';
   }
 
   const codes = Object.keys(tmuRates).sort();
   if (!codes.length) {
-    h += '<div class="splash"><h2>NO TMU PROGRAMS ACTIVE</h2>' +
+    h += '<div class="emptystate"><h2>No TMU programs active</h2>' +
       '<p>Set an arrival rate for any airport above. Tower controllers on the DEPARTURES tab will see ' +
       'CFR times for traffic bound to programmed fields.<br>Metering an airport on the METER tab also creates a program for it.</p></div>';
   } else {
-    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+    h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
       '<th>AIRPORT</th><th>AAR</th><th>ROUTE TRAIL / MIT</th><th>INBOUND</th><th>AIRBORNE</th>' +
       '<th>GROUND</th><th>PROPOSED</th><th>DEMAND 60 MIN</th><th>STATUS</th><th>ACTIONS</th>' +
       '</tr></thead><tbody>';
@@ -2481,7 +2826,7 @@ function renderTMUPrograms() {
       const r = tmuRates[code];
       const flow = computeFlow(code);
       let inb = "\u2014", air = "\u2014", gnd = "\u2014", pro = "\u2014", dem = "\u2014",
-          st = '<span style="color:#56676f;">NO FEED</span>';
+          st = '<span class="cell-muted">No feed</span>';
       if (flow) {
         inb = flow.flights.length;
         air = flow.flights.filter(f => f.status === "AIRBORNE").length;
@@ -2489,12 +2834,12 @@ function renderTMUPrograms() {
         pro = flow.flights.filter(f => f.status === "PROPOSED").length;
         dem = flow.demandHr + " / " + r.aar;
         st = flow.demandHr > r.aar
-          ? '<span style="color:#f25555;font-weight:600;">OVER CAPACITY</span>'
-          : '<span style="color:#57d98a;">OK</span>';
+          ? '<span class="tmu-over">Over capacity</span>'
+          : '<span class="tmu-ok">OK</span>';
       }
       const trailTxt = r.mit > 0 ? r.mit + " MIT" : r.trail > 0 ? r.trail + " MIN" : "AUTO";
       h += '<tr class="tmurow">' +
-        '<td style="color:#e8f0f4;font-weight:600;">' + esc(code) + '</td>' +
+        '<td class="cell-strong">' + esc(code) + '</td>' +
         (ctl
           ? '<td><input class="aarinput" type="number" min="1" max="200" data-tmuaar="' + esc(code) +
             '" data-keep="tmuaar-' + esc(code) + '" value="' + r.aar + '"></td>'
@@ -2506,8 +2851,8 @@ function renderTMUPrograms() {
             (r.mit > 0 ? '<span class="mithint">' + r.mit + ' MIT</span>' : '') +
             '<div style="color:#3a4750;font-size:9px;margin-top:2px;">airport-wide default</div></td>'
           : '<td>' + trailTxt + '</td>') +
-        '<td>' + inb + '</td><td style="color:#57d98a;">' + air + '</td>' +
-        '<td style="color:#f5a83d;">' + gnd + '</td><td style="color:#54b8e8;">' + pro + '</td>' +
+        '<td>' + inb + '</td><td class="cell-ok">' + air + '</td>' +
+        '<td class="cell-warn">' + gnd + '</td><td class="cell-info">' + pro + '</td>' +
         '<td>' + dem + '</td><td>' + st + '</td>' +
         '<td><span class="tmuact" data-tmuview="' + esc(code) + '">VIEW</span>' +
         (ctl ? '<span class="tmuact rm" data-tmurm="' + esc(code) + '">REMOVE</span>' : '') + '</td>' +
@@ -2560,7 +2905,7 @@ function renderTMUPrograms() {
         if (exclL) parts.push("wake L");
         if (r.jetsOnly) parts.push("jets/turbines only");
         if (exclTypesStr) parts.push("types " + exclTypesStr);
-        h += parts.length ? esc(parts.join(" \u00B7 ")) : '<span style="color:#3a4750;">none</span>';
+        h += parts.length ? esc(parts.join(" \u00B7 ")) : '<span class="cell-dim">none</span>';
       }
       h += '<span style="color:#3a4750;font-size:10px;margin-left:10px;">Excluded traffic still shows on the dashboard but does not consume AAR slots or receive CFRs.</span>' +
         '</td></tr>';
@@ -2608,7 +2953,7 @@ function renderTMURateCalc() {
     '<div class="tmuform" style="border-bottom:none;padding-top:8px;">' +
     '<span class="calctoggle" data-ratecalc-adv="' + (rateCalc.advancedOpen ? "0" : "1") + '">' +
     (rateCalc.advancedOpen ? '\u25BE hide' : '\u25B8 show') + ' position checklist</span>' +
-    '<span style="font-size:11px;color:#56676f;margin-left:10px;">Refines the estimate when specific positions are open.</span>' +
+    '<span class="form-note">Refines the estimate when specific positions are open.</span>' +
     '</div>';
   if (rateCalc.advancedOpen) {
     h += '<div class="tmuform" style="border-bottom:none;padding-top:0;">' +
@@ -2635,7 +2980,7 @@ function renderTMURateCalc() {
   if (ctl && validIcao && result.aar > 0) {
     h += '<div style="margin-top:16px;">' +
       '<button data-ratecalc-apply>APPLY TO PROGRAM</button>' +
-      '<span style="font-size:11px;color:#56676f;margin-left:10px;">Sets AAR for ' + esc(rateCalc.icao) +
+      '<span class="form-note">Sets AAR for ' + esc(rateCalc.icao) +
       ' on the Programs sub-tab (preserves trail/MIT/gates).</span></div>';
   } else if (!ctl && validIcao && result.aar > 0) {
     h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">View only \u2014 unlock control to apply this rate to a program.</div>';
@@ -2770,9 +3115,21 @@ function earliestEdct(cs, depField, destField) {
 
 function renderDep() {
   if (!depIcao) {
-    contentEl.innerHTML = '<div class="splash"><h2>SET YOUR FIELD</h2>' +
-      '<p>Enter the airport you are working departures from (top right of the header).<br>' +
-      'You\u2019ll see every departure off your field, with CFR times for any destination that has a TMU program.</p></div>';
+    contentEl.innerHTML =
+      '<div class="emptystate">' +
+      '<h2>Departures</h2>' +
+      '<p>Enter the airport you are working departures from. You\u2019ll see every departure off your field, with CFR times for destinations that have a TMU program.</p>' +
+      '<div class="emptystate-actions">' +
+      '<input id="splashDep" list="event-fields" placeholder="ICAO (e.g. KLAX)" maxlength="4" autocomplete="off" class="field-input field-input--wide">' +
+      '<button type="button" class="btn-primary" id="splashDepBtn">Set</button>' +
+      '</div></div>';
+    const sd = document.getElementById("splashDep");
+    const sb = document.getElementById("splashDepBtn");
+    if (sd && sb) {
+      sd.addEventListener("input", () => { sd.value = sd.value.toUpperCase(); });
+      sd.addEventListener("keydown", e => { if (e.key === "Enter") { depInput.value = sd.value; depActivate(); } });
+      sb.addEventListener("click", () => { depInput.value = sd.value; depActivate(); });
+    }
     return;
   }
   if (!vatsim) {
@@ -2837,9 +3194,9 @@ function renderDep() {
   let h = '<div class="strip">' +
     '<span class="field">' + esc(depIcao) + ' DEPARTURES</span>' +
     stat("TOTAL", deps.length) +
-    stat("TO METERED FIELDS", metered, "#f5a83d") +
-    stat("HOLDING ON CFR", held, "#f25555") +
-    (arrCnt ? stat("ARRIVED", arrCnt, "#56676f") : "") +
+    stat("TO METERED FIELDS", metered, "stat-warn") +
+    stat("HOLDING ON CFR", held, "stat-alert") +
+    (arrCnt ? stat("ARRIVED", arrCnt, "stat-muted") : "") +
     '<span style="font-size:11px;color:#56676f;">Destinations with a TMU program: ' +
     (Object.keys(tmuRates).length ? Object.keys(tmuRates).sort().map(esc).join(", ") : "none \u2014 set them on the TMU tab") +
     '</span></div>';
@@ -2847,7 +3204,7 @@ function renderDep() {
   if (!deps.length) {
     h += '<div class="msg">No undeparted traffic filed out of ' + esc(depIcao) + ' right now.</div>';
   } else {
-    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+    h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
       '<th>CALLSIGN</th><th>TYPE</th><th>DEST</th><th>STATUS</th><th>TMU PGM</th>' +
       '<th>STA AT DEST Z</th><th>DLY MIN</th><th>CALL FOR RELEASE (CFR)</th>' +
       '</tr></thead><tbody>';
@@ -2855,8 +3212,8 @@ function renderDep() {
       const e = d.entry;
       let pgm, sta = "\u2014", dly = "\u2014", edct;
       if (d.arrived) {
-        pgm = '<span style="color:#3a4750;">\u2014</span>';
-        edct = '<span style="color:#56676f;">ARRIVED</span>';
+        pgm = '<span class="cell-dim">\u2014</span>';
+        edct = '<span class="cell-muted">Arrived</span>';
       } else if (d.vfr) {
         pgm = '<span class="vfrtag">VFR</span>';
         edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
@@ -2865,17 +3222,17 @@ function renderDep() {
         edct = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
       } else if (!d.arrived && groundStopFor(depIcao, d.dest)) {
         const gs = groundStopFor(depIcao, d.dest);
-        pgm = tmuRates[d.dest] ? (d.aar || getRate(d.dest).aar) + "/hr" : '<span style="color:#3a4750;">\u2014</span>';
+        pgm = tmuRates[d.dest] ? (d.aar || getRate(d.dest).aar) + "/hr" : '<span class="cell-dim">\u2014</span>';
         if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
         edct = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
       } else if (!tmuRates[d.dest]) {
-        pgm = '<span style="color:#3a4750;">\u2014</span>';
-        edct = '<span style="color:#3a4750;">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+        pgm = '<span class="cell-dim">\u2014</span>';
+        edct = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
       } else if (!e) {
         pgm = d.dest in flowCache && !flowCache[d.dest]
-          ? '<span style="color:#56676f;">NO FEED</span>'
+          ? '<span class="cell-muted">No feed</span>'
           : esc(String(getRate(d.dest).aar)) + "/hr";
-        edct = '<span style="color:#56676f;">\u2014</span>';
+        edct = '<span class="cell-muted">\u2014</span>';
       } else if (!canControl() && d.status !== "PROPOSED") {
         pgm = d.aar + "/hr"; sta = fmtZ(e.sta); dly = fmtDelay(e.delay);
         edct = lockedCfrHtml(e, now, e.wheelsUp);
@@ -2884,34 +3241,26 @@ function renderDep() {
         sta = fmtZ(e.sta);
         dly = fmtDelay(e.delay);
         if (d.status === "PROPOSED") {
-          edct = '<span style="color:#54b8e8;">PENDING \u2014 NOT CONNECTED</span>';
+          edct = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
         } else if (!e.edctIssued) {
           const ewu = earliestEdct(d.callsign, depIcao, d.dest);
           const wu = ewu != null ? ewu : e.wheelsUp;
           if (wu <= now + CFR_THRESHOLD) {
-            edct = '<span class="released">\u2713 RELEASED</span>';
+            edct = cfrReleasedHtml();
           } else {
-            edct = '<button class="edctbtn" data-issue="' + esc(e.callsign) + '" data-wu="' + Math.round(wu) + '">CFR TIME</button>' +
-              '<span style="color:#3a4750;font-size:10px;"> earliest ' + fmtZ(wu) + 'Z</span>';
+            edct = cfrIssueHtml(e.callsign, wu);
           }
         } else if (e.releaseNow) {
-          edct = '<span class="relnow">\u25B2 RELEASE NOW</span>' +
-            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
+          edct = cfrNowHtml(e.callsign);
         } else {
-          const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
-          const cls = e.pulled ? "edctpulled" : "";
-          const sub = e.pulled ? "sub" : "";
-          edct = '<span class="' + cls + '" style="' + (e.pulled ? "" : "color:#f5a83d;font-weight:600;") + '">' +
-            (e.pulled ? "\u25BC " : "") + fmtZ(e.wheelsUp) + 'Z' +
-            '<span class="' + sub + '" style="' + (e.pulled ? "" : "color:#56676f;font-weight:400;") + '"> (T\u2212' + tmin + 'm)</span></span>' +
-            '<span class="edctcxl" data-cxl="' + esc(e.callsign) + '" title="Cancel CFR">\u2715</span>';
+          edct = cfrCountdownHtml(e.wheelsUp, now, e.pulled, e.callsign);
         }
       }
       h += '<tr>' +
-        '<td style="color:#e8f0f4;font-weight:600;">' + esc(d.callsign) + '</td>' +
+        '<td class="cell-strong">' + esc(d.callsign) + '</td>' +
         '<td>' + esc(d.type) + '</td>' +
         '<td>' + esc(d.dest) + '</td>' +
-        '<td style="color:' + (d.arrived ? "#56676f" : d.status === "GROUND" ? "#f5a83d" : "#54b8e8") + ';">' + d.status + '</td>' +
+        '<td class="' + (d.arrived ? 'cell-muted' : d.status === 'GROUND' ? 'cell-warn' : 'cell-info') + '">' + d.status + '</td>' +
         '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + edct + '</td>' +
         '</tr>';
     }
@@ -2926,18 +3275,18 @@ function renderTaxiMonitor() {
   if (ctl) {
     h += '<div class="tmuform">' +
       '<span class="lbl">ADD AIRPORT</span>' +
-      '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" style="width:110px;letter-spacing:.12em;">' +
+      '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" class="input-narrow--110">' +
       '<button data-taximonadd>ADD</button>' +
-      '<span style="font-size:11px;color:#56676f;margin-left:10px;">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
+      '<span class="form-note">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
       ' airports &middot; timer: 10 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
       '</div>';
   } else {
-    h += '<div class="viewonly">VIEW ONLY \u2014 unlock with the control password to add or remove monitored airports.</div>';
+    h += '<div class="viewonly">View only \u2014 unlock with the control password to add or remove monitored airports.</div>';
   }
 
   h += '<div class="mydashchips">';
   if (!taxiMonAirports.length) {
-    h += '<span style="color:#56676f;font-size:12px;">' +
+    h += '<span class="cell-muted">' +
       (ctl ? 'No airports added yet. Add up to ' + TAXI_MON_MAX + ' departure fields to monitor.'
            : 'No airports are being monitored yet.') + '</span>';
   } else {
@@ -3002,7 +3351,7 @@ function renderTaxiMonitor() {
   h += '<div class="strip">' +
     '<span class="field">TAXI MONITOR</span>' +
     stat("FIELDS", taxiMonAirports.length) +
-    stat("ROLLING", rolling, rolling ? "#f5a83d" : "") +
+    stat("ROLLING", rolling, rolling ? "stat-warn" : "") +
     stat("WATCHING", watching) +
     stat("AVG TODAY", avgTodayMin != null ? avgTodayMin + " min" : "\u2014") +
     stat("SAMPLES", monSamples.length) +
@@ -3011,14 +3360,14 @@ function renderTaxiMonitor() {
   if (!rows.length) {
     h += '<div class="msg">No ground departures at monitored fields right now.</div>';
   } else {
-    h += '<div class="tablewrap" style="padding-bottom:20px;"><table><thead><tr>' +
+    h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
       '<th>FIELD</th><th>CALLSIGN</th><th>DEST</th><th>GS</th><th>ALT</th><th>PHASE</th><th>TAXI TIME</th>' +
       '</tr></thead><tbody>';
     for (const r of rows) {
       const phaseColor = r.phase === "ROLLING" ? "#f5a83d" : "#54b8e8";
       h += '<tr>' +
         '<td style="color:#9fdcff;font-weight:600;">' + esc(r.field) + '</td>' +
-        '<td style="color:#e8f0f4;font-weight:600;">' + esc(r.callsign) + '</td>' +
+        '<td class="cell-strong">' + esc(r.callsign) + '</td>' +
         '<td>' + esc(r.dest) + '</td>' +
         '<td>' + r.gs + '</td>' +
         '<td>' + r.alt + '</td>' +
@@ -3037,7 +3386,7 @@ function renderTaxiMonitor() {
     for (const s of recentDone) {
       h += '<tr>' +
         '<td style="color:#9fdcff;font-weight:600;">' + esc(s.airport) + '</td>' +
-        '<td style="color:#e8f0f4;font-weight:600;">' + esc(s.callsign) + '</td>' +
+        '<td class="cell-strong">' + esc(s.callsign) + '</td>' +
         '<td>' + fmtTaxiDuration(s.durationMs) + ' (' + Math.round(s.durationMs / 60000) + ' min)</td>' +
         '<td>' + fmtZ(s.endMs) + 'Z</td>' +
         '</tr>';
@@ -3048,9 +3397,9 @@ function renderTaxiMonitor() {
   contentEl.innerHTML = h;
 }
 
-function stat(label, value, color) {
+function stat(label, value, colorClass) {
   return '<span class="stat"><span class="k">' + label + '</span>' +
-    '<span class="v"' + (color ? ' style="color:' + color + ';"' : '') + '>' + value + '</span></span>';
+    '<span class="v' + (colorClass ? ' ' + colorClass : '') + '">' + value + '</span></span>';
 }
 
 /* ---------- wiring ---------- */
@@ -3070,10 +3419,10 @@ function setTab(t) {
   activeTab = t;
   document.querySelectorAll(".tab").forEach(el =>
     el.classList.toggle("active", el.dataset.tab === t));
-  document.getElementById("meterCtl").style.display = t === "meter" ? "flex" : "none";
-  document.getElementById("depCtl").style.display = t === "dep" ? "flex" : "none";
-  document.getElementById("taximonCtl").style.display = (t === "taximon" && canControl()) ? "flex" : "none";
-  document.getElementById("pilotCtl").style.display = t === "pilot" ? "flex" : "none";
+  document.getElementById("meterCtl").classList.toggle("show", t === "meter");
+  document.getElementById("depCtl").classList.toggle("show", t === "dep");
+  document.getElementById("taximonCtl").classList.toggle("show", t === "taximon" && canControl());
+  document.getElementById("pilotCtl").classList.toggle("show", t === "pilot");
   /* views that need the live feed */
   if (t === "home" && (Object.keys(tmuRates).length || getTaxiAirportCodes().length)) ensurePolling();
   if (t === "taximon" && taxiMonHasAirports()) ensurePolling();
@@ -3578,7 +3927,9 @@ contentEl.addEventListener("change", e => {
 /* ground-stop popup is outside the content area, so it gets its own dismiss handler */
 document.getElementById("gsPopup").addEventListener("click", e => {
   if (e.target.closest("[data-gspopx]")) {
-    document.getElementById("gsPopup").style.display = "none";
+    const popup = document.getElementById("gsPopup");
+    popup.classList.add("hidden");
+    popup.style.display = "none";
     clearTimeout(showGsPopup._t);
   }
 });
@@ -3636,10 +3987,10 @@ function ensurePolling() {
 /* UTC clock + periodic recompute (countdowns, ladder drift) */
 setInterval(() => {
   const d = new Date();
-  document.getElementById("clock").textContent =
+  document.getElementById("clock").innerHTML =
     String(d.getUTCHours()).padStart(2,"0") + ":" +
     String(d.getUTCMinutes()).padStart(2,"0") + ":" +
-    String(d.getUTCSeconds()).padStart(2,"0") + "Z";
+    String(d.getUTCSeconds()).padStart(2,"0") + "<small>Z</small>";
 }, 1000);
 setInterval(() => {
   if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" ||
@@ -3790,17 +4141,24 @@ window.VATFLOW = {
     const sb = document.getElementById("syncBtn");
     const hb = document.getElementById("hubBtn");
     if (!el) return;
-    if (state === "live") { el.textContent = "\u25CF LIVE \u00B7 " + label; el.className = "synclive"; }
-    else if (state === "hublive") { el.textContent = "\u25CF HUB LIVE"; el.className = "synclive"; }
-    else if (state === "connecting") { el.textContent = "\u25CF connecting\u2026"; el.className = "synclocal"; }
-    else if (state === "error") { el.textContent = "\u25CF SYNC ERROR"; el.className = "syncerr"; }
-    else if (state === "noconfig") { el.textContent = "ADD FIREBASE CONFIG IN FILE"; el.className = "syncerr"; }
-    else if (state === "nohub") { el.textContent = "SET HUB URL IN FILE"; el.className = "syncerr"; }
-    else { el.textContent = "LOCAL ONLY"; el.className = "synclocal"; }
+    const dot = el.querySelector(".status-dot");
+    const lbl = el.querySelector(".sync-label");
+    const set = (text, cls, dotCls) => {
+      if (lbl) lbl.textContent = text;
+      el.className = "sync-pill " + cls;
+      if (dot) dot.className = "status-dot " + dotCls;
+    };
+    if (state === "live") set("Live \u00B7 " + label, "synclive", "live");
+    else if (state === "hublive") set("Hub live", "synclive", "live");
+    else if (state === "connecting") set("Connecting\u2026", "synclocal", "warn pulse");
+    else if (state === "error") set("Sync error", "syncerr", "alert");
+    else if (state === "noconfig") set("Add Firebase config", "syncerr", "alert");
+    else if (state === "nohub") set("Set hub URL", "syncerr", "alert");
+    else set("Local", "synclocal", "muted");
     const fbOn = window.VFSync && window.VFSync.connected;
     const hubOn = window.VFHub && window.VFHub.connected;
-    if (sb) { sb.textContent = fbOn ? "DISCONNECT" : "CONNECT"; sb.disabled = hubOn; }
-    if (hb) { hb.textContent = hubOn ? "LEAVE HUB" : "HUB"; hb.disabled = fbOn; }
+    if (sb) { sb.textContent = fbOn ? "Disconnect" : "Connect"; sb.disabled = hubOn; }
+    if (hb) { hb.textContent = hubOn ? "Leave hub" : "Hub"; hb.disabled = fbOn; }
   }
 };
 
@@ -3913,21 +4271,20 @@ const lockMsg = document.getElementById("lockMsg");
 
 function updateLockUI() {
   if (controllerUnlocked) {
-    lockBtn.textContent = "\u{1F513} CONTROLLER";
+    lockBtn.textContent = "Controller";
     lockBtn.className = "unlocked";
   } else {
-    lockBtn.textContent = "\u{1F512} VIEW ONLY";
+    lockBtn.textContent = "View only";
     lockBtn.className = "locked";
   }
-  pwInput.style.display = "none";
-  pwGo.style.display = "none";
-  /* the Taxi Monitor "ADD FIELD" header control is TMU-access only */
+  pwInput.classList.add("hidden");
+  pwGo.classList.add("hidden");
   const tmCtl = document.getElementById("taximonCtl");
-  if (tmCtl) tmCtl.style.display = (activeTab === "taximon" && controllerUnlocked) ? "flex" : "none";
+  if (tmCtl) tmCtl.classList.toggle("show", activeTab === "taximon" && controllerUnlocked);
 }
 function showPwEntry() {
-  pwInput.style.display = "";
-  pwGo.style.display = "";
+  pwInput.classList.remove("hidden");
+  pwGo.classList.remove("hidden");
   pwInput.value = "";
   lockMsg.textContent = "";
   pwInput.focus();
@@ -3971,7 +4328,7 @@ lockBtn.addEventListener("click", () => {
     lockMsg.textContent = "";
     return;
   }
-  if (pwInput.style.display === "none") showPwEntry();
+  if (pwInput.classList.contains("hidden")) showPwEntry();
   else attemptUnlock(pwInput.value);
 });
 pwGo.addEventListener("click", () => attemptUnlock(pwInput.value));
