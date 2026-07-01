@@ -867,9 +867,20 @@ function cfrCountdownHtml(wheelsUp, now, pulled, callsign) {
     '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
     '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
 }
-function cfrIssueHtml(callsign, wheelsUp) {
-  return '<button class="edctbtn" data-issue="' + esc(callsign) + '" data-wu="' + Math.round(wheelsUp) + '">CFR time</button>' +
-    '<span class="cfr-sugg">sugg ' + fmtZ(wheelsUp) + 'Z</span>';
+function depDestRouteKey(dep, dest) {
+  return (dep || "").toUpperCase() + "|" + (dest || "").toUpperCase();
+}
+function cfrIssueHtml(callsign, dep, dest, wheelsUp) {
+  return '<button class="edctbtn" data-issue="' + esc(callsign) +
+    '" data-issue-dep="' + esc(dep) + '" data-issue-dest="' + esc(dest) +
+    '">CFR time</button>' +
+    '<span class="cfr-sugg">avail ' + fmtZ(wheelsUp) + 'Z</span>';
+}
+function cfrIssueOrReleased(callsign, dep, dest, now) {
+  const wu = earliestEdct(callsign, dep, dest);
+  if (wu == null) return '<span class="cell-muted">\u2014</span>';
+  if (wu <= now + CFR_THRESHOLD) return cfrReleasedHtml();
+  return cfrIssueHtml(callsign, dep, dest, wu);
 }
 function readyTimeInputHtml(callsign, depField, dest) {
   return '<span class="readywrap">' +
@@ -2199,7 +2210,7 @@ function renderHelp() {
 
     '<div class="helpsec" id="help-cfr">Call For Release</div>' +
     '<details class="help-acc" open><summary>CFR workflow</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock a suggested wheels-up and reserve the slot.</li>' +
+    '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock the earliest available wheels-up for that departure route and reserve the slot. Unissued peers on the same route do not block you — issue order is up to the controller.</li>' +
     '<li><b>Ready Time</b> — ask the pilot for estimated wheels-up, enter HHMMz in the <b>Ready Time</b> column, and press <b>Set</b>. ' +
     'No control password is required. The app assigns the closest valid release <b>at or after</b> that time (never before).</li>' +
     '<li><b>Released</b> — no delay needed; release at will.</li>' +
@@ -2994,8 +3005,8 @@ const TAXI_FLOOR = 0;                /* no artificial pad; CFR delay only when m
 /* Earliest available wheels-up for a GROUND flight, issuance-order priority:
    constrained ONLY by fixed slots at the destination (airborne traffic and
    already-issued EDCTs) plus the release interval against other issued
-   EDCTs off the same departure field. Unissued peers do NOT block it —
-   whoever is issued first takes the earliest time. */
+   EDCTs on the same departure route (same dep+dest). Unissued peers do NOT
+   block it — whoever is issued first takes the earliest time. */
 /* Compress issued EDCTs into freed slots. Re-solves every issued EDCT in
    issuance order, each taking the earliest slot that still respects the
    destination's arrival spacing (vs airborne traffic + earlier-issued EDCTs)
@@ -3024,7 +3035,7 @@ function compressEdcts() {
   scan(vatsim ? (vatsim.pilots || []) : [], false);
 
   const placedByDest = {};   /* dest -> [{t,gate}] arrival slots taken by earlier-issued EDCTs */
-  const placedByDep = {};    /* dep  -> [wheelsUp] releases taken by earlier-issued EDCTs */
+  const placedByRoute = {};  /* dep|dest -> [wheelsUp] releases taken by earlier-issued EDCTs on same route */
 
   for (const { cs, r } of recs) {
     const meta = info[cs];
@@ -3042,7 +3053,7 @@ function compressEdcts() {
       .map(f => ({ t: f.sta, gate: f.gate }));
     for (const s of (placedByDest[meta.dest] || [])) fixed.push(s);
 
-    const depWUs = placedByDep[meta.dep] || [];
+    const depWUs = placedByRoute[depDestRouteKey(meta.dep, meta.dest)] || [];
 
     let wu = Math.max(now + TAXI_FLOOR, r.ready || 0);
     let moved = true, guard = 0;
@@ -3062,7 +3073,8 @@ function compressEdcts() {
     if (wu < r.t - 1000) r.pulledUntil = now + EDCT_FLASH_MS;   /* moved earlier: flash green */
     r.t = wu;
     (placedByDest[meta.dest] = placedByDest[meta.dest] || []).push({ t: newSta, gate: me.gate });
-    (placedByDep[meta.dep] = placedByDep[meta.dep] || []).push(wu);
+    const rk = depDestRouteKey(meta.dep, meta.dest);
+    (placedByRoute[rk] = placedByRoute[rk] || []).push(wu);
   }
 }
 
@@ -3078,12 +3090,13 @@ function solveEarliestWheelsUp(cs, depField, destField, floorMs) {
     .filter(f => f.callsign !== cs && (f.status === "AIRBORNE" || f.edctIssued) && isMetered(f))
     .map(f => ({ t: f.sta, gate: f.gate }));
 
-  /* issued EDCTs of other ground aircraft at the same departure airport */
+  /* issued CFRs of other ground aircraft on the same departure route (dep+dest) */
+  const routeKey = depDestRouteKey(depField, destField);
   const depWUs = [];
   for (const p of (vatsim.pilots || [])) {
     const fp = p.flight_plan;
     if (!fp || p.callsign === cs) continue;
-    if ((fp.departure || "").toUpperCase() !== depField) continue;
+    if (depDestRouteKey(fp.departure, fp.arrival) !== routeKey) continue;
     if (p.groundspeed > 60 && (p.altitude || 0) > 300) continue;   /* already airborne */
     if (issuedEdcts[p.callsign] != null) depWUs.push(issuedEdcts[p.callsign].t);
   }
@@ -3139,13 +3152,11 @@ function cfrCell(callsign, dep, dest, e, now, status, opts) {
   }
   if (!tmuRates[dest]) return '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
   if (!e) return '<span class="cell-muted">\u2014</span>';
-  if (!canControl()) return lockedCfrHtml(e, now, e.wheelsUp);
-  if (!e.edctIssued && !e.needsCfr) return cfrReleasedHtml();
-  if (!e.edctIssued) {
-    const ewu = earliestEdct(callsign, dep, dest);
-    const wu = ewu != null ? ewu : e.wheelsUp;
-    return wu <= now + CFR_THRESHOLD ? cfrReleasedHtml() : cfrIssueHtml(callsign, wu);
+  if (!canControl()) {
+    const avail = earliestEdct(callsign, dep, dest);
+    return lockedCfrHtml(e, now, avail != null ? avail : e.wheelsUp);
   }
+  if (!e.edctIssued) return cfrIssueOrReleased(callsign, dep, dest, now);
   if (e.releaseNow) return cfrNowHtml(callsign);
   return cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign);
 }
@@ -3198,13 +3209,12 @@ function departureReleaseCells(d, e, now, depField, flowCache) {
   } else if (!e) {
     cfr = '<span class="cell-muted">\u2014</span>';
   } else if (!canControl() && status !== "PROPOSED") {
-    cfr = lockedCfrHtml(e, now, e.wheelsUp);
+    const avail = earliestEdct(callsign, depField, dest);
+    cfr = lockedCfrHtml(e, now, avail != null ? avail : e.wheelsUp);
   } else if (status === "PROPOSED") {
     cfr = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
   } else if (!e.edctIssued) {
-    const ewu = earliestEdct(callsign, depField, dest);
-    const wu = ewu != null ? ewu : e.wheelsUp;
-    cfr = wu <= now + CFR_THRESHOLD ? cfrReleasedHtml() : cfrIssueHtml(callsign, wu);
+    cfr = cfrIssueOrReleased(callsign, depField, dest, now);
   } else if (e.releaseNow) {
     cfr = cfrNowHtml(callsign);
   } else {
@@ -3788,9 +3798,13 @@ contentEl.addEventListener("click", e => {
   const issueBtn = e.target.closest("[data-issue]");
   if (issueBtn) {
     if (!canControl()) return;
-    const wu = +issueBtn.dataset.wu;
-    if (isFinite(wu))
-      issuedEdcts[issueBtn.dataset.issue] = { t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null };
+    const cs = issueBtn.dataset.issue;
+    const dep = issueBtn.dataset.issueDep;
+    const dest = issueBtn.dataset.issueDest;
+    if (!cs || !dep || !dest) return;
+    const wu = earliestEdct(cs, dep, dest);
+    if (wu == null) return;
+    issuedEdcts[cs] = { t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null };
     pushSync();
     renderContent();
     return;
