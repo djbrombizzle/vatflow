@@ -269,6 +269,19 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
 .edctpulled .sub { color: #3a9a6a; font-weight: 400; }
 
 .cfr-sugg { color: var(--text-muted); font-size: 10px; font-family: var(--font-data); }
+.readywrap { display: inline-flex; align-items: center; gap: 4px; }
+.ready-input {
+  width: 58px; padding: 2px 5px; font-size: 10.5px; font-family: var(--font-data);
+  text-transform: uppercase; background: var(--elevated); color: var(--text);
+  border: 1px solid var(--border-hi); border-radius: var(--radius-sm);
+}
+.ready-input--err { border-color: var(--alert); }
+.ready-btn {
+  background: var(--elevated); color: var(--text); border: 1px solid var(--border-hi);
+  padding: 2px 7px; font-size: 10px; font-weight: 600; font-family: var(--font-data); cursor: pointer;
+}
+.ready-btn:hover { background: #1c2632; }
+.ready-badge { color: var(--text-muted); font-size: 10.5px; font-family: var(--font-data); }
 
 /* ---------- chips ---------- */
 .mydashchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
@@ -858,6 +871,17 @@ function cfrIssueHtml(callsign, wheelsUp) {
   return '<button class="edctbtn" data-issue="' + esc(callsign) + '" data-wu="' + Math.round(wheelsUp) + '">CFR time</button>' +
     '<span class="cfr-sugg">sugg ' + fmtZ(wheelsUp) + 'Z</span>';
 }
+function readyTimeInputHtml(callsign, depField, dest) {
+  return '<span class="readywrap">' +
+    '<input class="ready-input" data-keep="ready-' + esc(callsign) + '" data-ready-cs="' + esc(callsign) +
+    '" data-ready-dep="' + esc(depField) + '" data-ready-dest="' + esc(dest) +
+    '" placeholder="HHMMz" maxlength="5" autocomplete="off">' +
+    '<button type="button" class="ready-btn" data-ready-submit data-ready-cs="' + esc(callsign) +
+    '" data-ready-dep="' + esc(depField) + '" data-ready-dest="' + esc(dest) + '">Set</button></span>';
+}
+function readyTimeDisplayHtml(readyMs) {
+  return '<span class="ready-badge">ready ' + fmtZ(readyMs) + 'Z</span>';
+}
 function delayClass(ms) {
   return ms > 15 * 60000 ? "cell-alert" : ms > 5 * 60000 ? "cell-warn" : "cell-ok";
 }
@@ -1298,6 +1322,17 @@ function fmtZ(ms) {
   if (!ms || !isFinite(ms)) return "----";
   const d = new Date(ms);
   return String(d.getUTCHours()).padStart(2,"0") + String(d.getUTCMinutes()).padStart(2,"0");
+}
+function parseZuluHhmm(s, now) {
+  const m = String(s || "").trim().replace(/z$/i, "").match(/^(\d{2})(\d{2})$/);
+  if (!m) return null;
+  const h = +m[1], min = +m[2];
+  if (h > 23 || min > 59) return null;
+  const d = new Date(now);
+  d.setUTCHours(h, min, 0, 0);
+  let ms = d.getTime();
+  if (ms < now - 60000) ms += 86400000;
+  return ms;
 }
 function fmtDelay(ms) {
   const m = Math.round(ms / 60000);
@@ -2164,7 +2199,8 @@ function renderHelp() {
     '<li><b>Ground stops</b> hold ground departures into a named airport.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Departures</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Set your tower field in the header. Shows ground and prefiled departures only.</li>' +
-    '<li>CFR controls appear for destinations with a TMU program.</li></ul></div></details>' +
+    '<li>CFR controls appear for destinations with a TMU program.</li>' +
+    '<li><b>Ready Time</b> column — enter pilot-estimated wheels-up (HHMMz) and press <b>Set</b> for a release at or after that time.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
     '<li>Tracks ground departures from 10 kt to 60 kt or climb.</li></ul></div></details>' +
@@ -2174,6 +2210,8 @@ function renderHelp() {
     '<div class="helpsec" id="help-cfr">Call For Release</div>' +
     '<details class="help-acc" open><summary>CFR workflow</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock a suggested wheels-up and reserve the slot.</li>' +
+    '<li><b>Ready Time</b> — ask the pilot for estimated wheels-up, enter HHMMz in the <b>Ready Time</b> column, and press <b>Set</b>. ' +
+    'The app assigns the closest valid release <b>at or after</b> that time (never before).</li>' +
     '<li><b>Released</b> — no delay needed; release at will.</li>' +
     '<li><b>Release now</b> — wheels-up time has arrived.</li>' +
     '<li>Cancel an issued CFR to pull remaining CFRs into the freed slot.</li>' +
@@ -2442,55 +2480,18 @@ function renderMyDash() {
 
   h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
     '<th>CALLSIGN</th><th>TYPE</th><th>DEP</th><th>DEST</th><th>TMU PGM</th>' +
-    '<th>STA AT DEST Z</th><th>DLY MIN</th><th>CALL FOR RELEASE (CFR)</th>' +
+    '<th>STA AT DEST Z</th><th>DLY MIN</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
     '</tr></thead><tbody>';
   for (const d of deps) {
-    const e = d.entry;
-    let pgm, sta = "\u2014", dly = "\u2014", cfr;
-    if (d.vfr) {
-      pgm = '<span class="vfrtag">VFR</span>';
-      cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
-    } else if (e && e.excluded) {
-      pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
-      cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
-    } else if (!tmuRates[d.dest]) {
-      pgm = '<span class="cell-dim">\u2014</span>';
-      cfr = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
-    } else if (groundStopFor(d.dep, d.dest)) {
-      const gs = groundStopFor(d.dep, d.dest);
-      pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
-      if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
-      cfr = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
-    } else if (!e) {
-      pgm = (d.dest in flowCache && !flowCache[d.dest]) ? '<span class="cell-muted">No feed</span>' : esc(String(getRate(d.dest).aar)) + "/hr";
-      cfr = '<span class="cell-muted">\u2014</span>';
-    } else if (!canControl()) {
-      pgm = d.aar + "/hr"; sta = fmtZ(e.sta); dly = fmtDelay(e.delay);
-      cfr = lockedCfrHtml(e, now, e.wheelsUp);
-    } else {
-      pgm = d.aar + "/hr";
-      sta = fmtZ(e.sta);
-      dly = fmtDelay(e.delay);
-      if (!e.edctIssued) {
-        const ewu = earliestEdct(d.callsign, d.dep, d.dest);
-        const wu = ewu != null ? ewu : e.wheelsUp;
-        if (wu <= now + CFR_THRESHOLD) {
-          cfr = cfrReleasedHtml();
-        } else {
-          cfr = cfrIssueHtml(e.callsign, wu);
-        }
-      } else if (e.releaseNow) {
-        cfr = cfrNowHtml(e.callsign);
-      } else {
-        cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, e.callsign);
-      }
-    }
+    const cells = departureReleaseCells(
+      { ...d, arrived: false, status: "GROUND" }, d.entry, now, d.dep, flowCache);
     h += '<tr>' +
       '<td class="cell-strong">' + esc(d.callsign) + '</td>' +
       '<td>' + esc(d.type) + '</td>' +
       '<td class="cell-info">' + esc(d.dep) + '</td>' +
       '<td>' + esc(d.dest) + '</td>' +
-      '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + cfr + '</td>' +
+      '<td>' + cells.pgm + '</td><td>' + cells.sta + '</td><td>' + cells.dly + '</td>' +
+      '<td>' + cells.ready + '</td><td>' + cells.cfr + '</td>' +
       '</tr>';
   }
   h += '</tbody></table></div>';
@@ -3053,7 +3054,7 @@ function compressEdcts() {
 
     const depWUs = placedByDep[meta.dep] || [];
 
-    let wu = now + TAXI_FLOOR;
+    let wu = Math.max(now + TAXI_FLOOR, r.ready || 0);
     let moved = true, guard = 0;
     while (moved && guard++ < 500) {
       moved = false;
@@ -3075,7 +3076,7 @@ function compressEdcts() {
   }
 }
 
-function earliestEdct(cs, depField, destField) {
+function solveEarliestWheelsUp(cs, depField, destField, floorMs) {
   const flow = computeFlow(destField);
   if (!flow) return null;
   const me = flow.flights.find(f => f.callsign === cs);
@@ -3097,7 +3098,8 @@ function earliestEdct(cs, depField, destField) {
     if (issuedEdcts[p.callsign] != null) depWUs.push(issuedEdcts[p.callsign].t);
   }
 
-  let wu = Date.now() + TAXI_FLOOR;
+  const base = Date.now() + TAXI_FLOOR;
+  let wu = floorMs ? Math.max(base, floorMs) : base;
   let moved = true, guard = 0;
   while (moved && guard++ < 500) {
     moved = false;
@@ -3111,6 +3113,74 @@ function earliestEdct(cs, depField, destField) {
     }
   }
   return wu;
+}
+function earliestEdct(cs, depField, destField) {
+  return solveEarliestWheelsUp(cs, depField, destField, 0);
+}
+function earliestEdctAfter(cs, depField, destField, floorMs) {
+  if (!floorMs || !isFinite(floorMs)) return null;
+  return solveEarliestWheelsUp(cs, depField, destField, floorMs);
+}
+
+/* shared Ready Time + CFR cells for Departures and My Dashboard rows */
+function departureReleaseCells(d, e, now, depField, flowCache) {
+  const callsign = d.callsign;
+  const dest = d.dest;
+  const vfr = d.vfr;
+  const arrived = d.arrived;
+  const status = d.status;
+  const dim = '<span class="cell-dim">\u2014</span>';
+  let pgm, sta = "\u2014", dly = "\u2014", ready = dim, cfr;
+  const issuedRec = issuedEdcts[callsign];
+  const showReady = (ms) => { ready = readyTimeDisplayHtml(ms); };
+
+  if (arrived) {
+    pgm = dim;
+    cfr = '<span class="cell-muted">Arrived</span>';
+  } else if (vfr) {
+    pgm = '<span class="vfrtag">VFR</span>';
+    cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+  } else if (e && e.excluded) {
+    pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(dest).aar)) + "/hr";
+    cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
+  } else if (!arrived && groundStopFor(depField, dest)) {
+    const gs = groundStopFor(depField, dest);
+    pgm = tmuRates[dest] ? (d.aar || getRate(dest).aar) + "/hr" : dim;
+    if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
+    cfr = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
+  } else if (!tmuRates[dest]) {
+    pgm = dim;
+    cfr = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+  } else if (!e) {
+    pgm = dest in flowCache && !flowCache[dest]
+      ? '<span class="cell-muted">No feed</span>'
+      : esc(String(getRate(dest).aar)) + "/hr";
+    cfr = '<span class="cell-muted">\u2014</span>';
+  } else if (!canControl() && status !== "PROPOSED") {
+    pgm = d.aar + "/hr"; sta = fmtZ(e.sta); dly = fmtDelay(e.delay);
+    if (issuedRec && issuedRec.ready) showReady(issuedRec.ready);
+    cfr = lockedCfrHtml(e, now, e.wheelsUp);
+  } else {
+    pgm = d.aar + "/hr";
+    sta = fmtZ(e.sta);
+    dly = fmtDelay(e.delay);
+    if (status === "PROPOSED") {
+      cfr = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
+    } else if (!e.edctIssued) {
+      ready = readyTimeInputHtml(callsign, depField, dest);
+      const ewu = earliestEdct(callsign, depField, dest);
+      const wu = ewu != null ? ewu : e.wheelsUp;
+      cfr = wu <= now + CFR_THRESHOLD ? cfrReleasedHtml() : cfrIssueHtml(callsign, wu);
+    } else {
+      if (issuedRec && issuedRec.ready) showReady(issuedRec.ready);
+      if (e.releaseNow) {
+        cfr = cfrNowHtml(callsign);
+      } else {
+        cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign);
+      }
+    }
+  }
+  return { pgm, sta, dly, ready, cfr };
 }
 
 function renderDep() {
@@ -3206,62 +3276,17 @@ function renderDep() {
   } else {
     h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
       '<th>CALLSIGN</th><th>TYPE</th><th>DEST</th><th>STATUS</th><th>TMU PGM</th>' +
-      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>CALL FOR RELEASE (CFR)</th>' +
+      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
       '</tr></thead><tbody>';
     for (const d of deps) {
-      const e = d.entry;
-      let pgm, sta = "\u2014", dly = "\u2014", edct;
-      if (d.arrived) {
-        pgm = '<span class="cell-dim">\u2014</span>';
-        edct = '<span class="cell-muted">Arrived</span>';
-      } else if (d.vfr) {
-        pgm = '<span class="vfrtag">VFR</span>';
-        edct = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
-      } else if (e && e.excluded) {
-        pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
-        edct = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
-      } else if (!d.arrived && groundStopFor(depIcao, d.dest)) {
-        const gs = groundStopFor(depIcao, d.dest);
-        pgm = tmuRates[d.dest] ? (d.aar || getRate(d.dest).aar) + "/hr" : '<span class="cell-dim">\u2014</span>';
-        if (e) { sta = fmtZ(e.sta); dly = fmtDelay(e.delay); }
-        edct = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
-      } else if (!tmuRates[d.dest]) {
-        pgm = '<span class="cell-dim">\u2014</span>';
-        edct = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
-      } else if (!e) {
-        pgm = d.dest in flowCache && !flowCache[d.dest]
-          ? '<span class="cell-muted">No feed</span>'
-          : esc(String(getRate(d.dest).aar)) + "/hr";
-        edct = '<span class="cell-muted">\u2014</span>';
-      } else if (!canControl() && d.status !== "PROPOSED") {
-        pgm = d.aar + "/hr"; sta = fmtZ(e.sta); dly = fmtDelay(e.delay);
-        edct = lockedCfrHtml(e, now, e.wheelsUp);
-      } else {
-        pgm = d.aar + "/hr";
-        sta = fmtZ(e.sta);
-        dly = fmtDelay(e.delay);
-        if (d.status === "PROPOSED") {
-          edct = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
-        } else if (!e.edctIssued) {
-          const ewu = earliestEdct(d.callsign, depIcao, d.dest);
-          const wu = ewu != null ? ewu : e.wheelsUp;
-          if (wu <= now + CFR_THRESHOLD) {
-            edct = cfrReleasedHtml();
-          } else {
-            edct = cfrIssueHtml(e.callsign, wu);
-          }
-        } else if (e.releaseNow) {
-          edct = cfrNowHtml(e.callsign);
-        } else {
-          edct = cfrCountdownHtml(e.wheelsUp, now, e.pulled, e.callsign);
-        }
-      }
+      const cells = departureReleaseCells(d, d.entry, now, depIcao, flowCache);
       h += '<tr>' +
         '<td class="cell-strong">' + esc(d.callsign) + '</td>' +
         '<td>' + esc(d.type) + '</td>' +
         '<td>' + esc(d.dest) + '</td>' +
         '<td class="' + (d.arrived ? 'cell-muted' : d.status === 'GROUND' ? 'cell-warn' : 'cell-info') + '">' + d.status + '</td>' +
-        '<td>' + pgm + '</td><td>' + sta + '</td><td>' + dly + '</td><td>' + edct + '</td>' +
+        '<td>' + cells.pgm + '</td><td>' + cells.sta + '</td><td>' + cells.dly + '</td>' +
+        '<td>' + cells.ready + '</td><td>' + cells.cfr + '</td>' +
         '</tr>';
     }
     h += '</tbody></table></div>';
@@ -3740,6 +3765,30 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
+  const readyBtn = e.target.closest("[data-ready-submit]");
+  if (readyBtn) {
+    if (!canControl()) return;
+    const cs = readyBtn.dataset.readyCs;
+    const dep = readyBtn.dataset.readyDep;
+    const dest = readyBtn.dataset.readyDest;
+    const wrap = readyBtn.closest(".readywrap");
+    const input = wrap && wrap.querySelector(".ready-input");
+    if (!input || !cs) return;
+    const floor = parseZuluHhmm(input.value, Date.now());
+    if (!floor) {
+      input.classList.add("ready-input--err");
+      setTimeout(() => input.classList.remove("ready-input--err"), 1500);
+      return;
+    }
+    const wu = earliestEdctAfter(cs, dep, dest, floor);
+    if (wu == null) return;
+    issuedEdcts[cs] = {
+      t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null, ready: floor
+    };
+    pushSync();
+    renderContent();
+    return;
+  }
   const tmuAct = e.target.closest("[data-tmuview],[data-tmurm]");
   if (tmuAct) {
     if (tmuAct.dataset.tmuview) {
@@ -4015,7 +4064,7 @@ function edctsToWire() {
   const o = {};
   for (const cs in issuedEdcts) {
     const r = issuedEdcts[cs];
-    o[fbKey(cs)] = { cs, t: r.t, order: r.order, pulledUntil: r.pulledUntil || 0 };
+    o[fbKey(cs)] = { cs, t: r.t, order: r.order, pulledUntil: r.pulledUntil || 0, ready: r.ready || 0 };
   }
   return o;
 }
@@ -4037,7 +4086,10 @@ function applyEdctsFromWire(o) {
   for (const k in issuedEdcts) delete issuedEdcts[k];
   if (o) for (const k in o) {
     const v = o[k];
-    if (v && v.cs) issuedEdcts[v.cs] = { t: v.t, order: v.order, pulledUntil: v.pulledUntil ? v.pulledUntil : null };
+    if (v && v.cs) issuedEdcts[v.cs] = {
+      t: v.t, order: v.order, pulledUntil: v.pulledUntil ? v.pulledUntil : null,
+      ready: v.ready ? v.ready : null
+    };
   }
 }
 function applyRatesFromWire(o) {
