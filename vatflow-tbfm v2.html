@@ -269,12 +269,12 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
 .edctpulled .sub { color: #3a9a6a; font-weight: 400; }
 
 .cfr-sugg { color: var(--text-muted); font-size: 10px; font-family: var(--font-data); }
-.cfr-reorder { display: inline-flex; flex-direction: column; gap: 1px; margin-right: 4px; vertical-align: middle; }
-.cfr-mv {
-  background: var(--elevated); color: var(--text-muted); border: 1px solid var(--border-hi);
-  padding: 0 4px; font-size: 8px; line-height: 1.1; cursor: pointer; border-radius: 2px;
+.cfr-swap-select {
+  margin-right: 5px; max-width: 118px; padding: 2px 4px; font-size: 10px;
+  font-family: var(--font-data); background: var(--elevated); color: var(--text);
+  border: 1px solid var(--border-hi); border-radius: var(--radius-sm); vertical-align: middle;
 }
-.cfr-mv:hover { color: var(--accent-text); border-color: var(--accent); }
+.cfr-swap-select:focus { border-color: var(--accent); outline: none; }
 .readywrap { display: inline-flex; align-items: center; gap: 4px; }
 .ready-input {
   width: 58px; padding: 2px 5px; font-size: 10.5px; font-family: var(--font-data);
@@ -859,42 +859,38 @@ function cfrReleasedHtml() {
   return '<span class="cfr-badge cfr-badge--released"><span class="status-dot ok"></span> Released</span>';
 }
 function cfrNowHtml(callsign, dep, dest) {
-  const reorder = dep && dest ? cfrReorderBtns(callsign, dep, dest) : '';
-  return reorder +
+  const swap = dep && dest ? cfrSwapSelect(callsign, dep, dest) : '';
+  return swap +
     '<span class="cfr-badge cfr-badge--now"><span class="status-dot warn pulse"></span> Release now</span>' +
     '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
 }
 function cfrCountdownHtml(wheelsUp, now, pulled, callsign, dep, dest) {
-  const reorder = dep && dest ? cfrReorderBtns(callsign, dep, dest) : '';
+  const swap = dep && dest ? cfrSwapSelect(callsign, dep, dest) : '';
   const tmin = Math.max(0, Math.round((wheelsUp - now) / 60000));
   if (pulled) {
-    return reorder +
+    return swap +
       '<span class="cfr-badge cfr-badge--pulled">\u25BC ' + fmtZ(wheelsUp) + 'Z' +
       '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
       '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
   }
-  return reorder +
+  return swap +
     '<span class="cfr-badge cfr-badge--countdown">' + fmtZ(wheelsUp) + 'Z' +
     '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
     '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
 }
-function cfrReorderBtns(callsign, dep, dest) {
+function cfrSwapSelect(callsign, dep, dest) {
   if (!canControl()) return '';
   const list = routeIssuedRecs(dep, dest);
-  const idx = list.findIndex(x => x.cs === callsign);
-  if (idx < 0 || list.length < 2) return '';
-  return '<span class="cfr-reorder">' +
-    (idx > 0
-      ? '<button type="button" class="cfr-mv" data-cfr-up data-cfr-cs="' + esc(callsign) +
-        '" data-cfr-dep="' + esc(dep) + '" data-cfr-dest="' + esc(dest) +
-        '" title="Earlier release \u2014 swap with flight ahead">\u25B2</button>'
-      : '') +
-    (idx < list.length - 1
-      ? '<button type="button" class="cfr-mv" data-cfr-down data-cfr-cs="' + esc(callsign) +
-        '" data-cfr-dep="' + esc(dep) + '" data-cfr-dest="' + esc(dest) +
-        '" title="Later release \u2014 swap with flight behind">\u25BC</button>'
-      : '') +
-    '</span>';
+  if (list.length < 2 || list.findIndex(x => x.cs === callsign) < 0) return '';
+  const others = list.filter(x => x.cs !== callsign);
+  if (!others.length) return '';
+  let opts = '<option value="">Swap with\u2026</option>';
+  for (const x of others) {
+    opts += '<option value="' + esc(x.cs) + '">' + esc(x.cs) + ' \u00B7 ' + fmtZ(x.r.t) + 'Z</option>';
+  }
+  return '<select class="cfr-swap-select" data-cfr-swap-select data-cfr-cs="' + esc(callsign) +
+    '" data-cfr-dep="' + esc(dep) + '" data-cfr-dest="' + esc(dest) + '" title="Swap release time with another flight on this route">' +
+    opts + '</select>';
 }
 function depDestRouteKey(dep, dest) {
   return (dep || "").toUpperCase() + "|" + (dest || "").toUpperCase();
@@ -2245,7 +2241,7 @@ function renderHelp() {
     '<li><b>Released</b> — no delay needed; release at will.</li>' +
     '<li><b>Release now</b> — wheels-up time has arrived.</li>' +
     '<li>Cancel an issued CFR to pull remaining CFRs into the freed slot.</li>' +
-    '<li><b>Reorder</b> \u2014 on issued CFRs, use \u25B2 / \u25BC to swap release times with the flight ahead or behind on the same route (e.g. match taxiway order).</li>' +
+    '<li><b>Swap</b> \u2014 on issued CFRs, choose another flight on the same route from the <b>Swap with\u2026</b> menu to exchange release times (e.g. match taxiway order).</li>' +
     '<li>A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-metering">How metering works</div>' +
@@ -3124,19 +3120,17 @@ function routeIssuedRecs(dep, dest) {
   return out;
 }
 
-/* swap release times with the neighbor ahead (\u22121) or behind (+1) on the same route */
-function moveRouteCfr(callsign, dep, dest, dir) {
-  const list = routeIssuedRecs(dep, dest);
-  const idx = list.findIndex(x => x.cs === callsign);
-  if (idx < 0) return;
-  const j = idx + dir;
-  if (j < 0 || j >= list.length) return;
-  const a = list[idx].r, b = list[j].r;
-  const tA = a.t; a.t = b.t; b.t = tA;
-  const rA = a.ready, rB = b.ready;
-  if (rA || rB) { a.ready = rB || null; b.ready = rA || null; }
+/* swap release times between two issued flights on the same route */
+function swapRouteCfr(callsignA, callsignB, dep, dest) {
+  if (!callsignA || !callsignB || callsignA === callsignB) return;
+  const rA = issuedEdcts[callsignA], rB = issuedEdcts[callsignB];
+  if (!rA || !rB) return;
+  const tA = rA.t; rA.t = rB.t; rB.t = tA;
+  const readyA = rA.ready, readyB = rB.ready;
+  if (readyA || readyB) { rA.ready = readyB || null; rB.ready = readyA || null; }
   const base = Date.now();
-  list.forEach((x, i) => { x.r.order = base + i; });
+  rA.order = base;
+  rB.order = base + 1;
   pushSync();
   renderContent();
 }
@@ -3895,18 +3889,6 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
-  const cfrUp = e.target.closest("[data-cfr-up]");
-  if (cfrUp) {
-    if (!canControl()) return;
-    moveRouteCfr(cfrUp.dataset.cfrCs, cfrUp.dataset.cfrDep, cfrUp.dataset.cfrDest, -1);
-    return;
-  }
-  const cfrDown = e.target.closest("[data-cfr-down]");
-  if (cfrDown) {
-    if (!canControl()) return;
-    moveRouteCfr(cfrDown.dataset.cfrCs, cfrDown.dataset.cfrDep, cfrDown.dataset.cfrDest, 1);
-    return;
-  }
   const tmuAct = e.target.closest("[data-tmuview],[data-tmurm]");
   if (tmuAct) {
     if (tmuAct.dataset.tmuview) {
@@ -4089,6 +4071,13 @@ contentEl.addEventListener("change", e => {
     }
   }
   pushSync();
+});
+
+contentEl.addEventListener("change", e => {
+  if (!e.target.matches("[data-cfr-swap-select]") || !e.target.value) return;
+  if (!canControl()) return;
+  const sel = e.target;
+  swapRouteCfr(sel.dataset.cfrCs, sel.value, sel.dataset.cfrDep, sel.dataset.cfrDest);
 });
 
 /* ground-stop popup is outside the content area, so it gets its own dismiss handler */
