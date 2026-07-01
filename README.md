@@ -35,7 +35,7 @@ Download or test via this link here https://djbrombizzle.github.io/vatflow/vatfl
 | **TMU** | Set rate programs (AAR, trail/MIT, per-gate restrictions) for any airport. |
 | **Restrictions** | Shared free-form restriction entries (requesting, providing, restriction, start/stop). |
 | **Departures** | Single tower field view with CFR controls. |
-| **Taxi Monitor** | Monitor up to 5 departure fields at once; taxi times sync live via Firebase for all visitors. |
+| **Taxi Monitor** | Monitor up to 5 departure fields at once; taxi times sync live via Firebase for all visitors. View-only — adding/removing fields is TMU (controller password) access only. |
 
 ---
 
@@ -65,7 +65,7 @@ For any pending ground departure into a metered field, click **CFR TIME** to loc
 
 Add up to **5 departure airports** on the **Taxi Monitor** tab. The app watches ground departures at each field and times the roll from 10 kt groundspeed until 60 kt or altitude climb. Completed samples sync live via **Firebase** (`taximon/samples`) so every visitor sees the same data. Averages appear on **Home** with increasing/decreasing trend and volume context.
 
-Your monitored airport list is saved on this device; completed taxi samples are shared globally across all users.
+Adding or removing monitored airports is **TMU access only** — visitors see the monitor as read-only, and only an unlocked controller (control password) can change the fields. The monitored field list is shared globally via **Firebase** (`taximon/airports`), so every visitor sees the same airports and completed taxi samples.
 
 ---
 
