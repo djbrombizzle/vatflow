@@ -76,6 +76,9 @@
   .fca-row{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer}
   .swatch{width:11px;height:11px;border-radius:2px;flex:none;box-shadow:0 0 7px currentColor}
   .fca-name{flex:1;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fca-act{font-family:var(--mono);font-size:12px;color:var(--muted-2);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex:none}
+  .fca-act:hover{color:var(--text);background:#1a2230}
+  .fca-act.del:hover{color:var(--red);background:#1a1010}
   .fca-meta{display:flex;gap:8px;padding:0 11px 9px;font-family:var(--mono);font-size:10px;color:var(--muted)}
   .fca-meta span{background:#162030;border:1px solid var(--line);border-radius:4px;padding:2px 6px}
   .demand{font-family:var(--mono);font-size:10px;padding:5px 11px;border-top:1px solid var(--line);
@@ -157,6 +160,8 @@
   .strip .num{font-size:13px;font-weight:700;color:var(--amber);text-align:center}
   .strip .cs{font-size:13px;font-weight:700;letter-spacing:.04em}
   .strip .info{font-size:10px;color:var(--muted);margin-top:2px}
+  .strip .gap{font-size:9px;margin-top:3px;color:var(--cyan);letter-spacing:.02em}
+  .strip .gap.short{color:var(--red)}
   .strip .eta{text-align:right}
   .strip .eta .big{font-size:14px;font-weight:700}
   .strip .eta .dl{font-size:10px;margin-top:2px}
@@ -278,6 +283,7 @@
   <div class="seq-head">
     <div class="t"><span class="swatch" id="seqSwatch"></span><b id="seqName">—</b>
       <div style="flex:1"></div>
+      <button class="btn ghost sm" id="seqEdit" title="Edit rate / MIT / filters">✎</button>
       <button class="btn ghost sm" id="seqFit" title="Zoom map to this FCA">⌖</button>
       <button class="btn ghost sm" id="seqCopy" title="Copy sequence to clipboard">⧉</button>
       <button class="btn ghost sm" id="closeSeq">›</button>
@@ -330,6 +336,7 @@ const state = {
   selectedId: null,
   drawing: null,           // {points:[], poly, markers:[]}
   editing: null,           // fca object being edited (or new)
+  editingBackup: null,     // snapshot of an existing fca for Cancel-revert
   pilots: [],              // connected aircraft (air + ground)
   prefiles: [],            // prefiled flight plans (not yet connected)
   feed: "init",            // init | live | demo | dead
@@ -992,6 +999,8 @@ function renderFcaList(){
       <div class="fca-row" data-sel="${f.id}">
         <span class="swatch" style="color:${f.color};background:${f.color}"></span>
         <span class="fca-name">${escapeHtml(f.name)}</span>
+        <span class="fca-act" data-edit="${f.id}" title="Edit rate / MIT / filters">✎</span>
+        <span class="fca-act del" data-del="${f.id}" title="Delete this FCA">✕</span>
         <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>
       </div>
       <div class="fca-meta">
@@ -1008,7 +1017,7 @@ function renderFcaList(){
   });
   // wire
   wrap.querySelectorAll("[data-sel]").forEach(el=>el.addEventListener("click",e=>{
-    if(e.target.closest("[data-en]")) return;
+    if(e.target.closest("[data-en],[data-edit],[data-del]")) return;
     selectFca(el.getAttribute("data-sel"));
   }));
   wrap.querySelectorAll("[data-en]").forEach(el=>el.addEventListener("click",e=>{
@@ -1016,15 +1025,30 @@ function renderFcaList(){
     const f=state.fcas.find(x=>x.id===el.getAttribute("data-en"));
     if(f){ f.enabled=!f.enabled; cloudPush(f); renderAll(); }
   }));
+  wrap.querySelectorAll("[data-edit]").forEach(el=>el.addEventListener("click",e=>{
+    e.stopPropagation();
+    const f=state.fcas.find(x=>x.id===el.getAttribute("data-edit"));
+    if(f) openEditor(f);
+  }));
+  wrap.querySelectorAll("[data-del]").forEach(el=>el.addEventListener("click",e=>{
+    e.stopPropagation();
+    deleteFca(el.getAttribute("data-del"));
+  }));
 }
 
 /* ============================================================
    EDITOR FORM
    ============================================================ */
 function openEditor(fca){
+  const isNew=!state.fcas.some(f=>f.id===fca.id);
+  // snapshot an existing FCA so Cancel reverts live edits (color / direction /
+  // mode mutate the object immediately). Don't re-snapshot when the editor
+  // reopens for the same FCA after a line redraw.
+  if(isNew) state.editingBackup=null;
+  else if(!(state.editing && state.editing.id===fca.id && state.editingBackup))
+    state.editingBackup=JSON.parse(JSON.stringify(fca));
   state.editing=fca;
   const m=document.getElementById("editorMount");
-  const isNew=!state.fcas.some(f=>f.id===fca.id);
   const lineNm=lineLengthNm(fca.points);
   m.innerHTML=`
     <div class="form">
@@ -1080,7 +1104,10 @@ function openEditor(fca){
     swWrap.appendChild(s);
   });
   document.getElementById("f_save").addEventListener("click",saveEditor);
-  document.getElementById("f_cancel").addEventListener("click",()=>{ state.editing=null; closeEditor(); renderAll(); });
+  document.getElementById("f_cancel").addEventListener("click",()=>{
+    if(state.editingBackup) Object.assign(fca,state.editingBackup);
+    state.editing=null; state.editingBackup=null; closeEditor(); renderAll();
+  });
   document.getElementById("f_redraw").addEventListener("click",()=>{ startDrawing(fca); });
   const del=document.getElementById("f_delete");
   if(del) del.addEventListener("click",()=>deleteFca(fca.id));
@@ -1115,7 +1142,8 @@ function saveEditor(){
   if(f.mode==="mit"&&!f.mit){ toast("Enter a MIT value, or switch to Rate.",2600); return; }
   if(!state.fcas.some(x=>x.id===f.id)) state.fcas.push(f);
   cloudPush(f);
-  state.editing=null; closeEditor(); selectFca(f.id);
+  state.editing=null; state.editingBackup=null; closeEditor();
+  if(state.selectedId===f.id) renderAll(); else selectFca(f.id);
 }
 function closeEditor(){ document.getElementById("editorMount").innerHTML=""; }
 
@@ -1172,6 +1200,22 @@ function renderSequence(){
   s.items.forEach((c,i)=>{
     const cls=c.delay<30?"zero":c.delay<300?"low":"high";
     const fl=String(Math.round(((c.phase==="gnd"?c.p.fpAlt:c.p.alt)||0)/100)).padStart(3,"0");
+    // in-trail readout: nm behind the preceding aircraft, or (for the leader)
+    // the remaining distance to the FCA line
+    let gapHtml, gapShort=false;
+    if(i===0){
+      gapHtml=`→ ${Math.round(c.dist)}nm to line`;
+    }else{
+      const prev=s.items[i-1];
+      const gapNm=c.dist-prev.dist;   // both measured along each path to the same line
+      const reqNm=s.mode==="mit" ? (s.mit||0) : ((s.minit||0)*(c.spd||420)/3600);
+      gapShort=gapNm<reqNm-0.5;
+      gapHtml=(gapNm>=0
+        ? `↑ ${Math.round(gapNm)}nm behind ${escapeHtml(prev.p.callsign)}`
+        : `↓ ${Math.round(-gapNm)}nm ahead of ${escapeHtml(prev.p.callsign)}`)
+        + (reqNm?` <span style="color:var(--muted-2)">· need ${Math.round(reqNm)}nm</span>`:"");
+    }
+    const gapLine=`<div class="gap${gapShort?" short":""}">${gapHtml}</div>`;
     const strip=document.createElement("div");
     strip.className="strip"; strip.style.borderLeftColor=delayColor(c.delay);
     strip.setAttribute("draggable","true");
@@ -1181,7 +1225,7 @@ function renderSequence(){
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph gnd">EDCT</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div></div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
         <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
           <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
         <div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`;
@@ -1189,7 +1233,7 @@ function renderSequence(){
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph air">AIR</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm${c.via==="route"?" · rte est":""}</div></div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm${c.via==="route"?" · rte est":""}</div>${gapLine}</div>
         <div class="eta"><div class="big">${fmtZulu(c.ctaMs)}</div>
           <div class="dl ${cls}">${c.delay<30?"on time":"air +"+fmtClock(c.delay)}</div></div>
         <div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`;
@@ -1240,37 +1284,49 @@ function excludeAircraft(fca,callsign){
   cloudPush(fca); renderAll();
 }
 
-/* SVG metering ladder: natural ETA (left) vs scheduled (right) */
+/* SVG metering ladder.
+   Rate mode: time axis — natural ETA vs scheduled crossing time.
+   MIT mode: distance axis (nm) — current distance to the line vs the distance
+   equivalent of the scheduled crossing, so spacing reads directly in miles. */
 function ladderSvg(s){
   const items=s.items.slice(0,18);
   if(!items.length) return "";
+  const isMit=s.mode==="mit";
+  const natOf  =c=>isMit ? c.dist : c.eta;
+  const schedOf=c=>isMit ? c.sched*(c.spd||420)/3600 : c.sched;
   const W=336, padT=22, padB=10, rowH=Math.max(16,Math.min(26,(220)/items.length));
   const H=padT+padB+rowH*items.length;
-  const maxT=Math.max(items[items.length-1].sched, items[items.length-1].eta, 60);
+  const maxV=Math.max(isMit?20:60, ...items.map(c=>Math.max(natOf(c),schedOf(c))));
   const x0=46, x1=W-14;
-  const X=t=>x0+(x1-x0)*(t/maxT);
+  const X=v=>x0+(x1-x0)*(v/maxV);
   let g=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block">`;
-  g+=`<text x="8" y="13" fill="#76838f" font-family="var(--mono,monospace)" font-size="9">ETA→</text>`;
+  g+=`<text x="8" y="13" fill="#76838f" font-family="var(--mono,monospace)" font-size="9">${isMit?"DIST→":"ETA→"}</text>`;
   g+=`<text x="${x1}" y="13" fill="#f5a623" font-family="var(--mono,monospace)" font-size="9" text-anchor="end">metered crossing</text>`;
-  // time gridlines every 10 min
-  for(let m=0;m<=maxT/60;m+=10){
-    const x=X(m*60);
+  // gridlines: nm steps in MIT mode, minute steps in rate mode
+  const gridline=(x,label)=>{
     g+=`<line x1="${x}" y1="${padT-4}" x2="${x}" y2="${H-padB}" stroke="#1d2734" stroke-width="1"/>`;
-    g+=`<text x="${x}" y="${H-1}" fill="#566270" font-family="var(--mono,monospace)" font-size="8" text-anchor="middle">${m}m</text>`;
+    g+=`<text x="${x}" y="${H-1}" fill="#566270" font-family="var(--mono,monospace)" font-size="8" text-anchor="middle">${label}</text>`;
+  };
+  if(isMit){
+    const step=[5,10,20,25,50,100,200,500,1000].find(st=>maxV/st<=8)||1000;
+    for(let v=0;v<=maxV;v+=step) gridline(X(v),`${v}nm`);
+  } else {
+    const stepMin=[10,20,30,60,120].find(st=>maxV/60/st<=8)||240;
+    for(let m=0;m<=maxV/60;m+=stepMin) gridline(X(m*60),`${m}m`);
   }
   items.forEach((c,i)=>{
     const y=padT+rowH*i+rowH/2;
-    const xe=X(c.eta), xs=X(c.sched), col=delayColor(c.delay);
-    if(c.delay>=30){ // delay bar
+    const xe=X(natOf(c)), xs=X(schedOf(c)), col=delayColor(c.delay);
+    if(c.delay>=30){ // delay bar (time to absorb / miles to give)
       g+=`<line x1="${xe}" y1="${y}" x2="${xs}" y2="${y}" stroke="${col}" stroke-width="2" stroke-dasharray="2 2"/>`;
     }
-    g+=`<circle cx="${xe}" cy="${y}" r="2.4" fill="#3a4d5e"/>`;                 // natural ETA
+    g+=`<circle cx="${xe}" cy="${y}" r="2.4" fill="#3a4d5e"/>`;                 // natural position
     g+=`<circle cx="${xs}" cy="${y}" r="3.4" fill="${col}" stroke="#0a0e14" stroke-width="1"/>`; // scheduled
     g+=`<text x="4" y="${y+3}" fill="${col}" font-family="var(--mono,monospace)" font-size="9" font-weight="700">${i+1}</text>`;
     g+=`<text x="${Math.min(xs+6,x1-2)}" y="${y-4}" fill="#cdd6e0" font-family="var(--mono,monospace)" font-size="8">${escapeHtml(c.p.callsign)}</text>`;
   });
   g+=`</svg>`;
-  const spaceLbl = s.mode==="mit" ? `MIT ${s.mit}nm` : `MINIT ${fmtClock(s.minit)}`;
+  const spaceLbl = isMit ? `MIT ${s.mit}nm` : `MINIT ${fmtClock(s.minit)}`;
   const moreLbl = s.items.length>items.length ? ` · ${items.length}/${s.items.length}` : "";
   return `<div class="ladder-wrap"><div class="lt"><span>METERING LADDER${moreLbl}</span><span>spacing = ${spaceLbl}</span></div>${g}</div>`;
 }
@@ -1385,7 +1441,7 @@ function deleteFca(id){
   state.fcas=state.fcas.filter(f=>f.id!==id);
   cloudDelete(id);
   if(state.selectedId===id) state.selectedId=null;
-  state.editing=null; closeEditor();
+  state.editing=null; state.editingBackup=null; closeEditor();
   document.getElementById("seqPanel").classList.remove("show");
   renderAll();
 }
@@ -1416,7 +1472,7 @@ function importFcas(file){
    ============================================================ */
 function renderAll(){ invalidateSequences(); renderFcaLines(); renderTraffic(); renderFcaList(); renderSequence(); }
 
-document.getElementById("newFca").addEventListener("click",()=>{ state.editing=null; closeEditor(); startDrawing(null); });
+document.getElementById("newFca").addEventListener("click",()=>{ state.editing=null; state.editingBackup=null; closeEditor(); startDrawing(null); });
 document.getElementById("refreshBtn").addEventListener("click",()=>{ state.layers.demo?stepDemo():fetchLive(); state.countdown=REFRESH_SEC; });
 document.getElementById("exportBtn").addEventListener("click",exportFcas);
 document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
@@ -1425,6 +1481,11 @@ document.getElementById("closeSeq").addEventListener("click",()=>{ state.selecte
 document.getElementById("seqFit").addEventListener("click",()=>{
   const sel=state.fcas.find(f=>f.id===state.selectedId);
   if(sel&&sel.points.length>=2) map.fitBounds(L.latLngBounds(sel.points).pad(0.6));
+});
+document.getElementById("seqEdit").addEventListener("click",()=>{
+  const sel=state.fcas.find(f=>f.id===state.selectedId); if(!sel) return;
+  setSide(true);            // editor lives in the sidebar — make sure it's visible
+  openEditor(sel);
 });
 document.getElementById("seqCopy").addEventListener("click",copySequence);
 
