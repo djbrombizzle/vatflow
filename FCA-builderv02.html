@@ -151,7 +151,7 @@
   .seq-scroll::-webkit-scrollbar-thumb{background:#22303d;border-radius:4px}
 
   /* flight strip */
-  .strip{display:grid;grid-template-columns:24px 1fr auto;gap:9px;align-items:center;background:#0f151e;
+  .strip{display:grid;grid-template-columns:24px 1fr auto auto;gap:8px;align-items:center;background:#0f151e;
     border:1px solid var(--line-2);border-left-width:3px;border-radius:6px;padding:8px 10px;margin-bottom:7px;font-family:var(--mono);cursor:pointer}
   .strip:hover{background:#131b26}
   .strip .num{font-size:13px;font-weight:700;color:var(--amber);text-align:center}
@@ -223,6 +223,7 @@
   <button class="btn ghost sm" id="toggleSide" title="Panels">☰</button>
   <div class="brand"><b>FCA&nbsp;BUILDER</b><span class="tag">VATSIM&nbsp;FLOW</span></div>
   <div class="spacer" style="flex:1"></div>
+  <div class="stat" title="UTC time"><b id="zClock">----Z</b></div>
   <div class="stat hideSm"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
   <div class="stat hideSm">traffic <b id="acCount">0</b></div>
   <div class="stat" id="refreshStat">next <b id="refreshIn">--</b>s</div>
@@ -248,7 +249,7 @@
 
     <div class="layers" style="margin-top:14px">
       <div class="lh">SYNC</div>
-      <div class="stat" style="padding:2px 0 4px"><span class="dot" id="syncDot"></span><span id="syncTxt" style="color:var(--text)">local only — not shared</span></div>
+      <div class="stat" style="padding:2px 0 4px"><span class="dot" id="syncDot"></span><span id="syncTxt" style="color:var(--text)">local — saved on this device</span></div>
       <div class="empty" style="text-align:left;border:none;padding:4px 0 0;color:var(--muted-2)">FCAs shared live with everyone on this site when sync is set up. See SUPABASE-SETUP.html.</div>
     </div>
 
@@ -265,7 +266,8 @@
       <div class="lh">TIPS</div>
       <div class="empty" style="text-align:left;border:none;padding:0;color:var(--muted-2);line-height:1.7">
         <b style="color:var(--cyan);letter-spacing:0">Ctrl/⌘ + click</b> two points to measure distance in NM.<br>
-        <b style="color:#8ab4ff;letter-spacing:0">Click an aircraft</b> to plot its route. Esc clears either.
+        <b style="color:#8ab4ff;letter-spacing:0">Click an aircraft</b> to plot its route. Esc clears either.<br>
+        <b style="color:var(--amber);letter-spacing:0">⧉ in the sequence panel</b> copies the EDCT list for coordination.
       </div>
     </div>
   </div>
@@ -276,6 +278,8 @@
   <div class="seq-head">
     <div class="t"><span class="swatch" id="seqSwatch"></span><b id="seqName">—</b>
       <div style="flex:1"></div>
+      <button class="btn ghost sm" id="seqFit" title="Zoom map to this FCA">⌖</button>
+      <button class="btn ghost sm" id="seqCopy" title="Copy sequence to clipboard">⧉</button>
       <button class="btn ghost sm" id="closeSeq">›</button>
     </div>
     <div class="sub" id="seqSub"></div>
@@ -549,6 +553,7 @@ function startFeedLoop(){
 
 function afterData(){
   document.getElementById("acCount").textContent=state.pilots.length;
+  invalidateSequences();
   renderTraffic();
   renderFcaList();           // demand numbers depend on traffic
   if(state.selectedId) renderSequence();
@@ -562,6 +567,11 @@ function haversineNm(la1,lo1,la2,lo2){
   const R=3440.065, dLa=toRad(la2-la1), dLo=toRad(lo2-lo1);
   const a=Math.sin(dLa/2)**2+Math.cos(toRad(la1))*Math.cos(toRad(la2))*Math.sin(dLo/2)**2;
   return 2*R*Math.asin(Math.sqrt(a));
+}
+function lineLengthNm(pts){
+  let d=0;
+  for(let i=1;i<(pts||[]).length;i++) d+=haversineNm(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1]);
+  return d;
 }
 function bearing(la1,lo1,la2,lo2){
   const y=Math.sin(toRad(lo2-lo1))*Math.cos(toRad(la2));
@@ -611,27 +621,74 @@ function segInt(P1,P2,A,B){
   if(t>=0&&t<=1&&u>=0&&u<=1) return {t,x:P1[0]+t*r[0],y:P1[1]+t*r[1]};
   return null;
 }
-/* Where a ground flight's (direct) route from origin to destination crosses the FCA. */
+/* Densify a list of anchor lat/lons into a great-circle polyline. Working
+   leg-by-leg (~120 nm segments) keeps the flat-plane math accurate even on
+   transcontinental routes, where a single projection plane drifts badly. */
+function buildPathLLs(anchors){
+  let path=[];
+  for(let i=0;i<anchors.length-1;i++){
+    const seg=gcLine(anchors[i],anchors[i+1]);
+    if(i>0) seg.shift();
+    path=path.concat(seg);
+  }
+  return path;
+}
+/* First crossing of a path polyline with the FCA line.
+   Direction filter uses the local leg course (what the aircraft will actually
+   be flying at the line), not the overall origin→destination bearing.
+   Returns {dist, lat, lon, course} with dist in nm along the path, or null. */
+function pathCrossing(path,fca){
+  let cum=0, best=null;
+  for(let k=0;k<path.length-1;k++){
+    const a=path[k], b=path[k+1];
+    const legLen=haversineNm(a[0],a[1],b[0],b[1]);
+    if(legLen<0.01) continue;
+    const legCourse=bearing(a[0],a[1],b[0],b[1]);
+    if(fcaMatchesDir(fca,legCourse)){
+      const P2=toLocal(b[0],b[1],a[0],a[1]);
+      for(let i=0;i<fca.points.length-1;i++){
+        const A=toLocal(fca.points[i][0],fca.points[i][1],a[0],a[1]);
+        const B=toLocal(fca.points[i+1][0],fca.points[i+1][1],a[0],a[1]);
+        const x=segInt([0,0],P2,A,B);
+        if(x){ const dist=cum+x.t*legLen;
+          if(!best||dist<best.dist){ const ll=localToLatLon(x.x,x.y,a[0],a[1]);
+            best={dist,lat:ll[0],lon:ll[1],course:legCourse}; } }
+      }
+    }
+    cum+=legLen;
+  }
+  return best;
+}
+/* Anchors a pre-departure flight will fly through: origin, any en-route
+   airports found in the filed route text, destination. */
+function plannedAnchors(p,origin,dst){
+  const anchors=[origin];
+  parseRouteTokens(p.route).forEach(t=>{
+    const c=t.replace(/\/.*$/,"");
+    if(c.length>=3 && AIRPORTS.has(c) && c!==p.dep && c!==p.arr) anchors.push(AIRPORTS.get(c));
+  });
+  anchors.push(dst);
+  return anchors;
+}
+/* Pre-departure transit time to a point `dist` nm down the route. The first
+   ~CLIMB_NM run slower than filed TAS (climb), so a raw dist/TAS estimate
+   makes every EDCT a few minutes too optimistic. */
+const CLIMB_NM=120, CLIMB_FACTOR=0.65;
+function groundTransitSec(dist,tas){
+  const climb=Math.min(dist,CLIMB_NM);
+  return (climb/(tas*CLIMB_FACTOR) + Math.max(0,dist-climb)/tas)*3600;
+}
+/* Where a ground flight's planned route crosses the FCA. */
 function groundCrossing(p,fca,nowMs){
   const o=(p.lat!=null&&p.lon!=null)?[p.lat,p.lon]:getAirport(p.dep);
   const dst=getAirport(p.arr);
   if(!o||!dst) return null;
-  const course=bearing(o[0],o[1],dst[0],dst[1]);
-  if(!fcaMatchesDir(fca,course)) return null;
-  const P1=[0,0], P2=toLocal(dst[0],dst[1],o[0],o[1]), pathLen=Math.hypot(P2[0],P2[1]);
-  let best=null;
-  for(let i=0;i<fca.points.length-1;i++){
-    const A=toLocal(fca.points[i][0],fca.points[i][1],o[0],o[1]);
-    const B=toLocal(fca.points[i+1][0],fca.points[i+1][1],o[0],o[1]);
-    const x=segInt(P1,P2,A,B);
-    if(x){ const dist=x.t*pathLen; if(!best||dist<best.dist){ const ll=localToLatLon(x.x,x.y,o[0],o[1]);
-      best={dist,lat:ll[0],lon:ll[1]}; } }
-  }
+  const best=pathCrossing(buildPathLLs(plannedAnchors(p,o,dst)),fca);
   if(!best) return null;
-  const tas=p.tas||420, transitSec=best.dist/tas*3600;
+  const tas=p.tas||420, transitSec=groundTransitSec(best.dist,tas);
   const ptimeMs=ptimeToMs(p.deptime), effMs=Math.max(nowMs, ptimeMs||nowMs);
   const etaSec=(effMs-nowMs)/1000 + transitSec;
-  return { dist:best.dist, cross:{lat:best.lat,lon:best.lon}, course, tas, transitSec, ptimeMs, effMs, etaSec, origin:o };
+  return { dist:best.dist, cross:{lat:best.lat,lon:best.lon}, course:best.course, tas, transitSec, ptimeMs, effMs, etaSec, origin:o };
 }
 /* flight-plan altitude string -> feet */
 function parseAlt(a){ if(a==null) return 0; a=(""+a).toUpperCase().replace(/\s|FL/g,"");
@@ -673,6 +730,18 @@ function fcaMatchesDir(fca,hdg){
 }
 const DIR_LABEL={any:"any dir","N":"NB","S":"SB","E":"EB","W":"WB"};
 
+/* Memoized wrapper: within one render pass / data refresh, the list, the map
+   markers and the sequence panel must all see the same computation (otherwise
+   the numbering can disagree, since each call would use a fresh Date.now()).
+   The cache is invalidated on every data refresh and every renderAll(). */
+const seqCache=new Map();
+function invalidateSequences(){ seqCache.clear(); }
+function getSequence(fca){
+  let s=seqCache.get(fca.id);
+  if(!s){ s=computeSequence(fca); seqCache.set(fca.id,s); }
+  return s;
+}
+
 /* Build the metered sequence for an FCA from current traffic.
    Airborne flights absorb delay in the air; ground/prefile flights are
    slotted by route + filed TAS + proposed time and receive an EDCT. */
@@ -689,9 +758,20 @@ function computeSequence(fca){
     if(ex.has(p.callsign)){ out.excluded++; continue; }
     if(!fcaMatchesDest(fca,p.arr)) continue;
     if(!fcaMatchesAlt(fca,p.alt||0)) continue;
-    if(!fcaMatchesDir(fca,p.hdg||0)) continue;
-    const x=projectCrossing(p,fca.points); if(!x) continue;
-    cand.push({p,phase:"air",dist:x.dist,eta:(x.dist/p.gs)*3600,cross:x,spd:p.gs});
+    // primary: project the current track (heading ray)
+    let x=null, via=null;
+    if(fcaMatchesDir(fca,p.hdg||0)) x=projectCrossing(p,fca.points);
+    // fallback: heading ray misses (dogleg route / vectors) but the route
+    // from present position to destination still crosses the line
+    if(!x){
+      const dst=getAirport(p.arr);
+      if(dst){
+        const b=pathCrossing(buildPathLLs([[p.lat,p.lon],dst]),fca);
+        if(b && b.dist<=LOOKAHEAD_NM){ x={dist:b.dist,lat:b.lat,lon:b.lon}; via="route"; }
+      }
+    }
+    if(!x) continue;
+    cand.push({p,phase:"air",dist:x.dist,eta:(x.dist/p.gs)*3600,cross:x,spd:p.gs,via});
   }
 
   // --- ground / prefile: pre-departure, eligible for EDCT ---
@@ -803,7 +883,7 @@ function renderTraffic(){
   const sel=state.fcas.find(f=>f.id===state.selectedId&&f.enabled);
   // who is in the selected FCA's sequence (for highlight + number)
   let seqMap=new Map();
-  if(sel){ const s=computeSequence(sel); s.items.forEach((c,i)=>seqMap.set(c.p.callsign,{n:i+1,color:sel.color})); }
+  if(sel){ const s=getSequence(sel); s.items.forEach((c,i)=>seqMap.set(c.p.callsign,{n:i+1,color:sel.color})); }
   let shown=0;
   for(const p of state.pilots){
     if(p.lat==null||p.lon==null) continue;
@@ -814,8 +894,8 @@ function renderTraffic(){
     const m=L.marker([p.lat,p.lon],{icon:planeIcon(color,p.hdg||0,!!hit,hit?hit.n:null),
       keyboard:false, riseOnHover:true});
     m.bindTooltip(
-      `<b style="color:${color}">${p.callsign}</b>  ${p.type||""}<br>`+
-      `${p.dep||"????"} → ${p.arr||"????"}<br>`+
+      `<b style="color:${color}">${escapeHtml(p.callsign)}</b>  ${escapeHtml(p.type||"")}<br>`+
+      `${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")}<br>`+
       `FL${String(Math.round((p.alt||0)/100)).padStart(3,"0")}  ${p.gs||0}kt`,
       {className:"artcc-label",direction:"top",offset:[0,-6]});
     m.on("click",()=>{ if(state.drawing) return; showRoute(p); });
@@ -848,7 +928,7 @@ function renderFcaLines(){
     const mid=f.points[Math.floor(f.points.length/2)];
     L.marker(mid,{interactive:false,
       icon:L.divIcon({className:"artcc-label",html:
-        `<span style="color:${f.color};text-shadow:0 0 6px #000,0 0 6px #000">▮ ${f.name}</span>`,
+        `<span style="color:${f.color};text-shadow:0 0 6px #000,0 0 6px #000">▮ ${escapeHtml(f.name)}</span>`,
         iconSize:[120,12]})}).addTo(fcaLayer);
   });
   // selected FCA: draggable vertex handles + projected crossing dots
@@ -858,14 +938,14 @@ function renderFcaLines(){
       const h=L.marker(pt,{draggable:true,
         icon:L.divIcon({className:"vtx",iconSize:[12,12],iconAnchor:[6,6]})}).addTo(seqLayer);
       h.on("drag",e=>{ sel.points[idx]=[e.latlng.lat,e.latlng.lng]; });
-      h.on("dragend",()=>{ cloudPush(sel); renderFcaLines(); renderTraffic(); renderFcaList(); renderSequence(); });
+      h.on("dragend",()=>{ cloudPush(sel); renderAll(); });
     });
-    const s=computeSequence(sel);
+    const s=getSequence(sel);
     s.items.forEach((c,i)=>{
       const col=delayColor(c.delay);
       // crossing point on the line
       L.circleMarker([c.cross.lat,c.cross.lon],{radius:4,color:col,fillColor:col,fillOpacity:.9,weight:1})
-        .bindTooltip(`#${i+1} ${c.p.callsign}`,{className:"artcc-label",direction:"top"})
+        .bindTooltip(`#${i+1} ${escapeHtml(c.p.callsign)}`,{className:"artcc-label",direction:"top"})
         .addTo(seqLayer);
       // ground/prefile flights: show origin + the route leg to the line
       if(c.phase==="gnd"){
@@ -875,7 +955,7 @@ function renderFcaLines(){
           if(c.p.lat==null){   // prefile has no plane marker — draw a departure square
             L.marker(o,{icon:L.divIcon({className:"",iconSize:[12,12],iconAnchor:[6,6],
               html:`<div style="width:9px;height:9px;background:${sel.color};border:1px solid #0a0e14;transform:rotate(45deg);box-shadow:0 0 6px ${sel.color}"></div>`})})
-              .bindTooltip(`${c.p.callsign} · ${c.p.dep} · EDCT ${c.edctMs?fmtZulu(c.edctMs):"—"}`,
+              .bindTooltip(`${escapeHtml(c.p.callsign)} · ${escapeHtml(c.p.dep)} · EDCT ${c.edctMs?fmtZulu(c.edctMs):"—"}`,
                 {className:"artcc-label",direction:"top"})
               .on("click",()=>{ if(!state.drawing) showRoute(c.p); }).addTo(seqLayer);
           }
@@ -897,11 +977,10 @@ function renderFcaList(){
   }
   wrap.innerHTML="";
   state.fcas.forEach(f=>{
-    const seq=computeSequence(f);
+    const seq=getSequence(f);
     const card=document.createElement("div");
     card.className="fca-card"+(f.id===state.selectedId?" sel":"")+(f.enabled?"":" off");
     const dmd=seq.demand;
-    const limit=f.mode==="mit"?(f.mit||0):(f.rate||0);
     const hot=f.mode==="rate"&&f.rate>0&&dmd>f.rate;
     const minitTxt=seq.minit?fmtClock(seq.minit):"—";
     const constraintTxt = f.mode==="mit" ? ((f.mit?f.mit:"?")+" MIT") : (f.rate?f.rate+"/hr":"no rate");
@@ -912,7 +991,7 @@ function renderFcaList(){
         <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>
       </div>
       <div class="fca-meta">
-        <span>${f.dests&&f.dests.length?f.dests.join(" "):"ALL dest"}</span>
+        <span>${f.dests&&f.dests.length?escapeHtml(f.dests.join(" ")):"ALL dest"}</span>
         <span>${f.minFL!=null?"FL"+f.minFL:"SFC"}–${f.maxFL!=null?"FL"+f.maxFL:"UNL"}</span>
         <span>${DIR_LABEL[f.dir||"any"]}</span>
         <span>${constraintTxt}</span>
@@ -942,13 +1021,14 @@ function openEditor(fca){
   state.editing=fca;
   const m=document.getElementById("editorMount");
   const isNew=!state.fcas.some(f=>f.id===fca.id);
+  const lineNm=lineLengthNm(fca.points);
   m.innerHTML=`
     <div class="form">
-      <h3>${isNew?"NEW FCA":"EDIT FCA"} · ${fca.points.length} pts</h3>
+      <h3>${isNew?"NEW FCA":"EDIT FCA"} · ${fca.points.length} pts${lineNm?` · ${Math.round(lineNm)} nm`:""}</h3>
       <div class="fld"><label>Name</label>
         <input id="f_name" value="${escapeHtml(fca.name)}" placeholder="e.g. ATL West Gate"></div>
       <div class="fld"><label>Destination airports</label>
-        <input id="f_dest" value="${(fca.dests||[]).join(" ")}" placeholder="KATL KCLT  · blank = all">
+        <input id="f_dest" value="${escapeHtml((fca.dests||[]).join(" "))}" placeholder="KATL KCLT  · blank = all">
         <div class="hint">space/comma separated ICAO. Blank meters every arrival crossing the line.</div></div>
       <div class="grid2">
         <div class="fld"><label>Min FL</label><input id="f_minfl" type="number" value="${fca.minFL??""}" placeholder="—"></div>
@@ -996,7 +1076,7 @@ function openEditor(fca){
     swWrap.appendChild(s);
   });
   document.getElementById("f_save").addEventListener("click",saveEditor);
-  document.getElementById("f_cancel").addEventListener("click",()=>{ closeEditor(); if(isNew) state.editing=null; renderAll(); });
+  document.getElementById("f_cancel").addEventListener("click",()=>{ state.editing=null; closeEditor(); renderAll(); });
   document.getElementById("f_redraw").addEventListener("click",()=>{ startDrawing(fca); });
   const del=document.getElementById("f_delete");
   if(del) del.addEventListener("click",()=>deleteFca(fca.id));
@@ -1017,7 +1097,9 @@ function openEditor(fca){
 function saveEditor(){
   const f=state.editing; if(!f) return;
   f.name=(document.getElementById("f_name").value||"Untitled FCA").trim();
-  f.dests=(document.getElementById("f_dest").value||"").toUpperCase().split(/[\s,]+/).filter(Boolean);
+  const destTokens=(document.getElementById("f_dest").value||"").toUpperCase().split(/[\s,]+/).filter(Boolean);
+  f.dests=destTokens.filter(t=>/^[A-Z0-9]{2,4}$/.test(t));
+  if(f.dests.length<destTokens.length) toast("Ignored destination entries that aren't 2–4 letter/digit codes.",2600);
   const minfl=document.getElementById("f_minfl").value, maxfl=document.getElementById("f_maxfl").value;
   f.minFL=minfl===""?null:Math.max(0,parseInt(minfl,10));
   f.maxFL=maxfl===""?null:Math.max(0,parseInt(maxfl,10));
@@ -1042,7 +1124,9 @@ function selectFca(id){
   const sel=state.fcas.find(f=>f.id===state.selectedId);
   document.getElementById("seqPanel").classList.toggle("show",!!sel);
 }
+let stripDragging=false;   // live refresh mid-drag would destroy the DnD source element
 function renderSequence(){
+  if(stripDragging) return;
   const sel=state.fcas.find(f=>f.id===state.selectedId);
   const panel=document.getElementById("seqPanel");
   if(!sel){ panel.classList.remove("show"); return; }
@@ -1051,7 +1135,7 @@ function renderSequence(){
   document.getElementById("seqSwatch").style.background=sel.color;
   document.getElementById("seqSwatch").style.color=sel.color;
 
-  const s=computeSequence(sel);
+  const s=getSequence(sel);
   const sub=document.getElementById("seqSub");
   const minitTxt=s.minit?fmtClock(s.minit):"unmetered";
   const totalDelay=s.items.reduce((a,c)=>a+c.delay,0);
@@ -1092,16 +1176,16 @@ function renderSequence(){
       const held=c.delay>=30;
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
-        <div><div class="cs"><span class="ph gnd">EDCT</span> ${c.p.callsign} <span style="color:var(--muted);font-weight:400">${c.p.type||""}</span></div>
-          <div class="info">${c.p.dep||"????"} → ${c.p.arr||"????"} · P${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div></div>
+        <div><div class="cs"><span class="ph gnd">EDCT</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div></div>
         <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
           <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
         <div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`;
     } else {
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
-        <div><div class="cs"><span class="ph air">AIR</span> ${c.p.callsign} <span style="color:var(--muted);font-weight:400">${c.p.type||""}</span></div>
-          <div class="info">${c.p.dep||"????"} → ${c.p.arr||"????"} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm</div></div>
+        <div><div class="cs"><span class="ph air">AIR</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm${c.via==="route"?" · rte est":""}</div></div>
         <div class="eta"><div class="big">${fmtZulu(c.ctaMs)}</div>
           <div class="dl ${cls}">${c.delay<30?"on time":"air +"+fmtClock(c.delay)}</div></div>
         <div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`;
@@ -1109,10 +1193,11 @@ function renderSequence(){
     strip.querySelector(".rm").addEventListener("click",e=>{ e.stopPropagation(); excludeAircraft(sel,c.p.callsign); });
     strip.addEventListener("click",()=>{ const o=(c.p.lat!=null)?[c.p.lat,c.p.lon]:getAirport(c.p.dep); if(o) map.panTo(o); });
     // drag-to-reorder
-    strip.addEventListener("dragstart",e=>{ dragFrom=i; strip.classList.add("dragging");
+    strip.addEventListener("dragstart",e=>{ dragFrom=i; stripDragging=true; strip.classList.add("dragging");
       e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain",String(i));}catch(_){}});
     strip.addEventListener("dragend",()=>{ strip.classList.remove("dragging");
-      list.querySelectorAll(".strip").forEach(x=>x.classList.remove("dragover")); });
+      list.querySelectorAll(".strip").forEach(x=>x.classList.remove("dragover"));
+      stripDragging=false; renderSequence(); });
     strip.addEventListener("dragover",e=>{ e.preventDefault(); e.dataTransfer.dropEffect="move"; strip.classList.add("dragover"); });
     strip.addEventListener("dragleave",()=>strip.classList.remove("dragover"));
     strip.addEventListener("drop",e=>{ e.preventDefault(); strip.classList.remove("dragover");
@@ -1178,11 +1263,12 @@ function ladderSvg(s){
     g+=`<circle cx="${xe}" cy="${y}" r="2.4" fill="#3a4d5e"/>`;                 // natural ETA
     g+=`<circle cx="${xs}" cy="${y}" r="3.4" fill="${col}" stroke="#0a0e14" stroke-width="1"/>`; // scheduled
     g+=`<text x="4" y="${y+3}" fill="${col}" font-family="var(--mono,monospace)" font-size="9" font-weight="700">${i+1}</text>`;
-    g+=`<text x="${Math.min(xs+6,x1-2)}" y="${y-4}" fill="#cdd6e0" font-family="var(--mono,monospace)" font-size="8">${c.p.callsign}</text>`;
+    g+=`<text x="${Math.min(xs+6,x1-2)}" y="${y-4}" fill="#cdd6e0" font-family="var(--mono,monospace)" font-size="8">${escapeHtml(c.p.callsign)}</text>`;
   });
   g+=`</svg>`;
   const spaceLbl = s.mode==="mit" ? `MIT ${s.mit}nm` : `MINIT ${fmtClock(s.minit)}`;
-  return `<div class="ladder-wrap"><div class="lt"><span>METERING LADDER</span><span>spacing = ${spaceLbl}</span></div>${g}</div>`;
+  const moreLbl = s.items.length>items.length ? ` · ${items.length}/${s.items.length}` : "";
+  return `<div class="ladder-wrap"><div class="lt"><span>METERING LADDER${moreLbl}</span><span>spacing = ${spaceLbl}</span></div>${g}</div>`;
 }
 
 /* ============================================================
@@ -1191,11 +1277,12 @@ function ladderSvg(s){
 function startDrawing(forFca){
   cancelDrawing();
   const target = forFca || makeBlankFca();
+  // keep a backup so Esc during a redraw restores the existing line
+  state.drawing={ fca:target, prevPoints:target.points.slice(), poly:null, markers:[] };
   target.points=[];
-  state.drawing={ fca:target, poly:null, markers:[] };
   map.getContainer().style.cursor="crosshair";
   map.doubleClickZoom.disable();
-  showToast(`<span>Click to add points</span><span class="k">dbl-click</span> or <span class="k">↵</span> finish <span class="k">esc</span> cancel`,true);
+  showToast(`<span>Click to add points</span><span class="k">⌫</span> undo <span class="k">dbl-click</span> or <span class="k">↵</span> finish <span class="k">esc</span> cancel`,true);
   renderFcaLines();
 }
 function makeBlankFca(){
@@ -1218,8 +1305,20 @@ function refreshDrawing(){
     });
   }
 }
+/* safety net: collapse point pairs that are effectively the same coordinate
+   (duplicate clicks) so degenerate zero-length segments never reach the
+   intersection math */
+function dedupePoints(pts){
+  const out=[];
+  pts.forEach(pt=>{
+    const last=out[out.length-1];
+    if(!last || haversineNm(last[0],last[1],pt[0],pt[1])>0.1) out.push(pt);
+  });
+  return out;
+}
 function finishDrawing(){
   const d=state.drawing; if(!d) return;
+  d.fca.points=dedupePoints(d.fca.points);
   if(d.fca.points.length<2){ toast("Need at least 2 points.",2200); return; }
   const fca=d.fca; teardownDrawingLayers();
   state.drawing=null; map.getContainer().style.cursor=""; map.doubleClickZoom.enable(); hideToast();
@@ -1227,10 +1326,16 @@ function finishDrawing(){
   renderFcaLines();
 }
 function cancelDrawing(){
-  if(!state.drawing) return;
+  const d=state.drawing; if(!d) return;
   teardownDrawingLayers();
+  d.fca.points=d.prevPoints;          // restore the pre-redraw line (empty for a new FCA)
   state.drawing=null; map.getContainer().style.cursor=""; map.doubleClickZoom.enable(); hideToast();
   renderFcaLines();
+}
+function undoDrawPoint(){
+  const d=state.drawing; if(!d||!d.fca.points.length) return;
+  d.fca.points.pop();
+  refreshDrawing();
 }
 function teardownDrawingLayers(){
   const d=state.drawing; if(!d) return;
@@ -1244,7 +1349,18 @@ map.on("click",e=>{
   if(state.measure.points.length) clearMeasure();
   if(state.routeCallsign) clearRoute();
 });
-map.on("dblclick",e=>{ if(state.drawing){ finishDrawing(); } });
+map.on("dblclick",()=>{
+  if(!state.drawing) return;
+  // both clicks of the dbl-click fired "click" and each added a point —
+  // drop the duplicate second point (screen-distance check works at any zoom)
+  const pts=state.drawing.fca.points;
+  if(pts.length>=2){
+    const a=map.latLngToContainerPoint(L.latLng(pts[pts.length-2][0],pts[pts.length-2][1]));
+    const b=map.latLngToContainerPoint(L.latLng(pts[pts.length-1][0],pts[pts.length-1][1]));
+    if(a.distanceTo(b)<12) pts.pop();
+  }
+  finishDrawing();
+});
 map.on("moveend zoomend",()=>renderTraffic());
 window.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
@@ -1253,12 +1369,15 @@ window.addEventListener("keydown",e=>{
     if(state.routeCallsign){ clearRoute(); return; }
   }
   if(state.drawing && e.key==="Enter") finishDrawing();
+  if(state.drawing && e.key==="Backspace"){ e.preventDefault(); undoDrawPoint(); }
 });
 
 /* ============================================================
    DELETE / EXPORT / IMPORT
    ============================================================ */
 function deleteFca(id){
+  const f=state.fcas.find(x=>x.id===id);
+  if(f && !confirm(`Delete FCA "${f.name}"? This removes it for everyone if sync is on.`)) return;
   state.fcas=state.fcas.filter(f=>f.id!==id);
   cloudDelete(id);
   if(state.selectedId===id) state.selectedId=null;
@@ -1279,8 +1398,7 @@ function importFcas(file){
   r.onload=()=>{ try{
       const d=JSON.parse(r.result); const arr=Array.isArray(d)?d:d.fcas;
       if(!Array.isArray(arr)) throw new Error("bad format");
-      arr.forEach(f=>{ f.id=nid(); if(!f.color) f.color=FCA_COLORS[0]; if(f.enabled==null) f.enabled=true;
-        if(!f.dir) f.dir="any"; if(!f.mode) f.mode="rate"; if(f.mit==null) f.mit=15; if(!Array.isArray(f.excluded)) f.excluded=[]; if(!Array.isArray(f.order)) f.order=[]; });
+      arr.forEach(f=>{ f.id=nid(); normalizeFca(f); });
       state.fcas=state.fcas.concat(arr);
       arr.forEach(cloudPush);
       renderAll(); toast("Imported "+arr.length+" FCA(s).",2200);
@@ -1292,14 +1410,47 @@ function importFcas(file){
 /* ============================================================
    UI WIRING
    ============================================================ */
-function renderAll(){ renderFcaLines(); renderTraffic(); renderFcaList(); renderSequence(); }
+function renderAll(){ invalidateSequences(); renderFcaLines(); renderTraffic(); renderFcaList(); renderSequence(); }
 
-document.getElementById("newFca").addEventListener("click",()=>{ closeEditor(); startDrawing(null); });
+document.getElementById("newFca").addEventListener("click",()=>{ state.editing=null; closeEditor(); startDrawing(null); });
 document.getElementById("refreshBtn").addEventListener("click",()=>{ state.layers.demo?stepDemo():fetchLive(); state.countdown=REFRESH_SEC; });
 document.getElementById("exportBtn").addEventListener("click",exportFcas);
 document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
 document.getElementById("importFile").addEventListener("change",e=>{ if(e.target.files[0]) importFcas(e.target.files[0]); e.target.value=""; });
 document.getElementById("closeSeq").addEventListener("click",()=>{ state.selectedId=null; renderAll(); });
+document.getElementById("seqFit").addEventListener("click",()=>{
+  const sel=state.fcas.find(f=>f.id===state.selectedId);
+  if(sel&&sel.points.length>=2) map.fitBounds(L.latLngBounds(sel.points).pad(0.6));
+});
+document.getElementById("seqCopy").addEventListener("click",copySequence);
+
+/* Copy the current sequence as plain text — for pasting into coordination
+   channels (Discord etc.) so other controllers get the EDCT list. */
+function copySequence(){
+  const sel=state.fcas.find(f=>f.id===state.selectedId); if(!sel) return;
+  const s=getSequence(sel);
+  if(!s.items.length){ toast("Nothing to copy — sequence is empty.",2000); return; }
+  const constraint=sel.mode==="mit"?`${sel.mit} MIT`:`${sel.rate}/hr`;
+  const lines=[`FCA ${sel.name} · ${constraint} · as of ${fmtZulu(Date.now())}`];
+  s.items.forEach((c,i)=>{
+    const tag=c.phase==="gnd" ? `EDCT ${c.edctMs?fmtZulu(c.edctMs):"—"}` : "AIRBORNE";
+    const dl=c.delay>=30?` (+${fmtClock(c.delay)})`:"";
+    lines.push(`${String(i+1).padStart(2," ")}. ${c.p.callsign.padEnd(8," ")} ${tag.padEnd(11," ")} cross ${fmtZulu(c.ctaMs)}${dl}`);
+  });
+  copyText(lines.join("\n"), ()=>toast("Sequence copied — "+s.items.length+" aircraft.",2200));
+}
+function copyText(txt,done){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt,done));
+  } else fallbackCopy(txt,done);
+}
+function fallbackCopy(txt,done){
+  const ta=document.createElement("textarea");
+  ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); done(); }catch(_){ toast("Copy failed.",2000); }
+  ta.remove();
+}
 
 // sidebar collapse
 function setSide(open){ document.getElementById("sidebar").classList.toggle("hidden",!open);
@@ -1322,7 +1473,8 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
     if(key==="traffic") renderTraffic();
     if(key==="edct") renderAll();
     if(key==="demo"){
-      if(on){ setFeed("demo"); stepDemo(); } else { demoFleet=[]; fetchLive(); }
+      if(on){ setFeed("demo"); stepDemo(); }
+      else { demoFleet=[]; demoGround=[]; fetchLive(); }   // drop stale demo prefiles too
     }
   });
 });
@@ -1417,9 +1569,9 @@ function renderRouteInfo(p,dist){
   const fl=String(Math.round(((p.phase==="gnd"?p.fpAlt:p.alt)||0)/100)).padStart(3,"0");
   const spd=p.phase==="gnd"?("TAS"+(p.tas||"?")):((p.gs||0)+"kt");
   el.innerHTML=
-    `<div class="ri-head"><b>${p.callsign}</b> <span class="muted">${p.type||""}</span>`+
+    `<div class="ri-head"><b>${escapeHtml(p.callsign)}</b> <span class="muted">${escapeHtml(p.type||"")}</span>`+
     `<span class="ri-x" id="riX" title="Clear route (Esc)">✕</span></div>`+
-    `<div class="ri-line">${p.dep||"????"} → ${p.arr||"????"} · FL${fl} · ${spd} · ${Math.round(dist||0)} NM</div>`+
+    `<div class="ri-line">${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")} · FL${fl} · ${spd} · ${Math.round(dist||0)} NM</div>`+
     `<div class="ri-route">${toks.length?toks.map(escapeHtml).join(" "):"<i>no filed route</i>"}</div>`+
     `<div class="ri-note">Great-circle through departure${p.phase==="gnd"?"":", current position"}, en-route airports, and destination.`+
     (unresolved>0?` ${unresolved} fix/navaid token(s) aren't in the airport database, so the line runs direct between known points — read the filed route above for exact fixes.`:"")+`</div>`;
@@ -1432,10 +1584,25 @@ function renderRouteInfo(p,dist){
    at the top of this file are filled in)
    ============================================================ */
 let sb=null, syncOn=false;
+
+/* ---- local persistence: FCAs survive a page refresh even without sync.
+   When sync is active, the cloud copy wins on load; local storage still
+   acts as an offline backup. ---- */
+const LS_KEY="fcaBuilder.fcas.v1";
+function persistLocal(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state.fcas)); }catch(_){}
+}
+function loadLocal(){
+  try{
+    const arr=JSON.parse(localStorage.getItem(LS_KEY)||"[]");
+    if(Array.isArray(arr)&&arr.length) state.fcas=arr.map(normalizeFca);
+  }catch(_){}
+}
+
 function setSyncStatus(s,extra){
   const dot=document.getElementById("syncDot"), txt=document.getElementById("syncTxt");
   if(!dot) return;
-  const map={ local:["","local only — not shared"], connecting:["demo","connecting…"],
+  const map={ local:["","local — saved on this device"], connecting:["demo","connecting…"],
     connected:["live","synced · live"], error:["dead","sync error — see setup guide"] };
   const m=map[s]||map.local; dot.className="dot"+(m[0]?" "+m[0]:""); txt.textContent=extra||m[1];
 }
@@ -1443,11 +1610,17 @@ function upsertLocalFca(fca){
   const i=state.fcas.findIndex(f=>f.id===fca.id);
   if(i>=0) state.fcas[i]=fca; else state.fcas.push(fca);
 }
-function normalizeFca(f){            // fill defaults for older/remote records
+function normalizeFca(f){            // fill defaults + sanitize older/remote/imported records
+  if(!f.id) f.id=nid();
+  if(typeof f.name!=="string"||!f.name.trim()) f.name="Untitled FCA";
   if(!f.color) f.color=FCA_COLORS[0]; if(f.enabled==null) f.enabled=true;
   if(!f.dir) f.dir="any"; if(!f.mode) f.mode="rate"; if(f.mit==null) f.mit=15;
-  if(!Array.isArray(f.excluded)) f.excluded=[]; if(!Array.isArray(f.points)) f.points=[];
+  if(!Array.isArray(f.excluded)) f.excluded=[];
   if(!Array.isArray(f.order)) f.order=[];
+  f.points=(Array.isArray(f.points)?f.points:[])
+    .filter(pt=>Array.isArray(pt)&&isFinite(pt[0])&&isFinite(pt[1]));
+  f.dests=(Array.isArray(f.dests)?f.dests:[])
+    .filter(t=>typeof t==="string"&&/^[A-Z0-9]{2,4}$/.test(t));
   return f;
 }
 function initSync(){
@@ -1462,6 +1635,7 @@ function loadCloud(){
   sb.from("fcas").select("*").then(({data,error})=>{
     if(error){ console.warn("load:",error); setSyncStatus("error"); return; }
     state.fcas=(data||[]).map(r=>normalizeFca(r.data||{}));
+    persistLocal();
     setSyncStatus("connected"); renderAll();
   });
 }
@@ -1483,34 +1657,47 @@ function onRemoteChange(payload){
     if(state.editing && state.editing.id===row.id) return;
     upsertLocalFca(normalizeFca(row.data));
   }
+  persistLocal();
   renderAll();
 }
 function cloudPush(fca){
+  persistLocal();            // every mutation goes through here — save locally too
   if(!syncOn||!sb) return;
   sb.from("fcas").upsert({id:fca.id,data:fca,updated_at:new Date().toISOString()})
     .then(({error})=>{ if(error){ console.warn("push:",error); toast("Couldn't save to sync — check setup.",3000);} });
 }
 function cloudDelete(id){
+  persistLocal();
   if(!syncOn||!sb) return;
   sb.from("fcas").delete().eq("id",id).then(({error})=>{ if(error) console.warn("delete:",error); });
 }
 
 /* ---------- helpers ---------- */
 function fmtClock(sec){ sec=Math.max(0,Math.round(sec)); const m=Math.floor(sec/60),s=sec%60;
+  if(m>=90) return Math.floor(m/60)+"h"+String(m%60).padStart(2,"0")+"m";
   return m+":"+String(s).padStart(2,"0"); }
 function escapeHtml(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 let toastTimer=null;
-function toast(msg,ms){ const t=document.getElementById("toast"); t.innerHTML=msg; t.classList.add("show");
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),ms||2500); }
-function showToast(html,sticky){ const t=document.getElementById("toast"); t.innerHTML=html; t.classList.add("show");
-  if(!sticky){ clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2500);} }
-function hideToast(){ document.getElementById("toast").classList.remove("show"); }
+function showToast(html,sticky,ms){
+  const t=document.getElementById("toast"); t.innerHTML=html; t.classList.add("show");
+  clearTimeout(toastTimer);   // a pending hide from an earlier toast must not kill this one
+  if(!sticky) toastTimer=setTimeout(()=>t.classList.remove("show"),ms||2500);
+}
+function toast(msg,ms){ showToast(msg,false,ms); }
+function hideToast(){ clearTimeout(toastTimer); document.getElementById("toast").classList.remove("show"); }
 
 /* ---------- boot ---------- */
 setFeed("init");
-renderFcaList();
+loadLocal();               // restore FCAs from the last session
+renderAll();
 startFeedLoop();
 initSync();
+// zulu clock
+(function tickClock(){
+  const el=document.getElementById("zClock");
+  if(el) el.textContent=fmtZulu(Date.now());
+  setTimeout(tickClock, 1000-(Date.now()%1000));
+})();
 </script>
 </body>
 </html>
