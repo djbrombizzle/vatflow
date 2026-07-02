@@ -275,6 +275,7 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
   border: 1px solid var(--border-hi); border-radius: var(--radius-sm); vertical-align: middle;
 }
 .cfr-swap-select:focus { border-color: var(--accent); outline: none; }
+.cfr-swap-select--err { border-color: var(--alert); }
 .readywrap { display: inline-flex; align-items: center; gap: 4px; }
 .ready-input {
   width: 58px; padding: 2px 5px; font-size: 10.5px; font-family: var(--font-data);
@@ -881,8 +882,13 @@ function cfrCountdownHtml(wheelsUp, now, pulled, callsign, dep, dest) {
 function cfrSwapSelect(callsign, dep, dest) {
   if (!canControl()) return '';
   const list = routeIssuedRecs(dep, dest);
-  if (list.length < 2 || list.findIndex(x => x.cs === callsign) < 0) return '';
-  const others = list.filter(x => x.cs !== callsign);
+  const me = list.find(x => x.cs === callsign);
+  if (list.length < 2 || !me) return '';
+  /* only offer swaps that keep both flights at/after their own pilot-reported ready floors */
+  const others = list.filter(x =>
+    x.cs !== callsign &&
+    !(me.r.ready && x.r.t < me.r.ready) &&
+    !(x.r.ready && me.r.t < x.r.ready));
   if (!others.length) return '';
   let opts = '<option value="">Swap with\u2026</option>';
   for (const x of others) {
@@ -3120,19 +3126,27 @@ function routeIssuedRecs(dep, dest) {
   return out;
 }
 
-/* swap release times between two issued flights on the same route */
+/* Swap release times between two issued flights on the same route.
+   Each flight keeps its own pilot-reported ready floor; the swap is refused
+   if it would put either flight before its own ready time. Returns true on
+   success so the caller can surface a failed swap. */
 function swapRouteCfr(callsignA, callsignB, dep, dest) {
-  if (!callsignA || !callsignB || callsignA === callsignB) return;
+  if (!callsignA || !callsignB || callsignA === callsignB) return false;
   const rA = issuedEdcts[callsignA], rB = issuedEdcts[callsignB];
-  if (!rA || !rB) return;
-  const tA = rA.t; rA.t = rB.t; rB.t = tA;
-  const readyA = rA.ready, readyB = rB.ready;
-  if (readyA || readyB) { rA.ready = readyB || null; rB.ready = readyA || null; }
-  const base = Date.now();
-  rA.order = base;
-  rB.order = base + 1;
+  if (!rA || !rB) return false;
+  const oldA = rA.t, oldB = rB.t;
+  if ((rA.ready && oldB < rA.ready) || (rB.ready && oldA < rB.ready)) return false;
+  const now = Date.now();
+  rA.t = oldB; rB.t = oldA;
+  /* whichever flight moved earlier flashes green, same as cancel-compress */
+  if (rA.t < oldA - 1000) rA.pulledUntil = now + EDCT_FLASH_MS;
+  if (rB.t < oldB - 1000) rB.pulledUntil = now + EDCT_FLASH_MS;
+  /* re-anchor issuance order to the new time sequence for the whole route
+     so compressEdcts preserves this queue on the next cancel */
+  routeIssuedRecs(dep, dest).forEach((x, i) => { x.r.order = now + i; });
   pushSync();
   renderContent();
+  return true;
 }
 
 function solveEarliestWheelsUp(cs, depField, destField, floorMs) {
@@ -4077,7 +4091,13 @@ contentEl.addEventListener("change", e => {
   if (!e.target.matches("[data-cfr-swap-select]") || !e.target.value) return;
   if (!canControl()) return;
   const sel = e.target;
-  swapRouteCfr(sel.dataset.cfrCs, sel.value, sel.dataset.cfrDep, sel.dataset.cfrDest);
+  const ok = swapRouteCfr(sel.dataset.cfrCs, sel.value, sel.dataset.cfrDep, sel.dataset.cfrDest);
+  if (!ok) {
+    /* swap no longer valid (e.g. peer CFR cancelled by another controller) */
+    sel.value = "";
+    sel.classList.add("cfr-swap-select--err");
+    setTimeout(() => sel.classList.remove("cfr-swap-select--err"), 1500);
+  }
 });
 
 /* ground-stop popup is outside the content area, so it gets its own dismiss handler */
