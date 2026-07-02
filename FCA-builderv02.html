@@ -812,7 +812,11 @@ function computeSequence(fca){
     let prevAir=-1e9; const committed=[];
     air.forEach(a=>{ const sched=Math.max(a.eta, prevAir+sepFor(a)); a.sched=sched; prevAir=sched;
       committed.push({t:sched,spd:a.spd}); });
-    // 2) slot ground into the gaps, moving only the ground a/c later as needed
+    // 2) slot ground into the gaps, moving only the ground a/c later as needed.
+    //    EPS guards against a float fixed point: t=c.t+sep can round to a value
+    //    where (t-c.t)<sep still holds, which would re-trigger the same conflict
+    //    forever and park several flights on the identical time.
+    const EPS=1e-6;
     gnd.forEach(g=>{
       let t=g.eta, guard=0;
       for(;;){
@@ -820,8 +824,8 @@ function computeSequence(fca){
         committed.sort((x,y)=>x.t-y.t);
         let moved=false;
         for(const c of committed){
-          if(t<=c.t){ if((c.t-t) < sepFor({spd:c.spd})){ t=c.t+sepFor(g); moved=true; break; } }
-          else      { if((t-c.t) < sepFor(g)){            t=c.t+sepFor(g); moved=true; break; } }
+          if(t<=c.t){ if((c.t-t) < sepFor({spd:c.spd})-EPS){ t=c.t+sepFor(g); moved=true; break; } }
+          else      { if((t-c.t) < sepFor(g)-EPS){            t=c.t+sepFor(g); moved=true; break; } }
         }
         if(!moved) break;
       }
