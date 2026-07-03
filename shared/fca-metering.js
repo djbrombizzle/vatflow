@@ -21,6 +21,9 @@ export const DEMAND_WINDOW_MIN = 60;
 export const CLIMB_NM = 120;
 export const CLIMB_FACTOR = 0.65;
 export const DIR_LABEL = { any: "any dir", N: "NB", S: "SB", E: "EB", W: "WB" };
+/** Within this distance of departure, hold crossing ETA at airport-filed pace so
+ *  ground→air transitions do not collapse EDCT for same-airport followers. */
+export const TERMINAL_HOLD_NM = 45;
 
 const AIRPORTS = new Map();
 let airportsReady = false;
@@ -386,6 +389,158 @@ export function towerGroundCrossing(p, fca, nowMs) {
   };
 }
 
+function crossingTransitSec(distNm, spd, p, opts = {}) {
+  const altFt = opts.altFt != null ? opts.altFt : (p.phase === "air" ? (p.alt || 35000) : windAltFtProvider(p));
+  return groundTransitSec(distNm, spd, { segments: opts.segments, altFt });
+}
+
+/** Keep airborne ETAs from jumping early when an aircraft just departed the field. */
+export function withTerminalEtaFloor(p, fca, nowMs, airEtaSec) {
+  const dep = (p.dep || "").toUpperCase();
+  const apt = dep && getAirport(dep);
+  if (!apt || p.lat == null || p.lon == null) return airEtaSec;
+  if (haversineNm(p.lat, p.lon, apt[0], apt[1]) >= TERMINAL_HOLD_NM) return airEtaSec;
+  const g = groundCrossing({ ...p, phase: "gnd", gs: 0 }, fca, nowMs);
+  return g ? Math.max(airEtaSec, g.etaSec) : airEtaSec;
+}
+
+function findAirCrossing(p, fca) {
+  let x = null, via = null;
+  const dst = getAirport(p.arr);
+  if (isNavReady() && dst) {
+    const path = routePathForCrossing(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true });
+    if (path) {
+      const b = pathCrossing(path, fca);
+      if (b && b.dist <= LOOKAHEAD_NM && validAirCrossing(p, fca, b)) {
+        x = { dist: b.dist, lat: b.lat, lon: b.lon, course: b.course };
+        via = "route";
+      }
+    }
+  }
+  if (!x && fcaMatchesDir(fca, p.hdg || 0)) {
+    const b = projectCrossing(p, fca.points);
+    if (validAirCrossing(p, fca, b)) x = { dist: b.dist, lat: b.lat, lon: b.lon };
+  }
+  if (!x && dst) {
+    const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
+    if (b && b.dist <= LOOKAHEAD_NM && validAirCrossing(p, fca, b)) {
+      x = { dist: b.dist, lat: b.lat, lon: b.lon, course: b.course };
+      via = via || "direct";
+    }
+  }
+  return x ? { ...x, via } : null;
+}
+
+function buildAirCandidate(p, fca, nowMs) {
+  const cross = findAirCrossing(p, fca);
+  if (!cross) return null;
+  const spd = p.gs || 420;
+  const dst = getAirport(p.arr);
+  const segments = isNavReady() && dst
+    ? buildRouteSegments(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true })
+    : null;
+  let eta = crossingTransitSec(cross.dist, spd, p, { segments, altFt: p.alt || 35000 });
+  eta = withTerminalEtaFloor(p, fca, nowMs, eta);
+  return {
+    p, phase: "air", dist: cross.dist, eta, cross, spd, via: cross.via,
+    transitSec: eta,
+  };
+}
+
+export function sepSeconds(fca, c) {
+  if (fca.mode === "mit") {
+    const mit = fca.mit || 0;
+    const spd = c.spd || c.p?.gs || c.p?.tas || 420;
+    return mit > 0 ? (mit / spd) * 3600 : 0;
+  }
+  return (fca.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
+}
+
+/** Same-airport followers keep crossing spacing even when the leader just lifted. */
+function enforceSameDepartureSpacing(cand, sepFor) {
+  const byDep = new Map();
+  for (const c of cand) {
+    const dep = (c.p.dep || "").toUpperCase();
+    if (!dep) continue;
+    if (!byDep.has(dep)) byDep.set(dep, []);
+    byDep.get(dep).push(c);
+  }
+  for (const group of byDep.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => {
+      if (a.phase !== b.phase) return a.phase === "air" ? -1 : 1;
+      return a.eta - b.eta;
+    });
+    let prevSched = null;
+    for (const c of group) {
+      if (prevSched != null) c.sched = Math.max(c.sched, prevSched + sepFor(c));
+      prevSched = c.sched;
+    }
+  }
+}
+
+function slotGroundAgainstCommitted(g, committed, sepFor) {
+  let t = g.eta;
+  const EPS = 1e-6;
+  for (let guard = 0; guard < 500; guard++) {
+    committed.sort((x, y) => x.t - y.t);
+    let moved = false;
+    for (const c of committed) {
+      const gap = sepFor(g);
+      if (t <= c.t) {
+        if ((c.t - t) < gap - EPS) { t = c.t + gap; moved = true; break; }
+      } else if ((t - c.t) < gap - EPS) {
+        t = c.t + gap; moved = true; break;
+      }
+    }
+    if (!moved) break;
+  }
+  return t;
+}
+
+/** Crossing schedule — airborne first (fixed ETAs), ground slots around, then same-dep hold. */
+export function scheduleCandidates(cand, fca, manualOrder, candById) {
+  const sepFor = c => sepSeconds(fca, c);
+
+  if (manualOrder && manualOrder.length) {
+    const ordered = [];
+    let prev = -1e9;
+    for (const cs of manualOrder) {
+      const c = candById.get(cs);
+      if (!c) continue;
+      c.sched = Math.max(c.eta, prev + sepFor(c));
+      prev = c.sched;
+      ordered.push(c);
+    }
+    enforceSameDepartureSpacing(ordered, sepFor);
+    return ordered.sort((a, b) => a.sched - b.sched);
+  }
+
+  const air = cand.filter(c => c.phase === "air");
+  const gnd = cand.filter(c => c.phase === "gnd");
+  const airSort = fca.mode === "mit"
+    ? (a, b) => a.dist - b.dist || a.eta - b.eta
+    : (a, b) => a.eta - b.eta || a.dist - b.dist;
+  air.sort(airSort);
+  gnd.sort((a, b) => a.eta - b.eta);
+
+  const committed = [];
+  let prev = -1e9;
+  for (const c of air) {
+    c.sched = Math.max(c.eta, prev + sepFor(c));
+    prev = c.sched;
+    committed.push({ t: c.sched, spd: c.spd });
+  }
+  for (const g of gnd) {
+    g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
+    committed.push({ t: g.sched, spd: g.spd });
+  }
+
+  const ordered = [...cand];
+  enforceSameDepartureSpacing(ordered, sepFor);
+  return ordered.sort((a, b) => a.sched - b.sched);
+}
+
 function finalizeItems(ordered, out, nowMs) {
   ordered.forEach(c => {
     c.delay = c.sched - c.eta;
@@ -436,6 +591,20 @@ export function reorderFcaGlobalOrder(fca, pilots, prefiles, fromCs, toCs, opts 
   return order;
 }
 
+function collectAirFcaCandidates(fca, pilots, nowMs) {
+  const ex = new Set(fca.excluded || []);
+  const cand = [];
+  for (const p of pilots) {
+    if (p.phase !== "air" || (p.gs || 0) < 40) continue;
+    if (ex.has(p.callsign)) continue;
+    if (!fcaMatchesDest(fca, p.arr)) continue;
+    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
+    const ac = buildAirCandidate(p, fca, nowMs);
+    if (ac) cand.push(ac);
+  }
+  return cand;
+}
+
 export function computeSequence(fca, pilots, prefiles, opts = {}) {
   const includeEdct = opts.includeEdct !== false;
   const nowMs = opts.nowMs != null ? opts.nowMs : Date.now();
@@ -445,7 +614,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   };
   if (!fca.points || fca.points.length < 2) return out;
   const ex = new Set(fca.excluded || []);
-  const cand = collectAirFcaCandidates(fca, pilots);
+  const cand = collectAirFcaCandidates(fca, pilots, nowMs);
   for (const p of pilots) {
     if (ex.has(p.callsign) && p.phase === "air" && (p.gs || 0) >= 40) out.excluded++;
   }
@@ -469,8 +638,6 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   }
 
   const rateGap = (out.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
-  const sepFor = c => out.mode === "mit" ? (fca.mit > 0 ? (fca.mit / (c.spd || 420)) * 3600 : 0) : rateGap;
-
   const candById = new Map();
   cand.forEach(c => candById.set(c.p.callsign, c));
   const manual = Array.isArray(fca.order) && fca.order.length > 0;
@@ -479,32 +646,9 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
     out.manual = true;
     const order = buildManualOrder(fca.order, candById);
     out.order = order;
-    let prev = -1e9, ordered = [];
-    order.forEach(cs => {
-      const c = candById.get(cs);
-      if (!c) return;
-      const sched = Math.max(c.eta, prev + sepFor(c));
-      c.sched = sched;
-      prev = sched;
-      ordered.push(c);
-    });
-    finalizeItems(ordered, out, nowMs);
+    finalizeItems(scheduleCandidates(cand, fca, order, candById), out, nowMs);
   } else {
-    const air = cand.filter(c => c.phase === "air").sort((a, b) => a.eta - b.eta);
-    const gnd = cand.filter(c => c.phase === "gnd").sort((a, b) => a.eta - b.eta);
-    let prevAir = -1e9;
-    const committed = [];
-    air.forEach(a => {
-      const sched = Math.max(a.eta, prevAir + sepFor(a));
-      a.sched = sched;
-      prevAir = sched;
-      committed.push({ t: sched, spd: a.spd });
-    });
-    gnd.forEach(g => {
-      g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
-      committed.push({ t: g.sched, spd: g.spd });
-    });
-    finalizeItems(cand.slice().sort((a, b) => a.sched - b.sched), out, nowMs);
+    finalizeItems(scheduleCandidates(cand, fca, null, candById), out, nowMs);
   }
 
   if (out.mode === "rate") out.minit = rateGap;
@@ -526,130 +670,37 @@ export function isDepartureCandidate(p, depIcao) {
   return true;
 }
 
-function collectAirFcaCandidates(fca, pilots) {
-  const ex = new Set(fca.excluded || []);
-  const cand = [];
-  for (const p of pilots) {
-    if (p.phase !== "air" || (p.gs || 0) < 40) continue;
-    if (ex.has(p.callsign)) continue;
-    if (!fcaMatchesDest(fca, p.arr)) continue;
-    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
-    let x = null;
-    const dst = getAirport(p.arr);
-    if (isNavReady() && dst) {
-      const path = routePathForCrossing(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true });
-      if (path) {
-        const b = pathCrossing(path, fca);
-        if (b && b.dist <= LOOKAHEAD_NM && validAirCrossing(p, fca, b)) {
-          x = { dist: b.dist, lat: b.lat, lon: b.lon };
-        }
-      }
-    }
-    if (!x && fcaMatchesDir(fca, p.hdg || 0)) {
-      const b = projectCrossing(p, fca.points);
-      if (validAirCrossing(p, fca, b)) x = b;
-    }
-    if (!x && dst) {
-      const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
-      if (b && b.dist <= LOOKAHEAD_NM && validAirCrossing(p, fca, b)) {
-        x = { dist: b.dist, lat: b.lat, lon: b.lon };
-      }
-    }
-    if (!x) continue;
-    cand.push({
-      p, phase: "air", dist: x.dist, eta: (x.dist / p.gs) * 3600, cross: x, spd: p.gs,
-    });
-  }
-  return cand;
-}
-
-function slotGroundAgainstCommitted(g, committed, sepFor) {
-  let t = g.eta;
-  const EPS = 1e-6;
-  let guard = 0;
-  for (;;) {
-    if (guard++ > 500) break;
-    committed.sort((x, y) => x.t - y.t);
-    let moved = false;
-    for (const c of committed) {
-      if (t <= c.t) {
-        if ((c.t - t) < sepFor({ spd: c.spd }) - EPS) { t = c.t + sepFor(g); moved = true; break; }
-      } else if ((t - c.t) < sepFor(g) - EPS) {
-        t = c.t + sepFor(g); moved = true; break;
-      }
-    }
-    if (!moved) break;
-  }
-  return t;
-}
-
-function finalizeTowerGroundItem(c, sched, prevSched, nowMs) {
-  c.sched = sched;
-  c.gapMin = prevSched == null ? 0 : (sched - prevSched) / 60;
-  c.delayMin = (sched - c.eta) / 60;
-  c.ctaMs = nowMs + sched * 1000;
+function finalizeTowerGroundItem(c, prevSched, nowMs) {
+  c.gapMin = prevSched == null ? 0 : (c.sched - prevSched) / 60;
+  c.delayMin = (c.sched - c.eta) / 60;
+  c.ctaMs = nowMs + c.sched * 1000;
   c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
   if (c.effMs != null) c.edctMs = Math.max(c.edctMs, c.effMs);
   return c;
 }
 
 function scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots) {
-  const rateGap = (fca.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
-  const sepFor = c => fca.mode === "mit" ? (fca.mit > 0 ? (fca.mit / (c.spd || 420)) * 3600 : 0) : rateGap;
   const towerGround = new Set(cand.map(c => c.p.callsign));
-  const airCand = collectAirFcaCandidates(fca, pilots || []);
-
+  const airCand = collectAirFcaCandidates(fca, pilots || [], nowMs);
   const candById = new Map();
   airCand.forEach(c => candById.set(c.p.callsign, c));
   cand.forEach(c => candById.set(c.p.callsign, c));
 
-  const manual = Array.isArray(manualOrder) && manualOrder.length > 0;
-  let ordered = [];
+  const order = buildManualOrder(manualOrder, candById);
+  const timeline = scheduleCandidates([...candById.values()], fca, order.length ? order : null, candById);
 
-  if (manual) {
-    const order = buildManualOrder(manualOrder, candById);
-    let prev = -1e9, prevSched = null;
-    order.forEach(cs => {
-      const c = candById.get(cs);
-      if (!c) return;
-      const sched = Math.max(c.eta, prev + sepFor(c));
-      c.sched = sched;
-      if (towerGround.has(cs)) {
-        ordered.push(finalizeTowerGroundItem(c, sched, prevSched, nowMs));
-      }
-      prev = sched;
-      prevSched = sched;
-    });
-  } else {
-    const committed = [];
-    let prevAir = -1e9;
-    airCand.sort((a, b) => a.eta - b.eta).forEach(a => {
-      const sched = Math.max(a.eta, prevAir + sepFor(a));
-      a.sched = sched;
-      prevAir = sched;
-      committed.push({ t: sched, spd: a.spd });
-    });
-
-    const gnd = cand.slice().sort((a, b) => a.eta - b.eta);
-    gnd.forEach(g => {
-      g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
-      committed.push({ t: g.sched, spd: g.spd });
-    });
-
-    const timeline = [...airCand, ...gnd].filter(c => c.sched != null).sort((a, b) => a.sched - b.sched);
-    ordered = gnd.map(g => {
-      const idx = timeline.findIndex(c => c.p.callsign === g.p.callsign);
-      const prevItem = idx > 0 ? timeline[idx - 1] : null;
-      const prevSched = prevItem ? prevItem.sched : null;
-      return finalizeTowerGroundItem(g, g.sched, prevSched, nowMs);
-    });
-    ordered.sort((a, b) => a.sched - b.sched);
+  let prevSched = null;
+  const ordered = [];
+  for (const c of timeline) {
+    if (!towerGround.has(c.p.callsign)) {
+      prevSched = c.sched;
+      continue;
+    }
+    ordered.push(finalizeTowerGroundItem(c, prevSched, nowMs));
+    prevSched = c.sched;
   }
-
-  const order = manual
-    ? buildManualOrder(manualOrder, candById)
-    : ordered.map(c => c.p.callsign);
-  return { items: ordered, order };
+  ordered.sort((a, b) => a.sched - b.sched);
+  return { items: ordered, order: ordered.map(c => c.p.callsign) };
 }
 
 /**
