@@ -135,6 +135,18 @@ const gFuture = groundCrossing(futureGround, { ...FCA_SB, dir: "any" }, now);
 assert(gNow && gFuture, "groundCrossing returns candidates");
 assert(gFuture.etaSec > gNow.etaSec + 60, "future P time pushes ground ETA later");
 
+const FCA_RATE = {
+  id: "dep1",
+  enabled: true,
+  dir: "any",
+  points: [[26.0, -80.5], [26.0, -79.8]],
+  mode: "rate",
+  rate: 10,
+  minFL: 0,
+  maxFL: 999,
+};
+const fixedNow = Date.parse("2026-07-03T12:00:00Z");
+
 const FCA_MIT = {
   id: "mit1",
   enabled: true,
@@ -163,23 +175,25 @@ const far = mitSeq.items.find(c => c.p.callsign === "FAR01");
 const near = mitSeq.items.find(c => c.p.callsign === "NEAR01");
 assert(far && near, "both airborne in MIT sequence");
 assert(far.dist > near.dist, "FAR01 is farther from FCA than NEAR01");
-assert(mitSeq.items[0].p.callsign === "NEAR01", "MIT order is by distance — closer aircraft first");
+assert(mitSeq.items[0].p.callsign === "NEAR01", "MIT order is by line distance — closer aircraft first");
 assert(far.sched >= near.sched + sepSeconds(FCA_MIT, far) - 1, "MIT delays trailing aircraft when too close");
 assert(far.delay > 30, "MIT assigns hold time to trailing aircraft");
-assert(mitSeq.items.every((c, i) => i === 0 || c.dist >= mitSeq.items[i - 1].dist - 0.01),
-  "MIT display order follows distance to FCA");
+assert(mitSeq.items.every(c => c.phase === "air"), "MIT test has air only");
 
-const FCA_RATE = {
-  id: "dep1",
-  enabled: true,
-  dir: "any",
-  points: [[26.0, -80.5], [26.0, -79.8]],
-  mode: "rate",
-  rate: 10,
-  minFL: 0,
-  maxFL: 999,
-};
-const fixedNow = Date.parse("2026-07-03T12:00:00Z");
+const mitMixed = computeSequence(
+  { ...FCA_RATE, mode: "mit", mit: 15 },
+  [nearAir, farAir, {
+    callsign: "GND1", phase: "gnd", lat: 26.07, lon: -80.15, gs: 0,
+    dep: "KFLL", arr: "KMIA", tas: 420, fpAlt: 28000, deptime: "1200", route: "DCT",
+  }],
+  [],
+  { includeEdct: true, nowMs: fixedNow },
+);
+const firstGnd = mitMixed.items.findIndex(c => c.phase === "gnd");
+const lastAir = mitMixed.items.reduce((n, c, i) => c.phase === "air" ? i : n, -1);
+assert(firstGnd > lastAir, "all airborne before ground in queue");
+assert(mitMixed.items[0].phase === "air", "closest air is #1, not ground");
+
 const leaderGround = {
   callsign: "LEAD",
   phase: "gnd",

@@ -1479,17 +1479,20 @@ function renderSequence(){
     if(c.phase==="gnd"){
       const gapMin=i===0?0:(c.sched-s.items[i-1].sched)/60;
       gapHtml=gapMinLabel(gapMin,i===0);
-    }else if(i===0){
-      gapHtml=`→ ${Math.round(c.dist)}nm to line`;
     }else{
-      const prev=s.items[i-1];
-      const gapNm=c.dist-prev.dist;   // both measured along each path to the same line
-      const reqNm=s.mode==="mit" ? (s.mit||0) : ((s.minit||0)*(c.spd||420)/3600);
-      gapShort=gapNm<reqNm-0.5;
-      gapHtml=(gapNm>=0
-        ? `↑ ${Math.round(gapNm)}nm behind ${escapeHtml(prev.p.callsign)}`
-        : `↓ ${Math.round(-gapNm)}nm ahead of ${escapeHtml(prev.p.callsign)}`)
-        + (reqNm?` <span style="color:var(--muted-2)">· need ${Math.round(reqNm)}nm</span>`:"");
+      const prevAir=s.items.slice(0,i).reverse().find(x=>x.phase==="air");
+      const showDist=c.lineDist!=null?c.lineDist:c.dist;
+      if(!prevAir){
+        gapHtml=`→ ${Math.round(showDist)}nm to line`;
+      }else{
+        const gapNm=c.dist-prevAir.dist;
+        const reqNm=s.mode==="mit" ? (s.mit||0) : ((s.minit||0)*(c.spd||420)/3600);
+        gapShort=gapNm<reqNm-0.5;
+        gapHtml=(gapNm>=0
+          ? `↑ ${Math.round(gapNm)}nm behind ${escapeHtml(prevAir.p.callsign)}`
+          : `↓ ${Math.round(-gapNm)}nm ahead of ${escapeHtml(prevAir.p.callsign)}`)
+          + (reqNm?` <span style="color:var(--muted-2)">· need ${Math.round(reqNm)}nm</span>`:"");
+      }
     }
     const gapLine=`<div class="gap${gapShort?" short":""}">${gapHtml}</div>`;
     const strip=document.createElement("div");
@@ -1512,7 +1515,7 @@ function renderSequence(){
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph air">AIR</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm${c.via==="route"?" · rte est":""}</div>${gapLine}</div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.lineDist!=null?c.lineDist:c.dist)}nm line · ${Math.round(c.dist)}nm xing${c.via==="route"?" · rte":""}</div>${gapLine}</div>
         <div class="eta"><div class="big">${fmtZulu(c.ctaMs)}</div>
           <div class="dl ${cls}">${c.delay<30?"on time":"air +"+fmtClock(c.delay)}</div></div>
         ${rmBtn}`;
@@ -1578,7 +1581,7 @@ function ladderSvg(s){
   const items=s.items.slice(0,18);
   if(!items.length) return "";
   const isMit=s.mode==="mit";
-  const natOf  =c=>isMit ? c.dist : c.eta;
+  const natOf  =c=>isMit ? (c.lineDist!=null?c.lineDist:c.dist) : c.eta;
   const schedOf=c=>isMit ? c.sched*(c.spd||420)/3600 : c.sched;
   const W=336, padT=22, padB=10, rowH=Math.max(16,Math.min(26,(220)/items.length));
   const H=padT+padB+rowH*items.length;
