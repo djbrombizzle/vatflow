@@ -1074,7 +1074,7 @@ function meterMapPopupHtml(f, gateColors, trailInfo) {
     esc(fmtDelay(f.delay)) + ' min</b>';
   if (f.status === "AIRBORNE" && trailInfo) {
     if (!trailInfo.leader) {
-      h += '<br>Lead \u00b7 spacing \u2265 <b>' + Math.round(trailInfo.reqNm || aarSpacingNm(getRate(icao))) + ' NM</b>';
+      h += '<br>Lead \u00b7 spacing \u2265 <b>' + Math.round(trailInfo.reqNm) + ' NM</b>';
     } else {
       const sign = trailInfo.deltaNm >= 0 ? "+" : "";
       const spClr = trailInfo.deltaNm < -0.5 ? "#d45c5c" : trailInfo.deltaNm > 1 ? "#d4923a" : "#4caf7a";
@@ -1392,7 +1392,10 @@ function computeAirborneTrailMap(flow, rate) {
   for (let i = 0; i < airborne.length; i++) {
     const f = airborne[i];
     if (i === 0) {
-      trail[f.callsign] = { leader: null, distNm: null, reqNm: null, deltaNm: null };
+      const reqNm = f.gate !== "\u2014"
+        ? requiredSpacingNm(rate, spacingMs, f.gate)
+        : aarSpacingNm(rate);
+      trail[f.callsign] = { leader: null, distNm: null, reqNm, deltaNm: null };
       continue;
     }
     const leader = airborne[i - 1];
