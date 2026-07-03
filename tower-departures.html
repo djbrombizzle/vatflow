@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tower Departures — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --line: #1e2834;
+    --line-2: #2a3848;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --muted-2: #5c6b78;
+    --amber: #e8a838;
+    --amber-dim: rgba(232, 168, 56, 0.12);
+    --cyan: #5ba8c9;
+    --green: #4caf7a;
+    --red: #d45c5c;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  .hidden { display: none !important; }
+  html, body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  body.tower-page { display: flex; flex-direction: column; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(10, 14, 20, 0.96), rgba(10, 14, 20, 0.88));
+  }
+  .brand b { font-family: var(--mono); font-size: 14px; letter-spacing: 0.12em; }
+  .brand .tag { font-family: var(--mono); font-size: 10px; color: var(--amber); margin-left: 8px; letter-spacing: 0.14em; }
+  .spacer { flex: 1; }
+  .stat { font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .stat b { color: var(--text); font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted-2); }
+  .dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.dead { background: var(--red); }
+  .dot.demo { background: var(--amber); }
+
+  #lockCtl { display: flex; align-items: center; gap: 6px; }
+  #lockBtn { font-family: var(--mono); font-size: 10px; padding: 5px 10px; border-radius: 5px; cursor: pointer; border: 1px solid; }
+  #lockBtn.locked { background: var(--amber-dim); color: var(--amber); border-color: rgba(232, 168, 56, 0.4); }
+  #lockBtn.unlocked { background: rgba(76, 175, 122, 0.12); color: var(--green); border-color: rgba(76, 175, 122, 0.35); }
+  #pwInput { width: 108px; background: #0a0e14; border: 1px solid var(--line-2); border-radius: 5px; color: var(--text); font-family: var(--mono); font-size: 10px; padding: 5px 7px; }
+  #lockMsg { font-family: var(--mono); font-size: 10px; color: var(--muted-2); }
+  #lockMsg.lockerr { color: var(--red); }
+
+  .field-row { display: flex; align-items: center; gap: 8px; }
+  .field-row label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+  .field-row input {
+    width: 72px; background: #0a0e14; border: 1px solid var(--line-2); border-radius: 5px;
+    color: var(--text); font-family: var(--mono); font-size: 12px; padding: 6px 8px; text-transform: uppercase;
+  }
+  .field-row input:focus { outline: none; border-color: var(--amber); }
+  .btn {
+    font-family: var(--mono); font-size: 11px; color: var(--text); background: #161d28;
+    border: 1px solid var(--line-2); border-radius: 5px; padding: 6px 10px; cursor: pointer;
+  }
+  .btn:hover { background: #1d2733; }
+  .btn.primary { background: var(--amber); color: #1a1205; border-color: var(--amber); font-weight: 700; }
+  .btn.sm { padding: 4px 8px; font-size: 10px; }
+
+  main { flex: 1; padding: 12px 16px 24px; overflow: auto; }
+  .strip {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 12px; margin-bottom: 12px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; font-family: var(--mono); font-size: 11px;
+  }
+  .strip .field { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--amber); }
+  .stat-warn b { color: var(--amber); }
+  .stat-alert b { color: var(--red); }
+  .stat-muted b { color: var(--muted); }
+
+  .seqhint { font-family: var(--mono); font-size: 10px; color: var(--muted-2); margin: 0 0 10px; letter-spacing: 0.04em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { font-size: 9px; letter-spacing: 0.1em; color: var(--muted); background: #0a0e14; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: none; }
+  tr.metered:hover { background: #121820; }
+  tr.dragging { opacity: 0.4; }
+  tr.dragover td { box-shadow: inset 0 2px 0 0 var(--amber); }
+  tr.view-only .grip { opacity: 0.25; cursor: default; }
+  .grip { cursor: grab; color: var(--muted-2); font-size: 12px; user-select: none; }
+  .cell-strong { font-weight: 700; color: var(--cyan); letter-spacing: 0.04em; }
+  .cell-edct { font-weight: 700; font-size: 12px; }
+  .cell-hold { color: var(--red); }
+  .cell-ok { color: var(--green); }
+  .cell-warn { color: var(--amber); }
+  .fca-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; border: 1px solid; font-size: 9px; }
+  .msg, .emptystate {
+    font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.7;
+    padding: 24px; text-align: center; border: 1px dashed var(--line-2); border-radius: 8px;
+  }
+  .emptystate h2 { margin: 0 0 8px; font-size: 13px; color: var(--text); letter-spacing: 0.1em; }
+  .emptystate-actions { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+  .emptystate input { width: 100px; text-transform: uppercase; }
+</style>
+</head>
+<body class="tower-page">
+<div id="vatflowAppNav"></div>
+
+<header class="topbar">
+  <div class="brand"><b>TOWER DEPARTURES</b><span class="tag">FCA METERING</span></div>
+  <div class="field-row">
+    <label for="fieldInput">FIELD</label>
+    <input id="fieldInput" maxlength="4" placeholder="KATL" autocomplete="off">
+    <button type="button" class="btn primary sm" id="loadBtn">Load</button>
+  </div>
+  <div class="spacer"></div>
+  <div id="lockCtl">
+    <button type="button" id="lockBtn" class="locked">View only</button>
+    <input id="pwInput" type="password" placeholder="control password" autocomplete="off" class="hidden">
+    <button type="button" id="pwGo" class="btn sm hidden">Go</button>
+    <span id="lockMsg"></span>
+  </div>
+  <div class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
+  <div class="stat"><span class="dot" id="syncDot"></span><span id="syncTxt">FCAs —</span></div>
+  <div class="stat"><b id="zClock">----Z</b></div>
+  <div class="stat">refresh <b id="refreshIn">--</b>s</div>
+  <button type="button" class="btn sm" id="refreshBtn">↻</button>
+</header>
+
+<main id="main"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+"use strict";
+
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import {
+  loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures,
+} from "./shared/fca-metering.js";
+
+const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
+const LS_FCAS = "fcaBuilder.fcas.v1";
+const LS_FIELD = "towerDepIcao";
+const REFRESH_SEC = 20;
+
+const CONTROL_PASSWORD_LOCAL = "";
+let controllerUnlocked = false;
+function canControl() { return controllerUnlocked; }
+
+const state = {
+  field: "",
+  fcas: [],
+  pilots: [],
+  prefiles: [],
+  feed: "init",
+  towerOrder: {},
+  countdown: REFRESH_SEC,
+};
+
+let sb = null, liveTimer = null, countdownTimer = null, stripDragging = false;
+
+const DEMO_AIRPORTS = {
+  KATL: [33.64, -84.43], KJFK: [40.64, -73.78], KORD: [41.98, -87.90], KDFW: [32.90, -97.04],
+  KDEN: [39.86, -104.67], KLAX: [33.94, -118.41], KMIA: [25.79, -80.29], KBOS: [42.36, -71.01],
+};
+seedAirports(DEMO_AIRPORTS);
+
+function towerOrderKey(icao, fcaId) { return `towerDepOrder.${icao}.${fcaId}`; }
+
+function loadTowerOrders(icao) {
+  const out = {};
+  for (const f of state.fcas) {
+    if (!f.id) continue;
+    try {
+      const arr = JSON.parse(localStorage.getItem(towerOrderKey(icao, f.id)) || "[]");
+      out[f.id] = Array.isArray(arr) ? arr : [];
+    } catch (_) { out[f.id] = []; }
+  }
+  return out;
+}
+
+function saveTowerOrder(icao, fcaId, order) {
+  try { localStorage.setItem(towerOrderKey(icao, fcaId), JSON.stringify(order)); } catch (_) {}
+}
+
+function normalizeFca(f) {
+  if (!f) return null;
+  if (!f.id) f.id = "fca_" + Date.now();
+  if (!Array.isArray(f.points)) f.points = [];
+  if (f.enabled == null) f.enabled = true;
+  return f;
+}
+
+function loadLocalFcas() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(LS_FCAS) || "[]");
+    if (Array.isArray(arr) && arr.length) state.fcas = arr.map(normalizeFca).filter(Boolean);
+  } catch (_) {}
+}
+
+function setSyncStatus(kind, extra) {
+  const dot = document.getElementById("syncDot"), txt = document.getElementById("syncTxt");
+  if (!dot) return;
+  const map = {
+    local: ["", "FCAs · local cache"],
+    connecting: ["demo", "FCAs · connecting…"],
+    connected: ["live", "FCAs · live"],
+    error: ["dead", "FCAs · sync error"],
+    none: ["dead", "FCAs · none active"],
+  };
+  const m = map[kind] || map.local;
+  dot.className = "dot" + (m[0] ? " " + m[0] : "");
+  txt.textContent = extra || m[1];
+}
+
+function initSync() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !window.supabase) {
+    setSyncStatus("local");
+    return;
+  }
+  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+  catch (e) { console.warn(e); setSyncStatus("error"); return; }
+  setSyncStatus("connecting");
+  sb.from("fcas").select("*").then(({ data, error }) => {
+    if (error) { console.warn(error); setSyncStatus("error"); return; }
+    state.fcas = (data || []).map(r => normalizeFca(r.data || {}));
+    try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
+    setSyncStatus("connected");
+    render();
+  });
+  sb.channel("fcas-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "fcas" }, () => {
+      sb.from("fcas").select("*").then(({ data }) => {
+        if (data) {
+          state.fcas = data.map(r => normalizeFca(r.data || {}));
+          try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
+          if (!stripDragging) render();
+        }
+      });
+    })
+    .subscribe(status => {
+      if (status === "SUBSCRIBED") setSyncStatus("connected");
+      else if (status === "CHANNEL_ERROR") setSyncStatus("error");
+    });
+}
+
+function setFeed(s) {
+  state.feed = s;
+  const dot = document.getElementById("feedDot"), txt = document.getElementById("feedTxt");
+  dot.className = "dot" + (s === "live" ? " live" : s === "dead" ? " dead" : "");
+  txt.textContent = s === "live" ? "LIVE · VATSIM" : s === "dead" ? "no feed" : "connecting…";
+}
+
+function fetchLive() {
+  fetch("https://data.vatsim.net/v3/vatsim-data.json", { cache: "no-store" })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(d => {
+      const pilots = (d.pilots || [])
+        .filter(p => typeof p.latitude === "number" && typeof p.longitude === "number")
+        .map(p => {
+          const f = fpFields(p.flight_plan);
+          const gs = p.groundspeed || 0;
+          return { callsign: p.callsign, lat: p.latitude, lon: p.longitude, alt: p.altitude || 0,
+            gs, hdg: p.heading || 0, phase: gs < 30 ? "gnd" : "air", ...f };
+        });
+      const connected = new Set(pilots.map(p => p.callsign));
+      const prefiles = (d.prefiles || [])
+        .filter(p => p.flight_plan && !connected.has(p.callsign))
+        .map(p => {
+          const f = fpFields(p.flight_plan);
+          return { callsign: p.callsign, lat: null, lon: null, alt: 0, gs: 0, hdg: 0, phase: "gnd", prefile: true, ...f };
+        });
+      state.pilots = pilots;
+      state.prefiles = prefiles;
+      setFeed("live");
+      if (!stripDragging) render();
+    })
+    .catch(err => {
+      console.warn(err);
+      setFeed("dead");
+    });
+}
+
+function startFeedLoop() {
+  clearInterval(liveTimer);
+  clearInterval(countdownTimer);
+  state.countdown = REFRESH_SEC;
+  const tick = () => { fetchLive(); state.countdown = REFRESH_SEC; };
+  tick();
+  liveTimer = setInterval(tick, REFRESH_SEC * 1000);
+  countdownTimer = setInterval(() => {
+    state.countdown = Math.max(0, state.countdown - 1);
+    const el = document.getElementById("refreshIn");
+    if (el) el.textContent = state.countdown;
+  }, 1000);
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function gapLabel(gapMin, isLeader) {
+  if (isLeader || gapMin == null) return "—";
+  if (gapMin < 0.05) return "0";
+  return gapMin.toFixed(1) + " min";
+}
+
+function moveTowerOrder(fcaId, orderCS, from, to) {
+  if (!canControl() || from === to) return;
+  const arr = orderCS.slice();
+  const [m] = arr.splice(from, 1);
+  arr.splice(to, 0, m);
+  saveTowerOrder(state.field, fcaId, arr);
+  state.towerOrder[fcaId] = arr;
+  render();
+}
+
+function render() {
+  const main = document.getElementById("main");
+  if (!state.field) {
+    main.innerHTML =
+      `<div class="emptystate"><h2>ENTER YOUR FIELD</h2>` +
+      `<p>Type your tower airport ICAO (e.g. KATL) to see departures metered against active FCAs from FCA Builder.</p>` +
+      `<div class="emptystate-actions">` +
+      `<input id="splashField" maxlength="4" placeholder="KATL" class="field-row input">` +
+      `<button type="button" class="btn primary" id="splashLoad">Load</button></div></div>`;
+    const sf = document.getElementById("splashField");
+    const sl = document.getElementById("splashLoad");
+    if (sf && sl) {
+      sf.addEventListener("input", () => { sf.value = sf.value.toUpperCase(); });
+      sf.addEventListener("keydown", e => { if (e.key === "Enter") activateField(sf.value); });
+      sl.addEventListener("click", () => activateField(sf.value));
+    }
+    return;
+  }
+
+  const activeFcas = state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
+  if (!activeFcas.length) {
+    main.innerHTML = `<div class="msg">No active FCAs. Enable at least one FCA with a drawn line in FCA Builder.</div>`;
+    setSyncStatus(state.fcas.length ? "none" : "local");
+    return;
+  }
+
+  state.towerOrder = loadTowerOrders(state.field);
+  const result = computeTowerDepartures(state.field, state.fcas, state.pilots, state.prefiles, state.towerOrder);
+  const meteredSet = new Set(result.departures.map(d => d.callsign));
+  const unmetered = [];
+  const seen = new Set();
+  for (const p of state.pilots.concat(state.prefiles)) {
+    if ((p.dep || "").toUpperCase() !== state.field) continue;
+    if ((p.gs || 0) > 60 && (p.alt || 0) > 300) continue;
+    if (seen.has(p.callsign)) continue;
+    seen.add(p.callsign);
+    if (!meteredSet.has(p.callsign)) unmetered.push(p);
+  }
+
+  const holding = result.departures.filter(d => (d.delayMin || 0) >= 0.5).length;
+
+  let html =
+    `<div class="strip">` +
+    `<span class="field">${escapeHtml(state.field)} DEPARTURES</span>` +
+    `<span class="stat">TOTAL <b>${result.total}</b></span>` +
+    `<span class="stat stat-warn">METERED <b>${result.metered}</b></span>` +
+    (holding ? `<span class="stat stat-alert">HOLDING <b>${holding}</b></span>` : "") +
+  `</div>`;
+
+  if (!result.total) {
+    html += `<div class="msg">No undeparted traffic filed out of ${escapeHtml(state.field)} right now.</div>`;
+    main.innerHTML = html;
+    return;
+  }
+
+  html += `<div class="seqhint">${canControl()
+    ? "⠿ drag # to reorder your local queue (per FCA) · EDCT ignores filed departure time"
+    : "View only — unlock with the control password to reorder departures"}</div>`;
+
+  html += `<div class="tablewrap"><table><thead><tr>` +
+    `<th>#</th><th>CALLSIGN</th><th>DEST</th><th>FCA</th><th>GAP</th><th>CTA Z</th><th>EDCT Z</th><th>GLOBAL #</th>` +
+    `</tr></thead><tbody id="depBody">`;
+
+  const rows = result.departures.map((d, i) => {
+    const hold = (d.delayMin || 0) >= 0.5;
+    const fcaStyle = d.fcaColor ? `color:${d.fcaColor};border-color:${d.fcaColor}55;background:${d.fcaColor}18` : "";
+    const title = `Transit ${Math.round(d.dist || 0)}nm · delay ${(d.delayMin || 0).toFixed(1)} min`;
+    return {
+      ...d,
+      idx: i,
+      hold,
+      fcaStyle,
+      title,
+      isLeader: d.gapMin === 0,
+    };
+  });
+
+  for (const d of rows) {
+    html += `<tr class="metered${canControl() ? "" : " view-only"}" data-cs="${escapeHtml(d.callsign)}" data-fca="${escapeHtml(d.fcaId)}" data-idx="${d.idx}" title="${escapeHtml(d.title)}">` +
+      `<td><span class="grip">⠿</span> ${d.idx + 1}</td>` +
+      `<td class="cell-strong">${escapeHtml(d.callsign)}</td>` +
+      `<td>${escapeHtml(d.arr || "????")}</td>` +
+      `<td><span class="fca-tag" style="${d.fcaStyle}">${escapeHtml(d.fcaName || d.fcaId)}</span></td>` +
+      `<td>${gapLabel(d.gapMin, d.isLeader)}</td>` +
+      `<td>${fmtZulu(d.ctaMs)}</td>` +
+      `<td class="cell-edct ${d.hold ? "cell-hold" : "cell-ok"}">${fmtZulu(d.edctMs)}</td>` +
+      `<td>${d.globalSeq != null ? d.globalSeq : "—"}</td>` +
+      `</tr>`;
+  }
+
+  for (const p of unmetered) {
+    html += `<tr class="unmetered">` +
+      `<td>—</td>` +
+      `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
+      `<td>${escapeHtml(p.arr || "????")}</td>` +
+      `<td class="cell-warn">not metered</td>` +
+      `<td>—</td><td>—</td><td>—</td><td>—</td>` +
+      `</tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  main.innerHTML = html;
+
+  if (!canControl()) return;
+
+  const orderByFca = {};
+  for (const d of rows) {
+    if (!orderByFca[d.fcaId]) orderByFca[d.fcaId] = [];
+    orderByFca[d.fcaId].push(d.callsign);
+  }
+
+  const tbody = document.getElementById("depBody");
+  const meteredRows = [...tbody.querySelectorAll("tr.metered")];
+  let dragFrom = null, dragFca = null;
+
+  meteredRows.forEach((tr, visIdx) => {
+    tr.setAttribute("draggable", "true");
+    tr.addEventListener("dragstart", e => {
+      dragFrom = visIdx;
+      dragFca = tr.getAttribute("data-fca");
+      stripDragging = true;
+      tr.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    tr.addEventListener("dragend", () => {
+      tr.classList.remove("dragging");
+      meteredRows.forEach(x => x.classList.remove("dragover"));
+      stripDragging = false;
+    });
+    tr.addEventListener("dragover", e => {
+      const targetFca = tr.getAttribute("data-fca");
+      if (targetFca !== dragFca) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      tr.classList.add("dragover");
+    });
+    tr.addEventListener("dragleave", () => tr.classList.remove("dragover"));
+    tr.addEventListener("drop", e => {
+      e.preventDefault();
+      tr.classList.remove("dragover");
+      const targetFca = tr.getAttribute("data-fca");
+      if (dragFrom == null || dragFrom === visIdx || targetFca !== dragFca) return;
+      const orderCS = orderByFca[dragFca] || [];
+      const fromCs = meteredRows[dragFrom].getAttribute("data-cs");
+      const toCs = tr.getAttribute("data-cs");
+      const fromIdx = orderCS.indexOf(fromCs);
+      const toIdx = orderCS.indexOf(toCs);
+      if (fromIdx >= 0 && toIdx >= 0) moveTowerOrder(dragFca, orderCS, fromIdx, toIdx);
+    });
+  });
+}
+
+function activateField(icao) {
+  icao = (icao || "").trim().toUpperCase();
+  if (!icao) return;
+  state.field = icao;
+  try { localStorage.setItem(LS_FIELD, icao); } catch (_) {}
+  document.getElementById("fieldInput").value = icao;
+  state.towerOrder = loadTowerOrders(icao);
+  render();
+}
+
+function updateLockUI() {
+  const btn = document.getElementById("lockBtn");
+  btn.textContent = controllerUnlocked ? "Controller" : "View only";
+  btn.className = controllerUnlocked ? "unlocked" : "locked";
+}
+
+function setControl(on) {
+  controllerUnlocked = on;
+  updateLockUI();
+  render();
+}
+
+/* boot */
+mountVatflowNav(document.getElementById("vatflowAppNav"), "tower");
+
+const lockBtn = document.getElementById("lockBtn");
+const pwInput = document.getElementById("pwInput");
+const pwGo = document.getElementById("pwGo");
+const lockMsg = document.getElementById("lockMsg");
+
+function showPwEntry() {
+  pwInput.classList.remove("hidden");
+  pwGo.classList.remove("hidden");
+  pwInput.value = "";
+  lockMsg.textContent = "";
+  pwInput.focus();
+}
+
+function attemptUnlock(pw) {
+  if (CONTROL_PASSWORD_LOCAL === "" || pw === CONTROL_PASSWORD_LOCAL) {
+    lockMsg.textContent = "";
+    setControl(true);
+  } else {
+    lockMsg.textContent = "wrong password";
+    lockMsg.className = "lockerr";
+  }
+}
+
+lockBtn.addEventListener("click", () => {
+  if (controllerUnlocked) { setControl(false); lockMsg.textContent = ""; return; }
+  if (pwInput.classList.contains("hidden")) showPwEntry();
+  else attemptUnlock(pwInput.value);
+});
+pwGo.addEventListener("click", () => attemptUnlock(pwInput.value));
+pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(pwInput.value); });
+
+document.getElementById("fieldInput").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
+document.getElementById("loadBtn").addEventListener("click", () => activateField(document.getElementById("fieldInput").value));
+document.getElementById("fieldInput").addEventListener("keydown", e => { if (e.key === "Enter") activateField(e.target.value); });
+document.getElementById("refreshBtn").addEventListener("click", () => { fetchLive(); state.countdown = REFRESH_SEC; });
+
+updateLockUI();
+loadLocalFcas();
+initSync();
+loadAirports(() => render()).catch(() => render());
+
+try {
+  const saved = localStorage.getItem(LS_FIELD);
+  if (saved) {
+    document.getElementById("fieldInput").value = saved;
+    activateField(saved);
+  }
+} catch (_) {}
+
+startFeedLoop();
+
+(function tickClock() {
+  const el = document.getElementById("zClock");
+  if (el) el.textContent = fmtZulu(Date.now());
+  setTimeout(tickClock, 1000 - (Date.now() % 1000));
+})();
+</script>
+</body>
+</html>

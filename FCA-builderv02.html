@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>FCA Builder — VATSIM Flow Control</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="shared/vatflow-nav.css">
 <style>
   :root{
     --bg:#080b10; --panel:#111722cc; --panel-solid:#0e1319; --panel-2:#121820;
@@ -14,6 +15,7 @@
     --cyan:#5ba8c9; --green:#4caf7a; --red:#d45c5c;
     --mono: ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
     --ui: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --vatflow-nav-h: 28px;
   }
   *{box-sizing:border-box}
   .hidden{display:none!important}
@@ -32,7 +34,7 @@
     font-size:10px;font-weight:600;letter-spacing:.08em;text-shadow:0 0 6px #000,0 0 6px #000}
 
   /* ---------- top bar ---------- */
-  .topbar{position:absolute;top:0;left:0;right:0;height:46px;z-index:600;display:flex;align-items:center;
+  .topbar{position:absolute;top:var(--vatflow-nav-h);left:0;right:0;height:46px;z-index:600;display:flex;align-items:center;
     gap:14px;padding:0 14px;background:linear-gradient(180deg,rgba(10,14,20,.94),rgba(10,14,20,.66));
     border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
   .brand{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
@@ -67,7 +69,7 @@
   .btn:disabled{opacity:.4;cursor:not-allowed}
 
   /* ---------- sidebar ---------- */
-  .sidebar{position:absolute;top:46px;left:0;bottom:0;width:320px;z-index:550;display:flex;flex-direction:column;
+  .sidebar{position:absolute;top:calc(var(--vatflow-nav-h) + 46px);left:0;bottom:0;width:320px;z-index:550;display:flex;flex-direction:column;
     background:linear-gradient(180deg,rgba(13,18,27,.95),rgba(11,15,23,.92));border-right:1px solid var(--line);
     backdrop-filter:blur(10px);transition:transform .22s ease}
   .sidebar.hidden{transform:translateX(-100%)}
@@ -171,7 +173,7 @@
   .sw-track.on .sw-knob{left:18px;background:#1a1205}
 
   /* ---------- sequence panel ---------- */
-  .seq{position:absolute;top:46px;right:0;bottom:0;width:360px;z-index:540;display:flex;flex-direction:column;
+  .seq{position:absolute;top:calc(var(--vatflow-nav-h) + 46px);right:0;bottom:0;width:360px;z-index:540;display:flex;flex-direction:column;
     background:linear-gradient(180deg,rgba(13,18,27,.96),rgba(11,15,23,.93));border-left:1px solid var(--line);
     backdrop-filter:blur(10px);transform:translateX(100%);transition:transform .22s ease}
   .seq.show{transform:translateX(0)}
@@ -282,6 +284,7 @@
 </head>
 <body>
 <div id="map"></div>
+<div id="vatflowAppNav"></div>
 
 <!-- TOP BAR -->
 <div class="topbar">
@@ -415,8 +418,18 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
+<script type="module">
 "use strict";
+
+import {
+  NM_PER_DEG, LOOKAHEAD_NM, DEMAND_WINDOW_MIN, DIR_LABEL,
+  loadAirports, seedAirports, getAirport, hasAirport,
+  haversineNm, bearing, gcLine, parseRouteTokens, parseAlt, fmtZulu, fpFields,
+  computeSequence as computeSequenceCore, buildManualOrder,
+  projectCrossing, pathCrossing, groundCrossing, buildPathLLs, plannedAnchors,
+  fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir, groundTransitSec, ptimeToMs,
+} from "./shared/fca-metering.js";
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -434,9 +447,6 @@ const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";   //
 
 const US_BOUNDS = [[18, -130],[52, -64]];
 const FCA_COLORS = ["#f5a623","#e879f9","#a3e635","#fb923c","#38bdf8","#f87171"];
-const NM_PER_DEG = 60;                     // 1 deg lat ~ 60 nm
-const LOOKAHEAD_NM = 1200;                 // how far ahead we project an aircraft's path
-const DEMAND_WINDOW_MIN = 60;              // demand counted within this many minutes to the line
 const REFRESH_SEC = 20;
 
 /* ---- controller access: VIEW-ONLY until unlocked (same gate as vatflow-tbfm v2.html) ----
@@ -922,29 +932,17 @@ loadBoundaries();
    AIRPORT DATABASE  (ICAO -> [lat,lon]) — needed for ground/EDCT
    route geometry. Seeded with demo fields, filled from VATSpy.dat.
    ============================================================ */
-const AIRPORTS = new Map();
-function getAirport(icao){ if(!icao) return null; return AIRPORTS.get((""+icao).toUpperCase())||null; }
 let airportsReady=false;
-function loadAirports(){
-  const url="https://cdn.jsdelivr.net/gh/vatsimnetwork/vatspy-data-project@master/VATSpy.dat";
-  fetch(url).then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
-    .then(txt=>{
-      let inApt=false, n=0;
-      txt.split(/\r?\n/).forEach(line=>{
-        if(line.startsWith("[")){ inApt=/\[Airports\]/i.test(line); return; }
-        if(!inApt||!line||line.startsWith(";")) return;
-        const c=line.split("|");                  // ICAO|Name|lat|lon|FIR|...
-        if(c.length>=4){ const ic=c[0].trim().toUpperCase(), la=parseFloat(c[2]), lo=parseFloat(c[3]);
-          if(ic && !isNaN(la) && !isNaN(lo)){ AIRPORTS.set(ic,[la,lo]); n++; } }
-      });
-      airportsReady=true;
-      if(state.selectedId) renderAll();
-      if(!n) toast("Airport DB empty — EDCT for prefiles limited.",3000);
-    })
-    .catch(err=>{ console.warn("Airport DB failed:",err);
-      toast("Airport DB unavailable — EDCT works only for demo airports.",4000); });
+function loadAirportsLocal(){
+  return loadAirports(n=>{
+    airportsReady=true;
+    if(state.selectedId) renderAll();
+    if(!n) toast("Airport DB empty — EDCT for prefiles limited.",3000);
+  }).catch(err=>{
+    console.warn("Airport DB failed:",err);
+    toast("Airport DB unavailable — EDCT works only for demo airports.",4000);
+  });
 }
-loadAirports();
 
 /* ============================================================
    TRAFFIC FEED
@@ -958,12 +956,7 @@ function setFeed(s){
   txt.textContent = s==="live"?"LIVE · VATSIM":s==="demo"?"DEMO DATA":s==="dead"?"no feed":"connecting…";
 }
 
-function fpFields(fp){
-  fp=fp||{};
-  return { dep:(fp.departure||"").toUpperCase(), arr:(fp.arrival||"").toUpperCase(),
-    type:fp.aircraft_short||fp.aircraft_faa||"", tas:parseInt(fp.cruise_tas,10)||0,
-    fpAlt:parseAlt(fp.altitude), deptime:fp.deptime||"", route:fp.route||"" };
-}
+function fpFieldsLocal(fp){ return fpFields(fp); }
 function fetchLive(){
   if(state.layers.demo){ return; }            // demo overrides live
   fetch("https://data.vatsim.net/v3/vatsim-data.json",{cache:"no-store"})
@@ -971,13 +964,13 @@ function fetchLive(){
     .then(d=>{
       const pilots=(d.pilots||[])
         .filter(p=>typeof p.latitude==="number"&&typeof p.longitude==="number")
-        .map(p=>{ const f=fpFields(p.flight_plan); const gs=p.groundspeed||0;
+        .map(p=>{ const f=fpFieldsLocal(p.flight_plan); const gs=p.groundspeed||0;
           return { callsign:p.callsign, lat:p.latitude, lon:p.longitude, alt:p.altitude||0,
             gs, hdg:p.heading||0, phase: gs<30 ? "gnd":"air", ...f }; });
       const connected=new Set(pilots.map(p=>p.callsign));
       const prefiles=(d.prefiles||[])
         .filter(p=>p.flight_plan && !connected.has(p.callsign))
-        .map(p=>{ const f=fpFields(p.flight_plan);
+        .map(p=>{ const f=fpFieldsLocal(p.flight_plan);
           return { callsign:p.callsign, lat:null, lon:null, alt:0, gs:0, hdg:0, phase:"gnd", prefile:true, ...f }; });
       state.pilots=pilots; state.prefiles=prefiles; setFeed("live"); afterData();
     })
@@ -995,7 +988,8 @@ const DEMO_AIRPORTS = {
   KSEA:[47.45,-122.31], KIAH:[29.98,-95.34], KLAS:[36.08,-115.15], KPHX:[33.43,-112.01],
   KMCO:[28.43,-81.31], KCLT:[35.21,-80.94], KEWR:[40.69,-74.17]
 };
-Object.keys(DEMO_AIRPORTS).forEach(k=>AIRPORTS.set(k,DEMO_AIRPORTS[k]));   // seed DB
+Object.keys(DEMO_AIRPORTS).forEach(k=>{});   // seed via module
+seedAirports(DEMO_AIRPORTS);
 const DEMO_TYPES=["B738","A320","B752","CRJ9","E175","B739","A321","B763","A21N","B38M"];
 const DEMO_AL=["DAL","AAL","UAL","SWA","JBU","FFT","NKS","ASA"];
 let demoFleet=[], demoGround=[];
@@ -1082,309 +1076,23 @@ function afterData(){
 }
 
 /* ============================================================
-   GEOMETRY
+   GEOMETRY (local helpers; core in shared/fca-metering.js)
    ============================================================ */
-const toRad=d=>d*Math.PI/180, toDeg=r=>r*180/Math.PI;
-function haversineNm(la1,lo1,la2,lo2){
-  const R=3440.065, dLa=toRad(la2-la1), dLo=toRad(lo2-lo1);
-  const a=Math.sin(dLa/2)**2+Math.cos(toRad(la1))*Math.cos(toRad(la2))*Math.sin(dLo/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
 function lineLengthNm(pts){
   let d=0;
   for(let i=1;i<(pts||[]).length;i++) d+=haversineNm(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1]);
   return d;
 }
-function bearing(la1,lo1,la2,lo2){
-  const y=Math.sin(toRad(lo2-lo1))*Math.cos(toRad(la2));
-  const x=Math.cos(toRad(la1))*Math.sin(toRad(la2))-Math.sin(toRad(la1))*Math.cos(toRad(la2))*Math.cos(toRad(lo2-lo1));
-  return (toDeg(Math.atan2(y,x))+360)%360;
-}
-// project lat/lon to local nm-plane centered at (lat0,lon0)
-function toLocal(lat,lon,lat0,lon0){
-  return [ (lon-lon0)*NM_PER_DEG*Math.cos(toRad(lat0)), (lat-lat0)*NM_PER_DEG ];
-}
-function localToLatLon(x,y,lat0,lon0){
-  return [ lat0 + y/NM_PER_DEG, lon0 + x/(NM_PER_DEG*Math.cos(toRad(lat0))) ];
-}
-/* Forward ray from aircraft (heading) intersect FCA polyline.
-   Returns {dist, lat, lon} of nearest crossing ahead, or null. */
-function projectCrossing(p, pts){
-  const lat0=p.lat, lon0=p.lon;
-  const h=toRad(p.hdg||0);
-  const dir=[Math.sin(h),Math.cos(h)];      // east=x, north=y
-  let best=null;
-  for(let i=0;i<pts.length-1;i++){
-    const A=toLocal(pts[i][0],pts[i][1],lat0,lon0);
-    const B=toLocal(pts[i+1][0],pts[i+1][1],lat0,lon0);
-    const seg=[B[0]-A[0],B[1]-A[1]];
-    const denom=dir[0]*seg[1]-dir[1]*seg[0];
-    if(Math.abs(denom)<1e-9) continue;       // parallel
-    // P0=(0,0); solve t*dir = A + u*seg
-    const t=(A[0]*seg[1]-A[1]*seg[0])/denom;
-    const u=(A[0]*dir[1]-A[1]*dir[0])/denom;
-    if(t>0 && u>=0 && u<=1){
-      if(!best||t<best.dist){
-        const px=dir[0]*t, py=dir[1]*t;
-        const ll=localToLatLon(px,py,lat0,lon0);
-        best={dist:t, lat:ll[0], lon:ll[1]};
-      }
-    }
-  }
-  return (best && best.dist<=LOOKAHEAD_NM)?best:null;
-}
-/* Generic finite segment intersection in a local nm plane.
-   Path P1->P2 vs FCA segment A->B. Returns {t,x,y} (t along path) or null. */
-function segInt(P1,P2,A,B){
-  const r=[P2[0]-P1[0],P2[1]-P1[1]], s=[B[0]-A[0],B[1]-A[1]];
-  const den=r[0]*s[1]-r[1]*s[0]; if(Math.abs(den)<1e-9) return null;
-  const qp=[A[0]-P1[0],A[1]-P1[1]];
-  const t=(qp[0]*s[1]-qp[1]*s[0])/den, u=(qp[0]*r[1]-qp[1]*r[0])/den;
-  if(t>=0&&t<=1&&u>=0&&u<=1) return {t,x:P1[0]+t*r[0],y:P1[1]+t*r[1]};
-  return null;
-}
-/* Densify a list of anchor lat/lons into a great-circle polyline. Working
-   leg-by-leg (~120 nm segments) keeps the flat-plane math accurate even on
-   transcontinental routes, where a single projection plane drifts badly. */
-function buildPathLLs(anchors){
-  let path=[];
-  for(let i=0;i<anchors.length-1;i++){
-    const seg=gcLine(anchors[i],anchors[i+1]);
-    if(i>0) seg.shift();
-    path=path.concat(seg);
-  }
-  return path;
-}
-/* First crossing of a path polyline with the FCA line.
-   Direction filter uses the local leg course (what the aircraft will actually
-   be flying at the line), not the overall origin→destination bearing.
-   Returns {dist, lat, lon, course} with dist in nm along the path, or null. */
-function pathCrossing(path,fca){
-  let cum=0, best=null;
-  for(let k=0;k<path.length-1;k++){
-    const a=path[k], b=path[k+1];
-    const legLen=haversineNm(a[0],a[1],b[0],b[1]);
-    if(legLen<0.01) continue;
-    const legCourse=bearing(a[0],a[1],b[0],b[1]);
-    if(fcaMatchesDir(fca,legCourse)){
-      const P2=toLocal(b[0],b[1],a[0],a[1]);
-      for(let i=0;i<fca.points.length-1;i++){
-        const A=toLocal(fca.points[i][0],fca.points[i][1],a[0],a[1]);
-        const B=toLocal(fca.points[i+1][0],fca.points[i+1][1],a[0],a[1]);
-        const x=segInt([0,0],P2,A,B);
-        if(x){ const dist=cum+x.t*legLen;
-          if(!best||dist<best.dist){ const ll=localToLatLon(x.x,x.y,a[0],a[1]);
-            best={dist,lat:ll[0],lon:ll[1],course:legCourse}; } }
-      }
-    }
-    cum+=legLen;
-  }
-  return best;
-}
-/* Anchors a pre-departure flight will fly through: origin, any en-route
-   airports found in the filed route text, destination. */
-function plannedAnchors(p,origin,dst){
-  const anchors=[origin];
-  parseRouteTokens(p.route).forEach(t=>{
-    const c=t.replace(/\/.*$/,"");
-    if(c.length>=3 && AIRPORTS.has(c) && c!==p.dep && c!==p.arr) anchors.push(AIRPORTS.get(c));
-  });
-  anchors.push(dst);
-  return anchors;
-}
-/* Pre-departure transit time to a point `dist` nm down the route. The first
-   ~CLIMB_NM run slower than filed TAS (climb), so a raw dist/TAS estimate
-   makes every EDCT a few minutes too optimistic. */
-const CLIMB_NM=120, CLIMB_FACTOR=0.65;
-function groundTransitSec(dist,tas){
-  const climb=Math.min(dist,CLIMB_NM);
-  return (climb/(tas*CLIMB_FACTOR) + Math.max(0,dist-climb)/tas)*3600;
-}
-/* Where a ground flight's planned route crosses the FCA. */
-function groundCrossing(p,fca,nowMs){
-  const o=(p.lat!=null&&p.lon!=null)?[p.lat,p.lon]:getAirport(p.dep);
-  const dst=getAirport(p.arr);
-  if(!o||!dst) return null;
-  const best=pathCrossing(buildPathLLs(plannedAnchors(p,o,dst)),fca);
-  if(!best) return null;
-  const tas=p.tas||420, transitSec=groundTransitSec(best.dist,tas);
-  const ptimeMs=ptimeToMs(p.deptime), effMs=Math.max(nowMs, ptimeMs||nowMs);
-  const etaSec=(effMs-nowMs)/1000 + transitSec;
-  return { dist:best.dist, cross:{lat:best.lat,lon:best.lon}, course:best.course, tas, transitSec, ptimeMs, effMs, etaSec, origin:o };
-}
-/* flight-plan altitude string -> feet */
-function parseAlt(a){ if(a==null) return 0; a=(""+a).toUpperCase().replace(/\s|FL/g,"");
-  const n=parseInt(a,10); if(isNaN(n)) return 0; return n<1000? n*100 : n; }
-/* "HHMM" Zulu -> ms today (wrapped to nearest day), or null */
-function ptimeToMs(dep){ if(!dep) return null; dep=(""+dep).replace(/\D/g,"").padStart(4,"0").slice(0,4);
-  const h=+dep.slice(0,2), m=+dep.slice(2,4); if(isNaN(h)||isNaN(m)||h>23||m>59) return null;
-  const now=new Date(), nowMs=now.getTime();
-  let ms=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate(),h,m,0);
-  if(ms-nowMs>12*36e5) ms-=864e5; else if(nowMs-ms>12*36e5) ms+=864e5;
-  return ms; }
-function fmtZulu(ms){ const d=new Date(ms);
-  return String(d.getUTCHours()).padStart(2,"0")+String(d.getUTCMinutes()).padStart(2,"0")+"Z"; }
 
-/* ============================================================
-   METERING — the core FCA logic
-   ============================================================ */
-function fcaMatchesAlt(fca,alt){
-  const min=(fca.minFL!=null)?fca.minFL*100:-1;
-  const max=(fca.maxFL!=null)?fca.maxFL*100:1e9;
-  return alt>=min && alt<=max;
-}
-function fcaMatchesDest(fca,arr){
-  if(!fca.dests||!fca.dests.length) return true;
-  return fca.dests.includes((arr||"").toUpperCase());
-}
-/* heading -> compass quadrant of travel */
-function dirOfHeading(h){
-  h=((h%360)+360)%360;
-  if(h>=315||h<45) return "N";
-  if(h<135) return "E";
-  if(h<225) return "S";
-  return "W";
-}
-function fcaMatchesDir(fca,hdg){
-  const d=fca.dir||"any";
-  if(d==="any") return true;
-  return dirOfHeading(hdg)===d;
-}
-const DIR_LABEL={any:"any dir","N":"NB","S":"SB","E":"EB","W":"WB"};
-
-/* Memoized wrapper: within one render pass / data refresh, the list, the map
-   markers and the sequence panel must all see the same computation (otherwise
-   the numbering can disagree, since each call would use a fresh Date.now()).
-   The cache is invalidated on every data refresh and every renderAll(). */
 const seqCache=new Map();
 function invalidateSequences(){ seqCache.clear(); }
+function computeSequence(fca){
+  return computeSequenceCore(fca, state.pilots, state.prefiles, { includeEdct: state.layers.edct });
+}
 function getSequence(fca){
   let s=seqCache.get(fca.id);
   if(!s){ s=computeSequence(fca); seqCache.set(fca.id,s); }
   return s;
-}
-
-/* Build the metered sequence for an FCA from current traffic.
-   Airborne flights absorb delay in the air; ground/prefile flights are
-   slotted by route + filed TAS + proposed time and receive an EDCT. */
-function computeSequence(fca){
-  const out={items:[],demand:0,mode:fca.mode||"rate",rate:fca.rate||0,mit:fca.mit||0,
-    minit:0,excluded:0,nAir:0,nGnd:0,nowMs:Date.now()};
-  if(!fca.points||fca.points.length<2) return out;
-  const nowMs=out.nowMs, ex=new Set(fca.excluded||[]);
-  const cand=[];
-
-  // --- airborne: already flying, current state ---
-  for(const p of state.pilots){
-    if(p.phase!=="air"||(p.gs||0)<40) continue;
-    if(ex.has(p.callsign)){ out.excluded++; continue; }
-    if(!fcaMatchesDest(fca,p.arr)) continue;
-    if(!fcaMatchesAlt(fca,p.alt||0)) continue;
-    // primary: project the current track (heading ray)
-    let x=null, via=null;
-    if(fcaMatchesDir(fca,p.hdg||0)) x=projectCrossing(p,fca.points);
-    // fallback: heading ray misses (dogleg route / vectors) but the route
-    // from present position to destination still crosses the line
-    if(!x){
-      const dst=getAirport(p.arr);
-      if(dst){
-        const b=pathCrossing(buildPathLLs([[p.lat,p.lon],dst]),fca);
-        if(b && b.dist<=LOOKAHEAD_NM){ x={dist:b.dist,lat:b.lat,lon:b.lon}; via="route"; }
-      }
-    }
-    if(!x) continue;
-    cand.push({p,phase:"air",dist:x.dist,eta:(x.dist/p.gs)*3600,cross:x,spd:p.gs,via});
-  }
-
-  // --- ground / prefile: pre-departure, eligible for EDCT ---
-  if(state.layers.edct){
-    const seen=new Set();
-    const grounds=state.pilots.filter(p=>p.phase==="gnd").concat(state.prefiles||[]);
-    for(const p of grounds){
-      if(seen.has(p.callsign)) continue; seen.add(p.callsign);
-      if(ex.has(p.callsign)){ out.excluded++; continue; }
-      if(!fcaMatchesDest(fca,p.arr)) continue;
-      if(!fcaMatchesAlt(fca,p.fpAlt||0)) continue;          // filed cruise alt
-      const g=groundCrossing(p,fca,nowMs); if(!g) continue;
-      cand.push({p,phase:"gnd",dist:g.dist,eta:g.etaSec,cross:g.cross,spd:g.tas,
-        effMs:g.effMs,ptimeMs:g.ptimeMs,transitSec:g.transitSec});
-    }
-  }
-
-  // gap (seconds) a given aircraft needs BEHIND the one ahead (it is the trailing a/c)
-  const rateGap = (out.mode==="rate" && fca.rate>0) ? 3600/fca.rate : 0;
-  const sepFor = c => out.mode==="mit" ? (fca.mit>0 ? (fca.mit/(c.spd||420))*3600 : 0) : rateGap;
-
-  const candById=new Map(); cand.forEach(c=>candById.set(c.p.callsign,c));
-  const manual = Array.isArray(fca.order) && fca.order.length>0;
-
-  if(manual){
-    // ---- MANUAL: controller-set order, scheduled strictly top-to-bottom ----
-    out.manual=true;
-    const order=buildManualOrder(fca,candById); out.order=order;
-    let prev=-1e9, ordered=[];
-    order.forEach(cs=>{ const c=candById.get(cs); if(!c) return;
-      const sched=Math.max(c.eta, prev+sepFor(c)); c.sched=sched; prev=sched; ordered.push(c); });
-    finalizeItems(ordered,out,nowMs);
-  } else {
-    // ---- AUTO: airborne take priority; ground yields ----
-    const air=cand.filter(c=>c.phase==="air").sort((a,b)=>a.eta-b.eta);
-    const gnd=cand.filter(c=>c.phase==="gnd").sort((a,b)=>a.eta-b.eta);
-    // 1) schedule airborne against each other only (never delayed by ground)
-    let prevAir=-1e9; const committed=[];
-    air.forEach(a=>{ const sched=Math.max(a.eta, prevAir+sepFor(a)); a.sched=sched; prevAir=sched;
-      committed.push({t:sched,spd:a.spd}); });
-    // 2) slot ground into the gaps, moving only the ground a/c later as needed.
-    //    EPS guards against a float fixed point: t=c.t+sep can round to a value
-    //    where (t-c.t)<sep still holds, which would re-trigger the same conflict
-    //    forever and park several flights on the identical time.
-    const EPS=1e-6;
-    gnd.forEach(g=>{
-      let t=g.eta, guard=0;
-      for(;;){
-        if(guard++>500) break;
-        committed.sort((x,y)=>x.t-y.t);
-        let moved=false;
-        for(const c of committed){
-          if(t<=c.t){ if((c.t-t) < sepFor({spd:c.spd})-EPS){ t=c.t+sepFor(g); moved=true; break; } }
-          else      { if((t-c.t) < sepFor(g)-EPS){            t=c.t+sepFor(g); moved=true; break; } }
-        }
-        if(!moved) break;
-      }
-      g.sched=t; committed.push({t,spd:g.spd});
-    });
-    finalizeItems(cand.slice().sort((a,b)=>a.sched-b.sched),out,nowMs);
-  }
-
-  if(out.mode==="rate") out.minit=rateGap;
-  else if(cand.length){ const sp=cand[Math.floor(cand.length/2)].spd||450; out.minit=(fca.mit/sp)*3600; }
-  out.demand=cand.filter(c=>c.eta<=DEMAND_WINDOW_MIN*60).length;
-  return out;
-}
-/* assign delay / crossing-time / EDCT fields and counts, in final order */
-function finalizeItems(ordered,out,nowMs){
-  ordered.forEach(c=>{
-    c.delay=c.sched-c.eta;
-    c.ctaMs=nowMs+c.sched*1000;
-    if(c.phase==="gnd") c.edctMs=c.effMs+c.delay*1000;
-    if(c.phase==="air") out.nAir++; else out.nGnd++;
-  });
-  out.items=ordered;
-}
-/* keep the controller's manual order alive across live refreshes:
-   drop departed a/c, merge any newcomers in by their natural ETA */
-function buildManualOrder(fca,candById){
-  let order=(fca.order||[]).filter(cs=>candById.has(cs));
-  const inOrder=new Set(order);
-  const newcomers=[...candById.keys()].filter(cs=>!inOrder.has(cs))
-    .sort((a,b)=>candById.get(a).eta-candById.get(b).eta);
-  for(const cs of newcomers){
-    const eta=candById.get(cs).eta;
-    let idx=order.findIndex(o=>candById.get(o).eta>eta);
-    if(idx<0) idx=order.length;
-    order.splice(idx,0,cs);
-  }
-  return order;
 }
 
 /* ============================================================
@@ -2192,35 +1900,16 @@ function clearMeasure(){ measureLayer.clearLayers(); state.measure.points=[]; }
    departure, current position, any en-route AIRPORTS, destination,
    connected by great-circle. Full filed route text is always shown.
    ============================================================ */
-function parseRouteTokens(route){
-  if(!route) return [];
-  return route.toUpperCase().replace(/[\n\r]/g," ").split(/\s+/).filter(Boolean).filter(t=>t!=="DCT");
-}
 function routeAnchors(p){
   const A=[], dep=getAirport(p.dep), arr=getAirport(p.arr);
   if(dep) A.push({name:p.dep,ll:dep,kind:"apt"});
   if(p.lat!=null && p.phase!=="gnd") A.push({name:"NOW",ll:[p.lat,p.lon],kind:"now"});
   parseRouteTokens(p.route).forEach(t=>{
     const c=t.replace(/\/.*$/,"");                 // strip /N0450F350 speed-alt suffix
-    if(c.length>=3 && AIRPORTS.has(c) && c!==p.dep && c!==p.arr) A.push({name:c,ll:AIRPORTS.get(c),kind:"fix"});
+    if(c.length>=3 && hasAirport(c) && c!==p.dep && c!==p.arr) A.push({name:c,ll:getAirport(c),kind:"fix"});
   });
   if(arr) A.push({name:p.arr,ll:arr,kind:"apt"});
   return A;
-}
-function gcLine(a,b){
-  const lat1=toRad(a[0]),lon1=toRad(a[1]),lat2=toRad(b[0]),lon2=toRad(b[1]);
-  const d=2*Math.asin(Math.sqrt(Math.sin((lat2-lat1)/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin((lon2-lon1)/2)**2));
-  if(!isFinite(d)||d===0) return [a.slice(),b.slice()];
-  const n=Math.max(2,Math.min(48,Math.round(haversineNm(a[0],a[1],b[0],b[1])/120)));
-  const out=[];
-  for(let i=0;i<=n;i++){
-    const f=i/n, S=Math.sin(d), Aa=Math.sin((1-f)*d)/S, Bb=Math.sin(f*d)/S;
-    const x=Aa*Math.cos(lat1)*Math.cos(lon1)+Bb*Math.cos(lat2)*Math.cos(lon2);
-    const y=Aa*Math.cos(lat1)*Math.sin(lon1)+Bb*Math.cos(lat2)*Math.sin(lon2);
-    const z=Aa*Math.sin(lat1)+Bb*Math.sin(lat2);
-    out.push([toDeg(Math.atan2(z,Math.sqrt(x*x+y*y))),toDeg(Math.atan2(y,x))]);
-  }
-  return out;
 }
 function drawRouteLine(p){
   routeLayer.clearLayers();
@@ -2243,7 +1932,7 @@ function renderRouteInfo(p,dist){
   const el=document.getElementById("routeInfo"); if(!el) return;
   const toks=parseRouteTokens(p.route);
   const resolved=routeAnchors(p).filter(a=>a.kind==="fix").length;
-  const fixish=toks.map(t=>t.replace(/\/.*$/,"")).filter(t=>t.length>=2 && !/^[A-Z]{1,2}\d/.test(t) && !AIRPORTS.has(t));
+  const fixish=toks.map(t=>t.replace(/\/.*$/,"")).filter(t=>t.length>=2 && !/^[A-Z]{1,2}\d/.test(t) && !hasAirport(t));
   const unresolved=Math.max(0,fixish.length);
   const fl=String(Math.round(((p.phase==="gnd"?p.fpAlt:p.alt)||0)/100)).padStart(3,"0");
   const spd=p.phase==="gnd"?("TAS"+(p.tas||"?")):((p.gs||0)+"kt");
@@ -2399,6 +2088,8 @@ pwGo.addEventListener("click",()=>attemptUnlock(pwInput.value));
 pwInput.addEventListener("keydown",e=>{ if(e.key==="Enter") attemptUnlock(pwInput.value); });
 
 setFeed("init");
+mountVatflowNav(document.getElementById("vatflowAppNav"), "fca");
+loadAirportsLocal();
 loadSectorThresholds();
 loadLocal();               // restore FCAs from the last session
 populateSectorArtccSelect();
