@@ -6,6 +6,7 @@
 <title>FCA Builder — VATSIM Flow Control</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="shared/vatflow-help.css">
 <style>
   :root{
     --bg:#080b10; --panel:#111722cc; --panel-solid:#0e1319; --panel-2:#121820;
@@ -431,6 +432,7 @@ import {
   fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir, groundTransitSec, ptimeToMs,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -2104,6 +2106,7 @@ pwInput.addEventListener("keydown",e=>{ if(e.key==="Enter") attemptUnlock(pwInpu
 
 setFeed("init");
 mountVatflowNav(document.getElementById("vatflowAppNav"), "fca");
+mountHelp(document.getElementById("lockCtl"), FCA_HELP);
 loadAirportsLocal();
 loadSectorThresholds();
 loadLocal();               // restore FCAs from the last session

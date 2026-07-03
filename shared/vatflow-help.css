@@ -1,0 +1,121 @@
+.vf-help-btn {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid #2a3848;
+  background: #161d28;
+  color: #8a97a3;
+  white-space: nowrap;
+}
+.vf-help-btn:hover { color: #d4dde6; border-color: #3a4a5a; background: #1d2733; }
+.vf-help-btn.on { color: #e8a838; border-color: rgba(232, 168, 56, 0.4); background: rgba(232, 168, 56, 0.12); }
+
+.vf-help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(8, 11, 16, 0.72);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(var(--vatflow-nav-h, 28px) + 12px) 16px 24px;
+  overflow-y: auto;
+}
+.vf-help-overlay.show { display: flex; }
+
+.vf-help-panel {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - var(--vatflow-nav-h, 28px) - 48px);
+  overflow-y: auto;
+  background: linear-gradient(180deg, #0e1319, #0a0e14);
+  border: 1px solid #2a3848;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #d4dde6;
+}
+.vf-help-panel::-webkit-scrollbar { width: 8px; }
+.vf-help-panel::-webkit-scrollbar-thumb { background: #22303d; border-radius: 4px; }
+
+.vf-help-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #1e2834;
+  position: sticky;
+  top: 0;
+  background: #0e1319;
+  z-index: 1;
+}
+.vf-help-head h2 {
+  margin: 0;
+  flex: 1;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #e8a838;
+}
+.vf-help-close {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid #2a3848;
+  background: #161d28;
+  color: #8a97a3;
+}
+.vf-help-close:hover { color: #d4dde6; }
+
+.vf-help-body { padding: 12px 16px 20px; }
+.vf-help-intro { color: #8a97a3; margin: 0 0 16px; font-size: 13px; }
+
+.vf-help-sec {
+  margin-bottom: 14px;
+  border: 1px solid #1e2834;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0f151e;
+}
+.vf-help-sec summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #d4dde6;
+  font-weight: 600;
+  list-style: none;
+}
+.vf-help-sec summary::-webkit-details-marker { display: none; }
+.vf-help-sec summary::after { content: "+"; float: right; color: #5c6b78; font-weight: 400; }
+.vf-help-sec[open] summary::after { content: "−"; }
+.vf-help-sec[open] summary { border-bottom: 1px solid #1e2834; color: #e8a838; }
+
+.vf-help-sec ul {
+  margin: 0;
+  padding: 10px 14px 12px 32px;
+  color: #8a97a3;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.vf-help-sec li { margin-bottom: 6px; }
+.vf-help-sec li b { color: #d4dde6; font-weight: 600; }
+
+.vf-help-foot {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #2a3848;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  color: #5c6b78;
+  line-height: 1.6;
+}
