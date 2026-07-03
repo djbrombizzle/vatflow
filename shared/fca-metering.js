@@ -377,29 +377,9 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   };
   if (!fca.points || fca.points.length < 2) return out;
   const ex = new Set(fca.excluded || []);
-  const cand = [];
-
+  const cand = collectAirFcaCandidates(fca, pilots);
   for (const p of pilots) {
-    if (p.phase !== "air" || (p.gs || 0) < 40) continue;
-    if (ex.has(p.callsign)) { out.excluded++; continue; }
-    if (!fcaMatchesDest(fca, p.arr)) continue;
-    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
-    let x = null, via = null;
-    const dst = getAirport(p.arr);
-    if (isNavReady() && dst) {
-      const path = routePathForCrossing(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true });
-      if (path) {
-        const b = pathCrossing(path, fca);
-        if (b && b.dist <= LOOKAHEAD_NM) { x = { dist: b.dist, lat: b.lat, lon: b.lon }; via = "route"; }
-      }
-    }
-    if (!x && fcaMatchesDir(fca, p.hdg || 0)) x = projectCrossing(p, fca.points);
-    if (!x && dst) {
-      const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
-      if (b && b.dist <= LOOKAHEAD_NM) { x = { dist: b.dist, lat: b.lat, lon: b.lon }; via = via || "direct"; }
-    }
-    if (!x) continue;
-    cand.push({ p, phase: "air", dist: x.dist, eta: (x.dist / p.gs) * 3600, cross: x, spd: p.gs, via });
+    if (ex.has(p.callsign) && p.phase === "air" && (p.gs || 0) >= 40) out.excluded++;
   }
 
   if (includeEdct) {
@@ -452,21 +432,9 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
       prevAir = sched;
       committed.push({ t: sched, spd: a.spd });
     });
-    const EPS = 1e-6;
     gnd.forEach(g => {
-      let t = g.eta, guard = 0;
-      for (;;) {
-        if (guard++ > 500) break;
-        committed.sort((x, y) => x.t - y.t);
-        let moved = false;
-        for (const c of committed) {
-          if (t <= c.t) { if ((c.t - t) < sepFor({ spd: c.spd }) - EPS) { t = c.t + sepFor(g); moved = true; break; } }
-          else { if ((t - c.t) < sepFor(g) - EPS) { t = c.t + sepFor(g); moved = true; break; } }
-        }
-        if (!moved) break;
-      }
-      g.sched = t;
-      committed.push({ t, spd: g.spd });
+      g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
+      committed.push({ t: g.sched, spd: g.spd });
     });
     finalizeItems(cand.slice().sort((a, b) => a.sched - b.sched), out, nowMs);
   }
@@ -484,26 +452,121 @@ export function isDepartureCandidate(p, depIcao) {
   return true;
 }
 
-function scheduleTowerCandidates(cand, fca, manualOrder, nowMs) {
+function collectAirFcaCandidates(fca, pilots) {
+  const ex = new Set(fca.excluded || []);
+  const cand = [];
+  for (const p of pilots) {
+    if (p.phase !== "air" || (p.gs || 0) < 40) continue;
+    if (ex.has(p.callsign)) continue;
+    if (!fcaMatchesDest(fca, p.arr)) continue;
+    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
+    let x = null;
+    const dst = getAirport(p.arr);
+    if (isNavReady() && dst) {
+      const path = routePathForCrossing(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true });
+      if (path) {
+        const b = pathCrossing(path, fca);
+        if (b && b.dist <= LOOKAHEAD_NM) x = { dist: b.dist, lat: b.lat, lon: b.lon };
+      }
+    }
+    if (!x && fcaMatchesDir(fca, p.hdg || 0)) x = projectCrossing(p, fca.points);
+    if (!x && dst) {
+      const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
+      if (b && b.dist <= LOOKAHEAD_NM) x = { dist: b.dist, lat: b.lat, lon: b.lon };
+    }
+    if (!x) continue;
+    cand.push({
+      p, phase: "air", dist: x.dist, eta: (x.dist / p.gs) * 3600, cross: x, spd: p.gs,
+    });
+  }
+  return cand;
+}
+
+function slotGroundAgainstCommitted(g, committed, sepFor) {
+  let t = g.eta;
+  const EPS = 1e-6;
+  let guard = 0;
+  for (;;) {
+    if (guard++ > 500) break;
+    committed.sort((x, y) => x.t - y.t);
+    let moved = false;
+    for (const c of committed) {
+      if (t <= c.t) {
+        if ((c.t - t) < sepFor({ spd: c.spd }) - EPS) { t = c.t + sepFor(g); moved = true; break; }
+      } else if ((t - c.t) < sepFor(g) - EPS) {
+        t = c.t + sepFor(g); moved = true; break;
+      }
+    }
+    if (!moved) break;
+  }
+  return t;
+}
+
+function finalizeTowerGroundItem(c, sched, prevSched, nowMs) {
+  c.sched = sched;
+  c.gapMin = prevSched == null ? 0 : (sched - prevSched) / 60;
+  c.delayMin = (sched - c.eta) / 60;
+  c.ctaMs = nowMs + sched * 1000;
+  c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
+  return c;
+}
+
+function scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots) {
   const rateGap = (fca.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
   const sepFor = c => fca.mode === "mit" ? (fca.mit > 0 ? (fca.mit / (c.spd || 420)) * 3600 : 0) : rateGap;
+  const towerGround = new Set(cand.map(c => c.p.callsign));
+  const airCand = collectAirFcaCandidates(fca, pilots || []);
+
   const candById = new Map();
+  airCand.forEach(c => candById.set(c.p.callsign, c));
   cand.forEach(c => candById.set(c.p.callsign, c));
-  const order = buildManualOrder(manualOrder, candById);
-  let prev = -1e9, ordered = [], prevSched = null;
-  order.forEach((cs, idx) => {
-    const c = candById.get(cs);
-    if (!c) return;
-    const sched = Math.max(c.eta, prev + sepFor(c));
-    c.sched = sched;
-    c.gapMin = idx === 0 ? 0 : (sched - prevSched) / 60;
-    c.delayMin = (sched - c.eta) / 60;
-    c.ctaMs = nowMs + sched * 1000;
-    c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
-    prev = sched;
-    prevSched = sched;
-    ordered.push(c);
-  });
+
+  const manual = Array.isArray(manualOrder) && manualOrder.length > 0;
+  let ordered = [];
+
+  if (manual) {
+    const order = buildManualOrder(manualOrder, candById);
+    let prev = -1e9, prevSched = null;
+    order.forEach(cs => {
+      const c = candById.get(cs);
+      if (!c) return;
+      const sched = Math.max(c.eta, prev + sepFor(c));
+      c.sched = sched;
+      if (towerGround.has(cs)) {
+        ordered.push(finalizeTowerGroundItem(c, sched, prevSched, nowMs));
+      }
+      prev = sched;
+      prevSched = sched;
+    });
+  } else {
+    const committed = [];
+    let prevAir = -1e9;
+    airCand.sort((a, b) => a.eta - b.eta).forEach(a => {
+      const sched = Math.max(a.eta, prevAir + sepFor(a));
+      a.sched = sched;
+      prevAir = sched;
+      committed.push({ t: sched, spd: a.spd });
+    });
+
+    const gnd = cand.slice().sort((a, b) => a.eta - b.eta);
+    gnd.forEach(g => {
+      g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
+      committed.push({ t: g.sched, spd: g.spd });
+    });
+
+    const timeline = [...airCand, ...gnd].filter(c => c.sched != null).sort((a, b) => a.sched - b.sched);
+    ordered = gnd.map(g => {
+      const idx = timeline.findIndex(c => c.p.callsign === g.p.callsign);
+      const prevItem = idx > 0 ? timeline[idx - 1] : null;
+      const prevSched = prevItem ? prevItem.sched : null;
+      return finalizeTowerGroundItem(g, g.sched, prevSched, nowMs);
+    });
+    ordered.sort((a, b) => a.sched - b.sched);
+  }
+
+  const order = manual
+    ? buildManualOrder(manualOrder, candById)
+    : ordered.map(c => c.p.callsign);
   return { items: ordered, order };
 }
 
@@ -550,7 +613,7 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
     const candById = new Map();
     cand.forEach(c => candById.set(c.p.callsign, c));
     const manualOrder = resolveManualOrder(fca, candById, pilots, prefiles, nowMs);
-    const { items } = scheduleTowerCandidates(cand, fca, manualOrder, nowMs);
+    const { items } = scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots);
 
     const globalSeq = computeSequence(fca, pilots, prefiles, { includeEdct: true, nowMs });
     const globalIdx = new Map();
