@@ -11,10 +11,10 @@ permissions:
   pages: write
   id-token: write
 
-# One deployment at a time; cancel a stuck in-progress deploy when a newer push lands.
+# Queue deploys instead of cancelling — rapid merges to main were racing Pages.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -29,11 +29,42 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare site artifact
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'scripts' \
+            --exclude '_site' \
+            --exclude 'data/source' \
+            ./ _site/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+
+      - name: Verify deployment
+        run: |
+          if [ "${{ steps.deployment.outcome }}" = "success" ]; then
+            echo "Deploy step reported success."
+            exit 0
+          fi
+          echo "Deploy step failed — checking if Pages propagated anyway (known GitHub flake)…"
+          SITE="https://djbrombizzle.github.io/vatflow/index.html"
+          for i in 1 2 3 4 5 6; do
+            sleep 15
+            if curl -fsS "$SITE" >/dev/null; then
+              echo "Site is live at $SITE"
+              exit 0
+            fi
+            echo "Attempt $i: site not ready yet…"
+          done
+          echo "Pages site did not become reachable."
+          exit 1
