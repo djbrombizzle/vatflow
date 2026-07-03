@@ -199,6 +199,100 @@ function maybePreferredRoute(p) {
   return p.route || "";
 }
 
+function bearingDeg(la1, lo1, la2, lo2) {
+  const y = Math.sin((lo2 - lo1) * Math.PI / 180) * Math.cos(la2 * Math.PI / 180);
+  const x = Math.cos(la1 * Math.PI / 180) * Math.sin(la2 * Math.PI / 180)
+    - Math.sin(la1 * Math.PI / 180) * Math.cos(la2 * Math.PI / 180) * Math.cos((lo2 - lo1) * Math.PI / 180);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function angleDiff(a, b) {
+  return Math.abs(((a - b) + 540) % 360 - 180);
+}
+
+function toLocalNm(lat, lon, lat0, lon0) {
+  return [(lon - lon0) * 60 * Math.cos(lat0 * Math.PI / 180), (lat - lat0) * 60];
+}
+
+/** Index of first route anchor ahead of the aircraft. */
+export function routeProgressIndex(anchors, lat, lon, hdg) {
+  if (!anchors.length) return 0;
+  if (anchors.length === 1) return 0;
+
+  const PASS_NM = 12;
+  let bestLeg = 0;
+  let bestXt = Infinity;
+  let bestAlong = 0;
+
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const a = anchors[i].ll;
+    const b = anchors[i + 1].ll;
+    const A = toLocalNm(a[0], a[1], lat, lon);
+    const B = toLocalNm(b[0], b[1], lat, lon);
+    const abx = B[0] - A[0], aby = B[1] - A[1];
+    const apx = -A[0], apy = -A[1];
+    const len2 = abx * abx + aby * aby;
+    let t = len2 > 0 ? (apx * abx + apy * aby) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const xt = Math.hypot(A[0] + t * abx, A[1] + t * aby);
+    const along = Math.hypot(t * abx, t * aby);
+    if (xt < bestXt) {
+      bestXt = xt;
+      bestLeg = i;
+      bestAlong = along;
+    }
+  }
+
+  const a = anchors[bestLeg].ll;
+  const b = anchors[bestLeg + 1].ll;
+  const legLen = haversineNm(a[0], a[1], b[0], b[1]);
+  let idx = bestAlong >= legLen - 3 ? bestLeg + 1 : bestLeg;
+
+  if (hdg != null) {
+    while (idx < anchors.length - 1) {
+      const d = haversineNm(lat, lon, anchors[idx].ll[0], anchors[idx].ll[1]);
+      const brg = bearingDeg(lat, lon, anchors[idx].ll[0], anchors[idx].ll[1]);
+      if (d > 5 && angleDiff(hdg, brg) > 110) idx++;
+      else break;
+    }
+    if (idx < anchors.length - 1) {
+      const dFix = haversineNm(lat, lon, anchors[idx].ll[0], anchors[idx].ll[1]);
+      if (dFix < PASS_NM) {
+        const brgNext = bearingDeg(lat, lon, anchors[idx + 1].ll[0], anchors[idx + 1].ll[1]);
+        if (angleDiff(hdg, brgNext) < 95) idx++;
+      }
+    }
+  }
+
+  return Math.min(idx, anchors.length - 1);
+}
+
+/** Keep only fixes ahead of the aircraft; prepend NOW. */
+export function trimAnchorsAhead(anchors, p) {
+  if (p.lat == null || p.lon == null || p.phase === "gnd" || !anchors.length) return anchors;
+
+  let idx = routeProgressIndex(anchors, p.lat, p.lon, p.hdg);
+  if (anchors[0]?.kind === "apt" && idx === 0 && anchors.length > 1) {
+    const dDep = haversineNm(p.lat, p.lon, anchors[0].ll[0], anchors[0].ll[1]);
+    if (dDep > 25) idx = 1;
+  }
+
+  let ahead = anchors.slice(idx);
+  const pos = [p.lat, p.lon];
+  if (ahead.length && haversineNm(pos[0], pos[1], ahead[0].ll[0], ahead[0].ll[1]) < 0.5) {
+    ahead = ahead.slice(1);
+  }
+  return [{ name: "NOW", ll: pos, kind: "now" }, ...ahead];
+}
+
+export function buildRouteAnchorsForAircraft(p, opts = {}) {
+  const base = buildRouteAnchors(p, { ...opts, includeNow: false });
+  let anchors = base.anchors;
+  const useNow = opts.includeNow !== false && p.lat != null && p.lon != null && p.phase !== "gnd";
+  if (useNow) anchors = trimAnchorsAhead(anchors, p);
+  return { ...base, anchors };
+}
+
 /**
  * @returns {{ anchors: Array, unresolved: string[], expandedRoute: string }}
  */
@@ -207,7 +301,6 @@ export function buildRouteAnchors(p, opts = {}) {
   const arr = (p.arr || "").toUpperCase();
   const origin = opts.origin || (dep && getAirportFn(dep) ? getAirportFn(dep).slice() : null);
   const destination = opts.destination || (arr && getAirportFn(arr) ? getAirportFn(arr).slice() : null);
-  const includeNow = opts.includeNow && p.lat != null && p.lon != null;
   const routeStr = maybePreferredRoute(p);
   const tokens = parseRouteTokens(routeStr);
 
@@ -216,11 +309,6 @@ export function buildRouteAnchors(p, opts = {}) {
   let refLL = origin;
 
   if (origin) anchors.push({ name: dep || "DEP", ll: origin.slice(), kind: "apt" });
-  if (includeNow) {
-    const now = [p.lat, p.lon];
-    anchors.push({ name: "NOW", ll: now, kind: "now" });
-    refLL = now;
-  }
 
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i];
@@ -290,7 +378,10 @@ export function buildRouteAnchors(p, opts = {}) {
 }
 
 export function buildRoutePathLLs(p, opts = {}) {
-  const { anchors } = buildRouteAnchors(p, opts);
+  const useAircraft = opts.includeNow && p.lat != null && p.lon != null && p.phase !== "gnd";
+  const { anchors } = useAircraft
+    ? buildRouteAnchorsForAircraft(p, opts)
+    : buildRouteAnchors(p, opts);
   const path = [];
   for (const a of anchors) {
     if (!a.ll) continue;
@@ -304,7 +395,10 @@ export function buildRoutePathLLs(p, opts = {}) {
 }
 
 export function buildRouteSegments(p, opts = {}) {
-  const { anchors } = buildRouteAnchors(p, opts);
+  const useAircraft = opts.includeNow && p.lat != null && p.lon != null && p.phase !== "gnd";
+  const { anchors } = useAircraft
+    ? buildRouteAnchorsForAircraft(p, opts)
+    : buildRouteAnchors(p, opts);
   const segs = [];
   for (let i = 0; i < anchors.length - 1; i++) {
     const a = anchors[i].ll, b = anchors[i + 1].ll;
