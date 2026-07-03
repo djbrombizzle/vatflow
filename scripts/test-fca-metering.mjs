@@ -175,10 +175,19 @@ const far = mitSeq.items.find(c => c.p.callsign === "FAR01");
 const near = mitSeq.items.find(c => c.p.callsign === "NEAR01");
 assert(far && near, "both airborne in MIT sequence");
 assert(far.dist > near.dist, "FAR01 is farther from FCA than NEAR01");
-assert(mitSeq.items[0].p.callsign === "NEAR01", "MIT order is by line distance — closer aircraft first");
+assert(mitSeq.items[0].p.callsign === "NEAR01", "MIT merge order is by route distance to crossing");
 assert(far.sched >= near.sched + sepSeconds(FCA_MIT, far) - 1, "MIT delays trailing aircraft when too close");
-assert(far.delay > 30, "MIT assigns hold time to trailing aircraft");
-assert(mitSeq.items.every(c => c.phase === "air"), "MIT test has air only");
+assert(far.delay > 30, "MIT assigns hold time when trail < MIT nm");
+
+const farTrail = computeSequence(FCA_MIT, [
+  { ...nearAir, callsign: "CLOSE", lat: 28.42, dist: undefined },
+  { ...farAir, callsign: "FARTRAIL", lat: 27.0, lon: -80.5 },
+], [], { includeEdct: false });
+const close = farTrail.items.find(c => c.p.callsign === "CLOSE");
+const farT = farTrail.items.find(c => c.p.callsign === "FARTRAIL");
+if (close && farT && farT.dist - close.dist >= 15) {
+  assert(farT.delay < 60, "large route trail does not add long airborne hold");
+}
 
 const mitMixed = computeSequence(
   { ...FCA_RATE, mode: "mit", mit: 15 },

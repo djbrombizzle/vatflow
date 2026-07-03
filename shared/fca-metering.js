@@ -487,14 +487,31 @@ function enforceSameDepartureSpacing(cand, sepFor) {
   }
 }
 
+/** Miles-in-trail along route to the crossing fix (remaining path distance). */
 function sortAirborne(air, fca) {
-  if (fca.mode === "mit") {
-    air.sort((a, b) => {
-      const la = a.lineDist ?? a.dist, lb = b.lineDist ?? b.dist;
-      return la - lb || a.dist - b.dist || a.eta - b.eta;
-    });
-  } else {
-    air.sort((a, b) => a.eta - b.eta || a.dist - b.dist);
+  air.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
+}
+
+/** Minimum crossing time for MIT: prior aircraft plus spacing, unless route trail already >= MIT. */
+function mitCrossingSched(prev, c, fca) {
+  const mit = fca.mit || 0;
+  const trailNm = c.dist - prev.dist;
+  const minTime = prev.sched + sepSeconds(fca, c);
+  if (mit > 0 && trailNm >= mit && c.eta >= prev.sched) return c.eta;
+  return Math.max(c.eta, minTime);
+}
+
+function scheduleAirborneStream(air, fca) {
+  sortAirborne(air, fca);
+  for (let i = 0; i < air.length; i++) {
+    const c = air[i];
+    if (i === 0) {
+      c.sched = c.eta;
+    } else if (fca.mode === "mit") {
+      c.sched = mitCrossingSched(air[i - 1], c, fca);
+    } else {
+      c.sched = Math.max(c.eta, air[i - 1].sched + sepSeconds(fca, c));
+    }
   }
 }
 
@@ -537,14 +554,11 @@ export function scheduleCandidates(cand, fca, manualOrder, candById) {
 
   const air = cand.filter(c => c.phase === "air");
   const gnd = cand.filter(c => c.phase === "gnd");
-  sortAirborne(air, fca);
+  scheduleAirborneStream(air, fca);
   gnd.sort((a, b) => a.eta - b.eta);
 
   const committed = [];
-  let prevAir = -1e9;
   for (const c of air) {
-    c.sched = Math.max(c.eta, prevAir + sepFor(c));
-    prevAir = c.sched;
     committed.push({ t: c.sched, spd: c.spd });
   }
 
@@ -576,11 +590,7 @@ export function buildManualOrder(manualOrder, candById, fca) {
   const sortNew = (a, b) => {
     const ca = candById.get(a), cb = candById.get(b);
     if (ca.phase !== cb.phase) return ca.phase === "air" ? -1 : 1;
-    if (fca?.mode === "mit") {
-      const la = ca.lineDist ?? ca.dist, lb = cb.lineDist ?? cb.dist;
-      return la - lb || ca.dist - cb.dist || ca.eta - cb.eta;
-    }
-    return ca.eta - cb.eta || ca.dist - cb.dist;
+    return ca.dist - cb.dist || ca.eta - cb.eta;
   };
   const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs)).sort(sortNew);
   for (const cs of newcomers) {
