@@ -224,7 +224,7 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
-  getAirport, setWindAltProvider, parseAlt, ptimeToMs,
+  getAirport, setWindAltProvider, parseAlt, fmtPtime,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -577,15 +577,6 @@ function edctCellHtml(d) {
   return `<td class="cell-edct cell-ok">RELEASED</td>`;
 }
 
-function fmtPtime(deptime) {
-  if (!deptime) return "—";
-  const s = ("" + deptime).replace(/\D/g, "").padStart(4, "0").slice(0, 4);
-  if (s.length !== 4) return "—";
-  const h = +s.slice(0, 2), m = +s.slice(2, 4);
-  if (h > 23 || m > 59) return "—";
-  return s + "Z";
-}
-
 function renderMeteredRow(d, localIdx, canDrag) {
   const title = `Transit ${Math.round(d.dist || 0)}nm · delay ${(d.delayMin || 0).toFixed(1)} min`;
   const isLeader = d.gapMin === 0;
@@ -853,7 +844,7 @@ function seqHintHtml() {
   return canControl()
     ? (state.atcVerified
       ? "⠿ drag # to reorder within each FCA — PIN locks table position · verified via VATSIM position · syncs to FCA Builder"
-      : "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence · EDCT ignores filed departure time")
+      : "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence")
     : "View only — enter your CID in Settings while on _TWR/_GND, or use the control password";
 }
 

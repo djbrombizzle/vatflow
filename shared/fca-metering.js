@@ -127,6 +127,15 @@ export function fmtZulu(ms) {
   return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "Z";
 }
 
+export function fmtPtime(deptime) {
+  if (!deptime) return "—";
+  const s = ("" + deptime).replace(/\D/g, "").padStart(4, "0").slice(0, 4);
+  if (s.length !== 4) return "—";
+  const h = +s.slice(0, 2), m = +s.slice(2, 4);
+  if (h > 23 || m > 59) return "—";
+  return s + "Z";
+}
+
 export function fcaMatchesAlt(fca, alt) {
   const min = (fca.minFL != null) ? fca.minFL * 100 : -1;
   const max = (fca.maxFL != null) ? fca.maxFL * 100 : 1e9;
@@ -580,6 +589,7 @@ function finalizeTowerGroundItem(c, sched, prevSched, nowMs) {
   c.delayMin = (sched - c.eta) / 60;
   c.ctaMs = nowMs + sched * 1000;
   c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
+  if (c.effMs != null) c.edctMs = Math.max(c.edctMs, c.effMs);
   return c;
 }
 
@@ -668,11 +678,12 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
     for (const p of deps) {
       if (!fcaMatchesDest(fca, p.arr)) continue;
       if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
-      const g = towerGroundCrossing(p, fca, nowMs);
+      const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
       if (!fcaMatchesDir(fca, g.course)) continue;
       cand.push({
         p, phase: "gnd", dist: g.dist, eta: g.etaSec, cross: g.cross, spd: g.tas, transitSec: g.transitSec,
+        effMs: g.effMs, ptimeMs: g.ptimeMs,
       });
     }
     if (!cand.length) continue;

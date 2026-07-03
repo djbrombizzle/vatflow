@@ -431,7 +431,7 @@ import {
   haversineNm, bearing, gcLine, parseRouteTokens, parseAlt, fmtZulu, fpFields,
   computeSequence as computeSequenceCore, buildManualOrder,
   projectCrossing, pathCrossing, groundCrossing, buildPathLLs, plannedAnchors,
-  fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir, groundTransitSec, ptimeToMs,
+  fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir, groundTransitSec, ptimeToMs, fmtPtime,
   setWindAltProvider,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
@@ -1499,11 +1499,12 @@ function renderSequence(){
     if(c.phase==="gnd"){
       const wheelsUp=groundWheelsUpMs(c);
       const edct=wheelsUp?fmtZulu(wheelsUp):"—";
+      const ptime=c.ptimeMs?fmtZulu(c.ptimeMs):fmtPtime(c.p.deptime);
       const held=c.delay>=30;
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph gnd">EDCT</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P ${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
         <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
           <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
         ${rmBtn}`;
@@ -1809,9 +1810,11 @@ function copySequence(){
   const constraint=sel.mode==="mit"?`${sel.mit} MIT`:`${sel.rate}/hr`;
   const lines=[`FCA ${sel.name} · ${constraint} · as of ${fmtZulu(Date.now())}`];
   s.items.forEach((c,i)=>{
+    const ptime=c.phase==="gnd" ? (c.ptimeMs?fmtZulu(c.ptimeMs):fmtPtime(c.p.deptime)) : "";
     const tag=c.phase==="gnd" ? `EDCT ${(()=>{const w=groundWheelsUpMs(c); return w?fmtZulu(w):"—";})()}` : "AIRBORNE";
     const dl=c.delay>=30?` (+${fmtClock(c.delay)})`:"";
-    lines.push(`${String(i+1).padStart(2," ")}. ${c.p.callsign.padEnd(8," ")} ${tag.padEnd(11," ")} cross ${fmtZulu(c.ctaMs)}${dl}`);
+    const ptxt=c.phase==="gnd" && ptime && ptime!=="—" ? ` · P ${ptime}` : "";
+    lines.push(`${String(i+1).padStart(2," ")}. ${c.p.callsign.padEnd(8," ")} ${tag.padEnd(11," ")} cross ${fmtZulu(c.ctaMs)}${ptxt}${dl}`);
   });
   copyText(lines.join("\n"), ()=>toast("Sequence copied — "+s.items.length+" aircraft.",2200));
 }
