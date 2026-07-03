@@ -20,6 +20,11 @@ const ROOT = join(__dirname, "..");
 const DATA_DIR = join(ROOT, "data");
 const GROUND_CSV = join(DATA_DIR, "source", "Ground_Level_ARTCC_Boundary_Data_2026-06-11.csv");
 const SQUAWK_GZ_URL = "https://unpkg.com/@squawk/airspace-data@latest/data/airspace.geojson.gz";
+const PERTI_SECTOR_URLS = {
+  LOW: "https://raw.githubusercontent.com/vATCSCC/PERTI/main/assets/geojson/low.json",
+  HIGH: "https://raw.githubusercontent.com/vATCSCC/PERTI/main/assets/geojson/high.json",
+  UTA: "https://raw.githubusercontent.com/vATCSCC/PERTI/main/assets/geojson/superhigh.json",
+};
 
 const US_ARTCC = new Set([
   "ZAB", "ZAU", "ZBW", "ZDC", "ZDV", "ZFW", "ZHU", "ZID", "ZJX", "ZKC",
@@ -236,6 +241,37 @@ function buildFromSquawk(gj, stratumFilter) {
   return { type: "FeatureCollection", features };
 }
 
+/** US ERAM sector polygons from PERTI / vIFF CDM (community-derived, not official FAA). */
+async function buildSectorsFromPerti(stratum, url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`PERTI ${stratum} fetch HTTP ${res.status}`);
+  const gj = await res.json();
+  const features = [];
+  for (const f of gj.features || []) {
+    const p = f.properties || {};
+    const artcc = (p.artcc || "").toUpperCase();
+    if (!US_ARTCC.has(artcc)) continue;
+    const sector = String(p.sector ?? "").trim();
+    const label = (p.label || artcc + sector).toUpperCase();
+    const id = label || (artcc + sector);
+    const geom = f.geometry;
+    if (!geom || !["Polygon", "MultiPolygon"].includes(geom.type)) continue;
+    features.push({
+      type: "Feature",
+      properties: {
+        id,
+        artcc,
+        sector,
+        label,
+        stratum,
+        source: "PERTI-vIFF",
+      },
+      geometry: geom,
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+
 function parseArgs(argv) {
   const out = { arbBase: null, arbSeg: null };
   for (let i = 2; i < argv.length; i++) {
@@ -274,6 +310,15 @@ async function main() {
   writeFileSync(join(DATA_DIR, "artcc-boundaries-uta.geojson"), JSON.stringify(uta));
   console.log(`  artcc-boundaries-high.geojson — ${high.features.length} features`);
   console.log(`  artcc-boundaries-uta.geojson — ${uta.features.length} features`);
+
+  console.log("Building US ERAM sectors from PERTI / vIFF CDM…");
+  for (const [stratum, url] of Object.entries(PERTI_SECTOR_URLS)) {
+    const slug = stratum === "UTA" ? "uta" : stratum.toLowerCase();
+    const sectors = await buildSectorsFromPerti(stratum, url);
+    writeFileSync(join(DATA_DIR, `artcc-sectors-${slug}.geojson`), JSON.stringify(sectors));
+    const centers = new Set(sectors.features.map(f => f.properties.artcc));
+    console.log(`  artcc-sectors-${slug}.geojson — ${sectors.features.length} sectors, ${centers.size} ARTCCs`);
+  }
   console.log("Done.");
 }
 
