@@ -479,31 +479,19 @@ function enforceSameDepartureSpacing(cand, sepFor) {
   }
 }
 
-function slotGroundAgainstCommitted(g, committed, sepFor) {
-  let t = g.eta;
-  const EPS = 1e-6;
-  for (let guard = 0; guard < 500; guard++) {
-    committed.sort((x, y) => x.t - y.t);
-    let moved = false;
-    for (const c of committed) {
-      const gap = sepFor(g);
-      if (t <= c.t) {
-        if ((c.t - t) < gap - EPS) { t = c.t + gap; moved = true; break; }
-      } else if ((t - c.t) < gap - EPS) {
-        t = c.t + gap; moved = true; break;
-      }
-    }
-    if (!moved) break;
-  }
-  return t;
+function mergeSortFn(fca) {
+  return fca.mode === "mit"
+    ? (a, b) => a.dist - b.dist || a.eta - b.eta
+    : (a, b) => a.eta - b.eta || a.dist - b.dist;
 }
 
-/** Crossing schedule — airborne first (fixed ETAs), ground slots around, then same-dep hold. */
+/** Crossing schedule in merge order (dist for MIT, ETA for rate) — display matches map. */
 export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const sepFor = c => sepSeconds(fca, c);
+  let ordered;
 
   if (manualOrder && manualOrder.length) {
-    const ordered = [];
+    ordered = [];
     let prev = -1e9;
     for (const cs of manualOrder) {
       const c = candById.get(cs);
@@ -512,33 +500,17 @@ export function scheduleCandidates(cand, fca, manualOrder, candById) {
       prev = c.sched;
       ordered.push(c);
     }
-    enforceSameDepartureSpacing(ordered, sepFor);
-    return ordered.sort((a, b) => a.sched - b.sched);
+  } else {
+    ordered = cand.slice().sort(mergeSortFn(fca));
+    let prev = -1e9;
+    for (const c of ordered) {
+      c.sched = Math.max(c.eta, prev + sepFor(c));
+      prev = c.sched;
+    }
   }
 
-  const air = cand.filter(c => c.phase === "air");
-  const gnd = cand.filter(c => c.phase === "gnd");
-  const airSort = fca.mode === "mit"
-    ? (a, b) => a.dist - b.dist || a.eta - b.eta
-    : (a, b) => a.eta - b.eta || a.dist - b.dist;
-  air.sort(airSort);
-  gnd.sort((a, b) => a.eta - b.eta);
-
-  const committed = [];
-  let prev = -1e9;
-  for (const c of air) {
-    c.sched = Math.max(c.eta, prev + sepFor(c));
-    prev = c.sched;
-    committed.push({ t: c.sched, spd: c.spd });
-  }
-  for (const g of gnd) {
-    g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
-    committed.push({ t: g.sched, spd: g.spd });
-  }
-
-  const ordered = [...cand];
   enforceSameDepartureSpacing(ordered, sepFor);
-  return ordered.sort((a, b) => a.sched - b.sched);
+  return ordered;
 }
 
 function finalizeItems(ordered, out, nowMs) {
@@ -552,14 +524,18 @@ function finalizeItems(ordered, out, nowMs) {
   out.items = ordered;
 }
 
-export function buildManualOrder(manualOrder, candById) {
+export function buildManualOrder(manualOrder, candById, fca) {
   let order = (manualOrder || []).filter(cs => candById.has(cs));
   const inOrder = new Set(order);
-  const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs))
-    .sort((a, b) => candById.get(a).eta - candById.get(b).eta);
+  const sortNew = (a, b) => {
+    const ca = candById.get(a), cb = candById.get(b);
+    if (fca?.mode === "mit") return ca.dist - cb.dist || ca.eta - cb.eta;
+    return ca.eta - cb.eta || ca.dist - cb.dist;
+  };
+  const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs)).sort(sortNew);
   for (const cs of newcomers) {
-    const eta = candById.get(cs).eta;
-    let idx = order.findIndex(o => candById.get(o).eta > eta);
+    const c = candById.get(cs);
+    let idx = order.findIndex(o => sortNew(o, cs) > 0);
     if (idx < 0) idx = order.length;
     order.splice(idx, 0, cs);
   }
@@ -569,9 +545,9 @@ export function buildManualOrder(manualOrder, candById) {
 /** Manual order from FCA Builder global `fca.order`, filtered to candidates. */
 export function resolveManualOrder(fca, candById, pilots, prefiles, nowMs) {
   if (Array.isArray(fca.order) && fca.order.length) {
-    return buildManualOrder(fca.order, candById);
+    return buildManualOrder(fca.order, candById, fca);
   }
-  return buildManualOrder([], candById);
+  return buildManualOrder([], candById, fca);
 }
 
 /** Reorder one callsign relative to another in the global FCA sequence. */
@@ -644,7 +620,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
 
   if (manual) {
     out.manual = true;
-    const order = buildManualOrder(fca.order, candById);
+    const order = buildManualOrder(fca.order, candById, fca);
     out.order = order;
     finalizeItems(scheduleCandidates(cand, fca, order, candById), out, nowMs);
   } else {
@@ -686,7 +662,7 @@ function scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots) {
   airCand.forEach(c => candById.set(c.p.callsign, c));
   cand.forEach(c => candById.set(c.p.callsign, c));
 
-  const order = buildManualOrder(manualOrder, candById);
+  const order = buildManualOrder(manualOrder, candById, fca);
   const timeline = scheduleCandidates([...candById.values()], fca, order.length ? order : null, candById);
 
   let prevSched = null;
