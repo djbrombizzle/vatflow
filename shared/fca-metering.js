@@ -193,7 +193,14 @@ function nearestPointOnFca(lat, lon, pts) {
   return best;
 }
 
-/** Crossing must lie ahead of the aircraft, not behind along heading. */
+/** Perpendicular distance (nm) from a position to the FCA polyline. */
+export function lineDistToFca(lat, lon, fca) {
+  if (lat == null || lon == null || !fca?.points?.length) return null;
+  const near = nearestPointOnFca(lat, lon, fca.points);
+  return near ? near.distNm : null;
+}
+
+/** Keep airborne ETAs from jumping early when an aircraft just departed the field. */
 export function isCrossingAhead(p, cross) {
   if (!cross || cross.lat == null || p.lat == null || p.lon == null) return true;
   if (p.phase !== "air" || (p.gs || 0) < 40) return true;
@@ -441,8 +448,9 @@ function buildAirCandidate(p, fca, nowMs) {
     : null;
   let eta = crossingTransitSec(cross.dist, spd, p, { segments, altFt: p.alt || 35000 });
   eta = withTerminalEtaFloor(p, fca, nowMs, eta);
+  const lineDist = lineDistToFca(p.lat, p.lon, fca);
   return {
-    p, phase: "air", dist: cross.dist, eta, cross, spd, via: cross.via,
+    p, phase: "air", dist: cross.dist, lineDist, eta, cross, spd, via: cross.via,
     transitSec: eta,
   };
 }
@@ -479,19 +487,42 @@ function enforceSameDepartureSpacing(cand, sepFor) {
   }
 }
 
-function mergeSortFn(fca) {
-  return fca.mode === "mit"
-    ? (a, b) => a.dist - b.dist || a.eta - b.eta
-    : (a, b) => a.eta - b.eta || a.dist - b.dist;
+function sortAirborne(air, fca) {
+  if (fca.mode === "mit") {
+    air.sort((a, b) => {
+      const la = a.lineDist ?? a.dist, lb = b.lineDist ?? b.dist;
+      return la - lb || a.dist - b.dist || a.eta - b.eta;
+    });
+  } else {
+    air.sort((a, b) => a.eta - b.eta || a.dist - b.dist);
+  }
 }
 
-/** Crossing schedule in merge order (dist for MIT, ETA for rate) — display matches map. */
+function slotGroundAgainstCommitted(g, committed, sepFor) {
+  let t = g.eta;
+  const EPS = 1e-6;
+  for (let guard = 0; guard < 500; guard++) {
+    committed.sort((x, y) => x.t - y.t);
+    let moved = false;
+    for (const c of committed) {
+      const gap = sepFor(g);
+      if (t <= c.t) {
+        if ((c.t - t) < gap - EPS) { t = c.t + gap; moved = true; break; }
+      } else if ((t - c.t) < gap - EPS) {
+        t = c.t + gap; moved = true; break;
+      }
+    }
+    if (!moved) break;
+  }
+  return t;
+}
+
+/** Airborne-first: air by line distance (MIT) or ETA; ground slots around air. */
 export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const sepFor = c => sepSeconds(fca, c);
-  let ordered;
 
   if (manualOrder && manualOrder.length) {
-    ordered = [];
+    const ordered = [];
     let prev = -1e9;
     for (const cs of manualOrder) {
       const c = candById.get(cs);
@@ -500,15 +531,30 @@ export function scheduleCandidates(cand, fca, manualOrder, candById) {
       prev = c.sched;
       ordered.push(c);
     }
-  } else {
-    ordered = cand.slice().sort(mergeSortFn(fca));
-    let prev = -1e9;
-    for (const c of ordered) {
-      c.sched = Math.max(c.eta, prev + sepFor(c));
-      prev = c.sched;
-    }
+    enforceSameDepartureSpacing(ordered, sepFor);
+    return ordered;
   }
 
+  const air = cand.filter(c => c.phase === "air");
+  const gnd = cand.filter(c => c.phase === "gnd");
+  sortAirborne(air, fca);
+  gnd.sort((a, b) => a.eta - b.eta);
+
+  const committed = [];
+  let prevAir = -1e9;
+  for (const c of air) {
+    c.sched = Math.max(c.eta, prevAir + sepFor(c));
+    prevAir = c.sched;
+    committed.push({ t: c.sched, spd: c.spd });
+  }
+
+  for (const g of gnd) {
+    g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
+    committed.push({ t: g.sched, spd: g.spd });
+  }
+
+  gnd.sort((a, b) => a.sched - b.sched);
+  const ordered = [...air, ...gnd];
   enforceSameDepartureSpacing(ordered, sepFor);
   return ordered;
 }
@@ -529,7 +575,11 @@ export function buildManualOrder(manualOrder, candById, fca) {
   const inOrder = new Set(order);
   const sortNew = (a, b) => {
     const ca = candById.get(a), cb = candById.get(b);
-    if (fca?.mode === "mit") return ca.dist - cb.dist || ca.eta - cb.eta;
+    if (ca.phase !== cb.phase) return ca.phase === "air" ? -1 : 1;
+    if (fca?.mode === "mit") {
+      const la = ca.lineDist ?? ca.dist, lb = cb.lineDist ?? cb.dist;
+      return la - lb || ca.dist - cb.dist || ca.eta - cb.eta;
+    }
     return ca.eta - cb.eta || ca.dist - cb.dist;
   };
   const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs)).sort(sortNew);
@@ -607,7 +657,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
       const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
       cand.push({
-        p, phase: "gnd", dist: g.dist, eta: g.etaSec, cross: g.cross, spd: g.tas,
+        p, phase: "gnd", dist: g.dist, lineDist: lineDistToFca(p.lat, p.lon, fca), eta: g.etaSec, cross: g.cross, spd: g.tas,
         effMs: g.effMs, ptimeMs: g.ptimeMs, transitSec: g.transitSec,
       });
     }
