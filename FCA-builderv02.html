@@ -1190,7 +1190,7 @@ function renderFcaLines(){
           if(c.p.lat==null){   // prefile has no plane marker — draw a departure square
             L.marker(o,{icon:L.divIcon({className:"",iconSize:[12,12],iconAnchor:[6,6],
               html:`<div style="width:9px;height:9px;background:${sel.color};border:1px solid #0a0e14;transform:rotate(45deg);box-shadow:0 0 6px ${sel.color}"></div>`})})
-              .bindTooltip(`${escapeHtml(c.p.callsign)} · ${escapeHtml(c.p.dep)} · EDCT ${c.edctMs?fmtZulu(c.edctMs):"—"}`,
+              .bindTooltip(`${escapeHtml(c.p.callsign)} · ${escapeHtml(c.p.dep)} · EDCT ${groundWheelsUpMs(c)?fmtZulu(groundWheelsUpMs(c)):"—"}`,
                 {className:"artcc-label",direction:"top"})
               .on("click",()=>{ if(!state.drawing) showRoute(c.p); }).addTo(seqLayer);
           }
@@ -1200,6 +1200,16 @@ function renderFcaLines(){
   }
 }
 function delayColor(sec){ return sec<30?"#56d364":sec<300?"#f5a623":"#ff6b6b"; }
+/** Wheels-up EDCT from FCA crossing spacing (ignores filed departure time). */
+function groundWheelsUpMs(c){
+  if(c.ctaMs==null) return null;
+  return c.ctaMs-(c.transitSec||0)*1000;
+}
+function gapMinLabel(gapMin,isLeader){
+  if(isLeader) return "—";
+  if(gapMin==null||gapMin<0.05) return "0 min";
+  return gapMin.toFixed(1)+" min";
+}
 
 /* ============================================================
    RENDER — sidebar list
@@ -1428,10 +1438,12 @@ function renderSequence(){
   s.items.forEach((c,i)=>{
     const cls=c.delay<30?"zero":c.delay<300?"low":"high";
     const fl=String(Math.round(((c.phase==="gnd"?c.p.fpAlt:c.p.alt)||0)/100)).padStart(3,"0");
-    // in-trail readout: nm behind the preceding aircraft, or (for the leader)
-    // the remaining distance to the FCA line
+    // in-trail readout: ground = minutes behind predecessor at crossing; air = nm spacing
     let gapHtml, gapShort=false;
-    if(i===0){
+    if(c.phase==="gnd"){
+      const gapMin=i===0?0:(c.sched-s.items[i-1].sched)/60;
+      gapHtml=gapMinLabel(gapMin,i===0);
+    }else if(i===0){
       gapHtml=`→ ${Math.round(c.dist)}nm to line`;
     }else{
       const prev=s.items[i-1];
@@ -1449,12 +1461,13 @@ function renderSequence(){
     if(canControl()) strip.setAttribute("draggable","true");
     const rmBtn=canControl()?`<div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`:"";
     if(c.phase==="gnd"){
-      const edct=c.edctMs?fmtZulu(c.edctMs):"—", ptime=c.ptimeMs?fmtZulu(c.ptimeMs):"now";
+      const wheelsUp=groundWheelsUpMs(c);
+      const edct=wheelsUp?fmtZulu(wheelsUp):"—";
       const held=c.delay>=30;
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph gnd">EDCT</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
         <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
           <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
         ${rmBtn}`;
@@ -1760,7 +1773,7 @@ function copySequence(){
   const constraint=sel.mode==="mit"?`${sel.mit} MIT`:`${sel.rate}/hr`;
   const lines=[`FCA ${sel.name} · ${constraint} · as of ${fmtZulu(Date.now())}`];
   s.items.forEach((c,i)=>{
-    const tag=c.phase==="gnd" ? `EDCT ${c.edctMs?fmtZulu(c.edctMs):"—"}` : "AIRBORNE";
+    const tag=c.phase==="gnd" ? `EDCT ${(()=>{const w=groundWheelsUpMs(c); return w?fmtZulu(w):"—";})()}` : "AIRBORNE";
     const dl=c.delay>=30?` (+${fmtClock(c.delay)})`:"";
     lines.push(`${String(i+1).padStart(2," ")}. ${c.p.callsign.padEnd(8," ")} ${tag.padEnd(11," ")} cross ${fmtZulu(c.ctaMs)}${dl}`);
   });
