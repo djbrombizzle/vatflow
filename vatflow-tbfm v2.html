@@ -6,6 +6,7 @@
 <title>VATFLOW — TBFM for VATSIM</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="shared/vatflow-nav.css">
 <style>
 /* VATFLOW design system — injected into vatflow-tbfm v2.html */
 :root {
@@ -29,7 +30,7 @@
   --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Barlow Condensed", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --header-h: 96px;
+  --header-h: 124px;
   --radius: 6px;
   --radius-sm: 4px;
 }
@@ -732,6 +733,7 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
 <body>
 
 <header class="app-header">
+  <div id="vatflowAppNav"></div>
   <div class="header-top">
     <div class="brand-block">
       <svg class="brand-mark" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -5005,6 +5007,11 @@ pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(
 updateLockUI();
 
 renderContent();
+</script>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+mountVatflowNav(document.getElementById("vatflowAppNav"), "tbfm");
 </script>
 
 <!-- =====================================================================
