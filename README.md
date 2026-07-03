@@ -67,7 +67,7 @@ After CFRs are issued, use the **Swap with…** menu on an issued CFR row to exc
 
 ### 4. Monitor taxi times (Taxi Monitor)
 
-Add up to **5 departure airports** on the **Taxi Monitor** tab. The app watches ground departures at each field and times the roll from 5 kt groundspeed until 60 kt or altitude climb. Completed samples sync live via **Firebase** (`taximon/samples`) so every visitor sees the same data. Averages appear on **Home** with increasing/decreasing trend and volume context.
+Add up to **5 departure airports** on the **Taxi Monitor** tab. The app watches ground departures at each field and times the roll from 7 kt groundspeed until 60 kt or altitude climb. Completed samples sync live via **Firebase** (`taximon/samples`) so every visitor sees the same data. Averages appear on **Home** with increasing/decreasing trend and volume context.
 
 Adding or removing monitored airports is **TMU access only** — visitors see the monitor as read-only, and only an unlocked controller (control password) can change the fields. The monitored field list is shared globally via **Firebase** (`taximon/airports`), so every visitor sees the same airports and completed taxi samples.
 

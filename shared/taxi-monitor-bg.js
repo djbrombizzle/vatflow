@@ -7,7 +7,7 @@ const TAXI_SESSIONS_KEY = "vatflow_taxi_sessions";
 const TAXI_HISTORY_KEY = "vatflow_taxi_history";
 const TAXI_MON_AIRPORTS_KEY = "vatflow_taxi_mon_airports";
 const TAXI_POLL_MS = 10000;
-const TAXI_GS_START = 5;
+const TAXI_GS_START = 7;
 const TAXI_GS_STOP = 60;
 const TAXI_ALT_CLIMB_FT = 100;
 const TAXI_DEP_PROX_NM = 15;
@@ -108,16 +108,22 @@ function addTaxiSample(entry) {
   if (window.VFSync && window.VFSync.pushTaxiSample) window.VFSync.pushTaxiSample(id, rec);
 }
 
-function isDepartedAirborne(p, field) {
+function isDepartedForFinish(p, field, sess) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
-  return p.groundspeed > 60 && (p.altitude || 0) > 300;
+  const gs = p.groundspeed || 0;
+  const alt = p.altitude || 0;
+  if (sess && sess.baseAlt != null) {
+    if (alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT) return true;
+    if (gs > TAXI_GS_STOP) return true;
+  }
+  return gs > TAXI_GS_STOP && alt > 300;
 }
 
-function isDepartureGround(p, field) {
+function isDepartureGround(p, field, sess) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
-  if (isDepartedAirborne(p, field)) return false;
+  if (isDepartedForFinish(p, field, sess)) return false;
   const depPt = lookup(field);
   if (depPt && isFinite(p.latitude) && isFinite(p.longitude)) {
     if (gcDist(p.latitude, p.longitude, depPt[0], depPt[1]) > TAXI_DEP_PROX_NM) return false;
@@ -128,8 +134,8 @@ function isDepartureGround(p, field) {
   return !(p.groundspeed <= 60 && distToDest != null && distToDest < 5);
 }
 
-function newTaxiSession(field, phase, now, gs, alt) {
-  return { airport: field, phase, startMs: phase === "rolling" ? now : null,
+function newTaxiSession(field, now, gs, alt) {
+  return { airport: field, phase: "watching", startMs: null,
     firstSeenMs: now, baseAlt: alt, lastGs: gs, lastAlt: alt };
 }
 
@@ -154,18 +160,16 @@ function updateTaxiMonitor(sessions, airports, pilots) {
 
   for (const field of airports) {
     for (const p of pilots) {
-      if (!isDepartureGround(p, field)) continue;
       const cs = p.callsign;
       const key = taxiSessKey(field, cs);
-      activeKeys.add(key);
       const gs = p.groundspeed || 0;
       const alt = p.altitude || 0;
       let sess = sessions[key];
+      if (!isDepartureGround(p, field, sess)) continue;
+      activeKeys.add(key);
 
       if (!sess || sess.airport !== field || sess.phase === "done") {
-        sessions[key] = gs > TAXI_GS_START
-          ? newTaxiSession(field, "rolling", now, gs, alt)
-          : newTaxiSession(field, "watching", now, gs, alt);
+        sessions[key] = newTaxiSession(field, now, gs, alt);
         sess = sessions[key];
       }
 
@@ -173,9 +177,10 @@ function updateTaxiMonitor(sessions, airports, pilots) {
         sess.phase = "rolling";
         sess.startMs = now;
         sess.baseAlt = alt;
+        sess.rollPollMs = now;
       }
 
-      if (sess.phase === "rolling" && sess.startMs != null) {
+      if (sess.phase === "rolling" && sess.startMs != null && sess.rollPollMs !== now) {
         const climbed = alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT;
         if (gs > TAXI_GS_STOP || climbed) finishTaxiSession(sessions, key, sess, now);
       }
@@ -187,14 +192,18 @@ function updateTaxiMonitor(sessions, airports, pilots) {
 
   for (const field of airports) {
     for (const p of pilots) {
-      if (!isDepartedAirborne(p, field)) continue;
       const key = taxiSessKey(field, p.callsign);
       const sess = sessions[key];
-      if (sess && sess.phase !== "done") finishTaxiSession(sessions, key, sess, now);
+      if (!sess || sess.phase === "done") continue;
+      if (isDepartedForFinish(p, field, sess)) finishTaxiSession(sessions, key, sess, now);
     }
   }
 
   for (const key of Object.keys(sessions)) {
+    if (!activeKeys.has(key)) {
+      const sess = sessions[key];
+      if (sess && sess.phase !== "done") finishTaxiSession(sessions, key, sess, now);
+    }
     if (!activeKeys.has(key) || sessions[key].phase === "done") delete sessions[key];
   }
 
