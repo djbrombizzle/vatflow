@@ -1,6 +1,19 @@
 /**
  * Shared FCA metering geometry + sequencing (FCA Builder + Tower Departures).
  */
+import {
+  bindAirports as bindRouteAirports,
+  buildRouteAnchors,
+  buildRoutePathLLs,
+  buildRouteSegments,
+  isNavReady,
+} from "./route-engine.js";
+import { pointHeadwind, effectiveGs } from "./winds-aloft.js";
+
+bindRouteAirports(
+  icao => getAirport(icao),
+  icao => hasAirport(icao),
+);
 export const NM_PER_DEG = 60;
 export const LOOKAHEAD_NM = 1200;
 export const DEMAND_WINDOW_MIN = 60;
@@ -207,6 +220,10 @@ export function pathCrossing(path, fca) {
 }
 
 export function plannedAnchors(p, origin, dst) {
+  if (isNavReady()) {
+    const { anchors } = buildRouteAnchors(p, { origin, destination: dst });
+    return anchors.map(a => a.ll);
+  }
   const anchors = [origin];
   parseRouteTokens(p.route).forEach(t => {
     const c = t.replace(/\/.*$/, "");
@@ -216,7 +233,52 @@ export function plannedAnchors(p, origin, dst) {
   return anchors;
 }
 
-export function groundTransitSec(dist, tas) {
+function routePathForCrossing(p, opts = {}) {
+  const o = opts.origin;
+  const dst = opts.destination || getAirport(p.arr);
+  if (!o || !dst) return null;
+  if (isNavReady()) {
+    const pts = buildRoutePathLLs(p, {
+      origin: o,
+      destination: dst,
+      includeNow: opts.includeNow,
+    });
+    if (pts.length >= 2) return buildPathLLs(pts);
+  }
+  return buildPathLLs(plannedAnchors(p, o, dst));
+}
+
+let windAltFtProvider = p => parseAlt(p.fpAlt || p.alt || 35000);
+
+export function setWindAltProvider(fn) {
+  windAltFtProvider = fn || windAltFtProvider;
+}
+
+export function groundTransitSec(dist, tas, opts = {}) {
+  const segments = opts.segments;
+  const altFt = opts.altFt != null ? opts.altFt : 35000;
+  const useWind = opts.useWind !== false;
+
+  if (segments && segments.length) {
+    let total = 0, covered = 0;
+    for (const seg of segments) {
+      const d = seg.distNm;
+      if (d < 0.01) continue;
+      const course = bearing(seg.ll0[0], seg.ll0[1], seg.ll1[0], seg.ll1[1]);
+      let gs = tas;
+      if (useWind) {
+        const hw = pointHeadwind(seg.mid[0], seg.mid[1], course, altFt);
+        if (hw != null) gs = effectiveGs(tas, hw);
+      }
+      const climbPortion = Math.max(0, Math.min(d, CLIMB_NM - covered));
+      const cruisePortion = d - climbPortion;
+      if (climbPortion > 0) total += (climbPortion / (gs * CLIMB_FACTOR)) * 3600;
+      if (cruisePortion > 0) total += (cruisePortion / gs) * 3600;
+      covered += d;
+    }
+    return total;
+  }
+
   const climb = Math.min(dist, CLIMB_NM);
   return (climb / (tas * CLIMB_FACTOR) + Math.max(0, dist - climb) / tas) * 3600;
 }
@@ -225,9 +287,13 @@ export function groundCrossing(p, fca, nowMs) {
   const o = (p.lat != null && p.lon != null) ? [p.lat, p.lon] : getAirport(p.dep);
   const dst = getAirport(p.arr);
   if (!o || !dst) return null;
-  const best = pathCrossing(buildPathLLs(plannedAnchors(p, o, dst)), fca);
+  const path = routePathForCrossing(p, { origin: o, destination: dst });
+  const best = path ? pathCrossing(path, fca) : null;
   if (!best) return null;
-  const tas = p.tas || 420, transitSec = groundTransitSec(best.dist, tas);
+  const tas = p.tas || 420;
+  const altFt = windAltFtProvider(p);
+  const segments = isNavReady() ? buildRouteSegments(p, { origin: o, destination: dst }) : null;
+  const transitSec = groundTransitSec(best.dist, tas, { segments, altFt });
   const ptimeMs = ptimeToMs(p.deptime), effMs = Math.max(nowMs, ptimeMs || nowMs);
   const etaSec = (effMs - nowMs) / 1000 + transitSec;
   return { dist: best.dist, cross: { lat: best.lat, lon: best.lon }, course: best.course, tas, transitSec, ptimeMs, effMs, etaSec, origin: o };
@@ -238,9 +304,13 @@ export function towerGroundCrossing(p, fca, nowMs) {
   const o = (p.lat != null && p.lon != null) ? [p.lat, p.lon] : getAirport(p.dep);
   const dst = getAirport(p.arr);
   if (!o || !dst) return null;
-  const best = pathCrossing(buildPathLLs(plannedAnchors(p, o, dst)), fca);
+  const path = routePathForCrossing(p, { origin: o, destination: dst });
+  const best = path ? pathCrossing(path, fca) : null;
   if (!best) return null;
-  const tas = p.tas || 420, transitSec = groundTransitSec(best.dist, tas);
+  const tas = p.tas || 420;
+  const altFt = windAltFtProvider(p);
+  const segments = isNavReady() ? buildRouteSegments(p, { origin: o, destination: dst }) : null;
+  const transitSec = groundTransitSec(best.dist, tas, { segments, altFt });
   return {
     dist: best.dist, cross: { lat: best.lat, lon: best.lon }, course: best.course, tas, transitSec,
     etaSec: transitSec, origin: o,
@@ -314,13 +384,18 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
     let x = null, via = null;
-    if (fcaMatchesDir(fca, p.hdg || 0)) x = projectCrossing(p, fca.points);
-    if (!x) {
-      const dst = getAirport(p.arr);
-      if (dst) {
-        const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
+    const dst = getAirport(p.arr);
+    if (isNavReady() && dst) {
+      const path = routePathForCrossing(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true });
+      if (path) {
+        const b = pathCrossing(path, fca);
         if (b && b.dist <= LOOKAHEAD_NM) { x = { dist: b.dist, lat: b.lat, lon: b.lon }; via = "route"; }
       }
+    }
+    if (!x && fcaMatchesDir(fca, p.hdg || 0)) x = projectCrossing(p, fca.points);
+    if (!x && dst) {
+      const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
+      if (b && b.dist <= LOOKAHEAD_NM) { x = { dist: b.dist, lat: b.lat, lon: b.lon }; via = via || "direct"; }
     }
     if (!x) continue;
     cand.push({ p, phase: "air", dist: x.dist, eta: (x.dist / p.gs) * 3600, cross: x, spd: p.gs, via });

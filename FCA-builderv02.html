@@ -301,6 +301,8 @@
   <div class="stat" title="UTC time"><b id="zClock">----Z</b></div>
   <div class="stat hideSm"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
   <div class="stat hideSm">traffic <b id="acCount">0</b></div>
+  <div class="stat hideSm" id="navStat" title="US route database"><span id="navTxt">nav …</span></div>
+  <div class="stat hideSm" id="windStat" title="US winds aloft"><span id="windTxt">winds …</span></div>
   <div class="stat" id="refreshStat">next <b id="refreshIn">--</b>s</div>
   <button class="btn sm" id="refreshBtn">↻ now</button>
 </div>
@@ -430,9 +432,12 @@ import {
   computeSequence as computeSequenceCore, buildManualOrder,
   projectCrossing, pathCrossing, groundCrossing, buildPathLLs, plannedAnchors,
   fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir, groundTransitSec, ptimeToMs,
+  setWindAltProvider,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
+import { buildRouteAnchors, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
+import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -937,14 +942,43 @@ loadBoundaries();
    ============================================================ */
 let airportsReady=false;
 function loadAirportsLocal(){
+  bindWindAirportLookup(icao => getAirport(icao));
+  setWindAltProvider(p => parseAlt(p.fpAlt || p.alt || 35000));
   return loadAirports(n=>{
     airportsReady=true;
     if(state.selectedId) renderAll();
     if(!n) toast("Airport DB empty — EDCT for prefiles limited.",3000);
+    loadNavData().then(m=>{
+      updateNavStatus(m);
+      if(state.selectedId) renderAll();
+      if(state.routeCallsign){
+        const p=state.pilots.find(x=>x.callsign===state.routeCallsign)||state.prefiles.find(x=>x.callsign===state.routeCallsign);
+        if(p) showRoute(p);
+      }
+    }).catch(err=>{
+      console.warn("Nav DB failed:", err);
+      updateNavStatus(null);
+    });
+    fetchWinds().then(updateWindStatus).catch(()=>updateWindStatus(null));
+    setInterval(()=>fetchWinds().then(updateWindStatus).catch(()=>{}), 3600000);
   }).catch(err=>{
     console.warn("Airport DB failed:",err);
     toast("Airport DB unavailable — EDCT works only for demo airports.",4000);
   });
+}
+
+function updateNavStatus(meta){
+  const el=document.getElementById("navTxt");
+  if(!el) return;
+  if(!meta) { el.textContent="nav off"; return; }
+  el.textContent=`nav ${meta.fixCount||0} fixes · ${meta.airwayCount||0} awy`;
+  el.title=`NASR ${meta.nasrCycleDate||"?"} · ${meta.procedureCount||0} SID/STAR`;
+}
+function updateWindStatus(){
+  const el=document.getElementById("windTxt");
+  if(!el) return;
+  const w=getWindInfo();
+  el.textContent=w.status==="ok"?`winds ${w.count}`:w.status==="loading"?"winds …":"winds off";
 }
 
 /* ============================================================
@@ -1912,20 +1946,35 @@ function clearMeasure(){ measureLayer.clearLayers(); state.measure.points=[]; }
 
 /* ============================================================
    ROUTE PLOTTING  (click an aircraft → draw its route)
-   We resolve what we can without a worldwide fix database:
-   departure, current position, any en-route AIRPORTS, destination,
-   connected by great-circle. Full filed route text is always shown.
+   Uses FAA NASR fixes/navaids/airways when nav DB is loaded.
    ============================================================ */
 function routeAnchors(p){
+  if(isNavReady()){
+    const dep=getAirport(p.dep), arr=getAirport(p.arr);
+    const {anchors}=buildRouteAnchors(p,{
+      origin:dep,
+      destination:arr,
+      includeNow:p.lat!=null && p.phase!=="gnd",
+    });
+    return anchors;
+  }
   const A=[], dep=getAirport(p.dep), arr=getAirport(p.arr);
   if(dep) A.push({name:p.dep,ll:dep,kind:"apt"});
   if(p.lat!=null && p.phase!=="gnd") A.push({name:"NOW",ll:[p.lat,p.lon],kind:"now"});
   parseRouteTokens(p.route).forEach(t=>{
-    const c=t.replace(/\/.*$/,"");                 // strip /N0450F350 speed-alt suffix
+    const c=t.replace(/\/.*$/,"");
     if(c.length>=3 && hasAirport(c) && c!==p.dep && c!==p.arr) A.push({name:c,ll:getAirport(c),kind:"fix"});
   });
   if(arr) A.push({name:p.arr,ll:arr,kind:"apt"});
   return A;
+}
+function anchorColor(kind){
+  if(kind==="now") return "#49d3e6";
+  if(kind==="apt") return "#8ab4ff";
+  if(kind==="awy") return "#e8a838";
+  if(kind==="star"||kind==="sid") return "#c084fc";
+  if(kind==="nav") return "#a3e635";
+  return "#7dd3a8";
 }
 function drawRouteLine(p){
   routeLayer.clearLayers();
@@ -1936,9 +1985,11 @@ function drawRouteLine(p){
     const seg=gcLine(A[i].ll,A[i+1].ll); if(i>0) seg.shift(); coords=coords.concat(seg);
   }
   L.polyline(coords,{color:"#8ab4ff",weight:2,opacity:.9,dashArray:"6 4"}).addTo(routeLayer);
-  A.forEach(a=>{ const col=a.kind==="now"?"#49d3e6":a.kind==="apt"?"#8ab4ff":"#a3e635";
+  A.forEach(a=>{
+    const col=anchorColor(a.kind);
     L.circleMarker(a.ll,{radius:a.kind==="apt"?4:3,color:col,fillColor:"#0a0e14",fillOpacity:1,weight:2})
-      .bindTooltip(a.name,{className:"artcc-label",direction:"top"}).addTo(routeLayer); });
+      .bindTooltip(a.name,{className:"artcc-label",direction:"top"}).addTo(routeLayer);
+  });
   return dist;
 }
 function showRoute(p){ state.routeCallsign=p.callsign; const d=drawRouteLine(p); renderRouteInfo(p,d); }
@@ -1947,18 +1998,30 @@ function clearRoute(){ routeLayer.clearLayers(); state.routeCallsign=null;
 function renderRouteInfo(p,dist){
   const el=document.getElementById("routeInfo"); if(!el) return;
   const toks=parseRouteTokens(p.route);
-  const resolved=routeAnchors(p).filter(a=>a.kind==="fix").length;
-  const fixish=toks.map(t=>t.replace(/\/.*$/,"")).filter(t=>t.length>=2 && !/^[A-Z]{1,2}\d/.test(t) && !hasAirport(t));
-  const unresolved=Math.max(0,fixish.length);
+  const A=routeAnchors(p);
+  const resolved=A.filter(a=>a.kind!=="apt"&&a.kind!=="now").length;
+  let unresolved=[];
+  if(isNavReady()){
+    const dep=getAirport(p.dep), arr=getAirport(p.arr);
+  const r=buildRouteAnchors(p,{origin:dep,destination:arr,includeNow:p.lat!=null&&p.phase!=="gnd"});
+    unresolved=r.unresolved||[];
+  } else {
+    const fixish=toks.map(t=>t.replace(/\/.*$/,"")).filter(t=>t.length>=2 && !/^[A-Z]{1,2}\d/.test(t) && !hasAirport(t));
+    unresolved=fixish;
+  }
+  const meta=getNavMeta();
   const fl=String(Math.round(((p.phase==="gnd"?p.fpAlt:p.alt)||0)/100)).padStart(3,"0");
   const spd=p.phase==="gnd"?("TAS"+(p.tas||"?")):((p.gs||0)+"kt");
+  const navNote=isNavReady()
+    ?`FAA NASR route (${meta?.nasrCycleDate||"?"}) — fixes, navaids, airways, SID/STAR when known.`
+    :"Great-circle through departure"+(p.phase==="gnd"?"":", current position")+", en-route airports, and destination.";
   el.innerHTML=
     `<div class="ri-head"><b>${escapeHtml(p.callsign)}</b> <span class="muted">${escapeHtml(p.type||"")}</span>`+
     `<span class="ri-x" id="riX" title="Clear route (Esc)">✕</span></div>`+
-    `<div class="ri-line">${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")} · FL${fl} · ${spd} · ${Math.round(dist||0)} NM</div>`+
+    `<div class="ri-line">${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")} · FL${fl} · ${spd} · ${Math.round(dist||0)} NM · ${resolved} pts</div>`+
     `<div class="ri-route">${toks.length?toks.map(escapeHtml).join(" "):"<i>no filed route</i>"}</div>`+
-    `<div class="ri-note">Great-circle through departure${p.phase==="gnd"?"":", current position"}, en-route airports, and destination.`+
-    (unresolved>0?` ${unresolved} fix/navaid token(s) aren't in the airport database, so the line runs direct between known points — read the filed route above for exact fixes.`:"")+`</div>`;
+    `<div class="ri-note">${navNote}`+
+    (unresolved.length?` Unresolved: ${unresolved.slice(0,8).map(escapeHtml).join(", ")}${unresolved.length>8?"…":""}.`:"")+`</div>`;
   el.classList.add("show");
   const x=document.getElementById("riX"); if(x) x.addEventListener("click",clearRoute);
 }

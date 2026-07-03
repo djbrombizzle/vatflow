@@ -38,7 +38,7 @@ export const FCA_HELP = {
     {
       title: "Map tips",
       items: [
-        "<b>Click an aircraft</b> to plot its route. Press Esc to clear.",
+        "<b>Click an aircraft</b> to plot its filed route through FAA NASR fixes, airways, and SID/STAR when known. Press Esc to clear.",
         "<b>Ctrl/⌘ + click</b> two points to measure distance in NM.",
         "Click a sector label or polygon (when sectors layer is on) to list aircraft inside.",
         "Use layer toggles for ARTCC boundaries, traffic, demo mode, and sector load colors.",

@@ -171,8 +171,11 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
+  getAirport, setWindAltProvider, parseAlt,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
+import { loadNavData } from "./shared/route-engine.js";
+import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -696,7 +699,12 @@ if (state.cid) cidInput.value = state.cid;
 updateAtcStatusUI();
 loadLocalFcas();
 initSync();
-loadAirports(() => render()).catch(() => render());
+loadAirports(() => {
+  bindWindAirportLookup(icao => getAirport(icao));
+  setWindAltProvider(p => parseAlt(p.fpAlt || p.alt || 35000));
+  loadNavData().catch(() => {}).finally(() => render());
+  fetchWinds().catch(() => {});
+}).catch(() => render());
 
 try {
   const saved = localStorage.getItem(LS_FIELD);
