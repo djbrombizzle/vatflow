@@ -13,7 +13,7 @@ export const FCA_HELP = {
         "<b>View only</b> — browse FCAs, traffic, and sequences. Unlock with the control password to edit.",
         "<b>＋ New FCA</b> — click the map to place points (min 2). Double-click or close the line to finish.",
         "Select an FCA in the sidebar to open the <b>sequence panel</b> on the right.",
-        "Toggle <b>Ground flights (EDCT)</b> in map layers to include prefiles and taxiing aircraft.",
+        "Toggle <b>Ground flights (EDCT)</b> in map layers to include connected taxiing aircraft (not prefiles).",
       ],
     },
     {
@@ -28,7 +28,7 @@ export const FCA_HELP = {
     {
       title: "Sequence panel",
       items: [
-        "Airborne aircraft are sequenced by ETA; ground departures get <b>EDCT</b> (wheels-up time).",
+        "Airborne aircraft are sequenced by ETA; connected ground departures get <b>EDCT</b> (wheels-up time).",
         "Ground strips show <b>gap in minutes</b> behind the previous aircraft at the FCA crossing.",
         "<b>⠿ Drag</b> a strip to reorder — unlock controller mode first. Times recompute for everyone.",
         "Tower reorder on the Tower Departures page syncs here via the shared FCA order.",
@@ -66,7 +66,7 @@ export const TOWER_HELP = {
       items: [
         "Enter your <b>FIELD</b> ICAO (e.g. KATL) and click <b>Load</b>.",
         "Departures appear when an <b>enabled FCA</b> in FCA Builder matches their route.",
-        "Live traffic refreshes every ~20s from the VATSIM feed.",
+        "Live traffic refreshes every ~20s from the VATSIM feed — only <b>connected</b> pilots appear (no prefiles).",
         "FCAs load from Supabase realtime (same as FCA Builder) with local cache fallback.",
       ],
     },
