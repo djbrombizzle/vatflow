@@ -395,7 +395,9 @@ details.meter-map-acc summary::-webkit-details-marker { display: none; }
 details.meter-map-acc summary::after { content: "+"; float: right; color: var(--text-muted); font-weight: 400; }
 details.meter-map-acc[open] summary::after { content: "\2212"; }
 details.meter-map-acc[open] summary { border-bottom: 1px solid var(--border); color: var(--text-dim); }
-.meter-map-body { padding: 0 0 12px; }
+.meter-map-body { padding: 0 0 0; }
+.meter-map-panel { display: flex; flex-direction: column; }
+.meter-map-frame { position: relative; width: 100%; min-height: 280px; }
 .meter-map-legend {
   display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 10px 20px 8px;
   font-size: 10px; color: var(--text-muted); letter-spacing: 0.04em;
@@ -405,8 +407,41 @@ details.meter-map-acc[open] summary { border-bottom: 1px solid var(--border); co
   width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
   border: 1px solid rgba(0,0,0,0.35);
 }
-.meter-map-canvas { height: 340px; width: 100%; background: var(--bg); }
+.meter-map-canvas { height: 100%; width: 100%; background: var(--bg); }
 .meter-map-canvas.leaflet-container { font-family: var(--font-ui); }
+.meter-map-resize {
+  height: 9px; cursor: ns-resize; touch-action: none; flex-shrink: 0;
+  position: relative; border-top: 1px solid var(--border); background: var(--surface);
+}
+.meter-map-resize::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px;
+  background: transparent; transition: background 0.12s;
+}
+.meter-map-resize:hover::before, .meter-map-resize.dragging::before { background: var(--border-hi); }
+.meter-map-resize::after {
+  content: ""; position: absolute; left: 50%; top: 1px; transform: translateX(-50%);
+  width: 34px; height: 5px; border-radius: 3px; background: transparent; transition: background 0.12s;
+}
+.meter-map-resize:hover::after, .meter-map-resize.dragging::after { background: var(--border-hi); }
+body.meter-map-resizing { cursor: ns-resize; user-select: none; }
+.meter-dep-mark {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-family: var(--font-data); font-size: 10px; line-height: 1.1; pointer-events: none;
+}
+.meter-dep-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #f5a83d;
+  border: 2px solid #0a0e14; box-shadow: 0 0 6px rgba(245,168,61,0.45);
+}
+.meter-dep-lbl { color: #d4dde6; font-weight: 600; letter-spacing: 0.04em; text-shadow: 0 0 4px #000, 0 0 4px #000; }
+.meter-dep-gnd {
+  display: inline-flex; align-items: center; gap: 2px; color: #f5a83d;
+  font-weight: 600; pointer-events: auto; cursor: default;
+  text-shadow: 0 0 4px #000, 0 0 4px #000;
+}
+.meter-dep-arrow { font-size: 11px; line-height: 1; }
+.meter-dep-cnt { font-size: 10px; }
+.meter-map-gndtip { font-family: var(--font-data) !important; font-size: 11px !important; line-height: 1.45 !important; }
+.meter-map-gndtip b { color: var(--accent-text); }
 .meter-map-nocoords { padding: 24px 20px; color: var(--text-muted); font-size: 12px; }
 .meter-mappop { font-size: 12px; line-height: 1.5; font-family: var(--font-data); }
 .meter-mappop-wrap .leaflet-popup-content-wrapper {
@@ -992,9 +1027,22 @@ try { const lw = +localStorage.getItem("vatflow_ladder_w");
 function saveLadderWidth() { try { localStorage.setItem("vatflow_ladder_w", String(Math.round(ladderWidth))); } catch (e) {} }
 
 /* Apt Dashboard traffic map (Leaflet) */
+const METER_MAP_H_MIN = 280, METER_MAP_H_MAX = 900;
+const US_ARTCC = new Set(["ZAB","ZAU","ZBW","ZDC","ZDV","ZFW","ZHU","ZID","ZJX","ZKC",
+  "ZLA","ZLC","ZMA","ZME","ZMP","ZNY","ZOA","ZOB","ZSE","ZTL","ZAN","ZHN","ZUA","ZAP"]);
+let meterMapHeight = 480;
+try {
+  const mh = +localStorage.getItem("vatflow_meter_map_h");
+  if (mh) meterMapHeight = Math.max(METER_MAP_H_MIN, Math.min(METER_MAP_H_MAX, mh));
+} catch (e) {}
+function saveMeterMapHeight() {
+  try { localStorage.setItem("vatflow_meter_map_h", String(Math.round(meterMapHeight))); } catch (e) {}
+}
 let meterMapOpen = false;
 let meterMap = null;
 let meterMapTraffic = null;
+let meterMapArtccLayer = null;
+let meterMapArtccRendered = false;
 let meterMapAirport = null;
 let meterMapBoundsSet = false;
 let meterMapView = null;   /* saved center/zoom across re-renders */
@@ -1023,6 +1071,61 @@ function meterMapPopupHtml(f, gateColors) {
   if (f.posEst) h += '<br><span style="color:#5c6b78">position estimated</span>';
   return h + '</div>';
 }
+function meterGroundCfrLabel(f, now) {
+  if (f.edctIssued && f.wheelsUp != null) return fmtZ(f.wheelsUp) + "Z";
+  if (f.wheelsUp != null && f.needsCfr) return "~" + fmtZ(f.wheelsUp) + "Z";
+  if (f.wheelsUp != null && f.wheelsUp > now + 60000) return "~" + fmtZ(f.wheelsUp) + "Z";
+  if (f.wheelsUp != null) return fmtZ(f.wheelsUp) + "Z";
+  return "\u2014";
+}
+function meterGroundDepTooltip(flights, now) {
+  const rows = flights.slice().sort((a, b) => {
+    const wa = a.wheelsUp == null ? Infinity : a.wheelsUp;
+    const wb = b.wheelsUp == null ? Infinity : b.wheelsUp;
+    return wa - wb || a.callsign.localeCompare(b.callsign);
+  });
+  return rows.map(f =>
+    '<b>' + esc(f.callsign) + '</b>  CFR ' + esc(meterGroundCfrLabel(f, now))
+  ).join("<br>");
+}
+function meterDepLabelIcon(dep) {
+  const html = '<div class="meter-dep-mark">' +
+    '<div class="meter-dep-dot"></div>' +
+    '<div class="meter-dep-lbl">' + esc(dep) + '</div></div>';
+  return L.divIcon({ className: "", html, iconSize: [44, 22], iconAnchor: [22, 22] });
+}
+function meterDepArrowIcon(count) {
+  const html = '<div class="meter-dep-gnd">' +
+    '<span class="meter-dep-arrow">\u25B2</span><span class="meter-dep-cnt">' + count + '</span></div>';
+  return L.divIcon({ className: "", html, iconSize: [28, 16], iconAnchor: [14, 0] });
+}
+function isUsArtccId(id) {
+  const bare = String(id || "").toUpperCase().replace(/^K/, "");
+  return US_ARTCC.has(bare);
+}
+function renderMeterMapArtcc() {
+  if (!meterMap || !meterMapArtccLayer || !firPolys || boundariesStatus !== "ok") return;
+  meterMapArtccLayer.clearLayers();
+  for (const id of Object.keys(firPolys)) {
+    if (!isUsArtccId(id)) continue;
+    for (const ring of firPolys[id]) {
+      if (!ring || ring.length < 3) continue;
+      const latlngs = ring.map(pt => [pt[1], pt[0]]);
+      L.polygon(latlngs, { color: "#3a4d5e", weight: 1, opacity: 0.85, fill: false, interactive: false })
+        .bindTooltip(id, { sticky: true, className: "meter-map-tip", direction: "center" })
+        .addTo(meterMapArtccLayer);
+    }
+  }
+  meterMapArtccRendered = true;
+}
+function ensureMeterMapBoundaries() {
+  if (!meterMap) return;
+  if (boundariesStatus === "ok") {
+    if (!meterMapArtccRendered) renderMeterMapArtcc();
+    return;
+  }
+  if (boundariesStatus !== "loading") loadBoundaries();
+}
 function destroyMeterMap() {
   if (!meterMap) return;
   const c = meterMap.getCenter();
@@ -1030,6 +1133,8 @@ function destroyMeterMap() {
   meterMap.remove();
   meterMap = null;
   meterMapTraffic = null;
+  meterMapArtccLayer = null;
+  meterMapArtccRendered = false;
   meterMapAirport = null;
   meterMapBoundsSet = false;
 }
@@ -1037,7 +1142,12 @@ function fitMeterMapBounds(flow) {
   if (!meterMap || !flow.arrPt) return;
   const bounds = L.latLngBounds([flow.arrPt[0], flow.arrPt[1]]);
   for (const f of flow.flights) {
-    if (f.lat != null && f.lon != null) bounds.extend([f.lat, f.lon]);
+    if (f.status === "GROUND" || f.status === "PROPOSED") {
+      const depPt = lookup(f.dep);
+      if (depPt) bounds.extend(depPt);
+    } else if (f.lat != null && f.lon != null) {
+      bounds.extend([f.lat, f.lon]);
+    }
   }
   if (bounds.isValid()) meterMap.fitBounds(bounds.pad(0.15), { maxZoom: 9 });
   else meterMap.setView([flow.arrPt[0], flow.arrPt[1]], 7);
@@ -1056,10 +1166,37 @@ function updateMeterMapMarkers(flow) {
       .bindTooltip(esc(icao), { direction: "top", offset: [0, -8], className: "meter-map-tip" })
       .addTo(meterMapTraffic);
   }
+
+  /* ground / proposed — grouped at departure airports */
+  const groundByDep = {};
   for (const f of flow.flights) {
+    if (f.status !== "GROUND" && f.status !== "PROPOSED") continue;
+    (groundByDep[f.dep] = groundByDep[f.dep] || []).push(f);
+  }
+  for (const dep of Object.keys(groundByDep)) {
+    const depPt = lookup(dep);
+    if (!depPt) continue;
+    const flights = groundByDep[dep];
+    L.marker([depPt[0], depPt[1]], {
+      icon: meterDepLabelIcon(dep), keyboard: false, interactive: false
+    }).addTo(meterMapTraffic);
+    const tip = meterGroundDepTooltip(flights, flow.now);
+    L.marker([depPt[0], depPt[1]], {
+      icon: meterDepArrowIcon(flights.length),
+      keyboard: false, riseOnHover: true, zIndexOffset: 200
+    })
+      .bindTooltip(tip, {
+        className: "meter-map-gndtip", direction: "top", offset: [0, -4], opacity: 0.95
+      })
+      .addTo(meterMapTraffic);
+  }
+
+  /* airborne / arrived — individual aircraft */
+  for (const f of flow.flights) {
+    if (f.status !== "AIRBORNE" && f.status !== "ARRIVED") continue;
     if (f.lat == null || f.lon == null) continue;
     const color = flightMarkerColor(f, flow.gateColors);
-    const dim = f.status === "PROPOSED" || f.posEst;
+    const dim = f.status === "ARRIVED";
     const m = L.marker([f.lat, f.lon], {
       icon: meterPlaneIcon(color, f.hdg || 0, dim),
       keyboard: false, riseOnHover: true
@@ -1081,24 +1218,28 @@ function ensureMeterMap(flow) {
     meterMap = L.map(el, { zoomControl: true, attributionControl: true });
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       subdomains: "abcd", maxZoom: 11, minZoom: 3,
-      attribution: "\u00a9 OpenStreetMap, \u00a9 CARTO \u00b7 traffic: VATSIM"
+      attribution: "\u00a9 OpenStreetMap, \u00a9 CARTO \u00b7 traffic: VATSIM \u00b7 boundaries: VATSpy"
     }).addTo(meterMap);
+    meterMapArtccLayer = L.layerGroup().addTo(meterMap);
     meterMapTraffic = L.layerGroup().addTo(meterMap);
     meterMapAirport = icao;
     meterMapBoundsSet = false;
+    meterMapArtccRendered = false;
     if (meterMapView) {
       meterMap.setView(meterMapView.center, meterMapView.zoom);
       meterMapBoundsSet = true;
     }
   }
+  ensureMeterMapBoundaries();
   setTimeout(() => { if (meterMap) meterMap.invalidateSize(); }, 60);
   updateMeterMapMarkers(flow);
   if (!meterMapBoundsSet) fitMeterMapBounds(flow);
 }
 function meterMapLegendHtml(flow) {
-  let h = '<span class="leg-item"><span class="swatch" style="background:#e8a838"></span>' + esc(icao) + '</span>';
+  let h = '<span class="leg-item"><span class="swatch" style="background:#e8a838"></span>' + esc(icao) + ' arr</span>';
+  h += '<span class="leg-item"><span class="swatch" style="background:#f5a83d"></span>dep \u25B2 ground count</span>';
   const statusLeg = [
-    ["AIRBORNE", "#57d98a"], ["GROUND", "#f5a83d"], ["PROPOSED", "#54b8e8"], ["ARRIVED", "#56676f"]
+    ["AIRBORNE", "#57d98a"], ["PROPOSED", "#54b8e8"], ["ARRIVED", "#56676f"]
   ];
   for (const [lbl, clr] of statusLeg) {
     h += '<span class="leg-item"><span class="swatch" style="background:' + clr + '"></span>' + lbl + '</span>';
@@ -1107,6 +1248,7 @@ function meterMapLegendHtml(flow) {
     const c = flow.gateColors[g];
     h += '<span class="leg-item"><span class="swatch" style="background:' + c + '"></span>gate ' + esc(g) + '</span>';
   }
+  h += '<span class="leg-item"><span class="swatch" style="background:#3a4d5e"></span>ARTCC</span>';
   return h;
 }
 
@@ -1368,6 +1510,7 @@ async function loadBoundaries() {
       if (rings.length) (polys[id] = polys[id] || []).push(...rings);
     }
     firPolys = polys; boundariesStatus = "ok"; scopeCache = {};
+    if (meterMapOpen && meterMap) renderMeterMapArtcc();
   } catch (e) {
     console.error("Boundary load failed:", e);
     boundariesStatus = "error";
@@ -2173,8 +2316,12 @@ function renderMeter(refocus) {
     h += '<div class="meter-map-nocoords">No coordinates for ' + esc(icao) +
       ' \u2014 map unavailable. ETAs use estimated distances.</div>';
   } else {
-    h += '<div class="meter-map-legend">' + meterMapLegendHtml(flow) + '</div>' +
-      '<div id="meterMapCanvas" class="meter-map-canvas"></div>';
+    h += '<div class="meter-map-panel">' +
+      '<div class="meter-map-legend">' + meterMapLegendHtml(flow) + '</div>' +
+      '<div class="meter-map-frame" id="meterMapFrame" style="height:' + Math.round(meterMapHeight) + 'px">' +
+      '<div id="meterMapCanvas" class="meter-map-canvas"></div></div>' +
+      '<div class="meter-map-resize" id="meterMapResize" title="Drag to resize the map"></div>' +
+      '</div>';
   }
   h += '</div></details>';
 
@@ -4319,6 +4466,40 @@ contentEl.addEventListener("toggle", e => {
     destroyMeterMap();
   }
 }, true);
+
+/* drag the bottom edge of the traffic map to resize its height (persisted) */
+(function setupMeterMapResize() {
+  let dragging = false, startY = 0, startH = 0, handle = null;
+  contentEl.addEventListener("pointerdown", e => {
+    const h = e.target.closest("#meterMapResize");
+    if (!h) return;
+    e.preventDefault();
+    dragging = true; startY = e.clientY; startH = meterMapHeight; handle = h;
+    h.classList.add("dragging");
+    document.body.classList.add("meter-map-resizing");
+    try { h.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  contentEl.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const h = Math.max(METER_MAP_H_MIN, Math.min(METER_MAP_H_MAX, startH + (e.clientY - startY)));
+    meterMapHeight = h;
+    const frame = contentEl.querySelector("#meterMapFrame");
+    if (frame) frame.style.height = Math.round(h) + "px";
+    if (meterMap) meterMap.invalidateSize();
+  });
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    if (handle) handle.classList.remove("dragging");
+    handle = null;
+    document.body.classList.remove("meter-map-resizing");
+    saveMeterMapHeight();
+    if (meterMap) meterMap.invalidateSize();
+  }
+  contentEl.addEventListener("pointerup", endDrag);
+  contentEl.addEventListener("pointercancel", endDrag);
+  window.addEventListener("pointerup", endDrag);
+})();
 
 /* drag the left border of the arrival ladder to resize its width (persisted) */
 (function setupLadderResize() {
