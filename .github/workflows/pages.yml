@@ -1,4 +1,8 @@
 # Deploy static VATFLOW files to GitHub Pages
+#
+# Repo Settings → Pages → Build and deployment → Source must be
+# "GitHub Actions" (not "Deploy from a branch"). Using both causes
+# duplicate deploys and red "pages build and deployment" failures.
 name: Deploy to GitHub Pages
 
 on:
@@ -39,32 +43,56 @@ jobs:
             --exclude '_site' \
             --exclude 'data/source' \
             ./ _site/
+          echo "${{ github.sha }}" > _site/.deploy-sha
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy1
         continue-on-error: true
         uses: actions/deploy-pages@v4
 
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome != 'success'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Deploy to GitHub Pages (attempt 3)
+        id: deploy3
+        if: steps.deploy1.outcome != 'success' && steps.deploy2.outcome != 'success'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Record deploy outcome
+        id: deployment
+        run: |
+          if [ "${{ steps.deploy1.outcome }}" = "success" ]; then echo "outcome=success" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.deploy2.outcome }}" = "success" ]; then echo "outcome=success" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.deploy3.outcome }}" = "success" ]; then echo "outcome=success" >> "$GITHUB_OUTPUT"
+          else echo "outcome=failure" >> "$GITHUB_OUTPUT"; fi
+          echo "page_url=https://djbrombizzle.github.io/vatflow/" >> "$GITHUB_OUTPUT"
+
       - name: Verify deployment
         run: |
-          if [ "${{ steps.deployment.outcome }}" = "success" ]; then
-            echo "Deploy step reported success."
-            exit 0
+          SHA="${{ github.sha }}"
+          SITE="https://djbrombizzle.github.io/vatflow/.deploy-sha"
+          if [ "${{ steps.deployment.outputs.outcome }}" = "success" ]; then
+            echo "Deploy step reported success — confirming SHA on live site…"
+          else
+            echo "Deploy steps failed — checking if Pages propagated anyway (known GitHub flake)…"
           fi
-          echo "Deploy step failed — checking if Pages propagated anyway (known GitHub flake)…"
-          SITE="https://djbrombizzle.github.io/vatflow/index.html"
-          for i in 1 2 3 4 5 6; do
+          for i in 1 2 3 4 5 6 8 10 12; do
             sleep 15
-            if curl -fsS "$SITE" >/dev/null; then
-              echo "Site is live at $SITE"
+            LIVE=$(curl -fsS "$SITE" 2>/dev/null || true)
+            if [ "$LIVE" = "$SHA" ]; then
+              echo "Live site matches commit $SHA"
               exit 0
             fi
-            echo "Attempt $i: site not ready yet…"
+            echo "Attempt $i: live=$LIVE want=$SHA"
           done
-          echo "Pages site did not become reachable."
+          echo "Pages site did not publish this commit."
           exit 1
