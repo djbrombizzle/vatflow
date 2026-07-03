@@ -897,7 +897,8 @@ let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
 /* ---- controller access: the app is VIEW-ONLY until unlocked with the control password ----
    On the hub, the password is enforced server-side (CONTROL_PASSWORD env var) — real security.
-   Off the hub (Firebase/local), it is checked against CONTROL_PASSWORD_LOCAL below (a soft gate). */
+   Off the hub (Firebase/local), it is checked against CONTROL_PASSWORD_LOCAL below (a soft gate).
+   Keep identical in FCA-builderv02.html. */
 const CONTROL_PASSWORD_LOCAL = "";   // <-- optional: set a password for local/Firebase use
 let controllerUnlocked = false;      // false = view only
 let ctrlPw = null;                   // entered password held in memory for hub auth
