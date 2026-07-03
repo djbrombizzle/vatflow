@@ -246,7 +246,7 @@
   @media (max-width:860px){ .routeinfo{max-width:74vw;bottom:14px} }
 
   /* sector aircraft panel */
-  .sector-ac-panel{position:absolute;top:54px;right:10px;z-index:650;width:300px;max-height:min(420px,55vh);
+  .sector-ac-panel{position:absolute;top:calc(var(--vatflow-nav-h) + 54px);right:10px;z-index:650;width:300px;max-height:min(420px,55vh);
     display:none;flex-direction:column;background:linear-gradient(180deg,rgba(13,18,27,.97),rgba(11,15,23,.95));
     border:1px solid var(--line-2);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.55);backdrop-filter:blur(10px)}
   .sector-ac-panel.show{display:flex}
@@ -405,7 +405,7 @@
 </aside>
 
 <!-- floating reopen buttons -->
-<div class="float side" id="floatSide" style="top:54px;left:8px">
+<div class="float side" id="floatSide" style="top:calc(var(--vatflow-nav-h) + 54px);left:8px">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
 </div>
 
@@ -418,6 +418,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared/vatflow-control-store.js"></script>
 <script type="module">
 "use strict";
 
@@ -452,7 +453,7 @@ const REFRESH_SEC = 20;
 /* ---- controller access: VIEW-ONLY until unlocked (same gate as vatflow-tbfm v2.html) ----
    Keep CONTROL_PASSWORD_LOCAL identical in both files. Empty = soft gate (any password works). */
 const CONTROL_PASSWORD_LOCAL = "";
-let controllerUnlocked = false;
+let controllerUnlocked = VatflowControl.load();
 function canControl(){ return controllerUnlocked; }
 
 /* ---------- state ---------- */
@@ -2070,13 +2071,14 @@ function showPwEntry(){
 }
 function setControl(on){
   controllerUnlocked=on;
+  VatflowControl.save(on);
   if(!on && state.editing){ state.editing=null; state.editingBackup=null; closeEditor(); }
   if(!on && state.drawing) cancelDrawing();
   updateControlUI();
   renderAll();
 }
 function attemptUnlock(pw){
-  if(CONTROL_PASSWORD_LOCAL===""||pw===CONTROL_PASSWORD_LOCAL){ lockMsg.textContent=""; setControl(true); }
+  if(VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)){ lockMsg.textContent=""; setControl(true); }
   else { lockMsg.textContent="wrong password"; lockMsg.className="lockerr"; }
 }
 lockBtn.addEventListener("click",()=>{

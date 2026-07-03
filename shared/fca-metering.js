@@ -272,6 +272,31 @@ export function buildManualOrder(manualOrder, candById) {
   return order;
 }
 
+/** Manual order from FCA Builder global `fca.order`, filtered to candidates. */
+export function resolveManualOrder(fca, candById, pilots, prefiles, nowMs) {
+  if (Array.isArray(fca.order) && fca.order.length) {
+    return buildManualOrder(fca.order, candById);
+  }
+  return buildManualOrder([], candById);
+}
+
+/** Reorder one callsign relative to another in the global FCA sequence. */
+export function reorderFcaGlobalOrder(fca, pilots, prefiles, fromCs, toCs, opts = {}) {
+  const seq = computeSequence(fca, pilots, prefiles, {
+    includeEdct: true,
+    nowMs: opts.nowMs != null ? opts.nowMs : Date.now(),
+  });
+  const order = Array.isArray(fca.order) && fca.order.length
+    ? fca.order.slice()
+    : seq.items.map(c => c.p.callsign);
+  const from = order.indexOf(fromCs);
+  const to = order.indexOf(toCs);
+  if (from < 0 || to < 0 || from === to) return order;
+  const [m] = order.splice(from, 1);
+  order.splice(to, 0, m);
+  return order;
+}
+
 export function computeSequence(fca, pilots, prefiles, opts = {}) {
   const includeEdct = opts.includeEdct !== false;
   const nowMs = opts.nowMs != null ? opts.nowMs : Date.now();
@@ -408,9 +433,9 @@ function scheduleTowerCandidates(cand, fca, manualOrder, nowMs) {
 
 /**
  * Tower departures for one airport against active FCAs.
- * towerOrder: { [fcaId]: string[] } manual callsign order per FCA.
+ * Uses FCA Builder global `fca.order` (synced via Supabase) for sequencing.
  */
-export function computeTowerDepartures(depIcao, fcas, pilots, prefiles, towerOrder = {}) {
+export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
   const nowMs = Date.now();
   const dep = (depIcao || "").toUpperCase();
   if (!dep) return { departures: [], nowMs };
@@ -446,8 +471,10 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles, towerOrd
       });
     }
     if (!cand.length) continue;
-    const manualOrder = towerOrder[fca.id] || [];
-    const { items, order } = scheduleTowerCandidates(cand, fca, manualOrder, nowMs);
+    const candById = new Map();
+    cand.forEach(c => candById.set(c.p.callsign, c));
+    const manualOrder = resolveManualOrder(fca, candById, pilots, prefiles, nowMs);
+    const { items } = scheduleTowerCandidates(cand, fca, manualOrder, nowMs);
 
     const globalSeq = computeSequence(fca, pilots, prefiles, { includeEdct: true, nowMs });
     const globalIdx = new Map();
