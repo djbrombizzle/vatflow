@@ -446,6 +446,20 @@ body.meter-map-resizing { cursor: ns-resize; user-select: none; }
 .meter-dep-cnt { font-size: 10px; }
 .meter-map-gndtip { font-family: var(--font-data) !important; font-size: 11px !important; line-height: 1.45 !important; }
 .meter-map-gndtip b { color: var(--accent-text); }
+.meter-ac-mark {
+  display: flex; flex-direction: row; align-items: center; gap: 5px;
+}
+.meter-ac-plane { flex-shrink: 0; width: 14px; height: 14px; line-height: 0; }
+.meter-ac-plane svg { display: block; }
+.meter-datablock {
+  font-family: var(--font-data); font-size: 9px; line-height: 1.25;
+  background: rgba(14, 19, 25, 0.9); border: 1px solid var(--border);
+  border-radius: 3px; padding: 2px 6px; white-space: nowrap;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.45); pointer-events: none;
+}
+.meter-db-cs { font-weight: 600; font-size: 10px; letter-spacing: 0.03em; }
+.meter-db-trail { color: var(--text-dim); font-size: 9px; font-variant-numeric: tabular-nums; }
+.meter-ac-mark.arrived { opacity: 0.55; }
 .meter-map-nocoords { padding: 24px 20px; color: var(--text-muted); font-size: 12px; }
 .meter-mappop { font-size: 12px; line-height: 1.5; font-family: var(--font-data); }
 .meter-mappop-wrap .leaflet-popup-content-wrapper {
@@ -1063,6 +1077,31 @@ function meterPlaneIcon(color, hdg, dim) {
     '</svg></div>';
   return L.divIcon({ className: "", html: svg, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
+function meterTrailDatablockHtml(color, trailInfo) {
+  if (!trailInfo) return "";
+  if (!trailInfo.leader) {
+    return '<div class="meter-db-trail">\u2265' + Math.round(trailInfo.reqNm) + ' NM req</div>';
+  }
+  const sign = trailInfo.deltaNm >= 0 ? "+" : "";
+  const spClr = trailInfo.deltaNm < -0.5 ? "#d45c5c" : trailInfo.deltaNm > 1 ? "#d4923a" : "#4caf7a";
+  return '<div class="meter-db-trail">' + trailInfo.distNm.toFixed(1) + '/' + Math.round(trailInfo.reqNm) +
+    ' NM <span style="color:' + spClr + '">' + sign + trailInfo.deltaNm.toFixed(1) + '</span></div>';
+}
+function meterAirborneIcon(f, color, hdg, trailInfo, arrived) {
+  const sz = arrived ? 10 : 14;
+  const cls = arrived ? "meter-ac-mark arrived" : "meter-ac-mark";
+  const trailHtml = !arrived ? meterTrailDatablockHtml(color, trailInfo) : "";
+  const html = '<div class="' + cls + '">' +
+    '<div class="meter-ac-plane" style="transform:rotate(' + (hdg || 0) + 'deg)">' +
+    '<svg viewBox="0 0 24 24" width="' + sz + '" height="' + sz + '">' +
+    '<path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="' + color + '" stroke="#0a0e14" stroke-width="1.2"/>' +
+    '</svg></div>' +
+    '<div class="meter-datablock">' +
+    '<div class="meter-db-cs" style="color:' + color + '">' + esc(f.callsign) + '</div>' +
+    trailHtml + '</div></div>';
+  const w = arrived ? 72 : (trailInfo && trailInfo.leader ? 108 : 88);
+  return L.divIcon({ className: "", html, iconSize: [w, 28], iconAnchor: [7, 14] });
+}
 function meterMapPopupHtml(f, gateColors, trailInfo) {
   const gateColor = flightMarkerColor(f, gateColors);
   const dlyClr = delayColor(f.delay);
@@ -1205,31 +1244,19 @@ function updateMeterMapMarkers(flow) {
   const rate = getRate(icao);
   const trailMap = computeAirborneTrailMap(flow, rate);
 
-  /* airborne / arrived — individual aircraft */
+  /* airborne / arrived — individual aircraft with datablock labels */
   for (const f of flow.flights) {
     if (f.status !== "AIRBORNE" && f.status !== "ARRIVED") continue;
     if (f.lat == null || f.lon == null) continue;
     const color = flightMarkerColor(f, flow.gateColors);
-    const dim = f.status === "ARRIVED";
+    const arrived = f.status === "ARRIVED";
+    const trailInfo = f.status === "AIRBORNE" ? trailMap[f.callsign] : null;
     const m = L.marker([f.lat, f.lon], {
-      icon: meterPlaneIcon(color, f.hdg || 0, dim),
+      icon: meterAirborneIcon(f, color, f.hdg || 0, trailInfo, arrived),
       keyboard: false, riseOnHover: true
     });
-    const trailInfo = f.status === "AIRBORNE" ? trailMap[f.callsign] : null;
     m.bindPopup(meterMapPopupHtml(f, flow.gateColors, trailInfo), { className: "meter-mappop-wrap", maxWidth: 280 });
     m.addTo(meterMapTraffic);
-    if (f.status === "AIRBORNE" && flow.arrPt && !f.posEst) {
-      L.polyline([[f.lat, f.lon], flow.arrPt], {
-        color, weight: 1, opacity: 0.35, dashArray: "4 6"
-      }).addTo(meterMapTraffic);
-      const ti = trailMap[f.callsign];
-      if (ti && ti.leaderFlight) {
-        const lc = flightMarkerColor(ti.leaderFlight, flow.gateColors);
-        L.polyline([[f.lat, f.lon], [ti.leaderFlight.lat, ti.leaderFlight.lon]], {
-          color: lc, weight: 1.5, opacity: 0.55, dashArray: "2 4"
-        }).addTo(meterMapTraffic);
-      }
-    }
   }
 }
 function ensureMeterMap(flow) {
