@@ -472,7 +472,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
 
   if (includeEdct) {
     const seen = new Set();
-    const grounds = pilots.filter(p => p.phase === "gnd").concat(prefiles || []);
+    const grounds = pilots.filter(p => p.phase === "gnd" && isConnectedPilot(p));
     for (const p of grounds) {
       if (seen.has(p.callsign)) continue;
       seen.add(p.callsign);
@@ -545,7 +545,13 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   return out;
 }
 
+/** Connected VATSIM pilot — excludes prefiles and demo proposed departures. */
+export function isConnectedPilot(p) {
+  return p && !p.prefile;
+}
+
 export function isDepartureCandidate(p, depIcao) {
+  if (!isConnectedPilot(p)) return false;
   const dep = (p.dep || "").toUpperCase();
   if (dep !== depIcao) return false;
   if ((p.gs || 0) > 60 && (p.alt || 0) > 300) return false;
@@ -592,12 +598,6 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
     seen.add(p.callsign);
     deps.push(p);
   }
-  for (const p of (prefiles || [])) {
-    if (!isDepartureCandidate(p, dep)) continue;
-    if (seen.has(p.callsign)) continue;
-    seen.add(p.callsign);
-    deps.push(p);
-  }
 
   const byCallsign = new Map();
   const activeFcas = (fcas || []).filter(f => f.enabled && f.points && f.points.length >= 2);
@@ -617,10 +617,10 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
     if (!cand.length) continue;
     const candById = new Map();
     cand.forEach(c => candById.set(c.p.callsign, c));
-    const manualOrder = resolveManualOrder(fca, candById, pilots, prefiles, nowMs);
+    const manualOrder = resolveManualOrder(fca, candById, pilots, [], nowMs);
     const { items } = scheduleTowerCandidates(cand, fca, manualOrder, nowMs);
 
-    const globalSeq = computeSequence(fca, pilots, prefiles, { includeEdct: true, nowMs });
+    const globalSeq = computeSequence(fca, pilots, [], { includeEdct: true, nowMs });
     const globalIdx = new Map();
     globalSeq.items.forEach((c, i) => globalIdx.set(c.p.callsign, i + 1));
 

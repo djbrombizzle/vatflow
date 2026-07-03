@@ -7,6 +7,7 @@
 import {
   isCrossingAhead,
   hasPassedFca,
+  isConnectedPilot,
   computeSequence,
   seedAirports,
 } from "../shared/fca-metering.js";
@@ -79,5 +80,41 @@ const seq = computeSequence(FCA_SB, [pastSouth, approaching], [], { includeEdct:
 const cs = seq.items.map(c => c.p.callsign);
 assert(cs.includes("TEST02"), "approaching aircraft in sequence");
 assert(!cs.includes("TEST01"), "past aircraft excluded from sequence");
+
+const prefileGround = {
+  callsign: "PREF01",
+  phase: "gnd",
+  prefile: true,
+  lat: null,
+  lon: null,
+  gs: 0,
+  hdg: 0,
+  alt: 0,
+  arr: "KMIA",
+  dep: "KPBI",
+  tas: 420,
+  fpAlt: 28000,
+  deptime: "1200",
+  route: "DCT",
+};
+const connectedGround = {
+  ...prefileGround,
+  callsign: "GND01",
+  prefile: false,
+  lat: 26.68,
+  lon: -80.10,
+};
+assert(!isConnectedPilot(prefileGround), "prefile flagged as not connected");
+assert(isConnectedPilot(connectedGround), "connected ground pilot");
+
+const edctSeq = computeSequence(
+  { ...FCA_SB, dir: "any" },
+  [connectedGround],
+  [prefileGround],
+  { includeEdct: true },
+);
+const edctCs = edctSeq.items.map(c => c.p.callsign);
+assert(edctCs.includes("GND01"), "connected ground in EDCT sequence");
+assert(!edctCs.includes("PREF01"), "prefile excluded from EDCT sequence");
 
 console.log("test-fca-metering: all passed (" + cs.length + " in seq)");

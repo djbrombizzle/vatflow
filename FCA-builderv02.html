@@ -1124,7 +1124,7 @@ function lineLengthNm(pts){
 const seqCache=new Map();
 function invalidateSequences(){ seqCache.clear(); }
 function computeSequence(fca){
-  return computeSequenceCore(fca, state.pilots, state.prefiles, { includeEdct: state.layers.edct });
+  return computeSequenceCore(fca, state.pilots, [], { includeEdct: state.layers.edct });
 }
 function getSequence(fca){
   let s=seqCache.get(fca.id);
