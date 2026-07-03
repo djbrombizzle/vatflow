@@ -130,13 +130,14 @@
 
 <main id="main"></main>
 
+<script src="shared/vatflow-control-store.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 "use strict";
 
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
-  loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures,
+  loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
 } from "./shared/fca-metering.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
@@ -146,7 +147,7 @@ const LS_FIELD = "towerDepIcao";
 const REFRESH_SEC = 20;
 
 const CONTROL_PASSWORD_LOCAL = "";
-let controllerUnlocked = false;
+let controllerUnlocked = VatflowControl.load();
 function canControl() { return controllerUnlocked; }
 
 const state = {
@@ -155,7 +156,6 @@ const state = {
   pilots: [],
   prefiles: [],
   feed: "init",
-  towerOrder: {},
   countdown: REFRESH_SEC,
 };
 
@@ -167,30 +167,24 @@ const DEMO_AIRPORTS = {
 };
 seedAirports(DEMO_AIRPORTS);
 
-function towerOrderKey(icao, fcaId) { return `towerDepOrder.${icao}.${fcaId}`; }
-
-function loadTowerOrders(icao) {
-  const out = {};
-  for (const f of state.fcas) {
-    if (!f.id) continue;
-    try {
-      const arr = JSON.parse(localStorage.getItem(towerOrderKey(icao, f.id)) || "[]");
-      out[f.id] = Array.isArray(arr) ? arr : [];
-    } catch (_) { out[f.id] = []; }
-  }
-  return out;
-}
-
-function saveTowerOrder(icao, fcaId, order) {
-  try { localStorage.setItem(towerOrderKey(icao, fcaId), JSON.stringify(order)); } catch (_) {}
-}
-
 function normalizeFca(f) {
   if (!f) return null;
   if (!f.id) f.id = "fca_" + Date.now();
   if (!Array.isArray(f.points)) f.points = [];
+  if (!Array.isArray(f.order)) f.order = [];
   if (f.enabled == null) f.enabled = true;
   return f;
+}
+
+function persistLocalFcas() {
+  try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
+}
+
+function cloudPush(fca) {
+  persistLocalFcas();
+  if (!canControl() || !sb) return;
+  sb.from("fcas").upsert({ id: fca.id, data: fca, updated_at: new Date().toISOString() })
+    .then(({ error }) => { if (error) console.warn("tower push:", error); });
 }
 
 function loadLocalFcas() {
@@ -226,7 +220,7 @@ function initSync() {
   sb.from("fcas").select("*").then(({ data, error }) => {
     if (error) { console.warn(error); setSyncStatus("error"); return; }
     state.fcas = (data || []).map(r => normalizeFca(r.data || {}));
-    try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
+    persistLocalFcas();
     setSyncStatus("connected");
     render();
   });
@@ -235,7 +229,7 @@ function initSync() {
       sb.from("fcas").select("*").then(({ data }) => {
         if (data) {
           state.fcas = data.map(r => normalizeFca(r.data || {}));
-          try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
+          persistLocalFcas();
           if (!stripDragging) render();
         }
       });
@@ -307,13 +301,12 @@ function gapLabel(gapMin, isLeader) {
   return gapMin.toFixed(1) + " min";
 }
 
-function moveTowerOrder(fcaId, orderCS, from, to) {
-  if (!canControl() || from === to) return;
-  const arr = orderCS.slice();
-  const [m] = arr.splice(from, 1);
-  arr.splice(to, 0, m);
-  saveTowerOrder(state.field, fcaId, arr);
-  state.towerOrder[fcaId] = arr;
+function moveTowerOrder(fcaId, fromCs, toCs) {
+  if (!canControl() || fromCs === toCs) return;
+  const fca = state.fcas.find(f => f.id === fcaId);
+  if (!fca) return;
+  fca.order = reorderFcaGlobalOrder(fca, state.pilots, state.prefiles, fromCs, toCs);
+  cloudPush(fca);
   render();
 }
 
@@ -343,8 +336,7 @@ function render() {
     return;
   }
 
-  state.towerOrder = loadTowerOrders(state.field);
-  const result = computeTowerDepartures(state.field, state.fcas, state.pilots, state.prefiles, state.towerOrder);
+  const result = computeTowerDepartures(state.field, state.fcas, state.pilots, state.prefiles);
   const meteredSet = new Set(result.departures.map(d => d.callsign));
   const unmetered = [];
   const seen = new Set();
@@ -373,7 +365,7 @@ function render() {
   }
 
   html += `<div class="seqhint">${canControl()
-    ? "⠿ drag # to reorder your local queue (per FCA) · EDCT ignores filed departure time"
+    ? "⠿ drag # to reorder — syncs to FCA Builder global sequence · EDCT ignores filed departure time"
     : "View only — unlock with the control password to reorder departures"}</div>`;
 
   html += `<div class="tablewrap"><table><thead><tr>` +
@@ -422,12 +414,6 @@ function render() {
 
   if (!canControl()) return;
 
-  const orderByFca = {};
-  for (const d of rows) {
-    if (!orderByFca[d.fcaId]) orderByFca[d.fcaId] = [];
-    orderByFca[d.fcaId].push(d.callsign);
-  }
-
   const tbody = document.getElementById("depBody");
   const meteredRows = [...tbody.querySelectorAll("tr.metered")];
   let dragFrom = null, dragFca = null;
@@ -459,12 +445,9 @@ function render() {
       tr.classList.remove("dragover");
       const targetFca = tr.getAttribute("data-fca");
       if (dragFrom == null || dragFrom === visIdx || targetFca !== dragFca) return;
-      const orderCS = orderByFca[dragFca] || [];
       const fromCs = meteredRows[dragFrom].getAttribute("data-cs");
       const toCs = tr.getAttribute("data-cs");
-      const fromIdx = orderCS.indexOf(fromCs);
-      const toIdx = orderCS.indexOf(toCs);
-      if (fromIdx >= 0 && toIdx >= 0) moveTowerOrder(dragFca, orderCS, fromIdx, toIdx);
+      moveTowerOrder(dragFca, fromCs, toCs);
     });
   });
 }
@@ -475,7 +458,6 @@ function activateField(icao) {
   state.field = icao;
   try { localStorage.setItem(LS_FIELD, icao); } catch (_) {}
   document.getElementById("fieldInput").value = icao;
-  state.towerOrder = loadTowerOrders(icao);
   render();
 }
 
@@ -487,6 +469,7 @@ function updateLockUI() {
 
 function setControl(on) {
   controllerUnlocked = on;
+  VatflowControl.save(on);
   updateLockUI();
   render();
 }
@@ -508,7 +491,7 @@ function showPwEntry() {
 }
 
 function attemptUnlock(pw) {
-  if (CONTROL_PASSWORD_LOCAL === "" || pw === CONTROL_PASSWORD_LOCAL) {
+  if (VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)) {
     lockMsg.textContent = "";
     setControl(true);
   } else {

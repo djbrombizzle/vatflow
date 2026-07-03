@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
+<script src="shared/vatflow-control-store.js"></script>
 <style>
 /* VATFLOW design system — injected into vatflow-tbfm v2.html */
 :root {
@@ -902,7 +903,7 @@ let tmuSub = "programs";  // TMU page sub-tab: programs | calc
    Off the hub (Firebase/local), it is checked against CONTROL_PASSWORD_LOCAL below (a soft gate).
    Keep identical in FCA-builderv02.html. */
 const CONTROL_PASSWORD_LOCAL = "";   // <-- optional: set a password for local/Firebase use
-let controllerUnlocked = false;      // false = view only
+let controllerUnlocked = VatflowControl.load();      // false = view only
 let ctrlPw = null;                   // entered password held in memory for hub auth
 function canControl() { return controllerUnlocked; }
 const groundStops = [];     // ground stop entries (shared): {id,airport,scope,until,updated,flashUntil}
@@ -4962,6 +4963,7 @@ function showPwEntry() {
 }
 function setControl(on) {
   controllerUnlocked = on;
+  VatflowControl.save(on);
   updateLockUI();
   renderContent();
 }
@@ -4984,7 +4986,7 @@ function attemptUnlock(pw) {
     return;
   }
   /* off the hub: check the local password constant (soft gate) */
-  if (CONTROL_PASSWORD_LOCAL === "" || pw === CONTROL_PASSWORD_LOCAL) {
+  if (VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)) {
     lockMsg.textContent = ""; setControl(true);
   } else {
     ctrlPw = null;
