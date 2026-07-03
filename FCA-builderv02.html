@@ -146,7 +146,7 @@
   .sector-th-row input{width:42px;background:#0f151e;border:1px solid var(--line);border-radius:4px;color:var(--text);
     font-family:var(--mono);font-size:10px;padding:3px 4px;text-align:center}
   .sector-th-row input:focus{outline:none;border-color:var(--amber)}
-  .sector-th-list{max-height:160px;overflow-y:auto;margin-top:6px;padding-right:4px}
+  .sector-th-list{max-height:220px;overflow-y:auto;margin-top:6px;padding-right:4px}
   .sector-th-list::-webkit-scrollbar{width:6px}
   .sector-th-list::-webkit-scrollbar-thumb{background:#22303d;border-radius:3px}
   .chk-row{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--muted);margin:6px 0 8px;cursor:pointer}
@@ -292,30 +292,36 @@
       </div>
       <div class="toggle" data-layer="sectors"><span>ERAM sectors</span><div class="sw-track"><div class="sw-knob"></div></div></div>
       <div id="sectorArtccWrap" style="margin:4px 0 10px;display:none">
-        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted)">Sector ARTCC</div>
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted)">Map filter · sector ARTCC</div>
         <select id="sectorArtcc"><option value="ALL">ALL centers</option></select>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:5px;line-height:1.5">Individual ERAM sectors (vIFF/PERTI) · USA only · not official FAA</div>
-        <div id="sectorLoadWrap" class="sector-th-panel" style="margin-top:10px;display:none">
-          <div class="toggle" data-layer="sectorLoad" style="padding:0 0 8px"><span>Traffic load colors</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
-          <div class="sub">DEFAULT THRESHOLDS · airborne only</div>
-          <div class="grid2">
-            <div class="fld" style="margin:0"><label>Green ≤</label><input id="thGlobalGreen" type="number" min="0" max="99" value="5"></div>
-            <div class="fld" style="margin:0"><label>Yellow ≤</label><input id="thGlobalYellow" type="number" min="0" max="99" value="10"></div>
-          </div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:4px;line-height:1.5">Red = above yellow · hover a sector for count</div>
-          <div id="sectorThArtccBlock" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-            <div class="sub" id="sectorThArtccTitle">ARTCC THRESHOLDS</div>
-            <label class="chk-row"><input type="checkbox" id="thArtccCustom"> Custom for this center</label>
+      </div>
+      <div id="sectorLoadWrap" class="sector-th-panel" style="margin:6px 0 10px;display:none">
+        <div class="toggle" data-layer="sectorLoad" style="padding:0 0 8px"><span>Traffic load colors</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
+        <div class="sub">GLOBAL DEFAULTS</div>
+        <div class="grid2">
+          <div class="fld" style="margin:0"><label>Green ≤</label><input id="thGlobalGreen" type="number" min="0" max="99" value="5"></div>
+          <div class="fld" style="margin:0"><label>Yellow ≤</label><input id="thGlobalYellow" type="number" min="0" max="99" value="10"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:4px;line-height:1.5">Red = above yellow · counts match stratum altitude band below</div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+          <div class="sub">CUSTOMIZE THRESHOLDS</div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:4px">Configure for</div>
+          <select id="sectorThScope"><option value="GLOBAL">Global defaults only</option></select>
+          <div id="sectorThArtccBlock" style="display:none;margin-top:10px">
+            <label class="chk-row"><input type="checkbox" id="thArtccCustom"> Override global for this center</label>
             <div class="grid2" id="sectorThArtccInputs" style="opacity:.45;pointer-events:none">
               <div class="fld" style="margin:0"><label>Green ≤</label><input id="thArtccGreen" type="number" min="0" max="99" value="5"></div>
               <div class="fld" style="margin:0"><label>Yellow ≤</label><input id="thArtccYellow" type="number" min="0" max="99" value="10"></div>
             </div>
           </div>
-          <div id="sectorThListBlock" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-            <div class="sub">PER-SECTOR OVERRIDES</div>
+          <div id="sectorThListBlock" style="display:none;margin-top:10px">
+            <div class="sub" id="sectorThListTitle">PER-SECTOR OVERRIDES</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin:0 0 6px;line-height:1.5">G / Y = green &amp; yellow max · blank = inherit · sorted by count</div>
             <div class="sector-th-list" id="sectorThList"></div>
           </div>
         </div>
+        <div id="sectorAltBand" style="font-family:var(--mono);font-size:9px;color:var(--cyan);margin-top:10px;line-height:1.5"></div>
       </div>
       <div class="toggle" data-layer="labels"><span>ARTCC labels</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="traffic"><span>Live traffic</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
@@ -397,6 +403,7 @@ const state = {
   prefiles: [],            // prefiled flight plans (not yet connected)
   feed: "init",            // init | live | demo | dead
   layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
+  sectorThScope: "GLOBAL",
   sectorCounts: {},
   sectorThresholds: { global:{ greenMax:5, yellowMax:10 }, artcc:{}, sector:{} },
   countdown: REFRESH_SEC,
@@ -445,6 +452,19 @@ const boundaryCache = { LOW:null, HIGH:null, UTA:null, vatspy:null };
 const sectorCache = { LOW:null, HIGH:null, UTA:null };
 const sectorIndex = { LOW:[], HIGH:[], UTA:[] };
 const LS_THRESH_KEY = "fcaBuilder.sectorThresholds.v1";
+const STRATUM_ALT_BAND = {
+  LOW:  { label:"LOW · airborne ≤ FL230", min:0, max:23000 },
+  HIGH: { label:"HIGH · airborne FL240–FL340", min:24000, max:34000 },
+  UTA:  { label:"ULTRA HIGH · airborne FL350+", min:35000, max:Infinity },
+};
+function pilotMatchesStratum(alt, stratum){
+  const band=STRATUM_ALT_BAND[stratum]||STRATUM_ALT_BAND.LOW;
+  const ft=alt||0;
+  return ft>=band.min&&ft<=band.max;
+}
+function stratumAltHint(stratum){
+  return (STRATUM_ALT_BAND[stratum]||STRATUM_ALT_BAND.LOW).label;
+}
 const ARTCC_LIST = [...US_ARTCC].sort();
 
 function normArtccId(props){
@@ -519,6 +539,20 @@ function populateSectorArtccSelect(){
     ARTCC_LIST.map(id=>`<option value="${id}">${id}</option>`).join("");
   sel.value=ARTCC_LIST.includes(cur)?cur:"ALL";
   if(sel.value!==cur) state.layers.sectorArtcc=sel.value;
+  const scopeSel=document.getElementById("sectorThScope");
+  if(scopeSel){
+    const sc=state.sectorThScope||"GLOBAL";
+    scopeSel.innerHTML='<option value="GLOBAL">Global defaults only</option>'+
+      ARTCC_LIST.map(id=>`<option value="${id}">${id} — center + sectors</option>`).join("");
+    scopeSel.value=ARTCC_LIST.includes(sc)?sc:(sc==="GLOBAL"?"GLOBAL":ARTCC_LIST[0]);
+    if(scopeSel.value!==sc) state.sectorThScope=scopeSel.value;
+  }
+}
+function setSectorPanelsVisible(on){
+  const wrap=document.getElementById("sectorArtccWrap");
+  const load=document.getElementById("sectorLoadWrap");
+  if(wrap) wrap.style.display=on?"block":"none";
+  if(load) load.style.display=on?"block":"none";
 }
 function loadSectorThresholds(){
   try{
@@ -600,7 +634,7 @@ function updateSectorCounts(){
   const filter=state.layers.sectorArtcc||"ALL";
   const sectors=filter==="ALL" ? index : index.filter(s=>s.artcc===filter);
   sectors.forEach(s=>{ counts[s.id]=0; });
-  const pilots=state.pilots.filter(p=>p.lat!=null&&p.lon!=null&&p.phase==="air");
+  const pilots=state.pilots.filter(p=>p.lat!=null&&p.lon!=null&&p.phase==="air"&&pilotMatchesStratum(p.alt,stratum));
   for(const p of pilots){
     const {lat,lon}=p;
     for(const s of sectors){
@@ -616,14 +650,17 @@ function syncThresholdInputs(){
   const ge=document.getElementById("thGlobalGreen"), gy=document.getElementById("thGlobalYellow");
   if(ge) ge.value=g.greenMax;
   if(gy) gy.value=g.yellowMax;
-  const artcc=state.layers.sectorArtcc||"ALL";
+  const stratum=state.layers.artccStratum||"LOW";
+  const altEl=document.getElementById("sectorAltBand");
+  if(altEl) altEl.textContent=stratumAltHint(stratum);
+  const scope=state.sectorThScope||"GLOBAL";
   const artccBlock=document.getElementById("sectorThArtccBlock");
   const listBlock=document.getElementById("sectorThListBlock");
-  const single=artcc!=="ALL";
-  if(artccBlock) artccBlock.style.display=single?"block":"none";
-  if(listBlock) listBlock.style.display=single?"block":"none";
-  if(!single) return;
-  document.getElementById("sectorThArtccTitle").textContent="ARTCC THRESHOLDS · "+artcc;
+  const customArtcc=scope!=="GLOBAL";
+  if(artccBlock) artccBlock.style.display=customArtcc?"block":"none";
+  if(listBlock) listBlock.style.display=customArtcc?"block":"none";
+  if(!customArtcc) return;
+  const artcc=scope;
   const custom=!!state.sectorThresholds.artcc[artcc];
   const chk=document.getElementById("thArtccCustom");
   const inputs=document.getElementById("sectorThArtccInputs");
@@ -633,13 +670,16 @@ function syncThresholdInputs(){
   const ag=document.getElementById("thArtccGreen"), ay=document.getElementById("thArtccYellow");
   if(ag) ag.value=th.greenMax;
   if(ay) ay.value=th.yellowMax;
+  const listTitle=document.getElementById("sectorThListTitle");
+  if(listTitle) listTitle.textContent="PER-SECTOR OVERRIDES · "+artcc;
   renderSectorThresholdList();
 }
 function renderSectorThresholdList(){
   const list=document.getElementById("sectorThList");
   if(!list) return;
-  const artcc=state.layers.sectorArtcc||"ALL";
-  if(artcc==="ALL"){ list.innerHTML=""; return; }
+  const scope=state.sectorThScope||"GLOBAL";
+  if(scope==="GLOBAL"){ list.innerHTML=""; return; }
+  const artcc=scope;
   const stratum=state.layers.artccStratum||"LOW";
   const sectors=(sectorIndex[stratum]||[]).filter(s=>s.artcc===artcc)
     .sort((a,b)=>(state.sectorCounts[b.id]||0)-(state.sectorCounts[a.id]||0)||a.id.localeCompare(b.id));
@@ -703,7 +743,8 @@ function renderSectors(){
     const th=getSectorThreshold(sid, artcc);
     const cls=loadOn?loadClassForCount(count,th):null;
     const style=cls?SECTOR_LOAD_STYLE[cls]:SECTOR_STYLE;
-    const tip=label+" · "+stratum+(loadOn?" · "+count+" ac · "+cls.toUpperCase():"");
+    const altBand=stratumAltHint(stratum).split("·")[1]?.trim()||"";
+    const tip=label+" · "+stratum+(loadOn?" · "+count+" ac · "+cls.toUpperCase()+(altBand?" · "+altBand:""):"");
     L.geoJSON(f,{ style })
       .bindTooltip(tip,{sticky:true,className:"artcc-label",direction:"center"})
       .addTo(sectorLayer);
@@ -1882,10 +1923,15 @@ document.querySelectorAll("#artccStratum button").forEach(b=>b.addEventListener(
   document.querySelectorAll("#artccStratum button").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");
   renderArtccBoundaries();
+  syncThresholdInputs();
 }));
 document.getElementById("sectorArtcc").addEventListener("change",e=>{
   state.layers.sectorArtcc=e.target.value;
   renderSectors();
+});
+document.getElementById("sectorThScope").addEventListener("change",e=>{
+  state.sectorThScope=e.target.value;
+  syncThresholdInputs();
 });
 
 function applyGlobalThresholds(){
@@ -1898,8 +1944,8 @@ function applyGlobalThresholds(){
   else syncThresholdInputs();
 }
 function applyArtccThresholds(){
-  const artcc=state.layers.sectorArtcc||"ALL";
-  if(artcc==="ALL") return;
+  const artcc=state.sectorThScope||"GLOBAL";
+  if(artcc==="GLOBAL") return;
   const custom=document.getElementById("thArtccCustom")?.checked;
   if(!custom){ delete state.sectorThresholds.artcc[artcc]; }
   else {
@@ -1933,9 +1979,9 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
     state.layers[key]=on;
     if(key==="artcc"){ on?map.addLayer(artccLayer):map.removeLayer(artccLayer); if(on) renderArtccBoundaries(); }
     if(key==="sectors"){
-      document.getElementById("sectorArtccWrap").style.display=on?"block":"none";
+      setSectorPanelsVisible(on);
       on?map.addLayer(sectorLayer):map.removeLayer(sectorLayer);
-      if(on) renderSectors();
+      if(on){ syncThresholdInputs(); renderSectors(); }
     }
     if(key==="sectorLoad"&&state.layers.sectors) renderSectors();
     if(key==="labels") on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
@@ -2159,6 +2205,8 @@ function hideToast(){ clearTimeout(toastTimer); document.getElementById("toast")
 setFeed("init");
 loadSectorThresholds();
 loadLocal();               // restore FCAs from the last session
+populateSectorArtccSelect();
+syncThresholdInputs();
 renderAll();
 startFeedLoop();
 initSync();
