@@ -137,25 +137,31 @@ async function buildFromSquawk() {
     if (typ !== "SID" && typ !== "STAR") continue;
     const id = (p.identifier || p.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (!id || id.length < 4) continue;
-    const legs = [];
-    const pushLeg = leg => {
+    const pushLeg = (arr, leg) => {
       if (!leg || !isFinite(leg.lat) || !isFinite(leg.lon)) return;
       if (!inConus(leg.lat, leg.lon)) return;
       const fix = (leg.fixIdentifier || "").toUpperCase();
-      legs.push([fix, roundCoord(leg.lat), roundCoord(leg.lon)]);
+      arr.push([fix, roundCoord(leg.lat), roundCoord(leg.lon)]);
       if (fix) addCandidate(fixes, fix, leg.lat, leg.lon);
     };
+    const common = [];
     for (const route of p.commonRoutes || []) {
-      for (const leg of route.legs || []) pushLeg(leg);
+      for (const leg of route.legs || []) pushLeg(common, leg);
     }
+    const transitions = {};
     for (const tr of p.transitions || []) {
-      for (const leg of tr.legs || []) pushLeg(leg);
+      const tname = (tr.name || tr.identifier || "").toUpperCase();
+      if (!tname) continue;
+      const tlegs = [];
+      for (const leg of tr.legs || []) pushLeg(tlegs, leg);
+      if (tlegs.length >= 2) transitions[tname] = tlegs;
     }
-    if (legs.length < 2) continue;
+    if (common.length < 2 && !Object.keys(transitions).length) continue;
     procedures[id] = {
       type: typ,
       apt: (p.airports || []).map(a => a.toUpperCase()),
-      w: legs,
+      common,
+      transitions,
     };
     const base = id.replace(/\d+[A-Z]?$/, "");
     if (base.length >= 4 && !procedures[base]) procedures[base] = procedures[id];

@@ -81,23 +81,20 @@ export function resolveToken(name, ctx = {}) {
 
   if (procedures[id]) {
     const proc = procedures[id];
-    const w = proc.w;
-    if (w && w.length) {
-      const ll = [w[0][1], w[0][2]];
+    const legs = proc.common?.length >= 2 ? proc.common : (proc.transitions && Object.values(proc.transitions)[0]);
+    if (legs && legs.length) {
+      const ll = [legs[0][1], legs[0][2]];
       return { name: id, ll, kind: proc.type === "STAR" ? "star" : "sid", procedure: proc };
     }
   }
 
   const prefix = id.match(/^([A-Z]{3,6})\d[A-Z]?$/);
   if (prefix) {
-    const pfx = prefix[1];
-    const matches = Object.keys(procedures).filter(k => k.startsWith(pfx) && procedures[k].type);
-    if (matches.length) {
-      const key = matches.find(k => k === id) || matches.sort((a, b) => a.length - b.length)[0];
-      const proc = procedures[key];
-      const w = proc.w;
-      if (w && w.length) {
-        const ll = [w[0][1], w[0][2]];
+    const proc = findProcedure(id);
+    if (proc) {
+      const legs = proc.common?.length >= 2 ? proc.common : (proc.transitions && Object.values(proc.transitions)[0]);
+      if (legs && legs.length) {
+        const ll = [legs[0][1], legs[0][2]];
         return { name: id, ll, kind: proc.type === "STAR" ? "star" : "sid", procedure: proc };
       }
     }
@@ -106,15 +103,52 @@ export function resolveToken(name, ctx = {}) {
   return null;
 }
 
-function expandProcedure(proc, ctx) {
-  if (!proc || !proc.w || proc.w.length < 2) return [];
-  const out = [];
-  for (const leg of proc.w) {
-    const name = leg[0] || "";
-    const ll = [leg[1], leg[2]];
-    out.push({ name, ll, kind: proc.type === "STAR" ? "star" : "sid" });
+function findProcedure(id) {
+  const key = cleanToken(id);
+  if (!key) return null;
+  if (procedures[key]) return procedures[key];
+  const m = key.match(/^([A-Z]{3,6})\d[A-Z]?$/);
+  if (!m) return null;
+  const pfx = m[1];
+  const matches = Object.keys(procedures).filter(k => k.startsWith(pfx) && procedures[k].type);
+  if (!matches.length) return null;
+  const pick = matches.find(k => k === key) || matches.sort((a, b) => a.length - b.length)[0];
+  return procedures[pick] || null;
+}
+
+function isProcedureId(tok) {
+  return !!findProcedure(tok);
+}
+
+function mergeProcedureLegs(transLegs, commonLegs) {
+  if (!transLegs?.length) return commonLegs || [];
+  if (!commonLegs?.length) return transLegs;
+  const out = transLegs.slice();
+  const lastFix = transLegs[transLegs.length - 1][0];
+  let start = 0;
+  if (commonLegs[0][0] === lastFix) start = 1;
+  return out.concat(commonLegs.slice(start));
+}
+
+function expandProcedure(proc, ctx = {}) {
+  if (!proc) return [];
+  const kind = proc.type === "STAR" ? "star" : "sid";
+  let legs = [];
+  const trName = ctx.transition ? cleanToken(ctx.transition) : null;
+  if (trName && proc.transitions && proc.transitions[trName]) {
+    legs = mergeProcedureLegs(proc.transitions[trName], proc.common || []);
+  } else if (proc.common?.length >= 2) {
+    legs = proc.common;
+  } else if (proc.w?.length >= 2) {
+    legs = proc.w;
+  } else {
+    return [];
   }
-  return out;
+  return legs.map(leg => ({
+    name: leg[0] || "",
+    ll: [leg[1], leg[2]],
+    kind,
+  }));
 }
 
 function nearestWpIndex(wps, ll) {
@@ -191,6 +225,11 @@ export function buildRouteAnchors(p, opts = {}) {
   for (let i = 0; i < tokens.length; i++) {
     const raw = tokens[i];
     const tok = cleanToken(raw);
+    const nextTok = i + 1 < tokens.length ? cleanToken(tokens[i + 1]) : "";
+    const nextProc = nextTok ? findProcedure(nextTok) : null;
+
+    // Transition fix before STAR/SID — consumed by procedure expansion, not a standalone point
+    if (nextProc && nextProc.transitions && nextProc.transitions[tok]) continue;
 
     if (isAirwayToken(tok)) {
       let toLL = null;
@@ -212,14 +251,11 @@ export function buildRouteAnchors(p, opts = {}) {
       continue;
     }
 
-    const resolved = resolveToken(tok, { refLL, dep, arr });
-    if (!resolved) {
-      if (!hasAirportFn(tok) && tok.length >= 2) unresolved.push(tok);
-      continue;
-    }
-
-    if (resolved.procedure) {
-      const legs = expandProcedure(resolved.procedure, { refLL });
+    const proc = findProcedure(tok);
+    if (proc) {
+      const prevTok = i > 0 ? cleanToken(tokens[i - 1]) : "";
+      const transition = proc.transitions?.[prevTok] ? prevTok : null;
+      const legs = expandProcedure(proc, { transition, refLL });
       for (const pt of legs) {
         const last = anchors[anchors.length - 1];
         if (!last || last.ll[0] !== pt.ll[0] || last.ll[1] !== pt.ll[1]) {
@@ -227,6 +263,12 @@ export function buildRouteAnchors(p, opts = {}) {
           refLL = pt.ll;
         }
       }
+      continue;
+    }
+
+    const resolved = resolveToken(tok, { refLL, dep, arr });
+    if (!resolved) {
+      if (!hasAirportFn(tok) && tok.length >= 2) unresolved.push(tok);
       continue;
     }
 
