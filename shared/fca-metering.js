@@ -4,6 +4,7 @@
 import {
   bindAirports as bindRouteAirports,
   buildRouteAnchors,
+  buildRouteAnchorsForAircraft,
   buildRoutePathLLs,
   buildRouteSegments,
   isNavReady,

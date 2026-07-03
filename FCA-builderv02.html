@@ -436,7 +436,7 @@ import {
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
-import { buildRouteAnchors, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
+import { buildRouteAnchorsForAircraft, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
 
 /* ============================================================
@@ -1951,11 +1951,10 @@ function clearMeasure(){ measureLayer.clearLayers(); state.measure.points=[]; }
 function routeAnchors(p){
   if(isNavReady()){
     const dep=getAirport(p.dep), arr=getAirport(p.arr);
-    const {anchors}=buildRouteAnchors(p,{
-      origin:dep,
-      destination:arr,
-      includeNow:p.lat!=null && p.phase!=="gnd",
-    });
+    const airborne=p.lat!=null && p.phase!=="gnd";
+    const {anchors}=airborne
+      ? buildRouteAnchorsForAircraft(p,{origin:dep,destination:arr,includeNow:true})
+      : buildRouteAnchorsForAircraft(p,{origin:dep,destination:arr,includeNow:false});
     return anchors;
   }
   const A=[], dep=getAirport(p.dep), arr=getAirport(p.arr);
@@ -1984,11 +1983,16 @@ function drawRouteLine(p){
     dist+=haversineNm(A[i].ll[0],A[i].ll[1],A[i+1].ll[0],A[i+1].ll[1]);
     const seg=gcLine(A[i].ll,A[i+1].ll); if(i>0) seg.shift(); coords=coords.concat(seg);
   }
-  L.polyline(coords,{color:"#8ab4ff",weight:2,opacity:.9,dashArray:"6 4"}).addTo(routeLayer);
-  A.forEach(a=>{
+  if(coords.length>=2){
+    L.polyline(coords,{color:"#8ab4ff",weight:2,opacity:.9,dashArray:"6 4"}).addTo(routeLayer);
+  }
+  A.forEach((a,i)=>{
     const col=anchorColor(a.kind);
-    L.circleMarker(a.ll,{radius:a.kind==="apt"?4:3,color:col,fillColor:"#0a0e14",fillOpacity:1,weight:2})
-      .bindTooltip(a.name,{className:"artcc-label",direction:"top"}).addTo(routeLayer);
+    const isNow=a.kind==="now";
+    L.circleMarker(a.ll,{
+      radius:isNow?5:(a.kind==="apt"?4:3),
+      color:col,fillColor:isNow?"#49d3e6":"#0a0e14",fillOpacity:1,weight:isNow?3:2,
+    }).bindTooltip(isNow?"position":a.name,{className:"artcc-label",direction:"top"}).addTo(routeLayer);
   });
   return dist;
 }
@@ -2003,7 +2007,10 @@ function renderRouteInfo(p,dist){
   let unresolved=[];
   if(isNavReady()){
     const dep=getAirport(p.dep), arr=getAirport(p.arr);
-  const r=buildRouteAnchors(p,{origin:dep,destination:arr,includeNow:p.lat!=null&&p.phase!=="gnd"});
+    const airborne=p.lat!=null && p.phase!=="gnd";
+    const r=airborne
+      ? buildRouteAnchorsForAircraft(p,{origin:dep,destination:arr,includeNow:true})
+      : buildRouteAnchorsForAircraft(p,{origin:dep,destination:arr,includeNow:false});
     unresolved=r.unresolved||[];
   } else {
     const fixish=toks.map(t=>t.replace(/\/.*$/,"")).filter(t=>t.length>=2 && !/^[A-Z]{1,2}\d/.test(t) && !hasAirport(t));

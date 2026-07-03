@@ -13,6 +13,7 @@ import {
   resolveToken,
   expandAirway,
   buildRouteAnchors,
+  buildRouteAnchorsForAircraft,
   buildRouteSegments,
 } from "../shared/route-engine.js";
 
@@ -26,6 +27,8 @@ const AIRPORTS = {
   KORD: [41.9742, -87.9073],
   KBHM: [33.5629, -86.7535],
   KTPA: [27.9755, -82.5332],
+  KBOS: [42.3656, -71.0096],
+  KTYS: [35.811, -83.994],
 };
 
 bindAirports(
@@ -99,6 +102,27 @@ assert(maatyNames.includes("MAATY"), "MAATY common should be in path");
 assert(!maatyNames.includes("BADDD"), "BADDD transition should not appear");
 assert(!maatyNames.includes("DEFUN"), "DEFUN transition should not appear");
 console.log("MAATY5/ACORI:", maatyNames.join(" → "));
+
+// Airborne: only plot fixes ahead of position (not back to departure)
+const pAir = {
+  dep: "KBOS",
+  arr: "KTYS",
+  route: "BLZZR6 BLZZR BAF Q448 PTW J48 CSN FANPO Q40 ALEAN VXV",
+  lat: 38.5,
+  lon: -78.0,
+  hdg: 220,
+  phase: "air",
+};
+const ahead = buildRouteAnchorsForAircraft(pAir, {
+  origin: AIRPORTS.KBOS,
+  destination: AIRPORTS.KTYS,
+  includeNow: true,
+});
+const aheadNames = ahead.anchors.map(a => a.name);
+assert(aheadNames[0] === "NOW", "first anchor should be NOW");
+assert(!aheadNames.includes("KBOS"), "departure should not be behind aircraft on map");
+assert(!aheadNames.includes("BLZZR"), "passed SID fix should not appear behind aircraft");
+console.log("ahead route:", aheadNames.join(" → "));
 
 // STAR prefix match (CHPPR6 → CHPPR* family)
 const star = resolveToken("CHPPR6", { refLL: AIRPORTS.KATL, dep: "KATL", arr: "KJFK" });
