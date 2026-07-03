@@ -24,6 +24,8 @@ const AIRPORTS = {
   KJFK: [40.6398, -73.7789],
   KLAX: [33.9425, -118.4081],
   KORD: [41.9742, -87.9073],
+  KBHM: [33.5629, -86.7535],
+  KTPA: [27.9755, -82.5332],
 };
 
 bindAirports(
@@ -82,6 +84,21 @@ const segs = buildRouteSegments(p, { origin: AIRPORTS.KLAX, destination: AIRPORT
 assert(segs.length >= 2, "should produce segments");
 const totalNm = segs.reduce((s, x) => s + x.distNm, 0);
 assert(totalNm > 2000, "LAX-JFK via route should be >2000nm, got " + totalNm);
+
+// STAR with named transition only (not all transitions)
+const pMaaty = {
+  dep: "KBHM",
+  arr: "KTPA",
+  route: "GUMMP MGMRY ACORI MAATY5",
+  phase: "gnd",
+};
+const maaty = buildRouteAnchors(pMaaty, { origin: AIRPORTS.KBHM, destination: AIRPORTS.KTPA });
+const maatyNames = maaty.anchors.map(a => a.name);
+assert(maatyNames.includes("ACORI"), "ACORI transition should be in path");
+assert(maatyNames.includes("MAATY"), "MAATY common should be in path");
+assert(!maatyNames.includes("BADDD"), "BADDD transition should not appear");
+assert(!maatyNames.includes("DEFUN"), "DEFUN transition should not appear");
+console.log("MAATY5/ACORI:", maatyNames.join(" → "));
 
 // STAR prefix match (CHPPR6 → CHPPR* family)
 const star = resolveToken("CHPPR6", { refLL: AIRPORTS.KATL, dep: "KATL", arr: "KJFK" });
