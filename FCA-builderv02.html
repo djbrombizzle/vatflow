@@ -336,8 +336,8 @@
       <div style="margin:6px 0 10px">
         <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">ARTCC stratum</div>
         <div class="seg" id="artccStratum">
-          <button data-s="LOW" class="on">LOW</button>
-          <button data-s="HIGH">HIGH</button>
+          <button data-s="LOW">LOW</button>
+          <button data-s="HIGH" class="on">HIGH</button>
           <button data-s="UTA">ULTRA HIGH</button>
         </div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:5px;line-height:1.5">LOW = ERAM ground · HIGH/UTA = FAA NASR · may differ from VATSIM FIR charts</div>
@@ -473,7 +473,7 @@ const state = {
   pilots: [],              // connected aircraft (air + ground)
   prefiles: [],            // prefiled flight plans (not yet connected)
   feed: "init",            // init | live | demo | dead
-  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
+  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"HIGH", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
   sectorThScope: "GLOBAL",
   sectorCounts: {},
   sectorAircraft: {},
@@ -586,7 +586,7 @@ function renderArtccBoundaries(){
   artccLayer.clearLayers();
   labelLayer.clearLayers();
   if(!state.layers.artcc) return;
-  const stratum=state.layers.artccStratum||"LOW";
+  const stratum=state.layers.artccStratum||"HIGH";
   const gj=boundaryCache[stratum];
   const drawn=new Set();
   if(gj){
@@ -700,7 +700,7 @@ function buildSectorIndex(stratum, gj){
   }).filter(s=>s.id&&s.rings.length);
 }
 function updateSectorCounts(){
-  const stratum=state.layers.artccStratum||"LOW";
+  const stratum=state.layers.artccStratum||"HIGH";
   const index=sectorIndex[stratum];
   const counts={};
   const aircraft={};
@@ -727,7 +727,7 @@ function renderSectorPanel(){
   const el=document.getElementById("sectorPopup");
   if(!el||!state.openSectorId){ closeSectorPanel(); return; }
   const sid=state.openSectorId;
-  const stratum=state.layers.artccStratum||"LOW";
+  const stratum=state.layers.artccStratum||"HIGH";
   const meta=(sectorIndex[stratum]||[]).find(s=>s.id===sid);
   if(!meta){ closeSectorPanel(); return; }
   const pilots=(state.sectorAircraft[sid]||[]).slice().sort((a,b)=>a.callsign.localeCompare(b.callsign));
@@ -769,7 +769,7 @@ function syncThresholdInputs(){
   const ge=document.getElementById("thGlobalGreen"), gy=document.getElementById("thGlobalYellow");
   if(ge) ge.value=g.greenMax;
   if(gy) gy.value=g.yellowMax;
-  const stratum=state.layers.artccStratum||"LOW";
+  const stratum=state.layers.artccStratum||"HIGH";
   const altEl=document.getElementById("sectorAltBand");
   if(altEl) altEl.textContent=stratumAltHint(stratum);
   const scope=state.sectorThScope||"GLOBAL";
@@ -799,7 +799,7 @@ function renderSectorThresholdList(){
   const scope=state.sectorThScope||"GLOBAL";
   if(scope==="GLOBAL"){ list.innerHTML=""; return; }
   const artcc=scope;
-  const stratum=state.layers.artccStratum||"LOW";
+  const stratum=state.layers.artccStratum||"HIGH";
   const sectors=(sectorIndex[stratum]||[]).filter(s=>s.artcc===artcc)
     .sort((a,b)=>(state.sectorCounts[b.id]||0)-(state.sectorCounts[a.id]||0)||a.id.localeCompare(b.id));
   list.innerHTML=sectors.map(s=>{
@@ -849,7 +849,7 @@ function renderSectorThresholdList(){
 function renderSectors(){
   sectorLayer.clearLayers();
   if(!state.layers.sectors) return;
-  const stratum=state.layers.artccStratum||"LOW";
+  const stratum=state.layers.artccStratum||"HIGH";
   const gj=sectorCache[stratum];
   if(!gj||!gj.features?.length){
     toast("No "+stratum+" sector data loaded.",2600);
