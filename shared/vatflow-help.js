@@ -84,7 +84,7 @@ export const TOWER_HELP = {
       items: [
         "<b>GAP</b> — minutes behind the previous aircraft at the FCA crossing (leader shows —).",
         "<b>CTA Z</b> — scheduled crossing time at the FCA in Zulu.",
-        "<b>EDCT Z</b> — wheels-up / release time (CTA minus en-route time to the FCA).",
+        "<b>EDCT Z</b> — wheels-up / release time when delay exceeds 1 min; otherwise <b>RELEASED</b> (green).",
         "<b>GLOBAL #</b> — position in the full FCA sequence (all traffic, not just your field).",
         "<b>Not metered</b> — departure does not cross any active FCA on its filed route.",
       ],
