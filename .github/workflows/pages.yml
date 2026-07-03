@@ -25,7 +25,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: https://djbrombizzle.github.io/vatflow/
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,9 +61,47 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deployment.outcome != 'success'
+        run: sleep 30
+
+      - name: Retry Pages deploy (2/4)
+        if: steps.deployment.outcome != 'success'
+        id: deployment2
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deployment.outcome != 'success' && steps.deployment2.outcome != 'success'
+        run: sleep 30
+
+      - name: Retry Pages deploy (3/4)
+        if: steps.deployment.outcome != 'success' && steps.deployment2.outcome != 'success'
+        id: deployment3
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deployment.outcome != 'success' && steps.deployment2.outcome != 'success' && steps.deployment3.outcome != 'success'
+        run: sleep 30
+
+      - name: Retry Pages deploy (4/4)
+        if: steps.deployment.outcome != 'success' && steps.deployment2.outcome != 'success' && steps.deployment3.outcome != 'success'
+        id: deployment4
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Require successful Pages deploy
+        if: steps.deployment.outcome != 'success' && steps.deployment2.outcome != 'success' && steps.deployment3.outcome != 'success' && steps.deployment4.outcome != 'success'
+        run: |
+          echo "::error::GitHub Pages deploy failed after 4 attempts (often a transient GitHub API issue)."
+          echo "Re-run this workflow from the Actions tab, or merge a no-op commit to main."
+          exit 1
 
       - name: Confirm deployment (non-blocking)
-        if: steps.deployment.outcome == 'success'
+        if: steps.deployment.outcome == 'success' || steps.deployment2.outcome == 'success' || steps.deployment3.outcome == 'success' || steps.deployment4.outcome == 'success'
         run: |
           SHA="${{ github.sha }}"
           BASE="https://djbrombizzle.github.io/vatflow"
