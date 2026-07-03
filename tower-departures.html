@@ -621,7 +621,7 @@ function moveTowerOrder(fcaId, fromCs, toCs) {
   if (!canControl() || fromCs === toCs) return;
   const fca = state.fcas.find(f => f.id === fcaId);
   if (!fca) return;
-  fca.order = reorderFcaGlobalOrder(fca, state.pilots, state.prefiles, fromCs, toCs);
+  fca.order = reorderFcaGlobalOrder(fca, state.pilots, [], fromCs, toCs);
   cloudPush(fca);
   refreshAfterReorder(fcaId);
 }
@@ -652,11 +652,11 @@ function render() {
     return;
   }
 
-  const result = computeTowerDepartures(state.field, state.fcas, state.pilots, state.prefiles);
+  const result = computeTowerDepartures(state.field, state.fcas, state.pilots);
   const meteredSet = new Set(result.departures.map(d => d.callsign));
   const unmetered = [];
   const seen = new Set();
-  for (const p of state.pilots.concat(state.prefiles)) {
+  for (const p of state.pilots) {
     if ((p.dep || "").toUpperCase() !== state.field) continue;
     if ((p.gs || 0) > 60 && (p.alt || 0) > 300) continue;
     if (seen.has(p.callsign)) continue;
@@ -833,5 +833,6 @@ startFeedLoop();
   setTimeout(tickClock, 1000 - (Date.now() % 1000));
 })();
 </script>
+<script type="module" src="shared/taxi-monitor-bg.js"></script>
 </body>
 </html>

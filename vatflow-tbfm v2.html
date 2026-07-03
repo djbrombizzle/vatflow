@@ -886,6 +886,7 @@ function saveTaxiMonAirports() {
 }
 function taxiMonHasAirports() { return taxiMonAirports.length > 0; }
 const taxiSessions = {};    // field|callsign -> { airport, phase, startMs, baseAlt, lastGs, lastAlt }
+const TAXI_SESSIONS_KEY = "vatflow_taxi_sessions";
 let taxiHistory = [];       // [{ id, airport, callsign, startMs, endMs, durationMs }]
 try { const savedTaxiHist = localStorage.getItem("vatflow_taxi_history"); if (savedTaxiHist) taxiHistory = JSON.parse(savedTaxiHist) || []; } catch (e) {}
 const TAXI_MON_MAX = 5;
@@ -947,6 +948,9 @@ let dbStatus = "loading";   // loading | full | fallback
 let feedStatus = "idle";    // idle | fetching | ok | error
 let lastFetch = null;
 let pollTimer = null;
+const FEED_POLL_MS = 30000;
+const TAXI_POLL_MS = 10000;
+let pollIntervalMs = FEED_POLL_MS;
 let sortKey = "seq";   // active sort column
 let sortDir = 1;       // 1 asc, -1 desc
 const filters = {};    // column key -> filter string
@@ -1803,9 +1807,11 @@ fetch(AIRPORT_DB_URL)
 setInterval(fetchWinds, 3600000);   /* refresh winds aloft hourly */
 
 /* ---------- taxi monitor ---------- */
-const TAXI_GS_START = 5;
+const TAXI_GS_START = 7;
 const TAXI_GS_STOP = 60;
 const TAXI_ALT_CLIMB_FT = 100;
+const TAXI_DEP_PROX_NM = 15;       /* ignore departures not near the origin field */
+const TAXI_MIN_SAMPLE_MS = 3000;   /* drop glitch samples shorter than 3s */
 const TAXI_HISTORY_MAX = 200;
 const TAXI_HISTORY_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
@@ -1819,6 +1825,7 @@ function saveTaxiHistory() {
   try { localStorage.setItem("vatflow_taxi_history", JSON.stringify(taxiHistory)); } catch (e) {}
 }
 pruneTaxiHistory();
+loadTaxiSessions();
 
 function fmtTaxiDuration(ms) {
   const sec = Math.max(0, Math.floor(ms / 1000));
@@ -1828,6 +1835,53 @@ function fmtTaxiDuration(ms) {
 }
 
 function taxiSessKey(field, callsign) { return field + "|" + callsign; }
+
+function loadTaxiSessions() {
+  try {
+    const raw = sessionStorage.getItem(TAXI_SESSIONS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) || {};
+    for (const k in parsed) {
+      if (parsed[k] && parsed[k].phase !== "done") taxiSessions[k] = parsed[k];
+    }
+  } catch (e) {}
+}
+
+function saveTaxiSessions() {
+  const o = {};
+  for (const k in taxiSessions) {
+    const s = taxiSessions[k];
+    if (s && s.phase !== "done") o[k] = s;
+  }
+  try { sessionStorage.setItem(TAXI_SESSIONS_KEY, JSON.stringify(o)); } catch (e) {}
+}
+
+function syncTaxiSessionsFromStore() {
+  try {
+    const raw = sessionStorage.getItem(TAXI_SESSIONS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) || {};
+    for (const k of Object.keys(taxiSessions)) {
+      if (!parsed[k] || parsed[k].phase === "done") delete taxiSessions[k];
+    }
+    for (const k in parsed) {
+      if (parsed[k] && parsed[k].phase !== "done") taxiSessions[k] = parsed[k];
+    }
+  } catch (e) {}
+}
+
+function reloadTaxiHistoryFromStore() {
+  try {
+    const raw = localStorage.getItem("vatflow_taxi_history");
+    if (!raw) return;
+    const stored = JSON.parse(raw) || [];
+    const byId = new Map();
+    for (const h of taxiHistory) byId.set(h.id || taxiSampleId(h.airport, h.callsign, h.endMs), h);
+    for (const h of stored) byId.set(h.id || taxiSampleId(h.airport, h.callsign, h.endMs), h);
+    taxiHistory = Array.from(byId.values());
+    pruneTaxiHistory();
+  } catch (e) {}
+}
 
 function taxiSampleId(airport, callsign, endMs) {
   return fbKey(airport + "_" + callsign + "_" + endMs);
@@ -1880,15 +1934,50 @@ function pushTaxiSync(id, entry) {
   if (window.VFSync && window.VFSync.pushTaxiSample) window.VFSync.pushTaxiSample(id, entry);
 }
 
-function isDepartureGround(p, field) {
+function isDepartedForFinish(p, field, sess) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
-  const airborne = p.groundspeed > 60 && (p.altitude || 0) > 300;
-  if (airborne) return false;
+  const gs = p.groundspeed || 0;
+  const alt = p.altitude || 0;
+  if (sess && sess.baseAlt != null) {
+    if (alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT) return true;
+    if (gs > TAXI_GS_STOP) return true;
+  }
+  return gs > TAXI_GS_STOP && alt > 300;
+}
+
+function isDepartureGround(p, field, sess) {
+  const fp = p.flight_plan;
+  if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
+  if (isDepartedForFinish(p, field, sess)) return false;
+  const depPt = lookup(field);
+  if (depPt && isFinite(p.latitude) && isFinite(p.longitude)) {
+    const distToDep = gcDist(p.latitude, p.longitude, depPt[0], depPt[1]);
+    if (distToDep > TAXI_DEP_PROX_NM) return false;
+  }
   const dest = (fp.arrival || "????").toUpperCase();
   const destPt = lookup(dest);
   const distToDest = destPt ? gcDist(p.latitude, p.longitude, destPt[0], destPt[1]) : null;
   return !(p.groundspeed <= 60 && distToDest != null && distToDest < 5);
+}
+
+function finishTaxiSession(key, sess, endMs) {
+  if (!sess || sess.phase === "done") return;
+  const sep = key.indexOf("|");
+  const field = key.slice(0, sep);
+  const cs = key.slice(sep + 1);
+  const startMs = sess.startMs != null ? sess.startMs : sess.firstSeenMs;
+  if (startMs == null) { sess.phase = "done"; return; }
+  const durationMs = endMs - startMs;
+  if (durationMs >= TAXI_MIN_SAMPLE_MS) {
+    addTaxiSample({ airport: field, callsign: cs, startMs, endMs, durationMs });
+  }
+  sess.phase = "done";
+}
+
+function newTaxiSession(field, now, gs, alt) {
+  return { airport: field, phase: "watching", startMs: null,
+    firstSeenMs: now, baseAlt: alt, lastGs: gs, lastAlt: alt };
 }
 
 function updateTaxiMonitor() {
@@ -1898,20 +1987,16 @@ function updateTaxiMonitor() {
 
   for (const field of taxiMonAirports) {
     for (const p of (vatsim.pilots || [])) {
-      if (!isDepartureGround(p, field)) continue;
       const cs = p.callsign;
       const key = taxiSessKey(field, cs);
-      activeKeys.add(key);
       const gs = p.groundspeed || 0;
       const alt = p.altitude || 0;
       let sess = taxiSessions[key];
+      if (!isDepartureGround(p, field, sess)) continue;
+      activeKeys.add(key);
 
       if (!sess || sess.airport !== field || sess.phase === "done") {
-        if (gs > TAXI_GS_START) {
-          sess = { airport: field, phase: "rolling", startMs: now, baseAlt: alt, lastGs: gs, lastAlt: alt };
-        } else {
-          sess = { airport: field, phase: "watching", startMs: null, baseAlt: alt, lastGs: gs, lastAlt: alt };
-        }
+        sess = newTaxiSession(field, now, gs, alt);
         taxiSessions[key] = sess;
       }
 
@@ -1919,17 +2004,12 @@ function updateTaxiMonitor() {
         sess.phase = "rolling";
         sess.startMs = now;
         sess.baseAlt = alt;
+        sess.rollPollMs = now;
       }
 
-      if (sess.phase === "rolling" && sess.startMs != null) {
+      if (sess.phase === "rolling" && sess.startMs != null && sess.rollPollMs !== now) {
         const climbed = alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT;
-        if (gs > TAXI_GS_STOP || climbed) {
-          const durationMs = now - sess.startMs;
-          if (durationMs > 0) {
-            addTaxiSample({ airport: field, callsign: cs, startMs: sess.startMs, endMs: now, durationMs });
-          }
-          sess.phase = "done";
-        }
+        if (gs > TAXI_GS_STOP || climbed) finishTaxiSession(key, sess, now);
       }
 
       sess.lastGs = gs;
@@ -1937,9 +2017,24 @@ function updateTaxiMonitor() {
     }
   }
 
+  /* departures that left the ground roll — complete any open session */
+  for (const field of taxiMonAirports) {
+    for (const p of (vatsim.pilots || [])) {
+      const key = taxiSessKey(field, p.callsign);
+      const sess = taxiSessions[key];
+      if (!sess || sess.phase === "done") continue;
+      if (isDepartedForFinish(p, field, sess)) finishTaxiSession(key, sess, now);
+    }
+  }
+
   for (const key of Object.keys(taxiSessions)) {
+    if (!activeKeys.has(key)) {
+      const sess = taxiSessions[key];
+      if (sess && sess.phase !== "done") finishTaxiSession(key, sess, now);
+    }
     if (!activeKeys.has(key) || taxiSessions[key].phase === "done") delete taxiSessions[key];
   }
+  saveTaxiSessions();
 }
 
 function getTaxiAirportCodes() {
@@ -1952,7 +2047,15 @@ function getTaxiAirportCodes() {
 function computeTaxiSummary(airport) {
   const samples = taxiHistory.filter(h => h.airport === airport).sort((a, b) => b.endMs - a.endMs);
   const recent = samples.slice(0, 20);
-  if (!recent.length) return null;
+
+  let groundQueue = 0;
+  if (vatsim) {
+    for (const p of (vatsim.pilots || [])) {
+      if (isDepartureGround(p, airport)) groundQueue++;
+    }
+  }
+
+  if (!recent.length) return { avgMin: null, trend: "stable", volume: 0, groundQueue, sampleCount: 0 };
 
   const avgMin = Math.round(recent.reduce((s, h) => s + h.durationMs, 0) / recent.length / 60000);
 
@@ -1969,13 +2072,6 @@ function computeTaxiSummary(airport) {
 
   const hourAgo = Date.now() - 60 * 60 * 1000;
   const volume = samples.filter(h => h.endMs >= hourAgo).length;
-
-  let groundQueue = 0;
-  if (vatsim) {
-    for (const p of (vatsim.pilots || [])) {
-      if (isDepartureGround(p, airport)) groundQueue++;
-    }
-  }
 
   return { avgMin, trend, volume, groundQueue, sampleCount: recent.length };
 }
@@ -2591,8 +2687,10 @@ function renderHome() {
     for (const code of taxiCodes) {
       const sum = computeTaxiSummary(code);
       let delayTxt, cls = "ok";
-      if (!sum) {
-        delayTxt = "monitoring \u2014 awaiting first sample";
+      if (sum.avgMin == null) {
+        delayTxt = sum.groundQueue
+          ? "monitoring " + sum.groundQueue + " ground departure" + (sum.groundQueue === 1 ? "" : "s") + " \u2014 awaiting first roll sample"
+          : "monitoring \u2014 awaiting first sample";
         cls = "muted";
       } else {
         const unit = sum.avgMin === 1 ? " minute" : " minutes";
@@ -2603,7 +2701,7 @@ function renderHome() {
         else if (sum.trend !== "stable") delayTxt += " with light volume";
         cls = sum.avgMin >= 15 ? "hi" : sum.avgMin >= 10 ? "warn" : "ok";
       }
-      let meta = sum ? "avg " + sum.avgMin + " min" : "";
+      let meta = sum.avgMin != null ? "avg " + sum.avgMin + " min" : (sum.groundQueue ? sum.groundQueue + " on ground" : "");
       h += '<div class="homerow ' + cls + '">' +
         '<span class="homefield">' + esc(code) + '</span>' +
         '<span class="hometxt">' + delayTxt.charAt(0).toUpperCase() + delayTxt.slice(1) + '</span>' +
@@ -2668,7 +2766,7 @@ function renderHelp() {
     '<li><b>Ready Time</b> column — enter pilot-estimated wheels-up (HHMMz) and press <b>Set</b> for a release at or after that time.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
-    '<li>Tracks ground departures from 5 kt to 60 kt or climb.</li></ul></div></details>' +
+    '<li>Tracks ground departures from 7 kt to 60 kt or climb.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Enter your VATSIM CID to see your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
 
@@ -3839,6 +3937,8 @@ function renderDep() {
 }
 
 function renderTaxiMonitor() {
+  syncTaxiSessionsFromStore();
+  reloadTaxiHistoryFromStore();
   const ctl = canControl();
   let h = "";
   if (ctl) {
@@ -3847,7 +3947,7 @@ function renderTaxiMonitor() {
       '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" class="input-narrow--110">' +
       '<button data-taximonadd>ADD</button>' +
       '<span class="form-note">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
-      ' airports &middot; timer: 5 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
+      ' airports &middot; timer: 7 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
       '</div>';
   } else {
     h += '<div class="viewonly">View only \u2014 unlock with the control password to add or remove monitored airports.</div>';
@@ -4637,7 +4737,13 @@ function activate() {
 function syncMeterSelectors() { /* header rate controls removed — rates live on the TMU tab */ }
 
 function ensurePolling() {
-  if (!pollTimer) pollTimer = setInterval(fetchFeed, 30000);
+  const want = taxiMonHasAirports() ? TAXI_POLL_MS : FEED_POLL_MS;
+  if (pollTimer && want !== pollIntervalMs) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  pollIntervalMs = want;
+  if (!pollTimer) pollTimer = setInterval(fetchFeed, pollIntervalMs);
   fetchFeed();
 }
 
@@ -5007,6 +5113,17 @@ lockBtn.addEventListener("click", () => {
 pwGo.addEventListener("click", () => attemptUnlock(pwInput.value));
 pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(pwInput.value); });
 updateLockUI();
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    syncTaxiSessionsFromStore();
+    reloadTaxiHistoryFromStore();
+    if (activeTab === "taximon" || activeTab === "home") renderContent();
+  } else {
+    saveTaxiSessions();
+  }
+});
+document.addEventListener("pagehide", () => saveTaxiSessions());
 
 renderContent();
 </script>
