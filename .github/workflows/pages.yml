@@ -43,7 +43,8 @@ jobs:
             --exclude '_site' \
             --exclude 'data/source' \
             ./ _site/
-          echo "${{ github.sha }}" > _site/.deploy-sha
+          touch _site/.nojekyll
+          echo "${{ github.sha }}" > _site/deploy-sha.txt
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -79,7 +80,7 @@ jobs:
       - name: Verify deployment
         run: |
           SHA="${{ github.sha }}"
-          SITE="https://djbrombizzle.github.io/vatflow/.deploy-sha"
+          SITE="https://djbrombizzle.github.io/vatflow/deploy-sha.txt"
           if [ "${{ steps.deployment.outputs.outcome }}" = "success" ]; then
             echo "Deploy step reported success — confirming SHA on live site…"
           else
@@ -87,7 +88,7 @@ jobs:
           fi
           for i in 1 2 3 4 5 6 8 10 12; do
             sleep 15
-            LIVE=$(curl -fsS "$SITE" 2>/dev/null || true)
+            LIVE=$(curl -fsS "$SITE?nocache=$i" 2>/dev/null | tr -d '[:space:]' || true)
             if [ "$LIVE" = "$SHA" ]; then
               echo "Live site matches commit $SHA"
               exit 0
