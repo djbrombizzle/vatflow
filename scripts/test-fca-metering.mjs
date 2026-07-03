@@ -166,6 +166,8 @@ assert(far.dist > near.dist, "FAR01 is farther from FCA than NEAR01");
 assert(mitSeq.items[0].p.callsign === "NEAR01", "MIT order is by distance — closer aircraft first");
 assert(far.sched >= near.sched + sepSeconds(FCA_MIT, far) - 1, "MIT delays trailing aircraft when too close");
 assert(far.delay > 30, "MIT assigns hold time to trailing aircraft");
+assert(mitSeq.items.every((c, i) => i === 0 || c.dist >= mitSeq.items[i - 1].dist - 0.01),
+  "MIT display order follows distance to FCA");
 
 const FCA_RATE = {
   id: "dep1",
