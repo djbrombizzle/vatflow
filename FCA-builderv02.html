@@ -134,6 +134,23 @@
   .layers select{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font-family:var(--mono);font-size:11px;padding:6px 8px;margin-top:4px}
   .layers select:focus{outline:none;border-color:var(--amber)}
+  .sector-th-panel{margin:8px 0 4px;padding:10px;border:1px solid var(--line-2);border-radius:6px;background:#0a0e14}
+  .sector-th-panel .sub{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+  .sector-th-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-family:var(--mono);font-size:10px;color:var(--text)}
+  .sector-th-row .id{flex:1;letter-spacing:.04em}
+  .sector-th-row .cnt{width:28px;text-align:right;color:var(--muted)}
+  .sector-th-dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .sector-th-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .sector-th-dot.yellow{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+  .sector-th-dot.red{background:var(--red);box-shadow:0 0 6px var(--red)}
+  .sector-th-row input{width:42px;background:#0f151e;border:1px solid var(--line);border-radius:4px;color:var(--text);
+    font-family:var(--mono);font-size:10px;padding:3px 4px;text-align:center}
+  .sector-th-row input:focus{outline:none;border-color:var(--amber)}
+  .sector-th-list{max-height:160px;overflow-y:auto;margin-top:6px;padding-right:4px}
+  .sector-th-list::-webkit-scrollbar{width:6px}
+  .sector-th-list::-webkit-scrollbar-thumb{background:#22303d;border-radius:3px}
+  .chk-row{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--muted);margin:6px 0 8px;cursor:pointer}
+  .chk-row input{accent-color:var(--amber)}
   .toggle{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:11px;
     color:var(--text);padding:5px 0;cursor:pointer}
   .sw-track{width:34px;height:18px;border-radius:9px;background:#222d3a;position:relative;transition:.15s;flex:none}
@@ -278,6 +295,27 @@
         <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted)">Sector ARTCC</div>
         <select id="sectorArtcc"><option value="ALL">ALL centers</option></select>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:5px;line-height:1.5">Individual ERAM sectors (vIFF/PERTI) · USA only · not official FAA</div>
+        <div id="sectorLoadWrap" class="sector-th-panel" style="margin-top:10px;display:none">
+          <div class="toggle" data-layer="sectorLoad" style="padding:0 0 8px"><span>Traffic load colors</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
+          <div class="sub">DEFAULT THRESHOLDS · airborne only</div>
+          <div class="grid2">
+            <div class="fld" style="margin:0"><label>Green ≤</label><input id="thGlobalGreen" type="number" min="0" max="99" value="5"></div>
+            <div class="fld" style="margin:0"><label>Yellow ≤</label><input id="thGlobalYellow" type="number" min="0" max="99" value="10"></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:4px;line-height:1.5">Red = above yellow · hover a sector for count</div>
+          <div id="sectorThArtccBlock" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+            <div class="sub" id="sectorThArtccTitle">ARTCC THRESHOLDS</div>
+            <label class="chk-row"><input type="checkbox" id="thArtccCustom"> Custom for this center</label>
+            <div class="grid2" id="sectorThArtccInputs" style="opacity:.45;pointer-events:none">
+              <div class="fld" style="margin:0"><label>Green ≤</label><input id="thArtccGreen" type="number" min="0" max="99" value="5"></div>
+              <div class="fld" style="margin:0"><label>Yellow ≤</label><input id="thArtccYellow" type="number" min="0" max="99" value="10"></div>
+            </div>
+          </div>
+          <div id="sectorThListBlock" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+            <div class="sub">PER-SECTOR OVERRIDES</div>
+            <div class="sector-th-list" id="sectorThList"></div>
+          </div>
+        </div>
       </div>
       <div class="toggle" data-layer="labels"><span>ARTCC labels</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="traffic"><span>Live traffic</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
@@ -358,7 +396,9 @@ const state = {
   pilots: [],              // connected aircraft (air + ground)
   prefiles: [],            // prefiled flight plans (not yet connected)
   feed: "init",            // init | live | demo | dead
-  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW", sectors:false, sectorArtcc:"ALL" },
+  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
+  sectorCounts: {},
+  sectorThresholds: { global:{ greenMax:5, yellowMax:10 }, artcc:{}, sector:{} },
   countdown: REFRESH_SEC,
   measure: { points: [] },   // ctrl+click ruler
   routeCallsign: null,       // aircraft whose route is plotted
@@ -396,8 +436,15 @@ const US_ARTCC = new Set(["ZAB","ZAU","ZBW","ZDC","ZDV","ZFW","ZHU","ZID","ZJX",
 const VATSPY_BOUNDARIES_URL = "https://cdn.jsdelivr.net/gh/vatsimnetwork/vatspy-data-project@master/Boundaries.geojson";
 const ARTCC_STYLE = { color:"#3a4d5e", weight:1, opacity:.85, fill:false };
 const SECTOR_STYLE = { color:"#5ba8c9", weight:1, opacity:.55, fill:true, fillColor:"#5ba8c9", fillOpacity:.07 };
+const SECTOR_LOAD_STYLE = {
+  green:  { color:"#4caf7a", weight:1.2, opacity:.85, fill:true, fillColor:"#4caf7a", fillOpacity:.22 },
+  yellow: { color:"#e8a838", weight:1.2, opacity:.9,  fill:true, fillColor:"#e8a838", fillOpacity:.28 },
+  red:    { color:"#d45c5c", weight:1.4, opacity:.95, fill:true, fillColor:"#d45c5c", fillOpacity:.34 },
+};
 const boundaryCache = { LOW:null, HIGH:null, UTA:null, vatspy:null };
 const sectorCache = { LOW:null, HIGH:null, UTA:null };
+const sectorIndex = { LOW:[], HIGH:[], UTA:[] };
+const LS_THRESH_KEY = "fcaBuilder.sectorThresholds.v1";
 const ARTCC_LIST = [...US_ARTCC].sort();
 
 function normArtccId(props){
@@ -473,6 +520,165 @@ function populateSectorArtccSelect(){
   sel.value=ARTCC_LIST.includes(cur)?cur:"ALL";
   if(sel.value!==cur) state.layers.sectorArtcc=sel.value;
 }
+function loadSectorThresholds(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(LS_THRESH_KEY)||"null");
+    if(!raw||typeof raw!=="object") return;
+    if(raw.global) state.sectorThresholds.global={...state.sectorThresholds.global,...raw.global};
+    if(raw.artcc) state.sectorThresholds.artcc=raw.artcc;
+    if(raw.sector) state.sectorThresholds.sector=raw.sector;
+  }catch(_){}
+}
+function persistSectorThresholds(){
+  try{ localStorage.setItem(LS_THRESH_KEY, JSON.stringify(state.sectorThresholds)); }catch(_){}
+}
+function clampTh(n,fallback){
+  const v=parseInt(n,10); return isFinite(v)&&v>=0 ? v : fallback;
+}
+function normThresholds(t,fallback){
+  const fb=fallback||state.sectorThresholds.global;
+  let green=clampTh(t?.greenMax, fb.greenMax);
+  let yellow=clampTh(t?.yellowMax, fb.yellowMax);
+  if(yellow<green) yellow=green;
+  return { greenMax:green, yellowMax:yellow };
+}
+function getSectorThreshold(sectorId, artcc){
+  const g=normThresholds(state.sectorThresholds.global);
+  const sid=(sectorId||"").toUpperCase();
+  const ac=(artcc||"").toUpperCase();
+  if(state.sectorThresholds.sector[sid]) return normThresholds(state.sectorThresholds.sector[sid], g);
+  if(state.sectorThresholds.artcc[ac]) return normThresholds(state.sectorThresholds.artcc[ac], g);
+  return g;
+}
+function loadClassForCount(count, th){
+  if(count<=th.greenMax) return "green";
+  if(count<=th.yellowMax) return "yellow";
+  return "red";
+}
+function ringsFromFeature(f){
+  const g=f.geometry||{};
+  const polys=g.type==="MultiPolygon" ? g.coordinates : g.type==="Polygon" ? [g.coordinates] : [];
+  return polys.map(poly=>poly.map(ring=>ring.map(c=>[c[1],c[0]])));
+}
+function bboxFromRings(rings){
+  let minLa=90,maxLa=-90,minLo=180,maxLo=-180;
+  (rings[0]||[]).forEach(([la,lo])=>{
+    if(la<minLa) minLa=la; if(la>maxLa) maxLa=la;
+    if(lo<minLo) minLo=lo; if(lo>maxLo) maxLo=lo;
+  });
+  return [minLa,minLo,maxLa,maxLo];
+}
+function pointInRing(lat,lon,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const [yi,xi]=ring[i], [yj,xj]=ring[j];
+    const hit=((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi);
+    if(hit) inside=!inside;
+  }
+  return inside;
+}
+function pointInPolygon(lat,lon,rings){
+  if(!rings?.length||!pointInRing(lat,lon,rings[0])) return false;
+  for(let i=1;i<rings.length;i++) if(pointInRing(lat,lon,rings[i])) return false;
+  return true;
+}
+function buildSectorIndex(stratum, gj){
+  if(!gj?.features?.length){ sectorIndex[stratum]=[]; return; }
+  sectorIndex[stratum]=gj.features.map(f=>{
+    const p=f.properties||{};
+    const id=(p.id||p.label||"").toUpperCase();
+    const artcc=(p.artcc||"").toUpperCase();
+    const rings=ringsFromFeature(f)[0]||[];
+    return { id, artcc, label:p.label||id, rings, bbox:bboxFromRings(rings), feature:f };
+  }).filter(s=>s.id&&s.rings.length);
+}
+function updateSectorCounts(){
+  const stratum=state.layers.artccStratum||"LOW";
+  const index=sectorIndex[stratum];
+  const counts={};
+  if(!index.length){ state.sectorCounts=counts; return; }
+  const filter=state.layers.sectorArtcc||"ALL";
+  const sectors=filter==="ALL" ? index : index.filter(s=>s.artcc===filter);
+  sectors.forEach(s=>{ counts[s.id]=0; });
+  const pilots=state.pilots.filter(p=>p.lat!=null&&p.lon!=null&&p.phase==="air");
+  for(const p of pilots){
+    const {lat,lon}=p;
+    for(const s of sectors){
+      const [minLa,minLo,maxLa,maxLo]=s.bbox;
+      if(lat<minLa||lat>maxLa||lon<minLo||lon>maxLo) continue;
+      if(pointInPolygon(lat,lon,s.rings)){ counts[s.id]++; break; }
+    }
+  }
+  state.sectorCounts=counts;
+}
+function syncThresholdInputs(){
+  const g=state.sectorThresholds.global;
+  const ge=document.getElementById("thGlobalGreen"), gy=document.getElementById("thGlobalYellow");
+  if(ge) ge.value=g.greenMax;
+  if(gy) gy.value=g.yellowMax;
+  const artcc=state.layers.sectorArtcc||"ALL";
+  const artccBlock=document.getElementById("sectorThArtccBlock");
+  const listBlock=document.getElementById("sectorThListBlock");
+  const single=artcc!=="ALL";
+  if(artccBlock) artccBlock.style.display=single?"block":"none";
+  if(listBlock) listBlock.style.display=single?"block":"none";
+  if(!single) return;
+  document.getElementById("sectorThArtccTitle").textContent="ARTCC THRESHOLDS · "+artcc;
+  const custom=!!state.sectorThresholds.artcc[artcc];
+  const chk=document.getElementById("thArtccCustom");
+  const inputs=document.getElementById("sectorThArtccInputs");
+  if(chk) chk.checked=custom;
+  if(inputs){ inputs.style.opacity=custom?"1":"0.45"; inputs.style.pointerEvents=custom?"auto":"none"; }
+  const th=custom ? state.sectorThresholds.artcc[artcc] : g;
+  const ag=document.getElementById("thArtccGreen"), ay=document.getElementById("thArtccYellow");
+  if(ag) ag.value=th.greenMax;
+  if(ay) ay.value=th.yellowMax;
+  renderSectorThresholdList();
+}
+function renderSectorThresholdList(){
+  const list=document.getElementById("sectorThList");
+  if(!list) return;
+  const artcc=state.layers.sectorArtcc||"ALL";
+  if(artcc==="ALL"){ list.innerHTML=""; return; }
+  const stratum=state.layers.artccStratum||"LOW";
+  const sectors=(sectorIndex[stratum]||[]).filter(s=>s.artcc===artcc)
+    .sort((a,b)=>(state.sectorCounts[b.id]||0)-(state.sectorCounts[a.id]||0)||a.id.localeCompare(b.id));
+  list.innerHTML=sectors.map(s=>{
+    const cnt=state.sectorCounts[s.id]||0;
+    const th=getSectorThreshold(s.id,s.artcc);
+    const cls=loadClassForCount(cnt,th);
+    const ov=state.sectorThresholds.sector[s.id];
+    const g=ov?ov.greenMax:"";
+    const y=ov?ov.yellowMax:"";
+    return `<div class="sector-th-row" data-sector="${s.id}">
+      <span class="sector-th-dot ${cls}"></span>
+      <span class="id">${s.label}</span>
+      <span class="cnt">${cnt}</span>
+      <input type="number" min="0" max="99" placeholder="G" title="Green max override" data-th="g" value="${g}">
+      <input type="number" min="0" max="99" placeholder="Y" title="Yellow max override" data-th="y" value="${y}">
+    </div>`;
+  }).join("");
+  list.querySelectorAll(".sector-th-row input").forEach(inp=>{
+    inp.addEventListener("change",()=>{
+      const row=inp.closest(".sector-th-row");
+      const sid=row.getAttribute("data-sector");
+      const gInp=row.querySelector('input[data-th="g"]');
+      const yInp=row.querySelector('input[data-th="y"]');
+      const gVal=gInp.value.trim(), yVal=yInp.value.trim();
+      if(!gVal&&!yVal){ delete state.sectorThresholds.sector[sid]; }
+      else {
+        const g=normThresholds(state.sectorThresholds.global);
+        const base=state.sectorThresholds.artcc[artcc] ? normThresholds(state.sectorThresholds.artcc[artcc], g) : g;
+        const gv=gVal!==""?clampTh(gVal, base.greenMax):base.greenMax;
+        const yv=yVal!==""?clampTh(yVal, base.yellowMax):base.yellowMax;
+        state.sectorThresholds.sector[sid]=normThresholds({greenMax:gv,yellowMax:yv});
+      }
+      persistSectorThresholds();
+      if(state.layers.sectors) renderSectors();
+      renderSectorThresholdList();
+    });
+  });
+}
 function renderSectors(){
   sectorLayer.clearLayers();
   if(!state.layers.sectors) return;
@@ -484,23 +690,33 @@ function renderSectors(){
   }
   const filter=state.layers.sectorArtcc||"ALL";
   const single=filter!=="ALL";
+  const loadOn=!!state.layers.sectorLoad;
+  updateSectorCounts();
   let shown=0;
   (gj.features||[]).forEach(f=>{
     const p=f.properties||{};
     const artcc=(p.artcc||"").toUpperCase();
     if(filter!=="ALL"&&artcc!==filter) return;
     const label=p.label||p.id||artcc+(p.sector||"");
-    L.geoJSON(f,{ style:SECTOR_STYLE })
-      .bindTooltip(label+" · "+stratum,{sticky:true,className:"artcc-label",direction:"center"})
+    const sid=(p.id||label).toUpperCase();
+    const count=state.sectorCounts[sid]||0;
+    const th=getSectorThreshold(sid, artcc);
+    const cls=loadOn?loadClassForCount(count,th):null;
+    const style=cls?SECTOR_LOAD_STYLE[cls]:SECTOR_STYLE;
+    const tip=label+" · "+stratum+(loadOn?" · "+count+" ac · "+cls.toUpperCase():"");
+    L.geoJSON(f,{ style })
+      .bindTooltip(tip,{sticky:true,className:"artcc-label",direction:"center"})
       .addTo(sectorLayer);
     if(single){
       const c=L.geoJSON(f).getBounds().getCenter();
+      const html=loadOn?`${label}<span style="opacity:.75"> (${count})</span>`:label;
       L.marker([c.lat,c.lng],{interactive:false,
-        icon:L.divIcon({className:"artcc-label",html:label,iconSize:[36,10]})}).addTo(sectorLayer);
+        icon:L.divIcon({className:"artcc-label",html,iconSize:[loadOn?48:36,10]})}).addTo(sectorLayer);
     }
     shown++;
   });
   if(!shown) toast("No "+stratum+" sectors for "+filter+".",2600);
+  syncThresholdInputs();
 }
 function loadBoundaries(){
   const files={ LOW:"data/artcc-boundaries-low.geojson", HIGH:"data/artcc-boundaries-high.geojson",
@@ -518,6 +734,7 @@ function loadBoundaries(){
   ]).then(([low,high,uta,secLow,secHigh,secUta,vatspy])=>{
     boundaryCache.LOW=low; boundaryCache.HIGH=high; boundaryCache.UTA=uta; boundaryCache.vatspy=vatspy;
     sectorCache.LOW=secLow; sectorCache.HIGH=secHigh; sectorCache.UTA=secUta;
+    buildSectorIndex("LOW", secLow); buildSectorIndex("HIGH", secHigh); buildSectorIndex("UTA", secUta);
     populateSectorArtccSelect();
     if(!low&&!high&&!uta){
       if(vatspy){
@@ -694,6 +911,8 @@ function afterData(){
   invalidateSequences();
   renderTraffic();
   renderFcaList();           // demand numbers depend on traffic
+  if(state.layers.sectors) renderSectors();
+  else syncThresholdInputs();
   if(state.selectedId) renderSequence();
 }
 
@@ -1669,6 +1888,41 @@ document.getElementById("sectorArtcc").addEventListener("change",e=>{
   renderSectors();
 });
 
+function applyGlobalThresholds(){
+  const ge=document.getElementById("thGlobalGreen"), gy=document.getElementById("thGlobalYellow");
+  state.sectorThresholds.global=normThresholds({
+    greenMax:ge?.value, yellowMax:gy?.value
+  });
+  persistSectorThresholds();
+  if(state.layers.sectors) renderSectors();
+  else syncThresholdInputs();
+}
+function applyArtccThresholds(){
+  const artcc=state.layers.sectorArtcc||"ALL";
+  if(artcc==="ALL") return;
+  const custom=document.getElementById("thArtccCustom")?.checked;
+  if(!custom){ delete state.sectorThresholds.artcc[artcc]; }
+  else {
+    const ag=document.getElementById("thArtccGreen"), ay=document.getElementById("thArtccYellow");
+    state.sectorThresholds.artcc[artcc]=normThresholds({
+      greenMax:ag?.value, yellowMax:ay?.value
+    }, state.sectorThresholds.global);
+  }
+  persistSectorThresholds();
+  if(state.layers.sectors) renderSectors();
+  else syncThresholdInputs();
+}
+["thGlobalGreen","thGlobalYellow"].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener("change", applyGlobalThresholds);
+});
+["thArtccGreen","thArtccYellow"].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener("change", applyArtccThresholds);
+});
+const thArtccCustom=document.getElementById("thArtccCustom");
+if(thArtccCustom) thArtccCustom.addEventListener("change", applyArtccThresholds);
+
 // layer toggles
 document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
   t.addEventListener("click",()=>{
@@ -1683,6 +1937,7 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
       on?map.addLayer(sectorLayer):map.removeLayer(sectorLayer);
       if(on) renderSectors();
     }
+    if(key==="sectorLoad"&&state.layers.sectors) renderSectors();
     if(key==="labels") on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
     if(key==="traffic") renderTraffic();
     if(key==="edct") renderAll();
@@ -1902,6 +2157,7 @@ function hideToast(){ clearTimeout(toastTimer); document.getElementById("toast")
 
 /* ---------- boot ---------- */
 setFeed("init");
+loadSectorThresholds();
 loadLocal();               // restore FCAs from the last session
 renderAll();
 startFeedLoop();
