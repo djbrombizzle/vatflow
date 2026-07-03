@@ -231,6 +231,34 @@
   .routeinfo .ri-note{color:var(--muted-2);font-size:9px;margin-top:6px;line-height:1.5}
   @media (max-width:860px){ .routeinfo{max-width:74vw;bottom:14px} }
 
+  /* sector aircraft panel */
+  .sector-ac-panel{position:absolute;top:54px;right:10px;z-index:650;width:300px;max-height:min(420px,55vh);
+    display:none;flex-direction:column;background:linear-gradient(180deg,rgba(13,18,27,.97),rgba(11,15,23,.95));
+    border:1px solid var(--line-2);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.55);backdrop-filter:blur(10px)}
+  .sector-ac-panel.show{display:flex}
+  .sector-ac-panel .sp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex:none}
+  .sector-ac-panel .sp-head b{font-family:var(--mono);font-size:13px;letter-spacing:.06em;color:var(--text)}
+  .sector-ac-panel .sp-head .badge{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid}
+  .sector-ac-panel .sp-head .badge.green{color:var(--green);border-color:#2a5a40;background:#0e2018}
+  .sector-ac-panel .sp-head .badge.yellow{color:var(--amber);border-color:#4a3a18;background:#1e1808}
+  .sector-ac-panel .sp-head .badge.red{color:var(--red);border-color:#4a2828;background:#1e1010}
+  .sector-ac-panel .sp-x{margin-left:auto;cursor:pointer;color:var(--muted-2);font-size:14px;padding:0 4px;line-height:1}
+  .sector-ac-panel .sp-x:hover{color:var(--red)}
+  .sector-ac-panel .sp-sub{font-family:var(--mono);font-size:9px;color:var(--muted-2);padding:0 12px 8px;line-height:1.5}
+  .sector-ac-panel .sp-list{flex:1;overflow-y:auto;padding:4px 8px 10px}
+  .sector-ac-panel .sp-list::-webkit-scrollbar{width:6px}
+  .sector-ac-panel .sp-list::-webkit-scrollbar-thumb{background:#22303d;border-radius:3px}
+  .sector-ac-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:7px 8px;margin-bottom:4px;
+    background:#0f151e;border:1px solid var(--line-2);border-radius:5px;font-family:var(--mono);font-size:10px;cursor:pointer}
+  .sector-ac-row:hover{background:#131b26;border-color:#3a4a5a}
+  .sector-ac-row .cs{font-size:12px;font-weight:700;color:var(--cyan);letter-spacing:.04em}
+  .sector-ac-row .rte{color:var(--muted);grid-column:1/-1}
+  .sector-ac-row .alt{color:var(--muted-2);text-align:right;white-space:nowrap}
+  .sector-ac-panel .sp-empty{font-family:var(--mono);font-size:11px;color:var(--muted-2);text-align:center;padding:18px 12px;line-height:1.6}
+  .sector-label-hit{cursor:pointer}
+  .sector-poly-hit{cursor:pointer}
+  @media (max-width:860px){ .sector-ac-panel{right:6px;left:6px;width:auto;max-height:45vh} }
+
   @media (max-width:860px){
     .sidebar{width:86vw;max-width:340px;box-shadow:8px 0 30px rgba(0,0,0,.6)}
     .seq{width:90vw;max-width:360px;box-shadow:-8px 0 30px rgba(0,0,0,.6)}
@@ -365,6 +393,7 @@
 
 <!-- ROUTE INFO -->
 <div class="routeinfo" id="routeInfo"></div>
+<div class="sector-ac-panel" id="sectorPopup"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -405,6 +434,8 @@ const state = {
   layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
   sectorThScope: "GLOBAL",
   sectorCounts: {},
+  sectorAircraft: {},
+  openSectorId: null,
   sectorThresholds: { global:{ greenMax:5, yellowMax:10 }, artcc:{}, sector:{} },
   countdown: REFRESH_SEC,
   measure: { points: [] },   // ctrl+click ruler
@@ -630,20 +661,66 @@ function updateSectorCounts(){
   const stratum=state.layers.artccStratum||"LOW";
   const index=sectorIndex[stratum];
   const counts={};
-  if(!index.length){ state.sectorCounts=counts; return; }
-  const filter=state.layers.sectorArtcc||"ALL";
-  const sectors=filter==="ALL" ? index : index.filter(s=>s.artcc===filter);
-  sectors.forEach(s=>{ counts[s.id]=0; });
+  const aircraft={};
+  if(!index.length){ state.sectorCounts=counts; state.sectorAircraft=aircraft; return; }
+  index.forEach(s=>{ counts[s.id]=0; aircraft[s.id]=[]; });
   const pilots=state.pilots.filter(p=>p.lat!=null&&p.lon!=null&&p.phase==="air"&&pilotMatchesStratum(p.alt,stratum));
   for(const p of pilots){
     const {lat,lon}=p;
-    for(const s of sectors){
+    for(const s of index){
       const [minLa,minLo,maxLa,maxLo]=s.bbox;
       if(lat<minLa||lat>maxLa||lon<minLo||lon>maxLo) continue;
-      if(pointInPolygon(lat,lon,s.rings)){ counts[s.id]++; break; }
+      if(pointInPolygon(lat,lon,s.rings)){ counts[s.id]++; aircraft[s.id].push(p); break; }
     }
   }
   state.sectorCounts=counts;
+  state.sectorAircraft=aircraft;
+}
+function closeSectorPanel(){
+  state.openSectorId=null;
+  const el=document.getElementById("sectorPopup");
+  if(el) el.classList.remove("show");
+}
+function renderSectorPanel(){
+  const el=document.getElementById("sectorPopup");
+  if(!el||!state.openSectorId){ closeSectorPanel(); return; }
+  const sid=state.openSectorId;
+  const stratum=state.layers.artccStratum||"LOW";
+  const meta=(sectorIndex[stratum]||[]).find(s=>s.id===sid);
+  if(!meta){ closeSectorPanel(); return; }
+  const pilots=(state.sectorAircraft[sid]||[]).slice().sort((a,b)=>a.callsign.localeCompare(b.callsign));
+  const count=pilots.length;
+  const th=getSectorThreshold(sid, meta.artcc);
+  const cls=loadClassForCount(count, th);
+  const altNote=stratumAltHint(stratum).split("·")[1]?.trim()||"";
+  const listHtml=pilots.length?pilots.map(p=>{
+    const fl="FL"+String(Math.round((p.alt||0)/100)).padStart(3,"0");
+    return `<div class="sector-ac-row" data-cs="${escapeHtml(p.callsign)}">
+      <span class="cs">${escapeHtml(p.callsign)}</span>
+      <span class="alt">${fl} · ${p.gs||0}kt</span>
+      <span class="rte">${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")} · ${escapeHtml(p.type||"")}</span>
+    </div>`;
+  }).join(""):`<div class="sp-empty">No aircraft in this sector<br>for the current stratum band.</div>`;
+  el.innerHTML=`<div class="sp-head">
+    <b>${escapeHtml(meta.label)}</b>
+    <span class="badge ${cls}">${count} ac</span>
+    <span class="sp-x" title="Close">✕</span>
+  </div>
+  <div class="sp-sub">${escapeHtml(stratum)}${altNote?" · "+escapeHtml(altNote):""} · click aircraft for route</div>
+  <div class="sp-list">${listHtml}</div>`;
+  el.classList.add("show");
+  el.querySelector(".sp-x")?.addEventListener("click",closeSectorPanel);
+  el.querySelectorAll(".sector-ac-row[data-cs]").forEach(row=>{
+    row.addEventListener("click",()=>{
+      const cs=row.getAttribute("data-cs");
+      const p=state.pilots.find(x=>x.callsign===cs);
+      if(p) showRoute(p);
+    });
+  });
+}
+function openSectorPanel(sid){
+  state.openSectorId=(sid||"").toUpperCase();
+  renderSectorPanel();
 }
 function syncThresholdInputs(){
   const g=state.sectorThresholds.global;
@@ -692,12 +769,19 @@ function renderSectorThresholdList(){
     const y=ov?ov.yellowMax:"";
     return `<div class="sector-th-row" data-sector="${s.id}">
       <span class="sector-th-dot ${cls}"></span>
-      <span class="id">${s.label}</span>
+      <span class="id sector-id-hit" title="Show aircraft list">${s.label}</span>
       <span class="cnt">${cnt}</span>
       <input type="number" min="0" max="99" placeholder="G" title="Green max override" data-th="g" value="${g}">
       <input type="number" min="0" max="99" placeholder="Y" title="Yellow max override" data-th="y" value="${y}">
     </div>`;
   }).join("");
+  list.querySelectorAll(".sector-id-hit").forEach(hit=>{
+    hit.style.cursor="pointer";
+    hit.addEventListener("click",()=>{
+      const sid=hit.closest(".sector-th-row")?.getAttribute("data-sector");
+      if(sid) openSectorPanel(sid);
+    });
+  });
   list.querySelectorAll(".sector-th-row input").forEach(inp=>{
     inp.addEventListener("change",()=>{
       const row=inp.closest(".sector-th-row");
@@ -744,20 +828,34 @@ function renderSectors(){
     const cls=loadOn?loadClassForCount(count,th):null;
     const style=cls?SECTOR_LOAD_STYLE[cls]:SECTOR_STYLE;
     const altBand=stratumAltHint(stratum).split("·")[1]?.trim()||"";
-    const tip=label+" · "+stratum+(loadOn?" · "+count+" ac · "+cls.toUpperCase()+(altBand?" · "+altBand:""):"");
-    L.geoJSON(f,{ style })
-      .bindTooltip(tip,{sticky:true,className:"artcc-label",direction:"center"})
-      .addTo(sectorLayer);
+    const tip=label+" · "+stratum+(loadOn?" · "+count+" ac · "+cls.toUpperCase()+(altBand?" · "+altBand:""):"")+" · click for list";
+    L.geoJSON(f,{
+      style,
+      onEachFeature:(feature,layer)=>{
+        layer.bindTooltip(tip,{sticky:true,className:"artcc-label",direction:"center"});
+        layer.on("click",e=>{
+          L.DomEvent.stopPropagation(e);
+          openSectorPanel(sid);
+        });
+        if(layer.setStyle) layer.options.className="sector-poly-hit";
+      }
+    }).addTo(sectorLayer);
     if(single){
       const c=L.geoJSON(f).getBounds().getCenter();
       const html=loadOn?`${label}<span style="opacity:.75"> (${count})</span>`:label;
-      L.marker([c.lat,c.lng],{interactive:false,
-        icon:L.divIcon({className:"artcc-label",html,iconSize:[loadOn?48:36,10]})}).addTo(sectorLayer);
+      const mk=L.marker([c.lat,c.lng],{
+        icon:L.divIcon({className:"artcc-label sector-label-hit",html,iconSize:[loadOn?48:36,10]})
+      }).addTo(sectorLayer);
+      mk.on("click",e=>{
+        L.DomEvent.stopPropagation(e);
+        openSectorPanel(sid);
+      });
     }
     shown++;
   });
   if(!shown) toast("No "+stratum+" sectors for "+filter+".",2600);
   syncThresholdInputs();
+  if(state.openSectorId) renderSectorPanel();
 }
 function loadBoundaries(){
   const files={ LOW:"data/artcc-boundaries-low.geojson", HIGH:"data/artcc-boundaries-high.geojson",
@@ -953,6 +1051,7 @@ function afterData(){
   renderTraffic();
   renderFcaList();           // demand numbers depend on traffic
   if(state.layers.sectors) renderSectors();
+  else if(state.openSectorId) renderSectorPanel();
   else syncThresholdInputs();
   if(state.selectedId) renderSequence();
 }
@@ -1818,6 +1917,7 @@ window.addEventListener("keydown",e=>{
     if(state.drawing){ cancelDrawing(); return; }
     if(state.measure.points.length){ clearMeasure(); return; }
     if(state.routeCallsign){ clearRoute(); return; }
+    if(state.openSectorId){ closeSectorPanel(); return; }
   }
   if(state.drawing && e.key==="Enter") finishDrawing();
   if(state.drawing && e.key==="Backspace"){ e.preventDefault(); undoDrawPoint(); }
