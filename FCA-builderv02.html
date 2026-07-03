@@ -16,6 +16,7 @@
     --ui: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   }
   *{box-sizing:border-box}
+  .hidden{display:none!important}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--ui);overflow:hidden}
   #map{position:absolute;inset:0;background:#0a0e14;z-index:0}
 
@@ -40,6 +41,17 @@
   .topbar .spacer{flex:1}
   .stat{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
   .stat b{color:var(--text);font-weight:600}
+  #lockCtl{display:flex;align-items:center;gap:6px;margin-right:4px}
+  #lockBtn{font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:5px 10px;border-radius:5px;cursor:pointer;border:1px solid}
+  #lockBtn.locked{background:var(--amber-dim);color:var(--amber);border-color:rgba(232,168,56,.4)}
+  #lockBtn.unlocked{background:rgba(76,175,122,.12);color:var(--green);border-color:rgba(76,175,122,.35)}
+  #pwInput{width:108px;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+    font-family:var(--mono);font-size:10px;padding:5px 7px}
+  #pwInput:focus{outline:none;border-color:var(--amber)}
+  #lockMsg{font-family:var(--mono);font-size:10px;color:var(--muted-2);white-space:nowrap}
+  #lockMsg.lockerr{color:var(--red)}
+  .toolbar.view-only .btn.primary{opacity:.45;pointer-events:none}
+  .toolbar.view-only #importBtn{opacity:.45;pointer-events:none}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--muted-2);box-shadow:0 0 0 0 transparent}
   .dot.live{background:var(--green);box-shadow:0 0 8px var(--green)}
   .dot.demo{background:var(--amber);box-shadow:0 0 8px var(--amber)}
@@ -276,6 +288,12 @@
   <button class="btn ghost sm" id="toggleSide" title="Panels">☰</button>
   <div class="brand"><b>FCA&nbsp;BUILDER</b><span class="tag">VATSIM&nbsp;FLOW</span></div>
   <div class="spacer" style="flex:1"></div>
+  <div id="lockCtl">
+    <button type="button" id="lockBtn" class="locked">View only</button>
+    <input id="pwInput" type="password" placeholder="control password" autocomplete="off" class="hidden">
+    <button type="button" id="pwGo" class="btn sm hidden">Go</button>
+    <span id="lockMsg"></span>
+  </div>
   <div class="stat" title="UTC time"><b id="zClock">----Z</b></div>
   <div class="stat hideSm"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
   <div class="stat hideSm">traffic <b id="acCount">0</b></div>
@@ -420,6 +438,12 @@ const NM_PER_DEG = 60;                     // 1 deg lat ~ 60 nm
 const LOOKAHEAD_NM = 1200;                 // how far ahead we project an aircraft's path
 const DEMAND_WINDOW_MIN = 60;              // demand counted within this many minutes to the line
 const REFRESH_SEC = 20;
+
+/* ---- controller access: VIEW-ONLY until unlocked (same gate as vatflow-tbfm v2.html) ----
+   Keep CONTROL_PASSWORD_LOCAL identical in both files. Empty = soft gate (any password works). */
+const CONTROL_PASSWORD_LOCAL = "";
+let controllerUnlocked = false;
+function canControl(){ return controllerUnlocked; }
 
 /* ---------- state ---------- */
 const state = {
@@ -784,6 +808,7 @@ function renderSectorThresholdList(){
   });
   list.querySelectorAll(".sector-th-row input").forEach(inp=>{
     inp.addEventListener("change",()=>{
+      if(!canControl()) return;
       const row=inp.closest(".sector-th-row");
       const sid=row.getAttribute("data-sector");
       const gInp=row.querySelector('input[data-th="g"]');
@@ -1434,7 +1459,7 @@ function renderFcaLines(){
   });
   // selected FCA: draggable vertex handles + projected crossing dots
   const sel=state.fcas.find(f=>f.id===state.selectedId&&f.enabled);
-  if(sel&&sel.points.length>=2){
+  if(sel&&sel.points.length>=2&&canControl()){
     sel.points.forEach((pt,idx)=>{
       const h=L.marker(pt,{draggable:true,
         icon:L.divIcon({className:"vtx",iconSize:[12,12],iconAnchor:[6,6]})}).addTo(seqLayer);
@@ -1477,6 +1502,7 @@ function renderFcaList(){
     return;
   }
   wrap.innerHTML="";
+  const ctl=canControl();
   state.fcas.forEach(f=>{
     const seq=getSequence(f);
     const card=document.createElement("div");
@@ -1489,9 +1515,9 @@ function renderFcaList(){
       <div class="fca-row" data-sel="${f.id}">
         <span class="swatch" style="color:${f.color};background:${f.color}"></span>
         <span class="fca-name">${escapeHtml(f.name)}</span>
-        <span class="fca-act" data-edit="${f.id}" title="Edit rate / MIT / filters">✎</span>
+        ${ctl?`<span class="fca-act" data-edit="${f.id}" title="Edit rate / MIT / filters">✎</span>
         <span class="fca-act del" data-del="${f.id}" title="Delete this FCA">✕</span>
-        <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>
+        <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>`:""}
       </div>
       <div class="fca-meta">
         <span>${f.dests&&f.dests.length?escapeHtml(f.dests.join(" ")):"ALL dest"}</span>
@@ -1512,6 +1538,7 @@ function renderFcaList(){
   }));
   wrap.querySelectorAll("[data-en]").forEach(el=>el.addEventListener("click",e=>{
     e.stopPropagation();
+    if(!canControl()) return;
     const f=state.fcas.find(x=>x.id===el.getAttribute("data-en"));
     if(f){ f.enabled=!f.enabled; cloudPush(f); renderAll(); }
   }));
@@ -1530,6 +1557,7 @@ function renderFcaList(){
    EDITOR FORM
    ============================================================ */
 function openEditor(fca){
+  if(!canControl()){ toast("View only — unlock with the control password to edit FCAs.",2800); return; }
   const isNew=!state.fcas.some(f=>f.id===fca.id);
   // snapshot an existing FCA so Cancel reverts live edits (color / direction /
   // mode mutate the object immediately). Don't re-snapshot when the editor
@@ -1616,6 +1644,7 @@ function openEditor(fca){
   renderFcaList();
 }
 function saveEditor(){
+  if(!canControl()) return;
   const f=state.editing; if(!f) return;
   f.name=(document.getElementById("f_name").value||"Untitled FCA").trim();
   const destTokens=(document.getElementById("f_dest").value||"").toUpperCase().split(/[\s,]+/).filter(Boolean);
@@ -1672,7 +1701,7 @@ function renderSequence(){
     (s.manual?`<span class="manualchip" id="seqAuto" title="Return to automatic sequencing">✋ MANUAL · ↺ auto</span>`:"")+
     (totalDelay>60?`<span style="color:var(--red)">Σdelay ${fmtClock(totalDelay)}</span>`:"");
   const autoBtn=document.getElementById("seqAuto");
-  if(autoBtn) autoBtn.addEventListener("click",()=>{ sel.order=[]; cloudPush(sel); renderAll(); });
+  if(autoBtn) autoBtn.addEventListener("click",()=>{ if(!canControl()) return; sel.order=[]; cloudPush(sel); renderAll(); });
 
   const body=document.getElementById("seqBody");
   const exHtml=excludedHtml(sel);
@@ -1682,7 +1711,7 @@ function renderSequence(){
   // ladder timeline
   body.innerHTML=ladderSvg(s);
   body.insertAdjacentHTML("beforeend",
-    `<div class="seqhint">⠿ drag a strip to reorder · all times recompute${s.manual?"":" · airborne hold priority"}</div>`);
+    `<div class="seqhint">${canControl()?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):"View only — unlock to reorder sequence"}</div>`);
   // strips
   const orderCS=s.items.map(c=>c.p.callsign);
   let dragFrom=null;
@@ -1708,7 +1737,8 @@ function renderSequence(){
     const gapLine=`<div class="gap${gapShort?" short":""}">${gapHtml}</div>`;
     const strip=document.createElement("div");
     strip.className="strip"; strip.style.borderLeftColor=delayColor(c.delay);
-    strip.setAttribute("draggable","true");
+    if(canControl()) strip.setAttribute("draggable","true");
+    const rmBtn=canControl()?`<div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`:"";
     if(c.phase==="gnd"){
       const edct=c.edctMs?fmtZulu(c.edctMs):"—", ptime=c.ptimeMs?fmtZulu(c.ptimeMs):"now";
       const held=c.delay>=30;
@@ -1718,7 +1748,7 @@ function renderSequence(){
           <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
         <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
           <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
-        <div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`;
+        ${rmBtn}`;
     } else {
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
@@ -1726,10 +1756,12 @@ function renderSequence(){
           <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm${c.via==="route"?" · rte est":""}</div>${gapLine}</div>
         <div class="eta"><div class="big">${fmtZulu(c.ctaMs)}</div>
           <div class="dl ${cls}">${c.delay<30?"on time":"air +"+fmtClock(c.delay)}</div></div>
-        <div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`;
+        ${rmBtn}`;
     }
-    strip.querySelector(".rm").addEventListener("click",e=>{ e.stopPropagation(); excludeAircraft(sel,c.p.callsign); });
+    const rmEl=strip.querySelector(".rm");
+    if(rmEl) rmEl.addEventListener("click",e=>{ e.stopPropagation(); excludeAircraft(sel,c.p.callsign); });
     strip.addEventListener("click",()=>{ const o=(c.p.lat!=null)?[c.p.lat,c.p.lon]:getAirport(c.p.dep); if(o) map.panTo(o); });
+    if(canControl()){
     // drag-to-reorder
     strip.addEventListener("dragstart",e=>{ dragFrom=i; stripDragging=true; strip.classList.add("dragging");
       e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain",String(i));}catch(_){}});
@@ -1740,6 +1772,7 @@ function renderSequence(){
     strip.addEventListener("dragleave",()=>strip.classList.remove("dragover"));
     strip.addEventListener("drop",e=>{ e.preventDefault(); strip.classList.remove("dragover");
       if(dragFrom!=null && dragFrom!==i) moveSeq(sel,orderCS,dragFrom,i); });
+    }
     list.appendChild(strip);
   });
   body.appendChild(list);
@@ -1749,6 +1782,7 @@ function renderSequence(){
 }
 /* controller drags a strip -> lock in a manual order and recompute everyone's times */
 function moveSeq(fca,orderCS,from,to){
+  if(!canControl()) return;
   const arr=orderCS.slice();
   const [m]=arr.splice(from,1); arr.splice(to,0,m);
   fca.order=arr; cloudPush(fca); renderAll();
@@ -1757,11 +1791,13 @@ function moveSeq(fca,orderCS,from,to){
 function excludedHtml(fca){
   const ex=fca.excluded||[];
   if(!ex.length) return "";
-  let rows=ex.map(cs=>`<div class="row"><span>✕ ${escapeHtml(cs)}</span><span class="restore" data-restore="${escapeHtml(cs)}">restore</span></div>`).join("");
+  const ctl=canControl();
+  let rows=ex.map(cs=>`<div class="row"><span>✕ ${escapeHtml(cs)}</span>${ctl?`<span class="restore" data-restore="${escapeHtml(cs)}">restore</span>`:""}</div>`).join("");
   return `<div class="excl"><div class="row" style="color:var(--muted-2)"><span>REMOVED (${ex.length})</span>`+
-    `<span class="restore" data-restore-all="1">restore all</span></div>${rows}</div>`;
+    (ctl?`<span class="restore" data-restore-all="1">restore all</span>`:"")+`</div>${rows}</div>`;
 }
 function wireExcluded(fca){
+  if(!canControl()) return;
   document.querySelectorAll("[data-restore]").forEach(el=>el.addEventListener("click",()=>{
     fca.excluded=(fca.excluded||[]).filter(c=>c!==el.getAttribute("data-restore")); cloudPush(fca); renderAll();
   }));
@@ -1769,6 +1805,7 @@ function wireExcluded(fca){
   if(all) all.addEventListener("click",()=>{ fca.excluded=[]; cloudPush(fca); renderAll(); });
 }
 function excludeAircraft(fca,callsign){
+  if(!canControl()) return;
   fca.excluded=fca.excluded||[];
   if(!fca.excluded.includes(callsign)) fca.excluded.push(callsign);
   cloudPush(fca); renderAll();
@@ -1825,6 +1862,7 @@ function ladderSvg(s){
    DRAWING
    ============================================================ */
 function startDrawing(forFca){
+  if(!canControl()){ toast("View only — unlock with the control password to draw FCAs.",2800); return; }
   cancelDrawing();
   const target = forFca || makeBlankFca();
   // keep a backup so Esc during a redraw restores the existing line
@@ -1927,6 +1965,7 @@ window.addEventListener("keydown",e=>{
    DELETE / EXPORT / IMPORT
    ============================================================ */
 function deleteFca(id){
+  if(!canControl()){ toast("View only — unlock to delete FCAs.",2600); return; }
   const f=state.fcas.find(x=>x.id===id);
   if(f && !confirm(`Delete FCA "${f.name}"? This removes it for everyone if sync is on.`)) return;
   state.fcas=state.fcas.filter(f=>f.id!==id);
@@ -1945,6 +1984,7 @@ function exportFcas(){
   toast("Exported "+state.fcas.length+" FCA(s).",2000);
 }
 function importFcas(file){
+  if(!canControl()){ toast("View only — unlock to import FCAs.",2600); return; }
   const r=new FileReader();
   r.onload=()=>{ try{
       const d=JSON.parse(r.result); const arr=Array.isArray(d)?d:d.fcas;
@@ -1961,7 +2001,28 @@ function importFcas(file){
 /* ============================================================
    UI WIRING
    ============================================================ */
-function renderAll(){ invalidateSequences(); renderFcaLines(); renderTraffic(); renderFcaList(); renderSequence(); }
+function renderAll(){ updateControlUI(); invalidateSequences(); renderFcaLines(); renderTraffic(); renderFcaList(); renderSequence(); }
+
+function updateControlUI(){
+  const ctl=canControl();
+  const lockBtn=document.getElementById("lockBtn");
+  if(lockBtn){
+    lockBtn.textContent=ctl?"Controller":"View only";
+    lockBtn.className=ctl?"unlocked":"locked";
+  }
+  if(pwInput){ pwInput.classList.add("hidden"); pwInput.disabled=!ctl&&false; }
+  if(pwGo) pwGo.classList.add("hidden");
+  const tb=document.querySelector(".toolbar");
+  if(tb) tb.classList.toggle("view-only",!ctl);
+  const seqEdit=document.getElementById("seqEdit");
+  if(seqEdit){ seqEdit.disabled=!ctl; seqEdit.style.opacity=ctl?"1":"0.4"; }
+  const sectorPanel=document.getElementById("sectorLoadWrap");
+  if(sectorPanel) sectorPanel.querySelectorAll("input,select").forEach(el=>{
+    if(el.closest(".toggle[data-layer]")) return;
+    el.disabled=!ctl;
+    if(el.closest("#sectorThArtccInputs")) el.parentElement.parentElement.style.opacity=ctl?"1":"0.45";
+  });
+}
 
 document.getElementById("newFca").addEventListener("click",()=>{ state.editing=null; state.editingBackup=null; closeEditor(); startDrawing(null); });
 document.getElementById("refreshBtn").addEventListener("click",()=>{ state.layers.demo?stepDemo():fetchLive(); state.countdown=REFRESH_SEC; });
@@ -1974,6 +2035,7 @@ document.getElementById("seqFit").addEventListener("click",()=>{
   if(sel&&sel.points.length>=2) map.fitBounds(L.latLngBounds(sel.points).pad(0.6));
 });
 document.getElementById("seqEdit").addEventListener("click",()=>{
+  if(!canControl()){ toast("View only — unlock to edit FCA settings.",2600); return; }
   const sel=state.fcas.find(f=>f.id===state.selectedId); if(!sel) return;
   setSide(true);            // editor lives in the sidebar — make sure it's visible
   openEditor(sel);
@@ -2035,6 +2097,7 @@ document.getElementById("sectorThScope").addEventListener("change",e=>{
 });
 
 function applyGlobalThresholds(){
+  if(!canControl()) return;
   const ge=document.getElementById("thGlobalGreen"), gy=document.getElementById("thGlobalYellow");
   state.sectorThresholds.global=normThresholds({
     greenMax:ge?.value, yellowMax:gy?.value
@@ -2044,6 +2107,7 @@ function applyGlobalThresholds(){
   else syncThresholdInputs();
 }
 function applyArtccThresholds(){
+  if(!canControl()) return;
   const artcc=state.sectorThScope||"GLOBAL";
   if(artcc==="GLOBAL") return;
   const custom=document.getElementById("thArtccCustom")?.checked;
@@ -2276,13 +2340,15 @@ function onRemoteChange(payload){
   renderAll();
 }
 function cloudPush(fca){
-  persistLocal();            // every mutation goes through here — save locally too
+  persistLocal();
+  if(!canControl()) return;
   if(!syncOn||!sb) return;
   sb.from("fcas").upsert({id:fca.id,data:fca,updated_at:new Date().toISOString()})
     .then(({error})=>{ if(error){ console.warn("push:",error); toast("Couldn't save to sync — check setup.",3000);} });
 }
 function cloudDelete(id){
   persistLocal();
+  if(!canControl()) return;
   if(!syncOn||!sb) return;
   sb.from("fcas").delete().eq("id",id).then(({error})=>{ if(error) console.warn("delete:",error); });
 }
@@ -2302,6 +2368,36 @@ function toast(msg,ms){ showToast(msg,false,ms); }
 function hideToast(){ clearTimeout(toastTimer); document.getElementById("toast").classList.remove("show"); }
 
 /* ---------- boot ---------- */
+const lockBtn=document.getElementById("lockBtn");
+const pwInput=document.getElementById("pwInput");
+const pwGo=document.getElementById("pwGo");
+const lockMsg=document.getElementById("lockMsg");
+function showPwEntry(){
+  pwInput.classList.remove("hidden");
+  pwGo.classList.remove("hidden");
+  pwInput.value="";
+  lockMsg.textContent="";
+  pwInput.focus();
+}
+function setControl(on){
+  controllerUnlocked=on;
+  if(!on && state.editing){ state.editing=null; state.editingBackup=null; closeEditor(); }
+  if(!on && state.drawing) cancelDrawing();
+  updateControlUI();
+  renderAll();
+}
+function attemptUnlock(pw){
+  if(CONTROL_PASSWORD_LOCAL===""||pw===CONTROL_PASSWORD_LOCAL){ lockMsg.textContent=""; setControl(true); }
+  else { lockMsg.textContent="wrong password"; lockMsg.className="lockerr"; }
+}
+lockBtn.addEventListener("click",()=>{
+  if(controllerUnlocked){ setControl(false); lockMsg.textContent=""; return; }
+  if(pwInput.classList.contains("hidden")) showPwEntry();
+  else attemptUnlock(pwInput.value);
+});
+pwGo.addEventListener("click",()=>attemptUnlock(pwInput.value));
+pwInput.addEventListener("keydown",e=>{ if(e.key==="Enter") attemptUnlock(pwInput.value); });
+
 setFeed("init");
 loadSectorThresholds();
 loadLocal();               // restore FCAs from the last session
