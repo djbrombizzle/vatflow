@@ -428,6 +428,10 @@ body.meter-map-resizing { cursor: ns-resize; user-select: none; }
   display: flex; flex-direction: column; align-items: center; gap: 1px;
   font-family: var(--font-data); font-size: 10px; line-height: 1.1; pointer-events: none;
 }
+.meter-dep-row {
+  display: flex; flex-direction: row; align-items: center; gap: 5px;
+  font-family: var(--font-data); font-size: 10px; line-height: 1.1;
+}
 .meter-dep-dot {
   width: 8px; height: 8px; border-radius: 50%; background: #f5a83d;
   border: 2px solid #0a0e14; box-shadow: 0 0 6px rgba(245,168,61,0.45);
@@ -1059,7 +1063,7 @@ function meterPlaneIcon(color, hdg, dim) {
     '</svg></div>';
   return L.divIcon({ className: "", html: svg, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
-function meterMapPopupHtml(f, gateColors) {
+function meterMapPopupHtml(f, gateColors, trailInfo) {
   const gateColor = flightMarkerColor(f, gateColors);
   const dlyClr = delayColor(f.delay);
   let h = '<div class="meter-mappop">' +
@@ -1068,6 +1072,17 @@ function meterMapPopupHtml(f, gateColors) {
     esc(f.dep) + ' \u2192 gate <span style="color:' + gateColor + '">' + esc(f.gate) + '</span><br>' +
   '<b>' + Math.round(f.dist) + ' NM</b> to field \u00b7 delay <b style="color:' + dlyClr + '">' +
     esc(fmtDelay(f.delay)) + ' min</b>';
+  if (f.status === "AIRBORNE" && trailInfo) {
+    if (!trailInfo.leader) {
+      h += '<br>Lead \u00b7 spacing \u2265 <b>' + Math.round(trailInfo.reqNm) + ' NM</b>';
+    } else {
+      const sign = trailInfo.deltaNm >= 0 ? "+" : "";
+      const spClr = trailInfo.deltaNm < -0.5 ? "#d45c5c" : trailInfo.deltaNm > 1 ? "#d4923a" : "#4caf7a";
+      h += '<br><b>' + trailInfo.distNm.toFixed(1) + ' NM</b> to ' + esc(trailInfo.leader) +
+        ' \u00b7 <span style="color:' + spClr + '">' + sign + trailInfo.deltaNm.toFixed(1) + ' NM</span>' +
+        ' vs ' + Math.round(trailInfo.reqNm) + ' req';
+    }
+  }
   if (f.posEst) h += '<br><span style="color:#5c6b78">position estimated</span>';
   return h + '</div>';
 }
@@ -1088,16 +1103,15 @@ function meterGroundDepTooltip(flights, now) {
     '<b>' + esc(f.callsign) + '</b>  CFR ' + esc(meterGroundCfrLabel(f, now))
   ).join("<br>");
 }
-function meterDepLabelIcon(dep) {
-  const html = '<div class="meter-dep-mark">' +
+function meterDepGroundIcon(dep, count) {
+  const html = '<div class="meter-dep-row">' +
+    '<div class="meter-dep-mark">' +
     '<div class="meter-dep-dot"></div>' +
-    '<div class="meter-dep-lbl">' + esc(dep) + '</div></div>';
-  return L.divIcon({ className: "", html, iconSize: [44, 22], iconAnchor: [22, 22] });
-}
-function meterDepArrowIcon(count) {
-  const html = '<div class="meter-dep-gnd">' +
-    '<span class="meter-dep-arrow">\u25B2</span><span class="meter-dep-cnt">' + count + '</span></div>';
-  return L.divIcon({ className: "", html, iconSize: [28, 16], iconAnchor: [14, 0] });
+    '<div class="meter-dep-lbl">' + esc(dep) + '</div></div>' +
+    '<div class="meter-dep-gnd">' +
+    '<span class="meter-dep-arrow">\u25B2</span><span class="meter-dep-cnt">' + count + '</span>' +
+    '</div></div>';
+  return L.divIcon({ className: "", html, iconSize: [76, 22], iconAnchor: [38, 11] });
 }
 function isUsArtccId(id) {
   const bare = String(id || "").toUpperCase().replace(/^K/, "");
@@ -1142,7 +1156,7 @@ function fitMeterMapBounds(flow) {
   if (!meterMap || !flow.arrPt) return;
   const bounds = L.latLngBounds([flow.arrPt[0], flow.arrPt[1]]);
   for (const f of flow.flights) {
-    if (f.status === "GROUND" || f.status === "PROPOSED") {
+    if (f.status === "GROUND") {
       const depPt = lookup(f.dep);
       if (depPt) bounds.extend(depPt);
     } else if (f.lat != null && f.lon != null) {
@@ -1167,29 +1181,29 @@ function updateMeterMapMarkers(flow) {
       .addTo(meterMapTraffic);
   }
 
-  /* ground / proposed — grouped at departure airports */
+  /* ground — grouped at departure airports (GROUND status only) */
   const groundByDep = {};
   for (const f of flow.flights) {
-    if (f.status !== "GROUND" && f.status !== "PROPOSED") continue;
+    if (f.status !== "GROUND") continue;
     (groundByDep[f.dep] = groundByDep[f.dep] || []).push(f);
   }
   for (const dep of Object.keys(groundByDep)) {
     const depPt = lookup(dep);
     if (!depPt) continue;
     const flights = groundByDep[dep];
-    L.marker([depPt[0], depPt[1]], {
-      icon: meterDepLabelIcon(dep), keyboard: false, interactive: false
-    }).addTo(meterMapTraffic);
     const tip = meterGroundDepTooltip(flights, flow.now);
     L.marker([depPt[0], depPt[1]], {
-      icon: meterDepArrowIcon(flights.length),
-      keyboard: false, riseOnHover: true, zIndexOffset: 200
+      icon: meterDepGroundIcon(dep, flights.length),
+      keyboard: false, riseOnHover: true
     })
       .bindTooltip(tip, {
-        className: "meter-map-gndtip", direction: "top", offset: [0, -4], opacity: 0.95
+        className: "meter-map-gndtip", direction: "top", offset: [0, -6], opacity: 0.95
       })
       .addTo(meterMapTraffic);
   }
+
+  const rate = getRate(icao);
+  const trailMap = computeAirborneTrailMap(flow, rate);
 
   /* airborne / arrived — individual aircraft */
   for (const f of flow.flights) {
@@ -1201,12 +1215,20 @@ function updateMeterMapMarkers(flow) {
       icon: meterPlaneIcon(color, f.hdg || 0, dim),
       keyboard: false, riseOnHover: true
     });
-    m.bindPopup(meterMapPopupHtml(f, flow.gateColors), { className: "meter-mappop-wrap", maxWidth: 260 });
+    const trailInfo = f.status === "AIRBORNE" ? trailMap[f.callsign] : null;
+    m.bindPopup(meterMapPopupHtml(f, flow.gateColors, trailInfo), { className: "meter-mappop-wrap", maxWidth: 280 });
     m.addTo(meterMapTraffic);
     if (f.status === "AIRBORNE" && flow.arrPt && !f.posEst) {
       L.polyline([[f.lat, f.lon], flow.arrPt], {
         color, weight: 1, opacity: 0.35, dashArray: "4 6"
       }).addTo(meterMapTraffic);
+      const ti = trailMap[f.callsign];
+      if (ti && ti.leaderFlight) {
+        const lc = flightMarkerColor(ti.leaderFlight, flow.gateColors);
+        L.polyline([[f.lat, f.lon], [ti.leaderFlight.lat, ti.leaderFlight.lon]], {
+          color: lc, weight: 1.5, opacity: 0.55, dashArray: "2 4"
+        }).addTo(meterMapTraffic);
+      }
     }
   }
 }
@@ -1237,9 +1259,9 @@ function ensureMeterMap(flow) {
 }
 function meterMapLegendHtml(flow) {
   let h = '<span class="leg-item"><span class="swatch" style="background:#e8a838"></span>' + esc(icao) + ' arr</span>';
-  h += '<span class="leg-item"><span class="swatch" style="background:#f5a83d"></span>dep \u25B2 ground count</span>';
+  h += '<span class="leg-item"><span class="swatch" style="background:#f5a83d"></span>dep \u25B2 GROUND</span>';
   const statusLeg = [
-    ["AIRBORNE", "#57d98a"], ["PROPOSED", "#54b8e8"], ["ARRIVED", "#56676f"]
+    ["AIRBORNE", "#57d98a"], ["ARRIVED", "#56676f"]
   ];
   for (const [lbl, clr] of statusLeg) {
     h += '<span class="leg-item"><span class="swatch" style="background:' + clr + '"></span>' + lbl + '</span>';
@@ -1347,6 +1369,42 @@ function gateSpacingFor(rate, spacing, gate) {
     if (g) return routeSpacingMs({ trail: g.trail || 0, mit: g.mit || 0 }, spacing);
   }
   return routeSpacingMs(rate, spacing);
+}
+/* required in-trail distance (NM) from TMU program spacing rules */
+function requiredSpacingNm(rate, spacingMs, gate) {
+  return (gateSpacingFor(rate, spacingMs, gate) / 3600000) * MIT_NOMINAL_KT;
+}
+function aarSpacingNm(rate) {
+  const spacingMs = (3600 / Math.max(rate.aar, 1)) * 1000;
+  return (spacingMs / 3600000) * MIT_NOMINAL_KT;
+}
+function trailRequiredNm(rate, spacingMs, follower, leader) {
+  if (follower.gate !== "\u2014" && follower.gate === leader.gate)
+    return requiredSpacingNm(rate, spacingMs, follower.gate);
+  return aarSpacingNm(rate);
+}
+function computeAirborneTrailMap(flow, rate) {
+  const spacingMs = (3600 / Math.max(rate.aar, 1)) * 1000;
+  const airborne = flow.flights.filter(f =>
+    f.status === "AIRBORNE" && isMetered(f) && f.lat != null && f.lon != null && isFinite(f.dist));
+  airborne.sort((a, b) => a.dist - b.dist);
+  const trail = {};
+  for (let i = 0; i < airborne.length; i++) {
+    const f = airborne[i];
+    if (i === 0) {
+      const reqNm = f.gate !== "\u2014"
+        ? requiredSpacingNm(rate, spacingMs, f.gate)
+        : aarSpacingNm(rate);
+      trail[f.callsign] = { leader: null, distNm: null, reqNm, deltaNm: null };
+      continue;
+    }
+    const leader = airborne[i - 1];
+    const distNm = gcDist(f.lat, f.lon, leader.lat, leader.lon);
+    const reqNm = trailRequiredNm(rate, spacingMs, f, leader);
+    const deltaNm = Math.round((distNm - reqNm) * 10) / 10;
+    trail[f.callsign] = { leader: leader.callsign, leaderFlight: leader, distNm, reqNm, deltaNm };
+  }
+  return trail;
 }
 
 /* ---------- math / parsing helpers ---------- */
