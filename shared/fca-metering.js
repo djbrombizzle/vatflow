@@ -704,6 +704,7 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
         globalSeq: globalIdx.get(cs) || null,
         sched: c.sched,
         eta: c.eta,
+        deptime: c.p.deptime || "",
       };
       const prev = byCallsign.get(cs);
       if (!prev || row.edctMs > prev.edctMs) byCallsign.set(cs, row);
