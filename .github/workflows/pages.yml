@@ -35,6 +35,7 @@ jobs:
 
       - name: Prepare site artifact
         run: |
+          SHA="${{ github.sha }}"
           mkdir -p _site
           rsync -a \
             --exclude '.git' \
@@ -44,56 +45,42 @@ jobs:
             --exclude 'data/source' \
             ./ _site/
           touch _site/.nojekyll
-          echo "${{ github.sha }}" > _site/deploy-sha.txt
+          echo "$SHA" > _site/deploy-sha.txt
+          # Embed SHA in index.html — always served; dotfiles/extra paths may 404 on Pages edge.
+          if [ -f _site/index.html ]; then
+            sed -i "s|</head>|  <!-- vatflow-deploy-sha:${SHA} -->\n</head>|" _site/index.html
+          fi
+          echo "Artifact stamped with $SHA"
+          ls -la _site/deploy-sha.txt _site/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
-      - name: Deploy to GitHub Pages (attempt 1)
-        id: deploy1
-        continue-on-error: true
-        uses: actions/deploy-pages@v4
-
-      - name: Deploy to GitHub Pages (attempt 2)
-        id: deploy2
-        if: steps.deploy1.outcome != 'success'
-        continue-on-error: true
-        uses: actions/deploy-pages@v4
-
-      - name: Deploy to GitHub Pages (attempt 3)
-        id: deploy3
-        if: steps.deploy1.outcome != 'success' && steps.deploy2.outcome != 'success'
-        continue-on-error: true
-        uses: actions/deploy-pages@v4
-
-      - name: Record deploy outcome
+      - name: Deploy to GitHub Pages
         id: deployment
-        run: |
-          if [ "${{ steps.deploy1.outcome }}" = "success" ]; then echo "outcome=success" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.deploy2.outcome }}" = "success" ]; then echo "outcome=success" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.deploy3.outcome }}" = "success" ]; then echo "outcome=success" >> "$GITHUB_OUTPUT"
-          else echo "outcome=failure" >> "$GITHUB_OUTPUT"; fi
-          echo "page_url=https://djbrombizzle.github.io/vatflow/" >> "$GITHUB_OUTPUT"
+        uses: actions/deploy-pages@v4
 
       - name: Verify deployment
         run: |
           SHA="${{ github.sha }}"
-          SITE="https://djbrombizzle.github.io/vatflow/deploy-sha.txt"
-          if [ "${{ steps.deployment.outputs.outcome }}" = "success" ]; then
-            echo "Deploy step reported success — confirming SHA on live site…"
-          else
-            echo "Deploy steps failed — checking if Pages propagated anyway (known GitHub flake)…"
-          fi
-          for i in 1 2 3 4 5 6 8 10 12; do
-            sleep 15
-            LIVE=$(curl -fsS "$SITE?nocache=$i" 2>/dev/null | tr -d '[:space:]' || true)
+          BASE="https://djbrombizzle.github.io/vatflow"
+          echo "Waiting for Pages CDN propagation…"
+          sleep 45
+          for i in $(seq 1 18); do
+            LIVE=""
+            LIVE=$(curl -fsS "$BASE/deploy-sha.txt" 2>/dev/null | tr -d '[:space:]' || true)
+            if [ -z "$LIVE" ]; then
+              LIVE=$(curl -fsS "$BASE/index.html" 2>/dev/null | grep -oE 'vatflow-deploy-sha:[a-f0-9]{40}' | head -1 | cut -d: -f2 || true)
+            fi
             if [ "$LIVE" = "$SHA" ]; then
-              echo "Live site matches commit $SHA"
+              echo "Live site matches commit $SHA (attempt $i)"
               exit 0
             fi
-            echo "Attempt $i: live=$LIVE want=$SHA"
+            echo "Attempt $i: live=${LIVE:-empty} want=$SHA"
+            sleep 20
           done
-          echo "Pages site did not publish this commit."
+          echo "::warning::SHA not visible on CDN yet — deploy step succeeded; site may still be propagating."
+          echo "Check manually: $BASE/index.html and $BASE/deploy-sha.txt"
           exit 1
