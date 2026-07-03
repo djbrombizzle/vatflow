@@ -1807,7 +1807,7 @@ fetch(AIRPORT_DB_URL)
 setInterval(fetchWinds, 3600000);   /* refresh winds aloft hourly */
 
 /* ---------- taxi monitor ---------- */
-const TAXI_GS_START = 5;
+const TAXI_GS_START = 7;
 const TAXI_GS_STOP = 60;
 const TAXI_ALT_CLIMB_FT = 100;
 const TAXI_DEP_PROX_NM = 15;       /* ignore departures not near the origin field */
@@ -1934,16 +1934,22 @@ function pushTaxiSync(id, entry) {
   if (window.VFSync && window.VFSync.pushTaxiSample) window.VFSync.pushTaxiSample(id, entry);
 }
 
-function isDepartedAirborne(p, field) {
+function isDepartedForFinish(p, field, sess) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
-  return p.groundspeed > 60 && (p.altitude || 0) > 300;
+  const gs = p.groundspeed || 0;
+  const alt = p.altitude || 0;
+  if (sess && sess.baseAlt != null) {
+    if (alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT) return true;
+    if (gs > TAXI_GS_STOP) return true;
+  }
+  return gs > TAXI_GS_STOP && alt > 300;
 }
 
-function isDepartureGround(p, field) {
+function isDepartureGround(p, field, sess) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
-  if (isDepartedAirborne(p, field)) return false;
+  if (isDepartedForFinish(p, field, sess)) return false;
   const depPt = lookup(field);
   if (depPt && isFinite(p.latitude) && isFinite(p.longitude)) {
     const distToDep = gcDist(p.latitude, p.longitude, depPt[0], depPt[1]);
@@ -1969,8 +1975,8 @@ function finishTaxiSession(key, sess, endMs) {
   sess.phase = "done";
 }
 
-function newTaxiSession(field, phase, now, gs, alt) {
-  return { airport: field, phase, startMs: phase === "rolling" ? now : null,
+function newTaxiSession(field, now, gs, alt) {
+  return { airport: field, phase: "watching", startMs: null,
     firstSeenMs: now, baseAlt: alt, lastGs: gs, lastAlt: alt };
 }
 
@@ -1981,20 +1987,16 @@ function updateTaxiMonitor() {
 
   for (const field of taxiMonAirports) {
     for (const p of (vatsim.pilots || [])) {
-      if (!isDepartureGround(p, field)) continue;
       const cs = p.callsign;
       const key = taxiSessKey(field, cs);
-      activeKeys.add(key);
       const gs = p.groundspeed || 0;
       const alt = p.altitude || 0;
       let sess = taxiSessions[key];
+      if (!isDepartureGround(p, field, sess)) continue;
+      activeKeys.add(key);
 
       if (!sess || sess.airport !== field || sess.phase === "done") {
-        if (gs > TAXI_GS_START) {
-          sess = newTaxiSession(field, "rolling", now, gs, alt);
-        } else {
-          sess = newTaxiSession(field, "watching", now, gs, alt);
-        }
+        sess = newTaxiSession(field, now, gs, alt);
         taxiSessions[key] = sess;
       }
 
@@ -2002,13 +2004,12 @@ function updateTaxiMonitor() {
         sess.phase = "rolling";
         sess.startMs = now;
         sess.baseAlt = alt;
+        sess.rollPollMs = now;
       }
 
-      if (sess.phase === "rolling" && sess.startMs != null) {
+      if (sess.phase === "rolling" && sess.startMs != null && sess.rollPollMs !== now) {
         const climbed = alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT;
-        if (gs > TAXI_GS_STOP || climbed) {
-          finishTaxiSession(key, sess, now);
-        }
+        if (gs > TAXI_GS_STOP || climbed) finishTaxiSession(key, sess, now);
       }
 
       sess.lastGs = gs;
@@ -2016,17 +2017,21 @@ function updateTaxiMonitor() {
     }
   }
 
-  /* departures that went airborne between polls — complete any open session */
+  /* departures that left the ground roll — complete any open session */
   for (const field of taxiMonAirports) {
     for (const p of (vatsim.pilots || [])) {
-      if (!isDepartedAirborne(p, field)) continue;
       const key = taxiSessKey(field, p.callsign);
       const sess = taxiSessions[key];
-      if (sess && sess.phase !== "done") finishTaxiSession(key, sess, now);
+      if (!sess || sess.phase === "done") continue;
+      if (isDepartedForFinish(p, field, sess)) finishTaxiSession(key, sess, now);
     }
   }
 
   for (const key of Object.keys(taxiSessions)) {
+    if (!activeKeys.has(key)) {
+      const sess = taxiSessions[key];
+      if (sess && sess.phase !== "done") finishTaxiSession(key, sess, now);
+    }
     if (!activeKeys.has(key) || taxiSessions[key].phase === "done") delete taxiSessions[key];
   }
   saveTaxiSessions();
@@ -2761,7 +2766,7 @@ function renderHelp() {
     '<li><b>Ready Time</b> column — enter pilot-estimated wheels-up (HHMMz) and press <b>Set</b> for a release at or after that time.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
-    '<li>Tracks ground departures from 5 kt to 60 kt or climb.</li></ul></div></details>' +
+    '<li>Tracks ground departures from 7 kt to 60 kt or climb.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Enter your VATSIM CID to see your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
 
@@ -3942,7 +3947,7 @@ function renderTaxiMonitor() {
       '<input id="taximonPageIcao" data-keep="taximonPageIcao" list="event-fields" maxlength="4" placeholder="ICAO" autocomplete="off" class="input-narrow--110">' +
       '<button data-taximonadd>ADD</button>' +
       '<span class="form-note">' + taxiMonAirports.length + ' / ' + TAXI_MON_MAX +
-      ' airports &middot; timer: 5 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
+      ' airports &middot; timer: 7 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
       '</div>';
   } else {
     h += '<div class="viewonly">View only \u2014 unlock with the control password to add or remove monitored airports.</div>';
