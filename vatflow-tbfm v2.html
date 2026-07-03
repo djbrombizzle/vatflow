@@ -886,6 +886,7 @@ function saveTaxiMonAirports() {
 }
 function taxiMonHasAirports() { return taxiMonAirports.length > 0; }
 const taxiSessions = {};    // field|callsign -> { airport, phase, startMs, baseAlt, lastGs, lastAlt }
+const TAXI_SESSIONS_KEY = "vatflow_taxi_sessions";
 let taxiHistory = [];       // [{ id, airport, callsign, startMs, endMs, durationMs }]
 try { const savedTaxiHist = localStorage.getItem("vatflow_taxi_history"); if (savedTaxiHist) taxiHistory = JSON.parse(savedTaxiHist) || []; } catch (e) {}
 const TAXI_MON_MAX = 5;
@@ -1824,6 +1825,7 @@ function saveTaxiHistory() {
   try { localStorage.setItem("vatflow_taxi_history", JSON.stringify(taxiHistory)); } catch (e) {}
 }
 pruneTaxiHistory();
+loadTaxiSessions();
 
 function fmtTaxiDuration(ms) {
   const sec = Math.max(0, Math.floor(ms / 1000));
@@ -1833,6 +1835,53 @@ function fmtTaxiDuration(ms) {
 }
 
 function taxiSessKey(field, callsign) { return field + "|" + callsign; }
+
+function loadTaxiSessions() {
+  try {
+    const raw = sessionStorage.getItem(TAXI_SESSIONS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) || {};
+    for (const k in parsed) {
+      if (parsed[k] && parsed[k].phase !== "done") taxiSessions[k] = parsed[k];
+    }
+  } catch (e) {}
+}
+
+function saveTaxiSessions() {
+  const o = {};
+  for (const k in taxiSessions) {
+    const s = taxiSessions[k];
+    if (s && s.phase !== "done") o[k] = s;
+  }
+  try { sessionStorage.setItem(TAXI_SESSIONS_KEY, JSON.stringify(o)); } catch (e) {}
+}
+
+function syncTaxiSessionsFromStore() {
+  try {
+    const raw = sessionStorage.getItem(TAXI_SESSIONS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) || {};
+    for (const k of Object.keys(taxiSessions)) {
+      if (!parsed[k] || parsed[k].phase === "done") delete taxiSessions[k];
+    }
+    for (const k in parsed) {
+      if (parsed[k] && parsed[k].phase !== "done") taxiSessions[k] = parsed[k];
+    }
+  } catch (e) {}
+}
+
+function reloadTaxiHistoryFromStore() {
+  try {
+    const raw = localStorage.getItem("vatflow_taxi_history");
+    if (!raw) return;
+    const stored = JSON.parse(raw) || [];
+    const byId = new Map();
+    for (const h of taxiHistory) byId.set(h.id || taxiSampleId(h.airport, h.callsign, h.endMs), h);
+    for (const h of stored) byId.set(h.id || taxiSampleId(h.airport, h.callsign, h.endMs), h);
+    taxiHistory = Array.from(byId.values());
+    pruneTaxiHistory();
+  } catch (e) {}
+}
 
 function taxiSampleId(airport, callsign, endMs) {
   return fbKey(airport + "_" + callsign + "_" + endMs);
@@ -1980,6 +2029,7 @@ function updateTaxiMonitor() {
   for (const key of Object.keys(taxiSessions)) {
     if (!activeKeys.has(key) || taxiSessions[key].phase === "done") delete taxiSessions[key];
   }
+  saveTaxiSessions();
 }
 
 function getTaxiAirportCodes() {
@@ -3882,6 +3932,8 @@ function renderDep() {
 }
 
 function renderTaxiMonitor() {
+  syncTaxiSessionsFromStore();
+  reloadTaxiHistoryFromStore();
   const ctl = canControl();
   let h = "";
   if (ctl) {
@@ -5056,6 +5108,17 @@ lockBtn.addEventListener("click", () => {
 pwGo.addEventListener("click", () => attemptUnlock(pwInput.value));
 pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(pwInput.value); });
 updateLockUI();
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    syncTaxiSessionsFromStore();
+    reloadTaxiHistoryFromStore();
+    if (activeTab === "taximon" || activeTab === "home") renderContent();
+  } else {
+    saveTaxiSessions();
+  }
+});
+document.addEventListener("pagehide", () => saveTaxiSessions());
 
 renderContent();
 </script>
