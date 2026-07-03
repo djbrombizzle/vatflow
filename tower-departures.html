@@ -428,6 +428,19 @@ function gapLabel(gapMin, isLeader) {
   return gapMin.toFixed(1) + " min";
 }
 
+const EDCT_DELAY_MIN = 1;
+
+function hasEdctDelay(delayMin) {
+  return (delayMin || 0) > EDCT_DELAY_MIN;
+}
+
+function edctCellHtml(d) {
+  if (hasEdctDelay(d.delayMin)) {
+    return `<td class="cell-edct cell-hold">${fmtZulu(d.edctMs)}</td>`;
+  }
+  return `<td class="cell-edct cell-ok">RELEASED</td>`;
+}
+
 function moveTowerOrder(fcaId, fromCs, toCs) {
   if (!canControl() || fromCs === toCs) return;
   const fca = state.fcas.find(f => f.id === fcaId);
@@ -475,7 +488,7 @@ function render() {
     if (!meteredSet.has(p.callsign)) unmetered.push(p);
   }
 
-  const holding = result.departures.filter(d => (d.delayMin || 0) >= 0.5).length;
+  const holding = result.departures.filter(d => hasEdctDelay(d.delayMin)).length;
 
   let html =
     `<div class="strip">` +
@@ -502,7 +515,7 @@ function render() {
     `</tr></thead><tbody id="depBody">`;
 
   const rows = result.departures.map((d, i) => {
-    const hold = (d.delayMin || 0) >= 0.5;
+    const hold = hasEdctDelay(d.delayMin);
     const fcaStyle = d.fcaColor ? `color:${d.fcaColor};border-color:${d.fcaColor}55;background:${d.fcaColor}18` : "";
     const title = `Transit ${Math.round(d.dist || 0)}nm · delay ${(d.delayMin || 0).toFixed(1)} min`;
     return {
@@ -523,7 +536,7 @@ function render() {
       `<td><span class="fca-tag" style="${d.fcaStyle}">${escapeHtml(d.fcaName || d.fcaId)}</span></td>` +
       `<td>${gapLabel(d.gapMin, d.isLeader)}</td>` +
       `<td>${fmtZulu(d.ctaMs)}</td>` +
-      `<td class="cell-edct ${d.hold ? "cell-hold" : "cell-ok"}">${fmtZulu(d.edctMs)}</td>` +
+      `${edctCellHtml(d)}` +
       `<td>${d.globalSeq != null ? d.globalSeq : "—"}</td>` +
       `</tr>`;
   }
