@@ -149,6 +149,65 @@ export function fcaMatchesDir(fca, hdg) {
   return dirOfHeading(hdg) === d;
 }
 
+function angleDiff(a, b) {
+  return Math.abs(((a - b) + 540) % 360 - 180);
+}
+
+function flowBearing(fca) {
+  const d = fca.dir || "any";
+  if (d === "any") return null;
+  return { N: 0, E: 90, S: 180, W: 270 }[d] ?? null;
+}
+
+function nearestPointOnFca(lat, lon, pts) {
+  let best = null, bd = 1e9;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const lat0 = pts[i][0], lon0 = pts[i][1];
+    const A = toLocal(pts[i][0], pts[i][1], lat0, lon0);
+    const B = toLocal(pts[i + 1][0], pts[i + 1][1], lat0, lon0);
+    const P = toLocal(lat, lon, lat0, lon0);
+    const abx = B[0] - A[0], aby = B[1] - A[1];
+    const len2 = abx * abx + aby * aby;
+    let t = len2 > 0 ? ((P[0] - A[0]) * abx + (P[1] - A[1]) * aby) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const px = A[0] + t * abx, py = A[1] + t * aby;
+    const distNm = Math.hypot(px - P[0], py - P[1]);
+    if (distNm < bd) {
+      bd = distNm;
+      const ll = localToLatLon(px, py, lat0, lon0);
+      best = { lat: ll[0], lon: ll[1], distNm };
+    }
+  }
+  return best;
+}
+
+/** Crossing must lie ahead of the aircraft, not behind along heading. */
+export function isCrossingAhead(p, cross) {
+  if (!cross || cross.lat == null || p.lat == null || p.lon == null) return true;
+  if (p.phase !== "air" || (p.gs || 0) < 40) return true;
+  const hdg = p.hdg;
+  if (hdg == null) return true;
+  const brg = bearing(p.lat, p.lon, cross.lat, cross.lon);
+  return angleDiff(hdg, brg) <= 95;
+}
+
+/** Aircraft already on the exit side of a directional FCA, moving away. */
+export function hasPassedFca(p, fca) {
+  if (p.phase !== "air" || (p.gs || 0) < 40) return false;
+  const flow = flowBearing(fca);
+  if (flow == null || !fca.points || fca.points.length < 2) return false;
+  const near = nearestPointOnFca(p.lat, p.lon, fca.points);
+  if (!near || near.distNm < 2) return false;
+  const toAc = bearing(near.lat, near.lon, p.lat, p.lon);
+  const onExitSide = angleDiff(toAc, flow) < 85;
+  const headingExit = angleDiff(p.hdg || 0, flow) < 85;
+  return onExitSide && headingExit;
+}
+
+function validAirCrossing(p, fca, cross) {
+  return cross && isCrossingAhead(p, cross) && !hasPassedFca(p, fca);
+}
+
 export function projectCrossing(p, pts) {
   const lat0 = p.lat, lon0 = p.lon;
   const h = toRad(p.hdg || 0);
@@ -390,13 +449,22 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
       const path = routePathForCrossing(p, { origin: [p.lat, p.lon], destination: dst, includeNow: true });
       if (path) {
         const b = pathCrossing(path, fca);
-        if (b && b.dist <= LOOKAHEAD_NM) { x = { dist: b.dist, lat: b.lat, lon: b.lon }; via = "route"; }
+        if (b && b.dist <= LOOKAHEAD_NM && validAirCrossing(p, fca, b)) {
+          x = { dist: b.dist, lat: b.lat, lon: b.lon };
+          via = "route";
+        }
       }
     }
-    if (!x && fcaMatchesDir(fca, p.hdg || 0)) x = projectCrossing(p, fca.points);
+    if (!x && fcaMatchesDir(fca, p.hdg || 0)) {
+      const b = projectCrossing(p, fca.points);
+      if (validAirCrossing(p, fca, b)) x = b;
+    }
     if (!x && dst) {
       const b = pathCrossing(buildPathLLs([[p.lat, p.lon], dst]), fca);
-      if (b && b.dist <= LOOKAHEAD_NM) { x = { dist: b.dist, lat: b.lat, lon: b.lon }; via = via || "direct"; }
+      if (b && b.dist <= LOOKAHEAD_NM && validAirCrossing(p, fca, b)) {
+        x = { dist: b.dist, lat: b.lat, lon: b.lon };
+        via = via || "direct";
+      }
     }
     if (!x) continue;
     cand.push({ p, phase: "air", dist: x.dist, eta: (x.dist / p.gs) * 3600, cross: x, spd: p.gs, via });
