@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VATFLOW — TBFM for VATSIM</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 /* VATFLOW design system — injected into vatflow-tbfm v2.html */
 :root {
@@ -381,6 +382,45 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
 .strip-gates { font-size: 11px; color: var(--text-muted); }
 .gate-tag { margin-left: 8px; font-family: var(--font-data); }
 
+/* ---------- apt dashboard traffic map ---------- */
+details.meter-map-acc {
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+details.meter-map-acc summary {
+  padding: 10px 20px; cursor: pointer; font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted); user-select: none; list-style: none;
+  font-weight: 600;
+}
+details.meter-map-acc summary::-webkit-details-marker { display: none; }
+details.meter-map-acc summary::after { content: "+"; float: right; color: var(--text-muted); font-weight: 400; }
+details.meter-map-acc[open] summary::after { content: "\2212"; }
+details.meter-map-acc[open] summary { border-bottom: 1px solid var(--border); color: var(--text-dim); }
+.meter-map-body { padding: 0 0 12px; }
+.meter-map-legend {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 10px 20px 8px;
+  font-size: 10px; color: var(--text-muted); letter-spacing: 0.04em;
+}
+.meter-map-legend .leg-item { display: inline-flex; align-items: center; gap: 5px; }
+.meter-map-legend .swatch {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.35);
+}
+.meter-map-canvas { height: 340px; width: 100%; background: var(--bg); }
+.meter-map-canvas.leaflet-container { font-family: var(--font-ui); }
+.meter-map-nocoords { padding: 24px 20px; color: var(--text-muted); font-size: 12px; }
+.meter-mappop { font-size: 12px; line-height: 1.5; font-family: var(--font-data); }
+.meter-mappop-wrap .leaflet-popup-content-wrapper {
+  background: var(--elevated); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+}
+.meter-mappop-wrap .leaflet-popup-tip { background: var(--elevated); border: 1px solid var(--border); }
+.meter-mappop-wrap .leaflet-popup-content { margin: 10px 12px; }
+.meter-map-tip {
+  background: var(--elevated) !important; color: var(--text) !important;
+  border: 1px solid var(--border) !important; font-family: var(--font-data) !important;
+  font-size: 11px !important; box-shadow: none !important;
+}
+
 /* ---------- table ---------- */
 .layout { display: grid; grid-template-columns: 1fr var(--ladder-w, 360px); }
 @media (max-width: 900px) {
@@ -718,6 +758,7 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
 <div id="content"></div>
 <div id="gsPopup" class="hidden"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="approach-sector-data.js"></script>
 <script>
 "use strict";
@@ -927,6 +968,9 @@ function readyTimeDisplayHtml(readyMs) {
 function delayClass(ms) {
   return ms > 15 * 60000 ? "cell-alert" : ms > 5 * 60000 ? "cell-warn" : "cell-ok";
 }
+function delayColor(ms) {
+  return ms > 15 * 60000 ? "#d45c5c" : ms > 5 * 60000 ? "#d4923a" : "#4caf7a";
+}
 function lockedCfrHtml(e, now, suggestedWu) {
   if (!e.edctIssued) {
     const wu = suggestedWu != null ? suggestedWu : e.wheelsUp;
@@ -946,6 +990,125 @@ let ladderWidth = 360;       // arrival-ladder column width (px), drag the left 
 try { const lw = +localStorage.getItem("vatflow_ladder_w");
       if (lw) ladderWidth = Math.max(LADDER_W_MIN, Math.min(LADDER_W_MAX, lw)); } catch (e) {}
 function saveLadderWidth() { try { localStorage.setItem("vatflow_ladder_w", String(Math.round(ladderWidth))); } catch (e) {} }
+
+/* Apt Dashboard traffic map (Leaflet) */
+let meterMapOpen = false;
+let meterMap = null;
+let meterMapTraffic = null;
+let meterMapAirport = null;
+let meterMapBoundsSet = false;
+let meterMapView = null;   /* saved center/zoom across re-renders */
+
+function flightMarkerColor(f, gateColors) {
+  return (gateColors && gateColors[f.gate]) || statusColor(f);
+}
+function meterPlaneIcon(color, hdg, dim) {
+  const sz = dim ? 10 : 14;
+  const op = dim ? 0.55 : 1;
+  const svg = '<div style="opacity:' + op + ';transform:rotate(' + (hdg || 0) + 'deg);width:' + sz + 'px;height:' + sz + 'px">' +
+    '<svg viewBox="0 0 24 24" width="' + sz + '" height="' + sz + '">' +
+    '<path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="' + color + '" stroke="#0a0e14" stroke-width="1.2"/>' +
+    '</svg></div>';
+  return L.divIcon({ className: "", html: svg, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+}
+function meterMapPopupHtml(f, gateColors) {
+  const gateColor = flightMarkerColor(f, gateColors);
+  const dlyClr = delayColor(f.delay);
+  let h = '<div class="meter-mappop">' +
+    '<b style="color:' + gateColor + '">' + esc(f.callsign) + '</b> ' +
+    '<span style="color:' + statusColor(f) + '">' + esc(f.status) + '</span><br>' +
+    esc(f.dep) + ' \u2192 gate <span style="color:' + gateColor + '">' + esc(f.gate) + '</span><br>' +
+  '<b>' + Math.round(f.dist) + ' NM</b> to field \u00b7 delay <b style="color:' + dlyClr + '">' +
+    esc(fmtDelay(f.delay)) + ' min</b>';
+  if (f.posEst) h += '<br><span style="color:#5c6b78">position estimated</span>';
+  return h + '</div>';
+}
+function destroyMeterMap() {
+  if (!meterMap) return;
+  const c = meterMap.getCenter();
+  meterMapView = { center: [c.lat, c.lng], zoom: meterMap.getZoom() };
+  meterMap.remove();
+  meterMap = null;
+  meterMapTraffic = null;
+  meterMapAirport = null;
+  meterMapBoundsSet = false;
+}
+function fitMeterMapBounds(flow) {
+  if (!meterMap || !flow.arrPt) return;
+  const bounds = L.latLngBounds([flow.arrPt[0], flow.arrPt[1]]);
+  for (const f of flow.flights) {
+    if (f.lat != null && f.lon != null) bounds.extend([f.lat, f.lon]);
+  }
+  if (bounds.isValid()) meterMap.fitBounds(bounds.pad(0.15), { maxZoom: 9 });
+  else meterMap.setView([flow.arrPt[0], flow.arrPt[1]], 7);
+  meterMapBoundsSet = true;
+}
+function updateMeterMapMarkers(flow) {
+  if (!meterMap || !meterMapTraffic) return;
+  meterMapTraffic.clearLayers();
+  if (flow.arrPt) {
+    const aptIcon = L.divIcon({
+      className: "",
+      html: '<div style="width:12px;height:12px;border-radius:50%;background:#e8a838;border:2px solid #0a0e14;box-shadow:0 0 8px rgba(232,168,56,0.6)"></div>',
+      iconSize: [12, 12], iconAnchor: [6, 6]
+    });
+    L.marker([flow.arrPt[0], flow.arrPt[1]], { icon: aptIcon, keyboard: false })
+      .bindTooltip(esc(icao), { direction: "top", offset: [0, -8], className: "meter-map-tip" })
+      .addTo(meterMapTraffic);
+  }
+  for (const f of flow.flights) {
+    if (f.lat == null || f.lon == null) continue;
+    const color = flightMarkerColor(f, flow.gateColors);
+    const dim = f.status === "PROPOSED" || f.posEst;
+    const m = L.marker([f.lat, f.lon], {
+      icon: meterPlaneIcon(color, f.hdg || 0, dim),
+      keyboard: false, riseOnHover: true
+    });
+    m.bindPopup(meterMapPopupHtml(f, flow.gateColors), { className: "meter-mappop-wrap", maxWidth: 260 });
+    m.addTo(meterMapTraffic);
+    if (f.status === "AIRBORNE" && flow.arrPt && !f.posEst) {
+      L.polyline([[f.lat, f.lon], flow.arrPt], {
+        color, weight: 1, opacity: 0.35, dashArray: "4 6"
+      }).addTo(meterMapTraffic);
+    }
+  }
+}
+function ensureMeterMap(flow) {
+  const el = document.getElementById("meterMapCanvas");
+  if (!el || !flow.arrPt || typeof L === "undefined") return;
+  if (meterMap && meterMapAirport !== icao) destroyMeterMap();
+  if (!meterMap) {
+    meterMap = L.map(el, { zoomControl: true, attributionControl: true });
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      subdomains: "abcd", maxZoom: 11, minZoom: 3,
+      attribution: "\u00a9 OpenStreetMap, \u00a9 CARTO \u00b7 traffic: VATSIM"
+    }).addTo(meterMap);
+    meterMapTraffic = L.layerGroup().addTo(meterMap);
+    meterMapAirport = icao;
+    meterMapBoundsSet = false;
+    if (meterMapView) {
+      meterMap.setView(meterMapView.center, meterMapView.zoom);
+      meterMapBoundsSet = true;
+    }
+  }
+  setTimeout(() => { if (meterMap) meterMap.invalidateSize(); }, 60);
+  updateMeterMapMarkers(flow);
+  if (!meterMapBoundsSet) fitMeterMapBounds(flow);
+}
+function meterMapLegendHtml(flow) {
+  let h = '<span class="leg-item"><span class="swatch" style="background:#e8a838"></span>' + esc(icao) + '</span>';
+  const statusLeg = [
+    ["AIRBORNE", "#57d98a"], ["GROUND", "#f5a83d"], ["PROPOSED", "#54b8e8"], ["ARRIVED", "#56676f"]
+  ];
+  for (const [lbl, clr] of statusLeg) {
+    h += '<span class="leg-item"><span class="swatch" style="background:' + clr + '"></span>' + lbl + '</span>';
+  }
+  for (const [g] of flow.topGates) {
+    const c = flow.gateColors[g];
+    h += '<span class="leg-item"><span class="swatch" style="background:' + c + '"></span>gate ' + esc(g) + '</span>';
+  }
+  return h;
+}
 
 const DEFAULT_RATE = { aar: 30, trail: 0, mit: 0, gates: [], excludeWake: [], excludeTypes: [], includeTypes: [], jetsOnly: false, unknownInclude: true };
 const getRate = code => tmuRates[code] || DEFAULT_RATE;
@@ -1616,6 +1779,22 @@ function computeFlow(target) {
     flights.push(base);
   };
 
+  const pilotPos = (p, dep) => {
+    let lat = p.latitude, lon = p.longitude, posEst = false;
+    if (!isFinite(lat) || !isFinite(lon)) {
+      const depPt = lookup(dep);
+      if (depPt) { lat = depPt[0]; lon = depPt[1]; posEst = true; }
+      else { lat = null; lon = null; }
+    }
+    return { lat, lon, hdg: p.heading || 0, alt: p.altitude || 0, posEst };
+  };
+  const depPos = (dep) => {
+    const depPt = lookup(dep);
+    return depPt
+      ? { lat: depPt[0], lon: depPt[1], hdg: 0, alt: 0, posEst: true }
+      : { lat: null, lon: null, hdg: 0, alt: 0, posEst: true };
+  };
+
   for (const p of (vatsim.pilots || [])) {
     const fp = p.flight_plan;
     if (!fp || (fp.arrival || "").toUpperCase() !== target) continue;
@@ -1630,16 +1809,18 @@ function computeFlow(target) {
 
     if (arrived) {
       /* landed/taxiing at the destination — not a pending departure, no metering */
+      const pos = pilotPos(p, dep);
       pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,
         status:"ARRIVED", dist:distToArr, gs:p.groundspeed, eta:now, sta:now,
-        delay:0, flightTimeMs:null, est:false, arrived:true, vfr });
+        delay:0, flightTimeMs:null, est:false, arrived:true, vfr, ...pos });
     } else if (airborne && distToArr != null) {
       const gs = Math.max(p.groundspeed, 120);
       const pad = distToArr > 40 ? 4 : distToArr > 15 ? 2 : 0;
       const eteMs = (distToArr / gs) * 3600000 + pad * 60000;
+      const pos = pilotPos(p, dep);
       pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,
         status:"AIRBORNE", dist:distToArr, gs:p.groundspeed, eta:now + eteMs,
-        sta:now + eteMs, delay:0, flightTimeMs:null, est:false, vfr });
+        sta:now + eteMs, delay:0, flightTimeMs:null, est:false, vfr, ...pos });
     } else {
       const depPt = lookup(dep);
       let routeNm, est = false;
@@ -1652,9 +1833,10 @@ function computeFlow(target) {
       }
       const flightTimeMs = (routeNm / gs) * 3600000 + 14 * 60000;
       const etd = now;   /* assume ready-to-go now; CFR time, if any, is the only delay */
+      const pos = pilotPos(p, dep);
       pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,
         status:"GROUND", dist:routeNm, gs:p.groundspeed, eta:etd + flightTimeMs,
-        sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw });
+        sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw, ...pos });
     }
   }
 
@@ -1688,7 +1870,7 @@ function computeFlow(target) {
     }
     pushFlight({ key:"P-"+pf.callsign, callsign:pf.callsign, type:ac.type, wake:ac.wake, dep, gate,
       status:"PROPOSED", dist:routeNm, gs:0, eta:etd + flightTimeMs,
-      sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw });
+      sta:etd + flightTimeMs, delay:0, flightTimeMs, est, vfr, hw, ...depPos(dep) });
   }
 
   /* ----- metering: two-tier scheduler -----
@@ -1983,6 +2165,19 @@ function renderMeter(refocus) {
   }
   h += '</div>';
 
+  /* traffic map submenu */
+  h += '<details class="meter-map-acc" id="meterMapAcc"' + (meterMapOpen ? ' open' : '') + '>' +
+    '<summary>Traffic map \u00b7 ' + inbound + ' inbound</summary>' +
+    '<div class="meter-map-body">';
+  if (!flow.arrPt) {
+    h += '<div class="meter-map-nocoords">No coordinates for ' + esc(icao) +
+      ' \u2014 map unavailable. ETAs use estimated distances.</div>';
+  } else {
+    h += '<div class="meter-map-legend">' + meterMapLegendHtml(flow) + '</div>' +
+      '<div id="meterMapCanvas" class="meter-map-canvas"></div>';
+  }
+  h += '</div></details>';
+
   /* table */
   h += '<div class="layout" style="--ladder-w:' + Math.round(ladderWidth) + 'px;"><div class="tablewrap">';
   if (!flow.flights.length) {
@@ -2093,9 +2288,11 @@ function renderMeter(refocus) {
   }
   h += '</div></div></div></div>';
 
+  destroyMeterMap();
   contentEl.innerHTML = h;
 
   restoreFocus(refocus);
+  if (meterMapOpen && flow.arrPt) ensureMeterMap(flow);
   /* restore ladder scroll; first render starts at NOW (bottom) */
   const ls = document.getElementById("ladderScroll");
   if (ls) ls.scrollTop = (ladderScrollPos == null) ? ls.scrollHeight : ladderScrollPos;
@@ -4110,6 +4307,19 @@ document.getElementById("gsPopup").addEventListener("click", e => {
   }
 });
 
+/* Apt Dashboard traffic map — open/close submenu */
+contentEl.addEventListener("toggle", e => {
+  if (e.target.id !== "meterMapAcc") return;
+  meterMapOpen = e.target.open;
+  if (meterMapOpen && icao) {
+    if (!meterMapView) meterMapBoundsSet = false;
+    const flow = computeFlow(icao);
+    if (flow && flow.arrPt) ensureMeterMap(flow);
+  } else {
+    destroyMeterMap();
+  }
+}, true);
+
 /* drag the left border of the arrival ladder to resize its width (persisted) */
 (function setupLadderResize() {
   let dragging = false, startX = 0, startW = 0, handle = null;
@@ -4146,6 +4356,7 @@ document.getElementById("gsPopup").addEventListener("click", e => {
 function activate() {
   const v = icaoInput.value.trim().toUpperCase();
   if (!/^[A-Z0-9]{4}$/.test(v)) return;
+  if (v !== icao) { destroyMeterMap(); meterMapView = null; }
   icao = v;
   ladderScrollPos = null;          /* snap ladder back to NOW */
   /* rates are set only on the TMU tab; viewing here uses the existing
