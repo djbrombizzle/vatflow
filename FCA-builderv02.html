@@ -131,6 +131,9 @@
 
   .layers{border-top:1px solid var(--line);margin-top:6px;padding-top:12px}
   .layers .lh{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);margin-bottom:9px}
+  .layers select{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+    font-family:var(--mono);font-size:11px;padding:6px 8px;margin-top:4px}
+  .layers select:focus{outline:none;border-color:var(--amber)}
   .toggle{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:11px;
     color:var(--text);padding:5px 0;cursor:pointer}
   .sw-track{width:34px;height:18px;border-radius:9px;background:#222d3a;position:relative;transition:.15s;flex:none}
@@ -270,6 +273,12 @@
         </div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:5px;line-height:1.5">LOW = ERAM ground · HIGH/UTA = FAA NASR · may differ from VATSIM FIR charts</div>
       </div>
+      <div class="toggle" data-layer="sectors"><span>ERAM sectors</span><div class="sw-track"><div class="sw-knob"></div></div></div>
+      <div id="sectorArtccWrap" style="margin:4px 0 10px;display:none">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted)">Sector ARTCC</div>
+        <select id="sectorArtcc"><option value="ALL">ALL centers</option></select>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:5px;line-height:1.5">Individual ERAM sectors (vIFF/PERTI) · USA only · not official FAA</div>
+      </div>
       <div class="toggle" data-layer="labels"><span>ARTCC labels</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="traffic"><span>Live traffic</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="edct"><span>Ground flights (EDCT)</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
@@ -349,7 +358,7 @@ const state = {
   pilots: [],              // connected aircraft (air + ground)
   prefiles: [],            // prefiled flight plans (not yet connected)
   feed: "init",            // init | live | demo | dead
-  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW" },
+  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"LOW", sectors:false, sectorArtcc:"ALL" },
   countdown: REFRESH_SEC,
   measure: { points: [] },   // ctrl+click ruler
   routeCallsign: null,       // aircraft whose route is plotted
@@ -371,6 +380,7 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
 }).addTo(map);
 
 const artccLayer  = L.layerGroup().addTo(map);
+const sectorLayer = L.layerGroup();
 const labelLayer  = L.layerGroup().addTo(map);
 const trafficLayer= L.layerGroup().addTo(map);
 const fcaLayer    = L.layerGroup().addTo(map);
@@ -385,7 +395,10 @@ const US_ARTCC = new Set(["ZAB","ZAU","ZBW","ZDC","ZDV","ZFW","ZHU","ZID","ZJX",
   "ZLA","ZLC","ZMA","ZME","ZMP","ZNY","ZOA","ZOB","ZSE","ZTL","ZAN","ZHN","ZUA","ZAP"]);
 const VATSPY_BOUNDARIES_URL = "https://cdn.jsdelivr.net/gh/vatsimnetwork/vatspy-data-project@master/Boundaries.geojson";
 const ARTCC_STYLE = { color:"#3a4d5e", weight:1, opacity:.85, fill:false };
+const SECTOR_STYLE = { color:"#5ba8c9", weight:1, opacity:.55, fill:true, fillColor:"#5ba8c9", fillOpacity:.07 };
 const boundaryCache = { LOW:null, HIGH:null, UTA:null, vatspy:null };
+const sectorCache = { LOW:null, HIGH:null, UTA:null };
+const ARTCC_LIST = [...US_ARTCC].sort();
 
 function normArtccId(props){
   return (props.id||props.ID||props.prefix||"").toString().toUpperCase().replace(/^K/,"");
@@ -449,17 +462,63 @@ function renderArtccBoundaries(){
   // UTA is only published for select centers (e.g. ZOA) — don't back-fill with VATSpy.
   if(missing.length&&stratum!=="UTA") drawVatspyCenters(missing);
   if(!drawn.size&&!missing.length) toast("No "+stratum+" ARTCC boundaries loaded.",2600);
+  renderSectors();
+}
+function populateSectorArtccSelect(){
+  const sel=document.getElementById("sectorArtcc");
+  if(!sel) return;
+  const cur=state.layers.sectorArtcc||"ALL";
+  sel.innerHTML='<option value="ALL">ALL centers</option>'+
+    ARTCC_LIST.map(id=>`<option value="${id}">${id}</option>`).join("");
+  sel.value=ARTCC_LIST.includes(cur)?cur:"ALL";
+  if(sel.value!==cur) state.layers.sectorArtcc=sel.value;
+}
+function renderSectors(){
+  sectorLayer.clearLayers();
+  if(!state.layers.sectors) return;
+  const stratum=state.layers.artccStratum||"LOW";
+  const gj=sectorCache[stratum];
+  if(!gj||!gj.features?.length){
+    toast("No "+stratum+" sector data loaded.",2600);
+    return;
+  }
+  const filter=state.layers.sectorArtcc||"ALL";
+  const single=filter!=="ALL";
+  let shown=0;
+  (gj.features||[]).forEach(f=>{
+    const p=f.properties||{};
+    const artcc=(p.artcc||"").toUpperCase();
+    if(filter!=="ALL"&&artcc!==filter) return;
+    const label=p.label||p.id||artcc+(p.sector||"");
+    L.geoJSON(f,{ style:SECTOR_STYLE })
+      .bindTooltip(label+" · "+stratum,{sticky:true,className:"artcc-label",direction:"center"})
+      .addTo(sectorLayer);
+    if(single){
+      const c=L.geoJSON(f).getBounds().getCenter();
+      L.marker([c.lat,c.lng],{interactive:false,
+        icon:L.divIcon({className:"artcc-label",html:label,iconSize:[36,10]})}).addTo(sectorLayer);
+    }
+    shown++;
+  });
+  if(!shown) toast("No "+stratum+" sectors for "+filter+".",2600);
 }
 function loadBoundaries(){
   const files={ LOW:"data/artcc-boundaries-low.geojson", HIGH:"data/artcc-boundaries-high.geojson",
     UTA:"data/artcc-boundaries-uta.geojson" };
+  const sectorFiles={ LOW:"data/artcc-sectors-low.geojson", HIGH:"data/artcc-sectors-high.geojson",
+    UTA:"data/artcc-sectors-uta.geojson" };
   Promise.all([
     fetch(files.LOW).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(files.HIGH).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(files.UTA).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(sectorFiles.LOW).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(sectorFiles.HIGH).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(sectorFiles.UTA).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(VATSPY_BOUNDARIES_URL).then(r=>r.ok?r.json():null).catch(()=>null),
-  ]).then(([low,high,uta,vatspy])=>{
+  ]).then(([low,high,uta,secLow,secHigh,secUta,vatspy])=>{
     boundaryCache.LOW=low; boundaryCache.HIGH=high; boundaryCache.UTA=uta; boundaryCache.vatspy=vatspy;
+    sectorCache.LOW=secLow; sectorCache.HIGH=secHigh; sectorCache.UTA=secUta;
+    populateSectorArtccSelect();
     if(!low&&!high&&!uta){
       if(vatspy){
         boundaryCache.LOW=vatspy;   // full VATSpy fallback if local FAA files missing
@@ -470,6 +529,7 @@ function loadBoundaries(){
       else if(!uta||!uta.features?.length) toast("ULTRA HIGH boundary data not loaded.",3000);
     }
     renderArtccBoundaries();
+    if(state.layers.sectors) map.addLayer(sectorLayer); else map.removeLayer(sectorLayer);
   }).catch(err=>{
     console.warn("Boundaries failed:",err);
     toast("ARTCC boundaries unavailable (network). Tool still works.",4000);
@@ -1604,6 +1664,10 @@ document.querySelectorAll("#artccStratum button").forEach(b=>b.addEventListener(
   b.classList.add("on");
   renderArtccBoundaries();
 }));
+document.getElementById("sectorArtcc").addEventListener("change",e=>{
+  state.layers.sectorArtcc=e.target.value;
+  renderSectors();
+});
 
 // layer toggles
 document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
@@ -1614,6 +1678,11 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
     track.classList.toggle("on",on);
     state.layers[key]=on;
     if(key==="artcc"){ on?map.addLayer(artccLayer):map.removeLayer(artccLayer); if(on) renderArtccBoundaries(); }
+    if(key==="sectors"){
+      document.getElementById("sectorArtccWrap").style.display=on?"block":"none";
+      on?map.addLayer(sectorLayer):map.removeLayer(sectorLayer);
+      if(on) renderSectors();
+    }
     if(key==="labels") on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
     if(key==="traffic") renderTraffic();
     if(key==="edct") renderAll();
