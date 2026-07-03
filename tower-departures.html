@@ -88,18 +88,38 @@
     margin-bottom: 12px;
   }
   .fca-block {
-    flex: 0 0 340px;
-    width: 340px;
-    max-width: 340px;
-    min-width: 340px;
+    flex: 0 0 360px;
+    width: 360px;
+    max-width: 360px;
+    min-width: 360px;
   }
+  .fca-block.pinned .fca-block-head { border-left: 2px solid var(--amber); padding-left: 6px; }
+  .fca-block.hidden-block { display: none; }
   .fca-block-head {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     padding: 6px 8px; margin-bottom: 4px;
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
   }
-  .fca-block-head .fca-name { font-weight: 700; font-size: 11px; }
+  .fca-block-head .fca-name { font-weight: 700; font-size: 11px; flex: 1; min-width: 0; }
   .fca-block-head .fca-meta { color: var(--muted); font-size: 9px; }
+  .fca-block-head .fca-actions { display: flex; gap: 4px; margin-left: auto; }
+  .fca-btn {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em;
+    padding: 2px 6px; border-radius: 3px; cursor: pointer;
+    background: #161d28; border: 1px solid var(--line-2); color: var(--muted);
+  }
+  .fca-btn:hover { color: var(--text); border-color: var(--muted); }
+  .fca-btn.on { color: var(--amber); border-color: rgba(232, 168, 56, 0.5); background: var(--amber-dim); }
+  .hidden-fcas-bar {
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    margin: 0 0 12px; padding: 8px 10px; background: var(--panel);
+    border: 1px dashed var(--line-2); border-radius: 6px;
+  }
+  .hidden-fcas-bar button {
+    font-family: inherit; font-size: inherit; cursor: pointer;
+    background: none; border: none; color: var(--cyan); padding: 0 4px;
+  }
+  .hidden-fcas-bar button:hover { text-decoration: underline; }
   .fca-block.empty .fca-block-head { opacity: 0.55; }
 
   .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
@@ -204,7 +224,7 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
-  getAirport, setWindAltProvider, parseAlt,
+  getAirport, setWindAltProvider, parseAlt, fmtPtime,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -215,6 +235,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
 const LS_FCAS = "fcaBuilder.fcas.v1";
 const LS_FIELD = "towerDepIcao";
 const LS_CID = "towerDep.cid.v1";
+const LS_TOWER_UI = "towerDep.ui.v1";
 const REFRESH_SEC = 20;
 
 const CONTROL_PASSWORD_LOCAL = "";
@@ -237,6 +258,9 @@ const state = {
   atcCallsign: null,
   atcFieldIcao: null,
   atcReason: null,
+  fcaOrder: [],
+  pinnedFcas: new Set(),
+  hiddenFcas: new Set(),
 };
 
 let sb = null, liveTimer = null, countdownTimer = null, stripDragging = false;
@@ -246,6 +270,82 @@ const DEMO_AIRPORTS = {
   KDEN: [39.86, -104.67], KLAX: [33.94, -118.41], KMIA: [25.79, -80.29], KBOS: [42.36, -71.01],
 };
 seedAirports(DEMO_AIRPORTS);
+
+function loadTowerUi() {
+  try {
+    const u = JSON.parse(localStorage.getItem(LS_TOWER_UI) || "{}");
+    state.fcaOrder = Array.isArray(u.fcaOrder) ? u.fcaOrder : [];
+    state.pinnedFcas = new Set(u.pinnedFcas || []);
+    state.hiddenFcas = new Set(u.hiddenFcas || []);
+  } catch (_) {
+    state.fcaOrder = [];
+    state.pinnedFcas = new Set();
+    state.hiddenFcas = new Set();
+  }
+}
+
+function saveTowerUi() {
+  try {
+    localStorage.setItem(LS_TOWER_UI, JSON.stringify({
+      fcaOrder: state.fcaOrder,
+      pinnedFcas: [...state.pinnedFcas],
+      hiddenFcas: [...state.hiddenFcas],
+    }));
+  } catch (_) {}
+}
+
+function captureFcaDomOrder() {
+  const grid = document.getElementById("fcaGrid");
+  if (!grid) return;
+  state.fcaOrder = [...grid.querySelectorAll(".fca-block:not(.hidden-block)")]
+    .map(el => el.getAttribute("data-fca-id"))
+    .filter(Boolean);
+  saveTowerUi();
+}
+
+function orderedVisibleFcas(activeFcas) {
+  const visible = activeFcas.filter(f => !state.hiddenFcas.has(f.id));
+  const byId = new Map(visible.map(f => [f.id, f]));
+  const out = [];
+  for (const id of state.fcaOrder) {
+    if (byId.has(id)) { out.push(byId.get(id)); byId.delete(id); }
+  }
+  for (const f of visible) {
+    if (byId.has(f.id)) out.push(f);
+  }
+  return out;
+}
+
+function hiddenFcaList(activeFcas) {
+  return activeFcas.filter(f => state.hiddenFcas.has(f.id));
+}
+
+function togglePinFca(fcaId) {
+  captureFcaDomOrder();
+  if (state.pinnedFcas.has(fcaId)) state.pinnedFcas.delete(fcaId);
+  else state.pinnedFcas.add(fcaId);
+  saveTowerUi();
+  applyFcaBlockClasses();
+}
+
+function toggleHideFca(fcaId) {
+  if (state.hiddenFcas.has(fcaId)) state.hiddenFcas.delete(fcaId);
+  else {
+    state.hiddenFcas.add(fcaId);
+    state.pinnedFcas.delete(fcaId);
+  }
+  captureFcaDomOrder();
+  state.fcaOrder = state.fcaOrder.filter(id => id !== fcaId || !state.hiddenFcas.has(id));
+  saveTowerUi();
+  render();
+}
+
+function showHiddenFca(fcaId) {
+  state.hiddenFcas.delete(fcaId);
+  if (!state.fcaOrder.includes(fcaId)) state.fcaOrder.push(fcaId);
+  saveTowerUi();
+  render();
+}
 
 function loadSavedCid() {
   try {
@@ -484,6 +584,7 @@ function renderMeteredRow(d, localIdx, canDrag) {
     `<td><span class="grip">⠿</span> ${localIdx + 1}</td>` +
     `<td class="cell-strong">${escapeHtml(d.callsign)}</td>` +
     `<td>${escapeHtml(d.arr || "????")}</td>` +
+    `<td class="cell-ptime">${fmtPtime(d.deptime)}</td>` +
     `<td>${gapLabel(d.gapMin, isLeader)}</td>` +
     `<td>${fmtZulu(d.ctaMs)}</td>` +
     `${edctCellHtml(d)}` +
@@ -496,20 +597,25 @@ function renderFcaMiniTable(fca, rows, canDrag) {
     ? `color:${fca.color};border-color:${fca.color}55;background:${fca.color}18`
     : "";
   const holding = rows.filter(d => hasEdctDelay(d.delayMin)).length;
+  const pinned = state.pinnedFcas.has(fca.id);
   let html =
-    `<div class="fca-block" data-fca-id="${escapeHtml(fca.id)}">` +
+    `<div class="fca-block${pinned ? " pinned" : ""}${rows.length ? "" : " empty"}" data-fca-id="${escapeHtml(fca.id)}">` +
     `<div class="fca-block-head">` +
     `<span class="fca-tag fca-name" style="${fcaStyle}">${escapeHtml(fca.name || fca.id)}</span>` +
     `<span class="fca-meta fca-block-meta">${rows.length} dep${rows.length === 1 ? "" : "s"}` +
     (holding ? ` · ${holding} holding` : "") +
-    `</span></div>` +
+    `</span>` +
+    `<div class="fca-actions">` +
+    `<button type="button" class="fca-btn pin-btn${pinned ? " on" : ""}" data-fca-id="${escapeHtml(fca.id)}" title="Pin table position">PIN</button>` +
+    `<button type="button" class="fca-btn hide-btn" data-fca-id="${escapeHtml(fca.id)}" title="Hide this FCA">HIDE</button>` +
+    `</div></div>` +
     `<div class="tablewrap mini"><table><thead><tr>` +
-    `<th>#</th><th>CS</th><th>DST</th><th>GAP</th><th>CTA</th><th>EDCT</th><th>GLB</th>` +
+    `<th>#</th><th>CS</th><th>DST</th><th>P TIME</th><th>GAP</th><th>CTA</th><th>EDCT</th><th>GLB</th>` +
     `</tr></thead><tbody class="depBody" data-fca="${escapeHtml(fca.id)}">`;
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
   } else {
-    html += `<tr class="empty-row"><td colspan="7" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html += `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
   }
   html += `</tbody></table></div></div>`;
   return html;
@@ -553,17 +659,207 @@ function updateFcaBlock(fca, rows, canDrag) {
     meta.textContent = `${rows.length} dep${rows.length === 1 ? "" : "s"}` +
       (holding ? ` · ${holding} holding` : "");
   }
+  block.classList.toggle("empty", !rows.length);
+  block.classList.toggle("pinned", state.pinnedFcas.has(fca.id));
+  const pinBtn = block.querySelector(".pin-btn");
+  if (pinBtn) pinBtn.classList.toggle("on", state.pinnedFcas.has(fca.id));
   const tbody = block.querySelector("tbody.depBody");
   if (!tbody) return false;
   let html = "";
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
   } else {
-    html = `<tr class="empty-row"><td colspan="7" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html = `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
   }
   tbody.innerHTML = html;
   wireTableDrag(tbody, fca.id);
   return true;
+}
+
+function applyFcaBlockClasses() {
+  document.querySelectorAll(".fca-block").forEach(block => {
+    const id = block.getAttribute("data-fca-id");
+    block.classList.toggle("pinned", state.pinnedFcas.has(id));
+    const pinBtn = block.querySelector(".pin-btn");
+    if (pinBtn) pinBtn.classList.toggle("on", state.pinnedFcas.has(id));
+  });
+}
+
+function renderHiddenFcasBarHtml(activeFcas) {
+  const hidden = hiddenFcaList(activeFcas);
+  if (!hidden.length) return "";
+  const parts = hidden.map(f =>
+    `<button type="button" class="show-fca-btn" data-fca-id="${escapeHtml(f.id)}">${escapeHtml(f.name || f.id)}</button>`
+  ).join(" · ");
+  return `<div class="hidden-fcas-bar" id="hiddenFcasBar">Hidden FCA: ${parts}</div>`;
+}
+
+function updateHiddenFcasBar(activeFcas) {
+  const existing = document.getElementById("hiddenFcasBar");
+  const html = renderHiddenFcasBarHtml(activeFcas);
+  if (!html) {
+    if (existing) existing.remove();
+    return;
+  }
+  if (existing) existing.outerHTML = html;
+  else {
+    const grid = document.getElementById("fcaGrid");
+    if (grid) grid.insertAdjacentHTML("beforebegin", html);
+  }
+  wireHiddenFcaBar();
+}
+
+function wireHiddenFcaBar() {
+  document.querySelectorAll(".show-fca-btn").forEach(btn => {
+    btn.onclick = () => showHiddenFca(btn.getAttribute("data-fca-id"));
+  });
+}
+
+function wireFcaBlockActions() {
+  document.querySelectorAll(".pin-btn").forEach(btn => {
+    btn.onclick = () => togglePinFca(btn.getAttribute("data-fca-id"));
+  });
+  document.querySelectorAll(".hide-btn").forEach(btn => {
+    btn.onclick = () => toggleHideFca(btn.getAttribute("data-fca-id"));
+  });
+}
+
+function syncFcaGridDomOrder(ordered) {
+  const grid = document.getElementById("fcaGrid");
+  if (!grid) return;
+
+  const blocks = [...grid.querySelectorAll(".fca-block")];
+  const byId = new Map(blocks.map(b => [b.getAttribute("data-fca-id"), b]));
+  const pinnedAt = new Map();
+  blocks.forEach((b, i) => {
+    const id = b.getAttribute("data-fca-id");
+    if (state.pinnedFcas.has(id)) pinnedAt.set(id, i);
+  });
+
+  if (!pinnedAt.size) {
+    for (const fca of ordered) {
+      const b = byId.get(fca.id);
+      if (b) grid.appendChild(b);
+    }
+    captureFcaDomOrder();
+    return;
+  }
+
+  const targetUnpinned = ordered.filter(f => !state.pinnedFcas.has(f.id)).map(f => f.id);
+  const slots = new Array(Math.max(blocks.length, ordered.length)).fill(null);
+  for (const [id, idx] of pinnedAt) {
+    if (byId.has(id) && idx < slots.length) slots[idx] = byId.get(id);
+  }
+
+  let ui = 0;
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i]) continue;
+    while (ui < targetUnpinned.length && pinnedAt.has(targetUnpinned[ui])) ui++;
+    if (ui >= targetUnpinned.length) break;
+    const b = byId.get(targetUnpinned[ui++]);
+    if (b) slots[i] = b;
+  }
+
+  for (const fca of ordered) {
+    const b = byId.get(fca.id);
+    if (b && !slots.includes(b)) slots.push(b);
+  }
+
+  for (const b of slots.filter(Boolean)) grid.appendChild(b);
+}
+
+function syncFcaGrid(activeFcas, byFca, dragOk) {
+  const grid = document.getElementById("fcaGrid");
+  if (!grid) return false;
+
+  const ordered = orderedVisibleFcas(activeFcas);
+  const orderedIds = new Set(ordered.map(f => f.id));
+
+  [...grid.querySelectorAll(".fca-block")].forEach(block => {
+    const id = block.getAttribute("data-fca-id");
+    if (!orderedIds.has(id)) block.remove();
+  });
+
+  for (const fca of ordered) {
+    const rows = byFca.get(fca.id) || [];
+    let block = grid.querySelector(`.fca-block[data-fca-id="${fca.id}"]`);
+    if (!block) {
+      grid.insertAdjacentHTML("beforeend", renderFcaMiniTable(fca, rows, dragOk));
+    } else {
+      updateFcaBlock(fca, rows, dragOk);
+    }
+  }
+
+  syncFcaGridDomOrder(ordered);
+  wireFcaBlockActions();
+  wireAllTableDrag();
+  return true;
+}
+
+function renderUnmeteredHtml(unmetered) {
+  if (!unmetered.length) return "";
+  let html =
+    `<div class="section-label" id="unmeteredLabel">Not metered · ${unmetered.length}</div>` +
+    `<div class="tablewrap mini combined" id="unmeteredTable"><table><thead><tr>` +
+    `<th>CALLSIGN</th><th>DEST</th><th>P TIME</th>` +
+    `</tr></thead><tbody id="unmeteredBody">`;
+  for (const p of unmetered) {
+    html += `<tr class="unmetered">` +
+      `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
+      `<td>${escapeHtml(p.arr || "????")}</td>` +
+      `<td class="cell-ptime">${fmtPtime(p.deptime)}</td>` +
+      `</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function syncUnmeteredSection(unmetered) {
+  const label = document.getElementById("unmeteredLabel");
+  const table = document.getElementById("unmeteredTable");
+  if (!unmetered.length) {
+    if (label) label.remove();
+    if (table) table.remove();
+    return;
+  }
+  if (label) label.textContent = `Not metered · ${unmetered.length}`;
+  const tbody = document.getElementById("unmeteredBody");
+  if (tbody) {
+    let html = "";
+    for (const p of unmetered) {
+      html += `<tr class="unmetered">` +
+        `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
+        `<td>${escapeHtml(p.arr || "????")}</td>` +
+        `<td class="cell-ptime">${fmtPtime(p.deptime)}</td>` +
+        `</tr>`;
+    }
+    tbody.innerHTML = html;
+    return;
+  }
+  const grid = document.getElementById("fcaGrid");
+  if (grid) grid.insertAdjacentHTML("afterend", renderUnmeteredHtml(unmetered));
+}
+
+function seqHintHtml() {
+  return canControl()
+    ? (state.atcVerified
+      ? "⠿ drag # to reorder within each FCA — PIN locks table position · verified via VATSIM position · syncs to FCA Builder"
+      : "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence")
+    : "View only — enter your CID in Settings while on _TWR/_GND, or use the control password";
+}
+
+function canIncrementalRender() {
+  return !!(state.field && document.getElementById("depStrip") && document.getElementById("fcaGrid"));
+}
+
+function renderFcaGridOnly() {
+  const activeFcas = state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
+  if (!activeFcas.length || !canIncrementalRender()) { render(); return; }
+  const result = computeTowerDepartures(state.field, state.fcas, state.pilots);
+  const byFca = groupDeparturesByFca(result.departures);
+  updateStrip(result);
+  updateHiddenFcasBar(activeFcas);
+  syncFcaGrid(activeFcas, byFca, canControl());
 }
 
 function refreshAfterReorder(fcaId) {
@@ -664,47 +960,41 @@ function render() {
     if (!meteredSet.has(p.callsign)) unmetered.push(p);
   }
 
-  let html = renderStripHtml(result);
-
   if (!result.total) {
-    html += `<div class="msg">No undeparted traffic filed out of ${escapeHtml(state.field)} right now.</div>`;
-    main.innerHTML = html;
+    main.innerHTML = renderStripHtml(result) +
+      `<div class="msg">No undeparted traffic filed out of ${escapeHtml(state.field)} right now.</div>`;
     return;
   }
 
-  html += `<div class="seqhint">${canControl()
-    ? (state.atcVerified
-      ? "⠿ drag # to reorder within each FCA — verified via VATSIM position · syncs to FCA Builder"
-      : "⠿ drag # to reorder within each FCA — syncs to FCA Builder global sequence · EDCT ignores filed departure time")
-    : "View only — enter your CID in Settings while on _TWR/_GND, or use the control password"}</div>`;
-
   const byFca = groupDeparturesByFca(result.departures);
-
   const dragOk = canControl();
-  if (activeFcas.length) {
-    html += `<div class="fca-grid">`;
-    for (const fca of activeFcas) {
+  const orderedFcas = orderedVisibleFcas(activeFcas);
+
+  if (canIncrementalRender()) {
+    updateStrip(result);
+    let hint = document.querySelector(".seqhint");
+    if (hint) hint.textContent = seqHintHtml();
+    updateHiddenFcasBar(activeFcas);
+    syncFcaGrid(activeFcas, byFca, dragOk);
+    syncUnmeteredSection(unmetered);
+    return;
+  }
+
+  let html = renderStripHtml(result);
+  html += `<div class="seqhint">${seqHintHtml()}</div>`;
+  html += renderHiddenFcasBarHtml(activeFcas);
+  if (orderedFcas.length) {
+    html += `<div class="fca-grid" id="fcaGrid">`;
+    for (const fca of orderedFcas) {
       html += renderFcaMiniTable(fca, byFca.get(fca.id) || [], dragOk);
     }
     html += `</div>`;
   }
-
-  if (unmetered.length) {
-    html +=
-      `<div class="section-label">Not metered · ${unmetered.length}</div>` +
-      `<div class="tablewrap mini combined"><table><thead><tr>` +
-      `<th>CALLSIGN</th><th>DEST</th>` +
-      `</tr></thead><tbody>`;
-    for (const p of unmetered) {
-      html += `<tr class="unmetered">` +
-        `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
-        `<td>${escapeHtml(p.arr || "????")}</td>` +
-        `</tr>`;
-    }
-    html += `</tbody></table></div>`;
-  }
-
+  html += renderUnmeteredHtml(unmetered);
   main.innerHTML = html;
+  captureFcaDomOrder();
+  wireHiddenFcaBar();
+  wireFcaBlockActions();
   wireAllTableDrag();
 }
 
@@ -805,6 +1095,7 @@ document.getElementById("fieldInput").addEventListener("keydown", e => { if (e.k
 document.getElementById("refreshBtn").addEventListener("click", () => { fetchLive(); state.countdown = REFRESH_SEC; });
 
 updateLockUI();
+loadTowerUi();
 loadSavedCid();
 if (state.cid) cidInput.value = state.cid;
 updateAtcStatusUI();

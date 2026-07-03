@@ -9,6 +9,7 @@ import {
   hasPassedFca,
   isConnectedPilot,
   computeSequence,
+  groundCrossing,
   seedAirports,
 } from "../shared/fca-metering.js";
 
@@ -116,5 +117,20 @@ const edctSeq = computeSequence(
 const edctCs = edctSeq.items.map(c => c.p.callsign);
 assert(edctCs.includes("GND01"), "connected ground in EDCT sequence");
 assert(!edctCs.includes("PREF01"), "prefile excluded from EDCT sequence");
+
+const now = Date.now();
+const nearFuture = new Date(now);
+nearFuture.setUTCMinutes(nearFuture.getUTCMinutes() + 45);
+const futureDepStr = String(nearFuture.getUTCHours()).padStart(2, "0") +
+  String(nearFuture.getUTCMinutes()).padStart(2, "0");
+const futureGround = {
+  ...connectedGround,
+  callsign: "GND02",
+  deptime: futureDepStr,
+};
+const gNow = groundCrossing(connectedGround, { ...FCA_SB, dir: "any" }, now);
+const gFuture = groundCrossing(futureGround, { ...FCA_SB, dir: "any" }, now);
+assert(gNow && gFuture, "groundCrossing returns candidates");
+assert(gFuture.etaSec > gNow.etaSec + 60, "future P time pushes ground ETA later");
 
 console.log("test-fca-metering: all passed (" + cs.length + " in seq)");
