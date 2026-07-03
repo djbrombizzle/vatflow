@@ -10,6 +10,8 @@ import {
   isConnectedPilot,
   computeSequence,
   groundCrossing,
+  sepSeconds,
+  withTerminalEtaFloor,
   seedAirports,
 } from "../shared/fca-metering.js";
 
@@ -132,5 +134,82 @@ const gNow = groundCrossing(connectedGround, { ...FCA_SB, dir: "any" }, now);
 const gFuture = groundCrossing(futureGround, { ...FCA_SB, dir: "any" }, now);
 assert(gNow && gFuture, "groundCrossing returns candidates");
 assert(gFuture.etaSec > gNow.etaSec + 60, "future P time pushes ground ETA later");
+
+const FCA_MIT = {
+  id: "mit1",
+  enabled: true,
+  dir: "any",
+  points: [[27.0, -81.0], [27.0, -79.0]],
+  mode: "mit",
+  mit: 15,
+  minFL: 0,
+  maxFL: 999,
+};
+const farAir = {
+  callsign: "FAR01",
+  phase: "air",
+  lat: 28.48,
+  lon: -80.5,
+  hdg: 180,
+  gs: 420,
+  alt: 28000,
+  arr: "KMIA",
+  dep: "KJFK",
+  route: "DCT",
+};
+const nearAir = { ...farAir, callsign: "NEAR01", lat: 28.42, lon: -80.5 };
+const mitSeq = computeSequence(FCA_MIT, [nearAir, farAir], [], { includeEdct: false });
+const far = mitSeq.items.find(c => c.p.callsign === "FAR01");
+const near = mitSeq.items.find(c => c.p.callsign === "NEAR01");
+assert(far && near, "both airborne in MIT sequence");
+assert(far.dist > near.dist, "FAR01 is farther from FCA than NEAR01");
+assert(mitSeq.items[0].p.callsign === "NEAR01", "MIT order is by distance — closer aircraft first");
+assert(far.sched >= near.sched + sepSeconds(FCA_MIT, far) - 1, "MIT delays trailing aircraft when too close");
+assert(far.delay > 30, "MIT assigns hold time to trailing aircraft");
+
+const FCA_RATE = {
+  id: "dep1",
+  enabled: true,
+  dir: "any",
+  points: [[26.0, -80.5], [26.0, -79.8]],
+  mode: "rate",
+  rate: 10,
+  minFL: 0,
+  maxFL: 999,
+};
+const fixedNow = Date.parse("2026-07-03T12:00:00Z");
+const leaderGround = {
+  callsign: "LEAD",
+  phase: "gnd",
+  lat: 26.07,
+  lon: -80.15,
+  gs: 0,
+  dep: "KFLL",
+  arr: "KMIA",
+  tas: 420,
+  fpAlt: 28000,
+  deptime: "1200",
+  route: "DCT",
+};
+const followerGround = { ...leaderGround, callsign: "FOLL", deptime: "1200" };
+const seqGround = computeSequence(FCA_RATE, [leaderGround, followerGround], [], { includeEdct: true, nowMs: fixedNow });
+const followG = seqGround.items.find(c => c.p.callsign === "FOLL");
+assert(followG && followG.delay >= 300, "same-airport follower delayed on ground");
+
+const leaderAir = {
+  ...leaderGround,
+  phase: "air",
+  gs: 160,
+  alt: 2500,
+  lat: 26.05,
+  lon: -80.14,
+  hdg: 180,
+};
+const seqAfterDep = computeSequence(FCA_RATE, [leaderAir, followerGround], [], { includeEdct: true, nowMs: fixedNow });
+const followAfter = seqAfterDep.items.find(c => c.p.callsign === "FOLL");
+assert(followAfter && followAfter.delay >= 180, "follower delay survives leader departure near field");
+
+const floored = withTerminalEtaFloor(leaderAir, FCA_RATE, fixedNow, 30);
+assert(floored >= 40, "terminal floor keeps eta from collapsing near departure");
 
 console.log("test-fca-metering: all passed (" + cs.length + " in seq)");
