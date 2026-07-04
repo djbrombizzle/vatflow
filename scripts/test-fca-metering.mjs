@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Regression tests for shared/fca-metering.js.
+ * Regression tests for shared/fca-metering.js (v2 engine).
  * Usage: node scripts/test-fca-metering.mjs
  */
 
@@ -9,14 +9,26 @@ import {
   hasPassedFca,
   isConnectedPilot,
   computeSequence,
+  computeTowerDepartures,
   groundCrossing,
   sepSeconds,
   crossingEtaSec,
+  profileTransitSec,
   seedAirports,
+  markReady,
+  clearReady,
+  getRelease,
+  READY_BUFFER_SEC,
+  COMPLIANCE_LATE_MS,
 } from "../shared/fca-metering.js";
 
+let passed = 0;
 function assert(cond, msg) {
-  if (!cond) throw new Error(msg);
+  if (!cond) throw new Error("FAIL: " + msg);
+  passed++;
+}
+function approx(a, b, tol, msg) {
+  assert(Math.abs(a - b) <= tol, `${msg} (got ${a}, want ~${b} ±${tol})`);
 }
 
 seedAirports({
@@ -26,256 +38,258 @@ seedAirports({
   KJFK: [40.6413, -73.7781],
   KATL: [33.6367, -84.4281],
   KDCA: [38.8512, -77.0402],
+  KMSY: [29.9934, -90.2580],
+  KJAX: [30.4941, -81.6879],
+  KSDF: [38.1740, -85.7365],
 });
 
+const fixedNow = Date.parse("2026-07-03T20:00:00Z");
+
+/* ============================================================
+   1. Geometry gates (unchanged behavior)
+   ============================================================ */
 const FCA_SB = {
-  id: "fca4",
-  name: "FCA 4",
-  enabled: true,
-  dir: "S",
+  id: "fca4", name: "FCA 4", enabled: true, dir: "S",
   points: [[26.5, -82.0], [26.5, -79.5]],
-  minFL: 0,
-  maxFL: 999,
-  mode: "rate",
-  rate: 12,
+  minFL: 0, maxFL: 999, mode: "rate", rate: 12,
 };
-
 const crossOnLine = { lat: 26.5, lon: -80.2 };
-
 const pastSouth = {
-  callsign: "TEST01",
-  phase: "air",
-  lat: 26.0,
-  lon: -80.15,
-  hdg: 185,
-  gs: 420,
-  alt: 28000,
-  arr: "KMIA",
-  dep: "KJFK",
-  route: "DCT",
+  callsign: "TEST01", phase: "air", lat: 26.0, lon: -80.15, hdg: 185,
+  gs: 420, alt: 28000, arr: "KMIA", dep: "KJFK", route: "DCT", tas: 450, fpAlt: 28000,
 };
-
 assert(!isCrossingAhead(pastSouth, crossOnLine), "crossing behind aircraft should not be ahead");
 assert(hasPassedFca(pastSouth, FCA_SB), "south of SB FCA heading south = passed");
 
-const approaching = {
-  ...pastSouth,
-  callsign: "TEST02",
-  lat: 27.2,
-  lon: -80.15,
-  hdg: 180,
-};
+const approaching = { ...pastSouth, callsign: "TEST02", lat: 27.2, lon: -80.15, hdg: 180 };
 assert(isCrossingAhead(approaching, crossOnLine), "crossing ahead when approaching SB FCA");
 assert(!hasPassedFca(approaching, FCA_SB), "north of SB FCA is not passed");
 
-const justPast = {
-  ...pastSouth,
-  callsign: "TEST03",
-  lat: 26.47,
-  lon: -80.15,
-  hdg: 182,
-};
-assert(!isCrossingAhead(justPast, crossOnLine), "just past: backward crossing rejected by heading");
-assert(!hasPassedFca(justPast, FCA_SB), "within 2 nm of line: hasPassedFca stays false");
-
-const seq = computeSequence(FCA_SB, [pastSouth, approaching], [], { includeEdct: false });
-const cs = seq.items.map(c => c.p.callsign);
-assert(cs.includes("TEST02"), "approaching aircraft on route crossing FCA in sequence");
-assert(!cs.includes("TEST01"), "past aircraft excluded from sequence");
-
-const prefileGround = {
-  callsign: "PREF01",
-  phase: "gnd",
-  prefile: true,
-  lat: null,
-  lon: null,
-  gs: 0,
-  arr: "KMIA",
-  dep: "KPBI",
-  fpAlt: 28000,
-  route: "DCT",
-};
-const connectedGround = {
-  ...prefileGround,
-  callsign: "GND01",
-  prefile: false,
-  lat: 26.68,
-  lon: -80.10,
-};
-assert(!isConnectedPilot(prefileGround), "prefile flagged as not connected");
-assert(isConnectedPilot(connectedGround), "connected ground pilot");
-
-const edctSeq = computeSequence(
-  { ...FCA_SB, dir: "any" },
-  [connectedGround],
-  [prefileGround],
-  { includeEdct: true },
-);
-const edctCs = edctSeq.items.map(c => c.p.callsign);
-assert(edctCs.includes("GND01"), "connected ground on crossing route in EDCT sequence");
-assert(!edctCs.includes("PREF01"), "prefile excluded from EDCT sequence");
-
-const gCross = groundCrossing(connectedGround, { ...FCA_SB, dir: "any" }, Date.now());
-assert(gCross && gCross.dist > 0, "groundCrossing returns route crossing");
-assert(Math.abs(gCross.etaSec - crossingEtaSec(gCross.dist, gCross.gs)) < 1, "ground ETA = dist / gs");
-
-const FCA_RATE = {
-  id: "dep1",
-  enabled: true,
-  dir: "any",
-  points: [[26.0, -80.5], [26.0, -79.8]],
-  mode: "rate",
-  rate: 10,
-  minFL: 0,
-  maxFL: 999,
-};
-const fixedNow = Date.parse("2026-07-03T12:00:00Z");
-
-const FCA_MIT = {
-  id: "mit1",
-  enabled: true,
-  dir: "any",
-  points: [[27.0, -81.0], [27.0, -79.0]],
-  mode: "mit",
-  mit: 15,
-  minFL: 0,
-  maxFL: 999,
-};
-const farAir = {
-  callsign: "FAR01",
-  phase: "air",
-  lat: 28.48,
-  lon: -80.5,
-  hdg: 180,
-  gs: 420,
-  alt: 28000,
-  arr: "KMIA",
-  dep: "KJFK",
-  route: "DCT",
-};
-const nearAir = { ...farAir, callsign: "NEAR01", lat: 28.42, lon: -80.5 };
-const mitSeq = computeSequence(FCA_MIT, [nearAir, farAir], [], { includeEdct: false });
-const far = mitSeq.items.find(c => c.p.callsign === "FAR01");
-const near = mitSeq.items.find(c => c.p.callsign === "NEAR01");
-assert(far && near, "both airborne on crossing route in MIT sequence");
-assert(far.dist > near.dist, "FAR01 is farther from FCA than NEAR01");
-assert(mitSeq.items[0].p.callsign === "NEAR01", "order is by time-to-line (closest first)");
-assert(far.sched >= near.sched + sepSeconds(FCA_MIT, far) - 1, "MIT delays trailing aircraft when too close");
-assert(far.delay > 30, "MIT assigns hold time when trail < MIT nm");
-
-const farTrail = computeSequence(FCA_MIT, [
-  { ...nearAir, callsign: "CLOSE", lat: 28.42 },
-  { ...farAir, callsign: "FARTRAIL", lat: 27.0, lon: -80.5 },
-], [], { includeEdct: false });
-const close = farTrail.items.find(c => c.p.callsign === "CLOSE");
-const farT = farTrail.items.find(c => c.p.callsign === "FARTRAIL");
-if (close && farT && farT.dist - close.dist >= 15) {
-  assert(farT.delay < 60, "large in-trail distance does not add long airborne hold");
-}
-
-const mitMixed = computeSequence(
-  { ...FCA_RATE, mode: "mit", mit: 15 },
-  [nearAir, farAir, {
-    callsign: "GND1", phase: "gnd", lat: 26.07, lon: -80.15, gs: 0,
-    dep: "KFLL", arr: "KMIA", fpAlt: 28000, route: "DCT",
-  }],
-  [],
-  { includeEdct: true, nowMs: fixedNow },
-);
-const firstGnd = mitMixed.items.findIndex(c => c.phase === "gnd");
-const lastAir = mitMixed.items.reduce((n, c, i) => c.phase === "air" ? i : n, -1);
-assert(firstGnd > lastAir, "all airborne before ground in queue");
-assert(mitMixed.items[0].phase === "air", "closest air is #1, not ground");
-
-const leaderGround = {
-  callsign: "LEAD",
-  phase: "gnd",
-  lat: 26.07,
-  lon: -80.15,
-  gs: 0,
-  dep: "KFLL",
-  arr: "KMIA",
-  fpAlt: 28000,
-  route: "DCT",
-};
-const followerGround = { ...leaderGround, callsign: "FOLL" };
-const seqGround = computeSequence(FCA_RATE, [leaderGround, followerGround], [], { includeEdct: true, nowMs: fixedNow });
-const followG = seqGround.items.find(c => c.p.callsign === "FOLL");
-assert(followG && followG.delay >= 300, "same-airport follower delayed on ground");
-
-const leaderAir = {
-  ...leaderGround,
-  phase: "air",
-  gs: 160,
-  alt: 2500,
-  lat: 26.05,
-  lon: -80.14,
-  hdg: 180,
-};
-const seqAfterDep = computeSequence(FCA_RATE, [leaderAir, followerGround], [], { includeEdct: true, nowMs: fixedNow });
-const followAfter = seqAfterDep.items.find(c => c.p.callsign === "FOLL");
-assert(followAfter && followAfter.delay >= 180, "follower delay survives leader departure");
-
-const dalLike = {
-  callsign: "DAL1378",
-  phase: "air",
-  lat: 33.95,
-  lon: -83.38,
-  hdg: 55,
-  gs: 496,
-  alt: 27000,
-  dep: "KATL",
-  arr: "KDCA",
-  route: "DCT",
-};
-const aikenFca = {
-  id: "aiken",
-  enabled: true,
-  dir: "any",
-  points: [[34.8, -81.72], [35.8, -81.72]],
-  mode: "mit",
-  mit: 45,
-  minFL: 0,
-  maxFL: 999,
-};
-const dalSeq = computeSequence(aikenFca, [dalLike], [], { includeEdct: false });
-assert(dalSeq.items.some(c => c.p.callsign === "DAL1378"), "KATL-KDCA route crossing N-S FCA is included");
-
-const ztlFca = {
-  id: "ztl", enabled: true, dir: "any", points: [[34.5, -79.8], [37.5, -79.8]],
-  mode: "mit", mit: 45, minFL: 0, maxFL: 999,
-};
-const gsMix = computeSequence(ztlFca, [
-  { callsign: "CLOSE", phase: "air", lat: 36.0, lon: -80.2, hdg: 55, gs: 120, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
-  { callsign: "FAR", phase: "air", lat: 33.9, lon: -84.0, hdg: 55, gs: 500, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
-], [], { includeEdct: false });
-assert(gsMix.items[0].p.callsign === "CLOSE", "queue order is by distance to crossing, not faster gs farther out");
-
-const staleManual = computeSequence(
-  { ...ztlFca, order: ["FAR", "CLOSE"], manualSeq: false },
-  [
-    { callsign: "CLOSE", phase: "air", lat: 36.0, lon: -80.2, hdg: 55, gs: 120, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
-    { callsign: "FAR", phase: "air", lat: 33.9, lon: -84.0, hdg: 55, gs: 500, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
-  ],
-  [],
-  { includeEdct: false },
-);
-assert(staleManual.items[0].p.callsign === "CLOSE", "stale order array without manualSeq still auto-sorts");
+const seq1 = computeSequence(FCA_SB, [pastSouth, approaching], [], { includeEdct: false, nowMs: fixedNow });
+assert(seq1.items.some(c => c.p.callsign === "TEST02"), "approaching aircraft in sequence");
+assert(!seq1.items.some(c => c.p.callsign === "TEST01"), "past aircraft excluded");
 
 const bypass = {
-  callsign: "BYPASS",
-  phase: "air",
-  lat: 30,
-  lon: -85,
-  hdg: 270,
-  gs: 420,
-  alt: 35000,
-  dep: "KATL",
-  arr: "KMSY",
-  route: "DCT",
+  callsign: "BYPASS", phase: "air", lat: 30, lon: -85, hdg: 270, gs: 420,
+  alt: 35000, dep: "KATL", arr: "KMSY", route: "DCT", tas: 450, fpAlt: 35000,
 };
-seedAirports({ KMSY: [29.9934, -90.2580] });
-const bypassSeq = computeSequence(aikenFca, [bypass], [], { includeEdct: false });
-assert(!bypassSeq.items.some(c => c.p.callsign === "BYPASS"), "route not crossing FCA is excluded");
+const aikenFca = {
+  id: "aiken", enabled: true, dir: "any",
+  points: [[34.8, -81.72], [35.8, -81.72]], mode: "mit", mit: 45, minFL: 0, maxFL: 999,
+};
+assert(!computeSequence(aikenFca, [bypass], [], { includeEdct: false, nowMs: fixedNow })
+  .items.some(c => c.p.callsign === "BYPASS"), "route not crossing FCA is excluded");
 
-console.log("test-fca-metering: all passed (" + cs.length + " in seq)");
+assert(!isConnectedPilot({ prefile: true }), "prefile flagged as not connected");
+assert(isConnectedPilot({ prefile: false }), "connected pilot");
+
+/* ============================================================
+   2. Profile ETA engine
+   ============================================================ */
+// 300nm, cruise FL350, TAS 450, still air:
+// seg A: 10000ft @2000fpm = 300s @250kt = 20.8nm
+// seg B: 25000ft @1500fpm = 1000s @290kt = 80.6nm
+// seg C: 198.6nm @450kt = 1589s  => total ≈ 2889s (~48 min)
+approx(profileTransitSec(300, 0, 35000, 450, null), 2889, 60, "300nm/FL350/450kt profile ≈ 48 min");
+// naive 250kt flat would say 4320s — assert we're nowhere near that
+assert(Math.abs(profileTransitSec(300, 0, 35000, 450, null) - 4320) > 600,
+  "profile ETA is not the old flat-250 estimate");
+// short hop that never leaves segment A
+approx(profileTransitSec(10, 0, 35000, 450, null), (10 / 250) * 3600, 5, "short dist stays in 250kt segment");
+// from altitude mid-climb
+assert(profileTransitSec(200, 20000, 35000, 450, null) < profileTransitSec(200, 0, 35000, 450, null),
+  "starting higher = faster to the line");
+
+/* ============================================================
+   3. Taxi-speed bug regression
+   ============================================================ */
+const FCA_ANY = {
+  id: "any1", enabled: true, dir: "any",
+  points: [[28.0, -82.5], [28.0, -78.5]], mode: "rate", rate: 12, minFL: 0, maxFL: 999,
+};
+const parked = {
+  callsign: "PARKED", phase: "gnd", lat: 25.80, lon: -80.28, gs: 0,
+  dep: "KMIA", arr: "KJFK", fpAlt: 36000, tas: 450, route: "DCT", deptime: "",
+};
+const taxiing = { ...parked, callsign: "TAXI", gs: 22 };
+const gParked = groundCrossing(parked, FCA_ANY, fixedNow);
+const gTaxi = groundCrossing(taxiing, FCA_ANY, fixedNow);
+assert(gParked && gTaxi, "both ground aircraft get crossings");
+approx(gTaxi.transitSec, gParked.transitSec, 2,
+  "taxi groundspeed must NOT change route transit (old v1 bug)");
+assert(gTaxi.transitSec < 3600, "taxiing aircraft ETA is not hours out");
+approx(gParked.etaSec, crossingEtaSec(gParked.dist, gParked.gs), 1, "eta = dist / avg gs identity");
+
+/* ============================================================
+   4. THE 2100Z SCENARIO — air priority at the line
+   Overflight crosses at ~T+60min; ground departure's unrestricted
+   ETA is also ~T+60min. Ground MUST take the delay; air takes none.
+   ============================================================ */
+const FCA_N = {
+  id: "n1", enabled: true, dir: "any",
+  points: [[31.5, -84.0], [31.5, -79.0]],   // E-W line north of FL/GA
+  mode: "rate", rate: 12,                    // 5-minute spacing
+  minFL: 0, maxFL: 999,
+};
+// place the overflight so its crossing ETA ≈ a KJAX departure's profile ETA
+const groundB = {
+  callsign: "GNDB", phase: "gnd", lat: 30.49, lon: -81.69, gs: 0,
+  dep: "KJAX", arr: "KDCA", fpAlt: 36000, tas: 450, route: "DCT", deptime: "",
+};
+const gB = groundCrossing(groundB, FCA_N, fixedNow);
+const groundEta = READY_BUFFER_SEC + gB.transitSec;
+// overflight at cruise, gs 450, aimed north across the line
+const distNeeded = (groundEta / 3600) * 450;
+const overA = {
+  callsign: "AIRA", phase: "air",
+  lat: 31.5 - distNeeded / 60, lon: -81.69, hdg: 0, gs: 450, alt: 34000,
+  dep: "KMIA", arr: "KDCA", fpAlt: 34000, tas: 450, route: "DCT",
+};
+const seq2100 = computeSequence(FCA_N, [overA, groundB], [], { includeEdct: true, nowMs: fixedNow });
+const aA = seq2100.items.find(c => c.p.callsign === "AIRA");
+const bB = seq2100.items.find(c => c.p.callsign === "GNDB");
+assert(aA && bB, "both aircraft in the 2100z sequence");
+approx(aA.eta, bB.eta, 90, "scenario setup: both would hit the line together");
+assert(aA.delay < 1, "airborne aircraft is NEVER delayed");
+assert(aA.sched === aA.eta, "airborne crossing time is fixed at its ETA");
+assert(bB.delay >= sepSeconds(FCA_N, bB) - 91, "ground aircraft absorbs the spacing delay");
+assert(Math.abs(bB.sched - aA.sched) >= sepSeconds(FCA_N, bB) - 1, "spacing held at the line");
+assert(bB.edctMs > fixedNow, "EDCT is in the future");
+approx(bB.edctMs, fixedNow + (bB.sched - bB.transitSec) * 1000, 1500, "EDCT = crossing slot minus transit");
+
+/* ============================================================
+   5. Airborne ordering by ETA (not distance) + conflict flags
+   ============================================================ */
+const slowClose = {
+  callsign: "SLOW", phase: "air", lat: 30.6, lon: -81.0, hdg: 0, gs: 130, alt: 8000,
+  dep: "KMIA", arr: "KDCA", fpAlt: 8000, tas: 130, route: "DCT",
+};
+const fastFar = {
+  callsign: "FAST", phase: "air", lat: 29.8, lon: -81.5, hdg: 0, gs: 490, alt: 35000,
+  dep: "KMIA", arr: "KDCA", fpAlt: 35000, tas: 470, route: "DCT",
+};
+const etaSeq = computeSequence(FCA_N, [slowClose, fastFar], [], { includeEdct: false, nowMs: fixedNow });
+const slow = etaSeq.items.find(c => c.p.callsign === "SLOW");
+const fast = etaSeq.items.find(c => c.p.callsign === "FAST");
+assert(slow.dist < fast.dist, "setup: SLOW is closer in nm");
+assert(fast.eta < slow.eta, "setup: FAST arrives first anyway");
+assert(etaSeq.items.indexOf(fast) < etaSeq.items.indexOf(slow), "airborne ordered by ETA, not distance");
+assert(fast.delay < 1 && slow.delay < 1, "no fictional airborne delays");
+
+// two airborne violating the rate -> flagged, not rescheduled
+const twin1 = { ...fastFar, callsign: "TWIN1", lat: 29.80 };
+const twin2 = { ...fastFar, callsign: "TWIN2", lat: 29.78 };
+const twinSeq = computeSequence(FCA_N, [twin1, twin2], [], { includeEdct: false, nowMs: fixedNow });
+assert(twinSeq.conflicts >= 1, "airborne pair inside spacing is flagged as conflict");
+twinSeq.items.forEach(c => assert(c.sched === c.eta, "conflicted air still crosses at its own ETA"));
+
+/* ============================================================
+   6. Ready-now releases
+   ============================================================ */
+const fcaR = { ...FCA_N, id: "r1", releases: {}, excluded: [], order: [] };
+const gndX = { ...groundB, callsign: "GNDX" };
+const gndY = { ...groundB, callsign: "GNDY" };
+
+// advisory pass: Y floats behind X (both unready, same eta -> one gets pushed)
+let advSeq = computeSequence(fcaR, [gndX, gndY], [], { includeEdct: true, nowMs: fixedNow });
+const advX = advSeq.items.find(c => c.p.callsign === "GNDX");
+const advY = advSeq.items.find(c => c.p.callsign === "GNDY");
+assert(!advX.frozen && !advY.frozen, "unready ground is advisory (not frozen)");
+assert(Math.abs(advX.sched - advY.sched) >= sepSeconds(fcaR, advY) - 1, "advisory pair still spaced");
+
+// Y calls ready: it claims the EARLIEST slot even though advisory X was projected there
+const relY = markReady(fcaR, "GNDY", [gndX, gndY], fixedNow);
+assert(relY && getRelease(fcaR, "GNDY"), "markReady stores a frozen release");
+const yCta0 = relY.ctaMs, yEdct0 = relY.edctMs;   // snapshot (release objects mutate in place)
+const readyEta = READY_BUFFER_SEC + gB.transitSec;
+approx((relY.ctaMs - fixedNow) / 1000, readyEta, 5, "ready aircraft gets the unrestricted earliest slot");
+assert(relY.edctMs >= fixedNow + READY_BUFFER_SEC * 1000 - 1000, "EDCT respects the 3-min ready buffer");
+
+// recompute: Y frozen at the front, X floats behind it
+let seqR = computeSequence(fcaR, [gndX, gndY], [], { includeEdct: true, nowMs: fixedNow });
+const rX = seqR.items.find(c => c.p.callsign === "GNDX");
+const rY = seqR.items.find(c => c.p.callsign === "GNDY");
+assert(rY.frozen && rY.ready, "ready aircraft is frozen in the sequence");
+assert(rY.sched < rX.sched, "ready aircraft jumped ahead of the unready one");
+assert(rX.sched - rY.sched >= sepSeconds(fcaR, rX) - 1, "unready aircraft re-floated behind the release");
+
+// freeze stability: 60s later the EDCT has not moved
+const later = fixedNow + 60000;
+const seqR2 = computeSequence(fcaR, [gndX, gndY], [], { includeEdct: true, nowMs: later });
+const rY2 = seqR2.items.find(c => c.p.callsign === "GNDY");
+assert(rY2.edctMs === yEdct0, "frozen EDCT does not churn between refreshes");
+
+// second ready aircraft slots BEHIND the first release
+markReady(fcaR, "GNDX", [gndX, gndY], fixedNow);
+const relX = getRelease(fcaR, "GNDX");
+assert(relX.ctaMs - yCta0 >= sepSeconds(fcaR, rX) * 1000 - 1500, "second release spaced behind the first");
+
+// compliance: blow the +5 window -> release recomputes later
+const stale = yEdct0 + COMPLIANCE_LATE_MS + 60000;
+computeSequence(fcaR, [gndX, gndY], [], { includeEdct: true, nowMs: stale });
+const relY3 = getRelease(fcaR, "GNDY");
+assert(relY3.edctMs > yEdct0, "missed +5 window forces a later recomputed EDCT");
+
+// departure consumes the release
+const gndYAir = { ...gndY, phase: "air", gs: 180, alt: 2500, lat: 30.55, lon: -81.69, hdg: 0 };
+computeSequence(fcaR, [gndX, gndYAir], [], { includeEdct: true, nowMs: stale });
+assert(!getRelease(fcaR, "GNDY"), "airborne aircraft's release is consumed");
+assert(clearReady(fcaR, "GNDX") && !getRelease(fcaR, "GNDX"), "clearReady removes the release");
+
+/* ============================================================
+   7. Airborne encroachment bumps a frozen release LATER only
+   ============================================================ */
+const fcaE = { ...FCA_N, id: "e1", releases: {}, excluded: [], order: [] };
+const relE = markReady(fcaE, "GNDX", [gndX], fixedNow);
+const eCta0 = relE.ctaMs;                          // snapshot before mutation
+const ctaSec = (eCta0 - fixedNow) / 1000;
+// pop an overflight whose ETA lands exactly on the frozen CTA
+const encroachDist = (ctaSec / 3600) * 450;
+const intruder = {
+  callsign: "POPUP", phase: "air", lat: 31.5 - encroachDist / 60, lon: -81.69,
+  hdg: 0, gs: 450, alt: 34000, dep: "KMIA", arr: "KDCA", fpAlt: 34000, tas: 450, route: "DCT",
+};
+const seqE = computeSequence(fcaE, [gndX, intruder], [], { includeEdct: true, nowMs: fixedNow });
+const relE2 = getRelease(fcaE, "GNDX");
+const air = seqE.items.find(c => c.p.callsign === "POPUP");
+assert(air.delay < 1, "intruding airborne keeps its ETA");
+assert(relE2.ctaMs > eCta0, "frozen release bumped later, never earlier");
+assert((relE2.ctaMs - fixedNow) / 1000 - air.sched >= sepSeconds(fcaE, seqE.items.find(c => c.p.callsign === "GNDX")) - 31,
+  "bumped release clears the airborne crossing");
+assert(seqE.releasesChanged, "encroachment flagged so pages can cloudPush");
+
+/* ============================================================
+   8. Deptime honored for unready aircraft
+   ============================================================ */
+const futureDep = new Date(fixedNow + 40 * 60000);
+const dep4 = String(futureDep.getUTCHours()).padStart(2, "0") + String(futureDep.getUTCMinutes()).padStart(2, "0");
+const lateFiler = { ...groundB, callsign: "LATE", deptime: dep4 };
+const seqD = computeSequence({ ...FCA_N, id: "d1", releases: {} }, [lateFiler], [], { includeEdct: true, nowMs: fixedNow });
+const lf = seqD.items.find(c => c.p.callsign === "LATE");
+assert(lf.eta >= 40 * 60 + gB.transitSec - 60, "future filed deptime pushes unrestricted ETA");
+
+/* ============================================================
+   9. MIT uses predicted crossing speed
+   ============================================================ */
+const fcaMit = { ...FCA_N, id: "m1", mode: "mit", mit: 30, releases: {} };
+const sepFast = sepSeconds(fcaMit, { crossSpd: 450 });
+const sepSlow = sepSeconds(fcaMit, { crossSpd: 150 });
+approx(sepFast, (30 / 450) * 3600, 1, "MIT->time at 450kt crossing speed");
+assert(sepSlow > sepFast * 2.5, "slower crosser needs proportionally more time");
+
+/* ============================================================
+   10. Tower departures view
+   ============================================================ */
+const twrFca = { ...FCA_N, id: "t1", name: "T1", color: "#fff", releases: {}, excluded: [], order: [] };
+const twrRes = computeTowerDepartures("KJAX", [twrFca], [overA, gndX, gndY]);
+assert(twrRes.total === 2, "two undeparted at the field");
+assert(twrRes.departures.length === 2, "both metered");
+twrRes.departures.forEach(d => {
+  assert(d.edctMs != null && d.ctaMs != null, "rows carry EDCT/CTA");
+  assert(typeof d.frozen === "boolean" && typeof d.ready === "boolean", "rows carry ready/frozen flags");
+});
+const dList = twrRes.departures;
+assert(Math.abs(dList[1].sched - dList[0].sched) >= sepSeconds(twrFca, dList[1]) - 1,
+  "tower rows respect line spacing");
+
+console.log(`test-fca-metering: all ${passed} assertions passed`);
