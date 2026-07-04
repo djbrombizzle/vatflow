@@ -292,4 +292,52 @@ const dList = twrRes.departures;
 assert(Math.abs(dList[1].sched - dList[0].sched) >= sepSeconds(twrFca, dList[1]) - 1,
   "tower rows respect line spacing");
 
+/* ============================================================
+   11. Inclusion-gate fixes (event regression 2026-07)
+   ============================================================ */
+import { explainFcaExclusion, fcaMatchesDest, airportCodesMatch, fcaLookaheadNm, LOOKAHEAD_NM } from "../shared/fca-metering.js";
+
+// long-haul crossing beyond the old 1200nm cap must now be metered
+const luaFca = { id:"lua", name:"LUA", enabled:true, dir:"any", mode:"mit", mit:50,
+  minFL:0, maxFL:999, points:[[49.0,-91.2],[28.5,-91.2]], releases:{}, excluded:[], order:[] };
+const slcMia = { callsign:"WEST1", phase:"air", lat:41.0, lon:-112.4, hdg:120, gs:470, alt:35000,
+  dep:"KSLC", arr:"KMIA", fpAlt:35000, tas:460, route:"KDEN KDFW KMSY" };
+seedAirports({ KSLC:[40.7884,-111.9778], KDEN:[39.8617,-104.6731], KDFW:[32.8969,-97.0381] });
+const luaSeq = computeSequence(luaFca, [slcMia], [], { includeEdct:false, nowMs: fixedNow });
+assert(luaSeq.items.some(c => c.p.callsign === "WEST1"), "1300nm-out crossing is inside the new lookahead");
+assert(LOOKAHEAD_NM >= 2000, "default lookahead covers continental FCA lines");
+assert(fcaLookaheadNm({ lookaheadNm: 800 }) === 800, "per-FCA lookahead override honored");
+const shortFca = { ...luaFca, id:"short", lookaheadNm: 800 };
+assert(!computeSequence(shortFca, [slcMia], [], { includeEdct:false, nowMs: fixedNow })
+  .items.length, "per-FCA short lookahead still filters distant traffic");
+
+// dest filter: 3-letter entries match filed ICAO and vice versa
+assert(airportCodesMatch("MIA", "KMIA") && airportCodesMatch("KMIA", "MIA"), "MIA <-> KMIA equivalence");
+assert(!airportCodesMatch("MIA", "KMSY"), "no false positives");
+assert(fcaMatchesDest({ dests:["MIA","EWR"] }, "KMIA"), "dests=['MIA'] matches filed KMIA");
+assert(fcaMatchesDest({ dests:["KEWR"] }, "EWR"), "dests=['KEWR'] matches filed EWR");
+assert(!fcaMatchesDest({ dests:["MIA"] }, "KEWR"), "dest filter still filters");
+
+// altitude band: airborne matches on current OR filed cruise
+const bandFca = { ...luaFca, id:"band", minFL:240, maxFL:350 };
+const climber = { callsign:"CLMB", phase:"air", lat:38.0, lon:-101.0, hdg:100, gs:380, alt:19000,
+  dep:"KDEN", arr:"KMIA", fpAlt:35000, tas:460, route:"KDFW KMSY" };
+assert(computeSequence(bandFca, [climber], [], { includeEdct:false, nowMs: fixedNow })
+  .items.some(c => c.p.callsign === "CLMB"), "climber below band included via filed cruise");
+const highCruiser = { ...climber, callsign:"HIGH", alt:37100, fpAlt:37100 };
+assert(!computeSequence(bandFca, [highCruiser], [], { includeEdct:false, nowMs: fixedNow })
+  .items.some(c => c.p.callsign === "HIGH"), "cruiser above band (current AND filed) still excluded");
+
+// explain diagnostic reports the failing gate
+let ex = explainFcaExclusion({ ...luaFca, dests:["KEWR"] }, slcMia);
+assert(!ex.included && ex.reason === "dest-filter", "explain: dest filter identified");
+ex = explainFcaExclusion(shortFca, slcMia);
+assert(!ex.included && ex.reason === "beyond-lookahead" && ex.distNm > 800, "explain: lookahead identified with distance");
+ex = explainFcaExclusion(bandFca, highCruiser);
+assert(!ex.included && ex.reason === "alt-filter", "explain: altitude band identified");
+ex = explainFcaExclusion(luaFca, slcMia);
+assert(ex.included && ex.reason === "included", "explain: included aircraft confirmed");
+ex = explainFcaExclusion(luaFca, { ...slcMia, callsign:"BYP", arr:"KDEN", route:"" });
+assert(!ex.included && (ex.reason === "no-crossing" || ex.reason === "crossing-behind"), "explain: non-crossing route identified");
+
 console.log(`test-fca-metering: all ${passed} assertions passed`);
