@@ -1,25 +1,55 @@
 /**
- * Shared FCA metering geometry + sequencing (FCA Builder + Tower Departures).
- * Inclusion: filed route (fixes/airways when nav data loaded) must cross the FCA line.
- * Queue order: nm from current position to the route crossing point (air) or along
- * route from departure (ground). ETA = dist / groundspeed. MIT at the line.
+ * Shared FCA metering — geometry, ETA engine, and sequencing (FCA Builder + Tower Departures).
+ *
+ * v2 clean slate. Core rules:
+ *  - Inclusion: filed route (expanded via route-engine when nav data is loaded) must cross the FCA line.
+ *  - ETAs come from a climb-profile model, never raw taxi groundspeed:
+ *      250 kt below 10,000 ft, 290 kt from 10,000 to filed cruise, filed TAS at cruise,
+ *      with winds aloft (AWC FB tables) applied to the cruise segment when available.
+ *  - Airborne aircraft are FIXED constraints ordered by ETA. They are never delayed by the tool.
+ *    If two airborne aircraft violate the constraint between themselves, they are flagged
+ *    (`conflict`) for the controller — the timeline is not rewritten to pretend they'll comply.
+ *  - Ground aircraft slot into real gaps between committed crossings. Air always wins.
+ *  - "Ready now" releases: markReady() freezes an EDCT/CTA into fca.releases (synced with the FCA
+ *    object). Non-ready ground traffic is advisory only and holds no slot, so a ready aircraft
+ *    naturally claims any slot an unready one was projected into.
+ *  - Frozen releases only move if the pilot misses the compliance window (+5 min) or an airborne
+ *    aircraft newly encroaches (bumped later, never earlier).
  */
 import {
   bindAirports as bindRouteAirports,
   buildRoutePathLLs,
   isNavReady,
 } from "./route-engine.js";
+import { routeHeadwind, effectiveGs } from "./winds-aloft.js";
 
 bindRouteAirports(
   icao => getAirport(icao),
   icao => hasAirport(icao),
 );
+
 export const NM_PER_DEG = 60;
 export const LOOKAHEAD_NM = 1200;
 export const DEMAND_WINDOW_MIN = 60;
 export const DIR_LABEL = { any: "any dir", N: "NB", S: "SB", E: "EB", W: "WB" };
-/** Groundspeed assumed for parked/taxiing departures when estimating time to the line. */
+
+/* ---- operational constants ---- */
+/** Legacy fallback groundspeed (kept for exports/back-compat only). */
 export const DEFAULT_GROUND_GS = 250;
+/** Minutes from "release issued" to realistic wheels-up. */
+export const READY_BUFFER_SEC = 180;
+/** EDCT compliance window: -5/+5 minutes. Past +5 still on the ground = stale, recompute. */
+export const COMPLIANCE_EARLY_MS = 5 * 60000;
+export const COMPLIANCE_LATE_MS = 5 * 60000;
+/** Climb profile. */
+export const SPD_BELOW_10K = 250;      // kt below 10,000 ft
+export const SPD_CLIMB = 290;          // kt from 10,000 ft to cruise
+export const CLIMB_FPM_LOW = 2000;     // fpm below 10,000 ft
+export const CLIMB_FPM_HIGH = 1500;    // fpm 10,000 ft -> cruise
+/** Groundspeed threshold separating taxi from flight. */
+export const AIR_MIN_GS = 50;
+/** Encroachment tolerance before a frozen release is bumped (sec). */
+const FREEZE_TOL_SEC = 30;
 
 const AIRPORTS = new Map();
 let airportsReady = false;
@@ -27,6 +57,9 @@ let airportsReady = false;
 const toRad = d => d * Math.PI / 180;
 const toDeg = r => r * 180 / Math.PI;
 
+/* ============================================================
+   AIRPORT DATABASE
+   ============================================================ */
 export function getAirport(icao) {
   if (!icao) return null;
   return AIRPORTS.get(("" + icao).toUpperCase()) || null;
@@ -61,6 +94,9 @@ export function loadAirports(onReady) {
     });
 }
 
+/* ============================================================
+   GEOMETRY
+   ============================================================ */
 export function haversineNm(la1, lo1, la2, lo2) {
   const R = 3440.065, dLa = toRad(la2 - la1), dLo = toRad(lo2 - lo1);
   const a = Math.sin(dLa / 2) ** 2 + Math.cos(toRad(la1)) * Math.cos(toRad(la2)) * Math.sin(dLo / 2) ** 2;
@@ -96,6 +132,9 @@ function localToLatLon(x, y, lat0, lon0) {
   return [lat0 + y / NM_PER_DEG, lon0 + x / (NM_PER_DEG * Math.cos(toRad(lat0)))];
 }
 
+/* ============================================================
+   FLIGHT-PLAN PARSING / FORMATTING
+   ============================================================ */
 export function parseRouteTokens(route) {
   if (!route) return [];
   return route.toUpperCase().replace(/[\n\r]/g, " ").split(/\s+/).filter(Boolean).filter(t => t !== "DCT");
@@ -135,6 +174,22 @@ export function fmtPtime(deptime) {
   return s + "Z";
 }
 
+export function fpFields(fp) {
+  fp = fp || {};
+  return {
+    dep: (fp.departure || "").toUpperCase(),
+    arr: (fp.arrival || "").toUpperCase(),
+    type: fp.aircraft_short || fp.aircraft_faa || "",
+    tas: parseInt(fp.cruise_tas, 10) || 0,
+    fpAlt: parseAlt(fp.altitude),
+    deptime: fp.deptime || "",
+    route: fp.route || "",
+  };
+}
+
+/* ============================================================
+   FCA FILTERS
+   ============================================================ */
 export function fcaMatchesAlt(fca, alt) {
   const min = (fca.minFL != null) ? fca.minFL * 100 : -1;
   const max = (fca.maxFL != null) ? fca.maxFL * 100 : 1e9;
@@ -165,6 +220,9 @@ function flowBearing(fca) {
   return { N: 0, E: 90, S: 180, W: 270 }[d] ?? null;
 }
 
+/* ============================================================
+   FCA LINE GEOMETRY
+   ============================================================ */
 function nearestPointOnFca(lat, lon, pts) {
   let best = null, bd = 1e9;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -194,23 +252,9 @@ export function lineDistToFca(lat, lon, fca) {
   return near ? near.distNm : null;
 }
 
-/** Seconds to cover distance at groundspeed. */
-export function crossingEtaSec(distNm, gs) {
-  const spd = gs > 0 ? gs : DEFAULT_GROUND_GS;
-  return (distNm / spd) * 3600;
-}
-
-/** Legacy export — simple time = distance / speed. */
-export function groundTransitSec(dist, gs) {
-  return crossingEtaSec(dist, gs || DEFAULT_GROUND_GS);
-}
-
-/** No-op kept for callers that still invoke it. */
-export function setWindAltProvider(_fn) {}
-
 export function isCrossingAhead(p, cross) {
   if (!cross || cross.lat == null || p.lat == null || p.lon == null) return true;
-  if (p.phase !== "air" || (p.gs || 0) < 40) return true;
+  if (p.phase !== "air" || (p.gs || 0) < AIR_MIN_GS) return true;
   const hdg = p.hdg;
   if (hdg == null) return true;
   const brg = bearing(p.lat, p.lon, cross.lat, cross.lon);
@@ -219,7 +263,7 @@ export function isCrossingAhead(p, cross) {
 
 /** Aircraft already on the exit side of a directional FCA, moving away. */
 export function hasPassedFca(p, fca) {
-  if (p.phase !== "air" || (p.gs || 0) < 40) return false;
+  if (p.phase !== "air" || (p.gs || 0) < AIR_MIN_GS) return false;
   const flow = flowBearing(fca);
   if (flow == null || !fca.points || fca.points.length < 2) return false;
   const near = nearestPointOnFca(p.lat, p.lon, fca.points);
@@ -228,16 +272,6 @@ export function hasPassedFca(p, fca) {
   const onExitSide = angleDiff(toAc, flow) < 85;
   const headingExit = angleDiff(p.hdg || 0, flow) < 85;
   return onExitSide && headingExit;
-}
-
-function validAirCrossing(p, fca, cross) {
-  return validRouteCrossing(p, fca, cross);
-}
-
-function pilotOrigin(p) {
-  if (p.lat != null && p.lon != null) return [p.lat, p.lon];
-  const apt = getAirport(p.dep);
-  return apt ? apt.slice() : null;
 }
 
 export function projectCrossing(p, pts) {
@@ -319,10 +353,16 @@ export function plannedAnchors(p, origin, dst) {
   return anchors;
 }
 
+function pilotOrigin(p) {
+  if (p.lat != null && p.lon != null) return [p.lat, p.lon];
+  const apt = getAirport(p.dep);
+  return apt ? apt.slice() : null;
+}
+
 function routePathForCrossing(p, opts = {}) {
   const dst = opts.destination || getAirport(p.arr);
   if (!dst) return null;
-  const airborne = opts.includeNow && p.lat != null && p.lon != null && p.phase === "air" && (p.gs || 0) >= 40;
+  const airborne = opts.includeNow && p.lat != null && p.lon != null && p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
   const origin = opts.origin || (airborne ? [p.lat, p.lon] : pilotOrigin(p));
   if (!origin) return null;
 
@@ -339,35 +379,127 @@ function routePathForCrossing(p, opts = {}) {
 
 /** First crossing of the FCA along the filed route (remaining route when airborne). */
 function findRouteCrossing(p, fca) {
-  const airborne = p.phase === "air" && (p.gs || 0) >= 40;
+  const airborne = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
   const path = routePathForCrossing(p, { includeNow: airborne });
   if (!path || path.length < 2) return null;
   const best = pathCrossing(path, fca);
   if (!best || best.dist > LOOKAHEAD_NM) return null;
-  return best;
+  return { ...best, path };
 }
 
 function validRouteCrossing(p, fca, cross) {
   if (!cross) return false;
-  if (p.phase === "air" && (p.gs || 0) >= 40) {
+  if (p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS) {
     return isCrossingAhead(p, cross) && !hasPassedFca(p, fca);
   }
   return true;
 }
 
-/** Estimate where/when a ground aircraft crosses the FCA along its filed route. */
+function validAirCrossing(p, fca, cross) {
+  return validRouteCrossing(p, fca, cross);
+}
+
+/* ============================================================
+   ETA ENGINE — climb profile + winds
+   ============================================================ */
+/** Filed TAS with a sane fallback estimated from cruise altitude. */
+export function tasOrDefault(p) {
+  const tas = parseInt(p.tas, 10) || 0;
+  if (tas >= 60) return tas;
+  const cruise = p.fpAlt || p.alt || 0;
+  if (cruise >= 28000) return 440;
+  if (cruise >= 15000) return 300;
+  return 170;
+}
+
+/**
+ * Seconds to cover distNm starting at fromAltFt, climbing to cruiseAltFt:
+ * 250 kt below 10k (2000 fpm), 290 kt to cruise (1500 fpm), then filed TAS
+ * corrected for the mean route headwind at cruise altitude.
+ * Fails safe to still air when winds are unavailable.
+ */
+export function profileTransitSec(distNm, fromAltFt, cruiseAltFt, tasKt, path) {
+  let remaining = Math.max(0, distNm);
+  let alt = Math.max(0, fromAltFt || 0);
+  const cruise = Math.max(alt, cruiseAltFt || 0);
+  let hw = null;
+  try { hw = path ? routeHeadwind(path, cruise) : null; } catch (_) { hw = null; }
+  const cruiseGs = Math.max(120, effectiveGs(Math.max(120, tasKt || 0), hw));
+  let t = 0;
+
+  // Segment A — below 10,000 ft
+  const topA = Math.min(10000, cruise);
+  if (alt < topA) {
+    const climbSec = ((topA - alt) / CLIMB_FPM_LOW) * 60;
+    const gsA = SPD_BELOW_10K;
+    const dA = gsA * climbSec / 3600;
+    if (dA >= remaining) return t + (remaining / gsA) * 3600;
+    t += climbSec; remaining -= dA; alt = topA;
+  }
+
+  // Segment B — 10,000 ft to cruise
+  if (alt < cruise) {
+    const climbSec = ((cruise - alt) / CLIMB_FPM_HIGH) * 60;
+    const gsB = Math.max(150, effectiveGs(SPD_CLIMB, hw == null ? null : hw * 0.7));
+    const dB = gsB * climbSec / 3600;
+    if (dB >= remaining) return t + (remaining / gsB) * 3600;
+    t += climbSec; remaining -= dB;
+  }
+
+  // Segment C — cruise
+  return t + (remaining / cruiseGs) * 3600;
+}
+
+/** Predicted groundspeed at the FCA crossing (used for MIT->time conversion). */
+function predictedCrossSpeed(p, path) {
+  const cruise = p.fpAlt || p.alt || 0;
+  let hw = null;
+  try { hw = path ? routeHeadwind(path, cruise) : null; } catch (_) { hw = null; }
+  return Math.max(120, effectiveGs(tasOrDefault(p), hw));
+}
+
+/** Legacy simple time = distance / speed. */
+export function crossingEtaSec(distNm, gs) {
+  const spd = gs > 0 ? gs : DEFAULT_GROUND_GS;
+  return (distNm / spd) * 3600;
+}
+export function groundTransitSec(dist, gs) {
+  return crossingEtaSec(dist, gs || DEFAULT_GROUND_GS);
+}
+/** No-op kept for old callers; winds are now imported directly. */
+export function setWindAltProvider(_fn) {}
+
+/** Is this airborne aircraft still in its departure climb? */
+function isClimbingDeparture(p) {
+  const cruise = p.fpAlt || 0;
+  const arrApt = getAirport(p.arr);
+  if (arrApt && p.lat != null && haversineNm(p.lat, p.lon, arrApt[0], arrApt[1]) < 120) return false; // descending near dest
+  const depApt = getAirport(p.dep);
+  if (depApt && p.lat != null) {
+    const dDep = haversineNm(p.lat, p.lon, depApt[0], depApt[1]);
+    if (dDep < 150 && (cruise === 0 || (p.alt || 0) < cruise - 2000)) return true;
+  }
+  if ((p.alt || 0) < 10000 && cruise > 12000) return true;
+  return false;
+}
+
+/**
+ * Estimate where/when a GROUND aircraft crosses the FCA along its filed route.
+ * transitSec/etaSec = pure flight transit from wheels-up (no ready buffer, no deptime).
+ */
 export function groundCrossing(p, fca, _nowMs) {
   const cross = findRouteCrossing(p, fca);
   if (!cross || !validRouteCrossing(p, fca, cross)) return null;
-  const gs = (p.gs || 0) >= 20 ? p.gs : DEFAULT_GROUND_GS;
-  const etaSec = crossingEtaSec(cross.dist, gs);
+  const transitSec = profileTransitSec(cross.dist, 0, p.fpAlt || 0, tasOrDefault(p), cross.path);
+  const gs = transitSec > 0 ? (cross.dist / transitSec) * 3600 : DEFAULT_GROUND_GS; // avg speed, keeps eta = dist/gs identity
   return {
     dist: cross.dist,
     cross: { lat: cross.lat, lon: cross.lon },
     course: cross.course,
     gs,
-    etaSec,
-    transitSec: etaSec,
+    etaSec: transitSec,
+    transitSec,
+    crossSpd: predictedCrossSpeed(p, cross.path),
     origin: pilotOrigin(p),
   };
 }
@@ -377,74 +509,73 @@ export function towerGroundCrossing(p, fca, _nowMs) {
   return groundCrossing(p, fca, _nowMs);
 }
 
-function crossingDistNm(p, cross, routeDist) {
-  if (p.phase === "air" && (p.gs || 0) >= 40 && p.lat != null && p.lon != null && cross?.lat != null) {
-    return haversineNm(p.lat, p.lon, cross.lat, cross.lon);
-  }
-  return routeDist;
-}
-
 function buildAirCandidate(p, fca) {
   const cross = findRouteCrossing(p, fca);
-  if (!cross || !validRouteCrossing(p, fca, cross)) return null;
-  const gs = Math.max(p.gs || 0, 40);
-  const dist = crossingDistNm(p, cross, cross.dist);
-  const eta = crossingEtaSec(dist, gs);
-  const lineDist = lineDistToFca(p.lat, p.lon, fca);
+  if (!cross || !validAirCrossing(p, fca, cross)) return null;
+  const dist = cross.dist; // along remaining route — not straight-line
+  const cruise = p.fpAlt || p.alt || 0;
+  let eta, crossSpd;
+  if (isClimbingDeparture(p)) {
+    eta = profileTransitSec(dist, p.alt || 0, cruise, tasOrDefault(p), cross.path);
+    crossSpd = predictedCrossSpeed(p, cross.path);
+  } else {
+    const gs = Math.max(100, p.gs || 0);
+    eta = (dist / gs) * 3600;
+    crossSpd = gs;
+  }
   return {
-    p, phase: "air", dist, lineDist, eta, cross, spd: gs, transitSec: eta,
+    p, phase: "air", dist,
+    lineDist: lineDistToFca(p.lat, p.lon, fca),
+    eta, cross: { lat: cross.lat, lon: cross.lon }, spd: p.gs || 0,
+    crossSpd, transitSec: eta,
   };
 }
 
+/** Ground earliest wheels-up (sec from now). Ready = now + buffer; else honor a future filed deptime. */
+function earliestOffSec(p, nowMs, ready) {
+  if (ready) return READY_BUFFER_SEC;
+  const dep = ptimeToMs(p.deptime);
+  if (dep != null && dep > nowMs + READY_BUFFER_SEC * 1000) return (dep - nowMs) / 1000;
+  return READY_BUFFER_SEC;
+}
+
+function buildGroundCandidate(p, fca, nowMs, ready) {
+  const g = groundCrossing(p, fca, nowMs);
+  if (!g) return null;
+  const off = earliestOffSec(p, nowMs, ready);
+  return {
+    p, phase: "gnd", dist: g.dist,
+    lineDist: lineDistToFca(p.lat, p.lon, fca),
+    eta: off + g.transitSec,          // earliest possible crossing, sec from now
+    offSec: off,
+    cross: g.cross, spd: g.gs,
+    crossSpd: g.crossSpd, transitSec: g.transitSec,
+    ready: !!ready,
+  };
+}
+
+/* ============================================================
+   SEPARATION + SLOTTING
+   ============================================================ */
+/** Required time behind the previous crosser for candidate c, at the line. */
 export function sepSeconds(fca, c) {
   if (fca.mode === "mit") {
     const mit = fca.mit || 0;
-    const spd = c.spd || c.p?.gs || DEFAULT_GROUND_GS;
-    return mit > 0 ? (mit / spd) * 3600 : 0;
+    const spd = (c && (c.crossSpd || c.spd)) || (c && c.p && c.p.gs) || DEFAULT_GROUND_GS;
+    return mit > 0 ? (mit / Math.max(120, spd)) * 3600 : 0;
   }
   return (fca.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
 }
 
-function sortAirborne(air) {
-  air.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
-}
-
-/** MIT at the line: prior crossing + spacing, unless already >= MIT nm in trail. */
-function mitCrossingSched(prev, c, fca) {
-  const mit = fca.mit || 0;
-  const trailNm = c.dist - prev.dist;
-  const minTime = prev.sched + sepSeconds(fca, c);
-  if (mit > 0 && trailNm >= mit && c.eta >= prev.sched) return c.eta;
-  return Math.max(c.eta, minTime);
-}
-
-function scheduleAirborneStream(air, fca) {
-  sortAirborne(air);
-  for (let i = 0; i < air.length; i++) {
-    const c = air[i];
-    if (i === 0) {
-      c.sched = c.eta;
-    } else if (fca.mode === "mit") {
-      c.sched = mitCrossingSched(air[i - 1], c, fca);
-    } else {
-      c.sched = Math.max(c.eta, air[i - 1].sched + sepSeconds(fca, c));
-    }
-  }
-}
-
-function slotGroundAgainstCommitted(g, committed, sepFor) {
-  let t = g.eta;
+/** Earliest t >= c.eta clear of every committed crossing by sep. */
+function slotAgainstCommitted(c, committed, sep) {
+  let t = c.eta;
   const EPS = 1e-6;
-  for (let guard = 0; guard < 500; guard++) {
-    committed.sort((x, y) => x.t - y.t);
+  const list = committed.slice().sort((a, b) => a - b);
+  for (let guard = 0; guard < 1000; guard++) {
     let moved = false;
-    for (const c of committed) {
-      const gap = sepFor(g);
-      if (t <= c.t) {
-        if ((c.t - t) < gap - EPS) { t = c.t + gap; moved = true; break; }
-      } else if ((t - c.t) < gap - EPS) {
-        t = c.t + gap; moved = true; break;
-      }
+    for (const ct of list) {
+      if (Math.abs(t - ct) < sep - EPS) { t = ct + sep; moved = true; }
     }
     if (!moved) break;
   }
@@ -455,10 +586,196 @@ function isManualSeq(fca) {
   return fca.manualSeq === true && Array.isArray(fca.order) && fca.order.length > 0;
 }
 
-/** Airborne-first: air ordered by nm to crossing; ground slots around committed crossings. */
+/* ============================================================
+   RELEASES — "ready now" frozen EDCTs
+   ============================================================ */
+function releasesOf(fca) {
+  if (!fca.releases || typeof fca.releases !== "object") fca.releases = {};
+  return fca.releases;
+}
+export function getRelease(fca, callsign) {
+  const r = fca && fca.releases;
+  return (r && r[callsign]) || null;
+}
+export function isReady(fca, callsign) {
+  return !!getRelease(fca, callsign);
+}
+
+/** Committed crossing times (sec from now): all airborne + all OTHER frozen releases. */
+function committedTimes(fca, pilots, nowMs, exceptCallsign) {
+  const times = collectAirFcaCandidates(fca, pilots).map(c => c.eta);
+  const rel = fca.releases || {};
+  for (const [cs, r] of Object.entries(rel)) {
+    if (cs === exceptCallsign) continue;
+    if (r && r.ctaMs != null) times.push((r.ctaMs - nowMs) / 1000);
+  }
+  return times;
+}
+
+/**
+ * Mark a ground aircraft ready: compute earliest slot vs airborne + other frozen
+ * releases (advisory traffic holds nothing) and freeze it into fca.releases.
+ * Returns the release record or null if no crossing.
+ */
+export function markReady(fca, callsign, pilots, nowMs) {
+  nowMs = nowMs != null ? nowMs : Date.now();
+  const p = (pilots || []).find(x => x.callsign === callsign);
+  if (!p) return null;
+  const c = buildGroundCandidate(p, fca, nowMs, true);
+  if (!c) return null;
+  const sep = sepSeconds(fca, c);
+  const slot = slotAgainstCommitted(c, committedTimes(fca, pilots, nowMs, callsign), sep);
+  const rel = {
+    ctaMs: Math.round(nowMs + slot * 1000),
+    edctMs: Math.round(nowMs + (slot - c.transitSec) * 1000),
+    transitSec: Math.round(c.transitSec),
+    assignedMs: nowMs,
+  };
+  releasesOf(fca)[callsign] = rel;
+  return rel;
+}
+
+export function clearReady(fca, callsign) {
+  if (fca && fca.releases && fca.releases[callsign]) {
+    delete fca.releases[callsign];
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Validate/refresh a frozen release for a still-on-ground candidate.
+ * - Missed window (now > edct + 5 min): recompute from scratch (stays ready).
+ * - Airborne encroachment: bump LATER to the next clear slot (never earlier).
+ * Returns true if the release changed.
+ */
+function refreshRelease(fca, c, airTimes, nowMs) {
+  const cs = c.p.callsign;
+  const rel = getRelease(fca, cs);
+  if (!rel) return false;
+  const sep = sepSeconds(fca, c);
+  let changed = false;
+
+  if (nowMs > rel.edctMs + COMPLIANCE_LATE_MS) {
+    // stale — pilot missed the window; re-slot as ready-now
+    const fresh = { ...c, eta: READY_BUFFER_SEC + c.transitSec };
+    const slot = slotAgainstCommitted(fresh, committedTimes(fca, [], nowMs, cs).concat(airTimes), sep);
+    rel.ctaMs = Math.round(nowMs + slot * 1000);
+    rel.edctMs = Math.round(rel.ctaMs - c.transitSec * 1000);
+    rel.assignedMs = nowMs;
+    changed = true;
+  } else {
+    // encroachment by airborne traffic — bump later only
+    let t = (rel.ctaMs - nowMs) / 1000;
+    const before = t;
+    for (let guard = 0; guard < 1000; guard++) {
+      let moved = false;
+      for (const at of airTimes) {
+        if (Math.abs(t - at) < sep - FREEZE_TOL_SEC) { t = at + sep; moved = true; }
+      }
+      if (!moved) break;
+    }
+    if (t > before + FREEZE_TOL_SEC) {
+      rel.ctaMs = Math.round(nowMs + t * 1000);
+      rel.edctMs = Math.round(rel.ctaMs - c.transitSec * 1000);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/* ============================================================
+   CANDIDATE COLLECTION
+   ============================================================ */
+export function isConnectedPilot(p) {
+  return p && !p.prefile;
+}
+
+function collectAirFcaCandidates(fca, pilots) {
+  const ex = new Set(fca.excluded || []);
+  const cand = [];
+  for (const p of pilots || []) {
+    if (p.phase !== "air" || (p.gs || 0) < AIR_MIN_GS) continue;
+    if (ex.has(p.callsign)) continue;
+    if (!fcaMatchesDest(fca, p.arr)) continue;
+    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
+    const ac = buildAirCandidate(p, fca);
+    if (ac) cand.push(ac);
+  }
+  return cand;
+}
+
+function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
+  const ex = new Set(fca.excluded || []);
+  const seen = new Set();
+  const cand = [];
+  for (const p of pilots || []) {
+    if (p.phase !== "gnd" || !isConnectedPilot(p)) continue;      // no prefiles — VATSIM prefile presence is unreliable
+    if (seen.has(p.callsign)) continue;
+    seen.add(p.callsign);
+    if (ex.has(p.callsign)) { if (counters) counters.excluded++; continue; }
+    if (!fcaMatchesDest(fca, p.arr)) continue;
+    if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
+    const c = buildGroundCandidate(p, fca, nowMs, isReady(fca, p.callsign));
+    if (c) cand.push(c);
+  }
+  return cand;
+}
+
+/* ============================================================
+   SCHEDULING
+   ============================================================ */
+/**
+ * Air = fixed constraints ordered by ETA (conflicts flagged, not "fixed").
+ * Ready ground = frozen releases (validated / bumped-later).
+ * Advisory ground = slotted around everything committed, holds nothing.
+ */
+function scheduleAuto(air, gnd, fca, nowMs, out) {
+  // --- airborne: fixed, ordered by ETA ---
+  air.sort((a, b) => a.eta - b.eta);
+  for (let i = 0; i < air.length; i++) {
+    const c = air[i];
+    c.sched = c.eta;
+    c.frozen = true;
+    if (i > 0) {
+      const gap = c.eta - air[i - 1].eta;
+      const need = sepSeconds(fca, c);
+      if (need > 0 && gap < need - 1) {
+        c.conflict = true;
+        c.conflictShortSec = need - gap;
+        out.conflicts++;
+      }
+    }
+  }
+  const airTimes = air.map(c => c.sched);
+
+  // --- ready ground: frozen releases ---
+  const ready = gnd.filter(c => c.ready && getRelease(fca, c.p.callsign));
+  const advisory = gnd.filter(c => !ready.includes(c));
+  ready.sort((a, b) => (getRelease(fca, a.p.callsign).ctaMs) - (getRelease(fca, b.p.callsign).ctaMs));
+  for (const c of ready) {
+    if (refreshRelease(fca, c, airTimes, nowMs)) out.releasesChanged = true;
+    const rel = getRelease(fca, c.p.callsign);
+    c.sched = (rel.ctaMs - nowMs) / 1000;
+    c.edctMs = rel.edctMs;
+    c.frozen = true;
+  }
+
+  // --- advisory ground: float around air + frozen releases ---
+  const committed = airTimes.concat(ready.map(c => c.sched));
+  advisory.sort((a, b) => a.eta - b.eta);
+  for (const c of advisory) {
+    c.sched = slotAgainstCommitted(c, committed, sepSeconds(fca, c));
+    c.frozen = false;
+    committed.push(c.sched);
+  }
+
+  return [...air, ...ready, ...advisory].sort((a, b) => a.sched - b.sched);
+}
+
+/** Manual override: controller-set order, times chained by separation. */
 export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const sepFor = c => sepSeconds(fca, c);
-
   if (manualOrder && manualOrder.length) {
     const ordered = [];
     let prev = -1e9;
@@ -466,38 +783,29 @@ export function scheduleCandidates(cand, fca, manualOrder, candById) {
       const c = candById.get(cs);
       if (!c) continue;
       c.sched = Math.max(c.eta, prev + sepFor(c));
+      c.frozen = false;
       prev = c.sched;
       ordered.push(c);
     }
     return ordered;
   }
-
-  const air = cand.filter(c => c.phase === "air");
-  const gnd = cand.filter(c => c.phase === "gnd");
-  scheduleAirborneStream(air, fca);
-  gnd.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
-
-  const committed = [];
-  for (const c of air) {
-    committed.push({ t: c.sched, spd: c.spd });
-  }
-
-  for (const g of gnd) {
-    g.sched = slotGroundAgainstCommitted(g, committed, sepFor);
-    committed.push({ t: g.sched, spd: g.spd });
-  }
-
-  gnd.sort((a, b) => a.sched - b.sched);
-  return [...air, ...gnd];
+  // fallback (unused by auto path — kept for API compatibility)
+  const sorted = cand.slice().sort((a, b) => a.eta - b.eta);
+  let prev = -1e9;
+  for (const c of sorted) { c.sched = Math.max(c.eta, prev + sepFor(c)); prev = c.sched; }
+  return sorted;
 }
 
 function finalizeItems(ordered, out, nowMs) {
   ordered.forEach(c => {
     c.delay = c.sched - c.eta;
     c.ctaMs = nowMs + c.sched * 1000;
-    if (c.phase === "gnd") c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
-    if (c.phase === "air") out.nAir++;
-    else out.nGnd++;
+    if (c.phase === "gnd") {
+      if (c.edctMs == null) c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
+      out.nGnd++;
+    } else {
+      out.nAir++;
+    }
   });
   out.items = ordered;
 }
@@ -508,7 +816,7 @@ export function buildManualOrder(manualOrder, candById, _fca) {
   const sortNew = (a, b) => {
     const ca = candById.get(a), cb = candById.get(b);
     if (ca.phase !== cb.phase) return ca.phase === "air" ? -1 : 1;
-    return ca.dist - cb.dist || ca.eta - cb.eta;
+    return ca.eta - cb.eta || ca.dist - cb.dist;
   };
   const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs)).sort(sortNew);
   for (const cs of newcomers) {
@@ -543,77 +851,63 @@ export function reorderFcaGlobalOrder(fca, pilots, prefiles, fromCs, toCs, opts 
   return order;
 }
 
-function collectAirFcaCandidates(fca, pilots) {
-  const ex = new Set(fca.excluded || []);
-  const cand = [];
-  for (const p of pilots) {
-    if (p.phase !== "air" || (p.gs || 0) < 40) continue;
-    if (ex.has(p.callsign)) continue;
-    if (!fcaMatchesDest(fca, p.arr)) continue;
-    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
-    const ac = buildAirCandidate(p, fca);
-    if (ac) cand.push(ac);
-  }
-  return cand;
-}
-
+/* ============================================================
+   MAIN SEQUENCE
+   ============================================================ */
 export function computeSequence(fca, pilots, prefiles, opts = {}) {
   const includeEdct = opts.includeEdct !== false;
   const nowMs = opts.nowMs != null ? opts.nowMs : Date.now();
   const out = {
     items: [], demand: 0, mode: fca.mode || "rate", rate: fca.rate || 0, mit: fca.mit || 0,
-    minit: 0, excluded: 0, nAir: 0, nGnd: 0, nowMs,
+    minit: 0, excluded: 0, nAir: 0, nGnd: 0, nowMs, conflicts: 0, releasesChanged: false,
   };
   if (!fca.points || fca.points.length < 2) return out;
+
   const ex = new Set(fca.excluded || []);
-  const cand = collectAirFcaCandidates(fca, pilots);
-  for (const p of pilots) {
-    if (ex.has(p.callsign) && p.phase === "air" && (p.gs || 0) >= 40) out.excluded++;
+  for (const p of pilots || []) {
+    if (ex.has(p.callsign) && p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS) out.excluded++;
   }
 
-  if (includeEdct) {
-    const seen = new Set();
-    const grounds = pilots.filter(p => p.phase === "gnd" && isConnectedPilot(p));
-    for (const p of grounds) {
-      if (seen.has(p.callsign)) continue;
-      seen.add(p.callsign);
-      if (ex.has(p.callsign)) { out.excluded++; continue; }
-      if (!fcaMatchesDest(fca, p.arr)) continue;
-      if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
-      const g = groundCrossing(p, fca, nowMs);
-      if (!g) continue;
-      const gDist = crossingDistNm(p, g.cross, g.dist);
-      cand.push({
-        p, phase: "gnd", dist: gDist, lineDist: lineDistToFca(p.lat, p.lon, fca),
-        eta: crossingEtaSec(gDist, g.gs), cross: g.cross, spd: g.gs, transitSec: crossingEtaSec(gDist, g.gs),
-      });
+  // consume releases for aircraft that departed or disappeared
+  if (fca.releases) {
+    const airborneNow = new Set((pilots || []).filter(p => p.phase === "air").map(p => p.callsign));
+    for (const cs of Object.keys(fca.releases)) {
+      if (airborneNow.has(cs)) { delete fca.releases[cs]; out.releasesChanged = true; }
     }
   }
 
-  const rateGap = (out.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
+  const air = collectAirFcaCandidates(fca, pilots);
+  const counters = { excluded: 0 };
+  const gnd = includeEdct ? collectGroundFcaCandidates(fca, pilots, nowMs, counters) : [];
+  out.excluded += counters.excluded;
+
+  const cand = [...air, ...gnd];
   const candById = new Map();
   cand.forEach(c => candById.set(c.p.callsign, c));
-  const manual = isManualSeq(fca);
 
-  if (manual) {
+  let ordered;
+  if (isManualSeq(fca)) {
     out.manual = true;
     const order = buildManualOrder(fca.order, candById, fca);
     out.order = order;
-    finalizeItems(scheduleCandidates(cand, fca, order, candById), out, nowMs);
+    ordered = scheduleCandidates(cand, fca, order, candById);
   } else {
-    finalizeItems(scheduleCandidates(cand, fca, null, candById), out, nowMs);
+    ordered = scheduleAuto(air, gnd, fca, nowMs, out);
   }
+  finalizeItems(ordered, out, nowMs);
 
-  if (out.mode === "rate") out.minit = rateGap;
-  else if (cand.length) { const sp = cand[Math.floor(cand.length / 2)].spd || 450; out.minit = (fca.mit / sp) * 3600; }
+  if (out.mode === "rate" && fca.rate > 0) out.minit = 3600 / fca.rate;
+  else if (out.mode === "mit" && cand.length) {
+    const sp = cand[Math.floor(cand.length / 2)].crossSpd || 450;
+    out.minit = ((fca.mit || 0) / sp) * 3600;
+  }
   out.demand = cand.filter(c => c.eta <= DEMAND_WINDOW_MIN * 60).length;
   return out;
 }
 
-export function isConnectedPilot(p) {
-  return p && !p.prefile;
-}
-
+/* ============================================================
+   TOWER DEPARTURES
+   ============================================================ */
 export function isDepartureCandidate(p, depIcao) {
   if (!isConnectedPilot(p)) return false;
   const dep = (p.dep || "").toUpperCase();
@@ -622,116 +916,56 @@ export function isDepartureCandidate(p, depIcao) {
   return true;
 }
 
-function finalizeTowerGroundItem(c, prevSched, nowMs) {
-  c.gapMin = prevSched == null ? 0 : (c.sched - prevSched) / 60;
-  c.delayMin = (c.sched - c.eta) / 60;
-  c.ctaMs = nowMs + c.sched * 1000;
-  c.edctMs = c.ctaMs - (c.transitSec || 0) * 1000;
-  return c;
-}
-
-function scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots) {
-  const towerGround = new Set(cand.map(c => c.p.callsign));
-  const airCand = collectAirFcaCandidates(fca, pilots || []);
-  const candById = new Map();
-  airCand.forEach(c => candById.set(c.p.callsign, c));
-  cand.forEach(c => candById.set(c.p.callsign, c));
-
-  const order = isManualSeq(fca) ? buildManualOrder(manualOrder, candById, fca) : null;
-  const timeline = scheduleCandidates([...candById.values()], fca, order, candById);
-
-  let prevSched = null;
-  const ordered = [];
-  for (const c of timeline) {
-    if (!towerGround.has(c.p.callsign)) {
-      prevSched = c.sched;
-      continue;
-    }
-    ordered.push(finalizeTowerGroundItem(c, prevSched, nowMs));
-    prevSched = c.sched;
-  }
-  ordered.sort((a, b) => a.sched - b.sched);
-  return { items: ordered, order: ordered.map(c => c.p.callsign) };
-}
-
-export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
+export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
   const nowMs = Date.now();
   const dep = (depIcao || "").toUpperCase();
   if (!dep) return { departures: [], nowMs };
 
   const seen = new Set();
-  const deps = [];
-  for (const p of pilots) {
+  let total = 0;
+  for (const p of pilots || []) {
     if (!isDepartureCandidate(p, dep)) continue;
     if (seen.has(p.callsign)) continue;
     seen.add(p.callsign);
-    deps.push(p);
+    total++;
   }
 
   const byCallsign = new Map();
   const activeFcas = (fcas || []).filter(f => f.enabled && f.points && f.points.length >= 2);
 
   for (const fca of activeFcas) {
-    const cand = [];
-    for (const p of deps) {
-      if (!fcaMatchesDest(fca, p.arr)) continue;
-      if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
-      const g = groundCrossing(p, fca, nowMs);
-      if (!g) continue;
-      const gDist = crossingDistNm(p, g.cross, g.dist);
-      cand.push({
-        p, phase: "gnd", dist: gDist, eta: crossingEtaSec(gDist, g.gs), cross: g.cross,
-        spd: g.gs, transitSec: crossingEtaSec(gDist, g.gs),
-      });
-    }
-    if (!cand.length) continue;
-    const candById = new Map();
-    cand.forEach(c => candById.set(c.p.callsign, c));
-    const manualOrder = resolveManualOrder(fca, candById, pilots, [], nowMs);
-    const { items } = scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots);
-
-    const globalSeq = computeSequence(fca, pilots, [], { includeEdct: true, nowMs });
-    const globalIdx = new Map();
-    globalSeq.items.forEach((c, i) => globalIdx.set(c.p.callsign, i + 1));
-
-    for (const c of items) {
-      const cs = c.p.callsign;
+    const seq = computeSequence(fca, pilots, [], { includeEdct: true, nowMs });
+    for (let i = 0; i < seq.items.length; i++) {
+      const c = seq.items[i];
+      if (c.phase !== "gnd") continue;
+      if ((c.p.dep || "").toUpperCase() !== dep) continue;
+      if (!isDepartureCandidate(c.p, dep)) continue;
+      const prev = i > 0 ? seq.items[i - 1] : null;
       const row = {
-        callsign: cs,
+        callsign: c.p.callsign,
         dep: c.p.dep,
         arr: c.p.arr,
         type: c.p.type || "",
         fcaId: fca.id,
         fcaName: fca.name,
         fcaColor: fca.color,
-        gapMin: c.gapMin,
-        delayMin: c.delayMin,
+        gapMin: prev ? (c.sched - prev.sched) / 60 : 0,
+        delayMin: c.delay / 60,
         ctaMs: c.ctaMs,
         edctMs: c.edctMs,
         transitSec: c.transitSec,
         dist: c.dist,
-        globalSeq: globalIdx.get(cs) || null,
+        globalSeq: i + 1,
         sched: c.sched,
         eta: c.eta,
+        ready: !!c.ready,
+        frozen: !!c.frozen,
       };
-      const prev = byCallsign.get(cs);
-      if (!prev || row.edctMs > prev.edctMs) byCallsign.set(cs, row);
+      const old = byCallsign.get(row.callsign);
+      if (!old || row.edctMs > old.edctMs) byCallsign.set(row.callsign, row);
     }
   }
 
   const departures = [...byCallsign.values()].sort((a, b) => a.edctMs - b.edctMs || a.callsign.localeCompare(b.callsign));
-  return { departures, nowMs, total: deps.length, metered: departures.length };
-}
-
-export function fpFields(fp) {
-  fp = fp || {};
-  return {
-    dep: (fp.departure || "").toUpperCase(),
-    arr: (fp.arrival || "").toUpperCase(),
-    type: fp.aircraft_short || fp.aircraft_faa || "",
-    tas: parseInt(fp.cruise_tas, 10) || 0,
-    fpAlt: parseAlt(fp.altitude),
-    deptime: fp.deptime || "",
-    route: fp.route || "",
-  };
+  return { departures, nowMs, total, metered: departures.length };
 }
