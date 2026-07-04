@@ -29,7 +29,12 @@ bindRouteAirports(
 );
 
 export const NM_PER_DEG = 60;
-export const LOOKAHEAD_NM = 1200;
+export const LOOKAHEAD_NM = 2500;
+/** Per-FCA route lookahead (nm). */
+export function fcaLookaheadNm(fca) {
+  const v = fca && parseFloat(fca.lookaheadNm);
+  return (isFinite(v) && v > 50) ? v : LOOKAHEAD_NM;
+}
 export const DEMAND_WINDOW_MIN = 60;
 export const DIR_LABEL = { any: "any dir", N: "NB", S: "SB", E: "EB", W: "WB" };
 
@@ -195,9 +200,19 @@ export function fcaMatchesAlt(fca, alt) {
   const max = (fca.maxFL != null) ? fca.maxFL * 100 : 1e9;
   return alt >= min && alt <= max;
 }
+/** ICAO/IATA-tolerant airport code comparison: "MIA" matches "KMIA" and vice versa. */
+export function airportCodesMatch(a, b) {
+  a = (a || "").toUpperCase().trim();
+  b = (b || "").toUpperCase().trim();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length === 4 && b.length === 3 && a.slice(1) === b) return true;
+  if (b.length === 4 && a.length === 3 && b.slice(1) === a) return true;
+  return false;
+}
 export function fcaMatchesDest(fca, arr) {
   if (!fca.dests || !fca.dests.length) return true;
-  return fca.dests.includes((arr || "").toUpperCase());
+  return fca.dests.some(d => airportCodesMatch(d, arr));
 }
 export function dirOfHeading(h) {
   h = ((h % 360) + 360) % 360;
@@ -383,7 +398,7 @@ function findRouteCrossing(p, fca) {
   const path = routePathForCrossing(p, { includeNow: airborne });
   if (!path || path.length < 2) return null;
   const best = pathCrossing(path, fca);
-  if (!best || best.dist > LOOKAHEAD_NM) return null;
+  if (!best || best.dist > fcaLookaheadNm(fca)) return null;
   return { ...best, path };
 }
 
@@ -691,6 +706,42 @@ export function isConnectedPilot(p) {
   return p && !p.prefile;
 }
 
+/**
+ * Diagnostic: why is this aircraft in (or not in) this FCA's sequence?
+ * Walks the same gates as candidate collection, in order, and reports the
+ * first one that rejects. Returns { included, reason, detail, distNm? }.
+ */
+export function explainFcaExclusion(fca, p) {
+  const R = (included, reason, detail, extra) => ({ included, reason, detail: detail || "", ...(extra || {}) });
+  if (!fca || !fca.points || fca.points.length < 2) return R(false, "no-line", "FCA has no drawn line.");
+  if (!fca.enabled) return R(false, "disabled", "FCA is disabled.");
+  if ((fca.excluded || []).includes(p.callsign)) return R(false, "excluded", "Manually removed from this FCA.");
+  if (!fcaMatchesDest(fca, p.arr)) {
+    return R(false, "dest-filter", `Destination ${p.arr || "????"} not in filter [${(fca.dests || []).join(" ")}].`);
+  }
+  const isAir = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
+  const altNow = p.alt || 0, altFp = p.fpAlt || 0;
+  const altOk = isAir ? (fcaMatchesAlt(fca, altNow) || fcaMatchesAlt(fca, altFp)) : fcaMatchesAlt(fca, altFp);
+  if (!altOk) {
+    const band = `${fca.minFL != null ? "FL" + fca.minFL : "SFC"}–${fca.maxFL != null ? "FL" + fca.maxFL : "UNL"}`;
+    return R(false, "alt-filter", `Current FL${Math.round(altNow / 100)} / filed FL${Math.round(altFp / 100)} outside ${band}.`);
+  }
+  if (p.phase === "gnd" && !isConnectedPilot(p)) return R(false, "prefile", "Prefiles are not metered.");
+  if (!getAirport(p.arr)) return R(false, "no-dest-apt", `Destination ${p.arr || "????"} not in the airport DB — route can't be built.`);
+  if (p.phase === "gnd" && !pilotOrigin(p)) return R(false, "no-origin", `Departure ${p.dep || "????"} not in the airport DB.`);
+  const path = routePathForCrossing(p, { includeNow: isAir });
+  if (!path || path.length < 2) return R(false, "no-path", "Route could not be resolved into a path.");
+  const cross = pathCrossing(path, fca);
+  if (!cross) return R(false, "no-crossing", "Resolved route never crosses the FCA line.");
+  const cap = fcaLookaheadNm(fca);
+  if (cross.dist > cap) {
+    return R(false, "beyond-lookahead", `Crossing is ${Math.round(cross.dist)}nm along route — beyond the ${Math.round(cap)}nm lookahead.`, { distNm: cross.dist });
+  }
+  if (isAir && !isCrossingAhead(p, cross)) return R(false, "crossing-behind", "Crossing point is behind the aircraft's heading.");
+  if (isAir && hasPassedFca(p, fca)) return R(false, "passed", "Already through the directional FCA, moving away.");
+  return R(true, "included", `Crosses in ${Math.round(cross.dist)}nm.`, { distNm: cross.dist });
+}
+
 function collectAirFcaCandidates(fca, pilots) {
   const ex = new Set(fca.excluded || []);
   const cand = [];
@@ -698,7 +749,7 @@ function collectAirFcaCandidates(fca, pilots) {
     if (p.phase !== "air" || (p.gs || 0) < AIR_MIN_GS) continue;
     if (ex.has(p.callsign)) continue;
     if (!fcaMatchesDest(fca, p.arr)) continue;
-    if (!fcaMatchesAlt(fca, p.alt || 0)) continue;
+    if (!fcaMatchesAlt(fca, p.alt || 0) && !fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const ac = buildAirCandidate(p, fca);
     if (ac) cand.push(ac);
   }
