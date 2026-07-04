@@ -123,6 +123,11 @@
   .seg button.on{background:var(--amber-dim);border-color:var(--amber);color:var(--amber);font-weight:700}
   .strip .rm{font-size:13px;color:var(--muted-2);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1}
   .strip .rm:hover{color:var(--red);background:#1a1010}
+  .strip .rdy{font:700 9px/1 var(--mono,monospace);letter-spacing:.5px;color:var(--muted-2);cursor:pointer;
+    padding:3px 6px;border:1px solid var(--muted-2);border-radius:4px;margin-top:4px;text-align:center;user-select:none}
+  .strip .rdy:hover{color:var(--amber);border-color:var(--amber)}
+  .strip .rdy.on{color:#56d364;border-color:#56d364;background:#0e1a10}
+  .strip .rdy.on:hover{color:var(--red);border-color:var(--red);background:#1a1010}
   .strip[draggable=true]{cursor:default}
   .strip .num{cursor:grab}
   .strip .num .grip{display:block;font-size:11px;color:var(--muted-2);line-height:1;margin-bottom:1px}
@@ -432,6 +437,7 @@ import {
   computeSequence as computeSequenceCore, buildManualOrder,
   projectCrossing, buildPathLLs, plannedAnchors,
   fcaMatchesAlt, fcaMatchesDest,
+  markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
@@ -1001,7 +1007,7 @@ function fetchLive(){
         .filter(p=>typeof p.latitude==="number"&&typeof p.longitude==="number")
         .map(p=>{ const f=fpFieldsLocal(p.flight_plan); const gs=p.groundspeed||0;
           return { callsign:p.callsign, lat:p.latitude, lon:p.longitude, alt:p.altitude||0,
-            gs, hdg:p.heading||0, phase: gs<30 ? "gnd":"air", ...f }; });
+            gs, hdg:p.heading||0, phase: gs<50 ? "gnd":"air", ...f }; });
       const connected=new Set(pilots.map(p=>p.callsign));
       const prefiles=(d.prefiles||[])
         .filter(p=>p.flight_plan && !connected.has(p.callsign))
@@ -1122,7 +1128,9 @@ function lineLengthNm(pts){
 const seqCache=new Map();
 function invalidateSequences(){ seqCache.clear(); }
 function computeSequence(fca){
-  return computeSequenceCore(fca, state.pilots, [], { includeEdct: state.layers.edct });
+  const s=computeSequenceCore(fca, state.pilots, [], { includeEdct: state.layers.edct });
+  if(s.releasesChanged && canControl()) cloudPush(fca);   // engine bumped/consumed a frozen release
+  return s;
 }
 function getSequence(fca){
   let s=seqCache.get(fca.id);
@@ -1236,8 +1244,9 @@ function renderFcaLines(){
   }
 }
 function delayColor(sec){ return sec<30?"#56d364":sec<300?"#f5a623":"#ff6b6b"; }
-/** Wheels-up EDCT from FCA crossing spacing (ignores filed departure time). */
+/** Wheels-up EDCT: frozen release when issued, else advisory slot minus transit. */
 function groundWheelsUpMs(c){
+  if(c.edctMs!=null) return c.edctMs;
   if(c.ctaMs==null) return null;
   return c.ctaMs-(c.transitSec||0)*1000;
 }
@@ -1489,13 +1498,18 @@ function renderSequence(){
       const edct=wheelsUp?fmtZulu(wheelsUp):"—";
       const gsLabel=(c.p.gs||0)>=20?`${Math.round(c.p.gs)}kt`:"depart";
       const held=c.delay>=30;
+      const frozen=!!c.frozen;
+      const winTxt=frozen&&wheelsUp?` · window ${fmtZulu(wheelsUp-COMPLIANCE_EARLY_MS)}–${fmtZulu(wheelsUp+COMPLIANCE_LATE_MS)}`:"";
+      const rdyBtn=canControl()
+        ?`<div class="rdy${frozen?" on":""}" data-rdy="${escapeHtml(c.p.callsign)}" title="${frozen?"Cancel this release":"Pilot ready now — freeze earliest release"}">${frozen?"RLSD ✕":"RDY"}</div>`
+        :(frozen?`<div class="rdy on" style="cursor:default">RLSD</div>`:"");
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
-        <div><div class="cs"><span class="ph gnd">EDCT</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${gsLabel} · ${Math.round(c.dist)}nm to line · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
-        <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
-          <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
-        ${rmBtn}`;
+        <div><div class="cs"><span class="ph gnd">${frozen?"RLSD":"EDCT"}</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${gsLabel} · ${Math.round(c.dist)}nm to line · cross ${fmtZulu(c.ctaMs)}${winTxt}</div>${gapLine}</div>
+        <div class="eta"><div class="big" style="color:${frozen?"#56d364":held?delayColor(c.delay):"var(--text)"}">${edct}</div>
+          <div class="dl ${cls}">${frozen?"released":held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center">${rmBtn}${rdyBtn}</div>`;
     } else {
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
@@ -1507,6 +1521,19 @@ function renderSequence(){
     }
     const rmEl=strip.querySelector(".rm");
     if(rmEl) rmEl.addEventListener("click",e=>{ e.stopPropagation(); excludeAircraft(sel,c.p.callsign); });
+    const rdyEl=strip.querySelector("[data-rdy]");
+    if(rdyEl) rdyEl.addEventListener("click",e=>{
+      e.stopPropagation();
+      if(!canControl()) return;
+      const cs=c.p.callsign;
+      if(isReady(sel,cs)){ clearReady(sel,cs); toast(cs+" release cancelled — back to advisory.",2500); }
+      else{
+        const rel=markReady(sel,cs,state.pilots,Date.now());
+        if(rel) toast(cs+" READY — EDCT "+fmtZulu(rel.edctMs)+" (window "+fmtZulu(rel.edctMs-COMPLIANCE_EARLY_MS)+"–"+fmtZulu(rel.edctMs+COMPLIANCE_LATE_MS)+")",4000);
+        else toast("Couldn't compute a release for "+cs+".",3000);
+      }
+      cloudPush(sel); invalidateSequences(); renderAll();
+    });
     strip.addEventListener("click",()=>{ const o=(c.p.lat!=null)?[c.p.lat,c.p.lon]:getAirport(c.p.dep); if(o) map.panTo(o); });
     if(canControl()){
     // drag-to-reorder
@@ -2060,6 +2087,7 @@ function normalizeFca(f){            // fill defaults + sanitize older/remote/im
   if(!f.dir) f.dir="any"; if(!f.mode) f.mode="rate"; if(f.mit==null) f.mit=15;
   if(!Array.isArray(f.excluded)) f.excluded=[];
   if(!Array.isArray(f.order)) f.order=[];
+  if(!f.releases||typeof f.releases!=="object"||Array.isArray(f.releases)) f.releases={};
   if(f.manualSeq !== true) f.manualSeq = false;
   f.points=(Array.isArray(f.points)?f.points:[])
     .filter(pt=>Array.isArray(pt)&&isFinite(pt[0])&&isFinite(pt[1]));

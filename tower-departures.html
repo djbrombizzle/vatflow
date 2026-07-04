@@ -147,6 +147,13 @@
   .cell-edct { font-weight: 700; font-size: 12px; }
   .cell-hold { color: var(--red); }
   .cell-ok { color: var(--green); }
+  .cell-frozen { color: #56d364; font-weight: 700; }
+  .rdy-btn { font: 700 9px/1 var(--mono, monospace); letter-spacing: .5px; cursor: pointer;
+    padding: 3px 6px; border: 1px solid var(--muted-2); border-radius: 4px; background: transparent;
+    color: var(--muted-2); }
+  .rdy-btn:hover { color: var(--amber); border-color: var(--amber); }
+  .rdy-btn.on { color: #56d364; border-color: #56d364; background: rgba(86,211,100,.08); }
+  .rdy-btn.on:hover { color: var(--red); border-color: var(--red); }
   .cell-warn { color: var(--amber); }
   .fca-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; border: 1px solid; font-size: 9px; }
   .msg, .emptystate {
@@ -224,7 +231,7 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
-  getAirport, parseAlt,
+  getAirport, parseAlt, markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -433,6 +440,7 @@ function normalizeFca(f) {
   if (!f.id) f.id = "fca_" + Date.now();
   if (!Array.isArray(f.points)) f.points = [];
   if (!Array.isArray(f.order)) f.order = [];
+  if (!f.releases || typeof f.releases !== "object" || Array.isArray(f.releases)) f.releases = {};
   if (f.enabled == null) f.enabled = true;
   return f;
 }
@@ -518,7 +526,7 @@ function fetchLive() {
           const f = fpFields(p.flight_plan);
           const gs = p.groundspeed || 0;
           return { callsign: p.callsign, lat: p.latitude, lon: p.longitude, alt: p.altitude || 0,
-            gs, hdg: p.heading || 0, phase: gs < 30 ? "gnd" : "air", ...f };
+            gs, hdg: p.heading || 0, phase: gs < 50 ? "gnd" : "air", ...f };
         });
       const connected = new Set(pilots.map(p => p.callsign));
       const prefiles = (d.prefiles || [])
@@ -571,6 +579,10 @@ function hasEdctDelay(delayMin) {
 }
 
 function edctCellHtml(d) {
+  if (d.frozen) {
+    const win = `${fmtZulu(d.edctMs - COMPLIANCE_EARLY_MS)}–${fmtZulu(d.edctMs + COMPLIANCE_LATE_MS)}`;
+    return `<td class="cell-edct cell-frozen" title="Frozen release · window ${win}">${fmtZulu(d.edctMs)}</td>`;
+  }
   if (hasEdctDelay(d.delayMin)) {
     return `<td class="cell-edct cell-hold">${fmtZulu(d.edctMs)}</td>`;
   }
@@ -589,6 +601,9 @@ function renderMeteredRow(d, localIdx, canDrag) {
     `<td>${fmtZulu(d.ctaMs)}</td>` +
     `${edctCellHtml(d)}` +
     `<td>${d.globalSeq != null ? d.globalSeq : "—"}</td>` +
+    `<td>${canControl()
+      ? `<button type="button" class="rdy-btn${d.frozen ? " on" : ""}" data-rdy-cs="${escapeHtml(d.callsign)}" data-rdy-fca="${escapeHtml(d.fcaId)}" title="${d.frozen ? "Cancel this release" : "Pilot ready now — freeze earliest release"}">${d.frozen ? "RLSD ✕" : "RDY"}</button>`
+      : (d.frozen ? `<span class="cell-frozen">RLSD</span>` : "—")}</td>` +
     `</tr>`;
 }
 
@@ -610,12 +625,12 @@ function renderFcaMiniTable(fca, rows, canDrag) {
     `<button type="button" class="fca-btn hide-btn" data-fca-id="${escapeHtml(fca.id)}" title="Hide this FCA">HIDE</button>` +
     `</div></div>` +
     `<div class="tablewrap mini"><table><thead><tr>` +
-    `<th>#</th><th>CS</th><th>DST</th><th>NM</th><th>GAP</th><th>CTA</th><th>EDCT</th><th>GLB</th>` +
+    `<th>#</th><th>CS</th><th>DST</th><th>NM</th><th>GAP</th><th>CTA</th><th>EDCT</th><th>GLB</th><th>RDY</th>` +
     `</tr></thead><tbody class="depBody" data-fca="${escapeHtml(fca.id)}">`;
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
   } else {
-    html += `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html += `<tr class="empty-row"><td colspan="9" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
   }
   html += `</tbody></table></div></div>`;
   return html;
@@ -669,7 +684,7 @@ function updateFcaBlock(fca, rows, canDrag) {
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
   } else {
-    html = `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html = `<tr class="empty-row"><td colspan="9" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
   }
   tbody.innerHTML = html;
   wireTableDrag(tbody, fca.id);
@@ -910,6 +925,24 @@ function wireAllTableDrag() {
     wireTableDrag(tbody, tbody.getAttribute("data-fca"));
   });
 }
+
+document.addEventListener("click", e => {
+  const btn = e.target.closest(".rdy-btn");
+  if (!btn) return;
+  e.stopPropagation();
+  if (!canControl()) return;
+  const cs = btn.getAttribute("data-rdy-cs");
+  const fca = state.fcas.find(f => f.id === btn.getAttribute("data-rdy-fca"));
+  if (!cs || !fca) return;
+  if (isReady(fca, cs)) {
+    clearReady(fca, cs);
+  } else {
+    const rel = markReady(fca, cs, state.pilots, Date.now());
+    if (!rel) return;
+  }
+  cloudPush(fca);
+  render();
+});
 
 function moveTowerOrder(fcaId, fromCs, toCs) {
   if (!canControl() || fromCs === toCs) return;
