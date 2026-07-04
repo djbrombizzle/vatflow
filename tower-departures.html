@@ -224,7 +224,7 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
-  getAirport, setWindAltProvider, parseAlt, fmtPtime,
+  getAirport, parseAlt,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -584,7 +584,7 @@ function renderMeteredRow(d, localIdx, canDrag) {
     `<td><span class="grip">⠿</span> ${localIdx + 1}</td>` +
     `<td class="cell-strong">${escapeHtml(d.callsign)}</td>` +
     `<td>${escapeHtml(d.arr || "????")}</td>` +
-    `<td class="cell-ptime">${fmtPtime(d.deptime)}</td>` +
+    `<td>${Math.round(d.dist || 0)}</td>` +
     `<td>${gapLabel(d.gapMin, isLeader)}</td>` +
     `<td>${fmtZulu(d.ctaMs)}</td>` +
     `${edctCellHtml(d)}` +
@@ -610,7 +610,7 @@ function renderFcaMiniTable(fca, rows, canDrag) {
     `<button type="button" class="fca-btn hide-btn" data-fca-id="${escapeHtml(fca.id)}" title="Hide this FCA">HIDE</button>` +
     `</div></div>` +
     `<div class="tablewrap mini"><table><thead><tr>` +
-    `<th>#</th><th>CS</th><th>DST</th><th>P TIME</th><th>GAP</th><th>CTA</th><th>EDCT</th><th>GLB</th>` +
+    `<th>#</th><th>CS</th><th>DST</th><th>NM</th><th>GAP</th><th>CTA</th><th>EDCT</th><th>GLB</th>` +
     `</tr></thead><tbody class="depBody" data-fca="${escapeHtml(fca.id)}">`;
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
@@ -801,13 +801,12 @@ function renderUnmeteredHtml(unmetered) {
   let html =
     `<div class="section-label" id="unmeteredLabel">Not metered · ${unmetered.length}</div>` +
     `<div class="tablewrap mini combined" id="unmeteredTable"><table><thead><tr>` +
-    `<th>CALLSIGN</th><th>DEST</th><th>P TIME</th>` +
+    `<th>CALLSIGN</th><th>DEST</th>` +
     `</tr></thead><tbody id="unmeteredBody">`;
   for (const p of unmetered) {
     html += `<tr class="unmetered">` +
       `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
       `<td>${escapeHtml(p.arr || "????")}</td>` +
-      `<td class="cell-ptime">${fmtPtime(p.deptime)}</td>` +
       `</tr>`;
   }
   html += `</tbody></table></div>`;
@@ -830,7 +829,6 @@ function syncUnmeteredSection(unmetered) {
       html += `<tr class="unmetered">` +
         `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
         `<td>${escapeHtml(p.arr || "????")}</td>` +
-        `<td class="cell-ptime">${fmtPtime(p.deptime)}</td>` +
         `</tr>`;
     }
     tbody.innerHTML = html;
@@ -1103,7 +1101,6 @@ loadLocalFcas();
 initSync();
 loadAirports(() => {
   bindWindAirportLookup(icao => getAirport(icao));
-  setWindAltProvider(p => parseAlt(p.fpAlt || p.alt || 35000));
   loadNavData().catch(() => {}).finally(() => render());
   fetchWinds().catch(() => {});
 }).catch(() => render());
