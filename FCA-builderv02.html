@@ -1216,18 +1216,20 @@ function renderFcaLines(){
       L.circleMarker([c.cross.lat,c.cross.lon],{radius:4,color:col,fillColor:col,fillOpacity:.9,weight:1})
         .bindTooltip(`#${i+1} ${escapeHtml(c.p.callsign)}`,{className:"artcc-label",direction:"top"})
         .addTo(seqLayer);
-      // ground/prefile flights: show origin + the route leg to the line
-      if(c.phase==="gnd"){
-        const o=(c.p.lat!=null&&c.p.lon!=null)?[c.p.lat,c.p.lon]:getAirport(c.p.dep);
-        if(o){
-          L.polyline([o,[c.cross.lat,c.cross.lon]],{color:sel.color,weight:1,opacity:.35,dashArray:"1 5"}).addTo(seqLayer);
-          if(c.p.lat==null){   // prefile has no plane marker — draw a departure square
-            L.marker(o,{icon:L.divIcon({className:"",iconSize:[12,12],iconAnchor:[6,6],
-              html:`<div style="width:9px;height:9px;background:${sel.color};border:1px solid #0a0e14;transform:rotate(45deg);box-shadow:0 0 6px ${sel.color}"></div>`})})
-              .bindTooltip(`${escapeHtml(c.p.callsign)} · ${escapeHtml(c.p.dep)} · EDCT ${groundWheelsUpMs(c)?fmtZulu(groundWheelsUpMs(c)):"—"}`,
-                {className:"artcc-label",direction:"top"})
-              .on("click",()=>{ if(!state.drawing) showRoute(c.p); }).addTo(seqLayer);
-          }
+      // projected path to crossing (air + ground)
+      const o=(c.p.lat!=null&&c.p.lon!=null)?[c.p.lat,c.p.lon]:null;
+      if(o){
+        L.polyline([o,[c.cross.lat,c.cross.lon]],{color:sel.color,weight:1,opacity:.35,dashArray:"1 5"}).addTo(seqLayer);
+      }
+      if(c.phase==="gnd" && !o){
+        const gndO=getAirport(c.p.dep);
+        if(gndO){
+          L.polyline([gndO,[c.cross.lat,c.cross.lon]],{color:sel.color,weight:1,opacity:.35,dashArray:"1 5"}).addTo(seqLayer);
+          L.marker(gndO,{icon:L.divIcon({className:"",iconSize:[12,12],iconAnchor:[6,6],
+            html:`<div style="width:9px;height:9px;background:${sel.color};border:1px solid #0a0e14;transform:rotate(45deg);box-shadow:0 0 6px ${sel.color}"></div>`})})
+            .bindTooltip(`${escapeHtml(c.p.callsign)} · ${escapeHtml(c.p.dep)} · EDCT ${groundWheelsUpMs(c)?fmtZulu(groundWheelsUpMs(c)):"—"}`,
+              {className:"artcc-label",direction:"top"})
+            .on("click",()=>{ if(!state.drawing) showRoute(c.p); }).addTo(seqLayer);
         }
       }
     });

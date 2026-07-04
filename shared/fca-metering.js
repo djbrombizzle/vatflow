@@ -226,6 +226,18 @@ function validAirCrossing(p, fca, cross) {
   return cross && isCrossingAhead(p, cross) && !hasPassedFca(p, fca);
 }
 
+/** When the current-heading ray misses the segment (e.g. NE track vs N-S line), use bearing toward the line. */
+function convergingCrossing(p, pts) {
+  const near = nearestPointOnFca(p.lat, p.lon, pts);
+  if (!near) return null;
+  const brg = bearing(p.lat, p.lon, near.lat, near.lon);
+  if (angleDiff(p.hdg || 0, brg) > 90) return null;
+  const cross = projectCrossing({ lat: p.lat, lon: p.lon, hdg: brg }, pts);
+  if (cross) return cross;
+  const along = near.distNm / Math.max(0.35, Math.cos(toRad(angleDiff(p.hdg || 0, brg))));
+  return along <= LOOKAHEAD_NM ? { dist: along, lat: near.lat, lon: near.lon } : null;
+}
+
 export function projectCrossing(p, pts) {
   const lat0 = p.lat, lon0 = p.lon;
   const h = toRad(p.hdg || 0);
@@ -319,10 +331,12 @@ function headingTowardLine(origin, fca) {
   return bearing(origin[0], origin[1], near.lat, near.lon);
 }
 
-/** Airborne: extend current heading to the FCA line. */
+/** Airborne: extend current heading to the FCA line; fall back when converging but oblique. */
 function simpleAirCrossing(p, fca) {
+  if ((p.gs || 0) < 40) return null;
   if (!fcaMatchesDir(fca, p.hdg || 0)) return null;
-  const cross = projectCrossing(p, fca.points);
+  let cross = projectCrossing(p, fca.points);
+  if (!cross) cross = convergingCrossing(p, fca.points);
   return validAirCrossing(p, fca, cross) ? cross : null;
 }
 

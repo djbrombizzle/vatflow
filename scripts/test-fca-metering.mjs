@@ -209,4 +209,28 @@ const seqAfterDep = computeSequence(FCA_RATE, [leaderAir, followerGround], [], {
 const followAfter = seqAfterDep.items.find(c => c.p.callsign === "FOLL");
 assert(followAfter && followAfter.delay >= 180, "follower delay survives leader departure");
 
+const dalLike = {
+  callsign: "DAL1378",
+  phase: "air",
+  lat: 33.95,
+  lon: -83.38,
+  hdg: 55,
+  gs: 496,
+  alt: 27000,
+  dep: "KATL",
+  arr: "KDCA",
+};
+const aikenFca = {
+  id: "aiken",
+  enabled: true,
+  dir: "any",
+  points: [[33.2, -81.72], [34.2, -81.72]],
+  mode: "mit",
+  mit: 45,
+  minFL: 0,
+  maxFL: 999,
+};
+const dalSeq = computeSequence(aikenFca, [dalLike], [], { includeEdct: false });
+assert(dalSeq.items.some(c => c.p.callsign === "DAL1378"), "NE track converging on N-S FCA is included");
+
 console.log("test-fca-metering: all passed (" + cs.length + " in seq)");
