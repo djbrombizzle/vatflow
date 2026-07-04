@@ -430,9 +430,8 @@ import {
   loadAirports, seedAirports, getAirport, hasAirport,
   haversineNm, bearing, gcLine, parseRouteTokens, parseAlt, fmtZulu, fpFields,
   computeSequence as computeSequenceCore, buildManualOrder,
-  projectCrossing, pathCrossing, groundCrossing, buildPathLLs, plannedAnchors,
-  fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir, groundTransitSec, ptimeToMs, fmtPtime,
-  setWindAltProvider,
+  projectCrossing, buildPathLLs, plannedAnchors,
+  fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
@@ -943,7 +942,6 @@ loadBoundaries();
 let airportsReady=false;
 function loadAirportsLocal(){
   bindWindAirportLookup(icao => getAirport(icao));
-  setWindAltProvider(p => parseAlt(p.fpAlt || p.alt || 35000));
   return loadAirports(n=>{
     airportsReady=true;
     if(state.selectedId) renderAll();
@@ -1501,12 +1499,12 @@ function renderSequence(){
     if(c.phase==="gnd"){
       const wheelsUp=groundWheelsUpMs(c);
       const edct=wheelsUp?fmtZulu(wheelsUp):"—";
-      const ptime=c.ptimeMs?fmtZulu(c.ptimeMs):fmtPtime(c.p.deptime);
+      const gsLabel=(c.p.gs||0)>=20?`${Math.round(c.p.gs)}kt`:"depart";
       const held=c.delay>=30;
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph gnd">EDCT</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · P ${ptime} · FL${fl} · TAS${c.p.tas||"?"} · ${Math.round(c.dist)}nm · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${gsLabel} · ${Math.round(c.dist)}nm to line · cross ${fmtZulu(c.ctaMs)}</div>${gapLine}</div>
         <div class="eta"><div class="big" style="color:${held?delayColor(c.delay):"var(--text)"}">${edct}</div>
           <div class="dl ${cls}">${held?"hold +"+fmtClock(c.delay):"no delay"}</div></div>
         ${rmBtn}`;
@@ -1514,7 +1512,7 @@ function renderSequence(){
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>
         <div><div class="cs"><span class="ph air">AIR</span> ${escapeHtml(c.p.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type||"")}</span></div>
-          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${c.p.gs}kt · ${Math.round(c.dist)}nm xing${c.lineDist!=null?` · ${Math.round(c.lineDist)}nm line`:``}${c.via==="route"?" · rte":""}</div>${gapLine}</div>
+          <div class="info">${escapeHtml(c.p.dep||"????")} → ${escapeHtml(c.p.arr||"????")} · FL${fl} · ${Math.round(c.p.gs||0)}kt · ${Math.round(c.dist)}nm to line</div>${gapLine}</div>
         <div class="eta"><div class="big">${fmtZulu(c.ctaMs)}</div>
           <div class="dl ${cls}">${c.delay<30?"on time":"air +"+fmtClock(c.delay)}</div></div>
         ${rmBtn}`;
@@ -1812,11 +1810,9 @@ function copySequence(){
   const constraint=sel.mode==="mit"?`${sel.mit} MIT`:`${sel.rate}/hr`;
   const lines=[`FCA ${sel.name} · ${constraint} · as of ${fmtZulu(Date.now())}`];
   s.items.forEach((c,i)=>{
-    const ptime=c.phase==="gnd" ? (c.ptimeMs?fmtZulu(c.ptimeMs):fmtPtime(c.p.deptime)) : "";
     const tag=c.phase==="gnd" ? `EDCT ${(()=>{const w=groundWheelsUpMs(c); return w?fmtZulu(w):"—";})()}` : "AIRBORNE";
     const dl=c.delay>=30?` (+${fmtClock(c.delay)})`:"";
-    const ptxt=c.phase==="gnd" && ptime && ptime!=="—" ? ` · P ${ptime}` : "";
-    lines.push(`${String(i+1).padStart(2," ")}. ${c.p.callsign.padEnd(8," ")} ${tag.padEnd(11," ")} cross ${fmtZulu(c.ctaMs)}${ptxt}${dl}`);
+    lines.push(`${String(i+1).padStart(2," ")}. ${c.p.callsign.padEnd(8," ")} ${tag.padEnd(11," ")} cross ${fmtZulu(c.ctaMs)}${dl}`);
   });
   copyText(lines.join("\n"), ()=>toast("Sequence copied — "+s.items.length+" aircraft.",2200));
 }
@@ -2023,7 +2019,7 @@ function renderRouteInfo(p,dist){
   }
   const meta=getNavMeta();
   const fl=String(Math.round(((p.phase==="gnd"?p.fpAlt:p.alt)||0)/100)).padStart(3,"0");
-  const spd=p.phase==="gnd"?("TAS"+(p.tas||"?")):((p.gs||0)+"kt");
+  const spd=p.phase==="gnd"?(((p.gs||0)>=20)?(`${Math.round(p.gs)}kt`):("depart")):((p.gs||0)+"kt");
   const navNote=isNavReady()
     ?`FAA NASR route (${meta?.nasrCycleDate||"?"}) — fixes, navaids, airways, SID/STAR when known.`
     :"Great-circle through departure"+(p.phase==="gnd"?"":", current position")+", en-route airports, and destination.";
