@@ -1442,7 +1442,7 @@ function renderSequence(){
     (s.manual?`<span class="manualchip" id="seqAuto" title="Return to automatic sequencing">✋ MANUAL · ↺ auto</span>`:"")+
     (totalDelay>60?`<span style="color:var(--red)">Σdelay ${fmtClock(totalDelay)}</span>`:"");
   const autoBtn=document.getElementById("seqAuto");
-  if(autoBtn) autoBtn.addEventListener("click",()=>{ if(!canControl()) return; sel.order=[]; cloudPush(sel); renderAll(); });
+  if(autoBtn) autoBtn.addEventListener("click",()=>{ if(!canControl()) return; sel.order=[]; sel.manualSeq=false; cloudPush(sel); renderAll(); });
 
   const body=document.getElementById("seqBody");
   const exHtml=excludedHtml(sel);
@@ -1532,7 +1532,7 @@ function moveSeq(fca,orderCS,from,to){
   if(!canControl()) return;
   const arr=orderCS.slice();
   const [m]=arr.splice(from,1); arr.splice(to,0,m);
-  fca.order=arr; cloudPush(fca); renderAll();
+  fca.order=arr; fca.manualSeq=true; cloudPush(fca); renderAll();
 }
 
 function excludedHtml(fca){
@@ -2060,6 +2060,7 @@ function normalizeFca(f){            // fill defaults + sanitize older/remote/im
   if(!f.dir) f.dir="any"; if(!f.mode) f.mode="rate"; if(f.mit==null) f.mit=15;
   if(!Array.isArray(f.excluded)) f.excluded=[];
   if(!Array.isArray(f.order)) f.order=[];
+  if(f.manualSeq !== true) f.manualSeq = false;
   f.points=(Array.isArray(f.points)?f.points:[])
     .filter(pt=>Array.isArray(pt)&&isFinite(pt[0])&&isFinite(pt[1]));
   f.dests=(Array.isArray(f.dests)?f.dests:[])

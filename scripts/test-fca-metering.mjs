@@ -241,6 +241,27 @@ const aikenFca = {
 const dalSeq = computeSequence(aikenFca, [dalLike], [], { includeEdct: false });
 assert(dalSeq.items.some(c => c.p.callsign === "DAL1378"), "KATL-KDCA route crossing N-S FCA is included");
 
+const ztlFca = {
+  id: "ztl", enabled: true, dir: "any", points: [[34.5, -79.8], [37.5, -79.8]],
+  mode: "mit", mit: 45, minFL: 0, maxFL: 999,
+};
+const gsMix = computeSequence(ztlFca, [
+  { callsign: "CLOSE", phase: "air", lat: 36.0, lon: -80.2, hdg: 55, gs: 120, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
+  { callsign: "FAR", phase: "air", lat: 33.9, lon: -84.0, hdg: 55, gs: 500, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
+], [], { includeEdct: false });
+assert(gsMix.items[0].p.callsign === "CLOSE", "queue order is by distance to crossing, not faster gs farther out");
+
+const staleManual = computeSequence(
+  { ...ztlFca, order: ["FAR", "CLOSE"], manualSeq: false },
+  [
+    { callsign: "CLOSE", phase: "air", lat: 36.0, lon: -80.2, hdg: 55, gs: 120, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
+    { callsign: "FAR", phase: "air", lat: 33.9, lon: -84.0, hdg: 55, gs: 500, alt: 33000, dep: "KATL", arr: "KDCA", route: "DCT" },
+  ],
+  [],
+  { includeEdct: false },
+);
+assert(staleManual.items[0].p.callsign === "CLOSE", "stale order array without manualSeq still auto-sorts");
+
 const bypass = {
   callsign: "BYPASS",
   phase: "air",

@@ -376,14 +376,22 @@ export function towerGroundCrossing(p, fca, _nowMs) {
   return groundCrossing(p, fca, _nowMs);
 }
 
+function crossingDistNm(p, cross, routeDist) {
+  if (p.phase === "air" && (p.gs || 0) >= 40 && p.lat != null && p.lon != null && cross?.lat != null) {
+    return haversineNm(p.lat, p.lon, cross.lat, cross.lon);
+  }
+  return routeDist;
+}
+
 function buildAirCandidate(p, fca) {
   const cross = findRouteCrossing(p, fca);
   if (!cross || !validRouteCrossing(p, fca, cross)) return null;
   const gs = Math.max(p.gs || 0, 40);
-  const eta = crossingEtaSec(cross.dist, gs);
+  const dist = crossingDistNm(p, cross, cross.dist);
+  const eta = crossingEtaSec(dist, gs);
   const lineDist = lineDistToFca(p.lat, p.lon, fca);
   return {
-    p, phase: "air", dist: cross.dist, lineDist, eta, cross, spd: gs, transitSec: eta,
+    p, phase: "air", dist, lineDist, eta, cross, spd: gs, transitSec: eta,
   };
 }
 
@@ -397,7 +405,7 @@ export function sepSeconds(fca, c) {
 }
 
 function sortAirborne(air) {
-  air.sort((a, b) => a.eta - b.eta || a.dist - b.dist);
+  air.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
 }
 
 /** MIT at the line: prior crossing + spacing, unless already >= MIT nm in trail. */
@@ -462,7 +470,7 @@ export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const air = cand.filter(c => c.phase === "air");
   const gnd = cand.filter(c => c.phase === "gnd");
   scheduleAirborneStream(air, fca);
-  gnd.sort((a, b) => a.eta - b.eta);
+  gnd.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
 
   const committed = [];
   for (const c of air) {
@@ -495,7 +503,7 @@ export function buildManualOrder(manualOrder, candById, _fca) {
   const sortNew = (a, b) => {
     const ca = candById.get(a), cb = candById.get(b);
     if (ca.phase !== cb.phase) return ca.phase === "air" ? -1 : 1;
-    return ca.eta - cb.eta || ca.dist - cb.dist;
+    return ca.dist - cb.dist || ca.eta - cb.eta;
   };
   const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs)).sort(sortNew);
   for (const cs of newcomers) {
@@ -569,9 +577,10 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
       if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
       const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
+      const gDist = crossingDistNm(p, g.cross, g.dist);
       cand.push({
-        p, phase: "gnd", dist: g.dist, lineDist: lineDistToFca(p.lat, p.lon, fca),
-        eta: g.etaSec, cross: g.cross, spd: g.gs, transitSec: g.transitSec,
+        p, phase: "gnd", dist: gDist, lineDist: lineDistToFca(p.lat, p.lon, fca),
+        eta: crossingEtaSec(gDist, g.gs), cross: g.cross, spd: g.gs, transitSec: crossingEtaSec(gDist, g.gs),
       });
     }
   }
@@ -579,7 +588,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   const rateGap = (out.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
   const candById = new Map();
   cand.forEach(c => candById.set(c.p.callsign, c));
-  const manual = Array.isArray(fca.order) && fca.order.length > 0;
+  const manual = fca.manualSeq === true && Array.isArray(fca.order) && fca.order.length > 0;
 
   if (manual) {
     out.manual = true;
