@@ -438,6 +438,7 @@ import {
   projectCrossing, buildPathLLs, plannedAnchors,
   fcaMatchesAlt, fcaMatchesDest,
   markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+  explainFcaExclusion,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
@@ -2038,13 +2039,24 @@ function renderRouteInfo(p,dist){
   const navNote=isNavReady()
     ?`FAA NASR route (${meta?.nasrCycleDate||"?"}) — fixes, navaids, airways, SID/STAR when known.`
     :"Great-circle through departure"+(p.phase==="gnd"?"":", current position")+", en-route airports, and destination.";
+  // FCA membership check for the selected FCA — shows exactly which gate rejects the aircraft
+  let fcaCheck="";
+  const selFca=state.fcas.find(f=>f.id===state.selectedId);
+  if(selFca){
+    const ex=explainFcaExclusion(selFca,p);
+    const col=ex.included?"#56d364":"var(--red)";
+    fcaCheck=`<div class="ri-note" style="border-top:1px solid #1c2530;margin-top:4px;padding-top:4px">`+
+      `<b style="color:${selFca.color}">▮ ${escapeHtml(selFca.name)}</b>: `+
+      `<span style="color:${col}">${ex.included?"IN SEQUENCE":"NOT METERED"}</span> — ${escapeHtml(ex.detail)}</div>`;
+  }
   el.innerHTML=
     `<div class="ri-head"><b>${escapeHtml(p.callsign)}</b> <span class="muted">${escapeHtml(p.type||"")}</span>`+
     `<span class="ri-x" id="riX" title="Clear route (Esc)">✕</span></div>`+
     `<div class="ri-line">${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")} · FL${fl} · ${spd} · ${Math.round(dist||0)} NM · ${resolved} pts</div>`+
     `<div class="ri-route">${toks.length?toks.map(escapeHtml).join(" "):"<i>no filed route</i>"}</div>`+
     `<div class="ri-note">${navNote}`+
-    (unresolved.length?` Unresolved: ${unresolved.slice(0,8).map(escapeHtml).join(", ")}${unresolved.length>8?"…":""}.`:"")+`</div>`;
+    (unresolved.length?` Unresolved: ${unresolved.slice(0,8).map(escapeHtml).join(", ")}${unresolved.length>8?"…":""}.`:"")+`</div>`+
+    fcaCheck;
   el.classList.add("show");
   const x=document.getElementById("riX"); if(x) x.addEventListener("click",clearRoute);
 }
