@@ -117,13 +117,14 @@ function isDepartedForFinish(p, field, sess) {
     if (alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT) return true;
     if (gs > TAXI_GS_STOP) return true;
   }
-  return gs > TAXI_GS_STOP && alt > 300;
+  return gs > TAXI_GS_STOP && alt > 500;
 }
 
 function isDepartureGround(p, field, sess) {
   const fp = p.flight_plan;
   if (!fp || (fp.departure || "").toUpperCase() !== field) return false;
-  if (isDepartedForFinish(p, field, sess)) return false;
+  if (sess && sess.phase === "rolling" && isDepartedForFinish(p, field, sess)) return false;
+  if (!sess && p.groundspeed > TAXI_GS_STOP && (p.altitude || 0) > 500) return false;
   const depPt = lookup(field);
   if (depPt && isFinite(p.latitude) && isFinite(p.longitude)) {
     if (gcDist(p.latitude, p.longitude, depPt[0], depPt[1]) > TAXI_DEP_PROX_NM) return false;
@@ -144,9 +145,13 @@ function finishTaxiSession(sessions, key, sess, endMs) {
   const sep = key.indexOf("|");
   const field = key.slice(0, sep);
   const cs = key.slice(sep + 1);
-  const startMs = sess.startMs != null ? sess.startMs : sess.firstSeenMs;
-  if (startMs == null) { sess.phase = "done"; return; }
-  const durationMs = endMs - startMs;
+  if (sess.startMs == null) { sess.phase = "done"; return; }
+  let startMs = sess.startMs;
+  let durationMs = endMs - startMs;
+  if (durationMs < TAXI_MIN_SAMPLE_MS && sess.firstSeenMs != null && sess.firstSeenMs < startMs) {
+    startMs = sess.firstSeenMs;
+    durationMs = endMs - startMs;
+  }
   if (durationMs >= TAXI_MIN_SAMPLE_MS) {
     addTaxiSample({ airport: field, callsign: cs, startMs, endMs, durationMs });
   }
@@ -177,10 +182,9 @@ function updateTaxiMonitor(sessions, airports, pilots) {
         sess.phase = "rolling";
         sess.startMs = now;
         sess.baseAlt = alt;
-        sess.rollPollMs = now;
       }
 
-      if (sess.phase === "rolling" && sess.startMs != null && sess.rollPollMs !== now) {
+      if (sess.phase === "rolling" && sess.startMs != null && now > sess.startMs) {
         const climbed = alt >= sess.baseAlt + TAXI_ALT_CLIMB_FT;
         if (gs > TAXI_GS_STOP || climbed) finishTaxiSession(sessions, key, sess, now);
       }
@@ -195,6 +199,7 @@ function updateTaxiMonitor(sessions, airports, pilots) {
       const key = taxiSessKey(field, p.callsign);
       const sess = sessions[key];
       if (!sess || sess.phase === "done") continue;
+      if (sess.startMs != null && now <= sess.startMs) continue;
       if (isDepartedForFinish(p, field, sess)) finishTaxiSession(sessions, key, sess, now);
     }
   }
