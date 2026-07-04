@@ -916,6 +916,7 @@ function moveTowerOrder(fcaId, fromCs, toCs) {
   const fca = state.fcas.find(f => f.id === fcaId);
   if (!fca) return;
   fca.order = reorderFcaGlobalOrder(fca, state.pilots, [], fromCs, toCs);
+  fca.manualSeq = true;
   cloudPush(fca);
   refreshAfterReorder(fcaId);
 }

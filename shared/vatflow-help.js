@@ -28,7 +28,7 @@ export const FCA_HELP = {
     {
       title: "Sequence panel",
       items: [
-        "Airborne aircraft are sequenced by ETA; connected ground departures get <b>EDCT</b> (wheels-up time).",
+        "Airborne aircraft are ordered by <b>nm to the crossing</b> (closest first); connected ground departures get <b>EDCT</b> (wheels-up time).",
         "Ground strips show <b>gap in minutes</b> behind the previous aircraft at the FCA crossing.",
         "<b>⠿ Drag</b> a strip to reorder — unlock controller mode first. Times recompute for everyone.",
         "Tower reorder on the Tower Departures page syncs here via the shared FCA order.",

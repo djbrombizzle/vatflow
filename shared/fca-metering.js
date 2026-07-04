@@ -1,7 +1,8 @@
 /**
  * Shared FCA metering geometry + sequencing (FCA Builder + Tower Departures).
  * Inclusion: filed route (fixes/airways when nav data loaded) must cross the FCA line.
- * ETA: remaining route distance to crossing / groundspeed. MIT at the line.
+ * Queue order: nm from current position to the route crossing point (air) or along
+ * route from departure (ground). ETA = dist / groundspeed. MIT at the line.
  */
 import {
   bindAirports as bindRouteAirports,
@@ -376,14 +377,22 @@ export function towerGroundCrossing(p, fca, _nowMs) {
   return groundCrossing(p, fca, _nowMs);
 }
 
+function crossingDistNm(p, cross, routeDist) {
+  if (p.phase === "air" && (p.gs || 0) >= 40 && p.lat != null && p.lon != null && cross?.lat != null) {
+    return haversineNm(p.lat, p.lon, cross.lat, cross.lon);
+  }
+  return routeDist;
+}
+
 function buildAirCandidate(p, fca) {
   const cross = findRouteCrossing(p, fca);
   if (!cross || !validRouteCrossing(p, fca, cross)) return null;
   const gs = Math.max(p.gs || 0, 40);
-  const eta = crossingEtaSec(cross.dist, gs);
+  const dist = crossingDistNm(p, cross, cross.dist);
+  const eta = crossingEtaSec(dist, gs);
   const lineDist = lineDistToFca(p.lat, p.lon, fca);
   return {
-    p, phase: "air", dist: cross.dist, lineDist, eta, cross, spd: gs, transitSec: eta,
+    p, phase: "air", dist, lineDist, eta, cross, spd: gs, transitSec: eta,
   };
 }
 
@@ -397,7 +406,7 @@ export function sepSeconds(fca, c) {
 }
 
 function sortAirborne(air) {
-  air.sort((a, b) => a.eta - b.eta || a.dist - b.dist);
+  air.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
 }
 
 /** MIT at the line: prior crossing + spacing, unless already >= MIT nm in trail. */
@@ -442,7 +451,11 @@ function slotGroundAgainstCommitted(g, committed, sepFor) {
   return t;
 }
 
-/** Airborne-first: air ordered by time-to-line; ground slots around committed crossings. */
+function isManualSeq(fca) {
+  return fca.manualSeq === true && Array.isArray(fca.order) && fca.order.length > 0;
+}
+
+/** Airborne-first: air ordered by nm to crossing; ground slots around committed crossings. */
 export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const sepFor = c => sepSeconds(fca, c);
 
@@ -462,7 +475,7 @@ export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const air = cand.filter(c => c.phase === "air");
   const gnd = cand.filter(c => c.phase === "gnd");
   scheduleAirborneStream(air, fca);
-  gnd.sort((a, b) => a.eta - b.eta);
+  gnd.sort((a, b) => a.dist - b.dist || a.eta - b.eta);
 
   const committed = [];
   for (const c of air) {
@@ -495,7 +508,7 @@ export function buildManualOrder(manualOrder, candById, _fca) {
   const sortNew = (a, b) => {
     const ca = candById.get(a), cb = candById.get(b);
     if (ca.phase !== cb.phase) return ca.phase === "air" ? -1 : 1;
-    return ca.eta - cb.eta || ca.dist - cb.dist;
+    return ca.dist - cb.dist || ca.eta - cb.eta;
   };
   const newcomers = [...candById.keys()].filter(cs => !inOrder.has(cs)).sort(sortNew);
   for (const cs of newcomers) {
@@ -508,7 +521,7 @@ export function buildManualOrder(manualOrder, candById, _fca) {
 }
 
 export function resolveManualOrder(fca, candById, _pilots, _prefiles, _nowMs) {
-  if (Array.isArray(fca.order) && fca.order.length) {
+  if (isManualSeq(fca)) {
     return buildManualOrder(fca.order, candById, fca);
   }
   return buildManualOrder([], candById, fca);
@@ -569,9 +582,10 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
       if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
       const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
+      const gDist = crossingDistNm(p, g.cross, g.dist);
       cand.push({
-        p, phase: "gnd", dist: g.dist, lineDist: lineDistToFca(p.lat, p.lon, fca),
-        eta: g.etaSec, cross: g.cross, spd: g.gs, transitSec: g.transitSec,
+        p, phase: "gnd", dist: gDist, lineDist: lineDistToFca(p.lat, p.lon, fca),
+        eta: crossingEtaSec(gDist, g.gs), cross: g.cross, spd: g.gs, transitSec: crossingEtaSec(gDist, g.gs),
       });
     }
   }
@@ -579,7 +593,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   const rateGap = (out.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
   const candById = new Map();
   cand.forEach(c => candById.set(c.p.callsign, c));
-  const manual = Array.isArray(fca.order) && fca.order.length > 0;
+  const manual = isManualSeq(fca);
 
   if (manual) {
     out.manual = true;
@@ -623,8 +637,8 @@ function scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots) {
   airCand.forEach(c => candById.set(c.p.callsign, c));
   cand.forEach(c => candById.set(c.p.callsign, c));
 
-  const order = buildManualOrder(manualOrder, candById, fca);
-  const timeline = scheduleCandidates([...candById.values()], fca, order.length ? order : null, candById);
+  const order = isManualSeq(fca) ? buildManualOrder(manualOrder, candById, fca) : null;
+  const timeline = scheduleCandidates([...candById.values()], fca, order, candById);
 
   let prevSched = null;
   const ordered = [];
@@ -664,8 +678,10 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
       if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
       const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
+      const gDist = crossingDistNm(p, g.cross, g.dist);
       cand.push({
-        p, phase: "gnd", dist: g.dist, eta: g.etaSec, cross: g.cross, spd: g.gs, transitSec: g.transitSec,
+        p, phase: "gnd", dist: gDist, eta: crossingEtaSec(gDist, g.gs), cross: g.cross,
+        spd: g.gs, transitSec: crossingEtaSec(gDist, g.gs),
       });
     }
     if (!cand.length) continue;
