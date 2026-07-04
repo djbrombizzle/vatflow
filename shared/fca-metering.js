@@ -1,9 +1,18 @@
 /**
  * Shared FCA metering geometry + sequencing (FCA Builder + Tower Departures).
- * Crossing model: extend current track (or airport→line bearing on ground) to the
- * FCA polyline; ETA = distance-to-cross / groundspeed. MIT spacing is relative
- * to the line itself (time between crossings = MIT nm / gs).
+ * Inclusion: filed route (fixes/airways when nav data loaded) must cross the FCA line.
+ * ETA: remaining route distance to crossing / groundspeed. MIT at the line.
  */
+import {
+  bindAirports as bindRouteAirports,
+  buildRoutePathLLs,
+  isNavReady,
+} from "./route-engine.js";
+
+bindRouteAirports(
+  icao => getAirport(icao),
+  icao => hasAirport(icao),
+);
 export const NM_PER_DEG = 60;
 export const LOOKAHEAD_NM = 1200;
 export const DEMAND_WINDOW_MIN = 60;
@@ -141,10 +150,8 @@ export function dirOfHeading(h) {
   if (h < 225) return "S";
   return "W";
 }
-export function fcaMatchesDir(fca, hdg) {
-  const d = fca.dir || "any";
-  if (d === "any") return true;
-  return dirOfHeading(hdg) === d;
+export function fcaMatchesDir(_fca, _hdg) {
+  return true;
 }
 
 function angleDiff(a, b) {
@@ -223,19 +230,13 @@ export function hasPassedFca(p, fca) {
 }
 
 function validAirCrossing(p, fca, cross) {
-  return cross && isCrossingAhead(p, cross) && !hasPassedFca(p, fca);
+  return validRouteCrossing(p, fca, cross);
 }
 
-/** When the current-heading ray misses the segment (e.g. NE track vs N-S line), use bearing toward the line. */
-function convergingCrossing(p, pts) {
-  const near = nearestPointOnFca(p.lat, p.lon, pts);
-  if (!near) return null;
-  const brg = bearing(p.lat, p.lon, near.lat, near.lon);
-  if (angleDiff(p.hdg || 0, brg) > 90) return null;
-  const cross = projectCrossing({ lat: p.lat, lon: p.lon, hdg: brg }, pts);
-  if (cross) return cross;
-  const along = near.distNm / Math.max(0.35, Math.cos(toRad(angleDiff(p.hdg || 0, brg))));
-  return along <= LOOKAHEAD_NM ? { dist: along, lat: near.lat, lon: near.lon } : null;
+function pilotOrigin(p) {
+  if (p.lat != null && p.lon != null) return [p.lat, p.lon];
+  const apt = getAirport(p.dep);
+  return apt ? apt.slice() : null;
 }
 
 export function projectCrossing(p, pts) {
@@ -289,18 +290,16 @@ export function pathCrossing(path, fca) {
     const legLen = haversineNm(a[0], a[1], b[0], b[1]);
     if (legLen < 0.01) continue;
     const legCourse = bearing(a[0], a[1], b[0], b[1]);
-    if (fcaMatchesDir(fca, legCourse)) {
-      const P2 = toLocal(b[0], b[1], a[0], a[1]);
-      for (let i = 0; i < fca.points.length - 1; i++) {
-        const A = toLocal(fca.points[i][0], fca.points[i][1], a[0], a[1]);
-        const B = toLocal(fca.points[i + 1][0], fca.points[i + 1][1], a[0], a[1]);
-        const x = segInt([0, 0], P2, A, B);
-        if (x) {
-          const dist = cum + x.t * legLen;
-          if (!best || dist < best.dist) {
-            const ll = localToLatLon(x.x, x.y, a[0], a[1]);
-            best = { dist, lat: ll[0], lon: ll[1], course: legCourse };
-          }
+    const P2 = toLocal(b[0], b[1], a[0], a[1]);
+    for (let i = 0; i < fca.points.length - 1; i++) {
+      const A = toLocal(fca.points[i][0], fca.points[i][1], a[0], a[1]);
+      const B = toLocal(fca.points[i + 1][0], fca.points[i + 1][1], a[0], a[1]);
+      const x = segInt([0, 0], P2, A, B);
+      if (x) {
+        const dist = cum + x.t * legLen;
+        if (!best || dist < best.dist) {
+          const ll = localToLatLon(x.x, x.y, a[0], a[1]);
+          best = { dist, lat: ll[0], lon: ll[1], course: legCourse };
         }
       }
     }
@@ -319,62 +318,67 @@ export function plannedAnchors(p, origin, dst) {
   return anchors;
 }
 
-function pilotOrigin(p) {
-  if (p.lat != null && p.lon != null) return [p.lat, p.lon];
-  const apt = getAirport(p.dep);
-  return apt ? apt.slice() : null;
-}
-
-function headingTowardLine(origin, fca) {
-  const near = nearestPointOnFca(origin[0], origin[1], fca.points);
-  if (!near) return null;
-  return bearing(origin[0], origin[1], near.lat, near.lon);
-}
-
-/** Airborne: extend current heading to the FCA line; fall back when converging but oblique. */
-function simpleAirCrossing(p, fca) {
-  if ((p.gs || 0) < 40) return null;
-  if (!fcaMatchesDir(fca, p.hdg || 0)) return null;
-  let cross = projectCrossing(p, fca.points);
-  if (!cross) cross = convergingCrossing(p, fca.points);
-  return validAirCrossing(p, fca, cross) ? cross : null;
-}
-
-/** Ground: ray from airport/current position toward the line (or along taxi heading). */
-function simpleGroundCrossing(p, fca) {
-  const origin = pilotOrigin(p);
+function routePathForCrossing(p, opts = {}) {
+  const dst = opts.destination || getAirport(p.arr);
+  if (!dst) return null;
+  const airborne = opts.includeNow && p.lat != null && p.lon != null && p.phase === "air" && (p.gs || 0) >= 40;
+  const origin = opts.origin || (airborne ? [p.lat, p.lon] : pilotOrigin(p));
   if (!origin) return null;
-  let hdg = p.hdg;
-  if ((p.gs || 0) < 20 || hdg == null) hdg = headingTowardLine(origin, fca);
-  if (hdg == null || !fcaMatchesDir(fca, hdg)) return null;
-  const cross = projectCrossing({ lat: origin[0], lon: origin[1], hdg }, fca.points);
-  if (!cross) return null;
+
+  if (isNavReady()) {
+    const pts = buildRoutePathLLs(p, {
+      origin: airborne ? [p.lat, p.lon] : origin,
+      destination: dst,
+      includeNow: airborne,
+    });
+    if (pts.length >= 2) return buildPathLLs(pts);
+  }
+  return buildPathLLs(plannedAnchors(p, origin, dst));
+}
+
+/** First crossing of the FCA along the filed route (remaining route when airborne). */
+function findRouteCrossing(p, fca) {
+  const airborne = p.phase === "air" && (p.gs || 0) >= 40;
+  const path = routePathForCrossing(p, { includeNow: airborne });
+  if (!path || path.length < 2) return null;
+  const best = pathCrossing(path, fca);
+  if (!best || best.dist > LOOKAHEAD_NM) return null;
+  return best;
+}
+
+function validRouteCrossing(p, fca, cross) {
+  if (!cross) return false;
+  if (p.phase === "air" && (p.gs || 0) >= 40) {
+    return isCrossingAhead(p, cross) && !hasPassedFca(p, fca);
+  }
+  return true;
+}
+
+/** Estimate where/when a ground aircraft crosses the FCA along its filed route. */
+export function groundCrossing(p, fca, _nowMs) {
+  const cross = findRouteCrossing(p, fca);
+  if (!cross || !validRouteCrossing(p, fca, cross)) return null;
   const gs = (p.gs || 0) >= 20 ? p.gs : DEFAULT_GROUND_GS;
   const etaSec = crossingEtaSec(cross.dist, gs);
   return {
     dist: cross.dist,
     cross: { lat: cross.lat, lon: cross.lon },
-    course: hdg,
+    course: cross.course,
     gs,
     etaSec,
     transitSec: etaSec,
-    origin,
+    origin: pilotOrigin(p),
   };
 }
 
-/** Estimate where/when a ground aircraft crosses the FCA (current position + gs only). */
-export function groundCrossing(p, fca, _nowMs) {
-  return simpleGroundCrossing(p, fca);
-}
-
-/** Tower: same geometry — release-now, no filed departure time. */
+/** Tower: same route geometry — release-now, no filed departure time. */
 export function towerGroundCrossing(p, fca, _nowMs) {
-  return simpleGroundCrossing(p, fca);
+  return groundCrossing(p, fca, _nowMs);
 }
 
 function buildAirCandidate(p, fca) {
-  const cross = simpleAirCrossing(p, fca);
-  if (!cross) return null;
+  const cross = findRouteCrossing(p, fca);
+  if (!cross || !validRouteCrossing(p, fca, cross)) return null;
   const gs = Math.max(p.gs || 0, 40);
   const eta = crossingEtaSec(cross.dist, gs);
   const lineDist = lineDistToFca(p.lat, p.lon, fca);
@@ -660,7 +664,6 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
       if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
       const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
-      if (!fcaMatchesDir(fca, g.course)) continue;
       cand.push({
         p, phase: "gnd", dist: g.dist, eta: g.etaSec, cross: g.cross, spd: g.gs, transitSec: g.transitSec,
       });

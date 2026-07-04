@@ -21,7 +21,7 @@ export const FCA_HELP = {
       items: [
         "<b>Rate</b> — aircraft per hour across the line (e.g. 30/hr ≈ 2 min spacing).",
         "<b>MIT</b> — minimum miles in trail between crossings (converted to time from speed).",
-        "Set <b>direction</b>, destination filters, and FL band to match only the traffic you want.",
+        "Set destination filters and FL band to match the traffic you want. Aircraft are included only when their <b>filed route</b> crosses the FCA line.",
         "<b>Enable</b> the FCA when ready — disabled FCAs do not meter.",
       ],
     },

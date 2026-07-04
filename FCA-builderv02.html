@@ -431,7 +431,7 @@ import {
   haversineNm, bearing, gcLine, parseRouteTokens, parseAlt, fmtZulu, fpFields,
   computeSequence as computeSequenceCore, buildManualOrder,
   projectCrossing, buildPathLLs, plannedAnchors,
-  fcaMatchesAlt, fcaMatchesDest, fcaMatchesDir,
+  fcaMatchesAlt, fcaMatchesDest,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
@@ -1277,7 +1277,6 @@ function renderFcaList(){
       <div class="fca-meta">
         <span>${f.dests&&f.dests.length?escapeHtml(f.dests.join(" ")):"ALL dest"}</span>
         <span>${f.minFL!=null?"FL"+f.minFL:"SFC"}–${f.maxFL!=null?"FL"+f.maxFL:"UNL"}</span>
-        <span>${DIR_LABEL[f.dir||"any"]}</span>
         <span>${constraintTxt}</span>
       </div>
       <div class="demand ${hot?"hot":dmd?"ok":""}">
@@ -1335,15 +1334,8 @@ function openEditor(fca){
         <div class="fld"><label>Min FL</label><input id="f_minfl" type="number" value="${fca.minFL??""}" placeholder="—"></div>
         <div class="fld"><label>Max FL</label><input id="f_maxfl" type="number" value="${fca.maxFL??""}" placeholder="—"></div>
       </div>
-      <div class="fld"><label>Meter traffic crossing toward</label>
-        <div class="seg" id="f_dir">
-          <button data-d="any" class="${(fca.dir||'any')==='any'?'on':''}">Any</button>
-          <button data-d="N" class="${fca.dir==='N'?'on':''}">N↑</button>
-          <button data-d="E" class="${fca.dir==='E'?'on':''}">E→</button>
-          <button data-d="S" class="${fca.dir==='S'?'on':''}">S↓</button>
-          <button data-d="W" class="${fca.dir==='W'?'on':''}">W←</button>
-        </div>
-        <div class="hint">filters by the aircraft's direction of flight, regardless of how the line was drawn.</div></div>
+      <div class="fld"><label>Route crossing</label>
+        <div class="hint">Only aircraft whose <b>filed route</b> crosses this line are sequenced (NASR fixes and airways when nav data is loaded).</div></div>
       <div class="fld"><label>Constraint</label>
         <div class="seg seg2" id="f_mode">
           <button data-m="rate" class="${(fca.mode||'rate')==='rate'?'on':''}">Rate · ac/hr</button>
@@ -1384,11 +1376,6 @@ function openEditor(fca){
   document.getElementById("f_redraw").addEventListener("click",()=>{ startDrawing(fca); });
   const del=document.getElementById("f_delete");
   if(del) del.addEventListener("click",()=>deleteFca(fca.id));
-  // direction segmented control
-  document.querySelectorAll("#f_dir button").forEach(b=>b.addEventListener("click",()=>{
-    fca.dir=b.getAttribute("data-d");
-    document.querySelectorAll("#f_dir button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
-  }));
   // constraint mode segmented control
   document.querySelectorAll("#f_mode button").forEach(b=>b.addEventListener("click",()=>{
     fca.mode=b.getAttribute("data-m");
@@ -1450,7 +1437,6 @@ function renderSequence(){
     : `<span class="rate">${sel.rate?sel.rate+" ac/hr":"no rate"}</span><span>MINIT ${minitTxt}</span>`;
   sub.innerHTML=
     constraintChip+
-    `<span>${DIR_LABEL[sel.dir||"any"]}</span>`+
     `<span>${s.nAir} air${state.layers.edct?` · ${s.nGnd} EDCT`:""}</span>`+
     `<span>demand ${s.demand}/hr</span>`+
     (s.manual?`<span class="manualchip" id="seqAuto" title="Return to automatic sequencing">✋ MANUAL · ↺ auto</span>`:"")+
@@ -1461,7 +1447,7 @@ function renderSequence(){
   const body=document.getElementById("seqBody");
   const exHtml=excludedHtml(sel);
   if(!sel.enabled){ body.innerHTML=`<div class="empty">FCA disabled. Enable it in the list to meter traffic.</div>`+exHtml; wireExcluded(sel); return; }
-  if(!s.items.length){ body.innerHTML=`<div class="empty"><b>NO INBOUND TRAFFIC</b>No aircraft currently match this FCA's filters and direction and cross the line. Widen the FL band / destinations / direction, or wait for the next refresh.</div>`+exHtml; wireExcluded(sel); return; }
+  if(!s.items.length){ body.innerHTML=`<div class="empty"><b>NO INBOUND TRAFFIC</b>No aircraft on a route that crosses this line match the FL / destination filters. Widen filters or wait for the next refresh.</div>`+exHtml; wireExcluded(sel); return; }
 
   // ladder timeline
   body.innerHTML=ladderSvg(s);

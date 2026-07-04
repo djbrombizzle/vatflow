@@ -23,6 +23,9 @@ seedAirports({
   KMIA: [25.7959, -80.2870],
   KFLL: [26.0726, -80.1527],
   KPBI: [26.6832, -80.0956],
+  KJFK: [40.6413, -73.7781],
+  KATL: [33.6367, -84.4281],
+  KDCA: [38.8512, -77.0402],
 });
 
 const FCA_SB = {
@@ -49,6 +52,7 @@ const pastSouth = {
   alt: 28000,
   arr: "KMIA",
   dep: "KJFK",
+  route: "DCT",
 };
 
 assert(!isCrossingAhead(pastSouth, crossOnLine), "crossing behind aircraft should not be ahead");
@@ -76,7 +80,7 @@ assert(!hasPassedFca(justPast, FCA_SB), "within 2 nm of line: hasPassedFca stays
 
 const seq = computeSequence(FCA_SB, [pastSouth, approaching], [], { includeEdct: false });
 const cs = seq.items.map(c => c.p.callsign);
-assert(cs.includes("TEST02"), "approaching aircraft in sequence");
+assert(cs.includes("TEST02"), "approaching aircraft on route crossing FCA in sequence");
 assert(!cs.includes("TEST01"), "past aircraft excluded from sequence");
 
 const prefileGround = {
@@ -89,6 +93,7 @@ const prefileGround = {
   arr: "KMIA",
   dep: "KPBI",
   fpAlt: 28000,
+  route: "DCT",
 };
 const connectedGround = {
   ...prefileGround,
@@ -107,11 +112,11 @@ const edctSeq = computeSequence(
   { includeEdct: true },
 );
 const edctCs = edctSeq.items.map(c => c.p.callsign);
-assert(edctCs.includes("GND01"), "connected ground in EDCT sequence");
+assert(edctCs.includes("GND01"), "connected ground on crossing route in EDCT sequence");
 assert(!edctCs.includes("PREF01"), "prefile excluded from EDCT sequence");
 
 const gCross = groundCrossing(connectedGround, { ...FCA_SB, dir: "any" }, Date.now());
-assert(gCross && gCross.dist > 0, "groundCrossing returns perpendicular crossing");
+assert(gCross && gCross.dist > 0, "groundCrossing returns route crossing");
 assert(Math.abs(gCross.etaSec - crossingEtaSec(gCross.dist, gCross.gs)) < 1, "ground ETA = dist / gs");
 
 const FCA_RATE = {
@@ -146,13 +151,14 @@ const farAir = {
   alt: 28000,
   arr: "KMIA",
   dep: "KJFK",
+  route: "DCT",
 };
 const nearAir = { ...farAir, callsign: "NEAR01", lat: 28.42, lon: -80.5 };
 const mitSeq = computeSequence(FCA_MIT, [nearAir, farAir], [], { includeEdct: false });
 const far = mitSeq.items.find(c => c.p.callsign === "FAR01");
 const near = mitSeq.items.find(c => c.p.callsign === "NEAR01");
-assert(far && near, "both airborne in MIT sequence");
-assert(far.dist > near.dist, "FAR01 is farther from line than NEAR01");
+assert(far && near, "both airborne on crossing route in MIT sequence");
+assert(far.dist > near.dist, "FAR01 is farther from FCA than NEAR01");
 assert(mitSeq.items[0].p.callsign === "NEAR01", "order is by time-to-line (closest first)");
 assert(far.sched >= near.sched + sepSeconds(FCA_MIT, far) - 1, "MIT delays trailing aircraft when too close");
 assert(far.delay > 30, "MIT assigns hold time when trail < MIT nm");
@@ -171,7 +177,7 @@ const mitMixed = computeSequence(
   { ...FCA_RATE, mode: "mit", mit: 15 },
   [nearAir, farAir, {
     callsign: "GND1", phase: "gnd", lat: 26.07, lon: -80.15, gs: 0,
-    dep: "KFLL", arr: "KMIA", fpAlt: 28000,
+    dep: "KFLL", arr: "KMIA", fpAlt: 28000, route: "DCT",
   }],
   [],
   { includeEdct: true, nowMs: fixedNow },
@@ -190,6 +196,7 @@ const leaderGround = {
   dep: "KFLL",
   arr: "KMIA",
   fpAlt: 28000,
+  route: "DCT",
 };
 const followerGround = { ...leaderGround, callsign: "FOLL" };
 const seqGround = computeSequence(FCA_RATE, [leaderGround, followerGround], [], { includeEdct: true, nowMs: fixedNow });
@@ -219,18 +226,35 @@ const dalLike = {
   alt: 27000,
   dep: "KATL",
   arr: "KDCA",
+  route: "DCT",
 };
 const aikenFca = {
   id: "aiken",
   enabled: true,
   dir: "any",
-  points: [[33.2, -81.72], [34.2, -81.72]],
+  points: [[34.8, -81.72], [35.8, -81.72]],
   mode: "mit",
   mit: 45,
   minFL: 0,
   maxFL: 999,
 };
 const dalSeq = computeSequence(aikenFca, [dalLike], [], { includeEdct: false });
-assert(dalSeq.items.some(c => c.p.callsign === "DAL1378"), "NE track converging on N-S FCA is included");
+assert(dalSeq.items.some(c => c.p.callsign === "DAL1378"), "KATL-KDCA route crossing N-S FCA is included");
+
+const bypass = {
+  callsign: "BYPASS",
+  phase: "air",
+  lat: 30,
+  lon: -85,
+  hdg: 270,
+  gs: 420,
+  alt: 35000,
+  dep: "KATL",
+  arr: "KMSY",
+  route: "DCT",
+};
+seedAirports({ KMSY: [29.9934, -90.2580] });
+const bypassSeq = computeSequence(aikenFca, [bypass], [], { includeEdct: false });
+assert(!bypassSeq.items.some(c => c.p.callsign === "BYPASS"), "route not crossing FCA is excluded");
 
 console.log("test-fca-metering: all passed (" + cs.length + " in seq)");
