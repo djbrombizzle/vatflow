@@ -1313,7 +1313,7 @@ function renderFcaList(){
 function openEditor(fca){
   if(!canControl()){ toast("View only — unlock with the control password to edit FCAs.",2800); return; }
   const isNew=!state.fcas.some(f=>f.id===fca.id);
-  // snapshot an existing FCA so Cancel reverts live edits (color / direction /
+  // snapshot an existing FCA so Cancel reverts live edits (color / filters /
   // mode mutate the object immediately). Don't re-snapshot when the editor
   // reopens for the same FCA after a line redraw.
   if(isNew) state.editingBackup=null;

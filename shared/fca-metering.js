@@ -1,7 +1,8 @@
 /**
  * Shared FCA metering geometry + sequencing (FCA Builder + Tower Departures).
  * Inclusion: filed route (fixes/airways when nav data loaded) must cross the FCA line.
- * ETA: remaining route distance to crossing / groundspeed. MIT at the line.
+ * Queue order: nm from current position to the route crossing point (air) or along
+ * route from departure (ground). ETA = dist / groundspeed. MIT at the line.
  */
 import {
   bindAirports as bindRouteAirports,
@@ -450,7 +451,11 @@ function slotGroundAgainstCommitted(g, committed, sepFor) {
   return t;
 }
 
-/** Airborne-first: air ordered by time-to-line; ground slots around committed crossings. */
+function isManualSeq(fca) {
+  return fca.manualSeq === true && Array.isArray(fca.order) && fca.order.length > 0;
+}
+
+/** Airborne-first: air ordered by nm to crossing; ground slots around committed crossings. */
 export function scheduleCandidates(cand, fca, manualOrder, candById) {
   const sepFor = c => sepSeconds(fca, c);
 
@@ -516,7 +521,7 @@ export function buildManualOrder(manualOrder, candById, _fca) {
 }
 
 export function resolveManualOrder(fca, candById, _pilots, _prefiles, _nowMs) {
-  if (Array.isArray(fca.order) && fca.order.length) {
+  if (isManualSeq(fca)) {
     return buildManualOrder(fca.order, candById, fca);
   }
   return buildManualOrder([], candById, fca);
@@ -588,7 +593,7 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
   const rateGap = (out.mode === "rate" && fca.rate > 0) ? 3600 / fca.rate : 0;
   const candById = new Map();
   cand.forEach(c => candById.set(c.p.callsign, c));
-  const manual = fca.manualSeq === true && Array.isArray(fca.order) && fca.order.length > 0;
+  const manual = isManualSeq(fca);
 
   if (manual) {
     out.manual = true;
@@ -632,8 +637,8 @@ function scheduleTowerCandidates(cand, fca, manualOrder, nowMs, pilots) {
   airCand.forEach(c => candById.set(c.p.callsign, c));
   cand.forEach(c => candById.set(c.p.callsign, c));
 
-  const order = buildManualOrder(manualOrder, candById, fca);
-  const timeline = scheduleCandidates([...candById.values()], fca, order.length ? order : null, candById);
+  const order = isManualSeq(fca) ? buildManualOrder(manualOrder, candById, fca) : null;
+  const timeline = scheduleCandidates([...candById.values()], fca, order, candById);
 
   let prevSched = null;
   const ordered = [];
@@ -673,8 +678,10 @@ export function computeTowerDepartures(depIcao, fcas, pilots, prefiles) {
       if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
       const g = groundCrossing(p, fca, nowMs);
       if (!g) continue;
+      const gDist = crossingDistNm(p, g.cross, g.dist);
       cand.push({
-        p, phase: "gnd", dist: g.dist, eta: g.etaSec, cross: g.cross, spd: g.gs, transitSec: g.transitSec,
+        p, phase: "gnd", dist: gDist, eta: crossingEtaSec(gDist, g.gs), cross: g.cross,
+        spd: g.gs, transitSec: crossingEtaSec(gDist, g.gs),
       });
     }
     if (!cand.length) continue;
