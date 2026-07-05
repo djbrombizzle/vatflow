@@ -2090,11 +2090,38 @@ async function fetchFeed() {
     lastFetch = Date.now();
     feedStatus = "ok";
     updateTaxiMonitor();
+    pruneIssuedCfrs();
   } catch (e) {
     feedStatus = "error";
   }
   renderHeaderStatus();
   renderContent();
+}
+
+/* Consume issued CFR records once the flight is solidly airborne and well past
+   its wheels-up — from then on its own airborne ETA holds the slot, so the
+   record is inert locally and only clutters the shared store. Deliberately
+   does NOT call compressEdcts(): the departed aircraft still occupies its
+   slot in the air, so nothing behind it may be pulled earlier. Also expires
+   records whose flight has been absent from the feed long past wheels-up. */
+function pruneIssuedCfrs() {
+  if (!vatsim || !canControl()) return;
+  const now = Date.now();
+  const byCs = new Map((vatsim.pilots || []).map(p => [p.callsign, p]));
+  let dirty = false;
+  for (const cs in issuedEdcts) {
+    const rec = issuedEdcts[cs];
+    if (!rec || rec.t == null) continue;
+    const p = byCs.get(cs);
+    if (p) {
+      const solidlyAirborne = (p.groundspeed || 0) > 60 && (p.altitude || 0) > 300 &&
+        ((p.altitude || 0) > 3000 || (p.groundspeed || 0) > 250);
+      if (solidlyAirborne && now > rec.t + 10 * 60000) { delete issuedEdcts[cs]; dirty = true; }
+    } else if (now > rec.t + 6 * 3600000) {
+      delete issuedEdcts[cs]; dirty = true;            /* gone from the network for hours */
+    }
+  }
+  if (dirty) { pushSyncEdcts(); }
 }
 
 /* ---------- flow computation ---------- */
@@ -2147,7 +2174,19 @@ function computeFlow(target) {
         status:"ARRIVED", dist:distToArr, gs:p.groundspeed, eta:now, sta:now,
         delay:0, flightTimeMs:null, est:false, arrived:true, vfr, ...pos });
     } else if (airborne && distToArr != null) {
-      const gs = Math.max(p.groundspeed, 120);
+      let gs = Math.max(p.groundspeed, 120);
+      /* Climbing departure: current groundspeed misrepresents the whole trip.
+         A just-airborne aircraft at 180kt would get an absurdly late ETA, land
+         at the back of the sequence, then sweep forward as it accelerates —
+         churning every STA and ground CFR proposal behind it. Blend toward
+         wind-adjusted cruise TAS instead (~12% haircut covers the climb). */
+      const cruiseAlt = parseAlt(fp.altitude);
+      if (cruiseAlt > 6000 && (p.altitude || 0) < cruiseAlt - 2000 && distToArr > 60) {
+        let cg = tas;
+        const hwA = arrPt ? routeHeadwind(dep, target, p.latitude, p.longitude, arrPt[0], arrPt[1], cruiseAlt) : null;
+        if (hwA != null) cg = Math.max(tas * 0.4, Math.min(tas * 1.6, tas - hwA));
+        gs = Math.max(gs, cg * 0.88);
+      }
       const pad = distToArr > 40 ? 4 : distToArr > 15 ? 2 : 0;
       const eteMs = (distToArr / gs) * 3600000 + pad * 60000;
       const pos = pilotPos(p, dep);
@@ -2199,6 +2238,7 @@ function computeFlow(target) {
       d.setUTCHours(+fp.deptime.slice(0,2), +fp.deptime.slice(2), 0, 0);
       let t = d.getTime();
       if (t < now - 2 * 3600000) t += 24 * 3600000;
+      else if (t - now > 12 * 3600000) t -= 24 * 3600000;   /* filed 2350z, now 0010z */
       etd = Math.max(t, now + 20 * 60000);
     }
     pushFlight({ key:"P-"+pf.callsign, callsign:pf.callsign, type:ac.type, wake:ac.wake, dep, gate,
