@@ -139,6 +139,9 @@
   th { font-size: 9px; letter-spacing: 0.1em; color: var(--muted); background: #0a0e14; position: sticky; top: 0; }
   tr:last-child td { border-bottom: none; }
   tr.metered:hover { background: #121820; }
+  tr.metered { user-select: none; -webkit-user-select: none; }
+  tr.metered td { cursor: grab; }
+  tr.metered td:has(button) { cursor: default; }
   tr.dragging { opacity: 0.4; }
   tr.dragover td { box-shadow: inset 0 2px 0 0 var(--amber); }
   tr.view-only .grip { opacity: 0.25; cursor: default; }
@@ -621,6 +624,9 @@ function renderFcaMiniTable(fca, rows, canDrag) {
     (holding ? ` · ${holding} holding` : "") +
     `</span>` +
     `<div class="fca-actions">` +
+    (fca.manualSeq
+      ? `<button type="button" class="fca-btn auto-btn" data-fca-id="${escapeHtml(fca.id)}" title="Manual sequence active — click to return to automatic ETA-based sequencing">AUTO</button>`
+      : "") +
     `<button type="button" class="fca-btn pin-btn${pinned ? " on" : ""}" data-fca-id="${escapeHtml(fca.id)}" title="Pin table position">PIN</button>` +
     `<button type="button" class="fca-btn hide-btn" data-fca-id="${escapeHtml(fca.id)}" title="Hide this FCA">HIDE</button>` +
     `</div></div>` +
@@ -736,6 +742,17 @@ function wireFcaBlockActions() {
   });
   document.querySelectorAll(".hide-btn").forEach(btn => {
     btn.onclick = () => toggleHideFca(btn.getAttribute("data-fca-id"));
+  });
+  document.querySelectorAll(".auto-btn").forEach(btn => {
+    btn.onclick = () => {
+      if (!canControl()) return;
+      const fca = state.fcas.find(f => f.id === btn.getAttribute("data-fca-id"));
+      if (!fca) return;
+      fca.order = [];
+      fca.manualSeq = false;
+      cloudPush(fca);
+      render();
+    };
   });
 }
 
@@ -897,6 +914,8 @@ function wireTableDrag(tbody, fcaId) {
       stripDragging = true;
       tr.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
+      // Firefox refuses to start an HTML5 drag unless setData is called
+      try { e.dataTransfer.setData("text/plain", String(visIdx)); } catch (_) {}
     });
     tr.addEventListener("dragend", () => {
       tr.classList.remove("dragging");
