@@ -88,10 +88,10 @@
     margin-bottom: 12px;
   }
   .fca-block {
-    flex: 0 0 360px;
-    width: 360px;
-    max-width: 360px;
-    min-width: 360px;
+    flex: 0 0 540px;
+    width: 540px;
+    max-width: 540px;
+    min-width: 540px;
   }
   .fca-block.pinned .fca-block-head { border-left: 2px solid var(--amber); padding-left: 6px; }
   .fca-block.hidden-block { display: none; }
@@ -123,10 +123,12 @@
   .fca-block.empty .fca-block-head { opacity: 0.55; }
 
   .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
-  .tablewrap.mini table { font-size: 10px; }
-  .tablewrap.mini th, .tablewrap.mini td { padding: 4px 6px; }
-  .tablewrap.mini th { font-size: 8px; letter-spacing: 0.08em; }
-  .tablewrap.mini .cell-edct { font-size: 10px; }
+  .tablewrap.mini table { font-size: 15px; }
+  .tablewrap.mini th, .tablewrap.mini td { padding: 7px 9px; }
+  .tablewrap.mini th { font-size: 12px; letter-spacing: 0.08em; }
+  .tablewrap.mini .cell-edct { font-size: 15px; }
+  .tablewrap.mini .grip { font-size: 16px; }
+  .tablewrap.mini .rdy-btn { font-size: 12px; padding: 5px 9px; }
   .tablewrap.combined { max-width: 420px; margin-top: 4px; }
 
   .section-label {
@@ -274,6 +276,7 @@ const state = {
 };
 
 let sb = null, liveTimer = null, countdownTimer = null, stripDragging = false;
+let dragCs = null, dragFcaId = null, pendingRender = false;
 
 const DEMO_AIRPORTS = {
   KATL: [33.64, -84.43], KJFK: [40.64, -73.78], KORD: [41.98, -87.90], KDFW: [32.90, -97.04],
@@ -502,7 +505,7 @@ function initSync() {
         if (data) {
           state.fcas = data.map(r => normalizeFca(r.data || {}));
           persistLocalFcas();
-          if (!stripDragging) render();
+          if (!stripDragging) render(); else pendingRender = true;
         }
       });
     })
@@ -543,7 +546,7 @@ function fetchLive() {
       state.controllers = d.controllers || [];
       setFeed("live");
       revalidateAtcAuth();
-      if (!stripDragging) render();
+      if (!stripDragging) render(); else pendingRender = true;
     })
     .catch(err => {
       console.warn(err);
@@ -603,7 +606,6 @@ function renderMeteredRow(d, localIdx, canDrag) {
     `<td>${gapLabel(d.gapMin, isLeader)}</td>` +
     `<td>${fmtZulu(d.ctaMs)}</td>` +
     `${edctCellHtml(d)}` +
-    `<td>${d.globalSeq != null ? d.globalSeq : "—"}</td>` +
     `<td>${canControl()
       ? `<button type="button" class="rdy-btn${d.frozen ? " on" : ""}" data-rdy-cs="${escapeHtml(d.callsign)}" data-rdy-fca="${escapeHtml(d.fcaId)}" title="${d.frozen ? "Cancel this CFR release" : "Pilot called ready — issue CFR release"}">${d.frozen ? "RLSD ✕" : "RLS"}</button>`
       : (d.frozen ? `<span class="cell-frozen">RLSD</span>` : "—")}</td>` +
@@ -631,12 +633,12 @@ function renderFcaMiniTable(fca, rows, canDrag) {
     `<button type="button" class="fca-btn hide-btn" data-fca-id="${escapeHtml(fca.id)}" title="Hide this FCA">HIDE</button>` +
     `</div></div>` +
     `<div class="tablewrap mini"><table><thead><tr>` +
-    `<th>#</th><th>CS</th><th>DST</th><th>NM</th><th>GAP</th><th>CTA</th><th>CFR</th><th>GLB</th><th>RLS</th>` +
+    `<th>#</th><th>CS</th><th>DST</th><th>NM</th><th>GAP</th><th>CTA</th><th>CFR</th><th>RLS</th>` +
     `</tr></thead><tbody class="depBody" data-fca="${escapeHtml(fca.id)}">`;
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
   } else {
-    html += `<tr class="empty-row"><td colspan="9" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html += `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
   }
   html += `</tbody></table></div></div>`;
   return html;
@@ -690,7 +692,7 @@ function updateFcaBlock(fca, rows, canDrag) {
   if (rows.length) {
     rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
   } else {
-    html = `<tr class="empty-row"><td colspan="9" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html = `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
   }
   tbody.innerHTML = html;
   wireTableDrag(tbody, fca.id);
@@ -902,40 +904,58 @@ function refreshAfterReorder(fcaId) {
   if (!updateFcaBlock(fca, rows, canControl())) render();
 }
 
+/* Drag reorder — rebuild-proof design.
+   Listeners are DELEGATED on the tbody (which survives innerHTML rebuilds),
+   the dragged callsign travels in module state AND the dataTransfer payload
+   (so it survives even a full row rebuild mid-drag), and drops are accepted
+   anywhere in the table with nearest-row resolution — no more dead zones on
+   padding/borders. Feed/sync refreshes suppressed during a drag are flushed
+   on dragend via pendingRender. */
 function wireTableDrag(tbody, fcaId) {
   if (!canControl() || !tbody) return;
-  const meteredRows = [...tbody.querySelectorAll("tr.metered")];
-  let dragFrom = null;
+  tbody.querySelectorAll("tr.metered").forEach(tr => tr.setAttribute("draggable", "true"));
+  if (tbody._dragWired) return;                      // delegated listeners persist on the tbody node
+  tbody._dragWired = true;
 
-  meteredRows.forEach((tr, visIdx) => {
-    tr.setAttribute("draggable", "true");
-    tr.addEventListener("dragstart", e => {
-      dragFrom = visIdx;
-      stripDragging = true;
-      tr.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-      // Firefox refuses to start an HTML5 drag unless setData is called
-      try { e.dataTransfer.setData("text/plain", String(visIdx)); } catch (_) {}
-    });
-    tr.addEventListener("dragend", () => {
-      tr.classList.remove("dragging");
-      meteredRows.forEach(x => x.classList.remove("dragover"));
-      stripDragging = false;
-    });
-    tr.addEventListener("dragover", e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      tr.classList.add("dragover");
-    });
-    tr.addEventListener("dragleave", () => tr.classList.remove("dragover"));
-    tr.addEventListener("drop", e => {
-      e.preventDefault();
-      tr.classList.remove("dragover");
-      if (dragFrom == null || dragFrom === visIdx) return;
-      const fromCs = meteredRows[dragFrom].getAttribute("data-cs");
-      const toCs = tr.getAttribute("data-cs");
-      moveTowerOrder(fcaId, fromCs, toCs);
-    });
+  const clearHl = () => tbody.querySelectorAll(".dragover, .dragging")
+    .forEach(x => x.classList.remove("dragover", "dragging"));
+
+  tbody.addEventListener("dragstart", e => {
+    const tr = e.target.closest && e.target.closest("tr.metered");
+    if (!tr) return;
+    dragCs = tr.getAttribute("data-cs");
+    dragFcaId = fcaId;
+    stripDragging = true;
+    tr.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", dragCs); } catch (_) {}
+  });
+
+  tbody.addEventListener("dragend", () => {
+    clearHl();
+    stripDragging = false;
+    dragCs = null; dragFcaId = null;
+    if (pendingRender) { pendingRender = false; render(); }
+  });
+
+  tbody.addEventListener("dragover", e => {
+    e.preventDefault();                              // accept the drop anywhere in the table
+    e.dataTransfer.dropEffect = "move";
+    const tr = e.target.closest && e.target.closest("tr.metered");
+    tbody.querySelectorAll(".dragover").forEach(x => x.classList.remove("dragover"));
+    if (tr && tr.getAttribute("data-cs") !== dragCs) tr.classList.add("dragover");
+  });
+
+  tbody.addEventListener("drop", e => {
+    e.preventDefault();
+    const tr = e.target.closest && e.target.closest("tr.metered");
+    clearHl();
+    let fromCs = dragCs;
+    try { fromCs = e.dataTransfer.getData("text/plain") || dragCs; } catch (_) {}
+    const toCs = tr && tr.getAttribute("data-cs");
+    if (dragFcaId != null && dragFcaId !== fcaId) return;   // dropped on a different FCA's table
+    if (!fromCs || !toCs || fromCs === toCs) return;
+    moveTowerOrder(fcaId, fromCs, toCs);
   });
 }
 
