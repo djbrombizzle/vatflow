@@ -1071,6 +1071,8 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
         dep: c.p.dep,
         arr: c.p.arr,
         type: c.p.type || "",
+        fpAlt: c.p.fpAlt || 0,
+        gs: c.p.gs || 0,
         fcaId: fca.id,
         fcaName: fca.name,
         fcaColor: fca.color,
