@@ -1509,7 +1509,7 @@ function renderSequence(){
       const frozen=!!c.frozen;
       const winTxt=frozen&&wheelsUp?` · window ${fmtZulu(wheelsUp-COMPLIANCE_EARLY_MS)}–${fmtZulu(wheelsUp+COMPLIANCE_LATE_MS)}`:"";
       const rdyBtn=canControl()
-        ?`<div class="rdy${frozen?" on":""}" data-rdy="${escapeHtml(c.p.callsign)}" title="${frozen?"Cancel this CFR release":"Pilot called ready — issue CFR release"}">${frozen?"RLSD ✕":"RLS"}</div>`
+        ?`<div class="rdy${frozen?" on":""}" data-rdy="${escapeHtml(c.p.callsign)}" title="${frozen?"Cancel this CFR release":"Pilot called ready — issue CFR release"}">${frozen?"RLSD ✕":"RDY"}</div>`
         :(frozen?`<div class="rdy on" style="cursor:default">RLSD</div>`:"");
       strip.innerHTML=`
         <div class="num" title="drag to reorder"><span class="grip">⠿</span>${i+1}</div>

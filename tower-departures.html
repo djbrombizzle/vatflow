@@ -122,6 +122,29 @@
   .hidden-fcas-bar button:hover { text-decoration: underline; }
   .fca-block.empty .fca-block-head { opacity: 0.55; }
 
+  /* --- flight strips (same look/size as the FCA Builder sequence panel) --- */
+  .stripList { padding: 8px; }
+  .strip{display:grid;grid-template-columns:24px 1fr auto auto;gap:8px;align-items:center;background:#0f151e;
+    border:1px solid var(--line-2);border-left-width:3px;border-radius:6px;padding:8px 10px;margin-bottom:7px;font-family:var(--mono)}
+  .strip:last-child{margin-bottom:0}
+  .strip:hover{background:#131b26}
+  .strip .num{font-size:13px;font-weight:700;color:var(--amber);text-align:center;cursor:grab}
+  .strip .num .grip{display:block;font-size:11px;color:var(--muted-2);line-height:1;margin-bottom:1px}
+  .strip .cs{font-size:13px;font-weight:700;letter-spacing:.04em}
+  .strip .info{font-size:10px;color:var(--muted);margin-top:2px}
+  .strip .gap{font-size:9px;margin-top:3px;color:var(--cyan);letter-spacing:.02em}
+  .strip .gap.short{color:var(--red)}
+  .strip .eta{text-align:right}
+  .strip .eta .big{font-size:14px;font-weight:700}
+  .strip .eta .dl{font-size:10px;margin-top:2px}
+  .dl.zero{color:var(--green)} .dl.low{color:var(--amber)} .dl.high{color:var(--red)}
+  .ph{font-size:8px;font-weight:700;letter-spacing:.08em;padding:1px 4px;border-radius:3px;vertical-align:1px;margin-right:2px}
+  .ph.gnd{background:#2e2407;color:var(--amber);border:1px solid #5a4818}
+  .strip.dragging{opacity:.4}
+  .strip.dragover{box-shadow:inset 0 2px 0 0 var(--amber)}
+  .strip.view-only .grip{opacity:.25;cursor:default}
+  .strip-empty{padding:14px 10px;text-align:center;color:var(--muted-2);font-family:var(--mono);font-size:11px}
+
   .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
   .tablewrap.mini table { font-size: 15px; }
   .tablewrap.mini th, .tablewrap.mini td { padding: 7px 9px; }
@@ -584,32 +607,29 @@ function hasEdctDelay(delayMin) {
   return (delayMin || 0) > EDCT_DELAY_MIN;
 }
 
-function edctCellHtml(d) {
-  if (d.frozen) {
-    const win = `${fmtZulu(d.edctMs - COMPLIANCE_EARLY_MS)}–${fmtZulu(d.edctMs + COMPLIANCE_LATE_MS)}`;
-    return `<td class="cell-edct cell-frozen" title="Frozen release · window ${win}">${fmtZulu(d.edctMs)}</td>`;
-  }
-  if (hasEdctDelay(d.delayMin)) {
-    return `<td class="cell-edct cell-hold">${fmtZulu(d.edctMs)}</td>`;
-  }
-  return `<td class="cell-edct cell-ok">RELEASED</td>`;
-}
-
-function renderMeteredRow(d, localIdx, canDrag) {
-  const title = `Transit ${Math.round(d.dist || 0)}nm · delay ${(d.delayMin || 0).toFixed(1)} min`;
-  const isLeader = d.gapMin === 0;
-  return `<tr class="metered${canDrag ? "" : " view-only"}" data-cs="${escapeHtml(d.callsign)}" data-fca="${escapeHtml(d.fcaId)}" title="${escapeHtml(title)}">` +
-    `<td><span class="grip">⠿</span> ${localIdx + 1}</td>` +
-    `<td class="cell-strong">${escapeHtml(d.callsign)}</td>` +
-    `<td>${escapeHtml(d.arr || "????")}</td>` +
-    `<td>${Math.round(d.dist || 0)}</td>` +
-    `<td>${gapLabel(d.gapMin, isLeader)}</td>` +
-    `<td>${fmtZulu(d.ctaMs)}</td>` +
-    `${edctCellHtml(d)}` +
-    `<td>${canControl()
-      ? `<button type="button" class="rdy-btn${d.frozen ? " on" : ""}" data-rdy-cs="${escapeHtml(d.callsign)}" data-rdy-fca="${escapeHtml(d.fcaId)}" title="${d.frozen ? "Cancel this CFR release" : "Pilot called ready — issue CFR release"}">${d.frozen ? "RLSD ✕" : "RLS"}</button>`
-      : (d.frozen ? `<span class="cell-frozen">RLSD</span>` : "—")}</td>` +
-    `</tr>`;
+/* Builder-style flight strip. CFR time is shown ONLY once issued via RDY —
+   unissued strips show the expected hold, never a time or a green RELEASED,
+   so tower controllers can't read an advisory number to a pilot by mistake. */
+function renderDepStrip(d, i, canDrag) {
+  const frozen = !!d.frozen;
+  const fl = d.fpAlt ? Math.round(d.fpAlt / 100) : "—";
+  const win = frozen ? ` · window ${fmtZulu(d.edctMs - COMPLIANCE_EARLY_MS)}–${fmtZulu(d.edctMs + COMPLIANCE_LATE_MS)}` : "";
+  const big = frozen ? fmtZulu(d.edctMs) : "—";
+  const holdMin = Math.round(d.delayMin || 0);
+  const dlCls = frozen ? "zero" : holdMin > 5 ? "high" : holdMin > 1 ? "low" : "zero";
+  const dlTxt = frozen ? "released" : holdMin > 1 ? `est hold +${holdMin}m` : "no delay expected";
+  const gapLine = (i > 0 && isFinite(d.gapMin))
+    ? `<div class="gap${d.gapMin < 0.5 ? " short" : ""}">↑ ${d.gapMin.toFixed(1)} min behind previous crosser</div>` : "";
+  const btn = canControl()
+    ? `<button type="button" class="rdy-btn${frozen ? " on" : ""}" data-rdy-cs="${escapeHtml(d.callsign)}" data-rdy-fca="${escapeHtml(d.fcaId)}" title="${frozen ? "Cancel this CFR release" : "Pilot called ready — issue CFR release"}">${frozen ? "RLSD ✕" : "RDY"}</button>`
+    : (frozen ? `<span class="cell-frozen">RLSD</span>` : "");
+  return `<div class="strip${canDrag ? "" : " view-only"}" data-cs="${escapeHtml(d.callsign)}"${canDrag ? ' draggable="true"' : ""}>` +
+    `<div class="num" title="drag to reorder"><span class="grip">⣿</span>${i + 1}</div>` +
+    `<div><div class="cs"><span class="ph gnd">${frozen ? "RLSD" : "CFR"}</span> ${escapeHtml(d.callsign)} <span style="color:var(--muted);font-weight:400">${escapeHtml(d.type || "")}</span></div>` +
+    `<div class="info">${escapeHtml(d.dep || "????")} → ${escapeHtml(d.arr || "????")} · FL${fl} · ${Math.round(d.dist || 0)}nm to line · cross ${fmtZulu(d.ctaMs)}${win}</div>${gapLine}</div>` +
+    `<div class="eta"><div class="big" style="color:${frozen ? "#56d364" : "var(--muted-2)"}">${big}</div>` +
+    `<div class="dl ${dlCls}">${dlTxt}</div></div>` +
+    `<div style="display:flex;flex-direction:column;align-items:center">${btn}</div></div>`;
 }
 
 function renderFcaMiniTable(fca, rows, canDrag) {
@@ -632,15 +652,13 @@ function renderFcaMiniTable(fca, rows, canDrag) {
     `<button type="button" class="fca-btn pin-btn${pinned ? " on" : ""}" data-fca-id="${escapeHtml(fca.id)}" title="Pin table position">PIN</button>` +
     `<button type="button" class="fca-btn hide-btn" data-fca-id="${escapeHtml(fca.id)}" title="Hide this FCA">HIDE</button>` +
     `</div></div>` +
-    `<div class="tablewrap mini"><table><thead><tr>` +
-    `<th>#</th><th>CS</th><th>DST</th><th>NM</th><th>GAP</th><th>CTA</th><th>CFR</th><th>RLS</th>` +
-    `</tr></thead><tbody class="depBody" data-fca="${escapeHtml(fca.id)}">`;
+    `<div class="stripList depBody" data-fca="${escapeHtml(fca.id)}">`;
   if (rows.length) {
-    rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
+    rows.forEach((d, i) => { html += renderDepStrip(d, i, canDrag); });
   } else {
-    html += `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html += `<div class="strip-empty">No departures in this program</div>`;
   }
-  html += `</tbody></table></div></div>`;
+  html += `</div></div>`;
   return html;
 }
 
@@ -686,16 +704,16 @@ function updateFcaBlock(fca, rows, canDrag) {
   block.classList.toggle("pinned", state.pinnedFcas.has(fca.id));
   const pinBtn = block.querySelector(".pin-btn");
   if (pinBtn) pinBtn.classList.toggle("on", state.pinnedFcas.has(fca.id));
-  const tbody = block.querySelector("tbody.depBody");
-  if (!tbody) return false;
+  const list = block.querySelector(".stripList.depBody");
+  if (!list) return false;
   let html = "";
   if (rows.length) {
-    rows.forEach((d, i) => { html += renderMeteredRow(d, i, canDrag); });
+    rows.forEach((d, i) => { html += renderDepStrip(d, i, canDrag); });
   } else {
-    html = `<tr class="empty-row"><td colspan="8" style="color:var(--muted-2);text-align:center">No departures</td></tr>`;
+    html = `<div class="strip-empty">No departures in this program</div>`;
   }
-  tbody.innerHTML = html;
-  wireTableDrag(tbody, fca.id);
+  list.innerHTML = html;
+  wireTableDrag(list, fca.id);
   return true;
 }
 
@@ -911,57 +929,57 @@ function refreshAfterReorder(fcaId) {
    anywhere in the table with nearest-row resolution — no more dead zones on
    padding/borders. Feed/sync refreshes suppressed during a drag are flushed
    on dragend via pendingRender. */
-function wireTableDrag(tbody, fcaId) {
-  if (!canControl() || !tbody) return;
-  tbody.querySelectorAll("tr.metered").forEach(tr => tr.setAttribute("draggable", "true"));
-  if (tbody._dragWired) return;                      // delegated listeners persist on the tbody node
-  tbody._dragWired = true;
+function wireTableDrag(list, fcaId) {
+  if (!canControl() || !list) return;
+  list.querySelectorAll(".strip").forEach(el => el.setAttribute("draggable", "true"));
+  if (list._dragWired) return;                       // delegated listeners persist on the container
+  list._dragWired = true;
 
-  const clearHl = () => tbody.querySelectorAll(".dragover, .dragging")
+  const clearHl = () => list.querySelectorAll(".dragover, .dragging")
     .forEach(x => x.classList.remove("dragover", "dragging"));
 
-  tbody.addEventListener("dragstart", e => {
-    const tr = e.target.closest && e.target.closest("tr.metered");
-    if (!tr) return;
-    dragCs = tr.getAttribute("data-cs");
+  list.addEventListener("dragstart", e => {
+    const el = e.target.closest && e.target.closest(".strip[data-cs]");
+    if (!el) return;
+    dragCs = el.getAttribute("data-cs");
     dragFcaId = fcaId;
     stripDragging = true;
-    tr.classList.add("dragging");
+    el.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
     try { e.dataTransfer.setData("text/plain", dragCs); } catch (_) {}
   });
 
-  tbody.addEventListener("dragend", () => {
+  list.addEventListener("dragend", () => {
     clearHl();
     stripDragging = false;
     dragCs = null; dragFcaId = null;
     if (pendingRender) { pendingRender = false; render(); }
   });
 
-  tbody.addEventListener("dragover", e => {
-    e.preventDefault();                              // accept the drop anywhere in the table
+  list.addEventListener("dragover", e => {
+    e.preventDefault();                              // accept the drop anywhere in the list
     e.dataTransfer.dropEffect = "move";
-    const tr = e.target.closest && e.target.closest("tr.metered");
-    tbody.querySelectorAll(".dragover").forEach(x => x.classList.remove("dragover"));
-    if (tr && tr.getAttribute("data-cs") !== dragCs) tr.classList.add("dragover");
+    const el = e.target.closest && e.target.closest(".strip[data-cs]");
+    list.querySelectorAll(".dragover").forEach(x => x.classList.remove("dragover"));
+    if (el && el.getAttribute("data-cs") !== dragCs) el.classList.add("dragover");
   });
 
-  tbody.addEventListener("drop", e => {
+  list.addEventListener("drop", e => {
     e.preventDefault();
-    const tr = e.target.closest && e.target.closest("tr.metered");
+    const el = e.target.closest && e.target.closest(".strip[data-cs]");
     clearHl();
     let fromCs = dragCs;
     try { fromCs = e.dataTransfer.getData("text/plain") || dragCs; } catch (_) {}
-    const toCs = tr && tr.getAttribute("data-cs");
-    if (dragFcaId != null && dragFcaId !== fcaId) return;   // dropped on a different FCA's table
+    const toCs = el && el.getAttribute("data-cs");
+    if (dragFcaId != null && dragFcaId !== fcaId) return;   // dropped on a different FCA's list
     if (!fromCs || !toCs || fromCs === toCs) return;
     moveTowerOrder(fcaId, fromCs, toCs);
   });
 }
 
 function wireAllTableDrag() {
-  document.querySelectorAll("tbody.depBody[data-fca]").forEach(tbody => {
-    wireTableDrag(tbody, tbody.getAttribute("data-fca"));
+  document.querySelectorAll(".stripList.depBody[data-fca]").forEach(list => {
+    wireTableDrag(list, list.getAttribute("data-fca"));
   });
 }
 
