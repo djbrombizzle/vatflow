@@ -218,6 +218,17 @@ export function fcaMatchesOrigin(fca, dep) {
   if (!fca.origins || !fca.origins.length) return true;
   return fca.origins.some(d => airportCodesMatch(d, dep));
 }
+/** Route-fix filter: meter only aircraft with one of these fixes in their FILED
+ *  route. A token naming a procedure derived from the fix also matches
+ *  (filter "LAIRI" catches a filed "LAIRI4" arrival). */
+export function fcaMatchesFix(fca, route) {
+  if (!fca.fixes || !fca.fixes.length) return true;
+  const toks = parseRouteTokens(route).map(t => t.replace(/\/.*$/, ""));
+  return fca.fixes.some(fx => {
+    fx = ("" + fx).toUpperCase();
+    return toks.some(t => t === fx || t.replace(/\d[A-Z]?$/, "") === fx);
+  });
+}
 export function dirOfHeading(h) {
   h = ((h % 360) + 360) % 360;
   if (h >= 315 || h < 45) return "N";
@@ -741,6 +752,9 @@ export function explainFcaExclusion(fca, p) {
   if (!fcaMatchesOrigin(fca, p.dep)) {
     return R(false, "origin-filter", `Departure ${p.dep || "????"} not in filter [${(fca.origins || []).join(" ")}].`);
   }
+  if (!fcaMatchesFix(fca, p.route)) {
+    return R(false, "fix-filter", `Filed route does not contain [${(fca.fixes || []).join(" ")}].`);
+  }
   const isAir = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
   const altNow = p.alt || 0, altFp = p.fpAlt || 0;
   const altOk = isAir ? (fcaMatchesAlt(fca, altNow) || fcaMatchesAlt(fca, altFp)) : fcaMatchesAlt(fca, altFp);
@@ -772,6 +786,7 @@ function collectAirFcaCandidates(fca, pilots) {
     if (ex.has(p.callsign)) continue;
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
+    if (!fcaMatchesFix(fca, p.route)) continue;
     if (!fcaMatchesAlt(fca, p.alt || 0) && !fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const ac = buildAirCandidate(p, fca);
     if (ac) cand.push(ac);
@@ -790,6 +805,7 @@ function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
     if (ex.has(p.callsign)) { if (counters) counters.excluded++; continue; }
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
+    if (!fcaMatchesFix(fca, p.route)) continue;
     if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const c = buildGroundCandidate(p, fca, nowMs, isReady(fca, p.callsign));
     if (c) cand.push(c);
