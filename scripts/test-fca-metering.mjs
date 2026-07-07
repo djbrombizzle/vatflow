@@ -362,6 +362,27 @@ let oEx = explainFcaExclusion(mcoFca, jaxDep);
 assert(!oEx.included && oEx.reason === "origin-filter", "explain: origin filter identified");
 
 /* ============================================================
+   16. Route-fix filter — "10 MIT only for aircraft filed over LAIRI"
+   ============================================================ */
+import { fcaMatchesFix } from "../shared/fca-metering.js";
+const lairiFca = { id:"lairi", name:"LAIRI 10MIT", enabled:true, dir:"any", mode:"mit", mit:10,
+  minFL:0, maxFL:999, fixes:["LAIRI"], points:[[31.5,-84.0],[31.5,-79.0]], releases:{}, excluded:[], order:[] };
+const viaLairi = { callsign:"VIA1", phase:"gnd", lat:30.49, lon:-81.69, gs:0,
+  dep:"KJAX", arr:"KDCA", fpAlt:36000, tas:450, route:"CUTZZ LAIRI/N0450F360 DCT TEUFL", deptime:"" };
+const viaStar  = { ...viaLairi, callsign:"VIA2", route:"CUTZZ DCT LAIRI4" };     // procedure named after the fix
+const notVia   = { ...viaLairi, callsign:"OFF1", route:"CUTZZ DCT TEUFL" };
+const partial  = { ...viaLairi, callsign:"OFF2", route:"CUTZZ DCT LAIRIX DCT TEUFL" };  // different fix, no substring match
+let fxSeq = computeSequence(lairiFca, [viaLairi, viaStar, notVia, partial], [], { includeEdct:true, nowMs: fixedNow });
+assert(fxSeq.items.some(c=>c.p.callsign==="VIA1"), "aircraft filed over LAIRI is metered (suffix stripped)");
+assert(fxSeq.items.some(c=>c.p.callsign==="VIA2"), "filed LAIRI4 procedure matches a LAIRI fix filter");
+assert(!fxSeq.items.some(c=>c.p.callsign==="OFF1"), "route without the fix is NOT metered");
+assert(!fxSeq.items.some(c=>c.p.callsign==="OFF2"), "different fix LAIRIX does not substring-match LAIRI");
+assert(fcaMatchesFix({ fixes:[] }, "A B C") && fcaMatchesFix({}, "A B C"), "blank fix filter = all routes");
+assert(fcaMatchesFix({ fixes:["LAIRI","TEUFL"] }, "X DCT TEUFL"), "any listed fix matches");
+let fxEx = explainFcaExclusion(lairiFca, notVia);
+assert(!fxEx.included && fxEx.reason === "fix-filter", "explain: fix filter identified");
+
+/* ============================================================
    15. Manual sequence + RDY releases (strip didn't update bug)
    ============================================================ */
 const manFca = { id:"man", name:"MAN", enabled:true, dir:"any", mode:"rate", rate:10,
