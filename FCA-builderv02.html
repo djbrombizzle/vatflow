@@ -106,6 +106,12 @@
   .form h3{margin:0 0 10px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--amber)}
   .fld{margin-bottom:10px}
   .fld label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+  #fcaFilter{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+    font:400 11px var(--mono);padding:6px 8px;margin:0 0 8px;outline:none}
+  #fcaFilter:focus{border-color:var(--amber)}
+  #plotRoute{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+    font:400 11px var(--mono);padding:6px 8px;outline:none;resize:vertical;min-height:44px}
+  #plotRoute:focus{border-color:var(--amber)}
   .fld input{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font-family:var(--mono);font-size:12px;padding:7px 9px}
   .fld input:focus{outline:none;border-color:var(--amber)}
@@ -327,7 +333,18 @@
     </div>
 
     <div id="editorMount"></div>
+    <input id="fcaFilter" placeholder="filter FCAs — name, airport, fix…" autocomplete="off">
     <div id="fcaList"></div>
+
+    <div class="layers" style="margin-top:14px">
+      <div class="lh">ROUTE PLOTTER</div>
+      <textarea id="plotRoute" rows="3" spellcheck="false" placeholder="KMIA CUTZZ LAIRI Q85 SPA GVE PUCKY1 KJFK&#10;first + last tokens = airports"></textarea>
+      <div class="toolbar" style="margin:6px 0 4px">
+        <button class="btn primary" id="plotBtn" style="flex:1">PLOT ROUTE</button>
+        <button class="btn" id="plotClearBtn">CLEAR</button>
+      </div>
+      <div class="empty" style="text-align:left;border:none;padding:2px 0 0;color:var(--muted-2)">Draws with the same style as clicking an aircraft — including the metering check against the selected FCA.</div>
+    </div>
 
     <div class="layers" style="margin-top:14px">
       <div class="lh">SYNC</div>
@@ -1181,7 +1198,8 @@ function renderTraffic(){
   }
   // keep a plotted route alive across refreshes / map moves
   if(state.routeCallsign){
-    const rp=state.pilots.find(x=>x.callsign===state.routeCallsign)
+    const rp=(state.plotPilot && state.routeCallsign===state.plotPilot.callsign) ? state.plotPilot
+          : state.pilots.find(x=>x.callsign===state.routeCallsign)
           || (state.prefiles||[]).find(x=>x.callsign===state.routeCallsign);
     if(rp) drawRouteLine(rp); else clearRoute();
   }
@@ -1268,7 +1286,16 @@ function renderFcaList(){
   }
   wrap.innerHTML="";
   const ctl=canControl();
-  state.fcas.forEach(f=>{
+  const q=(state.fcaFilter||"").trim().toUpperCase();
+  const visible=q?state.fcas.filter(f=>{
+    const hay=[f.name,...(f.dests||[]),...(f.origins||[]),...(f.fixes||[])].join(" ").toUpperCase();
+    return hay.includes(q);
+  }):state.fcas;
+  if(q && !visible.length){
+    wrap.innerHTML=`<div class="empty">No FCAs match “${escapeHtml(q)}”.</div>`;
+    return;
+  }
+  visible.forEach(f=>{
     const seq=getSequence(f);
     const card=document.createElement("div");
     card.className="fca-card"+(f.id===state.selectedId?" sel":"")+(f.enabled?"":" off");
@@ -1863,6 +1890,36 @@ function fallbackCopy(txt,done){
 function setSide(open){ document.getElementById("sidebar").classList.toggle("hidden",!open);
   document.getElementById("floatSide").style.display=open?"none":"flex"; }
 document.getElementById("hideSide").addEventListener("click",()=>setSide(false));
+
+/* ---------- route plotter ---------- */
+function plotPastedRoute(){
+  const raw=(document.getElementById("plotRoute").value||"").trim();
+  if(!raw){ toast("Paste a route first — e.g. KMIA CUTZZ LAIRI KATL",2600); return; }
+  const toks=raw.toUpperCase().split(/[\s,]+/).filter(Boolean).map(t=>t.replace(/\/.*$/,""));
+  if(toks.length<2){ toast("Need at least a departure and arrival airport.",2600); return; }
+  const dep=toks[0], arr=toks[toks.length-1];
+  if(!getAirport(dep)){ toast(`First token ${dep} isn't a known airport.`,3000); return; }
+  if(!getAirport(arr)){ toast(`Last token ${arr} isn't a known airport.`,3000); return; }
+  // representative jet profile so FL-band FCA checks behave sensibly for a pasted route
+  state.plotPilot={ callsign:"PLOT", phase:"gnd", lat:null, lon:null, gs:0, dep, arr,
+    type:"pasted", tas:450, fpAlt:35000, deptime:"", route:toks.slice(1,-1).join(" ") };
+  showRoute(state.plotPilot);
+}
+document.getElementById("plotBtn").addEventListener("click",plotPastedRoute);
+document.getElementById("plotRoute").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); plotPastedRoute(); }
+});
+document.getElementById("plotClearBtn").addEventListener("click",()=>{
+  document.getElementById("plotRoute").value="";
+  if(state.routeCallsign==="PLOT") clearRoute();
+  state.plotPilot=null;
+});
+
+/* ---------- FCA list filter ---------- */
+document.getElementById("fcaFilter").addEventListener("input",e=>{
+  state.fcaFilter=e.target.value;
+  renderFcaList();
+});
 document.getElementById("toggleSide").addEventListener("click",()=>{
   const open=document.getElementById("sidebar").classList.contains("hidden"); setSide(open); });
 document.getElementById("floatSide").addEventListener("click",()=>setSide(true));
