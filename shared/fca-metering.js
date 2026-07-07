@@ -736,6 +736,19 @@ export function isConnectedPilot(p) {
   return p && !p.prefile;
 }
 
+/** A ground aircraft is a departure candidate only if it is physically AT its
+ *  filed departure airport. A landed arrival still carries the same flight
+ *  plan and phase "gnd" — without this gate it gets re-metered as if it were
+ *  about to fly the whole route again from the origin. */
+export function isAtDepartureAirport(p) {
+  if (p.lat == null || p.lon == null) return true;            // no position — can't judge
+  const depApt = getAirport(p.dep);
+  if (depApt) return haversineNm(p.lat, p.lon, depApt[0], depApt[1]) <= 10;
+  const arrApt = getAirport(p.arr);
+  if (arrApt) return haversineNm(p.lat, p.lon, arrApt[0], arrApt[1]) > 10;  // at minimum, not parked at the destination
+  return true;
+}
+
 /**
  * Diagnostic: why is this aircraft in (or not in) this FCA's sequence?
  * Walks the same gates as candidate collection, in order, and reports the
@@ -763,6 +776,11 @@ export function explainFcaExclusion(fca, p) {
     return R(false, "alt-filter", `Current FL${Math.round(altNow / 100)} / filed FL${Math.round(altFp / 100)} outside ${band}.`);
   }
   if (p.phase === "gnd" && !isConnectedPilot(p)) return R(false, "prefile", "Prefiles are not metered.");
+  if (p.phase === "gnd" && !isAtDepartureAirport(p)) {
+    const depApt = getAirport(p.dep);
+    const away = depApt && p.lat != null ? Math.round(haversineNm(p.lat, p.lon, depApt[0], depApt[1])) : null;
+    return R(false, "arrived", `On the ground ${away != null ? away + "nm" : "far"} from filed departure ${p.dep || "????"} — flight has already operated.`);
+  }
   if (!getAirport(p.arr)) return R(false, "no-dest-apt", `Destination ${p.arr || "????"} not in the airport DB — route can't be built.`);
   if (p.phase === "gnd" && !pilotOrigin(p)) return R(false, "no-origin", `Departure ${p.dep || "????"} not in the airport DB.`);
   const path = routePathForCrossing(p, { includeNow: isAir });
@@ -800,6 +818,7 @@ function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
   const cand = [];
   for (const p of pilots || []) {
     if (p.phase !== "gnd" || !isConnectedPilot(p)) continue;      // no prefiles — VATSIM prefile presence is unreliable
+    if (!isAtDepartureAirport(p)) continue;                        // landed arrivals are not departures
     if (seen.has(p.callsign)) continue;
     seen.add(p.callsign);
     if (ex.has(p.callsign)) { if (counters) counters.excluded++; continue; }
