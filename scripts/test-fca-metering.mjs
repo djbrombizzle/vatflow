@@ -362,6 +362,27 @@ let oEx = explainFcaExclusion(mcoFca, jaxDep);
 assert(!oEx.included && oEx.reason === "origin-filter", "explain: origin filter identified");
 
 /* ============================================================
+   17. Landed arrivals are not departure candidates (KATL bug)
+   ============================================================ */
+import { isAtDepartureAirport } from "../shared/fca-metering.js";
+seedAirports({ KMIA:[25.7959,-80.2870] });
+const gaFca = { id:"ga", enabled:true, dir:"any", mode:"mit", mit:10, minFL:0, maxFL:999,
+  points:[[32.0,-85.5],[32.0,-81.0]], releases:{}, excluded:[], order:[] };
+const landedArr = { callsign:"LND1", phase:"gnd", lat:33.64, lon:-84.43, gs:0,     // parked at KATL
+  dep:"KMIA", arr:"KATL", fpAlt:33000, tas:440, route:"DCT", deptime:"" };
+const realDep = { ...landedArr, callsign:"DEP1", lat:25.79, lon:-80.29 };          // parked at KMIA
+const gaSeq = computeSequence(gaFca, [landedArr, realDep], [], { includeEdct:true, nowMs: fixedNow });
+assert(!gaSeq.items.some(c=>c.p.callsign==="LND1"), "landed arrival with stale flight plan is NOT re-metered");
+assert(gaSeq.items.some(c=>c.p.callsign==="DEP1"), "genuine pre-departure at the origin IS metered");
+assert(!isAtDepartureAirport(landedArr) && isAtDepartureAirport(realDep), "isAtDepartureAirport gate");
+assert(!isAtDepartureAirport({ ...landedArr, lat: 30.0, lon: -82.0 }), "diverted/elsewhere on ground also excluded");
+const gaEx = explainFcaExclusion(gaFca, landedArr);
+assert(!gaEx.included && gaEx.reason === "arrived", "explain: arrived-flight reason identified");
+// tower page: landed arrival at the tower's own field must not appear either
+const twrChk = computeTowerDepartures("KATL", [gaFca], [landedArr, realDep]);
+assert(!twrChk.departures.some(d=>d.callsign==="LND1"), "tower list excludes the landed arrival");
+
+/* ============================================================
    16. Route-fix filter — "10 MIT only for aircraft filed over LAIRI"
    ============================================================ */
 import { fcaMatchesFix } from "../shared/fca-metering.js";
