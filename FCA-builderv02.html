@@ -1329,7 +1329,7 @@ function renderFcaList(){
     if(!q) return true;
     const hay=[f.name,f.artcc||"",...(f.dests||[]),...(f.origins||[]),...(f.fixes||[]),...(f.scope||[])].join(" ").toUpperCase();
     return hay.includes(q);
-  });
+  }).slice().sort((a,b)=>(a.name||"").localeCompare((b.name||""),undefined,{sensitivity:"base"}));
   if((q||artccPick!=="ALL") && !visible.length){
     wrap.innerHTML=`<div class="empty">No FCAs match${artccPick!=="ALL"?" "+escapeHtml(artccPick):""}${q?" “"+escapeHtml(q)+"”":""}.</div>`;
     return;
