@@ -19,6 +19,7 @@
 import {
   bindAirports as bindRouteAirports,
   buildRoutePathLLs,
+  buildRouteAnchorsForAircraft,
   isNavReady,
 } from "./route-engine.js";
 import { routeHeadwind, effectiveGs } from "./winds-aloft.js";
@@ -240,16 +241,44 @@ export function fcaMatchesScope(fca, p) {
   return anyKnown ? false : true;   // no boundary data at all -> fail open
 }
 
-/** Route-fix filter: meter only aircraft with one of these fixes in their FILED
- *  route. A token naming a procedure derived from the fix also matches
- *  (filter "LAIRI" catches a filed "LAIRI4" arrival). */
-export function fcaMatchesFix(fca, route) {
+/** Expanded-route fix names for a pilot (STAR/SID legs, airway intermediates).
+ *  Position-independent (full route from origin), so results memoize on the
+ *  route text itself. Null when nav data isn't loaded. */
+const routeFixNameCache = new Map();
+function routeFixNames(p) {
+  if (!isNavReady() || !p) return null;
+  const key = (p.dep || "") + "|" + (p.arr || "") + "|" + (p.route || "");
+  let set = routeFixNameCache.get(key);
+  if (set) return set;
+  try {
+    const { anchors } = buildRouteAnchorsForAircraft(p, { includeNow: false });
+    set = new Set((anchors || []).map(a => ("" + a.name).toUpperCase()));
+  } catch (_) { set = new Set(); }
+  if (routeFixNameCache.size > 4000) routeFixNameCache.clear();
+  routeFixNameCache.set(key, set);
+  return set;
+}
+
+/** Route-fix filter: meter only aircraft whose route contains one of these
+ *  fixes — matched against the FILED tokens first (a token naming a procedure
+ *  derived from the fix counts: "LAIRI" catches a filed "LAIRI4"), and when
+ *  that misses, against the EXPANDED route, so a fix INSIDE a filed arrival
+ *  matches too ("ESSSO" catches anyone filed on the PAATS4). Accepts either
+ *  a pilot object or a raw route string (token match only for strings). */
+export function fcaMatchesFix(fca, pOrRoute) {
   if (!fca.fixes || !fca.fixes.length) return true;
+  const route = typeof pOrRoute === "string" ? pOrRoute : ((pOrRoute && pOrRoute.route) || "");
   const toks = parseRouteTokens(route).map(t => t.replace(/\/.*$/, ""));
-  return fca.fixes.some(fx => {
+  const tokenHit = fca.fixes.some(fx => {
     fx = ("" + fx).toUpperCase();
     return toks.some(t => t === fx || t.replace(/\d[A-Z]?$/, "") === fx);
   });
+  if (tokenHit) return true;
+  if (pOrRoute && typeof pOrRoute === "object") {
+    const names = routeFixNames(pOrRoute);
+    if (names) return fca.fixes.some(fx => names.has(("" + fx).toUpperCase()));
+  }
+  return false;
 }
 export function dirOfHeading(h) {
   h = ((h % 360) + 360) % 360;
@@ -787,8 +816,8 @@ export function explainFcaExclusion(fca, p) {
   if (!fcaMatchesOrigin(fca, p.dep)) {
     return R(false, "origin-filter", `Departure ${p.dep || "????"} not in filter [${(fca.origins || []).join(" ")}].`);
   }
-  if (!fcaMatchesFix(fca, p.route)) {
-    return R(false, "fix-filter", `Filed route does not contain [${(fca.fixes || []).join(" ")}].`);
+  if (!fcaMatchesFix(fca, p)) {
+    return R(false, "fix-filter", `Route (filed or expanded) does not contain [${(fca.fixes || []).join(" ")}].`);
   }
   if (!fcaMatchesScope(fca, p)) {
     return R(false, "scope", `Aircraft is outside the FCA scope [${(fca.scope || []).join(" ")}].`);
@@ -829,7 +858,7 @@ function collectAirFcaCandidates(fca, pilots) {
     if (ex.has(p.callsign)) continue;
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
-    if (!fcaMatchesFix(fca, p.route)) continue;
+    if (!fcaMatchesFix(fca, p)) continue;
     if (!fcaMatchesScope(fca, p)) continue;
     if (!fcaMatchesAlt(fca, p.alt || 0) && !fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const ac = buildAirCandidate(p, fca);
@@ -850,7 +879,7 @@ function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
     if (ex.has(p.callsign)) { if (counters) counters.excluded++; continue; }
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
-    if (!fcaMatchesFix(fca, p.route)) continue;
+    if (!fcaMatchesFix(fca, p)) continue;
     if (!fcaMatchesScope(fca, p)) continue;
     if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const c = buildGroundCandidate(p, fca, nowMs, isReady(fca, p.callsign));

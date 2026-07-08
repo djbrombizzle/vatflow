@@ -3,7 +3,11 @@
  * Data: data/nav/*.json (built from FAA NASR via scripts/build-nav-data.mjs).
  */
 
-const AIRWAY_RE = /^[JQV]\d+[A-Z]?$/i;
+// Airway designators: US J/Q/V/T, Canadian/oceanic Y/W, international
+// A/B/G/R/L/M/N/P and European upper U[LMNPQT]. Digits must follow the
+// prefix immediately so fixes (5 letters), procedures (LETTERS+digit, e.g.
+// DOTSS2) and NRS waypoints (KD60U — K prefix excluded) never match.
+const AIRWAY_RE = /^(?:[ABGJLMNPQRTVWY]|U[LMNPQT])\d{1,4}[A-Z]?$/i;
 const STAR_SID_RE = /^[A-Z]{3,5}\d[A-Z]?$/;
 const NAV_BASE = "data/nav";
 
