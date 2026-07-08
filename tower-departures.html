@@ -228,7 +228,7 @@
   <div class="brand"><b>TOWER DEPARTURES</b><span class="tag">FCA METERING</span></div>
   <div class="field-row">
     <label for="fieldInput">FIELD</label>
-    <input id="fieldInput" maxlength="4" placeholder="KATL" autocomplete="off">
+    <input id="fieldInput" maxlength="4" placeholder="KATL or ZDC" autocomplete="off">
     <button type="button" class="btn primary sm" id="loadBtn">Load</button>
   </div>
   <div class="spacer"></div>
@@ -253,7 +253,7 @@
     <button type="button" class="btn primary sm" id="verifyCidBtn">Verify</button>
     <button type="button" class="btn sm" id="clearCidBtn">Clear</button>
   </div>
-  <div id="atcStatus">Enter your CID while online on a _TWR or _GND position to unlock reorder.</div>
+  <div id="atcStatus">Enter your CID while online on a _TWR, _GND, or _CTR position to unlock reorder.</div>
   <div class="settings-hint">Verified online on tower/ground — no password needed. Re-checked every feed refresh (~20s).</div>
 </div>
 
@@ -268,11 +268,13 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
-  getAirport, parseAlt, markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+  getAirport, hasAirport, parseAlt, markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+  depMatchesArtcc,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
+import { fetchArtccBoundaries, isArtccScopeReady } from "./shared/artcc-scope.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -417,11 +419,11 @@ function updateAtcStatusUI() {
     el.className = "ok";
   } else if (state.cid) {
     el.textContent = state.atcReason === "not_on_position"
-      ? `CID ${state.cid} — not online on _TWR or _GND. Log on to your position and wait for the next refresh.`
+      ? `CID ${state.cid} — not online on _TWR, _GND, or _CTR. Log on to your position and wait for the next refresh.`
       : `CID ${state.cid} — waiting for VATSIM feed…`;
     el.className = "err";
   } else {
-    el.textContent = "Enter your CID while online on a _TWR or _GND position to unlock reorder.";
+    el.textContent = "Enter your CID while online on a _TWR, _GND, or _CTR position to unlock reorder.";
     el.className = "";
   }
 }
@@ -690,6 +692,7 @@ function renderStripHtml(result) {
   return `<div class="strip" id="depStrip">` +
     `<span class="field">${escapeHtml(state.field)} DEPARTURES</span>` +
     `<span class="stat">TOTAL <b>${result.total}</b></span>` +
+    (result.artccMode ? `<span class="stat" style="color:var(--amber)">ARTCC-WIDE ${escapeHtml(state.field)}${isArtccScopeReady() ? "" : " · loading boundaries…"}</span>` : "") +
     `<span class="stat stat-warn">METERED <b>${result.metered}</b></span>` +
     (holding ? `<span class="stat stat-alert">HOLDING <b>${holding}</b></span>` : "") +
     `</div>`;
@@ -857,16 +860,21 @@ function syncFcaGrid(activeFcas, byFca, dragOk) {
   return true;
 }
 
+function isArtccModeField() {
+  return /^Z[A-Z]{2}$/.test(state.field || "") && !hasAirport(state.field);
+}
+
 function renderUnmeteredHtml(unmetered) {
   if (!unmetered.length) return "";
   let html =
     `<div class="section-label" id="unmeteredLabel">Not metered · ${unmetered.length}</div>` +
     `<div class="tablewrap mini combined" id="unmeteredTable"><table><thead><tr>` +
-    `<th>CALLSIGN</th><th>DEST</th>` +
+    `<th>CALLSIGN</th><th>DEP</th><th>DEST</th>` +
     `</tr></thead><tbody id="unmeteredBody">`;
   for (const p of unmetered) {
     html += `<tr class="unmetered">` +
       `<td class="cell-strong">${escapeHtml(p.callsign)}</td>` +
+      `<td>${escapeHtml(p.dep || "????")}</td>` +
       `<td>${escapeHtml(p.arr || "????")}</td>` +
       `</tr>`;
   }
@@ -904,7 +912,7 @@ function seqHintHtml() {
     ? (state.atcVerified
       ? "⠿ drag # to reorder within each FCA — PIN locks table position · verified via VATSIM position · syncs to FCA Builder"
       : "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence")
-    : "View only — enter your CID in Settings while on _TWR/_GND, or use the control password";
+    : "View only — enter your CID in Settings while on _TWR/_GND/_CTR, or use the control password";
 }
 
 function canIncrementalRender() {
@@ -1027,7 +1035,7 @@ function render() {
       `<div class="emptystate"><h2>ENTER YOUR FIELD</h2>` +
       `<p>Type your tower airport ICAO (e.g. KATL) to see departures metered against active FCAs from FCA Builder.</p>` +
       `<div class="emptystate-actions">` +
-      `<input id="splashField" maxlength="4" placeholder="KATL" class="field-row input">` +
+      `<input id="splashField" maxlength="4" placeholder="KATL or ZDC" class="field-row input">` +
       `<button type="button" class="btn primary" id="splashLoad">Load</button></div></div>`;
     const sf = document.getElementById("splashField");
     const sl = document.getElementById("splashLoad");
@@ -1050,8 +1058,9 @@ function render() {
   const meteredSet = new Set(result.departures.map(d => d.callsign));
   const unmetered = [];
   const seen = new Set();
+  const artccMode = isArtccModeField();
   for (const p of state.pilots) {
-    if ((p.dep || "").toUpperCase() !== state.field) continue;
+    if (artccMode ? !depMatchesArtcc(p, state.field) : (p.dep || "").toUpperCase() !== state.field) continue;
     if ((p.gs || 0) > 60 && (p.alt || 0) > 300) continue;
     if (seen.has(p.callsign)) continue;
     seen.add(p.callsign);
@@ -1203,6 +1212,7 @@ loadAirports(() => {
   bindWindAirportLookup(icao => getAirport(icao));
   loadNavData().catch(() => {}).finally(() => render());
   fetchWinds().catch(() => {});
+  fetchArtccBoundaries().then(n => { if (n) render(); }).catch(() => {});
 }).catch(() => render());
 
 try {

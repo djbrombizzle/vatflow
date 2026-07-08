@@ -85,16 +85,25 @@
   .empty b{color:var(--amber);display:block;margin-bottom:4px;letter-spacing:.1em}
 
   /* FCA card */
-  .fca-card{border:1px solid var(--line-2);border-radius:8px;margin-bottom:9px;overflow:hidden;background:#0f151e;transition:.12s}
+  .seqview{display:flex;gap:4px;margin:6px 0 0}
+  .seqview span{font:700 9px var(--mono);letter-spacing:.06em;padding:3px 8px;border:1px solid var(--line-2);
+    border-radius:4px;color:var(--muted-2);cursor:pointer;user-select:none}
+  .seqview span:hover{border-color:var(--amber);color:var(--amber)}
+  .seqview span.on{color:#0b0e07;background:var(--amber);border-color:var(--amber)}
+  .fca-card{border:1px solid var(--line-2);border-radius:8px;margin-bottom:6px;overflow:hidden;background:#0f151e;transition:.12s}
   .fca-card.sel{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim),0 4px 16px rgba(0,0,0,.4)}
   .fca-card.off{opacity:.5}
-  .fca-row{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer}
+  .fca-row{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer}
+  .mini-dmd{font:700 10px var(--mono);color:var(--muted-2);background:#162030;border:1px solid var(--line);
+    border-radius:4px;padding:1px 6px;flex-shrink:0}
+  .mini-dmd.hot{color:var(--red);border-color:var(--red)}
+  .mini-dmd.live{color:var(--green)}
   .swatch{width:11px;height:11px;border-radius:2px;flex:none;box-shadow:0 0 7px currentColor}
   .fca-name{flex:1;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fca-act{font-family:var(--mono);font-size:12px;color:var(--muted-2);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex:none}
   .fca-act:hover{color:var(--text);background:#1a2230}
   .fca-act.del:hover{color:var(--red);background:#1a1010}
-  .fca-meta{display:flex;gap:8px;padding:0 11px 9px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .fca-meta{display:flex;flex-wrap:wrap;gap:6px;padding:0 11px 9px;font-family:var(--mono);font-size:10px;color:var(--muted)}
   .fca-meta span{background:#162030;border:1px solid var(--line);border-radius:4px;padding:2px 6px}
   .demand{font-family:var(--mono);font-size:10px;padding:5px 11px;border-top:1px solid var(--line);
     display:flex;align-items:center;justify-content:space-between;color:var(--muted)}
@@ -108,6 +117,9 @@
   .fld label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
   #fcaFilter{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font:400 11px var(--mono);padding:6px 8px;margin:0 0 8px;outline:none}
+  #fcaArtccFilter{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+    font:400 11px var(--mono);padding:6px 8px;margin:0 0 6px;outline:none}
+  #fcaArtccFilter:focus{border-color:var(--amber)}
   #fcaFilter:focus{border-color:var(--amber)}
   #plotRoute{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font:400 11px var(--mono);padding:6px 8px;outline:none;resize:vertical;min-height:44px}
@@ -342,6 +354,7 @@
     </div>
 
     <div id="editorMount"></div>
+    <select id="fcaArtccFilter" title="Show only FCAs tagged to one ARTCC"><option value="ALL">ALL ARTCCs</option></select>
     <input id="fcaFilter" placeholder="filter FCAs — name, airport, fix…" autocomplete="off">
     <div id="fcaList"></div>
 
@@ -434,6 +447,9 @@
       <button class="btn ghost sm" id="closeSeq">›</button>
     </div>
     <div class="sub" id="seqSub"></div>
+    <div class="seqview" id="seqView">
+      <span data-sv="all">SHOW ALL</span><span data-sv="air">AIR ONLY</span><span data-sv="cfr">CFR ONLY</span>
+    </div>
   </div>
   <div class="seq-scroll" id="seqBody"></div>
 </aside>
@@ -470,6 +486,7 @@ import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
 import { buildRouteAnchorsForAircraft, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
+import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -991,6 +1008,7 @@ function loadAirportsLocal(){
       updateNavStatus(null);
     });
     fetchWinds().then(updateWindStatus).catch(()=>updateWindStatus(null));
+    fetchArtccBoundaries().then(n=>{ if(n) invalidateSequences(), renderAll(); }).catch(()=>{});
     setInterval(()=>fetchWinds().then(updateWindStatus).catch(()=>{}), 3600000);
   }).catch(err=>{
     console.warn("Airport DB failed:",err);
@@ -1295,13 +1313,25 @@ function renderFcaList(){
   }
   wrap.innerHTML="";
   const ctl=canControl();
+  // ARTCC dropdown: rebuild options from tags in use, keep the current pick
+  const selEl=document.getElementById("fcaArtccFilter");
+  if(selEl){
+    const tags=[...new Set(state.fcas.map(f=>f.artcc).filter(Boolean))].sort();
+    const cur=state.fcaArtccFilter||"ALL";
+    selEl.innerHTML=`<option value="ALL">ALL ARTCCs</option>`+tags.map(t=>`<option value="${escapeHtml(t)}"${t===cur?" selected":""}>${escapeHtml(t)}</option>`).join("");
+    selEl.value=tags.includes(cur)?cur:"ALL";
+    if(!tags.includes(cur)&&cur!=="ALL") state.fcaArtccFilter="ALL";
+  }
+  const artccPick=state.fcaArtccFilter||"ALL";
   const q=(state.fcaFilter||"").trim().toUpperCase();
-  const visible=(q?state.fcas.filter(f=>{
-    const hay=[f.name,...(f.dests||[]),...(f.origins||[]),...(f.fixes||[])].join(" ").toUpperCase();
+  const visible=state.fcas.filter(f=>{
+    if(artccPick!=="ALL"&&(f.artcc||"")!==artccPick) return false;
+    if(!q) return true;
+    const hay=[f.name,f.artcc||"",...(f.dests||[]),...(f.origins||[]),...(f.fixes||[]),...(f.scope||[])].join(" ").toUpperCase();
     return hay.includes(q);
-  }):state.fcas).slice().sort((a,b)=>(a.name||"").localeCompare((b.name||""),undefined,{sensitivity:"base"}));
-  if(q && !visible.length){
-    wrap.innerHTML=`<div class="empty">No FCAs match “${escapeHtml(q)}”.</div>`;
+  }).slice().sort((a,b)=>(a.name||"").localeCompare((b.name||""),undefined,{sensitivity:"base"}));
+  if((q||artccPick!=="ALL") && !visible.length){
+    wrap.innerHTML=`<div class="empty">No FCAs match${artccPick!=="ALL"?" "+escapeHtml(artccPick):""}${q?" “"+escapeHtml(q)+"”":""}.</div>`;
     return;
   }
   visible.forEach(f=>{
@@ -1312,25 +1342,29 @@ function renderFcaList(){
     const hot=f.mode==="rate"&&f.rate>0&&dmd>f.rate;
     const minitTxt=seq.minit?fmtClock(seq.minit):"—";
     const constraintTxt = f.mode==="mit" ? ((f.mit?f.mit:"?")+" MIT") : (f.rate?f.rate+"/hr":"no rate");
+    const expanded=f.id===state.selectedId;
     card.innerHTML=`
-      <div class="fca-row" data-sel="${f.id}">
+      <div class="fca-row" data-sel="${f.id}" title="${expanded?"Click to collapse":"Click to expand + show the sequence"}">
         <span class="swatch" style="color:${f.color};background:${f.color}"></span>
         <span class="fca-name">${escapeHtml(f.name)}</span>
+        ${expanded?"":`<span class="mini-dmd${hot?" hot":dmd?" live":""}" title="demand ≤${DEMAND_WINDOW_MIN}m">${dmd}</span>`}
         ${ctl?`<span class="fca-act" data-edit="${f.id}" title="Edit rate / MIT / filters">✎</span>
         <span class="fca-act del" data-del="${f.id}" title="Delete this FCA">✕</span>
         <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>`:""}
-      </div>
+      </div>` + (expanded?`
       <div class="fca-meta">
         <span>${f.dests&&f.dests.length?escapeHtml(f.dests.join(" ")):"ALL dest"}</span>
         <span>${f.origins&&f.origins.length?"from "+escapeHtml(f.origins.join(" ")):"ALL dep"}</span>
         ${f.fixes&&f.fixes.length?`<span>via ${escapeHtml(f.fixes.join(" "))}</span>`:""}
+        ${f.artcc?`<span style="color:${f.color}">${escapeHtml(f.artcc)}</span>`:""}
+        ${f.scope&&f.scope.length?`<span>scope ${escapeHtml(f.scope.join(" "))}</span>`:""}
         <span>${f.minFL!=null?"FL"+f.minFL:"SFC"}–${f.maxFL!=null?"FL"+f.maxFL:"UNL"}</span>
         <span>${constraintTxt}</span>
       </div>
       <div class="demand ${hot?"hot":dmd?"ok":""}">
         <span>demand (≤${DEMAND_WINDOW_MIN}m) · ${f.mode==="mit"?"MIT "+(f.mit||"?")+"nm":"MINIT "+minitTxt}</span>
         <span class="v">${dmd}/${DEMAND_WINDOW_MIN===60?"hr":DEMAND_WINDOW_MIN+"m"}</span>
-      </div>`;
+      </div>`:"");
     wrap.appendChild(card);
   });
   // wire
@@ -1384,6 +1418,14 @@ function openEditor(fca){
       <div class="fld"><label>Route fixes</label>
         <input id="f_fix" value="${escapeHtml((fca.fixes||[]).join(" "))}" placeholder="LAIRI  · blank = all">
         <div class="hint">only meter aircraft with these fixes in their FILED route (procedure names count: LAIRI matches a filed LAIRI4). Blank = any route.</div></div>
+      <div class="grid2">
+        <div class="fld"><label>ARTCC tag</label>
+          <input id="f_artcc" value="${escapeHtml(fca.artcc||"")}" placeholder="ZDC" maxlength="4">
+          <div class="hint">owning facility — used by the list filter dropdown.</div></div>
+        <div class="fld"><label>Scope (ARTCCs)</label>
+          <input id="f_scope" value="${escapeHtml((fca.scope||[]).join(" "))}" placeholder="ZDC ZTL ZJX  · blank = all">
+          <div class="hint">FCA applies only to aircraft inside these centers (ground = at their dep field).</div></div>
+      </div>
       <div class="grid2">
         <div class="fld"><label>Min FL</label><input id="f_minfl" type="number" value="${fca.minFL??""}" placeholder="—"></div>
         <div class="fld"><label>Max FL</label><input id="f_maxfl" type="number" value="${fca.maxFL??""}" placeholder="—"></div>
@@ -1452,6 +1494,10 @@ function saveEditor(){
   const fixTokens=(document.getElementById("f_fix").value||"").toUpperCase().split(/[\s,]+/).filter(Boolean);
   f.fixes=fixTokens.filter(t=>/^[A-Z0-9]{2,6}$/.test(t));
   if(f.fixes.length<fixTokens.length) toast("Ignored fix entries that aren't 2–6 letter/digit names.",2600);
+  f.artcc=(document.getElementById("f_artcc").value||"").toUpperCase().trim().replace(/[^A-Z0-9]/g,"").slice(0,4);
+  const scopeTokens=(document.getElementById("f_scope").value||"").toUpperCase().split(/[\s,]+/).filter(Boolean);
+  f.scope=scopeTokens.filter(t=>/^[A-Z]{2,4}$/.test(t));
+  if(f.scope.length<scopeTokens.length) toast("Ignored scope entries that aren't ARTCC ids.",2600);
   const minfl=document.getElementById("f_minfl").value, maxfl=document.getElementById("f_maxfl").value;
   f.minFL=minfl===""?null:Math.max(0,parseInt(minfl,10));
   f.maxFL=maxfl===""?null:Math.max(0,parseInt(maxfl,10));
@@ -1478,6 +1524,14 @@ function selectFca(id){
   document.getElementById("seqPanel").classList.toggle("show",!!sel);
 }
 let stripDragging=false;   // live refresh mid-drag would destroy the DnD source element
+state.seqView = (()=>{ try { return localStorage.getItem("fca.seqView") || "all"; } catch(_) { return "all"; } })();
+document.querySelectorAll("#seqView [data-sv]").forEach(chip=>{
+  chip.addEventListener("click",()=>{
+    state.seqView = chip.getAttribute("data-sv");
+    try { localStorage.setItem("fca.seqView", state.seqView); } catch(_) {}
+    renderSequence();
+  });
+});
 function renderSequence(){
   if(stripDragging) return;
   const sel=state.fcas.find(f=>f.id===state.selectedId);
@@ -1515,9 +1569,16 @@ function renderSequence(){
     `<div class="seqhint">${canControl()?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):"View only — unlock to reorder sequence"}</div>`);
   // strips
   const orderCS=s.items.map(c=>c.p.callsign);
+  const view=state.seqView||"all";
+  document.querySelectorAll("#seqView [data-sv]").forEach(ch=>ch.classList.toggle("on",ch.getAttribute("data-sv")===view));
+  let shown=0;
   let dragFrom=null;
   const list=document.createElement("div");
   s.items.forEach((c,i)=>{
+    // display-only view filter — scheduling, numbering, and the map are untouched
+    if(view==="air"&&c.phase!=="air") return;
+    if(view==="cfr"&&c.phase!=="gnd") return;
+    shown++;
     const cls=c.delay<30?"zero":c.delay<300?"low":"high";
     const fl=String(Math.round(((c.phase==="gnd"?c.p.fpAlt:c.p.alt)||0)/100)).padStart(3,"0");
     // in-trail readout: ground = minutes behind predecessor at crossing; air = nm spacing
@@ -1600,6 +1661,12 @@ function renderSequence(){
     }
     list.appendChild(strip);
   });
+  if(!shown&&s.items.length){
+    const note=document.createElement("div");
+    note.className="empty";
+    note.textContent=`${s.items.length} aircraft in the sequence — none match the ${view==="air"?"AIR ONLY":"CFR ONLY"} view.`;
+    list.appendChild(note);
+  }
   body.appendChild(list);
   // excluded section
   const ex=document.createElement("div"); ex.innerHTML=exHtml;
@@ -1699,7 +1766,7 @@ function startDrawing(forFca){
   renderFcaLines();
 }
 function makeBlankFca(){
-  return { id:nid(), name:"FCA "+(state.fcas.length+1), points:[], dests:[], origins:[], fixes:[], minFL:null, maxFL:null,
+  return { id:nid(), name:"FCA "+(state.fcas.length+1), points:[], dests:[], origins:[], fixes:[], artcc:"", scope:[], minFL:null, maxFL:null,
            dir:"any", mode:"rate", rate:30, mit:15, excluded:[], order:[],
            color:FCA_COLORS[state.fcas.length%FCA_COLORS.length], enabled:true };
 }
@@ -1927,6 +1994,10 @@ document.getElementById("plotClearBtn").addEventListener("click",()=>{
 /* ---------- FCA list filter ---------- */
 document.getElementById("fcaFilter").addEventListener("input",e=>{
   state.fcaFilter=e.target.value;
+  renderFcaList();
+});
+document.getElementById("fcaArtccFilter").addEventListener("change",e=>{
+  state.fcaArtccFilter=e.target.value;
   renderFcaList();
 });
 document.getElementById("toggleSide").addEventListener("click",()=>{
@@ -2189,6 +2260,9 @@ function normalizeFca(f){            // fill defaults + sanitize older/remote/im
     .filter(t=>typeof t==="string"&&/^[A-Z0-9]{2,4}$/.test(t));
   f.fixes=(Array.isArray(f.fixes)?f.fixes:[])
     .filter(t=>typeof t==="string"&&/^[A-Z0-9]{2,6}$/.test(t));
+  f.artcc=(typeof f.artcc==="string"?f.artcc:"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,4);
+  f.scope=(Array.isArray(f.scope)?f.scope:[])
+    .filter(t=>typeof t==="string"&&/^[A-Z]{2,4}$/.test(t));
   return f;
 }
 function initSync(){

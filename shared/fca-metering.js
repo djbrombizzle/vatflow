@@ -19,9 +19,11 @@
 import {
   bindAirports as bindRouteAirports,
   buildRoutePathLLs,
+  buildRouteAnchorsForAircraft,
   isNavReady,
 } from "./route-engine.js";
 import { routeHeadwind, effectiveGs } from "./winds-aloft.js";
+import { pointInArtcc } from "./artcc-scope.js";
 
 bindRouteAirports(
   icao => getAirport(icao),
@@ -218,16 +220,65 @@ export function fcaMatchesOrigin(fca, dep) {
   if (!fca.origins || !fca.origins.length) return true;
   return fca.origins.some(d => airportCodesMatch(d, dep));
 }
-/** Route-fix filter: meter only aircraft with one of these fixes in their FILED
- *  route. A token naming a procedure derived from the fix also matches
- *  (filter "LAIRI" catches a filed "LAIRI4" arrival). */
-export function fcaMatchesFix(fca, route) {
+/** ARTCC scope: the FCA applies only to aircraft physically inside one of the
+ *  scoped centers (ground aircraft judged at their departure field). Fails
+ *  OPEN when boundary data isn't loaded — missing map data must never hide
+ *  traffic from a program. Blank scope = applies everywhere. */
+export function fcaMatchesScope(fca, p) {
+  if (!fca.scope || !fca.scope.length) return true;
+  let lat = p.lat, lon = p.lon;
+  if (lat == null || lon == null) {
+    const ap = getAirport(p.dep);
+    if (ap) { lat = ap[0]; lon = ap[1]; }
+  }
+  if (lat == null || lon == null) return true;
+  let anyKnown = false;
+  for (const id of fca.scope) {
+    const r = pointInArtcc(id, lat, lon);
+    if (r === true) return true;
+    if (r !== null) anyKnown = true;
+  }
+  return anyKnown ? false : true;   // no boundary data at all -> fail open
+}
+
+/** Expanded-route fix names for a pilot (STAR/SID legs, airway intermediates).
+ *  Position-independent (full route from origin), so results memoize on the
+ *  route text itself. Null when nav data isn't loaded. */
+const routeFixNameCache = new Map();
+function routeFixNames(p) {
+  if (!isNavReady() || !p) return null;
+  const key = (p.dep || "") + "|" + (p.arr || "") + "|" + (p.route || "");
+  let set = routeFixNameCache.get(key);
+  if (set) return set;
+  try {
+    const { anchors } = buildRouteAnchorsForAircraft(p, { includeNow: false });
+    set = new Set((anchors || []).map(a => ("" + a.name).toUpperCase()));
+  } catch (_) { set = new Set(); }
+  if (routeFixNameCache.size > 4000) routeFixNameCache.clear();
+  routeFixNameCache.set(key, set);
+  return set;
+}
+
+/** Route-fix filter: meter only aircraft whose route contains one of these
+ *  fixes — matched against the FILED tokens first (a token naming a procedure
+ *  derived from the fix counts: "LAIRI" catches a filed "LAIRI4"), and when
+ *  that misses, against the EXPANDED route, so a fix INSIDE a filed arrival
+ *  matches too ("ESSSO" catches anyone filed on the PAATS4). Accepts either
+ *  a pilot object or a raw route string (token match only for strings). */
+export function fcaMatchesFix(fca, pOrRoute) {
   if (!fca.fixes || !fca.fixes.length) return true;
+  const route = typeof pOrRoute === "string" ? pOrRoute : ((pOrRoute && pOrRoute.route) || "");
   const toks = parseRouteTokens(route).map(t => t.replace(/\/.*$/, ""));
-  return fca.fixes.some(fx => {
+  const tokenHit = fca.fixes.some(fx => {
     fx = ("" + fx).toUpperCase();
     return toks.some(t => t === fx || t.replace(/\d[A-Z]?$/, "") === fx);
   });
+  if (tokenHit) return true;
+  if (pOrRoute && typeof pOrRoute === "object") {
+    const names = routeFixNames(pOrRoute);
+    if (names) return fca.fixes.some(fx => names.has(("" + fx).toUpperCase()));
+  }
+  return false;
 }
 export function dirOfHeading(h) {
   h = ((h % 360) + 360) % 360;
@@ -765,8 +816,11 @@ export function explainFcaExclusion(fca, p) {
   if (!fcaMatchesOrigin(fca, p.dep)) {
     return R(false, "origin-filter", `Departure ${p.dep || "????"} not in filter [${(fca.origins || []).join(" ")}].`);
   }
-  if (!fcaMatchesFix(fca, p.route)) {
-    return R(false, "fix-filter", `Filed route does not contain [${(fca.fixes || []).join(" ")}].`);
+  if (!fcaMatchesFix(fca, p)) {
+    return R(false, "fix-filter", `Route (filed or expanded) does not contain [${(fca.fixes || []).join(" ")}].`);
+  }
+  if (!fcaMatchesScope(fca, p)) {
+    return R(false, "scope", `Aircraft is outside the FCA scope [${(fca.scope || []).join(" ")}].`);
   }
   const isAir = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
   const altNow = p.alt || 0, altFp = p.fpAlt || 0;
@@ -804,7 +858,8 @@ function collectAirFcaCandidates(fca, pilots) {
     if (ex.has(p.callsign)) continue;
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
-    if (!fcaMatchesFix(fca, p.route)) continue;
+    if (!fcaMatchesFix(fca, p)) continue;
+    if (!fcaMatchesScope(fca, p)) continue;
     if (!fcaMatchesAlt(fca, p.alt || 0) && !fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const ac = buildAirCandidate(p, fca);
     if (ac) cand.push(ac);
@@ -824,7 +879,8 @@ function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
     if (ex.has(p.callsign)) { if (counters) counters.excluded++; continue; }
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
-    if (!fcaMatchesFix(fca, p.route)) continue;
+    if (!fcaMatchesFix(fca, p)) continue;
+    if (!fcaMatchesScope(fca, p)) continue;
     if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const c = buildGroundCandidate(p, fca, nowMs, isReady(fca, p.callsign));
     if (c) cand.push(c);
@@ -1068,23 +1124,50 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
 /* ============================================================
    TOWER DEPARTURES
    ============================================================ */
-export function isDepartureCandidate(p, depIcao) {
-  if (!isConnectedPilot(p)) return false;
+/** Airports whose owning ARTCC differs from (or straddles) the polygon result. */
+export const ARTCC_AIRPORT_OVERRIDES = { KMCO: "ZJX", KTPA: "ZMA", KPHL: "ZNY" };
+
+/** Does this aircraft's departure belong to the given ARTCC? Overrides win;
+ *  otherwise geographic containment of the aircraft (or its dep field). */
+export function depMatchesArtcc(p, artcc) {
+  artcc = ("" + artcc).toUpperCase();
   const dep = (p.dep || "").toUpperCase();
-  if (dep !== depIcao) return false;
+  const ov = ARTCC_AIRPORT_OVERRIDES[dep];
+  if (ov) return ov === artcc;
+  let lat = p.lat, lon = p.lon;
+  if (lat == null || lon == null) {
+    const ap = getAirport(dep);
+    if (ap) { lat = ap[0]; lon = ap[1]; }
+  }
+  if (lat == null || lon == null) return false;
+  return pointInArtcc(artcc, lat, lon) === true;   // strict: no boundary data -> no match
+}
+
+/** Ground-departure shape, independent of which field/ARTCC is asked for. */
+function isDepartureShape(p) {
+  if (!isConnectedPilot(p)) return false;
   if ((p.gs || 0) > 60 && (p.alt || 0) > 300) return false;
   return true;
 }
 
-export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
+export function isDepartureCandidate(p, depIcao) {
+  return isDepartureShape(p) && (p.dep || "").toUpperCase() === depIcao;
+}
+
+export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles, opts = {}) {
   const nowMs = Date.now();
   const dep = (depIcao || "").toUpperCase();
   if (!dep) return { departures: [], nowMs };
+  // ARTCC-wide mode: a Zxx key that isn't an airport shows departures from
+  // EVERY field inside that center's boundary (with airport overrides).
+  const artccMode = opts.artcc === true ||
+    (opts.artcc !== false && /^Z[A-Z]{2}$/.test(dep) && !hasAirport(dep));
+  const matches = artccMode ? (p => depMatchesArtcc(p, dep)) : (p => (p.dep || "").toUpperCase() === dep);
 
   const seen = new Set();
   let total = 0;
   for (const p of pilots || []) {
-    if (!isDepartureCandidate(p, dep)) continue;
+    if (!isDepartureShape(p) || !matches(p)) continue;
     if (seen.has(p.callsign)) continue;
     seen.add(p.callsign);
     total++;
@@ -1098,8 +1181,7 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
     for (let i = 0; i < seq.items.length; i++) {
       const c = seq.items[i];
       if (c.phase !== "gnd") continue;
-      if ((c.p.dep || "").toUpperCase() !== dep) continue;
-      if (!isDepartureCandidate(c.p, dep)) continue;
+      if (!isDepartureShape(c.p) || !matches(c.p)) continue;
       const prev = i > 0 ? seq.items[i - 1] : null;
       const row = {
         callsign: c.p.callsign,
@@ -1129,5 +1211,5 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
   }
 
   const departures = [...byCallsign.values()].sort((a, b) => a.edctMs - b.edctMs || a.callsign.localeCompare(b.callsign));
-  return { departures, nowMs, total, metered: departures.length };
+  return { departures, nowMs, total, metered: departures.length, artccMode };
 }
