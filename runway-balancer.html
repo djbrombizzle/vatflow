@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VATFLOW · Runway Balancer</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10; --panel: #0e1319; --line: #1e2834; --line-2: #2a3848;
+    --text: #d4dde6; --muted: #8a97a3; --muted-2: #5c6b78;
+    --amber: #e8a838; --amber-dim: rgba(232,168,56,.12);
+    --cyan: #5ba8c9; --green: #4caf7a; --red: #d45c5c; --purple: #b07fd6;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--ui); padding-top:var(--vatflow-nav-h); }
+  #vatflowAppNav { position:fixed; top:0; left:0; right:0; z-index:50; }
+
+  header { display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--line);
+    background:var(--panel); flex-wrap:wrap; }
+  header h1 { font:700 14px var(--mono); letter-spacing:.14em; margin:0; }
+  header h1 span { color:var(--amber); }
+  .fieldbox { display:flex; gap:6px; align-items:center; }
+  .fieldbox input { width:86px; background:#0a0e14; border:1px solid var(--line-2); border-radius:5px;
+    color:var(--text); font:700 13px var(--mono); letter-spacing:.1em; padding:6px 8px; text-transform:uppercase; outline:none; }
+  .fieldbox input:focus { border-color:var(--amber); }
+  .btn { background:#141b24; border:1px solid var(--line-2); color:var(--text); border-radius:5px;
+    font:600 11px var(--mono); letter-spacing:.06em; padding:6px 12px; cursor:pointer; }
+  .btn:hover { border-color:var(--amber); color:var(--amber); }
+  .btn.primary { background:var(--amber); border-color:var(--amber); color:#141005; }
+  .btn.primary:hover { filter:brightness(1.1); color:#141005; }
+  .btn.on { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
+  .stat { font:400 11px var(--mono); color:var(--muted); }
+  .stat b { color:var(--text); }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--muted-2); margin-right:5px; vertical-align:1px; }
+  .dot.ok { background:var(--green); } .dot.err { background:var(--red); }
+  #clock { margin-left:auto; font:700 13px var(--mono); letter-spacing:.08em; }
+
+  .layout { display:flex; gap:14px; padding:14px 16px; align-items:flex-start; }
+  .side { flex:0 0 320px; display:flex; flex-direction:column; gap:12px; }
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .panel h2 { font:700 10px var(--mono); letter-spacing:.12em; color:var(--muted); margin:0 0 10px; }
+  .hint { font:400 10px var(--mono); color:var(--muted-2); line-height:1.5; margin-top:8px; }
+
+  .preset-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .rwy-grid { display:flex; flex-direction:column; gap:6px; }
+  .rwy-pair { display:flex; gap:6px; align-items:center; font:400 11px var(--mono); }
+  .rwy-pair .len { color:var(--muted-2); font-size:9px; margin-left:auto; }
+  .end-chip { min-width:52px; text-align:center; padding:5px 8px; border:1px solid var(--line-2); border-radius:5px;
+    font:700 11px var(--mono); color:var(--muted-2); cursor:pointer; user-select:none; }
+  .end-chip:hover { border-color:var(--amber); }
+  .end-chip.on { color:#0b0e07; background:var(--amber); border-color:var(--amber); }
+  .end-chip .hdg { display:block; font:400 8px var(--mono); }
+  .end-chip.on .hdg { color:#3a2c08; }
+
+  .rules-table { width:100%; border-collapse:collapse; font:400 11px var(--mono); }
+  .rules-table td { padding:4px 4px; border-bottom:1px solid var(--line); }
+  .rules-table select, .arr-table select {
+    background:#0a0e14; border:1px solid var(--line-2); border-radius:4px; color:var(--text);
+    font:600 11px var(--mono); padding:3px 5px; outline:none; }
+  .rules-table select:focus, .arr-table select:focus { border-color:var(--amber); }
+
+  .graph-wrap { overflow-x:auto; }
+  .lane { display:flex; align-items:flex-end; gap:2px; margin-bottom:2px; }
+  .lane-label { flex:0 0 92px; font:700 11px var(--mono); align-self:center; }
+  .lane-label small { display:block; font:400 9px var(--mono); color:var(--muted-2); }
+
+  .arr-table { width:100%; border-collapse:collapse; font:400 12px var(--mono); }
+  .arr-table th { text-align:left; font:700 9px var(--mono); letter-spacing:.1em; color:var(--muted);
+    padding:6px 8px; border-bottom:1px solid var(--line-2); position:sticky; top:0; background:var(--panel); }
+  .arr-table td { padding:7px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .arr-table tr:hover td { background:#121820; }
+  .src { font:700 8px var(--mono); letter-spacing:.08em; padding:1px 5px; border-radius:3px; border:1px solid; }
+  .src.auto { color:var(--cyan); border-color:var(--cyan); }
+  .src.star { color:var(--green); border-color:var(--green); }
+  .src.man  { color:var(--amber); border-color:var(--amber); }
+  .rwy-tag { font-weight:700; }
+  .empty { padding:24px; text-align:center; color:var(--muted-2); font:400 11px var(--mono); line-height:1.7; }
+  .warn { color:var(--red); }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+
+<header>
+  <h1>RUNWAY <span>BALANCER</span></h1>
+  <div class="fieldbox">
+    <input id="fieldInput" maxlength="4" placeholder="KATL" autocomplete="off">
+    <button class="btn primary" id="loadBtn">LOAD</button>
+  </div>
+  <span class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></span>
+  <span class="stat">arrivals <b id="arrCount">0</b> · assigned <b id="asgCount">0</b></span>
+  <span class="stat" id="rwySrc"></span>
+  <div id="clock">----Z</div>
+</header>
+
+<div class="layout">
+  <div class="side">
+    <div class="panel">
+      <h2>AIRPORT CONFIG — LANDING RUNWAYS</h2>
+      <div class="preset-row">
+        <button class="btn" data-preset="W">WEST</button>
+        <button class="btn" data-preset="E">EAST</button>
+        <button class="btn" data-preset="N">NORTH</button>
+        <button class="btn" data-preset="S">SOUTH</button>
+        <button class="btn" data-preset="OFF">NONE</button>
+      </div>
+      <div class="rwy-grid" id="rwyGrid"><div class="empty">Load an airport to see its runways.</div></div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <input id="addEndId" placeholder="RWY" maxlength="3" style="width:56px;background:#0a0e14;border:1px solid var(--line-2);border-radius:4px;color:var(--text);font:700 11px var(--mono);padding:5px 6px;text-transform:uppercase">
+        <input id="addEndHdg" placeholder="HDG" maxlength="3" style="width:48px;background:#0a0e14;border:1px solid var(--line-2);border-radius:4px;color:var(--text);font:400 11px var(--mono);padding:5px 6px">
+        <button class="btn" id="addEndBtn">ADD END</button>
+      </div>
+      <div class="hint">Presets pick runway ends by final-approach direction (WEST = landing westbound, headings 270±65°). Click chips to toggle individual ends. ADD END covers airports with missing data.</div>
+    </div>
+
+    <div class="panel">
+      <h2>STAR → RUNWAY RULES</h2>
+      <table class="rules-table"><tbody id="rulesBody">
+        <tr><td class="empty" style="border:none">STARs appear here as arrivals are detected.</td></tr>
+      </tbody></table>
+      <div class="hint">A rule sends every arrival on that STAR to one runway. AUTO leaves the STAR to the balancer. Aircraft-level overrides in the table beat STAR rules.</div>
+    </div>
+
+    <div class="panel">
+      <h2>SETTINGS</h2>
+      <div style="display:flex;gap:8px;align-items:center;font:400 11px var(--mono);color:var(--muted)">
+        horizon
+        <select id="windowSel" style="background:#0a0e14;border:1px solid var(--line-2);border-radius:4px;color:var(--text);font:600 11px var(--mono);padding:4px 6px">
+          <option value="60">60 min</option><option value="90" selected>90 min</option><option value="120">120 min</option>
+        </select>
+        <button class="btn" id="clearManualBtn" title="Remove all per-aircraft overrides">CLEAR MANUAL</button>
+      </div>
+      <div class="hint">Config, rules, and overrides are saved per airport in this browser (not synced). ETAs use groundspeed with a climb-aware floor and an approach pad.</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <h2>DEMAND — CURRENT &amp; ANTICIPATED <span id="graphSub" style="color:var(--muted-2);letter-spacing:0"></span></h2>
+      <div class="graph-wrap" id="graph"><div class="empty">No data yet.</div></div>
+    </div>
+    <div class="panel" style="padding:0">
+      <h2 style="padding:12px 12px 0">ARRIVALS</h2>
+      <div style="max-height:520px;overflow:auto">
+        <table class="arr-table">
+          <thead><tr><th>#</th><th>CS</th><th>TYPE</th><th>FROM</th><th>STAR</th><th>DIST</th><th>ETA</th><th>RWY</th><th>SRC</th></tr></thead>
+          <tbody id="arrBody"><tr><td colspan="9" class="empty">Load an airport.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { loadAirports, seedAirports, getAirport, fpFields, fmtZulu, haversineNm, parseAlt } from "./shared/fca-metering.js";
+mountVatflowNav(document.getElementById("vatflowAppNav"), "runways");
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv";
+const LANE_COLORS = ["#e8a838","#5ba8c9","#4caf7a","#b07fd6","#d45c5c","#7f9dd6","#d6a97f"];
+const BIN_MIN = 10;
+
+/* Built-in runway data for common fields: [leId, heId, leHeading, lengthFt] */
+const RWY_DB = {
+  KATL:[["08L","26R",93,9000],["08R","26L",93,10000],["09L","27R",93,12390],["09R","27L",93,9000],["10","28",93,9000]],
+  KCLT:[["18L","36R",182,8676],["18C","36C",182,10000],["18R","36L",182,9000],["05","23",50,7502]],
+  KMCO:[["17L","35R",176,9001],["17R","35L",176,10000],["18L","36R",176,12005],["18R","36L",176,12004]],
+  KMIA:[["08L","26R",87,8600],["08R","26L",87,10506],["09","27",87,13016],["12","30",117,9354]],
+  KJFK:[["04L","22R",44,12079],["04R","22L",44,8400],["13L","31R",134,10000],["13R","31L",134,14511]],
+  KLGA:[["04","22",44,7001],["13","31",134,7003]],
+  KEWR:[["04L","22R",39,11000],["04R","22L",39,10000],["11","29",119,6726]],
+  KBOS:[["04L","22R",42,7864],["04R","22L",42,10005],["09","27",90,7000],["15R","33L",150,10083],["14","32",140,5001]],
+  KORD:[["09L","27R",90,7500],["09C","27C",90,11245],["09R","27L",90,11260],["10L","28R",94,13000],["10C","28C",94,10801],["10R","28L",94,7500],["04L","22R",41,7500],["04R","22L",41,8075]],
+  KDFW:[["17L","35R",175,8500],["17C","35C",175,13401],["17R","35L",175,13401],["18L","36R",175,13400],["18R","36L",175,13680],["13L","31R",130,9000],["13R","31L",130,9301]],
+  KDEN:[["16L","34R",173,12000],["16R","34L",173,16000],["17L","35R",173,12000],["17R","35L",173,12000],["07","25",83,12000],["08","26",83,12000]],
+  KIAH:[["08L","26R",87,9000],["08R","26L",87,9402],["09","27",87,10000],["15L","33R",149,12001],["15R","33L",149,9999]],
+  KLAX:[["06L","24R",69,8926],["06R","24L",69,10285],["07L","25R",69,12091],["07R","25L",69,11095]],
+  KSEA:[["16L","34R",180,11901],["16C","34C",180,9426],["16R","34L",180,8500]],
+  KSFO:[["01L","19R",13,7650],["01R","19L",13,8650],["10L","28R",104,11870],["10R","28L",104,11381]],
+  KPHL:[["09L","27R",92,12000],["09R","27L",92,10506],["17","35",172,6501],["08","26",92,5000]],
+  KIAD:[["01L","19R",12,9400],["01C","19C",12,11500],["01R","19L",12,11500],["12","30",121,10501]],
+  KDCA:[["01","19",11,7169],["15","33",153,5204],["04","22",41,5000]],
+  KPHX:[["07L","25R",77,10300],["07R","25L",77,7800],["08","26",77,11489]],
+  KSDF:[["17L","35R",176,8580],["17R","35L",176,11890],["11","29",112,7250]],
+  KTPA:[["01L","19R",9,11002],["01R","19L",9,8300],["10","28",98,6999]],
+  KJAX:[["08","26",80,8000],["14","32",140,7701]],
+};
+
+const state = {
+  field: "", ends: [],            // [{id, hdg, len, active}]
+  arrivals: [], rules: {}, manual: {},
+  windowMin: 90, vatsim: null, feed: "…",
+  rwySource: "", oaCsv: null,
+};
+const $ = id => document.getElementById(id);
+const escapeHtml = s => ("" + (s ?? "")).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+/* ---------- persistence ---------- */
+const lsKey = f => "runwayBalancer.v1." + f;
+function saveCfg() {
+  if (!state.field) return;
+  try { localStorage.setItem(lsKey(state.field), JSON.stringify({
+    ends: state.ends, rules: state.rules, manual: state.manual, windowMin: state.windowMin,
+  })); } catch (_) {}
+}
+function loadCfg(field) {
+  try {
+    const raw = localStorage.getItem(lsKey(field));
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+}
+
+/* ---------- runway data ---------- */
+function endsFromDb(rows) {
+  const ends = [];
+  rows.forEach(([le, he, leHdg, len]) => {
+    ends.push({ id: le, hdg: ((leHdg % 360) + 360) % 360, len: len || 0, active: false, pair: le + "/" + he });
+    ends.push({ id: he, hdg: ((leHdg + 180) % 360), len: len || 0, active: false, pair: le + "/" + he });
+  });
+  return ends;
+}
+async function fetchOurAirportsRunways(field) {
+  if (!state.oaCsv) {
+    const r = await fetch(OURAIRPORTS_RUNWAYS);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    state.oaCsv = await r.text();
+  }
+  const rows = [];
+  for (const line of state.oaCsv.split("\n")) {
+    // id,airport_ref,airport_ident,length_ft,width_ft,surface,lighted,closed,le_ident,le_lat,le_lon,le_elev,le_heading,le_displaced,he_ident,...
+    if (!line.includes(",\"" + field + "\",")) continue;
+    const c = line.split(",").map(x => x.replace(/^"|"$/g, ""));
+    if (c[2] !== field || c[7] === "1") continue;
+    const le = c[8], he = c[14], hdg = parseFloat(c[12]), len = parseInt(c[3], 10) || 0;
+    if (!le || !he || !/^\d/.test(le)) continue;
+    rows.push([le, he, isFinite(hdg) ? Math.round(hdg) : (parseInt(le, 10) || 0) * 10, len]);
+  }
+  return rows;
+}
+async function loadRunways(field) {
+  if (RWY_DB[field]) { state.rwySource = "built-in"; return endsFromDb(RWY_DB[field]); }
+  try {
+    const rows = await fetchOurAirportsRunways(field);
+    if (rows.length) { state.rwySource = "OurAirports"; return endsFromDb(rows); }
+  } catch (_) {}
+  state.rwySource = "none — add ends manually";
+  return [];
+}
+
+/* ---------- presets ---------- */
+const PRESET_HDG = { W: 270, E: 90, N: 360, S: 180 };
+function angleDiff(a, b) { return Math.abs(((a - b) + 540) % 360 - 180); }
+function applyPreset(p) {
+  state.ends.forEach(e => {
+    e.active = p === "OFF" ? false : angleDiff(e.hdg, PRESET_HDG[p]) <= 65;
+  });
+  saveCfg(); renderAll();
+}
+
+/* ---------- arrivals + ETA ---------- */
+function detectStar(route) {
+  const toks = ("" + (route || "")).toUpperCase().split(/\s+/).filter(Boolean).map(t => t.replace(/\/.*$/, ""));
+  for (let i = toks.length - 1; i >= 0 && i >= toks.length - 3; i--) {
+    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(toks[i])) return toks[i].replace(/\d[A-Z]?$/, "");
+  }
+  return "";
+}
+function computeArrivals() {
+  const out = [];
+  const apt = getAirport(state.field);
+  if (!apt || !state.vatsim) { state.arrivals = out; return; }
+  const now = Date.now();
+  for (const p of state.vatsim.pilots || []) {
+    const fp = fpFields(p.flight_plan);
+    if (fp.arr !== state.field) continue;
+    if ((p.groundspeed || 0) < 50) continue;                       // airborne only
+    const dist = haversineNm(p.latitude, p.longitude, apt[0], apt[1]);
+    if (dist < 3) continue;                                        // landing rollout
+    let gs = Math.max(p.groundspeed, 100);
+    const cruise = fp.fpAlt || 0;
+    const depApt = getAirport(fp.dep);
+    const nearDep = depApt ? haversineNm(p.latitude, p.longitude, depApt[0], depApt[1]) < 150 : false;
+    if (cruise > 6000 && (p.altitude || 0) < cruise - 2000 && nearDep) {
+      gs = Math.max(gs, (fp.tas || 420) * 0.85);                   // climbing departure headed here
+    }
+    const padMin = dist > 40 ? 4 : dist > 15 ? 2 : 0;
+    const etaMs = now + (dist / gs) * 3600000 + padMin * 60000;
+    const etaMin = (etaMs - now) / 60000;
+    if (etaMin > state.windowMin) continue;
+    out.push({
+      cs: p.callsign, type: fp.type || "", dep: fp.dep || "????",
+      star: detectStar(fp.route), dist, etaMs, etaMin,
+    });
+  }
+  out.sort((a, b) => a.etaMs - b.etaMs);
+  state.arrivals = out;
+}
+
+/* ---------- assignment ---------- */
+function activeEnds() { return state.ends.filter(e => e.active); }
+function assignRunways() {
+  const act = activeEnds();
+  const load = new Map(act.map(e => [e.id, []]));                  // end id -> [etaMs]
+  // prune stale manual overrides
+  const live = new Set(state.arrivals.map(a => a.cs));
+  let pruned = false;
+  for (const cs of Object.keys(state.manual)) {
+    if (!live.has(cs)) { delete state.manual[cs]; pruned = true; }
+  }
+  if (pruned) saveCfg();
+
+  for (const a of state.arrivals) {
+    let rwy = null, src = "auto";
+    const man = state.manual[a.cs];
+    if (man && load.has(man)) { rwy = man; src = "man"; }
+    if (!rwy && a.star && state.rules[a.star] && load.has(state.rules[a.star])) {
+      rwy = state.rules[a.star]; src = "star";
+    }
+    if (!rwy && act.length) {
+      // auto balance: fewest neighbors near this ETA, then fewest total
+      let best = null, bestScore = Infinity;
+      for (const e of act) {
+        const etas = load.get(e.id);
+        const near5 = etas.filter(t => Math.abs(t - a.etaMs) < 5 * 60000).length;
+        const near15 = etas.filter(t => Math.abs(t - a.etaMs) < 15 * 60000).length;
+        const score = near5 * 100 + near15 * 10 + etas.length;
+        if (score < bestScore) { bestScore = score; best = e.id; }
+      }
+      rwy = best;
+    }
+    a.rwy = rwy; a.src = rwy ? src : "auto";
+    if (rwy && load.has(rwy)) load.get(rwy).push(a.etaMs);
+  }
+}
+
+/* ---------- rendering ---------- */
+function renderRunwayGrid() {
+  const wrap = $("rwyGrid");
+  if (!state.ends.length) {
+    wrap.innerHTML = `<div class="empty">${state.field ? "No runway data for " + escapeHtml(state.field) + ".<br>Add ends manually below." : "Load an airport to see its runways."}</div>`;
+    return;
+  }
+  const pairs = new Map();
+  state.ends.forEach(e => { if (!pairs.has(e.pair)) pairs.set(e.pair, []); pairs.get(e.pair).push(e); });
+  wrap.innerHTML = [...pairs.entries()].map(([pair, ends]) =>
+    `<div class="rwy-pair">` +
+    ends.map(e =>
+      `<span class="end-chip${e.active ? " on" : ""}" data-end="${escapeHtml(e.id)}">${escapeHtml(e.id)}<span class="hdg">${String(Math.round(e.hdg)).padStart(3, "0")}°</span></span>`
+    ).join("") +
+    `<span class="len">${ends[0].len ? ends[0].len + "ft" : ""}</span></div>`
+  ).join("");
+  wrap.querySelectorAll("[data-end]").forEach(chip => {
+    chip.onclick = () => {
+      const e = state.ends.find(x => x.id === chip.getAttribute("data-end"));
+      if (e) { e.active = !e.active; saveCfg(); renderAll(); }
+    };
+  });
+}
+
+function renderRules() {
+  const body = $("rulesBody");
+  const stars = [...new Set([...state.arrivals.map(a => a.star).filter(Boolean), ...Object.keys(state.rules)])].sort();
+  const act = activeEnds();
+  if (!stars.length) {
+    body.innerHTML = `<tr><td class="empty" style="border:none">STARs appear here as arrivals are detected.</td></tr>`;
+    return;
+  }
+  body.innerHTML = stars.map(st => {
+    const n = state.arrivals.filter(a => a.star === st).length;
+    const cur = state.rules[st] || "";
+    const opts = `<option value="">AUTO</option>` + act.map(e =>
+      `<option value="${escapeHtml(e.id)}"${cur === e.id ? " selected" : ""}>${escapeHtml(e.id)}</option>`).join("");
+    return `<tr><td><b>${escapeHtml(st)}</b> <span style="color:var(--muted-2)">×${n}</span></td>` +
+      `<td style="text-align:right"><select data-star="${escapeHtml(st)}">${opts}</select></td></tr>`;
+  }).join("");
+  body.querySelectorAll("select[data-star]").forEach(sel => {
+    sel.onchange = () => {
+      const st = sel.getAttribute("data-star");
+      if (sel.value) state.rules[st] = sel.value; else delete state.rules[st];
+      saveCfg(); renderAll();
+    };
+  });
+}
+
+function renderGraph() {
+  const g = $("graph");
+  const act = activeEnds();
+  const bins = Math.ceil(state.windowMin / BIN_MIN);
+  $("graphSub").textContent = ` · ${BIN_MIN}-min bins · next ${state.windowMin} min`;
+  if (!act.length) { g.innerHTML = `<div class="empty">No landing runways selected — pick a config on the left.</div>`; return; }
+  const now = Date.now();
+  const lanes = act.map((e, i) => {
+    const counts = new Array(bins).fill(0);
+    let next60 = 0;
+    state.arrivals.forEach(a => {
+      if (a.rwy !== e.id) return;
+      const b = Math.floor((a.etaMs - now) / (BIN_MIN * 60000));
+      if (b >= 0 && b < bins) counts[b]++;
+      if (a.etaMs - now < 3600000) next60++;
+    });
+    return { id: e.id, color: LANE_COLORS[i % LANE_COLORS.length], counts, next60, total: counts.reduce((x, y) => x + y, 0) };
+  });
+  const maxBin = Math.max(1, ...lanes.flatMap(l => l.counts));
+  const W = 640, laneH = 44, barMax = 34, labelW = 96;
+  const binW = (W - labelW) / bins;
+  let svg = `<svg viewBox="0 0 ${W} ${lanes.length * laneH + 22}" width="100%" style="min-width:520px;font-family:var(--mono)">`;
+  lanes.forEach((l, li) => {
+    const y0 = li * laneH;
+    svg += `<text x="0" y="${y0 + 18}" fill="${l.color}" font-size="12" font-weight="700">${escapeHtml(l.id)}</text>`;
+    svg += `<text x="0" y="${y0 + 31}" fill="var(--muted-2)" font-size="8">${l.next60}/hr · ${l.total} in window</text>`;
+    for (let b = 0; b < bins; b++) {
+      const h = l.counts[b] ? Math.max(5, (l.counts[b] / maxBin) * barMax) : 0;
+      const x = labelW + b * binW;
+      svg += `<rect x="${x + 1}" y="${y0 + (barMax - h) + 4}" width="${binW - 3}" height="${h}" rx="2" fill="${l.color}" opacity="${l.counts[b] ? .85 : 0}"/>`;
+      if (l.counts[b]) svg += `<text x="${x + binW / 2}" y="${y0 + (barMax - h) + 1}" fill="var(--text)" font-size="8" text-anchor="middle">${l.counts[b]}</text>`;
+      svg += `<rect x="${x + 1}" y="${y0 + 4}" width="${binW - 3}" height="${barMax}" fill="none" stroke="var(--line)" stroke-width="0.5"/>`;
+    }
+  });
+  const axisY = lanes.length * laneH + 6;
+  for (let b = 0; b <= bins; b += 3) {
+    svg += `<text x="${labelW + b * binW}" y="${axisY + 8}" fill="var(--muted-2)" font-size="8">+${b * BIN_MIN}m</text>`;
+  }
+  svg += `</svg>`;
+  g.innerHTML = svg;
+}
+
+function renderArrivals() {
+  const body = $("arrBody");
+  const act = activeEnds();
+  if (!state.field) { body.innerHTML = `<tr><td colspan="9" class="empty">Load an airport.</td></tr>`; return; }
+  if (!state.arrivals.length) {
+    body.innerHTML = `<tr><td colspan="9" class="empty">No arrivals to ${escapeHtml(state.field)} within ${state.windowMin} min.</td></tr>`;
+    return;
+  }
+  body.innerHTML = state.arrivals.map((a, i) => {
+    const laneIdx = act.findIndex(e => e.id === a.rwy);
+    const col = laneIdx >= 0 ? LANE_COLORS[laneIdx % LANE_COLORS.length] : "var(--muted-2)";
+    const opts = `<option value="">AUTO</option>` + act.map(e =>
+      `<option value="${escapeHtml(e.id)}"${state.manual[a.cs] === e.id ? " selected" : ""}>${escapeHtml(e.id)}</option>`).join("");
+    const srcTag = a.rwy
+      ? `<span class="src ${a.src}">${a.src === "man" ? "MAN" : a.src === "star" ? "STAR" : "AUTO"}</span>`
+      : `<span class="src auto warn">NO RWY</span>`;
+    return `<tr>` +
+      `<td style="color:var(--muted-2)">${i + 1}</td>` +
+      `<td><b>${escapeHtml(a.cs)}</b></td>` +
+      `<td>${escapeHtml(a.type)}</td>` +
+      `<td style="color:var(--muted)">${escapeHtml(a.dep)}</td>` +
+      `<td>${escapeHtml(a.star || "—")}</td>` +
+      `<td>${Math.round(a.dist)}nm</td>` +
+      `<td>${fmtZulu(a.etaMs)} <span style="color:var(--muted-2)">+${Math.round(a.etaMin)}m</span></td>` +
+      `<td><span class="rwy-tag" style="color:${col}">${escapeHtml(a.rwy || "—")}</span> ` +
+      `<select data-man="${escapeHtml(a.cs)}">${opts}</select></td>` +
+      `<td>${srcTag}</td></tr>`;
+  }).join("");
+  body.querySelectorAll("select[data-man]").forEach(sel => {
+    sel.onchange = () => {
+      const cs = sel.getAttribute("data-man");
+      if (sel.value) state.manual[cs] = sel.value; else delete state.manual[cs];
+      saveCfg(); renderAll();
+    };
+  });
+}
+
+function renderHeader() {
+  $("feedDot").className = "dot " + (state.feed === "ok" ? "ok" : state.feed === "err" ? "err" : "");
+  $("feedTxt").textContent = state.feed === "ok" ? "live" : state.feed === "err" ? "feed error" : "connecting…";
+  $("arrCount").textContent = state.arrivals.length;
+  $("asgCount").textContent = state.arrivals.filter(a => a.rwy).length;
+  $("rwySrc").textContent = state.field ? `${state.field} rwy data: ${state.rwySource}` : "";
+}
+
+function renderAll() {
+  computeArrivals();
+  assignRunways();
+  renderRunwayGrid();
+  renderRules();
+  renderGraph();
+  renderArrivals();
+  renderHeader();
+}
+
+/* ---------- feed + boot ---------- */
+async function fetchFeed() {
+  try {
+    const r = await fetch(VATSIM_URL);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    state.vatsim = await r.json();
+    state.feed = "ok";
+  } catch (_) { state.feed = "err"; }
+  renderAll();
+}
+
+async function loadField() {
+  const f = ($("fieldInput").value || "").toUpperCase().trim();
+  if (!/^[A-Z0-9]{3,4}$/.test(f)) return;
+  state.field = f;
+  const saved = loadCfg(f);
+  state.rules = (saved && saved.rules) || {};
+  state.manual = (saved && saved.manual) || {};
+  state.windowMin = (saved && saved.windowMin) || 90;
+  $("windowSel").value = String(state.windowMin);
+  state.ends = await loadRunways(f);
+  if (saved && Array.isArray(saved.ends) && saved.ends.length) {
+    // restore active flags (and any manually added ends)
+    const known = new Set(state.ends.map(e => e.id));
+    saved.ends.forEach(se => {
+      const e = state.ends.find(x => x.id === se.id);
+      if (e) e.active = !!se.active;
+      else if (!known.has(se.id)) state.ends.push(se);
+    });
+  }
+  try { localStorage.setItem("runwayBalancer.v1.lastField", f); } catch (_) {}
+  renderAll();
+}
+
+$("loadBtn").addEventListener("click", loadField);
+$("fieldInput").addEventListener("keydown", e => { if (e.key === "Enter") loadField(); });
+document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => applyPreset(b.getAttribute("data-preset"))));
+$("windowSel").addEventListener("change", e => { state.windowMin = parseInt(e.target.value, 10) || 90; saveCfg(); renderAll(); });
+$("clearManualBtn").addEventListener("click", () => { state.manual = {}; saveCfg(); renderAll(); });
+$("addEndBtn").addEventListener("click", () => {
+  const id = ($("addEndId").value || "").toUpperCase().trim();
+  const hdg = parseInt($("addEndHdg").value, 10);
+  if (!/^\d{2}[LRC]?$/.test(id) || !isFinite(hdg)) return;
+  if (!state.ends.some(e => e.id === id)) {
+    state.ends.push({ id, hdg: ((hdg % 360) + 360) % 360, len: 0, active: true, pair: id });
+    $("addEndId").value = ""; $("addEndHdg").value = "";
+    saveCfg(); renderAll();
+  }
+});
+
+setInterval(() => { $("clock").textContent = fmtZulu(Date.now()); }, 1000);
+$("clock").textContent = fmtZulu(Date.now());
+
+loadAirports().catch(() => { seedAirports({}); });
+fetchFeed();
+setInterval(fetchFeed, 15000);
+
+try {
+  const last = localStorage.getItem("runwayBalancer.v1.lastField");
+  if (last) { $("fieldInput").value = last; loadField(); }
+} catch (_) {}
+</script>
+</body>
+</html>
