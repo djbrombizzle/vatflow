@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VATFLOW · Runway Balancer</title>
 <link rel="stylesheet" href="shared/vatflow-nav.css">
+<script src="shared/vatflow-control-store.js"></script>
 <style>
   :root {
     --bg: #080b10; --panel: #0e1319; --line: #1e2834; --line-2: #2a3848;
@@ -81,6 +82,24 @@
   .rwy-tag { font-weight:700; }
   .empty { padding:24px; text-align:center; color:var(--muted-2); font:400 11px var(--mono); line-height:1.7; }
   .warn { color:var(--red); }
+
+  .metar { font:400 11px var(--mono); color:var(--cyan); background:#0a1218; border:1px solid var(--line);
+    border-radius:5px; padding:6px 9px; margin-top:8px; line-height:1.5; word-break:break-word; }
+  .metar b { color:var(--amber); }
+  .metar .cat { font-weight:700; padding:0 5px; border-radius:3px; margin-right:5px; }
+  .cat.VFR { color:var(--green); } .cat.MVFR { color:var(--cyan); }
+  .cat.IFR { color:var(--red); } .cat.LIFR { color:var(--purple); }
+
+  .cfg-row { display:flex; gap:6px; margin-bottom:8px; }
+  .cfg-row select, .cfg-row input { flex:1; min-width:0; background:#0a0e14; border:1px solid var(--line-2);
+    border-radius:5px; color:var(--text); font:600 11px var(--mono); padding:6px 8px; outline:none; }
+  .cfg-row select:focus, .cfg-row input:focus { border-color:var(--amber); }
+  .locked-note { font:600 10px var(--mono); color:var(--amber); background:var(--amber-dim);
+    border:1px solid var(--line-2); border-radius:5px; padding:6px 9px; margin-bottom:10px; }
+  body.viewonly .end-chip, body.viewonly select, body.viewonly .cfg-row,
+  body.viewonly #addEndBtn, body.viewonly [data-preset], body.viewonly #clearManualBtn { pointer-events:none; opacity:.55; }
+  body.viewonly select { opacity:.7; }
+  .forced { font:700 8px var(--mono); color:var(--amber); border:1px solid var(--amber); border-radius:3px; padding:1px 4px; margin-left:4px; }
 </style>
 </head>
 <body>
@@ -95,6 +114,10 @@
   <span class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></span>
   <span class="stat">arrivals <b id="arrCount">0</b> · assigned <b id="asgCount">0</b></span>
   <span class="stat" id="rwySrc"></span>
+  <span class="fieldbox" id="pwBox">
+    <input id="pwInput" type="password" placeholder="control password" autocomplete="off" style="width:130px">
+    <button class="btn" id="pwBtn">UNLOCK</button>
+  </span>
   <div id="clock">----Z</div>
 </header>
 
@@ -102,6 +125,12 @@
   <div class="side">
     <div class="panel">
       <h2>AIRPORT CONFIG — LANDING RUNWAYS</h2>
+      <div id="lockNote" class="locked-note hidden">View only — unlock with the control password to edit.</div>
+      <div class="cfg-row">
+        <select id="cfgSelect" title="Load a saved config for this airport"><option value="">— saved configs —</option></select>
+        <button class="btn" id="cfgSaveBtn" title="Save current runways + STAR rules as a named config">SAVE</button>
+        <button class="btn" id="cfgDelBtn" title="Delete the selected saved config">✕</button>
+      </div>
       <div class="preset-row">
         <button class="btn" data-preset="W">WEST</button>
         <button class="btn" data-preset="E">EAST</button>
@@ -116,6 +145,7 @@
         <button class="btn" id="addEndBtn">ADD END</button>
       </div>
       <div class="hint">Presets pick runway ends by final-approach direction (WEST = landing westbound, headings 270±65°). Click chips to toggle individual ends. ADD END covers airports with missing data.</div>
+      <div id="metar" class="metar hidden"></div>
     </div>
 
     <div class="panel">
@@ -163,8 +193,15 @@ mountVatflowNav(document.getElementById("vatflowAppNav"), "runways");
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv";
+const METAR_URL = "https://aviationweather.gov/api/data/metar?ids=";
+const CONTROL_PASSWORD_LOCAL = "";
 const LANE_COLORS = ["#e8a838","#5ba8c9","#4caf7a","#b07fd6","#d45c5c","#7f9dd6","#d6a97f"];
 const BIN_MIN = 10;
+
+/** STAR base name — strip the revision digit so CHPPR3 and CHPPR4 are one rule. */
+function starBase(name) {
+  return ("" + (name || "")).toUpperCase().replace(/\d[A-Z]?$/, "");
+}
 
 /* Built-in runway data for common fields: [leId, heId, leHeading, lengthFt] */
 const RWY_DB = {
@@ -197,12 +234,15 @@ const state = {
   arrivals: [], rules: {}, manual: {},
   windowMin: 90, vatsim: null, feed: "…",
   rwySource: "", oaCsv: null,
+  unlocked: false, metar: null, configs: {},
 };
 const $ = id => document.getElementById(id);
 const escapeHtml = s => ("" + (s ?? "")).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+function canControl() { return state.unlocked; }
 
 /* ---------- persistence ---------- */
 const lsKey = f => "runwayBalancer.v1." + f;
+const cfgKey = f => "runwayBalancer.configs.v1." + f;
 function saveCfg() {
   if (!state.field) return;
   try { localStorage.setItem(lsKey(state.field), JSON.stringify({
@@ -214,6 +254,40 @@ function loadCfg(field) {
     const raw = localStorage.getItem(lsKey(field));
     return raw ? JSON.parse(raw) : null;
   } catch (_) { return null; }
+}
+/* named saved configs: { name: { ends:[{id,active,hdg,len,pair}], rules:{} } } */
+function loadConfigs(field) {
+  try {
+    const raw = localStorage.getItem(cfgKey(field));
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) { return {}; }
+}
+function persistConfigs() {
+  if (!state.field) return;
+  try { localStorage.setItem(cfgKey(state.field), JSON.stringify(state.configs)); } catch (_) {}
+}
+function saveNamedConfig(name) {
+  name = (name || "").trim();
+  if (!name) return;
+  state.configs[name] = {
+    ends: state.ends.map(e => ({ id: e.id, active: !!e.active, hdg: e.hdg, len: e.len, pair: e.pair })),
+    rules: { ...state.rules },
+  };
+  persistConfigs(); renderConfigSelect();
+}
+function applyNamedConfig(name) {
+  const c = state.configs[name];
+  if (!c) return;
+  // restore active flags on existing ends; add any ends the config knew about
+  const byId = new Map(state.ends.map(e => [e.id, e]));
+  (c.ends || []).forEach(se => {
+    const e = byId.get(se.id);
+    if (e) e.active = !!se.active;
+    else state.ends.push({ ...se });
+  });
+  state.ends.forEach(e => { if (!(c.ends || []).some(se => se.id === e.id)) e.active = false; });
+  state.rules = { ...(c.rules || {}) };
+  saveCfg(); renderAll();
 }
 
 /* ---------- runway data ---------- */
@@ -264,10 +338,45 @@ function applyPreset(p) {
 }
 
 /* ---------- arrivals + ETA ---------- */
+/* ---------- METAR ---------- */
+function flightCategory(m) {
+  // crude but standard: ceiling + visibility
+  let vis = 10;
+  const vm = m.match(/\b(\d{1,2})SM\b/) || m.match(/\bM?(\d)\/\dSM\b/);
+  if (/\bM?1\/[0-9]SM\b/.test(m)) vis = 0.5; else if (vm) vis = parseInt(vm[1], 10);
+  let ceil = 99999;
+  const re = /\b(BKN|OVC|VV)(\d{3})\b/g; let mm;
+  while ((mm = re.exec(m))) ceil = Math.min(ceil, parseInt(mm[2], 10) * 100);
+  if (ceil < 500 || vis < 1) return "LIFR";
+  if (ceil < 1000 || vis < 3) return "IFR";
+  if (ceil <= 3000 || vis <= 5) return "MVFR";
+  return "VFR";
+}
+async function fetchMetar(field) {
+  state.metar = null;
+  try {
+    const r = await fetch(METAR_URL + encodeURIComponent(field));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const txt = (await r.text()).trim();
+    const line = txt.split("\n").find(l => l.trim().startsWith(field)) || txt.split("\n")[0] || "";
+    state.metar = line.trim() || null;
+  } catch (_) { state.metar = null; }
+  renderMetar();
+}
+function renderMetar() {
+  const el = $("metar");
+  if (!state.metar) { el.className = "metar hidden"; return; }
+  const cat = flightCategory(state.metar);
+  const windMatch = state.metar.match(/\b(\d{3}|VRB)(\d{2,3})(G\d{2,3})?KT\b/);
+  const wind = windMatch ? `<b>${windMatch[1]}@${parseInt(windMatch[2],10)}${windMatch[3]?windMatch[3].replace("G","G"):""}kt</b> · ` : "";
+  el.className = "metar";
+  el.innerHTML = `<span class="cat ${cat}">${cat}</span>${wind}${escapeHtml(state.metar)}`;
+}
+
 function detectStar(route) {
   const toks = ("" + (route || "")).toUpperCase().split(/\s+/).filter(Boolean).map(t => t.replace(/\/.*$/, ""));
   for (let i = toks.length - 1; i >= 0 && i >= toks.length - 3; i--) {
-    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(toks[i])) return toks[i].replace(/\d[A-Z]?$/, "");
+    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(toks[i])) return starBase(toks[i]);
   }
   return "";
 }
@@ -357,6 +466,7 @@ function renderRunwayGrid() {
   ).join("");
   wrap.querySelectorAll("[data-end]").forEach(chip => {
     chip.onclick = () => {
+      if (!canControl()) return;
       const e = state.ends.find(x => x.id === chip.getAttribute("data-end"));
       if (e) { e.active = !e.active; saveCfg(); renderAll(); }
     };
@@ -365,27 +475,61 @@ function renderRunwayGrid() {
 
 function renderRules() {
   const body = $("rulesBody");
+  // union of: STARs seen in live traffic AND STARs with a saved rule (forced, traffic-independent)
   const stars = [...new Set([...state.arrivals.map(a => a.star).filter(Boolean), ...Object.keys(state.rules)])].sort();
   const act = activeEnds();
   if (!stars.length) {
-    body.innerHTML = `<tr><td class="empty" style="border:none">STARs appear here as arrivals are detected.</td></tr>`;
-    return;
+    body.innerHTML = `<tr><td class="empty" style="border:none">Add a STAR rule below, or wait for arrivals to populate.</td></tr>`;
+  } else {
+    body.innerHTML = stars.map(st => {
+      const n = state.arrivals.filter(a => a.star === st).length;
+      const cur = state.rules[st] || "";
+      const forced = !!cur && n === 0;                       // rule set but nothing on it right now
+      const opts = `<option value="">AUTO</option>` + act.map(e =>
+        `<option value="${escapeHtml(e.id)}"${cur === e.id ? " selected" : ""}>${escapeHtml(e.id)}</option>`).join("");
+      return `<tr><td><b>${escapeHtml(st)}</b> <span style="color:var(--muted-2)">×${n}</span>${forced ? `<span class="forced" title="Runway pinned by config — applies when traffic arrives">FORCED</span>` : ""}</td>` +
+        `<td style="text-align:right;display:flex;gap:4px;justify-content:flex-end">` +
+        `<select data-star="${escapeHtml(st)}">${opts}</select>` +
+        `<span class="end-chip" data-delstar="${escapeHtml(st)}" title="Remove this rule" style="min-width:0;padding:3px 7px">✕</span>` +
+        `</td></tr>`;
+    }).join("");
   }
-  body.innerHTML = stars.map(st => {
-    const n = state.arrivals.filter(a => a.star === st).length;
-    const cur = state.rules[st] || "";
-    const opts = `<option value="">AUTO</option>` + act.map(e =>
-      `<option value="${escapeHtml(e.id)}"${cur === e.id ? " selected" : ""}>${escapeHtml(e.id)}</option>`).join("");
-    return `<tr><td><b>${escapeHtml(st)}</b> <span style="color:var(--muted-2)">×${n}</span></td>` +
-      `<td style="text-align:right"><select data-star="${escapeHtml(st)}">${opts}</select></td></tr>`;
-  }).join("");
+  // add-rule row: pin ANY STAR to a runway with no traffic present (CHPPR base name)
+  const actOpts = act.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.id)}</option>`).join("");
+  body.innerHTML += `<tr><td colspan="2" style="border:none;padding-top:8px">` +
+    `<div style="display:flex;gap:4px">` +
+    `<input id="newRuleStar" placeholder="STAR e.g. CHPPR" maxlength="6" style="flex:1;background:#0a0e14;border:1px solid var(--line-2);border-radius:4px;color:var(--text);font:600 11px var(--mono);padding:4px 6px;text-transform:uppercase">` +
+    `<select id="newRuleRwy" style="background:#0a0e14;border:1px solid var(--line-2);border-radius:4px;color:var(--text);font:600 11px var(--mono);padding:4px 6px">${actOpts || '<option>—</option>'}</select>` +
+    `<button class="btn" id="addRuleBtn" style="padding:4px 8px">PIN</button></div></td></tr>`;
+
   body.querySelectorAll("select[data-star]").forEach(sel => {
     sel.onchange = () => {
+      if (!canControl()) return;
       const st = sel.getAttribute("data-star");
       if (sel.value) state.rules[st] = sel.value; else delete state.rules[st];
       saveCfg(); renderAll();
     };
   });
+  body.querySelectorAll("[data-delstar]").forEach(x => {
+    x.onclick = () => { if (!canControl()) return; delete state.rules[x.getAttribute("data-delstar")]; saveCfg(); renderAll(); };
+  });
+  const addBtn = $("addRuleBtn");
+  if (addBtn) addBtn.onclick = () => {
+    if (!canControl()) return;
+    const st = starBase(($("newRuleStar").value || "").trim());
+    const rwy = $("newRuleRwy").value;
+    if (!st || !rwy) return;
+    state.rules[st] = rwy;
+    saveCfg(); renderAll();
+  };
+}
+
+function renderConfigSelect() {
+  const sel = $("cfgSelect");
+  if (!sel) return;
+  const names = Object.keys(state.configs).sort();
+  sel.innerHTML = `<option value="">— saved configs —</option>` +
+    names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
 }
 
 function renderGraph() {
@@ -407,22 +551,22 @@ function renderGraph() {
     return { id: e.id, color: LANE_COLORS[i % LANE_COLORS.length], counts, next60, total: counts.reduce((x, y) => x + y, 0) };
   });
   const maxBin = Math.max(1, ...lanes.flatMap(l => l.counts));
-  const W = 640, laneH = 44, barMax = 34, labelW = 96;
+  const W = 640, laneH = 50, barMax = 34, labelW = 96, topPad = 12;
   const binW = (W - labelW) / bins;
-  let svg = `<svg viewBox="0 0 ${W} ${lanes.length * laneH + 22}" width="100%" style="min-width:520px;font-family:var(--mono)">`;
+  let svg = `<svg viewBox="0 0 ${W} ${lanes.length * laneH + topPad + 16}" width="100%" style="min-width:520px;font-family:var(--mono)">`;
   lanes.forEach((l, li) => {
-    const y0 = li * laneH;
+    const y0 = li * laneH + topPad;
     svg += `<text x="0" y="${y0 + 18}" fill="${l.color}" font-size="12" font-weight="700">${escapeHtml(l.id)}</text>`;
     svg += `<text x="0" y="${y0 + 31}" fill="var(--muted-2)" font-size="8">${l.next60}/hr · ${l.total} in window</text>`;
     for (let b = 0; b < bins; b++) {
       const h = l.counts[b] ? Math.max(5, (l.counts[b] / maxBin) * barMax) : 0;
       const x = labelW + b * binW;
       svg += `<rect x="${x + 1}" y="${y0 + (barMax - h) + 4}" width="${binW - 3}" height="${h}" rx="2" fill="${l.color}" opacity="${l.counts[b] ? .85 : 0}"/>`;
-      if (l.counts[b]) svg += `<text x="${x + binW / 2}" y="${y0 + (barMax - h) + 1}" fill="var(--text)" font-size="8" text-anchor="middle">${l.counts[b]}</text>`;
+      if (l.counts[b]) svg += `<text x="${x + binW / 2}" y="${y0 + (barMax - h)}" fill="var(--text)" font-size="8" text-anchor="middle">${l.counts[b]}</text>`;
       svg += `<rect x="${x + 1}" y="${y0 + 4}" width="${binW - 3}" height="${barMax}" fill="none" stroke="var(--line)" stroke-width="0.5"/>`;
     }
   });
-  const axisY = lanes.length * laneH + 6;
+  const axisY = lanes.length * laneH + topPad;
   for (let b = 0; b <= bins; b += 3) {
     svg += `<text x="${labelW + b * binW}" y="${axisY + 8}" fill="var(--muted-2)" font-size="8">+${b * BIN_MIN}m</text>`;
   }
@@ -460,6 +604,7 @@ function renderArrivals() {
   }).join("");
   body.querySelectorAll("select[data-man]").forEach(sel => {
     sel.onchange = () => {
+      if (!canControl()) return;
       const cs = sel.getAttribute("data-man");
       if (sel.value) state.manual[cs] = sel.value; else delete state.manual[cs];
       saveCfg(); renderAll();
@@ -473,6 +618,9 @@ function renderHeader() {
   $("arrCount").textContent = state.arrivals.length;
   $("asgCount").textContent = state.arrivals.filter(a => a.rwy).length;
   $("rwySrc").textContent = state.field ? `${state.field} rwy data: ${state.rwySource}` : "";
+  document.body.classList.toggle("viewonly", !state.unlocked);
+  $("lockNote").classList.toggle("hidden", state.unlocked);
+  $("pwBox").style.display = state.unlocked ? "none" : "";
 }
 
 function renderAll() {
@@ -506,6 +654,9 @@ async function loadField() {
   state.windowMin = (saved && saved.windowMin) || 90;
   $("windowSel").value = String(state.windowMin);
   state.ends = await loadRunways(f);
+  state.configs = loadConfigs(f);
+  renderConfigSelect();
+  fetchMetar(f);
   if (saved && Array.isArray(saved.ends) && saved.ends.length) {
     // restore active flags (and any manually added ends)
     const known = new Set(state.ends.map(e => e.id));
@@ -521,10 +672,11 @@ async function loadField() {
 
 $("loadBtn").addEventListener("click", loadField);
 $("fieldInput").addEventListener("keydown", e => { if (e.key === "Enter") loadField(); });
-document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => applyPreset(b.getAttribute("data-preset"))));
+document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => { if (canControl()) applyPreset(b.getAttribute("data-preset")); }));
 $("windowSel").addEventListener("change", e => { state.windowMin = parseInt(e.target.value, 10) || 90; saveCfg(); renderAll(); });
-$("clearManualBtn").addEventListener("click", () => { state.manual = {}; saveCfg(); renderAll(); });
+$("clearManualBtn").addEventListener("click", () => { if (!canControl()) return; state.manual = {}; saveCfg(); renderAll(); });
 $("addEndBtn").addEventListener("click", () => {
+  if (!canControl()) return;
   const id = ($("addEndId").value || "").toUpperCase().trim();
   const hdg = parseInt($("addEndHdg").value, 10);
   if (!/^\d{2}[LRC]?$/.test(id) || !isFinite(hdg)) return;
@@ -535,12 +687,51 @@ $("addEndBtn").addEventListener("click", () => {
   }
 });
 
+/* password unlock */
+function tryUnlock() {
+  const pw = $("pwInput").value || "";
+  if (VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)) {
+    state.unlocked = true;
+    VatflowControl.save(true);
+    $("pwInput").value = "";
+    renderAll();
+  } else {
+    $("pwInput").value = "";
+    $("pwInput").placeholder = "wrong — try again";
+  }
+}
+$("pwBtn").addEventListener("click", tryUnlock);
+$("pwInput").addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+
+/* saved configs */
+$("cfgSaveBtn").addEventListener("click", () => {
+  if (!canControl() || !state.field) return;
+  const name = prompt(`Save config for ${state.field} as:`, "");
+  if (name) saveNamedConfig(name);
+});
+$("cfgSelect").addEventListener("change", e => {
+  if (!e.target.value) return;
+  if (!canControl()) { e.target.value = ""; return; }
+  applyNamedConfig(e.target.value);
+});
+$("cfgDelBtn").addEventListener("click", () => {
+  if (!canControl()) return;
+  const name = $("cfgSelect").value;
+  if (name && state.configs[name] && confirm(`Delete saved config "${name}"?`)) {
+    delete state.configs[name];
+    persistConfigs(); renderConfigSelect();
+  }
+});
+
 setInterval(() => { $("clock").textContent = fmtZulu(Date.now()); }, 1000);
 $("clock").textContent = fmtZulu(Date.now());
+
+state.unlocked = VatflowControl.load();
 
 loadAirports().catch(() => { seedAirports({}); });
 fetchFeed();
 setInterval(fetchFeed, 15000);
+setInterval(() => { if (state.field) fetchMetar(state.field); }, 5 * 60000);
 
 try {
   const last = localStorage.getItem("runwayBalancer.v1.lastField");
