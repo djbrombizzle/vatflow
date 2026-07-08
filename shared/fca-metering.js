@@ -22,6 +22,7 @@ import {
   isNavReady,
 } from "./route-engine.js";
 import { routeHeadwind, effectiveGs } from "./winds-aloft.js";
+import { pointInArtcc } from "./artcc-scope.js";
 
 bindRouteAirports(
   icao => getAirport(icao),
@@ -218,6 +219,27 @@ export function fcaMatchesOrigin(fca, dep) {
   if (!fca.origins || !fca.origins.length) return true;
   return fca.origins.some(d => airportCodesMatch(d, dep));
 }
+/** ARTCC scope: the FCA applies only to aircraft physically inside one of the
+ *  scoped centers (ground aircraft judged at their departure field). Fails
+ *  OPEN when boundary data isn't loaded — missing map data must never hide
+ *  traffic from a program. Blank scope = applies everywhere. */
+export function fcaMatchesScope(fca, p) {
+  if (!fca.scope || !fca.scope.length) return true;
+  let lat = p.lat, lon = p.lon;
+  if (lat == null || lon == null) {
+    const ap = getAirport(p.dep);
+    if (ap) { lat = ap[0]; lon = ap[1]; }
+  }
+  if (lat == null || lon == null) return true;
+  let anyKnown = false;
+  for (const id of fca.scope) {
+    const r = pointInArtcc(id, lat, lon);
+    if (r === true) return true;
+    if (r !== null) anyKnown = true;
+  }
+  return anyKnown ? false : true;   // no boundary data at all -> fail open
+}
+
 /** Route-fix filter: meter only aircraft with one of these fixes in their FILED
  *  route. A token naming a procedure derived from the fix also matches
  *  (filter "LAIRI" catches a filed "LAIRI4" arrival). */
@@ -768,6 +790,9 @@ export function explainFcaExclusion(fca, p) {
   if (!fcaMatchesFix(fca, p.route)) {
     return R(false, "fix-filter", `Filed route does not contain [${(fca.fixes || []).join(" ")}].`);
   }
+  if (!fcaMatchesScope(fca, p)) {
+    return R(false, "scope", `Aircraft is outside the FCA scope [${(fca.scope || []).join(" ")}].`);
+  }
   const isAir = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
   const altNow = p.alt || 0, altFp = p.fpAlt || 0;
   const altOk = isAir ? (fcaMatchesAlt(fca, altNow) || fcaMatchesAlt(fca, altFp)) : fcaMatchesAlt(fca, altFp);
@@ -805,6 +830,7 @@ function collectAirFcaCandidates(fca, pilots) {
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
     if (!fcaMatchesFix(fca, p.route)) continue;
+    if (!fcaMatchesScope(fca, p)) continue;
     if (!fcaMatchesAlt(fca, p.alt || 0) && !fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const ac = buildAirCandidate(p, fca);
     if (ac) cand.push(ac);
@@ -825,6 +851,7 @@ function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
     if (!fcaMatchesDest(fca, p.arr)) continue;
     if (!fcaMatchesOrigin(fca, p.dep)) continue;
     if (!fcaMatchesFix(fca, p.route)) continue;
+    if (!fcaMatchesScope(fca, p)) continue;
     if (!fcaMatchesAlt(fca, p.fpAlt || 0)) continue;
     const c = buildGroundCandidate(p, fca, nowMs, isReady(fca, p.callsign));
     if (c) cand.push(c);
