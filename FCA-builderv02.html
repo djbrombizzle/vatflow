@@ -85,6 +85,11 @@
   .empty b{color:var(--amber);display:block;margin-bottom:4px;letter-spacing:.1em}
 
   /* FCA card */
+  .seqview{display:flex;gap:4px;margin:6px 0 0}
+  .seqview span{font:700 9px var(--mono);letter-spacing:.06em;padding:3px 8px;border:1px solid var(--line-2);
+    border-radius:4px;color:var(--muted-2);cursor:pointer;user-select:none}
+  .seqview span:hover{border-color:var(--amber);color:var(--amber)}
+  .seqview span.on{color:#0b0e07;background:var(--amber);border-color:var(--amber)}
   .fca-card{border:1px solid var(--line-2);border-radius:8px;margin-bottom:6px;overflow:hidden;background:#0f151e;transition:.12s}
   .fca-card.sel{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim),0 4px 16px rgba(0,0,0,.4)}
   .fca-card.off{opacity:.5}
@@ -433,6 +438,9 @@
       <button class="btn ghost sm" id="closeSeq">›</button>
     </div>
     <div class="sub" id="seqSub"></div>
+    <div class="seqview" id="seqView">
+      <span data-sv="all">SHOW ALL</span><span data-sv="air">AIR ONLY</span><span data-sv="cfr">CFR ONLY</span>
+    </div>
   </div>
   <div class="seq-scroll" id="seqBody"></div>
 </aside>
@@ -1507,6 +1515,14 @@ function selectFca(id){
   document.getElementById("seqPanel").classList.toggle("show",!!sel);
 }
 let stripDragging=false;   // live refresh mid-drag would destroy the DnD source element
+state.seqView = (()=>{ try { return localStorage.getItem("fca.seqView") || "all"; } catch(_) { return "all"; } })();
+document.querySelectorAll("#seqView [data-sv]").forEach(chip=>{
+  chip.addEventListener("click",()=>{
+    state.seqView = chip.getAttribute("data-sv");
+    try { localStorage.setItem("fca.seqView", state.seqView); } catch(_) {}
+    renderSequence();
+  });
+});
 function renderSequence(){
   if(stripDragging) return;
   const sel=state.fcas.find(f=>f.id===state.selectedId);
@@ -1544,9 +1560,16 @@ function renderSequence(){
     `<div class="seqhint">${canControl()?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):"View only — unlock to reorder sequence"}</div>`);
   // strips
   const orderCS=s.items.map(c=>c.p.callsign);
+  const view=state.seqView||"all";
+  document.querySelectorAll("#seqView [data-sv]").forEach(ch=>ch.classList.toggle("on",ch.getAttribute("data-sv")===view));
+  let shown=0;
   let dragFrom=null;
   const list=document.createElement("div");
   s.items.forEach((c,i)=>{
+    // display-only view filter — scheduling, numbering, and the map are untouched
+    if(view==="air"&&c.phase!=="air") return;
+    if(view==="cfr"&&c.phase!=="gnd") return;
+    shown++;
     const cls=c.delay<30?"zero":c.delay<300?"low":"high";
     const fl=String(Math.round(((c.phase==="gnd"?c.p.fpAlt:c.p.alt)||0)/100)).padStart(3,"0");
     // in-trail readout: ground = minutes behind predecessor at crossing; air = nm spacing
@@ -1629,6 +1652,12 @@ function renderSequence(){
     }
     list.appendChild(strip);
   });
+  if(!shown&&s.items.length){
+    const note=document.createElement("div");
+    note.className="empty";
+    note.textContent=`${s.items.length} aircraft in the sequence — none match the ${view==="air"?"AIR ONLY":"CFR ONLY"} view.`;
+    list.appendChild(note);
+  }
   body.appendChild(list);
   // excluded section
   const ex=document.createElement("div"); ex.innerHTML=exHtml;
