@@ -1296,10 +1296,10 @@ function renderFcaList(){
   wrap.innerHTML="";
   const ctl=canControl();
   const q=(state.fcaFilter||"").trim().toUpperCase();
-  const visible=q?state.fcas.filter(f=>{
+  const visible=(q?state.fcas.filter(f=>{
     const hay=[f.name,...(f.dests||[]),...(f.origins||[]),...(f.fixes||[])].join(" ").toUpperCase();
     return hay.includes(q);
-  }):state.fcas;
+  }):state.fcas).slice().sort((a,b)=>(a.name||"").localeCompare((b.name||""),undefined,{sensitivity:"base"}));
   if(q && !visible.length){
     wrap.innerHTML=`<div class="empty">No FCAs match “${escapeHtml(q)}”.</div>`;
     return;
