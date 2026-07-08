@@ -264,6 +264,7 @@ import {
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
+import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -1194,6 +1195,7 @@ loadAirports(() => {
   bindWindAirportLookup(icao => getAirport(icao));
   loadNavData().catch(() => {}).finally(() => render());
   fetchWinds().catch(() => {});
+  fetchArtccBoundaries().then(n => { if (n) render(); }).catch(() => {});
 }).catch(() => render());
 
 try {
