@@ -362,6 +362,39 @@ let oEx = explainFcaExclusion(mcoFca, jaxDep);
 assert(!oEx.included && oEx.reason === "origin-filter", "explain: origin filter identified");
 
 /* ============================================================
+   18. ARTCC scope — FCA applies only inside scoped centers
+   ============================================================ */
+import { seedArtccBoundaries, pointInArtcc } from "../shared/artcc-scope.js";
+import { fcaMatchesScope } from "../shared/fca-metering.js";
+// synthetic square centers: ZAA lat 30-35/lon -85..-80, ZBB lat 25-30 same lons
+seedArtccBoundaries({ features: [
+  { properties:{ id:"ZAA" }, geometry:{ type:"Polygon", coordinates:[[[-85,30],[-80,30],[-80,35],[-85,35],[-85,30]]] } },
+  { properties:{ id:"ZBB" }, geometry:{ type:"Polygon", coordinates:[[[-85,25],[-80,25],[-80,30],[-85,30],[-85,25]]] } },
+]});
+assert(pointInArtcc("ZAA", 32, -82.5) === true && pointInArtcc("ZAA", 27, -82.5) === false, "point-in-polygon");
+assert(pointInArtcc("ZZZ", 32, -82.5) === null, "unknown ARTCC -> null (fail open)");
+
+seedAirports({ KAAA1:[32.0,-82.5], KBBB1:[27.0,-82.5] });
+const scFca = { id:"sc", enabled:true, dir:"any", mode:"mit", mit:30, minFL:0, maxFL:999,
+  scope:["ZAA"], points:[[34.5,-85.0],[34.5,-80.0]], releases:{}, excluded:[], order:[] };
+const inScope  = { callsign:"IN1",  phase:"gnd", lat:32.0, lon:-82.5, gs:0, dep:"KAAA1", arr:"KDCA", fpAlt:34000, tas:440, route:"DCT", deptime:"" };
+const outScope = { ...inScope, callsign:"OUT1", lat:27.0, lon:-82.5, dep:"KBBB1" };
+const airIn  = { callsign:"AIN",  phase:"air", lat:33.0, lon:-82.5, hdg:0, gs:440, alt:33000, dep:"KBBB1", arr:"KDCA", fpAlt:33000, tas:440, route:"DCT" };
+const airOut = { ...airIn, callsign:"AOUT", lat:27.5 };
+const scSeq = computeSequence(scFca, [inScope, outScope, airIn, airOut], [], { includeEdct:true, nowMs: fixedNow });
+const scNames = scSeq.items.map(c=>c.p.callsign);
+assert(scNames.includes("IN1"),  "ground dep inside scope is metered");
+assert(!scNames.includes("OUT1"), "ground dep outside scope is NOT metered");
+assert(scNames.includes("AIN"),  "airborne inside scope is metered");
+assert(!scNames.includes("AOUT"), "airborne outside scope is NOT metered");
+assert(fcaMatchesScope({ scope:[] }, inScope) && fcaMatchesScope({}, outScope), "blank scope = everywhere");
+assert(fcaMatchesScope({ scope:["ZQQ"] }, inScope), "unknown-only scope fails open (data missing for that id)");
+const scEx = explainFcaExclusion(scFca, outScope);
+assert(!scEx.included && scEx.reason === "scope", "explain: scope exclusion identified");
+const scTwr = computeTowerDepartures("KBBB1", [scFca], [outScope]);
+assert(scTwr.departures.length === 0, "tower at an out-of-scope field shows no rows for the FCA");
+
+/* ============================================================
    17. Landed arrivals are not departure candidates (KATL bug)
    ============================================================ */
 import { isAtDepartureAirport } from "../shared/fca-metering.js";
@@ -558,5 +591,40 @@ const ztl3 = { ...ztl, id:"ztl3", releases:{} };
 const rel3 = markReady(ztl3, "DAL1", [atlDep("DAL1")], fixedNow);
 computeSequence(ztl3, [{ ...ghost }], [], { includeEdct:true, nowMs: rel3.ctaMs + 11*60000 });
 assert(!getRelease(ztl3, "DAL1"), "stale carryover release expires after CTA + 10min");
+
+/* ============================================================
+   19. Fix filter matches EXPANDED routes (ESSSO-inside-PAATS4 bug)
+   Seeds its own nav data — keep as the LAST section.
+   ============================================================ */
+seedNavData({
+  meta: { cycle: "test19" },
+  fixes: {
+    ALPHA: [[36.0,-110.0]], BRAVO: [[37.0,-105.0]], CHRLY: [[38.0,-100.0]],
+    DELTA: [[39.0,-95.0]], ECHOO: [[39.5,-90.0]], MIDDL: [[36.5,-107.5]],
+  },
+  navaids: {},
+  airways: { W99: { w: [["ALPHA",36.0,-110.0],["MIDDL",36.5,-107.5],["BRAVO",37.0,-105.0]] } },
+  procedures: {
+    GOODS2: { type:"STAR", common: [["DELTA",39.0,-95.0],["ECHOO",39.5,-90.0]] },
+  },
+  preferred: {},
+});
+// pilot files the STAR by name only — ECHOO exists only inside its expansion
+const starFiler = { callsign:"STR1", phase:"gnd", lat:34.0, lon:-118.0, gs:0,
+  dep:"KAAA", arr:"KBBB", fpAlt:36000, tas:450, route:"ALPHA BRAVO CHRLY GOODS2", deptime:"" };
+assert(fcaMatchesFix({ fixes:["ECHOO"] }, starFiler), "fix inside a filed STAR matches (ESSSO/PAATS4 case)");
+assert(fcaMatchesFix({ fixes:["GOODS"] }, starFiler), "STAR base name still matches");
+assert(!fcaMatchesFix({ fixes:["MIDDL"] }, starFiler), "fix NOT on this route still rejected");
+// airway intermediates count too
+const awyFiler = { ...starFiler, callsign:"AWY1", route:"ALPHA W99 BRAVO DELTA" };
+assert(fcaMatchesFix({ fixes:["MIDDL"] }, awyFiler), "fix inside a filed airway segment matches");
+// raw-string form keeps token-only behavior (back-compat)
+assert(!fcaMatchesFix({ fixes:["ECHOO"] }, "ALPHA BRAVO CHRLY GOODS2"), "string form stays token-only");
+// end-to-end: FCA with the inside-fix filter actually meters the STAR filer
+const inFixFca = { id:"if1", enabled:true, dir:"any", mode:"mit", mit:20, minFL:0, maxFL:999,
+  fixes:["ECHOO"], points:[[40.5,-97.0],[38.0,-93.0]], releases:{}, excluded:[], order:[] };
+const inFixSeq = computeSequence(inFixFca, [starFiler, { ...starFiler, callsign:"OFF9", route:"ALPHA BRAVO" }], [], { includeEdct:true, nowMs: fixedNow });
+assert(inFixSeq.items.some(c=>c.p.callsign==="STR1"), "STAR filer metered via inside-fix filter");
+assert(!inFixSeq.items.some(c=>c.p.callsign==="OFF9"), "non-STAR filer excluded");
 
 console.log(`test-fca-metering: all ${passed} assertions passed`);
