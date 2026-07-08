@@ -1,17 +1,23 @@
 /**
- * Tower Departures — VATSIM CID verification for _TWR / _GND positions.
+ * Tower Departures — VATSIM CID verification for _TWR / _GND / _CTR positions.
  */
 
-const TWR_GND_SUFFIX = /_(TWR|GND)$/i;
+const TWR_GND_SUFFIX = /_(TWR|GND|CTR)$/i;
 
 export function isTowerGroundPosition(callsign) {
   return TWR_GND_SUFFIX.test(callsign || "");
 }
 
-/** Extract field ICAO from position callsign (e.g. KATL_TWR → KATL). */
+/** Extract field ICAO from position callsign (e.g. KATL_TWR → KATL).
+ *  Center positions (ZDC_CTR, ZDC_12_CTR) return the ARTCC id, which the
+ *  tower page activates as an ARTCC-wide departure view. */
 export function fieldIcaoFromCallsign(callsign) {
-  if (!callsign) return null;
-  const m = ("" + callsign).toUpperCase().match(/^(.+?)_(?:TWR|GND)$/);
+  const cs = ("" + (callsign || "")).toUpperCase();
+  if (/_CTR$/.test(cs)) {
+    const prefix = cs.split("_")[0].replace(/[^A-Z0-9]/g, "");
+    return /^Z[A-Z]{2}$/.test(prefix) ? prefix : null;
+  }
+  const m = cs.match(/^(.+?)_(?:TWR|GND)$/);
   if (!m) return null;
   const field = m[1].replace(/[^A-Z0-9]/g, "");
   if (field.length < 3 || field.length > 4) return null;

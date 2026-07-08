@@ -1124,23 +1124,50 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
 /* ============================================================
    TOWER DEPARTURES
    ============================================================ */
-export function isDepartureCandidate(p, depIcao) {
-  if (!isConnectedPilot(p)) return false;
+/** Airports whose owning ARTCC differs from (or straddles) the polygon result. */
+export const ARTCC_AIRPORT_OVERRIDES = { KMCO: "ZJX", KTPA: "ZMA", KPHL: "ZNY" };
+
+/** Does this aircraft's departure belong to the given ARTCC? Overrides win;
+ *  otherwise geographic containment of the aircraft (or its dep field). */
+export function depMatchesArtcc(p, artcc) {
+  artcc = ("" + artcc).toUpperCase();
   const dep = (p.dep || "").toUpperCase();
-  if (dep !== depIcao) return false;
+  const ov = ARTCC_AIRPORT_OVERRIDES[dep];
+  if (ov) return ov === artcc;
+  let lat = p.lat, lon = p.lon;
+  if (lat == null || lon == null) {
+    const ap = getAirport(dep);
+    if (ap) { lat = ap[0]; lon = ap[1]; }
+  }
+  if (lat == null || lon == null) return false;
+  return pointInArtcc(artcc, lat, lon) === true;   // strict: no boundary data -> no match
+}
+
+/** Ground-departure shape, independent of which field/ARTCC is asked for. */
+function isDepartureShape(p) {
+  if (!isConnectedPilot(p)) return false;
   if ((p.gs || 0) > 60 && (p.alt || 0) > 300) return false;
   return true;
 }
 
-export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
+export function isDepartureCandidate(p, depIcao) {
+  return isDepartureShape(p) && (p.dep || "").toUpperCase() === depIcao;
+}
+
+export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles, opts = {}) {
   const nowMs = Date.now();
   const dep = (depIcao || "").toUpperCase();
   if (!dep) return { departures: [], nowMs };
+  // ARTCC-wide mode: a Zxx key that isn't an airport shows departures from
+  // EVERY field inside that center's boundary (with airport overrides).
+  const artccMode = opts.artcc === true ||
+    (opts.artcc !== false && /^Z[A-Z]{2}$/.test(dep) && !hasAirport(dep));
+  const matches = artccMode ? (p => depMatchesArtcc(p, dep)) : (p => (p.dep || "").toUpperCase() === dep);
 
   const seen = new Set();
   let total = 0;
   for (const p of pilots || []) {
-    if (!isDepartureCandidate(p, dep)) continue;
+    if (!isDepartureShape(p) || !matches(p)) continue;
     if (seen.has(p.callsign)) continue;
     seen.add(p.callsign);
     total++;
@@ -1154,8 +1181,7 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
     for (let i = 0; i < seq.items.length; i++) {
       const c = seq.items[i];
       if (c.phase !== "gnd") continue;
-      if ((c.p.dep || "").toUpperCase() !== dep) continue;
-      if (!isDepartureCandidate(c.p, dep)) continue;
+      if (!isDepartureShape(c.p) || !matches(c.p)) continue;
       const prev = i > 0 ? seq.items[i - 1] : null;
       const row = {
         callsign: c.p.callsign,
@@ -1185,5 +1211,5 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles) {
   }
 
   const departures = [...byCallsign.values()].sort((a, b) => a.edctMs - b.edctMs || a.callsign.localeCompare(b.callsign));
-  return { departures, nowMs, total, metered: departures.length };
+  return { departures, nowMs, total, metered: departures.length, artccMode };
 }
