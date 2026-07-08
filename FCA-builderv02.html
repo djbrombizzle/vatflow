@@ -85,16 +85,20 @@
   .empty b{color:var(--amber);display:block;margin-bottom:4px;letter-spacing:.1em}
 
   /* FCA card */
-  .fca-card{border:1px solid var(--line-2);border-radius:8px;margin-bottom:9px;overflow:hidden;background:#0f151e;transition:.12s}
+  .fca-card{border:1px solid var(--line-2);border-radius:8px;margin-bottom:6px;overflow:hidden;background:#0f151e;transition:.12s}
   .fca-card.sel{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim),0 4px 16px rgba(0,0,0,.4)}
   .fca-card.off{opacity:.5}
-  .fca-row{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer}
+  .fca-row{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer}
+  .mini-dmd{font:700 10px var(--mono);color:var(--muted-2);background:#162030;border:1px solid var(--line);
+    border-radius:4px;padding:1px 6px;flex-shrink:0}
+  .mini-dmd.hot{color:var(--red);border-color:var(--red)}
+  .mini-dmd.live{color:var(--green)}
   .swatch{width:11px;height:11px;border-radius:2px;flex:none;box-shadow:0 0 7px currentColor}
   .fca-name{flex:1;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fca-act{font-family:var(--mono);font-size:12px;color:var(--muted-2);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex:none}
   .fca-act:hover{color:var(--text);background:#1a2230}
   .fca-act.del:hover{color:var(--red);background:#1a1010}
-  .fca-meta{display:flex;gap:8px;padding:0 11px 9px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .fca-meta{display:flex;flex-wrap:wrap;gap:6px;padding:0 11px 9px;font-family:var(--mono);font-size:10px;color:var(--muted)}
   .fca-meta span{background:#162030;border:1px solid var(--line);border-radius:4px;padding:2px 6px}
   .demand{font-family:var(--mono);font-size:10px;padding:5px 11px;border-top:1px solid var(--line);
     display:flex;align-items:center;justify-content:space-between;color:var(--muted)}
@@ -1321,14 +1325,16 @@ function renderFcaList(){
     const hot=f.mode==="rate"&&f.rate>0&&dmd>f.rate;
     const minitTxt=seq.minit?fmtClock(seq.minit):"—";
     const constraintTxt = f.mode==="mit" ? ((f.mit?f.mit:"?")+" MIT") : (f.rate?f.rate+"/hr":"no rate");
+    const expanded=f.id===state.selectedId;
     card.innerHTML=`
-      <div class="fca-row" data-sel="${f.id}">
+      <div class="fca-row" data-sel="${f.id}" title="${expanded?"Click to collapse":"Click to expand + show the sequence"}">
         <span class="swatch" style="color:${f.color};background:${f.color}"></span>
         <span class="fca-name">${escapeHtml(f.name)}</span>
+        ${expanded?"":`<span class="mini-dmd${hot?" hot":dmd?" live":""}" title="demand ≤${DEMAND_WINDOW_MIN}m">${dmd}</span>`}
         ${ctl?`<span class="fca-act" data-edit="${f.id}" title="Edit rate / MIT / filters">✎</span>
         <span class="fca-act del" data-del="${f.id}" title="Delete this FCA">✕</span>
         <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>`:""}
-      </div>
+      </div>` + (expanded?`
       <div class="fca-meta">
         <span>${f.dests&&f.dests.length?escapeHtml(f.dests.join(" ")):"ALL dest"}</span>
         <span>${f.origins&&f.origins.length?"from "+escapeHtml(f.origins.join(" ")):"ALL dep"}</span>
@@ -1341,7 +1347,7 @@ function renderFcaList(){
       <div class="demand ${hot?"hot":dmd?"ok":""}">
         <span>demand (≤${DEMAND_WINDOW_MIN}m) · ${f.mode==="mit"?"MIT "+(f.mit||"?")+"nm":"MINIT "+minitTxt}</span>
         <span class="v">${dmd}/${DEMAND_WINDOW_MIN===60?"hr":DEMAND_WINDOW_MIN+"m"}</span>
-      </div>`;
+      </div>`:"");
     wrap.appendChild(card);
   });
   // wire
