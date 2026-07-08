@@ -627,4 +627,34 @@ const inFixSeq = computeSequence(inFixFca, [starFiler, { ...starFiler, callsign:
 assert(inFixSeq.items.some(c=>c.p.callsign==="STR1"), "STAR filer metered via inside-fix filter");
 assert(!inFixSeq.items.some(c=>c.p.callsign==="OFF9"), "non-STAR filer excluded");
 
+/* ============================================================
+   20. ARTCC-wide tower departures + overrides + CTR auth
+   ============================================================ */
+import { depMatchesArtcc, ARTCC_AIRPORT_OVERRIDES } from "../shared/fca-metering.js";
+import { isTowerGroundPosition, fieldIcaoFromCallsign } from "../shared/tower-atc-auth.js";
+seedArtccBoundaries({ features: [
+  { properties:{ id:"ZAA" }, geometry:{ type:"Polygon", coordinates:[[[-85,30],[-80,30],[-80,35],[-85,35],[-85,30]]] } },
+  { properties:{ id:"ZBB" }, geometry:{ type:"Polygon", coordinates:[[[-85,25],[-80,25],[-80,30],[-85,30],[-85,25]]] } },
+]});
+seedAirports({ KIN1:[32.0,-82.5], KOUT:[27.0,-82.5], KMCO:[28.4294,-81.3089] });
+const zFca = { id:"z20", enabled:true, dir:"any", mode:"mit", mit:30, minFL:0, maxFL:999,
+  points:[[34.5,-85.0],[34.5,-80.0]], releases:{}, excluded:[], order:[] };
+const inZaa  = { callsign:"ZIN1", phase:"gnd", lat:32.0, lon:-82.5, gs:0, dep:"KIN1", arr:"KDCA", fpAlt:34000, tas:440, route:"DCT", deptime:"" };
+const inZbb  = { ...inZaa, callsign:"ZOUT1", lat:27.0, lon:-82.5, dep:"KOUT" };
+const zTwr = computeTowerDepartures("ZAA", [zFca], [inZaa, inZbb]);
+assert(zTwr.artccMode === true, "Zxx non-airport key enters ARTCC mode");
+assert(zTwr.departures.some(d=>d.callsign==="ZIN1"), "in-boundary field departure included");
+assert(!zTwr.departures.some(d=>d.callsign==="ZOUT1"), "out-of-boundary field departure excluded");
+assert(computeTowerDepartures("KIN1", [zFca], [inZaa, inZbb]).artccMode === false, "airport key stays single-field mode");
+// overrides beat geography (KMCO forced to ZJX even though our synthetic ZBB contains it)
+assert(ARTCC_AIRPORT_OVERRIDES.KMCO === "ZJX" && ARTCC_AIRPORT_OVERRIDES.KTPA === "ZMA" && ARTCC_AIRPORT_OVERRIDES.KPHL === "ZNY", "override table");
+const mcoDep20 = { ...inZbb, callsign:"MCO20", dep:"KMCO", lat:28.43, lon:-81.31 };
+assert(!depMatchesArtcc(mcoDep20, "ZBB"), "override excludes KMCO from a geographically-containing center");
+assert(depMatchesArtcc(mcoDep20, "ZJX"), "override includes KMCO in ZJX regardless of boundary data");
+// CTR auth
+assert(isTowerGroundPosition("ZDC_CTR") && isTowerGroundPosition("ZDC_12_CTR"), "_CTR positions verify");
+assert(fieldIcaoFromCallsign("ZDC_12_CTR") === "ZDC", "CTR callsign yields its ARTCC");
+assert(fieldIcaoFromCallsign("KATL_TWR") === "KATL", "TWR extraction unchanged");
+assert(isTowerGroundPosition("KATL_GND") && !isTowerGroundPosition("KATL_APP"), "suffix rules unchanged otherwise");
+
 console.log(`test-fca-metering: all ${passed} assertions passed`);
