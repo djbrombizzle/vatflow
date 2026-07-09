@@ -15,6 +15,8 @@ import {
   buildRouteAnchors,
   buildRouteAnchorsForAircraft,
   buildRouteSegments,
+  isInternationalRoute,
+  inNavCoverage,
 } from "../shared/route-engine.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -132,5 +134,28 @@ assert(star && (star.kind === "star" || star.kind === "sid"), "CHPPR6 should res
 const pStar = { dep: "KATL", arr: "KATL", route: "CHPPR6", phase: "gnd" };
 const starAnchors = buildRouteAnchors(pStar, { origin: AIRPORTS.KATL, destination: AIRPORTS.KATL });
 assert(starAnchors.anchors.length >= 3, "STAR should expand to multiple anchors");
+
+// International: resolve US fixes, then great-circle to destination only
+const EGLL = [51.47, -0.45];
+assert(isInternationalRoute("EGLL", EGLL), "EGLL should be international");
+assert(isInternationalRoute("CYHZ", [44.88, -63.58]), "Canadian destination should be international");
+assert(!isInternationalRoute("KJFK", AIRPORTS.KJFK), "KJFK should stay domestic");
+const pIntl = {
+  dep: "KJFK",
+  arr: "EGLL",
+  route: "MERIT NELIE ALLRY NATA OYSTR GOMUP",
+  phase: "gnd",
+};
+const intl = buildRouteAnchors(pIntl, { origin: AIRPORTS.KJFK, destination: EGLL });
+const intlNames = intl.anchors.map(a => a.name);
+assert(intl.truncatedInternational, "international route should truncate oceanic tokens");
+assert(intlNames.includes("MERIT") && intlNames.includes("NELIE"), "US fixes should remain");
+assert(intlNames.includes("EGLL"), "destination should be appended");
+assert(!intlNames.includes("ALLRY"), "oceanic fix should not be plotted");
+assert(intl.oceanicSkipped.includes("ALLRY"), "oceanic token should be recorded as skipped");
+assert(!intl.unresolved.includes("ALLRY"), "oceanic token should not count as unresolved");
+const lastUs = intl.anchors.filter(a => a.kind !== "apt").slice(-1)[0];
+assert(lastUs && inNavCoverage(lastUs.ll[0], lastUs.ll[1]), "last enroute point should stay in nav coverage");
+console.log("international:", intlNames.join(" → "));
 
 console.log("All route-engine tests passed.");

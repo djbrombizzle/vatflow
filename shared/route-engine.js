@@ -48,6 +48,38 @@ function haversineNm(la1, lo1, la2, lo2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+/** FAA nav coverage bbox (matches data/nav meta.bbox). */
+export function inNavCoverage(lat, lon) {
+  const b = meta?.bbox;
+  const minLat = b?.[0] ?? 23.5;
+  const minLon = b?.[1] ?? -130;
+  const maxLat = b?.[2] ?? 51.5;
+  const maxLon = b?.[3] ?? -63;
+  return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+}
+
+/** True when the filed destination is outside the US airport system we model. */
+export function isInternationalRoute(arr, destination) {
+  const code = (arr || "").toUpperCase();
+  if (code.length >= 3) {
+    if (code.startsWith("K")) return false;
+    if (/^P[AHTGJF]/.test(code)) return false;
+    if (/^T[JIP]/.test(code)) return false;
+    if (/^MD[A-Z0-9]/.test(code)) return false;
+    return true;
+  }
+  return !!(destination && !inNavCoverage(destination[0], destination[1]));
+}
+
+function pushAnchor(anchors, pt) {
+  const last = anchors[anchors.length - 1];
+  if (!last || last.ll[0] !== pt.ll[0] || last.ll[1] !== pt.ll[1]) {
+    anchors.push(pt);
+    return pt.ll;
+  }
+  return last.ll.slice();
+}
+
 function nearestCandidate(cands, refLL) {
   if (!cands || !cands.length) return null;
   if (!refLL || cands.length === 1) return cands[0];
@@ -307,14 +339,22 @@ export function buildRouteAnchors(p, opts = {}) {
   const destination = opts.destination || (arr && getAirportFn(arr) ? getAirportFn(arr).slice() : null);
   const routeStr = maybePreferredRoute(p);
   const tokens = parseRouteTokens(routeStr);
+  const intl = isInternationalRoute(arr, destination);
 
   const anchors = [];
   const unresolved = [];
+  const oceanicSkipped = [];
   let refLL = origin;
+  let intlTruncated = false;
 
   if (origin) anchors.push({ name: dep || "DEP", ll: origin.slice(), kind: "apt" });
 
   for (let i = 0; i < tokens.length; i++) {
+    if (intlTruncated) {
+      oceanicSkipped.push(cleanToken(tokens[i]));
+      continue;
+    }
+
     const raw = tokens[i];
     const tok = cleanToken(raw);
     const nextTok = i + 1 < tokens.length ? cleanToken(tokens[i + 1]) : "";
@@ -330,58 +370,81 @@ export function buildRouteAnchors(p, opts = {}) {
         if (nxt) { toLL = nxt.ll; break; }
         if (isAirwayToken(tokens[j])) break;
       }
-      if (!refLL) { unresolved.push(tok); continue; }
+      if (!refLL) { if (!intl) unresolved.push(tok); intlTruncated = intl; continue; }
       const expanded = expandAirway(tok, refLL, toLL);
-      if (!expanded.length) { unresolved.push(tok); continue; }
+      if (!expanded.length) { if (!intl) unresolved.push(tok); intlTruncated = intl; continue; }
       for (const pt of expanded) {
-        const last = anchors[anchors.length - 1];
-        if (!last || last.ll[0] !== pt.ll[0] || last.ll[1] !== pt.ll[1]) {
-          anchors.push(pt);
-          refLL = pt.ll;
+        if (intl && !inNavCoverage(pt.ll[0], pt.ll[1])) {
+          intlTruncated = true;
+          break;
         }
+        refLL = pushAnchor(anchors, pt);
+      }
+      if (intlTruncated) {
+        for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
+        break;
       }
       continue;
     }
 
-    // Procedures are filed WITH a digit (DOTSS2, TYGER7, PUCKY1). A digitless token
-    // that names a fix/navaid is that point — STAR/SID base names collide with their
-    // anchor fixes (TYGER fix vs TYGER# STAR), so bare names must never expand
-    // procedures mid-route. Digitless procedure matches are allowed only at the route
-    // edges (SID at the start, STAR at the end) when the name is not a known point.
     const hasDigit = /\d/.test(tok);
     const atEdge = i <= 1 || i >= tokens.length - 2;
+    const atArrivalEdge = i >= tokens.length - 2;
     const knownPoint = !!(navaids[tok] || fixes[tok] || hasAirportFn(tok));
     const proc = (hasDigit || (atEdge && !knownPoint)) ? findProcedure(tok) : null;
     if (proc) {
+      if (intl && atArrivalEdge && proc.type === "STAR") {
+        intlTruncated = true;
+        oceanicSkipped.push(tok);
+        for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
+        break;
+      }
       const prevTok = i > 0 ? cleanToken(tokens[i - 1]) : "";
       const transition = proc.transitions?.[prevTok] ? prevTok : null;
       const legs = expandProcedure(proc, { transition, refLL });
       for (const pt of legs) {
-        const last = anchors[anchors.length - 1];
-        if (!last || last.ll[0] !== pt.ll[0] || last.ll[1] !== pt.ll[1]) {
-          anchors.push(pt);
-          refLL = pt.ll;
+        if (intl && !inNavCoverage(pt.ll[0], pt.ll[1])) {
+          intlTruncated = true;
+          break;
         }
+        refLL = pushAnchor(anchors, pt);
+      }
+      if (intlTruncated) {
+        for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
+        break;
       }
       continue;
     }
 
     const resolved = resolveToken(tok, { refLL, dep, arr });
     if (!resolved) {
+      if (intl) {
+        intlTruncated = true;
+        oceanicSkipped.push(tok);
+        for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
+        break;
+      }
       if (!hasAirportFn(tok) && tok.length >= 2) unresolved.push(tok);
       continue;
     }
-    // wrong-candidate guard: CONUS enroute legs between named points don't exceed ~900nm
+    if (intl && !inNavCoverage(resolved.ll[0], resolved.ll[1])) {
+      intlTruncated = true;
+      oceanicSkipped.push(tok);
+      for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
+      break;
+    }
     if (refLL && haversineNm(refLL[0], refLL[1], resolved.ll[0], resolved.ll[1]) > 900) {
+      if (intl) {
+        intlTruncated = true;
+        oceanicSkipped.push(tok);
+        for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
+        break;
+      }
       unresolved.push(tok);
       continue;
     }
 
-    const last = anchors[anchors.length - 1];
-    if (!last || last.ll[0] !== resolved.ll[0] || last.ll[1] !== resolved.ll[1]) {
-      anchors.push(resolved);
-      refLL = resolved.ll;
-    }
+    refLL = pushAnchor(anchors, resolved);
   }
 
   if (destination) {
@@ -391,7 +454,13 @@ export function buildRouteAnchors(p, opts = {}) {
     }
   }
 
-  return { anchors, unresolved, expandedRoute: routeStr };
+  return {
+    anchors,
+    unresolved,
+    oceanicSkipped,
+    truncatedInternational: intlTruncated,
+    expandedRoute: routeStr,
+  };
 }
 
 export function buildRoutePathLLs(p, opts = {}) {
