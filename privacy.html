@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VATFLOW — Privacy &amp; Data Handling Policy</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg:#080b10; --panel:#0e1319; --line:#1e2834; --line-2:#2a3848;
+    --text:#d4dde6; --muted:#8a97a3; --muted-2:#5c6b78; --amber:#e8a838;
+    --mono: ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --ui: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --vatflow-nav-h:28px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);padding-top:var(--vatflow-nav-h);line-height:1.65}
+  #vatflowAppNav{position:fixed;top:0;left:0;right:0;z-index:50}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 22px 80px}
+  h1{font:700 22px var(--mono);letter-spacing:.06em;margin:0 0 4px}
+  h1 span{color:var(--amber)}
+  .sub{font:400 12px var(--mono);color:var(--muted-2);margin-bottom:6px;letter-spacing:.04em}
+  .updated{font:400 11px var(--mono);color:var(--muted-2);margin-bottom:28px}
+  h2{font:700 13px var(--mono);letter-spacing:.08em;color:var(--amber);margin:30px 0 8px;text-transform:uppercase}
+  p{margin:0 0 12px;color:var(--text)}
+  ul{margin:0 0 14px;padding-left:20px}
+  li{margin:0 0 7px}
+  .muted{color:var(--muted)}
+  code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:#0a0e14;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .callout{background:#0e1319;border:1px solid var(--line-2);border-left:3px solid var(--amber);border-radius:6px;padding:12px 15px;margin:14px 0;font-size:14px}
+  a{color:var(--amber)}
+  hr{border:none;border-top:1px solid var(--line);margin:26px 0}
+  .foot{font:400 11px var(--mono);color:var(--muted-2);margin-top:36px}
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div class="wrap">
+
+  <h1>VATFLOW <span>Privacy &amp; Data Handling Policy</span></h1>
+  <div class="sub">TMU management for VATSIM · Personal, non-commercial project</div>
+  <div class="updated">Last updated: 8 July 2026</div>
+
+  <div class="callout">
+    VATFLOW is a personal, non-commercial hobby project built for use on the VATSIM network.
+    It is <b>not</b> an official VATSIM product and is not endorsed by or affiliated with VATSIM,
+    VATUSA, or any Air Route Traffic Control Center, vACC, or division. It is provided as-is,
+    for the personal use of the author and controllers who choose to use it.
+  </div>
+
+  <h2>Summary</h2>
+  <p>
+    VATFLOW is designed to store as little personal data as possible. It does not operate a user
+    database. When you sign in with VATSIM Connect, VATFLOW confirms your controller identity in
+    the moment and issues a short-lived session token that lives only in your own web browser.
+    VATFLOW does not sell, rent, share, or trade any personal information, and has no advertising.
+  </p>
+
+  <h2>What data VATFLOW receives</h2>
+  <p>
+    Signing in is handled entirely by <b>VATSIM Connect</b> (<code>auth.vatsim.net</code>). VATFLOW
+    never sees or handles your VATSIM password. After you authorize the sign-in, VATSIM provides
+    VATFLOW with a limited set of details from your VATSIM profile:
+  </p>
+  <ul>
+    <li>Your VATSIM <b>CID</b> (member ID)</li>
+    <li>Your <b>name</b> as held by VATSIM</li>
+    <li>Your <b>controller rating</b> and related network details</li>
+  </ul>
+  <p class="muted">
+    VATFLOW requests only the minimum permissions ("scopes") needed to verify that you are a VATSIM
+    controller. It does not request your email address unless explicitly stated at the time of sign-in.
+  </p>
+  <p>
+    Separately, VATFLOW reads the <b>public VATSIM data feed</b> (<code>data.vatsim.net</code>) — the
+    same live network data anyone can access — to display aircraft, flight plans, and online positions.
+    This is public network activity, not private account data, and is used only to render the tools.
+  </p>
+
+  <h2>How that data is used</h2>
+  <p>
+    The details from VATSIM Connect are used for one purpose: to confirm, at sign-in, that you are a
+    VATSIM controller and to establish your access level within VATFLOW. Your CID and rating may be
+    included inside the session token described below so the tools know who you are during your session.
+  </p>
+  <p>VATFLOW does <b>not</b> use this data for profiling, analytics, marketing, or any secondary purpose.</p>
+
+  <h2>What is stored, and where</h2>
+  <p>VATFLOW is built to avoid keeping a server-side record of you:</p>
+  <ul>
+    <li>
+      <b>No user database.</b> VATFLOW does not maintain a stored list of members, logins, or profiles.
+      The information VATSIM returns at sign-in is used to verify you and is then discarded on the server
+      side; it is not written to any database.
+    </li>
+    <li>
+      <b>Session token (in your browser).</b> After you are verified, VATFLOW issues a short-lived,
+      digitally signed session token that is stored only in your own browser (local storage). This token
+      contains your CID and rating so the tools can recognize you during your session. It expires
+      automatically after a limited time, after which you sign in again. It is not shared with third
+      parties. Clearing your browser's site data removes it.
+    </li>
+    <li>
+      <b>Tool settings (in your browser).</b> Preferences and configurations you create — such as FCA
+      definitions, runway configurations, and view settings — are stored locally in your browser and,
+      where a page offers live sharing, in that page's shared data store so other controllers on the same
+      tool can see the same traffic picture. These settings are operational data, not personal profile data.
+    </li>
+    <li>
+      <b>Sign-in secrets.</b> VATFLOW's backend holds only the credentials needed to talk to VATSIM
+      Connect (an application secret and a token-signing key). These are configuration secrets, not
+      information about you.
+    </li>
+  </ul>
+
+  <h2>Third-party services &amp; transient logs</h2>
+  <p>
+    VATFLOW runs on standard web hosting and a lightweight serverless backend (for example, GitHub Pages
+    and Cloudflare). Like virtually all internet services, these providers may automatically keep
+    short-term technical request logs (such as IP addresses and timestamps) for security and abuse
+    prevention. VATFLOW does not control the retention of these provider logs and does not use them to
+    build any profile of you. VATFLOW also contacts VATSIM services and publicly available aviation data
+    sources (for example, weather and airport data) to function.
+  </p>
+
+  <h2>Data sharing</h2>
+  <p>
+    VATFLOW does not sell, rent, or share your personal data with anyone. The only transfers of your
+    information are: (1) between you and VATSIM Connect during sign-in, which VATSIM governs under its own
+    privacy policy, and (2) within your own browser session as described above.
+  </p>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li>You can decline the VATSIM Connect authorization screen and simply not sign in.</li>
+    <li>You can sign out or clear your browser's site data at any time to remove your session token and local settings.</li>
+    <li>
+      You can revoke VATFLOW's access to your VATSIM account at any time from your VATSIM Connect account
+      settings at <a href="https://auth.vatsim.net" target="_blank" rel="noopener">auth.vatsim.net</a>.
+    </li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>VATFLOW is a tool for VATSIM network members and is not directed at children.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    This policy may be updated as VATFLOW evolves. The "last updated" date at the top reflects the current
+    version. Continued use after a change constitutes acceptance of the updated policy.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about this policy or your data can be directed to the project author via the project's
+    repository or the contact method listed there:
+    <a href="https://github.com/djbrombizzle/vatflow" target="_blank" rel="noopener">github.com/djbrombizzle/vatflow</a>.
+  </p>
+
+  <hr>
+  <div class="foot">
+    VATFLOW · Personal use only · Not affiliated with or endorsed by VATSIM, VATUSA, or any division or facility.
+  </div>
+
+</div>
+
+<script type="module">
+  import { mountVatflowNav } from "./shared/vatflow-nav.js";
+  mountVatflowNav(document.getElementById("vatflowAppNav"), "");
+</script>
+</body>
+</html>

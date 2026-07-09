@@ -36,21 +36,12 @@
   .cards a b { display: block; font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; margin-bottom: 4px; color: var(--amber); }
   .cards a span { font-size: 12px; color: var(--muted); line-height: 1.5; }
 </style>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-FH13C8D6GT"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-FH13C8D6GT');
-</script>
 </head>
 <body>
 <div id="vatflowAppNav"></div>
 <div class="hub">
   <h1>VATFLOW</h1>
-  <p>Flow control and tower metering tools for VATSIM events.</p>
+  <p>TMU management for VATSIM &middot; <b>PERSONAL USE ONLY</b></p>
   <div class="cards">
     <a href="vatflow-tbfm%20v2.html">
       <b>CFR / TBFM</b>
@@ -69,6 +60,10 @@
       <span>Arrival runway demand — set the airport config, auto-balance or map STARs to runways.</span>
     </a>
   </div>
+  <p style="margin-top:28px;font-family:var(--mono,monospace);font-size:11px;color:#5c6b78">
+    <a href="privacy.html" style="color:#8a97a3">Privacy &amp; Data Handling Policy</a>
+    &nbsp;·&nbsp; Personal use only · Not affiliated with VATSIM
+  </p>
 </div>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
