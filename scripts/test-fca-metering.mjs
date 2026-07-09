@@ -657,4 +657,33 @@ assert(fieldIcaoFromCallsign("ZDC_12_CTR") === "ZDC", "CTR callsign yields its A
 assert(fieldIcaoFromCallsign("KATL_TWR") === "KATL", "TWR extraction unchanged");
 assert(isTowerGroundPosition("KATL_GND") && !isTowerGroundPosition("KATL_APP"), "suffix rules unchanged otherwise");
 
+/* ============================================================
+   21. Airport -> ARTCC resolution for single-tower FCA scope
+   ============================================================ */
+import { airportArtcc } from "../shared/fca-metering.js";
+import { artccForPoint } from "../shared/artcc-scope.js";
+seedArtccBoundaries({ features: [
+  { properties:{ id:"ZAA" }, geometry:{ type:"Polygon", coordinates:[[[-85,30],[-80,30],[-80,35],[-85,35],[-85,30]]] } },
+  { properties:{ id:"ZBB" }, geometry:{ type:"Polygon", coordinates:[[[-85,25],[-80,25],[-80,30],[-85,30],[-85,25]]] } },
+]});
+seedAirports({ KINAA:[32.0,-82.5], KINBB:[27.0,-82.5], KMCO:[28.4294,-81.3089], KFAR:[10.0,10.0] });
+assert(artccForPoint(32.0, -82.5) === "ZAA" && artccForPoint(27.0, -82.5) === "ZBB", "artccForPoint resolves the containing center");
+assert(artccForPoint(0, 0) === null, "point outside all boundaries -> null");
+assert(airportArtcc("KINAA") === "ZAA", "airport resolves to its ARTCC");
+assert(airportArtcc("KINBB") === "ZBB", "second airport resolves correctly");
+assert(airportArtcc("KMCO") === "ZJX", "override wins over geography for KMCO");
+assert(airportArtcc("KFAR") === null, "airport outside all boundaries -> null (caller fails open)");
+assert(airportArtcc("KZZZ") === null, "unknown airport -> null");
+
+// the KMIA-sees-ZDC bug: a single tower must only show FCAs scoped to its center
+function scopeShown(fieldArtcc, fca) {
+  return !fca.scope || !fca.scope.length ||
+    fca.scope.map(x => x.toUpperCase()).includes(fieldArtcc);
+}
+const zaaArtcc = airportArtcc("KINAA");   // ZAA
+assert(!scopeShown(zaaArtcc, { scope:["ZBB"] }), "tower does NOT see an FCA scoped to another center");
+assert(scopeShown(zaaArtcc, { scope:["ZAA"] }), "tower sees an FCA scoped to its own center");
+assert(scopeShown(zaaArtcc, { scope:["ZAA","ZBB"] }), "tower sees a multi-center FCA including it");
+assert(scopeShown(zaaArtcc, { scope:[] }), "tower always sees an unscoped (global) FCA");
+
 console.log(`test-fca-metering: all ${passed} assertions passed`);
