@@ -489,7 +489,6 @@ import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
 import { buildRouteAnchorsForAircraft, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
-import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -508,6 +507,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";   //
 const US_BOUNDS = [[18, -130],[52, -64]];
 const FCA_COLORS = ["#f5a623","#e879f9","#a3e635","#fb923c","#38bdf8","#f87171"];
 const REFRESH_SEC = 20;
+const ACCESS_API_BASE = "https://vatflow-hub-production.up.railway.app";
 
 /* ---- controller access: VIEW-ONLY until unlocked (same gate as vatflow-tbfm v2.html) ----
    Keep CONTROL_PASSWORD_LOCAL identical in both files. Empty = soft gate (any password works). */
@@ -517,6 +517,17 @@ let controllerCid = "";
 function canControl(){ return controllerUnlocked; }
 function canReadyOnly(){ return cidUnlocked && !controllerUnlocked; }
 function canReady(){ return canControl() || canReadyOnly(); }
+async function verifyPagePasswordLocal(page, password){
+  try{
+    const r=await fetch(`${ACCESS_API_BASE}/access/verify`,{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({page,password})
+    });
+    if(!r.ok) return {ok:false};
+    return r.json();
+  }catch(_){ return {ok:false}; }
+}
 
 /* ---------- state ---------- */
 const state = {
@@ -2366,7 +2377,7 @@ function setControl(on){
   renderAll();
 }
 async function attemptUnlock(pw){
-  const res = await verifyPagePassword("fca_builder", pw);
+  const res = await verifyPagePasswordLocal("fca_builder", pw);
   if(res && res.ok){ lockMsg.textContent=""; setControl(true); }
   else { lockMsg.textContent="wrong password"; lockMsg.className="lockerr"; }
 }

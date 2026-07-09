@@ -189,12 +189,12 @@
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { loadAirports, seedAirports, getAirport, fpFields, fmtZulu, haversineNm, parseAlt } from "./shared/fca-metering.js";
-import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 mountVatflowNav(document.getElementById("vatflowAppNav"), "runways");
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv";
 const METAR_URL = "https://aviationweather.gov/api/data/metar?ids=";
+const ACCESS_API_BASE = "https://vatflow-hub-production.up.railway.app";
 const LANE_COLORS = ["#e8a838","#5ba8c9","#4caf7a","#b07fd6","#d45c5c","#7f9dd6","#d6a97f"];
 const BIN_MIN = 10;
 
@@ -690,7 +690,15 @@ $("addEndBtn").addEventListener("click", () => {
 /* password unlock */
 async function tryUnlock() {
   const pw = $("pwInput").value || "";
-  const res = await verifyPagePassword("runway", pw);
+  let res = { ok: false };
+  try {
+    const r = await fetch(`${ACCESS_API_BASE}/access/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ page: "runway", password: pw })
+    });
+    if (r.ok) res = await r.json();
+  } catch (_) {}
   if (res && res.ok) {
     state.unlocked = true;
     VatflowControl.savePage("runway", true);

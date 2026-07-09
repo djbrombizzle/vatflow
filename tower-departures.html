@@ -266,7 +266,6 @@ import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries, isArtccScopeReady } from "./shared/artcc-scope.js";
-import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -275,11 +274,25 @@ const LS_FIELD = "towerDepIcao";
 const LS_CID = "towerDep.cid.v1";
 const LS_TOWER_UI = "towerDep.ui.v1";
 const REFRESH_SEC = 20;
+const ACCESS_API_BASE = "https://vatflow-hub-production.up.railway.app";
 
 let passwordUnlocked = VatflowControl.loadPage("tower");
 function canControl() { return passwordUnlocked; }
 function canReadyOnly() { return state.atcVerified && !passwordUnlocked; }
 function canReady() { return canControl() || canReadyOnly(); }
+async function verifyPagePasswordLocal(page, password) {
+  try {
+    const r = await fetch(`${ACCESS_API_BASE}/access/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ page, password }),
+    });
+    if (!r.ok) return { ok: false };
+    return r.json();
+  } catch (_) {
+    return { ok: false };
+  }
+}
 
 const state = {
   field: "",
@@ -1158,7 +1171,7 @@ function showPwEntry() {
 }
 
 async function attemptUnlock(pw) {
-  const res = await verifyPagePassword("tower", pw);
+  const res = await verifyPagePasswordLocal("tower", pw);
   if (res && res.ok) {
     lockMsg.textContent = "";
     setPasswordControl(true);

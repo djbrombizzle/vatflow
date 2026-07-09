@@ -21,6 +21,6 @@ export function mountVatflowNav(container, active) {
       `<a href="${l.href}"${l.id === active ? ' class="active" aria-current="page"' : ""}>${l.label}</a>`
     ).join("") +
     `<span class="vf-spacer"></span>` +
-    `<a class="vf-privacy" href="privacy.html"${active === "privacy" ? ' class="active" aria-current="page"' : ""}>Privacy</a>`;
+    `<a class="vf-privacy${active === "privacy" ? ' active' : ""}" href="privacy.html"${active === "privacy" ? ' aria-current="page"' : ""}>Privacy</a>`;
   container.appendChild(nav);
 }
