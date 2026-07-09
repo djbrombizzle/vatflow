@@ -78,7 +78,7 @@
 
   /* per-runway arrival tables (Tower-Departures style) */
   .rwy-tables { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
-  .rwy-card { flex:0 0 340px; max-width:340px; border:1px solid var(--line); border-radius:8px;
+  .rwy-card { flex:0 0 360px; max-width:360px; border:1px solid var(--line); border-radius:8px;
     overflow:hidden; background:var(--panel); }
   .rwy-card-head { display:flex; align-items:center; gap:8px; padding:8px 11px;
     border-bottom:1px solid var(--line); border-left:4px solid var(--muted-2); }
@@ -86,17 +86,25 @@
   .rwy-card-head .rwy-hdg { font:400 9px var(--mono); color:var(--muted-2); }
   .rwy-card-head .rwy-count { margin-left:auto; font:700 11px var(--mono); color:var(--muted); }
   .rwy-card-head .rwy-count.hot { color:var(--red); }
-  .rt { width:100%; border-collapse:collapse; font:400 12px var(--mono); }
-  .rt th { text-align:left; font:700 8px var(--mono); letter-spacing:.08em; color:var(--muted-2);
-    padding:5px 8px; border-bottom:1px solid var(--line); }
-  .rt td { padding:6px 8px; border-bottom:1px solid #131a24; white-space:nowrap; }
+  .rt { width:100%; border-collapse:collapse; font:400 11px var(--mono); table-layout:fixed; }
+  .rt th { text-align:left; font:700 8px var(--mono); letter-spacing:.04em; color:var(--muted-2);
+    padding:5px 4px; border-bottom:1px solid var(--line); }
+  .rt td { padding:6px 4px; border-bottom:1px solid #131a24; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
   .rt tr:last-child td { border-bottom:none; }
   .rt tr:hover td { background:#121820; }
   .rt .cs { font-weight:700; }
   .rt .eta-min { color:var(--muted-2); }
-  .rt select { background:#0a0e14; border:1px solid var(--line-2); border-radius:4px; color:var(--text);
-    font:600 10px var(--mono); padding:2px 4px; outline:none; }
+  .rt select { width:100%; background:#0a0e14; border:1px solid var(--line-2); border-radius:4px; color:var(--text);
+    font:600 10px var(--mono); padding:2px 2px; outline:none; }
   .rt select:focus { border-color:var(--amber); }
+  /* fixed column widths so all 6 columns fit inside the card, no clipping */
+  .rt col.c-cs   { width:60px; }
+  .rt col.c-from { width:44px; }
+  .rt col.c-star { width:52px; }
+  .rt col.c-eta  { width:74px; }
+  .rt col.c-src  { width:36px; }
+  .rt col.c-rwy  { width:58px; }
   .rwy-empty-row td { color:var(--muted-2); text-align:center; padding:12px 8px; }
   .unassigned .rwy-card-head { border-left-color:var(--red); }
   .src { font:700 8px var(--mono); letter-spacing:.08em; padding:1px 5px; border-radius:3px; border:1px solid; }
@@ -626,15 +634,18 @@ function renderArrivals() {
       ? `<span class="src ${a.src}">${a.src === "man" ? "MAN" : a.src === "star" ? "STAR" : "AUTO"}</span>`
       : `<span class="src auto warn">—</span>`;
     return `<tr>` +
-      `<td class="cs">${escapeHtml(a.cs)}</td>` +
+      `<td class="cs" title="${escapeHtml(a.cs)} · ${escapeHtml(a.type || "")} · ${Math.round(a.dist)}nm">${escapeHtml(a.cs)}</td>` +
       `<td style="color:var(--muted)">${escapeHtml(a.dep)}</td>` +
       `<td>${escapeHtml(a.star || "—")}</td>` +
-      `<td>${Math.round(a.dist)}<span class="eta-min">nm</span></td>` +
       `<td>${fmtZulu(a.etaMs)} <span class="eta-min">+${Math.round(a.etaMin)}</span></td>` +
       `<td>${srcTag}</td>` +
       `<td><select data-man="${escapeHtml(a.cs)}" title="Reassign runway">${opts}</select></td>` +
       `</tr>`;
   }
+
+  const COLS = `<colgroup>` +
+    `<col class="c-cs"><col class="c-from"><col class="c-star">` +
+    `<col class="c-eta"><col class="c-src"><col class="c-rwy"></colgroup>`;
 
   function cardHtml(id, rows, hdg, extraClass) {
     const col = extraClass ? "var(--red)" : laneColor(id);
@@ -646,9 +657,9 @@ function renderArrivals() {
       (hdg != null ? `<span class="rwy-hdg">${String(Math.round(hdg)).padStart(3, "0")}°</span>` : "") +
       `<span class="rwy-count${hot ? " hot" : ""}">${rows.length} · ${next60}/hr</span></div>`;
     const body = rows.length
-      ? `<table class="rt"><thead><tr><th>CS</th><th>FROM</th><th>STAR</th><th>DIST</th><th>ETA</th><th>SRC</th><th>RWY</th></tr></thead>` +
+      ? `<table class="rt">${COLS}<thead><tr><th>CS</th><th>FROM</th><th>STAR</th><th>ETA</th><th>SRC</th><th>RWY</th></tr></thead>` +
         `<tbody>${rows.map(rowHtml).join("")}</tbody></table>`
-      : `<table class="rt"><tbody><tr class="rwy-empty-row"><td colspan="7">No arrivals</td></tr></tbody></table>`;
+      : `<table class="rt"><tbody><tr class="rwy-empty-row"><td colspan="6">No arrivals</td></tr></tbody></table>`;
     return `<div class="rwy-card${extraClass || ""}">${head}${body}</div>`;
   }
 
