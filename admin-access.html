@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VATFLOW Admin Access</title>
+  <link rel="stylesheet" href="shared/vatflow-nav.css">
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #0b1016; color: #d4dde6; padding-top: 28px; }
+    #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 5; }
+    main { max-width: 760px; margin: 20px auto; padding: 0 14px 24px; }
+    .card { background: #111925; border: 1px solid #223042; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    h1 { margin: 0 0 8px; font-size: 18px; }
+    h2 { margin: 0 0 8px; font-size: 14px; color: #e8a838; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+    input, select, button { padding: 8px; border-radius: 6px; border: 1px solid #33475f; background: #0c131d; color: #d4dde6; }
+    button { cursor: pointer; }
+    .status { font-size: 12px; color: #8a97a3; }
+  </style>
+</head>
+<body>
+  <div id="vatflowAppNav"></div>
+  <main>
+    <div class="card">
+      <h1>Admin Access</h1>
+      <div class="row">
+        <input id="adminPw" type="password" placeholder="Bootstrap admin password">
+        <button id="adminLogin">Login</button>
+      </div>
+      <div id="authStatus" class="status">Authenticate with Railway env bootstrap password.</div>
+    </div>
+    <div class="card">
+      <h2>Set page passwords</h2>
+      <div class="row">
+        <select id="pageSel">
+          <option value="tbfm">CFR / TBFM</option>
+          <option value="fca_builder">FCA Builder</option>
+          <option value="tower">Tower Departures</option>
+          <option value="runway">Runway Balancer</option>
+        </select>
+        <input id="pagePw" type="password" placeholder="New page password">
+        <button id="setPw">Save Password</button>
+      </div>
+      <div id="cfgStatus" class="status">Not authenticated.</div>
+    </div>
+  </main>
+  <script type="module">
+    import { mountVatflowNav } from "./shared/vatflow-nav.js";
+    import { adminLogin, setPagePassword } from "./shared/vatflow-access-api.js";
+    mountVatflowNav(document.getElementById("vatflowAppNav"), "admin");
+    let token = "";
+    const authStatus = document.getElementById("authStatus");
+    const cfgStatus = document.getElementById("cfgStatus");
+    document.getElementById("adminLogin").addEventListener("click", async () => {
+      const pw = document.getElementById("adminPw").value;
+      const res = await adminLogin(pw);
+      if (res && res.ok && res.token) {
+        token = res.token;
+        authStatus.textContent = "Authenticated.";
+      } else {
+        authStatus.textContent = "Auth failed.";
+      }
+    });
+    document.getElementById("setPw").addEventListener("click", async () => {
+      if (!token) { cfgStatus.textContent = "Login first."; return; }
+      const page = document.getElementById("pageSel").value;
+      const password = document.getElementById("pagePw").value;
+      const res = await setPagePassword(token, page, password);
+      cfgStatus.textContent = res && res.ok ? `Saved password for ${page}.` : "Failed to save password.";
+    });
+  </script>
+</body>
+</html>

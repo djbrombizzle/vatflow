@@ -39,14 +39,14 @@ export function verifyTowerAtc(controllers, cid) {
   if (!cid || !String(cid).trim()) {
     return { verified: false, callsign: null, fieldIcao: null, reason: "no_cid" };
   }
-  const session = findAtcSession(controllers, cid);
+  const session = (controllers || []).find(c => String(c.cid) === String(cid).trim());
   if (!session) {
     return { verified: false, callsign: null, fieldIcao: null, reason: "not_on_position" };
   }
   return {
     verified: true,
-    callsign: session.callsign,
-    fieldIcao: fieldIcaoFromCallsign(session.callsign),
+    callsign: session.callsign || null,
+    fieldIcao: fieldIcaoFromCallsign(session.callsign || ""),
     reason: null,
   };
 }

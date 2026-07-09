@@ -1,7 +1,7 @@
 /**
  * Shared VATFLOW app navigation (TBFM, FCA Builder, Tower Departures).
  * @param {HTMLElement|null} container
- * @param {"tbfm"|"fca"|"tower"|"runways"|"hub"} active
+ * @param {"tbfm"|"fca"|"tower"|"runways"|"admin"|"hub"} active
  */
 export function mountVatflowNav(container, active) {
   if (!container) return;
@@ -10,6 +10,7 @@ export function mountVatflowNav(container, active) {
     { id: "fca", href: "FCA-builderv02.html", label: "FCA Builder" },
     { id: "tower", href: "tower-departures.html", label: "Tower Departures" },
     { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
+    { id: "admin", href: "admin-access.html", label: "Admin Access" },
   ];
   const nav = document.createElement("nav");
   nav.className = "vatflow-app-nav";
