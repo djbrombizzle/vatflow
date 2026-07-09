@@ -95,18 +95,34 @@
   .rt tr:hover td { background:#121820; }
   .rt .cs { font-weight:700; }
   .rt .eta-min { color:var(--muted-2); }
-  .rt select { width:100%; background:#0a0e14; border:1px solid var(--line-2); border-radius:4px; color:var(--text);
+  .rt select { max-width:100%; background:#0a0e14; border:1px solid var(--line-2); border-radius:4px; color:var(--text);
     font:600 10px var(--mono); padding:2px 2px; outline:none; }
   .rt select:focus { border-color:var(--amber); }
+  .rt td:last-child { white-space:nowrap; }
   /* fixed column widths so all 6 columns fit inside the card, no clipping */
-  .rt col.c-cs   { width:60px; }
-  .rt col.c-from { width:44px; }
-  .rt col.c-star { width:52px; }
-  .rt col.c-eta  { width:74px; }
-  .rt col.c-src  { width:36px; }
-  .rt col.c-rwy  { width:58px; }
+  .rt col.c-cs   { width:56px; }
+  .rt col.c-from { width:42px; }
+  .rt col.c-star { width:48px; }
+  .rt col.c-eta  { width:70px; }
+  .rt col.c-src  { width:34px; }
+  .rt col.c-rwy  { width:86px; }
   .rwy-empty-row td { color:var(--muted-2); text-align:center; padding:12px 8px; }
   .unassigned .rwy-card-head { border-left-color:var(--red); }
+
+  /* rebalance recommendation — flashing row + suggested runway pill */
+  .rt tr.rec-yellow td { animation: flashYellow 1.1s ease-in-out infinite; }
+  .rt tr.rec-red td { animation: flashRed 1.1s ease-in-out infinite; }
+  @keyframes flashYellow {
+    0%,100% { background:transparent; } 50% { background:rgba(232,168,56,.22); }
+  }
+  @keyframes flashRed {
+    0%,100% { background:transparent; } 50% { background:rgba(212,92,92,.26); }
+  }
+  .rec-pill { display:inline-block; font:700 9px var(--mono); border-radius:3px; padding:1px 4px; margin-left:3px;
+    color:#0b0e07; }
+  .rec-pill.yellow { background:var(--amber); }
+  .rec-pill.red { background:var(--red); color:#fff; }
+  .rec-arrow { color:var(--muted-2); }
   .src { font:700 8px var(--mono); letter-spacing:.08em; padding:1px 5px; border-radius:3px; border:1px solid; }
   .src.auto { color:var(--cyan); border-color:var(--cyan); }
   .src.star { color:var(--green); border-color:var(--green); }
@@ -224,6 +240,22 @@ const METAR_URL = "https://aviationweather.gov/api/data/metar?ids=";
 const CONTROL_PASSWORD_LOCAL = "";
 const LANE_COLORS = ["#e8a838","#5ba8c9","#4caf7a","#b07fd6","#d45c5c","#7f9dd6","#d6a97f"];
 const BIN_MIN = 10;
+/* Per-10-min-bin demand levels. Graph bars are scaled to a fixed max of 5. */
+const BIN_MAX = 5;                 // graph y-axis tops out here
+const DEMAND_YELLOW = 4;           // 4–5 in a bin = yellow (near capacity)
+const DEMAND_RED = 6;              // 6+ in a bin = red (over capacity)
+const DEMAND_OPEN = 2;             // a runway with ≤2 in that bin can absorb traffic
+const COL_GREEN = "#4caf7a", COL_YELLOW = "#e8a838", COL_RED = "#d45c5c";
+
+/** Load level for a bin count: "green" | "yellow" | "red". */
+function binLevel(n) {
+  if (n >= DEMAND_RED) return "red";
+  if (n >= DEMAND_YELLOW) return "yellow";
+  return "green";
+}
+function levelColor(level) {
+  return level === "red" ? COL_RED : level === "yellow" ? COL_YELLOW : COL_GREEN;
+}
 
 /** Stable color for a runway end — keyed to the ID (via active-runway order),
  *  so toggling one runway doesn't reshuffle every other runway's color. */
@@ -231,6 +263,61 @@ function laneColor(rwyId) {
   const act = activeEnds();
   const idx = act.findIndex(e => e.id === rwyId);
   return idx >= 0 ? LANE_COLORS[idx % LANE_COLORS.length] : "var(--muted-2)";
+}
+
+/**
+ * Analyze demand and produce rebalancing recommendations.
+ * Returns:
+ *   binCounts:  Map(rwyId -> number[] per bin)
+ *   recs:       Map(callsign -> { toRwy, level }) — aircraft that should move,
+ *               flagged with the color of the congestion they're relieving.
+ * An aircraft is recommended for a move when its runway's bin is yellow/red AND
+ * another active runway has an open slot (≤2) in that same time bin. We move the
+ * *latest* aircraft(s) in the crowded bin (least disruptive), one per open slot,
+ * and reflect the move in the target's projected bin so we don't over-recommend.
+ */
+function analyzeDemand() {
+  const act = activeEnds();
+  const now = Date.now();
+  const bins = Math.ceil(state.windowMin / BIN_MIN);
+  const binOf = a => Math.floor((a.etaMs - now) / (BIN_MIN * 60000));
+
+  const counts = new Map(act.map(e => [e.id, new Array(bins).fill(0)]));
+  const inBin = new Map(act.map(e => [e.id, Array.from({ length: bins }, () => [])]));
+  for (const a of state.arrivals) {
+    if (!a.rwy || !counts.has(a.rwy)) continue;
+    const b = binOf(a);
+    if (b >= 0 && b < bins) { counts.get(a.rwy)[b]++; inBin.get(a.rwy)[b].push(a); }
+  }
+
+  const recs = new Map();
+  // work bin by bin; projected counts mutate as we place recommendations
+  for (let b = 0; b < bins; b++) {
+    // manual assignments are the controller's intent — never recommend moving them
+    for (const e of act) {
+      const cnt = counts.get(e.id);
+      let level = binLevel(cnt[b]);
+      if (level === "green") continue;
+      // candidates to move: auto/star aircraft in this crowded bin, latest ETA first
+      const movable = inBin.get(e.id)[b]
+        .filter(a => a.src !== "man")
+        .sort((x, y) => y.etaMs - x.etaMs);
+      for (const a of movable) {
+        if (binLevel(cnt[b]) === "green") break;               // relieved enough
+        // find an active runway with an open slot in this same bin
+        let target = null;
+        for (const t of act) {
+          if (t.id === e.id) continue;
+          if (counts.get(t.id)[b] <= DEMAND_OPEN) { target = t.id; break; }
+        }
+        if (!target) break;                                    // nowhere to send them
+        recs.set(a.cs, { toRwy: target, level });
+        cnt[b]--;                                              // relieve source
+        counts.get(target)[b]++;                               // load target
+      }
+    }
+  }
+  return { counts, recs, bins };
 }
 
 /** STAR base name — strip the revision digit so CHPPR3 and CHPPR4 are one rule. */
@@ -571,10 +658,10 @@ function renderGraph() {
   const g = $("graph");
   const act = activeEnds();
   const bins = Math.ceil(state.windowMin / BIN_MIN);
-  $("graphSub").textContent = ` · ${BIN_MIN}-min bins · next ${state.windowMin} min`;
+  $("graphSub").textContent = ` · ${BIN_MIN}-min bins · max ${BIN_MAX}/bin`;
   if (!act.length) { g.innerHTML = `<div class="empty">No landing runways selected — pick a config on the left.</div>`; return; }
   const now = Date.now();
-  const lanes = act.map((e, i) => {
+  const lanes = act.map((e) => {
     const counts = new Array(bins).fill(0);
     let next60 = 0;
     state.arrivals.forEach(a => {
@@ -585,7 +672,6 @@ function renderGraph() {
     });
     return { id: e.id, color: laneColor(e.id), counts, next60, total: counts.reduce((x, y) => x + y, 0) };
   });
-  const maxBin = Math.max(1, ...lanes.flatMap(l => l.counts));
   const W = 640, laneH = 50, barMax = 34, labelW = 96, topPad = 12;
   const binW = (W - labelW) / bins;
   let svg = `<svg viewBox="0 0 ${W} ${lanes.length * laneH + topPad + 16}" width="100%" style="min-width:520px;font-family:var(--mono)">`;
@@ -594,10 +680,13 @@ function renderGraph() {
     svg += `<text x="0" y="${y0 + 18}" fill="${l.color}" font-size="12" font-weight="700">${escapeHtml(l.id)}</text>`;
     svg += `<text x="0" y="${y0 + 31}" fill="var(--muted-2)" font-size="8">${l.next60}/hr · ${l.total} in window</text>`;
     for (let b = 0; b < bins; b++) {
-      const h = l.counts[b] ? Math.max(5, (l.counts[b] / maxBin) * barMax) : 0;
+      const n = l.counts[b];
+      // fixed scale: 5 per bin = full height; anything over 5 also renders full (red).
+      const h = n ? Math.max(5, (Math.min(n, BIN_MAX) / BIN_MAX) * barMax) : 0;
       const x = labelW + b * binW;
-      svg += `<rect x="${x + 1}" y="${y0 + (barMax - h) + 4}" width="${binW - 3}" height="${h}" rx="2" fill="${l.color}" opacity="${l.counts[b] ? .85 : 0}"/>`;
-      if (l.counts[b]) svg += `<text x="${x + binW / 2}" y="${y0 + (barMax - h)}" fill="var(--text)" font-size="8" text-anchor="middle">${l.counts[b]}</text>`;
+      const fill = n ? levelColor(binLevel(n)) : l.color;
+      svg += `<rect x="${x + 1}" y="${y0 + (barMax - h) + 4}" width="${binW - 3}" height="${h}" rx="2" fill="${fill}" opacity="${n ? .9 : 0}"/>`;
+      if (n) svg += `<text x="${x + binW / 2}" y="${y0 + (barMax - h)}" fill="var(--text)" font-size="8" text-anchor="middle" font-weight="${n >= DEMAND_YELLOW ? "700" : "400"}">${n}</text>`;
       svg += `<rect x="${x + 1}" y="${y0 + 4}" width="${binW - 3}" height="${barMax}" fill="none" stroke="var(--line)" stroke-width="0.5"/>`;
     }
   });
@@ -626,6 +715,7 @@ function renderArrivals() {
 
   const rwyOptions = act.map(e => e.id);
   const now = Date.now();
+  const { recs } = analyzeDemand();
 
   function rowHtml(a) {
     const opts = `<option value="">AUTO</option>` + rwyOptions.map(id =>
@@ -633,13 +723,20 @@ function renderArrivals() {
     const srcTag = a.rwy
       ? `<span class="src ${a.src}">${a.src === "man" ? "MAN" : a.src === "star" ? "STAR" : "AUTO"}</span>`
       : `<span class="src auto warn">—</span>`;
-    return `<tr>` +
+    const rec = recs.get(a.cs);
+    const rowCls = rec ? ` class="rec-${rec.level}"` : "";
+    // suggested runway shown in the RWY cell as a colored pill (controller taps the
+    // dropdown, or the reassign moves it and clears the flash on next render)
+    const recPill = rec
+      ? `<span class="rec-arrow">→</span><span class="rec-pill ${rec.level}" title="Recommend moving to ${escapeHtml(rec.toRwy)} — this runway is ${rec.level === "red" ? "over" : "near"} capacity">${escapeHtml(rec.toRwy)}</span>`
+      : "";
+    return `<tr${rowCls}>` +
       `<td class="cs" title="${escapeHtml(a.cs)} · ${escapeHtml(a.type || "")} · ${Math.round(a.dist)}nm">${escapeHtml(a.cs)}</td>` +
       `<td style="color:var(--muted)">${escapeHtml(a.dep)}</td>` +
       `<td>${escapeHtml(a.star || "—")}</td>` +
       `<td>${fmtZulu(a.etaMs)} <span class="eta-min">+${Math.round(a.etaMin)}</span></td>` +
       `<td>${srcTag}</td>` +
-      `<td><select data-man="${escapeHtml(a.cs)}" title="Reassign runway">${opts}</select></td>` +
+      `<td><select data-man="${escapeHtml(a.cs)}" title="Reassign runway">${opts}</select>${recPill}</td>` +
       `</tr>`;
   }
 
