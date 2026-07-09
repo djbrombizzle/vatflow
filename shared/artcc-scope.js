@@ -66,6 +66,16 @@ export function pointInArtcc(id, lat, lon) {
   return false;
 }
 
+/** Which ARTCC contains this point? Returns the id or null (data not loaded /
+ *  point outside every known boundary). First containing boundary wins. */
+export function artccForPoint(lat, lon) {
+  if (!loaded || lat == null || lon == null) return null;
+  for (const [id, rings] of polys) {
+    for (const r of rings) if (inRing(lat, lon, r)) return id;
+  }
+  return null;
+}
+
 /**
  * Fetch boundaries once (idempotent). Tries the repo's HIGH-stratum file first
  * (same data the builder's map layer uses), falls back to the VATSpy project.

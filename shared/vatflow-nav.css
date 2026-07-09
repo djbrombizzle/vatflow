@@ -27,6 +27,15 @@
   font-weight: 700;
 }
 
+.vatflow-app-nav .vf-brand .vf-tagline {
+  color: #5c6b78;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 860px) {
+  .vatflow-app-nav .vf-brand .vf-tagline { display: none; }
+}
+
 .vatflow-app-nav a {
   color: #8a97a3;
   text-decoration: none;
@@ -52,6 +61,18 @@
 
 .vatflow-app-nav .vf-spacer {
   flex: 1;
+}
+
+.vatflow-app-nav .vf-privacy {
+  color: #5c6b78;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.vatflow-app-nav .vf-privacy:hover {
+  color: #8a97a3;
+  background: transparent;
+  border-color: transparent;
 }
 
 /* Sticky header variant (TBFM, tower page) */

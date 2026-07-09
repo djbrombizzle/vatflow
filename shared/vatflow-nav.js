@@ -15,10 +15,11 @@ export function mountVatflowNav(container, active) {
   nav.className = "vatflow-app-nav";
   nav.setAttribute("aria-label", "VATFLOW apps");
   nav.innerHTML =
-    `<span class="vf-brand"><b>VATFLOW</b></span>` +
+    `<span class="vf-brand"><b>VATFLOW</b> <span class="vf-tagline">TMU management for VATSIM · PERSONAL USE ONLY</span></span>` +
     links.map(l =>
       `<a href="${l.href}"${l.id === active ? ' class="active" aria-current="page"' : ""}>${l.label}</a>`
     ).join("") +
-  `<span class="vf-spacer"></span>`;
+    `<span class="vf-spacer"></span>` +
+    `<a class="vf-privacy" href="privacy.html"${active === "privacy" ? ' class="active" aria-current="page"' : ""}>Privacy</a>`;
   container.appendChild(nav);
 }

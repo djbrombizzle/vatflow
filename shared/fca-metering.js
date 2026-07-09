@@ -23,7 +23,7 @@ import {
   isNavReady,
 } from "./route-engine.js";
 import { routeHeadwind, effectiveGs } from "./winds-aloft.js";
-import { pointInArtcc } from "./artcc-scope.js";
+import { pointInArtcc, artccForPoint } from "./artcc-scope.js";
 
 bindRouteAirports(
   icao => getAirport(icao),
@@ -1126,6 +1126,16 @@ export function computeSequence(fca, pilots, prefiles, opts = {}) {
    ============================================================ */
 /** Airports whose owning ARTCC differs from (or straddles) the polygon result. */
 export const ARTCC_AIRPORT_OVERRIDES = { KMCO: "ZJX", KTPA: "ZMA", KPHL: "ZNY" };
+
+/** Which ARTCC owns this airport? Overrides win; otherwise polygon containment
+ *  of the field. null when unknown (no data / no airport position). */
+export function airportArtcc(icao) {
+  icao = ("" + icao).toUpperCase();
+  if (ARTCC_AIRPORT_OVERRIDES[icao]) return ARTCC_AIRPORT_OVERRIDES[icao];
+  const ap = getAirport(icao);
+  if (!ap) return null;
+  return artccForPoint(ap[0], ap[1]);
+}
 
 /** Does this aircraft's departure belong to the given ARTCC? Overrides win;
  *  otherwise geographic containment of the aircraft (or its dep field). */
