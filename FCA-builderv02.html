@@ -328,6 +328,8 @@
     <button type="button" id="lockBtn" class="locked">View only</button>
     <input id="pwInput" type="password" placeholder="control password" autocomplete="off" class="hidden">
     <button type="button" id="pwGo" class="btn sm hidden">Go</button>
+    <input id="cidInput" placeholder="CID" autocomplete="off" class="hidden" style="width:92px">
+    <button type="button" id="cidGo" class="btn sm hidden">CID</button>
     <span id="lockMsg"></span>
   </div>
   <div class="stat" title="UTC time"><b id="zClock">----Z</b></div>
@@ -487,6 +489,7 @@ import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
 import { buildRouteAnchorsForAircraft, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
+import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -508,9 +511,12 @@ const REFRESH_SEC = 20;
 
 /* ---- controller access: VIEW-ONLY until unlocked (same gate as vatflow-tbfm v2.html) ----
    Keep CONTROL_PASSWORD_LOCAL identical in both files. Empty = soft gate (any password works). */
-const CONTROL_PASSWORD_LOCAL = "";
-let controllerUnlocked = VatflowControl.load();
+let controllerUnlocked = VatflowControl.loadPage("fca_builder");
+let cidUnlocked = false;
+let controllerCid = "";
 function canControl(){ return controllerUnlocked; }
+function canReadyOnly(){ return cidUnlocked && !controllerUnlocked; }
+function canReady(){ return canControl() || canReadyOnly(); }
 
 /* ---------- state ---------- */
 const state = {
@@ -531,6 +537,7 @@ const state = {
   countdown: REFRESH_SEC,
   measure: { points: [] },   // ctrl+click ruler
   routeCallsign: null,       // aircraft whose route is plotted
+  controllerCids: new Set(),
 };
 let uid = 1;
 const nid = () => (window.crypto && crypto.randomUUID) ? "fca_"+crypto.randomUUID().slice(0,8)
@@ -1058,7 +1065,10 @@ function fetchLive(){
         .filter(p=>p.flight_plan && !connected.has(p.callsign))
         .map(p=>{ const f=fpFieldsLocal(p.flight_plan);
           return { callsign:p.callsign, lat:null, lon:null, alt:0, gs:0, hdg:0, phase:"gnd", prefile:true, ...f }; });
-      state.pilots=pilots; state.prefiles=prefiles; setFeed("live"); afterData();
+      state.pilots=pilots; state.prefiles=prefiles;
+      state.controllerCids = new Set((d.controllers || []).map(c => String(c.cid || "").trim()).filter(Boolean));
+      if (controllerCid) cidUnlocked = state.controllerCids.has(controllerCid);
+      setFeed("live"); afterData();
     })
     .catch(err=>{
       console.warn("Live feed failed:",err);
@@ -1566,7 +1576,7 @@ function renderSequence(){
   // ladder timeline
   body.innerHTML=ladderSvg(s);
   body.insertAdjacentHTML("beforeend",
-    `<div class="seqhint">${canControl()?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):"View only — unlock to reorder sequence"}</div>`);
+    `<div class="seqhint">${canControl()?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):(canReadyOnly()?"RDY-only mode — release/cancel only":"View only — unlock to reorder sequence")}</div>`);
   // strips
   const orderCS=s.items.map(c=>c.p.callsign);
   const view=state.seqView||"all";
@@ -1612,7 +1622,7 @@ function renderSequence(){
       const held=c.delay>=30;
       const frozen=!!c.frozen;
       const winTxt=frozen&&wheelsUp?` · window ${fmtZulu(wheelsUp-COMPLIANCE_EARLY_MS)}–${fmtZulu(wheelsUp+COMPLIANCE_LATE_MS)}`:"";
-      const rdyBtn=canControl()
+      const rdyBtn=canReady()
         ?`<div class="rdy${frozen?" on":""}" data-rdy="${escapeHtml(c.p.callsign)}" title="${frozen?"Cancel this CFR release":"Pilot called ready — issue CFR release"}">${frozen?"RLSD ✕":"RDY"}</div>`
         :(frozen?`<div class="rdy on" style="cursor:default">RLSD</div>`:"");
       strip.innerHTML=`
@@ -1636,7 +1646,7 @@ function renderSequence(){
     const rdyEl=strip.querySelector("[data-rdy]");
     if(rdyEl) rdyEl.addEventListener("click",e=>{
       e.stopPropagation();
-      if(!canControl()) return;
+      if(!canReady()) return;
       const cs=c.p.callsign;
       if(isReady(sel,cs)){ clearReady(sel,cs); toast(cs+" release cancelled — back to advisory.",2500); }
       else{
@@ -1897,13 +1907,16 @@ function renderAll(){ updateControlUI(); invalidateSequences(); renderFcaLines()
 
 function updateControlUI(){
   const ctl=canControl();
+  const rdyOnly = canReadyOnly();
   const lockBtn=document.getElementById("lockBtn");
   if(lockBtn){
-    lockBtn.textContent=ctl?"Controller":"View only";
+    lockBtn.textContent=ctl?"Full control":(rdyOnly?"RDY only":"View only");
     lockBtn.className=ctl?"unlocked":"locked";
   }
   if(pwInput){ pwInput.classList.add("hidden"); pwInput.disabled=!ctl&&false; }
   if(pwGo) pwGo.classList.add("hidden");
+  if(cidInput) cidInput.classList.add("hidden");
+  if(cidGo) cidGo.classList.add("hidden");
   const tb=document.querySelector(".toolbar");
   if(tb) tb.classList.toggle("view-only",!ctl);
   const seqEdit=document.getElementById("seqEdit");
@@ -2304,7 +2317,7 @@ function onRemoteChange(payload){
 }
 function cloudPush(fca){
   persistLocal();
-  if(!canControl()) return;
+  if(!canReady()) return;
   if(!syncOn||!sb) return;
   sb.from("fcas").upsert({id:fca.id,data:fca,updated_at:new Date().toISOString()})
     .then(({error})=>{ if(error){ console.warn("push:",error); toast("Couldn't save to sync — check setup.",3000);} });
@@ -2334,6 +2347,8 @@ function hideToast(){ clearTimeout(toastTimer); document.getElementById("toast")
 const lockBtn=document.getElementById("lockBtn");
 const pwInput=document.getElementById("pwInput");
 const pwGo=document.getElementById("pwGo");
+const cidInput=document.getElementById("cidInput");
+const cidGo=document.getElementById("cidGo");
 const lockMsg=document.getElementById("lockMsg");
 function showPwEntry(){
   pwInput.classList.remove("hidden");
@@ -2344,23 +2359,41 @@ function showPwEntry(){
 }
 function setControl(on){
   controllerUnlocked=on;
-  VatflowControl.save(on);
+  VatflowControl.savePage("fca_builder", on);
   if(!on && state.editing){ state.editing=null; state.editingBackup=null; closeEditor(); }
   if(!on && state.drawing) cancelDrawing();
   updateControlUI();
   renderAll();
 }
-function attemptUnlock(pw){
-  if(VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)){ lockMsg.textContent=""; setControl(true); }
+async function attemptUnlock(pw){
+  const res = await verifyPagePassword("fca_builder", pw);
+  if(res && res.ok){ lockMsg.textContent=""; setControl(true); }
   else { lockMsg.textContent="wrong password"; lockMsg.className="lockerr"; }
+}
+function showCidEntry(){
+  cidInput.classList.remove("hidden");
+  cidGo.classList.remove("hidden");
+  cidInput.value=controllerCid||"";
+  cidInput.focus();
+}
+function attemptCidUnlock(){
+  const cid=(cidInput.value||"").replace(/\D/g,"");
+  controllerCid = cid;
+  cidUnlocked = !!cid && state.controllerCids.has(cid);
+  lockMsg.textContent = cidUnlocked ? "CID connected · RDY only enabled" : "CID not currently connected";
+  lockMsg.className = cidUnlocked ? "" : "lockerr";
+  renderAll();
 }
 lockBtn.addEventListener("click",()=>{
   if(controllerUnlocked){ setControl(false); lockMsg.textContent=""; return; }
-  if(pwInput.classList.contains("hidden")) showPwEntry();
+  if(pwInput.classList.contains("hidden")) { showPwEntry(); showCidEntry(); }
   else attemptUnlock(pwInput.value);
 });
 pwGo.addEventListener("click",()=>attemptUnlock(pwInput.value));
 pwInput.addEventListener("keydown",e=>{ if(e.key==="Enter") attemptUnlock(pwInput.value); });
+cidGo.addEventListener("click",attemptCidUnlock);
+cidInput.addEventListener("input",()=>{ cidInput.value=cidInput.value.replace(/\D/g,""); });
+cidInput.addEventListener("keydown",e=>{ if(e.key==="Enter") attemptCidUnlock(); });
 
 setFeed("init");
 mountVatflowNav(document.getElementById("vatflowAppNav"), "fca");

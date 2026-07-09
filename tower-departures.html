@@ -244,8 +244,8 @@
     <button type="button" class="btn primary sm" id="verifyCidBtn">Verify</button>
     <button type="button" class="btn sm" id="clearCidBtn">Clear</button>
   </div>
-  <div id="atcStatus">Enter your CID while online on a _TWR, _GND, or _CTR position to unlock reorder.</div>
-  <div class="settings-hint">Verified online on tower/ground — no password needed. Re-checked every feed refresh (~20s).</div>
+  <div id="atcStatus">Enter your CID while online on VATSIM to unlock RDY only.</div>
+  <div class="settings-hint">CID connected = RDY-only mode. Full sequencing/edit controls still require page password.</div>
 </div>
 
 <main id="main"></main>
@@ -266,6 +266,7 @@ import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries, isArtccScopeReady } from "./shared/artcc-scope.js";
+import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -275,12 +276,10 @@ const LS_CID = "towerDep.cid.v1";
 const LS_TOWER_UI = "towerDep.ui.v1";
 const REFRESH_SEC = 20;
 
-const CONTROL_PASSWORD_LOCAL = "";
-let passwordUnlocked = VatflowControl.load();
-
-function canControl() {
-  return state.atcVerified || passwordUnlocked;
-}
+let passwordUnlocked = VatflowControl.loadPage("tower");
+function canControl() { return passwordUnlocked; }
+function canReadyOnly() { return state.atcVerified && !passwordUnlocked; }
+function canReady() { return canControl() || canReadyOnly(); }
 
 const state = {
   field: "",
@@ -410,11 +409,11 @@ function updateAtcStatusUI() {
     el.className = "ok";
   } else if (state.cid) {
     el.textContent = state.atcReason === "not_on_position"
-      ? `CID ${state.cid} — not online on _TWR, _GND, or _CTR. Log on to your position and wait for the next refresh.`
+      ? `CID ${state.cid} — not currently connected on VATSIM.`
       : `CID ${state.cid} — waiting for VATSIM feed…`;
     el.className = "err";
   } else {
-    el.textContent = "Enter your CID while online on a _TWR, _GND, or _CTR position to unlock reorder.";
+    el.textContent = "Enter your CID while online on VATSIM to unlock RDY only.";
     el.className = "";
   }
 }
@@ -482,7 +481,7 @@ function persistLocalFcas() {
 
 function cloudPush(fca) {
   persistLocalFcas();
-  if (!canControl() || !sb) return;
+  if (!canReady() || !sb) return;
   sb.from("fcas").upsert({ id: fca.id, data: fca, updated_at: new Date().toISOString() })
     .then(({ error }) => { if (error) console.warn("tower push:", error); });
 }
@@ -622,7 +621,7 @@ function renderDepStrip(d, i, canDrag) {
   const dlTxt = frozen ? "released" : holdMin > 1 ? `est hold +${holdMin}m` : "no delay expected";
   const gapLine = (i > 0 && isFinite(d.gapMin))
     ? `<div class="gap${d.gapMin < 0.5 ? " short" : ""}">↑ ${d.gapMin.toFixed(1)} min behind previous crosser</div>` : "";
-  const btn = canControl()
+  const btn = canReady()
     ? `<button type="button" class="rdy-btn${frozen ? " on" : ""}" data-rdy-cs="${escapeHtml(d.callsign)}" data-rdy-fca="${escapeHtml(d.fcaId)}" title="${frozen ? "Cancel this CFR release" : "Pilot called ready — issue CFR release"}">${frozen ? "RLSD ✕" : "RDY"}</button>`
     : (frozen ? `<span class="cell-frozen">RLSD</span>` : "");
   return `<div class="strip${canDrag ? "" : " view-only"}" data-cs="${escapeHtml(d.callsign)}"${canDrag ? ' draggable="true"' : ""}>` +
@@ -913,10 +912,10 @@ function syncUnmeteredSection(unmetered) {
 
 function seqHintHtml() {
   return canControl()
-    ? (state.atcVerified
-      ? "⠿ drag # to reorder within each FCA — PIN locks table position · verified via VATSIM position · syncs to FCA Builder"
-      : "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence")
-    : "View only — enter your CID in Settings while on _TWR/_GND/_CTR, or use the control password";
+    ? "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence"
+    : (canReadyOnly()
+      ? "RDY-only mode — connected CID can issue/cancel releases, but cannot reorder/sequence."
+      : "View only — enter CID for RDY-only, or unlock full control with page password.");
 }
 
 function canIncrementalRender() {
@@ -1008,7 +1007,7 @@ document.addEventListener("click", e => {
   const btn = e.target.closest(".rdy-btn");
   if (!btn) return;
   e.stopPropagation();
-  if (!canControl()) return;
+  if (!canReady()) return;
   const cs = btn.getAttribute("data-rdy-cs");
   const fca = state.fcas.find(f => f.id === btn.getAttribute("data-rdy-fca"));
   if (!cs || !fca) return;
@@ -1120,12 +1119,12 @@ function activateField(icao) {
 
 function updateLockUI() {
   const btn = document.getElementById("lockBtn");
-  if (state.atcVerified && state.atcCallsign) {
-    btn.textContent = `Controller · ${state.atcCallsign}`;
+  if (passwordUnlocked) {
+    btn.textContent = "Full control";
     btn.className = "unlocked";
-  } else if (passwordUnlocked) {
-    btn.textContent = "Controller";
-    btn.className = "unlocked";
+  } else if (state.atcVerified && state.atcCallsign) {
+    btn.textContent = `RDY only · ${state.atcCallsign}`;
+    btn.className = "locked";
   } else {
     btn.textContent = "View only";
     btn.className = "locked";
@@ -1136,7 +1135,7 @@ function updateLockUI() {
 
 function setPasswordControl(on) {
   passwordUnlocked = on;
-  VatflowControl.save(on);
+  VatflowControl.savePage("tower", on);
   updateLockUI();
   render();
 }
@@ -1158,8 +1157,9 @@ function showPwEntry() {
   pwInput.focus();
 }
 
-function attemptUnlock(pw) {
-  if (VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)) {
+async function attemptUnlock(pw) {
+  const res = await verifyPagePassword("tower", pw);
+  if (res && res.ok) {
     lockMsg.textContent = "";
     setPasswordControl(true);
   } else {
@@ -1169,23 +1169,15 @@ function attemptUnlock(pw) {
 }
 
 lockBtn.addEventListener("click", () => {
-  if (canControl()) {
-    if (passwordUnlocked) {
-      setPasswordControl(false);
-      lockMsg.textContent = "";
-      return;
-    }
-    if (state.atcVerified) {
-      lockMsg.textContent = "Verified via VATSIM position — use Settings › Clear to disconnect";
-      lockMsg.className = "";
-      return;
-    }
+  if (passwordUnlocked) {
+    setPasswordControl(false);
+    lockMsg.textContent = "";
     return;
   }
   if (pwInput.classList.contains("hidden")) showPwEntry();
   else attemptUnlock(pwInput.value);
 });
-pwGo.addEventListener("click", () => attemptUnlock(pwInput.value));
+pwGo.addEventListener("click", () => { attemptUnlock(pwInput.value); });
 pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(pwInput.value); });
 
 const settingsBtn = document.getElementById("settingsBtn");

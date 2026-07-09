@@ -189,12 +189,12 @@
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { loadAirports, seedAirports, getAirport, fpFields, fmtZulu, haversineNm, parseAlt } from "./shared/fca-metering.js";
+import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 mountVatflowNav(document.getElementById("vatflowAppNav"), "runways");
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv";
 const METAR_URL = "https://aviationweather.gov/api/data/metar?ids=";
-const CONTROL_PASSWORD_LOCAL = "";
 const LANE_COLORS = ["#e8a838","#5ba8c9","#4caf7a","#b07fd6","#d45c5c","#7f9dd6","#d6a97f"];
 const BIN_MIN = 10;
 
@@ -688,11 +688,12 @@ $("addEndBtn").addEventListener("click", () => {
 });
 
 /* password unlock */
-function tryUnlock() {
+async function tryUnlock() {
   const pw = $("pwInput").value || "";
-  if (VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)) {
+  const res = await verifyPagePassword("runway", pw);
+  if (res && res.ok) {
     state.unlocked = true;
-    VatflowControl.save(true);
+    VatflowControl.savePage("runway", true);
     $("pwInput").value = "";
     renderAll();
   } else {
@@ -700,7 +701,7 @@ function tryUnlock() {
     $("pwInput").placeholder = "wrong — try again";
   }
 }
-$("pwBtn").addEventListener("click", tryUnlock);
+$("pwBtn").addEventListener("click", () => { tryUnlock(); });
 $("pwInput").addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
 
 /* saved configs */
@@ -726,7 +727,7 @@ $("cfgDelBtn").addEventListener("click", () => {
 setInterval(() => { $("clock").textContent = fmtZulu(Date.now()); }, 1000);
 $("clock").textContent = fmtZulu(Date.now());
 
-state.unlocked = VatflowControl.load();
+state.unlocked = VatflowControl.loadPage("runway");
 
 loadAirports().catch(() => { seedAirports({}); });
 fetchFeed();
