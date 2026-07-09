@@ -2185,7 +2185,7 @@ function renderRouteInfo(p,dist){
   const toks=parseRouteTokens(p.route);
   const A=routeAnchors(p);
   const resolved=A.filter(a=>a.kind!=="apt"&&a.kind!=="now").length;
-  let unresolved=[];
+  let unresolved=[], truncatedIntl=false;
   if(isNavReady()){
     const dep=getAirport(p.dep), arr=getAirport(p.arr);
     const airborne=p.lat!=null && p.phase!=="gnd";
@@ -2193,6 +2193,7 @@ function renderRouteInfo(p,dist){
       ? buildRouteAnchorsForAircraft(p,{origin:dep,destination:arr,includeNow:true})
       : buildRouteAnchorsForAircraft(p,{origin:dep,destination:arr,includeNow:false});
     unresolved=r.unresolved||[];
+    truncatedIntl=!!r.truncatedInternational;
   } else {
     const fixish=toks.map(t=>t.replace(/\/.*$/,"")).filter(t=>t.length>=2 && !/^[A-Z]{1,2}\d/.test(t) && !hasAirport(t));
     unresolved=fixish;
@@ -2201,7 +2202,8 @@ function renderRouteInfo(p,dist){
   const fl=String(Math.round(((p.phase==="gnd"?p.fpAlt:p.alt)||0)/100)).padStart(3,"0");
   const spd=p.phase==="gnd"?(((p.gs||0)>=20)?(`${Math.round(p.gs)}kt`):("depart")):((p.gs||0)+"kt");
   const navNote=isNavReady()
-    ?`FAA NASR route (${meta?.nasrCycleDate||"?"}) — fixes, navaids, airways, SID/STAR when known.`
+    ?`FAA NASR route (${meta?.nasrCycleDate||"?"}) — fixes, navaids, airways, SID/STAR when known.`+
+      (truncatedIntl?" International: plotted through last US fix, then great circle to destination.":"")
     :"Great-circle through departure"+(p.phase==="gnd"?"":", current position")+", en-route airports, and destination.";
   // FCA membership check for the selected FCA — shows exactly which gate rejects the aircraft
   let fcaCheck="";
