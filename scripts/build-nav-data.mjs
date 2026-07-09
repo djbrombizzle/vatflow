@@ -4,14 +4,19 @@
  *
  * Primary source: @squawk/* NASR snapshots (FIX, NAV, AWY, procedures).
  * Optional: local NASR CSV directory via --nasr-dir (FIX.csv, NAV.csv, AWY.csv).
+ * Optional: --faa-cycle YYYY-MM-DD downloads FAA FIX/NAV/PFR CSV zips and merges
+ *   with @squawk airways/procedures (enroute data unchanged on 28-day change notices).
  *
  * Usage:
  *   node scripts/build-nav-data.mjs
+ *   node scripts/build-nav-data.mjs --faa-cycle 2026-07-09
  *   node scripts/build-nav-data.mjs --nasr-dir /path/to/CSV
  */
 
-import { createReadStream, mkdirSync, writeFileSync } from "node:fs";
+import { createReadStream, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -92,6 +97,100 @@ function mapToObj(m) {
   return o;
 }
 
+const FAA_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function faaExtraDate(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return `${String(d).padStart(2, "0")}_${FAA_MONTHS[m - 1]}_${y}`;
+}
+
+function faaExtraZipUrl(isoDate, group) {
+  return `https://nfdc.faa.gov/webContent/28DaySub/extra/${faaExtraDate(isoDate)}_${group}_CSV.zip`;
+}
+
+async function downloadFaaCsvGroup(isoDate, group, destDir) {
+  const url = faaExtraZipUrl(isoDate, group);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch ${url}: HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const zipPath = join(destDir, `${group}.zip`);
+  writeFileSync(zipPath, buf);
+  execFileSync("unzip", ["-o", zipPath, "-d", destDir], { stdio: "pipe" });
+  console.log(`  ${group}: ${url}`);
+}
+
+async function fetchFaaCycleCsvs(isoDate) {
+  const dir = mkdtempSync(join(tmpdir(), "vatflow-nasr-"));
+  try {
+    console.log(`Downloading FAA CSV groups for cycle ${isoDate}…`);
+    await Promise.all([
+      downloadFaaCsvGroup(isoDate, "FIX", dir),
+      downloadFaaCsvGroup(isoDate, "NAV", dir),
+      downloadFaaCsvGroup(isoDate, "PFR", dir),
+    ]);
+    return dir;
+  } catch (err) {
+    rmSync(dir, { recursive: true, force: true });
+    throw err;
+  }
+}
+
+function firstCsvRow(rows, ...keys) {
+  for (const key of keys) {
+    if (rows[key] !== undefined && rows[key] !== "") return rows[key];
+  }
+  return "";
+}
+
+function buildFixesFromRows(rows) {
+  const fixes = new Map();
+  for (const r of rows) {
+    const id = firstCsvRow(r, "FIX_ID", "FIX_ID_OLD", "ident").trim();
+    const lat = parseFloat(firstCsvRow(r, "LAT_DECIMAL", "lat"));
+    const lon = parseFloat(firstCsvRow(r, "LONG_DECIMAL", "lon"));
+    addCandidate(fixes, id, lat, lon);
+  }
+  return fixes;
+}
+
+function buildNavaidsFromRows(rows) {
+  const navaids = new Map();
+  for (const r of rows) {
+    const id = firstCsvRow(r, "NAV_ID", "IDENT", "ident").trim();
+    const name = firstCsvRow(r, "NAME", "name").trim();
+    const lat = parseFloat(firstCsvRow(r, "LAT_DECIMAL", "LAT"));
+    const lon = parseFloat(firstCsvRow(r, "LONG_DECIMAL", "LON"));
+    addCandidate(navaids, id, lat, lon);
+    if (name) addCandidate(navaids, name, lat, lon);
+  }
+  return navaids;
+}
+
+function buildPreferredFromRows(rows) {
+  const preferred = {};
+  for (const r of rows) {
+    const dep = firstCsvRow(r, "ORIGIN_ID", "DEPARTURE_AIRPORT", "DEPARTURE", "dep").toUpperCase();
+    const arr = firstCsvRow(r, "DSTN_ID", "ARRIVAL_AIRPORT", "ARRIVAL", "arr").toUpperCase();
+    const route = firstCsvRow(r, "ROUTE_STRING", "route").trim().toUpperCase();
+    if (!dep || !arr || !route) continue;
+    preferred[`${dep}|${arr}`] = route;
+  }
+  return preferred;
+}
+
+async function readCsvFromDir(dir, ...names) {
+  for (const name of names) {
+    const path = join(dir, name);
+    try {
+      readFileSync(path);
+      return readCsv(path);
+    } catch {
+      // try next filename variant
+    }
+  }
+  return [];
+}
+
 async function buildFromSquawk() {
   console.log("Fetching @squawk NASR snapshots…");
   const [fixPack, navPack, awyPack, procPack] = await Promise.all([
@@ -131,7 +230,6 @@ async function buildFromSquawk() {
   }
 
   const procedures = {};
-  const preferred = {};
   for (const p of procPack.records || []) {
     const typ = (p.type || "").toUpperCase();
     if (typ !== "SID" && typ !== "STAR") continue;
@@ -167,37 +265,58 @@ async function buildFromSquawk() {
     if (base.length >= 4 && !procedures[base]) procedures[base] = procedures[id];
   }
 
-  // Preferred routes: try FAA PFR.csv when NASR CDN is reachable
-  try {
-    const pfrUrl = "https://nfdc.faa.gov/webContent/28DaySub/2026-05-14/CSV/PFR.csv";
-    const res = await fetch(pfrUrl);
-    if (res.ok) {
-      const text = await res.text();
-      const lines = text.split(/\r?\n/);
-      const header = lines[0]?.split(",") || [];
-      const idx = name => header.findIndex(h => h.replace(/"/g, "").trim() === name);
-      const iDep = idx("DEPARTURE_AIRPORT") >= 0 ? idx("DEPARTURE_AIRPORT") : idx("DEPARTURE");
-      const iArr = idx("ARRIVAL_AIRPORT") >= 0 ? idx("ARRIVAL_AIRPORT") : idx("ARRIVAL");
-      const iRoute = idx("ROUTE_STRING") >= 0 ? idx("ROUTE_STRING") : idx("ROUTE");
-      if (iDep >= 0 && iArr >= 0 && iRoute >= 0) {
-        for (let li = 1; li < lines.length; li++) {
-          const cols = parseCsvLine(lines[li]);
-          const dep = (cols[iDep] || "").replace(/"/g, "").trim().toUpperCase();
-          const arr = (cols[iArr] || "").replace(/"/g, "").trim().toUpperCase();
-          const route = (cols[iRoute] || "").replace(/"/g, "").trim().toUpperCase();
-          if (dep && arr && route) preferred[`${dep}|${arr}`] = route;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("PFR fetch skipped:", e.message);
-  }
+  // Preferred routes: FAA PFR when available
+  const preferred = await fetchPreferredRoutes(null);
 
-  return {
+  return assembleNavData({
     meta: {
       source: "squawk NASR snapshots",
       nasrCycleDate: fixPack.meta?.nasrCycleDate || awyPack.meta?.nasrCycleDate || null,
       cifpCycleDate: procPack.meta?.cifpCycleDate || null,
+    },
+    fixes,
+    navaids,
+    airways,
+    procedures,
+    preferred,
+  });
+}
+
+async function fetchPreferredRoutes(isoDate) {
+  const preferred = {};
+  const sources = isoDate
+    ? [faaExtraZipUrl(isoDate, "PFR")]
+    : [
+        faaExtraZipUrl("2026-06-11", "PFR"),
+        "https://nfdc.faa.gov/webContent/28DaySub/extra/11_Jun_2026_PFR_CSV.zip",
+      ];
+  for (const url of sources) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      const dir = mkdtempSync(join(tmpdir(), "vatflow-pfr-"));
+      try {
+        const zipPath = join(dir, "pfr.zip");
+        writeFileSync(zipPath, buf);
+        execFileSync("unzip", ["-o", zipPath, "-d", dir], { stdio: "pipe" });
+        const rows = await readCsvFromDir(dir, "PFR_BASE.csv", "PFR.csv");
+        Object.assign(preferred, buildPreferredFromRows(rows));
+        if (Object.keys(preferred).length) break;
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    } catch (e) {
+      console.warn("PFR fetch skipped:", e.message);
+    }
+  }
+  return preferred;
+}
+
+function assembleNavData({ meta, fixes, navaids, airways, procedures, preferred }) {
+  return {
+    meta: {
+      ...meta,
       generatedAt: new Date().toISOString(),
       bbox: [CONUS.minLat, CONUS.minLon, CONUS.maxLat, CONUS.maxLon],
       fixCount: fixes.size,
@@ -214,27 +333,103 @@ async function buildFromSquawk() {
   };
 }
 
+async function buildFromFaaCycle(isoDate) {
+  const csvDir = await fetchFaaCycleCsvs(isoDate);
+  try {
+    console.log("Fetching @squawk airways/procedures (enroute data from prior 56-day cycle)…");
+    const [awyPack, procPack] = await Promise.all([
+      fetchGzJson(SQUAWK.airways),
+      fetchGzJson(SQUAWK.procedures),
+    ]);
+
+    const fixRows = await readCsvFromDir(csvDir, "FIX_BASE.csv", "FIX.csv");
+    const navRows = await readCsvFromDir(csvDir, "NAV_BASE.csv", "NAV.csv");
+    const fixes = buildFixesFromRows(fixRows);
+    const navaids = buildNavaidsFromRows(navRows);
+
+    const airways = {};
+    for (const a of awyPack.records || []) {
+      const des = (a.designation || "").toUpperCase();
+      if (!des) continue;
+      const wps = [];
+      for (const w of a.waypoints || []) {
+        const lat = w.lat, lon = w.lon;
+        if (!isFinite(lat) || !isFinite(lon) || !inConus(lat, lon)) continue;
+        const id = (w.identifier || w.name || "").toUpperCase();
+        wps.push([id, roundCoord(lat), roundCoord(lon)]);
+        if (id) addCandidate(fixes, id, lat, lon);
+      }
+      if (wps.length >= 2) {
+        airways[des] = { t: des.charAt(0), w: wps };
+      }
+    }
+
+    const procedures = {};
+    for (const p of procPack.records || []) {
+      const typ = (p.type || "").toUpperCase();
+      if (typ !== "SID" && typ !== "STAR") continue;
+      const id = (p.identifier || p.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (!id || id.length < 4) continue;
+      const pushLeg = (arr, leg) => {
+        if (!leg || !isFinite(leg.lat) || !isFinite(leg.lon)) return;
+        if (!inConus(leg.lat, leg.lon)) return;
+        const fix = (leg.fixIdentifier || "").toUpperCase();
+        arr.push([fix, roundCoord(leg.lat), roundCoord(leg.lon)]);
+        if (fix) addCandidate(fixes, fix, leg.lat, leg.lon);
+      };
+      const common = [];
+      for (const route of p.commonRoutes || []) {
+        for (const leg of route.legs || []) pushLeg(common, leg);
+      }
+      const transitions = {};
+      for (const tr of p.transitions || []) {
+        const tname = (tr.name || tr.identifier || "").toUpperCase();
+        if (!tname) continue;
+        const tlegs = [];
+        for (const leg of tr.legs || []) pushLeg(tlegs, leg);
+        if (tlegs.length >= 2) transitions[tname] = tlegs;
+      }
+      if (common.length < 2 && !Object.keys(transitions).length) continue;
+      procedures[id] = {
+        type: typ,
+        apt: (p.airports || []).map(a => a.toUpperCase()),
+        common,
+        transitions,
+      };
+      const base = id.replace(/\d+[A-Z]?$/, "");
+      if (base.length >= 4 && !procedures[base]) procedures[base] = procedures[id];
+    }
+
+    const pfrRows = await readCsvFromDir(csvDir, "PFR_BASE.csv", "PFR.csv");
+    const preferred = buildPreferredFromRows(pfrRows);
+
+    return assembleNavData({
+      meta: {
+        source: `FAA NASR ${isoDate} (FIX/NAV/PFR) + @squawk airways/procedures`,
+        nasrCycleDate: isoDate,
+        cifpCycleDate: procPack.meta?.cifpCycleDate || null,
+        enrouteCycleDate: awyPack.meta?.nasrCycleDate || null,
+      },
+      fixes,
+      navaids,
+      airways,
+      procedures,
+      preferred,
+    });
+  } finally {
+    rmSync(csvDir, { recursive: true, force: true });
+  }
+}
+
 async function buildFromNasrCsv(dir) {
   console.log(`Building from NASR CSV in ${dir}…`);
-  const fixRows = await readCsv(join(dir, "FIX.csv")).catch(() => []);
-  const navRows = await readCsv(join(dir, "NAV.csv")).catch(() => []);
-  const awyRows = await readCsv(join(dir, "AWY.csv")).catch(() => []);
-  const pfrRows = await readCsv(join(dir, "PFR.csv")).catch(() => []);
+  const fixRows = await readCsvFromDir(dir, "FIX_BASE.csv", "FIX.csv");
+  const navRows = await readCsvFromDir(dir, "NAV_BASE.csv", "NAV.csv");
+  const awyRows = await readCsvFromDir(dir, "AWY_BASE.csv", "AWY.csv");
+  const pfrRows = await readCsvFromDir(dir, "PFR_BASE.csv", "PFR.csv");
 
-  const fixes = new Map();
-  const navaids = new Map();
-  for (const r of fixRows) {
-    const id = (r.FIX_ID || r.IDENT || r.ident || "").trim();
-    const lat = parseFloat(r.LAT_DECIMAL || r.LAT || r.lat);
-    const lon = parseFloat(r.LONG_DECIMAL || r.LON || r.lon);
-    addCandidate(fixes, id, lat, lon);
-  }
-  for (const r of navRows) {
-    const id = (r.NAV_ID || r.IDENT || r.ident || "").trim();
-    const lat = parseFloat(r.LAT_DECIMAL || r.LAT || r.lat);
-    const lon = parseFloat(r.LONG_DECIMAL || r.LON || r.lon);
-    addCandidate(navaids, id, lat, lon);
-  }
+  const fixes = buildFixesFromRows(fixRows);
+  const navaids = buildNavaidsFromRows(navRows);
 
   const airwayGroups = new Map();
   for (const r of awyRows) {
@@ -260,34 +455,19 @@ async function buildFromNasrCsv(dir) {
     if (w.length >= 2) airways[des] = { t: des.charAt(0), w };
   }
 
-  const preferred = {};
-  for (const r of pfrRows) {
-    const dep = (r.DEPARTURE_AIRPORT || r.dep || "").toUpperCase();
-    const arr = (r.ARRIVAL_AIRPORT || r.arr || "").toUpperCase();
-    const route = (r.ROUTE_STRING || r.route || "").trim();
-    if (!dep || !arr || !route) continue;
-    const key = `${dep}|${arr}`;
-    if (!preferred[key]) preferred[key] = route.toUpperCase();
-  }
+  const preferred = buildPreferredFromRows(pfrRows);
 
-  return {
+  return assembleNavData({
     meta: {
       source: "NASR CSV",
       nasrCycleDate: null,
-      generatedAt: new Date().toISOString(),
-      bbox: [CONUS.minLat, CONUS.minLon, CONUS.maxLat, CONUS.maxLon],
-      fixCount: fixes.size,
-      navaidCount: navaids.size,
-      airwayCount: Object.keys(airways).length,
-      procedureCount: 0,
-      preferredRouteCount: Object.keys(preferred).length,
     },
-    fixes: mapToObj(fixes),
-    navaids: mapToObj(navaids),
+    fixes,
+    navaids,
     airways,
     procedures: {},
     preferred,
-  };
+  });
 }
 
 function writeOutputs(data) {
@@ -313,7 +493,13 @@ function writeOutputs(data) {
 async function main() {
   const nasrIdx = process.argv.indexOf("--nasr-dir");
   const nasrDir = nasrIdx >= 0 ? process.argv[nasrIdx + 1] : null;
-  const data = nasrDir ? await buildFromNasrCsv(nasrDir) : await buildFromSquawk();
+  const cycleIdx = process.argv.indexOf("--faa-cycle");
+  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-07-09";
+  const data = nasrDir
+    ? await buildFromNasrCsv(nasrDir)
+    : cycleIdx >= 0
+      ? await buildFromFaaCycle(faaCycle)
+      : await buildFromSquawk();
   writeOutputs(data);
 }
 

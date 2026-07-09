@@ -5,10 +5,16 @@ Pre-processed US enroute navigation data for route expansion in FCA Builder and 
 ## Rebuild
 
 ```bash
-node scripts/build-nav-data.mjs
+node scripts/build-nav-data.mjs --faa-cycle 2026-07-09
 ```
 
-Uses [@squawk/fix-data](https://www.npmjs.com/package/@squawk/fix-data), [@squawk/navaid-data](https://www.npmjs.com/package/@squawk/navaid-data), [@squawk/airway-data](https://www.npmjs.com/package/@squawk/airway-data), and [@squawk/procedure-data](https://www.npmjs.com/package/@squawk/procedure-data) (FAA NASR / CIFP snapshots).
+Uses FAA FIX/NAV/PFR CSV for the requested cycle and @squawk airways/procedures for enroute data (unchanged on 28-day change-notice cycles).
+
+Fallback (prior @squawk-only snapshot):
+
+```bash
+node scripts/build-nav-data.mjs
+```
 
 Optional local NASR CSV override:
 
@@ -16,7 +22,7 @@ Optional local NASR CSV override:
 node scripts/build-nav-data.mjs --nasr-dir /path/to/CSV
 ```
 
-Include `FIX.csv`, `NAV.csv`, `AWY.csv`, and optionally `PFR.csv` for preferred routes.
+Include `FIX_BASE.csv` or `FIX.csv`, `NAV_BASE.csv` or `NAV.csv`, `AWY_BASE.csv` or `AWY.csv`, and optionally `PFR_BASE.csv` or `PFR.csv` for preferred routes.
 
 ## Files
 
