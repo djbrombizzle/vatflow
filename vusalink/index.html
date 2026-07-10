@@ -266,8 +266,10 @@
 </div>
 
 <div id="verifyBar" class="hidden">
-  <b>VERIFY TO SEND CPDLC</b> &mdash; add this code to your VATSIM controller info / ATIS:
-  <span id="verifyCode">VUSA-----</span>, then wait ~30 s. You can remove it once verified &mdash; this device stays verified for 30 days.
+  <b id="verifyTitle">VERIFY TO SEND CPDLC</b>
+  <span id="verifyAtisBlock" class="hidden">&mdash; add this code to your VATSIM controller info / ATIS:
+  <span id="verifyCode">VUSA-----</span>, then wait ~30 s. You can remove it once verified &mdash; this device stays verified for 30 days.</span>
+  <span id="verifyVnasBlock" class="hidden">&mdash; log in to <b>vNAS</b> with the same VATSIM account (same CID), assume your <b>center</b> position, then wait for the feed to update (~30 s). This device stays verified for 30 days once confirmed.</span>
   <span id="verifyState">checking&hellip;</span>
 </div>
 <div id="posBar" class="hidden">
@@ -419,10 +421,10 @@
 
       <h3>Get started as a controller</h3>
       <ol>
+        <li>Click <b>Sign in with VATSIM</b> in the top bar (your CID comes from VATSIM Connect).</li>
         <li>Log on to VATSIM and open a US <b>center</b> position (for example <b>JAX_CTR</b> or <b>ZJX_CTR</b>).</li>
-        <li>Click <b>SETTINGS</b>, enter your <b>VATSIM CID</b>, and click <b>save</b>.</li>
-        <li>vUSAlink reads your live position from VATSIM. The status line should show your center when connected.</li>
-        <li>A yellow <b>VERIFY</b> bar appears with a code like <b>VUSA12345</b>. Paste that code into your VATSIM controller info or ATIS remark, then wait about 30 seconds.</li>
+        <li>Log in to <b>vNAS</b> with the <b>same VATSIM CID</b> and assume the matching center sector in vNAS.</li>
+        <li>vUSAlink checks the <a href="https://docs.virtualnas.net/data-admin/controller-feed/" target="_blank" rel="noopener noreferrer">vNAS controller feed</a> — your CID, callsign, and ARTCC must match. The yellow <b>VERIFY</b> bar clears automatically when vNAS confirms you.</li>
         <li>Once verified, the badge changes to <b>CONTROLLING</b> and you can send CPDLC. This device stays verified for 30 days.</li>
       </ol>
 
@@ -675,18 +677,29 @@ async function api(path,extra){
     verifyToken:verifyTokenFor((settings.cid||'').trim())},extra);
   return (await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
 }
-let verifyOK=true, verifyCode='';
+let verifyOK=true, verifyCode='', verifyMethod='atis';
 function applyVerify(v){
   const bar=document.getElementById('verifyBar');if(!bar)return;
+  const atisBlk=document.getElementById('verifyAtisBlock');
+  const vnasBlk=document.getElementById('verifyVnasBlock');
+  const stateEl=document.getElementById('verifyState');
   if(!hubMode()||!v){verifyOK=true;bar.classList.add('hidden');return;}
+  verifyMethod=(v.method==='vnas')?'vnas':'atis';
   if(v.ok){verifyOK=true;bar.classList.add('hidden');
-    // Hub hands back a fresh 30-day token on verify / sliding-window refresh.
     if(v.token)storeVerifyToken((settings.cid||'').trim(),v.token);}
   else{
     verifyOK=false;verifyCode=v.code||verifyCode;
-    clearVerifyToken();   // any stored token was rejected/expired -> fall back to the code
-    document.getElementById('verifyCode').textContent=verifyCode||'VUSA-----';
-    document.getElementById('verifyState').textContent='not verified yet \u2014 add the code, then wait a moment\u2026';
+    clearVerifyToken();
+    if(verifyMethod==='vnas'){
+      if(atisBlk)atisBlk.classList.add('hidden');
+      if(vnasBlk)vnasBlk.classList.remove('hidden');
+      if(stateEl)stateEl.textContent=v.vnasMessage||'waiting for vNAS to show your center position\u2026';
+    }else{
+      if(vnasBlk)vnasBlk.classList.add('hidden');
+      if(atisBlk)atisBlk.classList.remove('hidden');
+      document.getElementById('verifyCode').textContent=verifyCode||'VUSA-----';
+      if(stateEl)stateEl.textContent='not verified yet \u2014 add the code, then wait a moment\u2026';
+    }
     bar.classList.remove('hidden');
   }
 }
@@ -696,15 +709,15 @@ async function sendCpdlc(to,ra,message,mrn){
     else openSettings();
     return null;
   }
-  if(hubMode()&&!verifyOK){applyVerify({ok:false,code:verifyCode});
-    setHoppie(true,'verify position to send');return null;}
+  if(hubMode()&&!verifyOK){applyVerify({ok:false,code:verifyCode,method:verifyMethod});
+    setHoppie(true,verifyMethod==='vnas'?'vNAS verify to send':'verify position to send');return null;}
   const localMin=minCounter++;persist();
   const packet=buildPacket(localMin,mrn,ra,message);
   logMsg('out',to,packet);
   let finalMin=localMin;
   try{const res=await api('/api/send',{to,type:'cpdlc',packet});
-    if(res&&res.needVerify){applyVerify({ok:false,code:res.verifyCode});
-      logMsg('err',to,'not verified \u2014 add '+(res.verifyCode||'code')+' to your controller info');return null;}
+    if(res&&res.needVerify){applyVerify({ok:false,code:res.verifyCode,method:res.verifyMethod||verifyMethod,vnasMessage:res.error});
+      logMsg('err',to,res.error||('not verified \u2014 '+(res.verifyMethod==='vnas'?'complete vNAS sign-in':'add '+(res.verifyCode||'code')+' to your controller info')));return null;}
     else if(!res||!res.ok){logMsg('err',to,'send failed: '+((res&&res.error)||'unknown'));return null;}
     else if(res.min!=null)finalMin=res.min;        // hub assigns the authoritative MIN
   }catch(e){logMsg('err',to,'proxy error: '+e.message);return null;}
@@ -1212,7 +1225,7 @@ function updateMode(){
   if(!badge)return;
   if(canControl()){badge.textContent='CONTROLLING';badge.className='badge ctrl';if(field)field.style.display='none';}
   else if(WEB_ONLY&&!oauthSignedIn()){badge.textContent='SIGN IN TO CONTROL';badge.className='badge view';if(field)field.style.display='';}
-  else if(hubMode()){badge.textContent='VERIFY TO CONTROL';badge.className='badge view';if(field)field.style.display='none';}
+  else if(hubMode()){badge.textContent=verifyOK?'CONTROLLING':'vNAS VERIFY';badge.className=verifyOK?'badge ctrl':'badge view';if(field)field.style.display='none';}
   else{badge.textContent='VIEW ONLY';badge.className='badge view';if(field)field.style.display='';}
 }
 function updateTabTitle(){
