@@ -219,7 +219,9 @@ export function createArtccDashboardMap(containerEl) {
 
   function renderTraffic(seqMap, pilots) {
     trafficLayer.clearLayers();
-    const b = map.getBounds().pad(0.2);
+    if (!map.getCenter()) return;
+    let b;
+    try { b = map.getBounds().pad(0.2); } catch (_) { return; }
     let shown = 0;
 
     for (const p of pilots) {
@@ -265,19 +267,22 @@ export function createArtccDashboardMap(containerEl) {
 
     if (bounds && bounds.isValid()) {
       map.fitBounds(bounds.pad(0.12));
+      return;
     }
+    if (artccB) map.fitBounds(L.latLngBounds(artccB).pad(0.08));
+    else map.setView([39, -98], 4);
   }
 
   function render({ refit = false } = {}) {
     if (!currentArtcc) return;
     drawBoundary(currentArtcc);
     renderFcas(lastFcas);
-    const seqMap = renderSequences(lastFcas, lastPilots, lastPrefiles);
-    renderTraffic(seqMap, lastPilots);
     if (refit || lastFitArtcc !== currentArtcc) {
       fitToContent(lastFcas, lastPilots, lastPrefiles, currentArtcc);
       lastFitArtcc = currentArtcc;
     }
+    const seqMap = renderSequences(lastFcas, lastPilots, lastPrefiles);
+    renderTraffic(seqMap, lastPilots);
   }
 
   function setArtcc(artccId) {
@@ -294,7 +299,7 @@ export function createArtccDashboardMap(containerEl) {
   }
 
   map.on("moveend zoomend", () => {
-    if (!currentArtcc) return;
+    if (!currentArtcc || !map.getCenter()) return;
     const seqMap = renderSequences(lastFcas, lastPilots, lastPrefiles);
     renderTraffic(seqMap, lastPilots);
   });
