@@ -86,8 +86,10 @@
   <p>VATFLOW does <b>not</b> use this data for profiling, analytics, marketing, or any secondary purpose.</p>
   <p>
     The same VATSIM Connect session is shared across VATFLOW tools, including
-    <a href="vusalink/">vUSAlink</a> (CPDLC). vUSAlink additionally uses a one-time position
-    verification step (a short code in your controller info) before sending CPDLC uplinks.
+    <a href="vusalink/">vUSAlink</a> (CPDLC). vUSAlink additionally checks the
+    <a href="https://docs.virtualnas.net/data-admin/controller-feed/">vNAS controller feed</a>
+    to confirm your signed-in CID matches your active vNAS center position before
+    allowing CPDLC uplinks.
   </p>
 
   <h2>What is stored, and where</h2>
