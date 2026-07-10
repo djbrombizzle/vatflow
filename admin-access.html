@@ -13,61 +13,131 @@
     h1 { margin: 0 0 8px; font-size: 18px; }
     h2 { margin: 0 0 8px; font-size: 14px; color: #e8a838; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-    input, select, button { padding: 8px; border-radius: 6px; border: 1px solid #33475f; background: #0c131d; color: #d4dde6; }
+    input, button { padding: 8px; border-radius: 6px; border: 1px solid #33475f; background: #0c131d; color: #d4dde6; }
     button { cursor: pointer; }
     .status { font-size: 12px; color: #8a97a3; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #223042; }
+    th { color: #8a97a3; font-weight: 600; }
+    .muted { color: #5c6b78; font-size: 12px; line-height: 1.5; }
   </style>
 </head>
 <body>
   <div id="vatflowAppNav"></div>
   <main>
     <div class="card">
-      <h1>Admin Access</h1>
-      <div class="row">
-        <input id="adminPw" type="password" placeholder="Bootstrap admin password">
-        <button id="adminLogin">Login</button>
-      </div>
-      <div id="authStatus" class="status">Authenticate with Railway env bootstrap password.</div>
+      <h1>Admin — Full Access Whitelist</h1>
+      <p class="muted">
+        C1+ controllers receive full access automatically. Add a CID here to grant full access to members below C1 (event staff, visiting TMUs, etc.).
+        Sign in with your admin VATSIM account (CID in Railway <code>VATFLOW_ADMIN_CIDS</code>).
+      </p>
+      <div id="authStatus" class="status">Checking sign-in…</div>
     </div>
-    <div class="card">
-      <h2>Set page passwords</h2>
+    <div class="card" id="whitelistCard" style="display:none">
+      <h2>Add CID to whitelist</h2>
       <div class="row">
-        <select id="pageSel">
-          <option value="tbfm">CFR / TBFM</option>
-          <option value="fca_builder">FCA Builder</option>
-          <option value="tower">Tower Departures</option>
-          <option value="runway">Runway Balancer</option>
-        </select>
-        <input id="pagePw" type="password" placeholder="New page password">
-        <button id="setPw">Save Password</button>
+        <input id="cidInput" inputmode="numeric" maxlength="9" placeholder="VATSIM CID">
+        <input id="noteInput" placeholder="Note (optional)" style="flex:1;min-width:160px">
+        <button id="addBtn">Add</button>
       </div>
-      <div id="cfgStatus" class="status">Not authenticated.</div>
+      <div id="cfgStatus" class="status"></div>
+      <table>
+        <thead><tr><th>CID</th><th>Note</th><th>Added</th><th></th></tr></thead>
+        <tbody id="wlBody"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+      </table>
     </div>
   </main>
   <script type="module">
     import { mountVatflowNav } from "./shared/vatflow-nav.js";
-    import { adminLogin, setPagePassword } from "./shared/vatflow-access-api.js";
+    import { getAccessApiBase } from "./shared/vatflow-access-api.js";
+    import { initVatflowAuth, isAdmin, isSignedIn, login, getStoredToken } from "./shared/vatflow-auth.js";
+
     mountVatflowNav(document.getElementById("vatflowAppNav"), "admin");
-    let token = "";
     const authStatus = document.getElementById("authStatus");
     const cfgStatus = document.getElementById("cfgStatus");
-    document.getElementById("adminLogin").addEventListener("click", async () => {
-      const pw = document.getElementById("adminPw").value;
-      const res = await adminLogin(pw);
-      if (res && res.ok && res.token) {
-        token = res.token;
-        authStatus.textContent = "Authenticated.";
-      } else {
-        authStatus.textContent = "Auth failed.";
+    const whitelistCard = document.getElementById("whitelistCard");
+
+    async function api(path, opts = {}) {
+      const token = getStoredToken();
+      const res = await fetch(`${getAccessApiBase()}${path}`, {
+        ...opts,
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+          ...(opts.headers || {}),
+        },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    }
+
+    async function loadWhitelist() {
+      const data = await api("/auth/admin/whitelist");
+      const body = document.getElementById("wlBody");
+      if (!data || !data.ok) {
+        body.innerHTML = '<tr><td colspan="4" class="muted">Could not load whitelist.</td></tr>';
+        return;
+      }
+      if (!data.whitelist.length) {
+        body.innerHTML = '<tr><td colspan="4" class="muted">No whitelisted CIDs yet.</td></tr>';
+        return;
+      }
+      body.innerHTML = data.whitelist.map(row => `
+        <tr>
+          <td>${row.cid}</td>
+          <td>${row.note || "—"}</td>
+          <td>${(row.addedAt || "").slice(0, 10)}</td>
+          <td><button type="button" data-rm="${row.cid}">Remove</button></td>
+        </tr>`).join("");
+      body.querySelectorAll("[data-rm]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const cid = btn.getAttribute("data-rm");
+          const res = await api("/auth/admin/whitelist", {
+            method: "POST",
+            body: JSON.stringify({ cid, remove: true }),
+          });
+          cfgStatus.textContent = res && res.ok ? `Removed ${cid}.` : "Failed to remove.";
+          loadWhitelist();
+        });
+      });
+    }
+
+    async function refreshAdminUi() {
+      await initVatflowAuth();
+      if (!isSignedIn()) {
+        authStatus.innerHTML = 'Sign in with VATSIM to manage the whitelist. <button type="button" id="adminSignIn">Sign in</button>';
+        document.getElementById("adminSignIn")?.addEventListener("click", () => login());
+        whitelistCard.style.display = "none";
+        return;
+      }
+      if (!isAdmin()) {
+        authStatus.textContent = "Signed in, but this account is not an admin.";
+        whitelistCard.style.display = "none";
+        return;
+      }
+      authStatus.textContent = "Admin access granted.";
+      whitelistCard.style.display = "";
+      loadWhitelist();
+    }
+
+    document.getElementById("addBtn").addEventListener("click", async () => {
+      const cid = document.getElementById("cidInput").value.replace(/\D/g, "");
+      const note = document.getElementById("noteInput").value.trim();
+      if (!cid) { cfgStatus.textContent = "Enter a valid CID."; return; }
+      const res = await api("/auth/admin/whitelist", {
+        method: "POST",
+        body: JSON.stringify({ cid, note }),
+      });
+      cfgStatus.textContent = res && res.ok ? `Added ${cid} to whitelist.` : "Failed to add CID.";
+      if (res && res.ok) {
+        document.getElementById("cidInput").value = "";
+        document.getElementById("noteInput").value = "";
+        loadWhitelist();
       }
     });
-    document.getElementById("setPw").addEventListener("click", async () => {
-      if (!token) { cfgStatus.textContent = "Login first."; return; }
-      const page = document.getElementById("pageSel").value;
-      const password = document.getElementById("pagePw").value;
-      const res = await setPagePassword(token, page, password);
-      cfgStatus.textContent = res && res.ok ? `Saved password for ${page}.` : "Failed to save password.";
-    });
+
+    window.addEventListener("vatflow-auth-changed", refreshAdminUi);
+    refreshAdminUi();
   </script>
 </body>
 </html>

@@ -1,5 +1,9 @@
 /**
- * Shared VATFLOW app navigation (TBFM, FCA Builder, Tower Departures).
+ * Shared VATFLOW app navigation.
+ */
+import { initVatflowAuth, mountAuthNav } from "./vatflow-auth.js";
+
+/**
  * @param {HTMLElement|null} container
  * @param {"tbfm"|"fca"|"tower"|"runways"|"admin"|"hub"} active
  */
@@ -23,4 +27,5 @@ export function mountVatflowNav(container, active) {
     `<span class="vf-spacer"></span>` +
     `<a class="vf-privacy" href="privacy.html"${active === "privacy" ? ' class="active" aria-current="page"' : ""}>Privacy</a>`;
   container.appendChild(nav);
+  initVatflowAuth().then(() => mountAuthNav(nav));
 }

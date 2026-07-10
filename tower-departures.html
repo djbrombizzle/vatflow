@@ -225,10 +225,7 @@
   <div class="spacer"></div>
   <button type="button" class="btn sm" id="settingsBtn" title="Controller settings">⚙</button>
   <div id="lockCtl">
-    <button type="button" id="lockBtn" class="locked">View only</button>
-    <input id="pwInput" type="password" placeholder="control password" autocomplete="off" class="hidden">
-    <button type="button" id="pwGo" class="btn sm hidden">Go</button>
-    <span id="lockMsg"></span>
+    <span id="authStatusLbl" class="stat" style="font-family:var(--mono);font-size:10px">View only</span>
   </div>
   <div class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
   <div class="stat"><span class="dot" id="syncDot"></span><span id="syncTxt">FCAs —</span></div>
@@ -238,24 +235,19 @@
 </header>
 
 <div class="settings-panel" id="settingsPanel">
-  <div class="row">
-    <label for="cidInput">VATSIM CID</label>
-    <input id="cidInput" maxlength="9" inputmode="numeric" placeholder="1234567" autocomplete="off">
-    <button type="button" class="btn primary sm" id="verifyCidBtn">Verify</button>
-    <button type="button" class="btn sm" id="clearCidBtn">Clear</button>
-  </div>
-  <div id="atcStatus">Enter your CID while online on VATSIM to unlock RDY only.</div>
-  <div class="settings-hint">CID connected = RDY-only mode. Full sequencing/edit controls still require page password.</div>
+  <div id="atcStatus">Sign in with VATSIM to use RDY.</div>
+  <div class="settings-hint">RDY requires sign-in and an active controller position on the VATSIM feed. Full sequencing requires C1+ or admin whitelist.</div>
 </div>
 
 <main id="main"></main>
 
-<script src="shared/vatflow-control-store.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 "use strict";
 
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, canFullControl, canUseFcaRdy, isSignedIn, getSession, authStatusLabel } from "./shared/vatflow-auth.js";
 import { mountHelp, TOWER_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
@@ -266,7 +258,6 @@ import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries, isArtccScopeReady } from "./shared/artcc-scope.js";
-import { verifyPagePassword } from "./shared/vatflow-access-api.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -276,10 +267,32 @@ const LS_CID = "towerDep.cid.v1";
 const LS_TOWER_UI = "towerDep.ui.v1";
 const REFRESH_SEC = 20;
 
-let passwordUnlocked = VatflowControl.loadPage("tower");
-function canControl() { return passwordUnlocked; }
-function canReadyOnly() { return state.atcVerified && !passwordUnlocked; }
-function canReady() { return canControl() || canReadyOnly(); }
+function canControl() { return canFullControl(); }
+function canReadyOnly() { return isSignedIn() && state.atcVerified && !canControl(); }
+function canReady() { return canUseFcaRdy() && (canControl() || canReadyOnly()); }
+
+function updateAuthStatusLbl() {
+  const el = document.getElementById("authStatusLbl");
+  if (!el) return;
+  if (canControl()) {
+    el.textContent = "Full control";
+  } else if (canReadyOnly()) {
+    el.textContent = `RDY · ${state.atcCallsign || "online"}`;
+  } else {
+    el.textContent = authStatusLabel();
+  }
+}
+
+function syncCidFromAuth() {
+  const sess = getSession();
+  saveCid(sess && sess.cid ? sess.cid : "");
+  revalidateAtcAuth();
+  updateAuthStatusLbl();
+}
+
+window.addEventListener("vatflow-auth-changed", () => {
+  syncCidFromAuth();
+});
 
 const state = {
   field: "",
@@ -413,7 +426,7 @@ function updateAtcStatusUI() {
       : `CID ${state.cid} — waiting for VATSIM feed…`;
     el.className = "err";
   } else {
-    el.textContent = "Enter your CID while online on VATSIM to unlock RDY only.";
+    el.textContent = "Sign in with VATSIM while online on a controller position to unlock RDY.";
     el.className = "";
   }
 }
@@ -425,7 +438,7 @@ function revalidateAtcAuth() {
     state.atcFieldIcao = null;
     state.atcReason = "no_cid";
     updateAtcStatusUI();
-    updateLockUI();
+    updateAuthStatusLbl();
     return;
   }
   const result = verifyTowerAtc(state.controllers, state.cid);
@@ -434,24 +447,12 @@ function revalidateAtcAuth() {
   state.atcFieldIcao = result.fieldIcao;
   state.atcReason = result.reason;
   updateAtcStatusUI();
-  updateLockUI();
+  updateAuthStatusLbl();
   if (result.verified && result.fieldIcao && !state.field) {
     activateField(result.fieldIcao);
   } else if (!stripDragging) {
     render();
   }
-}
-
-function verifyCidNow() {
-  const input = document.getElementById("cidInput");
-  const cid = (input ? input.value : state.cid).replace(/\D/g, "");
-  if (!cid) {
-    document.getElementById("atcStatus").textContent = "Enter a valid VATSIM CID.";
-    document.getElementById("atcStatus").className = "err";
-    return;
-  }
-  saveCid(cid);
-  revalidateAtcAuth();
 }
 
 function clearCidAuth() {
@@ -461,7 +462,7 @@ function clearCidAuth() {
   state.atcFieldIcao = null;
   state.atcReason = "no_cid";
   updateAtcStatusUI();
-  updateLockUI();
+  updateAuthStatusLbl();
   render();
 }
 
@@ -915,7 +916,7 @@ function seqHintHtml() {
     ? "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA Builder global sequence"
     : (canReadyOnly()
       ? "RDY-only mode — connected CID can issue/cancel releases, but cannot reorder/sequence."
-      : "View only — enter CID for RDY-only, or unlock full control with page password.");
+      : "View only — sign in with VATSIM for RDY; C1+ or whitelist for full control.");
 }
 
 function canIncrementalRender() {
@@ -1117,90 +1118,26 @@ function activateField(icao) {
   render();
 }
 
-function updateLockUI() {
-  const btn = document.getElementById("lockBtn");
-  if (passwordUnlocked) {
-    btn.textContent = "Full control";
-    btn.className = "unlocked";
-  } else if (state.atcVerified && state.atcCallsign) {
-    btn.textContent = `RDY only · ${state.atcCallsign}`;
-    btn.className = "locked";
-  } else {
-    btn.textContent = "View only";
-    btn.className = "locked";
-  }
-  pwInput.classList.add("hidden");
-  pwGo.classList.add("hidden");
-}
-
-function setPasswordControl(on) {
-  passwordUnlocked = on;
-  VatflowControl.savePage("tower", on);
-  updateLockUI();
-  render();
-}
-
 /* boot */
 mountVatflowNav(document.getElementById("vatflowAppNav"), "tower");
 mountHelp(document.getElementById("lockCtl"), TOWER_HELP);
 
-const lockBtn = document.getElementById("lockBtn");
-const pwInput = document.getElementById("pwInput");
-const pwGo = document.getElementById("pwGo");
-const lockMsg = document.getElementById("lockMsg");
-
-function showPwEntry() {
-  pwInput.classList.remove("hidden");
-  pwGo.classList.remove("hidden");
-  pwInput.value = "";
-  lockMsg.textContent = "";
-  pwInput.focus();
-}
-
-async function attemptUnlock(pw) {
-  const res = await verifyPagePassword("tower", pw);
-  if (res && res.ok) {
-    lockMsg.textContent = "";
-    setPasswordControl(true);
-  } else {
-    lockMsg.textContent = "wrong password";
-    lockMsg.className = "lockerr";
-  }
-}
-
-lockBtn.addEventListener("click", () => {
-  if (passwordUnlocked) {
-    setPasswordControl(false);
-    lockMsg.textContent = "";
-    return;
-  }
-  if (pwInput.classList.contains("hidden")) showPwEntry();
-  else attemptUnlock(pwInput.value);
-});
-pwGo.addEventListener("click", () => { attemptUnlock(pwInput.value); });
-pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(pwInput.value); });
-
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
-const cidInput = document.getElementById("cidInput");
 settingsBtn.addEventListener("click", () => {
   const open = settingsPanel.classList.toggle("show");
   settingsBtn.classList.toggle("on", open);
 });
-document.getElementById("verifyCidBtn").addEventListener("click", verifyCidNow);
-document.getElementById("clearCidBtn").addEventListener("click", clearCidAuth);
-cidInput.addEventListener("input", () => { cidInput.value = cidInput.value.replace(/\D/g, ""); });
-cidInput.addEventListener("keydown", e => { if (e.key === "Enter") verifyCidNow(); });
 
 document.getElementById("fieldInput").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
 document.getElementById("loadBtn").addEventListener("click", () => activateField(document.getElementById("fieldInput").value));
 document.getElementById("fieldInput").addEventListener("keydown", e => { if (e.key === "Enter") activateField(e.target.value); });
 document.getElementById("refreshBtn").addEventListener("click", () => { fetchLive(); state.countdown = REFRESH_SEC; });
 
-updateLockUI();
+await initVatflowAuth();
+syncCidFromAuth();
 loadTowerUi();
 loadSavedCid();
-if (state.cid) cidInput.value = state.cid;
 updateAtcStatusUI();
 loadLocalFcas();
 initSync();

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VATFLOW — Signing in…</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+      background: #0b1016; color: #d4dde6; font-family: ui-monospace, Menlo, monospace; }
+    .box { text-align: center; padding: 24px; }
+    .err { color: #e07070; }
+    a { color: #e8a838; }
+  </style>
+</head>
+<body>
+  <div class="box" id="msg">Completing VATSIM sign-in…</div>
+  <script type="module">
+    import { getAccessApiBase } from "./shared/vatflow-access-api.js";
+    import {
+      acceptTokenFromCallback, consumeReturnPath, refreshSession,
+    } from "./shared/vatflow-auth.js";
+
+    const params = new URLSearchParams(window.location.search);
+
+    async function finishWithToken(token) {
+      acceptTokenFromCallback(token);
+      await refreshSession();
+      const dest = consumeReturnPath();
+      window.location.replace(dest);
+    }
+
+    if (params.get("auth_error") || params.get("error")) {
+      document.getElementById("msg").innerHTML =
+        '<span class="err">Sign-in failed or was cancelled.</span><br><a href="index.html">Return to VATFLOW</a>';
+    } else if (params.get("code") && params.get("state")) {
+      try {
+        const res = await fetch(`${getAccessApiBase()}/auth/vatsim/exchange`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            code: params.get("code"),
+            state: params.get("state"),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok || !data.token) throw new Error("exchange failed");
+        await finishWithToken(data.token);
+      } catch {
+        document.getElementById("msg").innerHTML =
+          '<span class="err">Could not complete sign-in.</span><br><a href="index.html">Return to VATFLOW</a>';
+      }
+    } else {
+      const hash = window.location.hash.replace(/^#/, "");
+      const hashParams = new URLSearchParams(hash);
+      const token = hashParams.get("token");
+      if (!token) {
+        document.getElementById("msg").innerHTML =
+          '<span class="err">No session token received.</span><br><a href="index.html">Return to VATFLOW</a>';
+      } else {
+        finishWithToken(decodeURIComponent(token)).catch(() => {
+          document.getElementById("msg").innerHTML =
+            '<span class="err">Could not complete sign-in.</span><br><a href="index.html">Return to VATFLOW</a>';
+        });
+      }
+    }
+  </script>
+</body>
+</html>

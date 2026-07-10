@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VATFLOW · Runway Balancer</title>
 <link rel="stylesheet" href="shared/vatflow-nav.css">
-<script src="shared/vatflow-control-store.js"></script>
 <style>
   :root {
     --bg: #080b10; --panel: #0e1319; --line: #1e2834; --line-2: #2a3848;
@@ -162,10 +161,7 @@
   <span class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></span>
   <span class="stat">arrivals <b id="arrCount">0</b> · assigned <b id="asgCount">0</b></span>
   <span class="stat" id="rwySrc"></span>
-  <span class="fieldbox" id="pwBox">
-    <input id="pwInput" type="password" placeholder="control password" autocomplete="off" style="width:130px">
-    <button class="btn" id="pwBtn">UNLOCK</button>
-  </span>
+  <span class="stat" id="authStatusLbl">View only</span>
   <div id="clock">----Z</div>
 </header>
 
@@ -231,13 +227,24 @@
 
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, canUseRunwayBalancer, authStatusLabel } from "./shared/vatflow-auth.js";
 import { loadAirports, seedAirports, getAirport, fpFields, fmtZulu, haversineNm, parseAlt } from "./shared/fca-metering.js";
 mountVatflowNav(document.getElementById("vatflowAppNav"), "runways");
+await initVatflowAuth();
+
+function updateAuthUi() {
+  document.body.classList.toggle("viewonly", !canUseRunwayBalancer());
+  const lbl = document.getElementById("authStatusLbl");
+  if (lbl) lbl.textContent = authStatusLabel();
+  const note = document.getElementById("lockNote");
+  if (note) note.classList.toggle("hidden", canUseRunwayBalancer());
+}
+window.addEventListener("vatflow-auth-changed", () => { updateAuthUi(); renderAll(); });
+updateAuthUi();
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv";
 const METAR_URL = "https://aviationweather.gov/api/data/metar?ids=";
-const CONTROL_PASSWORD_LOCAL = "";
 const LANE_COLORS = ["#e8a838","#5ba8c9","#4caf7a","#b07fd6","#d45c5c","#7f9dd6","#d6a97f"];
 const BIN_MIN = 10;
 /* Per-10-min-bin demand levels. Graph bars are scaled to a fixed max of 5. */
@@ -360,7 +367,7 @@ const state = {
 };
 const $ = id => document.getElementById(id);
 const escapeHtml = s => ("" + (s ?? "")).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-function canControl() { return state.unlocked; }
+function canControl() { return canUseRunwayBalancer(); }
 
 /* ---------- persistence ---------- */
 const lsKey = f => "runwayBalancer.v1." + f;
@@ -782,9 +789,7 @@ function renderHeader() {
   $("arrCount").textContent = state.arrivals.length;
   $("asgCount").textContent = state.arrivals.filter(a => a.rwy).length;
   $("rwySrc").textContent = state.field ? `${state.field} rwy data: ${state.rwySource}` : "";
-  document.body.classList.toggle("viewonly", !state.unlocked);
-  $("lockNote").classList.toggle("hidden", state.unlocked);
-  $("pwBox").style.display = state.unlocked ? "none" : "";
+  updateAuthUi();
 }
 
 function renderAll() {
@@ -851,22 +856,6 @@ $("addEndBtn").addEventListener("click", () => {
   }
 });
 
-/* password unlock */
-function tryUnlock() {
-  const pw = $("pwInput").value || "";
-  if (VatflowControl.checkPassword(pw, CONTROL_PASSWORD_LOCAL)) {
-    state.unlocked = true;
-    VatflowControl.save(true);
-    $("pwInput").value = "";
-    renderAll();
-  } else {
-    $("pwInput").value = "";
-    $("pwInput").placeholder = "wrong — try again";
-  }
-}
-$("pwBtn").addEventListener("click", tryUnlock);
-$("pwInput").addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
-
 /* saved configs */
 $("cfgSaveBtn").addEventListener("click", () => {
   if (!canControl() || !state.field) return;
@@ -889,8 +878,6 @@ $("cfgDelBtn").addEventListener("click", () => {
 
 setInterval(() => { $("clock").textContent = fmtZulu(Date.now()); }, 1000);
 $("clock").textContent = fmtZulu(Date.now());
-
-state.unlocked = VatflowControl.load();
 
 loadAirports().catch(() => { seedAirports({}); });
 fetchFeed();

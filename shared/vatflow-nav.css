@@ -75,6 +75,69 @@
   border-color: transparent;
 }
 
+.vf-auth {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.vf-auth-btn {
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(232, 168, 56, 0.45);
+  background: rgba(232, 168, 56, 0.12);
+  color: #e8a838;
+  cursor: pointer;
+}
+
+.vf-auth-btn:hover {
+  background: rgba(232, 168, 56, 0.2);
+}
+
+.vf-auth-user {
+  color: #d4dde6;
+  font-weight: 700;
+}
+
+.vf-auth-tier {
+  color: #5c6b78;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.vf-auth-link {
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: #8a97a3;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.vf-auth-link:hover {
+  color: #d4dde6;
+}
+
+.vf-auth-danger {
+  color: #a86a6a;
+}
+
+.vf-auth-danger:hover {
+  color: #e07070;
+}
+
+@media (max-width: 900px) {
+  .vf-auth-tier, .vf-auth-danger { display: none; }
+}
+
 /* Sticky header variant (TBFM, tower page) */
 .app-header .vatflow-app-nav {
   position: relative;
