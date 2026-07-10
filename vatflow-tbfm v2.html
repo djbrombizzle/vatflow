@@ -7,7 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
-<script src="shared/vatflow-control-store.js"></script>
+
+<script type="module">
+import { initVatflowAuth } from "./shared/vatflow-auth.js";
+await initVatflowAuth();
+window.addEventListener("vatflow-auth-changed", () => {
+  if (typeof window.onVatflowAuthChanged === "function") window.onVatflowAuthChanged();
+});
+</script>
 <style>
 /* VATFLOW design system — injected into vatflow-tbfm v2.html */
 :root {
@@ -758,10 +765,7 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
     </div>
     <div class="header-tools">
       <div id="lockCtl">
-        <button id="lockBtn" class="locked">View only</button>
-        <input id="pwInput" type="password" placeholder="control password" autocomplete="off" class="hidden">
-        <button id="pwGo" class="btn-secondary hidden">Go</button>
-        <span id="lockMsg"></span>
+        <span id="authStatusLbl" class="sync-pill" style="font-size:11px">View only</span>
       </div>
       <div id="syncCtl">
         <span class="lbl">Room</span>
@@ -908,13 +912,8 @@ const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
-/* ---- controller access: the app is VIEW-ONLY until unlocked with the control password ----
-   On the hub, the password is enforced server-side (CONTROL_PASSWORD env var) — real security.
-   Off the hub (Firebase/local), it is checked against CONTROL_PASSWORD_LOCAL below (a soft gate).
-   Keep identical in FCA-builderv02.html. */
-let controllerUnlocked = VatflowControl.loadPage("tbfm");      // false = view only
-let ctrlPw = null;                   // entered password held in memory for hub auth
-function canControl() { return controllerUnlocked; }
+/* ---- controller access: VATSIM Connect OAuth (full tier = C1+ or whitelist) ---- */
+function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
 const groundStops = [];     // ground stop entries (shared): {id,airport,scope,until,updated,flashUntil}
 /* ARTCC/FIR boundary polygons (lazy-loaded from VAT-Spy when needed) */
 const BOUNDARIES_URL = "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";
@@ -4910,7 +4909,7 @@ function applyGroundStopsFromWire(o) {
 
 /* push current shared state up to whichever transport is connected (no-op when offline) */
 function pushSync() {
-  if (!controllerUnlocked) return;                 /* view-only clients never write */
+  if (!canControl()) return;                 /* view-only clients never write */
   const fbOn = window.VFSync && window.VFSync.connected;
   const hubOn = window.VFHub && window.VFHub.connected;
   if (!fbOn && !hubOn) return;
@@ -5039,10 +5038,10 @@ window.VFHub = {
       if (this._first) {
         this._first = false; this.connected = true;
         window.VATFLOW.setSyncStatus("hublive");
-        if (ctrlPw != null) this.authenticate(ctrlPw);   /* re-assert controller auth on (re)connect */
+        refreshHubAuth();
         const empty = !Object.keys(m.edcts || {}).length && !Object.keys(m.rates || {}).length &&
           !Object.keys(m.restrictions || {}).length && !Object.keys(m.groundStops || {}).length;
-        if (empty && window.VATFLOW.hasLocalState() && controllerUnlocked) {  /* only a controller seeds */
+        if (empty && window.VATFLOW.hasLocalState() && canControl()) {  /* only a controller seeds */
           const w = window.VATFLOW.getWire();
           this.push(w.edcts, w.rates, w.restrictions, w.groundStops);
           return;
@@ -5072,9 +5071,9 @@ window.VFHub = {
     if (!this._ws || this._ws.readyState !== 1) return;
     this._ws.send(JSON.stringify({ type: "push", edcts, rates, restrictions: restr, groundStops: gs }));
   },
-  authenticate(pw) {
+  authenticate(token) {
     if (!this._ws || this._ws.readyState !== 1) return;
-    this._ws.send(JSON.stringify({ type: "auth", password: pw }));
+    if (token) this._ws.send(JSON.stringify({ type: "auth", token }));
   }
 };
 
@@ -5094,89 +5093,22 @@ window.addEventListener("load", () => {
     window.VFHub.connect();
 });
 
-/* ===================== CONTROLLER ACCESS (password gate) ===================== */
-const lockBtn = document.getElementById("lockBtn");
-const pwInput = document.getElementById("pwInput");
-const pwGo = document.getElementById("pwGo");
-const lockMsg = document.getElementById("lockMsg");
-
-function updateLockUI() {
-  if (controllerUnlocked) {
-    lockBtn.textContent = "Controller";
-    lockBtn.className = "unlocked";
-  } else {
-    lockBtn.textContent = "View only";
-    lockBtn.className = "locked";
-  }
-  pwInput.classList.add("hidden");
-  pwGo.classList.add("hidden");
+/* ===================== CONTROLLER ACCESS (VATSIM OAuth) ===================== */
+function updateAuthUI() {
+  const el = document.getElementById("authStatusLbl");
+  if (el && window.VatflowAuth) el.textContent = window.VatflowAuth.authStatusLabel();
   const tmCtl = document.getElementById("taximonCtl");
-  if (tmCtl) tmCtl.classList.toggle("show", activeTab === "taximon" && controllerUnlocked);
+  if (tmCtl) tmCtl.classList.toggle("show", activeTab === "taximon" && canControl());
 }
-function showPwEntry() {
-  pwInput.classList.remove("hidden");
-  pwGo.classList.remove("hidden");
-  pwInput.value = "";
-  lockMsg.textContent = "";
-  pwInput.focus();
-}
-function setControl(on) {
-  controllerUnlocked = on;
-  VatflowControl.savePage("tbfm", on);
-  updateLockUI();
-  renderContent();
-}
-/* called when the hub answers an auth attempt */
-function onHubAuthResult(ok) {
-  if (ok) { lockMsg.textContent = ""; setControl(true); }
-  else {
-    ctrlPw = null;
-    lockMsg.textContent = "wrong password";
-    lockMsg.className = "lockerr";
-    setControl(false);
+function refreshHubAuth() {
+  if (window.VFHub && window.VFHub.connected && window.VatflowAuth) {
+    const token = window.VatflowAuth.getStoredToken();
+    if (token) window.VFHub.authenticate(token);
   }
 }
-function attemptUnlock(pw) {
-  ctrlPw = pw;
-  if (window.VFHub && window.VFHub.connected) {
-    /* hub is the authority — it will answer authok */
-    lockMsg.textContent = "checking\u2026"; lockMsg.className = "";
-    window.VFHub.authenticate(pw);
-    return;
-  }
-  fetch("https://vatflow-hub-production.up.railway.app/access/verify", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ page: "tbfm", password: pw })
-  })
-    .then(r => r.ok ? r.json() : { ok: false })
-    .then(j => {
-      if (j && j.ok) {
-        lockMsg.textContent = ""; setControl(true);
-      } else {
-        ctrlPw = null;
-        lockMsg.textContent = "wrong password"; lockMsg.className = "lockerr";
-      }
-    })
-    .catch(() => {
-      ctrlPw = null;
-      lockMsg.textContent = "unlock unavailable"; lockMsg.className = "lockerr";
-    });
-}
-lockBtn.addEventListener("click", () => {
-  if (controllerUnlocked) {                    /* log out -> back to view only */
-    ctrlPw = null;
-    if (window.VFHub && window.VFHub.connected) window.VFHub.authenticate("\u0000__logout__");  /* drop server auth */
-    setControl(false);
-    lockMsg.textContent = "";
-    return;
-  }
-  if (pwInput.classList.contains("hidden")) showPwEntry();
-  else attemptUnlock(pwInput.value);
-});
-pwGo.addEventListener("click", () => attemptUnlock(pwInput.value));
-pwInput.addEventListener("keydown", e => { if (e.key === "Enter") attemptUnlock(pwInput.value); });
-updateLockUI();
+function onHubAuthResult() { updateAuthUI(); }
+window.onVatflowAuthChanged = () => { updateAuthUI(); refreshHubAuth(); renderContent(); };
+updateAuthUI();
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
