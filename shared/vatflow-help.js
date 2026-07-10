@@ -3,7 +3,7 @@
  */
 
 export const FCA_HELP = {
-  title: "FCA Builder — Quick reference",
+  title: "FCA TMU — Quick reference",
   intro: "Draw flow constrained areas, meter traffic crossing a line, and issue EDCTs for ground departures. FCAs sync live when Supabase is configured.",
   sections: [
     {
@@ -31,7 +31,7 @@ export const FCA_HELP = {
         "Airborne aircraft are ordered by <b>nm to the crossing</b> (closest first); connected ground departures get <b>EDCT</b> (wheels-up time).",
         "Ground strips show <b>gap in minutes</b> behind the previous aircraft at the FCA crossing.",
         "<b>⠿ Drag</b> a strip to reorder — unlock controller mode first. Times recompute for everyone.",
-        "Tower reorder on the Tower Departures page syncs here via the shared FCA order.",
+        "Tower reorder on the ARTCC Dashboard syncs here via the shared FCA order.",
         "<b>⧉ Copy</b> sends the sequence as plain text for coordination (Discord, etc.).",
       ],
     },
@@ -56,51 +56,41 @@ export const FCA_HELP = {
   footer: "For VATSIM simulation only — not for real-world ATC.",
 };
 
-export const TOWER_HELP = {
-  title: "Tower Departures — Quick reference",
-  intro: "See departures from your field metered against active FCAs from FCA Builder. EDCT is wheels-up time from FCA spacing (filed departure time is ignored).",
+export const ARTCC_DASHBOARD_HELP = {
+  title: "ARTCC Dashboard — Quick reference",
+  intro: "View FCA programs and metered departures for your ARTCC. EDCT is wheels-up time from FCA spacing (filed departure time is ignored).",
   sections: [
     {
       title: "Getting started",
       open: true,
       items: [
-        "Enter your <b>FIELD</b> ICAO (e.g. KATL) and click <b>Load</b>.",
-        "Departures appear when an <b>enabled FCA</b> in FCA Builder matches their route.",
-        "Live traffic refreshes every ~20s from the VATSIM feed — only <b>connected</b> pilots appear (no prefiles).",
-        "FCAs load from Supabase realtime (same as FCA Builder) with local cache fallback.",
+        "Select your <b>ARTCC</b> from the dropdown — the map zooms to that center and shows scoped FCA programs plus aircraft in those sequences.",
+        "In <b>Release management</b>, enter an ARTCC code (e.g. ZDC) for center-wide departures or an airport (e.g. DCA, IAD) for ground releases at that field.",
+        "Only <b>metered</b> departures appear — aircraft not in an active FCA program are hidden.",
+        "FCAs load from Supabase realtime (same as FCA TMU) with local cache fallback.",
       ],
     },
     {
-      title: "Unlocking controller mode",
+      title: "RDY and full control",
       items: [
-        "<b>⚙ Settings</b> — enter your VATSIM <b>CID</b> while online on a <b>_TWR</b> or <b>_GND</b> position, then Verify. No password needed.",
-        "Verified position auto-fills your field ICAO when possible (e.g. KATL_TWR → KATL).",
-        "Re-checked every feed refresh — log off position and access revokes within ~20s.",
-        "<b>Password fallback</b> — View only → control password (same as TBFM/FCA Builder) for flow staff not on TWR/GND.",
+        "<b>⚙ Settings</b> — sign in with VATSIM while online on a controller position to unlock <b>RDY</b>.",
+        "<b>RDY</b> issues or cancels a CFR release for a ground departure in sequence.",
+        "<b>Full control</b> (admin whitelist) adds drag-reorder, PIN, and HIDE for FCA blocks.",
       ],
     },
     {
-      title: "Reading the table",
+      title: "Reading the strips",
       items: [
-        "<b>GAP</b> — minutes behind the previous aircraft at the FCA crossing (leader shows —).",
-        "<b>CTA Z</b> — scheduled crossing time at the FCA in Zulu.",
-        "<b>EDCT Z</b> — wheels-up / release time when delay exceeds 1 min; otherwise <b>RELEASED</b> (green).",
-        "<b>GLOBAL #</b> — position in the full FCA sequence (all traffic, not just your field).",
-        "<b>Not metered</b> — departure does not cross any active FCA on its filed route.",
-      ],
-    },
-    {
-      title: "Reordering departures",
-      items: [
-        "Unlock controller mode, then <b>⠿ drag</b> the # column to reorder.",
-        "Reorder updates the <b>global FCA sequence</b> in FCA Builder (synced via Supabase).",
-        "Gap and EDCT times recompute relative to the new order and FCA rate/MIT.",
-        "Only reorder rows with the <b>same FCA</b> — multi-FCA rows show the most restrictive EDCT.",
+        "Strips show crossing time, distance to the FCA line, and estimated hold until <b>RDY</b> is pressed.",
+        "After <b>RDY</b>, the strip shows the issued CFR time in green (<b>RLSD</b>).",
+        "Drag strips to reorder when you have full control — order syncs to FCA TMU via Supabase.",
       ],
     },
   ],
-  footer: "For VATSIM simulation only — coordinate with flow control via FCA Builder.",
+  footer: "For VATSIM simulation only — coordinate with flow control via FCA TMU.",
 };
+
+export const TOWER_HELP = ARTCC_DASHBOARD_HELP;
 
 function renderHelpHtml(cfg) {
   const secs = (cfg.sections || []).map(s => {
@@ -141,12 +131,12 @@ export function mountHelp(anchor, cfg) {
   function open() {
     overlay.classList.add("show");
     btn.classList.add("on");
-    if (document.body.classList.contains("tower-page")) document.body.style.overflow = "hidden";
+    if (document.body.classList.contains("tower-page") || document.body.classList.contains("artcc-page")) document.body.style.overflow = "hidden";
   }
   function close() {
     overlay.classList.remove("show");
     btn.classList.remove("on");
-    if (document.body.classList.contains("tower-page")) document.body.style.overflow = "";
+    if (document.body.classList.contains("tower-page") || document.body.classList.contains("artcc-page")) document.body.style.overflow = "";
   }
 
   btn.addEventListener("click", () => overlay.classList.contains("show") ? close() : open());

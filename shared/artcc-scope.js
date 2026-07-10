@@ -53,6 +53,31 @@ export function isArtccScopeReady() { return loaded; }
 /** Known ARTCC ids in the loaded data. */
 export function knownArtccs() { return [...polys.keys()].sort(); }
 
+/** Outer rings for one ARTCC as Leaflet lat/lng pairs, or null if unknown. */
+export function getArtccRings(id) {
+  if (!loaded) return null;
+  const rings = polys.get(("" + id).toUpperCase());
+  if (!rings) return null;
+  return rings.map(r => r.map(([lon, lat]) => [lat, lon]));
+}
+
+/** Leaflet bounds `[[south, west], [north, east]]` for fitBounds, or null. */
+export function getArtccBounds(id) {
+  const rings = getArtccRings(id);
+  if (!rings || !rings.length) return null;
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  for (const ring of rings) {
+    for (const [lat, lon] of ring) {
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    }
+  }
+  if (!isFinite(minLat)) return null;
+  return [[minLat, minLon], [maxLat, maxLon]];
+}
+
 /**
  * true  — point is inside the ARTCC's lateral boundary
  * false — data loaded for this ARTCC, point is outside

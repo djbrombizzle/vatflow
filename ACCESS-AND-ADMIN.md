@@ -26,7 +26,7 @@ flowchart LR
 1. User clicks **Sign in with VATSIM** → VATSIM Connect verifies identity.
 2. Railway hub exchanges the OAuth code and issues a **short-lived JWT** (~8 hours).
 3. JWT is stored in the browser. Every tool reads it to decide what the user can do.
-4. **Full access** is granted automatically for **C1+** or manually via your **whitelist**.
+4. **Full access** is granted only via your **admin whitelist** (no automatic C1+ access).
 5. **Admin** is separate: only CIDs listed in Railway `VATFLOW_ADMIN_CIDS` can manage the whitelist.
 
 There are **no passwords** anymore. The old bootstrap admin password and per-page passwords are gone.
@@ -39,7 +39,7 @@ There are **no passwords** anymore. The old bootstrap admin password and per-pag
 |---|---|---|
 | **Visitor** | Don't sign in | **Sign in with VATSIM** button |
 | **Basic** | Sign in with any VATSIM account | CID · rating, status **Signed in** |
-| **Full** | Sign in as C1+ **or** whitelisted CID | CID · rating, status **Controller** |
+| **Full** | Sign in as **whitelisted** CID | CID · rating, status **Controller** |
 | **Admin** | Your CID in `VATFLOW_ADMIN_CIDS` on Railway | Same as above + **Admin Access** link visible |
 
 ### What “full access” means on the server
@@ -47,19 +47,10 @@ There are **no passwords** anymore. The old bootstrap admin password and per-pag
 At sign-in, the hub checks:
 
 ```
-fullAccess = (controller rating ID ≥ 5)  OR  (CID is on whitelist)
+fullAccess = (CID is on whitelist)
 ```
 
-| Rating ID | Short | Full access by rating? |
-|---:|---|---|
-| 1 | OBS | No |
-| 2 | S1 | No |
-| 3 | S2 | No |
-| 4 | S3 | No |
-| **5** | **C1** | **Yes** |
-| 6+ | C2, C3, I1, I2, I3, SUP, ADM | Yes |
-
-Whitelist overrides rating: an S3 on the whitelist gets full access. A C1 **not** on any blocklist always gets full access.
+Only CIDs you add on the **Admin Access** page receive full edit (FCA TMU, TBFM hub push, ARTCC Dashboard sequencing). Controller rating (C1, S3, etc.) does **not** grant full access by itself.
 
 **Note:** Removing someone from the whitelist does **not** kick them out instantly. Their JWT was already issued with `fullAccess: true` and stays valid until it **expires (~8 hours)** or they **sign out** and sign in again. Plan revocations accordingly.
 
@@ -77,19 +68,19 @@ Whitelist overrides rating: an S3 on the whitelist gets full access. A C1 **not*
 | Tool | Can do | Cannot do |
 |---|---|---|
 | **Runway Balancer** | Full edit (runways, STAR rules, configs) | — |
-| **FCA Builder** | Press **RDY** / cancel releases on existing FCAs | Create, edit, delete, or draw FCAs; reorder sequence |
-| **Tower Departures** | **RDY** only if online on a VATSIM controller position (feed check) | Reorder strips, PIN/HIDE, full sequencing |
+| **FCA TMU** | Press **RDY** / cancel releases on existing FCAs | Create, edit, delete, or draw FCAs; reorder sequence |
+| **ARTCC Dashboard** | **RDY** only if online on a VATSIM controller position (feed check) | Reorder strips, PIN/HIDE, full sequencing |
 | **CFR / TBFM** | View everything | Set rates, CFRs, restrictions, ground stops, hub writes |
 | **Hub sync (TBFM)** | Receive live state | Push changes to hub |
 
-### Full (signed in + C1+ or whitelist)
+### Full (signed in + whitelist)
 
 Everything Basic can do, **plus**:
 
 | Tool | Extra capabilities |
 |---|---|
-| **FCA Builder** | Create/edit/delete FCAs, draw areas, reorder, import/export |
-| **Tower Departures** | Full sequencing, drag-reorder, PIN/HIDE |
+| **FCA TMU** | Create/edit/delete FCAs, draw areas, reorder, import/export |
+| **ARTCC Dashboard** | Full sequencing, drag-reorder, PIN/HIDE |
 | **CFR / TBFM** | All TMU controls, taxi monitor field edits, hub push |
 | **Hub sync** | WebSocket writes accepted by Railway |
 
@@ -101,15 +92,15 @@ Everything Basic can do, **plus**:
 
 ---
 
-## Tower Departures — RDY rules (special case)
+## ARTCC Dashboard — RDY rules (special case)
 
-Tower has three modes:
+ARTCC Dashboard has three modes:
 
 | Mode | Condition |
 |---|---|
 | View only | Not signed in |
 | **RDY only** | Signed in + **currently online** on a VATSIM controller position (verified via live feed) + **not** full tier |
-| **Full control** | Full tier (C1+ or whitelist) |
+| **Full control** | Whitelisted CID |
 
 CID comes from VATSIM OAuth automatically (no manual CID box). The feed re-checks every ~20 seconds whether they are still on position.
 
@@ -176,11 +167,11 @@ Survives hub restarts as long as the volume is attached at `/data`.
 
 ## Day-to-day admin tasks
 
-### Grant full access to someone below C1
+### Grant full access to a controller
 
 1. Go to [https://vatflow.io/admin-access.html](https://vatflow.io/admin-access.html)
 2. **Sign in with VATSIM** (must be your admin CID).
-3. Enter their **CID** and an optional **note** (e.g. `S3 TMU KATL event`).
+3. Enter their **CID** and an optional **note** (e.g. `S3 TMU ZDC event`).
 4. Click **Add**.
 
 They get full access the **next time they sign in** (or immediately if they refresh sign-in).
@@ -189,12 +180,6 @@ They get full access the **next time they sign in** (or immediately if they refr
 
 1. Same admin page → **Remove** next to their CID.
 2. They lose full access on **next sign-in** or when their current JWT expires (~8 h).
-
-You cannot revoke C1+ full access via whitelist — rating-based access is automatic. (v2 ARTCC scoping is not implemented yet.)
-
-### Check who has full access without whitelist
-
-Anyone with controller rating **C1 or higher** at sign-in. You don't maintain a list for them.
 
 ### Add a second admin
 
@@ -238,7 +223,7 @@ FCA Supabase sync and most UI gates are still **client-side** today (a determine
 | `JWT_SIGNING_KEY` | Random secret — signs session tokens |
 | `VATFLOW_ADMIN_CIDS` | **Your** CID(s) — who can use Admin Access |
 | `ACCESS_FILE` | `/data/vatflow-access.json` — whitelist + audit file |
-| `FULL_ACCESS_MIN_RATING` | Optional; default `5` (C1) |
+| `FULL_ACCESS_MIN_RATING` | Deprecated (unused); full access is whitelist-only |
 
 ---
 
@@ -248,7 +233,7 @@ FCA Supabase sync and most UI gates are still **client-side** today (a determine
 |---|---|
 | No **Sign in** button | Site not deployed with OAuth PR; hard-refresh `vatflow.io` |
 | Sign-in fails after VATSIM | Railway vars wrong; check `https://vatflow-hub-production.up.railway.app/auth/config` → `oauthEnabled: true` |
-| I'm C1 but see **Signed in** not **Controller** | Rating not returned by VATSIM; sign out/in. Check JWT at `/auth/session` with Bearer token |
+| I'm whitelisted but see **Signed in** not **Controller** | Sign out and sign in again; check JWT at `/auth/session` |
 | Admin page says not admin | `VATFLOW_ADMIN_CIDS` wrong CID or not redeployed |
 | Whitelist add fails | Not signed in as admin, or hub volume not mounted |
 | User still has access after whitelist remove | JWT not expired yet — wait or ask them to sign out |
@@ -277,4 +262,4 @@ FCA Supabase sync and most UI gates are still **client-side** today (a determine
 
 ---
 
-*Last updated for VATSIM OAuth v1 (hybrid C1+ / whitelist model).*
+*Last updated for whitelist-only full access and ARTCC Dashboard.*

@@ -5,14 +5,14 @@ import { initVatflowAuth, mountAuthNav } from "./vatflow-auth.js";
 
 /**
  * @param {HTMLElement|null} container
- * @param {"tbfm"|"fca"|"tower"|"runways"|"admin"|"hub"} active
+ * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"admin"|"hub"} active
  */
 export function mountVatflowNav(container, active) {
   if (!container) return;
   const links = [
     { id: "tbfm", href: "vatflow-tbfm%20v2.html", label: "CFR / TBFM" },
-    { id: "fca", href: "FCA-builderv02.html", label: "FCA Builder" },
-    { id: "tower", href: "tower-departures.html", label: "Tower Departures" },
+    { id: "fca", href: "FCA-builderv02.html", label: "FCA TMU" },
+    { id: "artcc", href: "artcc-dashboard.html", label: "ARTCC Dashboard" },
     { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
     { id: "admin", href: "admin-access.html", label: "Admin Access" },
   ];
