@@ -1,0 +1,2049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vUSAlink</title>
+<link rel="stylesheet" href="../shared/vatflow-nav.css">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2D6CB4BNQQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-2D6CB4BNQQ');
+</script>
+<style>
+  :root{--bg:#000;--fg:#cfcfcf;--fg-dim:#6b6b6b;--grid:#2a2a2a;--amber:#c8a24a;
+    --cyan:#3fb7b0;--green:#79d27a;--red-bg:#5a1f1f;--red-fg:#d98a8a;--sel:#7a3b3b;
+    --panel:#0d0d0d;--line:#333;--alert:#c0504d;--vatflow-nav-h:28px}
+  #vatflowAppNav{position:fixed;top:0;left:0;right:0;z-index:700}
+  body{padding-top:var(--vatflow-nav-h)}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+    font-family:"Cascadia Mono",Consolas,"DejaVu Sans Mono",Menlo,monospace;font-size:13px;line-height:1.35}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  .hidden{display:none!important}
+  tr.adj{opacity:.45}                       /* approaching traffic from a neighbor center */
+
+  #toolbar{display:flex;align-items:center;gap:14px;padding:4px 8px;border-bottom:1px solid var(--line);background:#050505;flex-wrap:wrap}
+  #toolbar label{color:var(--fg-dim)}
+  .field{display:flex;align-items:center;gap:6px}
+  .field input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;font-size:13px}
+  .tb-btn{background:#1a1a1a;border:1px solid #555;color:var(--fg);padding:2px 10px}
+  .chk{display:flex;align-items:center;gap:5px;color:var(--fg-dim);cursor:pointer;user-select:none;white-space:nowrap}
+  .chk input{cursor:pointer}
+  .badge{padding:2px 9px;border:1px solid #555;border-radius:2px;font-weight:bold;letter-spacing:.5px;font-size:12px}
+  .badge.view{background:#3a2e10;color:#e8c469;border-color:#8a6320}
+  .badge.ctrl{background:#10331a;color:#7fe6a0;border-color:#2f7347}
+  .tb-btn:hover{background:#262626}
+  a.tb-btn{color:var(--fg);text-decoration:none;display:inline-block}
+  #status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--fg-dim)}
+  .sep{color:#444}
+  .dot{width:9px;height:9px;border-radius:50%;background:#555;display:inline-block}
+  .dot.on{background:var(--green)} .dot.err{background:var(--alert)} .dot.busy{background:var(--amber)}
+
+  #addform{display:flex;gap:6px;padding:4px 8px;border-bottom:1px solid var(--line);background:#070707;align-items:center;flex-wrap:wrap}
+  #addform input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px}
+  #addform input.route{min-width:360px;flex:1}
+
+  #board{width:100%;border-collapse:collapse;white-space:nowrap}
+  #board th{color:var(--amber);text-align:left;font-weight:normal;padding:3px 8px;border-bottom:1px solid var(--grid);position:sticky;top:0;background:#050505;cursor:pointer;user-select:none}
+  #board th:hover{color:#e3c98a}
+  #board td{padding:2px 8px;border-bottom:1px solid #141414;vertical-align:top}
+  #board tr:hover td{background:#0a0a0a}
+  .sbox{display:inline-block;width:14px;height:14px;border:1px solid #4a4a4a;margin-right:2px;
+    text-align:center;line-height:13px;color:var(--fg-dim);font-size:10px;vertical-align:middle}
+  .sbox.on{background:#fff;color:#000;border-color:#fff}
+  .sbox.lbox.on,.sbox.lbox.lreq{cursor:pointer}
+  .sbox.lreq{animation:lflash .7s steps(1,start) infinite}   /* re-logon request: flash white */
+  @keyframes lflash{0%,49%{background:#fff;color:#000;border-color:#fff}50%,100%{background:transparent;color:#fff;border-color:#fff}}
+  .sbox.ho{background:var(--amber);color:#000;border-color:var(--amber)}
+  .sbox.msgbox{cursor:pointer}
+  .sbox.flash{animation:flash .8s steps(1) infinite;border-color:var(--alert)}
+  @keyframes flash{0%,49%{background:var(--alert);color:#fff}50%,100%{background:transparent;color:var(--alert)}}
+  .wbox{display:inline-block;width:14px;height:14px;border:1px solid #4a4a4a;box-sizing:border-box;
+    text-align:center;line-height:13px;color:#000;font-size:10px;font-weight:bold;vertical-align:middle}
+  .wbox.flash{background:#fff;border-color:#fff;color:#000;cursor:pointer;animation:wflash .7s steps(1,start) infinite}
+  .wbox.flash-red{background:var(--alert);border-color:var(--alert);color:#fff;cursor:pointer;animation:wflash-red .55s steps(1,start) infinite}
+  .wbox.solid{background:#fff;border-color:#fff}      /* muted: stays filled white */
+  .wbox.done{background:transparent;border-color:#fff} /* heard the alert: relaxes to outline */
+  @keyframes wflash{50%{background:transparent;color:transparent}}
+  @keyframes wflash-red{50%{background:transparent;color:var(--alert)}}
+    .fid{font-weight:bold;letter-spacing:.3px;cursor:pointer}
+  .fid:hover{color:#fff;text-decoration:underline}
+  .fid.conn{color:var(--green)}
+  .alt-cell{cursor:pointer;border:1px solid transparent;padding:0 4px}
+  .alt-cell:hover{border-color:#555;background:#111}
+  .route-cell{cursor:pointer;max-width:720px;overflow:hidden;text-overflow:ellipsis}
+  .route-cell:hover{color:#fff}
+
+  .pop{position:absolute;z-index:50;background:#0b0b0b;border:1px solid #6a6a6a;box-shadow:0 8px 24px rgba(0,0,0,.8);min-width:210px}
+  .pop .hdr{display:flex;justify-content:space-between;align-items:center;background:#161616;border-bottom:1px solid #444;padding:3px 8px}
+  .pop .hdr .title{color:#fff;letter-spacing:.5px} .pop .hdr .x{cursor:pointer;color:#bbb;padding:0 4px}
+  #volpop .volbody{display:flex;align-items:center;gap:10px;padding:11px 12px}
+  #volpop #volRange{flex:1;cursor:pointer;accent-color:#39c0ff}
+  #volpop #volPct{min-width:40px;text-align:right;color:#fff;font-variant-numeric:tabular-nums}
+  .pop .row{display:flex;gap:6px;padding:4px 8px;align-items:center;flex-wrap:wrap}
+  .chip{border:1px solid #555;padding:1px 8px;background:#141414;color:var(--fg)}
+  .chip.amend{background:var(--red-bg);color:var(--red-fg);border-color:#7a2a2a}
+  .chip.uplink{background:#15303a;color:#9fe6e0;border-color:#2f6b73}
+  .chip.uplink:hover{background:#1d4250}
+  .chip.cyan{color:var(--cyan);border-color:#2f6b73} .chip:hover{background:#222}
+  .chip.disabled{opacity:.45}
+
+  .altlist{max-height:230px;overflow:auto;border-top:1px solid #333}
+  .agrid{border-top:1px solid #333;max-height:340px;overflow:auto}
+  .agrid .arow{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center}
+  .altlist .ai{padding:2px 10px;cursor:pointer;display:flex;justify-content:space-between}
+  .altlist .ai:hover{background:#1c1c1c} .altlist .ai.sel{background:var(--sel);color:#fff}
+  .altlist .ai .t{color:var(--fg-dim)}
+  .hdg-cell,.spd-cell{cursor:pointer;padding:0 2px}
+  .hdg-cell:hover,.spd-cell:hover{background:var(--sel);color:#fff}
+  .hssep{color:var(--fg-dim)}
+  .acline{text-align:center;color:#fff;padding:6px 8px 2px;letter-spacing:.5px}
+  .chip.wide{flex:1;text-align:center;justify-content:center}
+  .chip.tgl{min-width:20px;text-align:center;cursor:pointer}
+  .chip.tgl.on{background:var(--sel);color:#fff;border-color:#9fe6e0}
+  .hgrid,.sgrid{border-top:1px solid #333;max-height:340px;overflow:auto}
+  .hgrid .hrow,.sgrid .srow{display:grid;align-items:center;cursor:default}
+  .hgrid .hrow{grid-template-columns:1fr 1fr 1fr 1fr}
+  .hgrid .hh{grid-column:1/3;text-align:center;color:var(--fg-dim);padding:2px 0;font-size:11px}
+  .hgrid .hlab{text-align:center;color:var(--fg-dim);padding:2px 0;font-size:11px}
+  .sgridhdr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:4px 8px;border-top:1px solid #333}
+  .sgridhdr>span:first-child{text-align:left}.sgridhdr>span:last-child{text-align:right}
+  .sgridhdr .tgls{display:flex;gap:4px;justify-content:center}
+  .sgrid .srow{grid-template-columns:1fr 1fr 1fr}
+  .cellbtn{padding:2px 4px;cursor:pointer;text-align:center}
+  .cellbtn:hover{background:#1c1c1c}.cellbtn.sel{background:var(--sel);color:#fff}
+  .cellbtn.cur{color:var(--cyan)}
+  .cellbtn.dim{color:var(--fg-dim)}
+
+  #routemenu{min-width:560px}
+  #routemenu .bar{display:flex;flex-wrap:wrap;gap:6px;padding:4px 8px;border-bottom:1px solid #333}
+  .sectlabel{text-align:center;color:var(--cyan);border-top:1px solid #333;border-bottom:1px solid #333;padding:2px;background:#0e1a1a;letter-spacing:1px}
+  .rtearea{padding:5px 8px;background:#060606;border-bottom:1px solid #222;white-space:normal;word-break:break-all}
+  .rtearea .slash{color:var(--cyan)}
+  .fixlist{max-height:280px;overflow:auto}
+  .fixlist .fi{padding:3px 12px;cursor:pointer} .fixlist .fi:hover{background:#1c1c1c} .fixlist .fi.sel{background:var(--sel);color:#fff}
+  .fixseg .seglabel{color:var(--amber);font-size:11px;letter-spacing:1px;padding:2px 12px 1px;background:#141008;border-top:1px solid #332a18}
+  .fixseg:first-child .seglabel{border-top:none}
+  .fixseg .segfixes{padding-bottom:2px}
+  .customfix{display:flex;gap:6px;padding:5px 8px;border-top:1px solid #333;align-items:center}
+  .customfix input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;width:120px}
+
+  /* handoff + message popups */
+  .holist{max-height:280px;overflow:auto}
+  .holist .ho{padding:4px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:14px}
+  .holist .ho:hover{background:#1c1c1c}
+  .holist .ho .meta{color:var(--fg-dim)}
+  .holist .ctr{color:var(--cyan)} .holist .app{color:var(--amber)}
+  .holist .ho.unicom{border-bottom:1px solid #333} .holist .uni{color:var(--green);font-weight:bold}
+  .holist .ho{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .holist .ho .left{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .holist .acts{white-space:nowrap}
+  .hobtn{border:1px solid #555;padding:0 6px;margin-left:4px;background:#141414;color:var(--fg);font-size:11px}
+  .hobtn:hover{background:#242424}
+  .hobtn.handover{color:#9fe6e0;border-color:#2f6b73}
+  .hobtn.contact{color:var(--amber);border-color:#5a4a22}
+  .empty{padding:8px 10px;color:var(--fg-dim)}
+  #msgpop{min-width:320px;max-width:460px}
+  .mlist{max-height:300px;overflow:auto;padding:4px 8px}
+  .mitem{border-bottom:1px solid #181818;padding:4px 0;white-space:normal;word-break:break-word}
+  .mitem .meta{color:var(--fg-dim);font-size:11px}
+
+  #logwrap{position:fixed;right:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;z-index:40}
+  #logwrap .lh{display:flex;justify-content:space-between;padding:3px 8px;background:#161616;border-bottom:1px solid #333}
+  #logwrap .lh .title{color:var(--amber);cursor:pointer;user-select:none}
+  #log{overflow:auto;padding:4px 8px}
+  #queuewrap{position:fixed;left:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-right:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;z-index:40}
+  #queuewrap .lh{display:flex;align-items:center;gap:8px;padding:3px 8px;background:#161616;border-bottom:1px solid #333;flex-wrap:wrap}
+  #queuewrap .lh .title{color:var(--amber);cursor:pointer;user-select:none;flex:1;min-width:120px}
+  #queuewrap .lh .chip.uplink{font-size:12px;padding:1px 10px}
+  #queueList{overflow:auto;padding:4px 8px;flex:1;min-height:0}
+  .qitem{border-bottom:1px solid #181818;padding:3px 0;white-space:normal;word-break:break-word}
+  .qitem .meta{color:var(--fg-dim);font-size:11px}
+  .msg{border-bottom:1px solid #181818;padding:3px 0;white-space:normal;word-break:break-word}
+  .msg .meta{color:var(--fg-dim);font-size:11px}
+  .msg.in .dir{color:var(--cyan)} .msg.out .dir{color:var(--amber)} .msg.sys .dir{color:var(--green)} .msg.err{color:#e08a8a}
+  .mitem .dir{font-weight:700;font-size:11px}
+  .mitem.in .dir{color:var(--cyan)} .mitem.out .dir{color:var(--amber)} .mitem.sys .dir{color:var(--green)} .mitem.err .dir{color:#e08a8a}
+
+  #scrim,#helpScrim{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+  #settings{background:#0c0c0c;border:1px solid #666;width:430px;max-width:92vw}
+  #settings h2{margin:0;padding:8px 12px;background:#161616;border-bottom:1px solid #444;font-size:14px;color:#fff;font-weight:normal}
+  #settings .body{padding:12px} #settings .frow{margin-bottom:12px}
+  #settings label{display:block;color:var(--fg-dim);margin-bottom:3px}
+  #settings input{width:100%;background:#000;border:1px solid #555;color:var(--fg);padding:5px 8px}
+  #settings .hint{color:var(--fg-dim);font-size:11px;margin-top:3px}
+  #settings .discord-hint{margin:4px 0 0;padding:0 12px;font-size:11px;color:var(--fg-dim)}
+  #settings .discord-hint a{color:var(--cyan)}
+  #settings .actions{display:flex;justify-content:flex-end;gap:8px;padding:8px 12px 12px}
+  #helpPanel{background:#0c0c0c;border:1px solid #666;width:540px;max-width:92vw;max-height:85vh;display:flex;flex-direction:column}
+  #helpPanel h2{margin:0;padding:8px 12px;background:#161616;border-bottom:1px solid #444;font-size:14px;color:#fff;font-weight:normal}
+  #helpPanel .help-body{overflow:auto;padding:12px 16px 4px;flex:1}
+  #helpPanel h3{color:var(--cyan);font-size:13px;font-weight:normal;margin:18px 0 6px;letter-spacing:.3px}
+  #helpPanel h3:first-child{margin-top:0}
+  #helpPanel p{margin:0 0 8px;line-height:1.55}
+  #helpPanel ol,#helpPanel ul{margin:0 0 10px;padding-left:22px;line-height:1.55}
+  #helpPanel li{margin-bottom:5px}
+  #helpPanel .help-tip{color:var(--fg-dim);font-size:11px;margin-top:10px;line-height:1.45}
+  #helpPanel .help-tip a{color:var(--cyan)}
+  #helpPanel .actions{display:flex;justify-content:flex-end;gap:8px;padding:8px 12px 12px;border-top:1px solid #333}
+  .footnote{color:var(--fg-dim);font-size:11px;padding:6px 8px}
+
+#verifyBar{background:#5a3a00;color:#ffd98a;border:1px solid #8a6320;border-left:4px solid #e0a13b;
+  padding:7px 12px;margin:6px 8px;border-radius:3px;font-size:13px;line-height:1.5}
+#verifyBar.hidden{display:none}
+#verifyBar #verifyCode{font-weight:700;color:#fff;background:#000;padding:1px 7px;border-radius:3px;letter-spacing:1px}
+#verifyBar #verifyState{color:#ffe7b0;font-style:italic;margin-left:6px}
+#posBar{background:#0e1f22;color:#9fe6e0;border:1px solid #2f6b73;border-left:4px solid var(--cyan);
+  padding:5px 12px;margin:4px 8px 0;border-radius:3px;font-size:13px;line-height:1.4}
+#posBar.hidden{display:none}
+#posBar #posLabel{font-weight:700;color:#fff;letter-spacing:.5px}
+#posBar #posFreq{font-weight:700;color:#fff;margin-left:10px}
+#posBar #posHint{color:#7ab8b4;font-size:11px;margin-left:10px}
+
+#mapScrim{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:110;display:flex;align-items:center;justify-content:center;padding:10px}
+#mapPanel{background:#0b0b0b;border:1px solid #666;width:min(98vw,1120px);height:min(92vh,780px);display:flex;flex-direction:column}
+.map-hdr{display:flex;align-items:center;gap:12px;padding:6px 10px;background:#161616;border-bottom:1px solid #444}
+.map-hdr .title{color:#fff;letter-spacing:.4px}
+.map-hdr .stats{margin-left:auto;color:var(--fg-dim);font-size:12px;white-space:nowrap}
+.map-hdr .x{cursor:pointer;color:#bbb;padding:0 6px;font-size:16px;line-height:1}
+#mapLegend{display:flex;gap:18px;padding:5px 10px;font-size:11px;color:var(--fg-dim);border-bottom:1px solid #222;flex-wrap:wrap}
+.map-leg{display:flex;align-items:center;gap:6px}
+.map-leg .swatch{width:14px;height:10px;border:1px solid #555;display:inline-block}
+.map-leg .swatch.staffed{background:rgba(121,210,122,.35);border-color:var(--green)}
+.map-leg .dot-swatch{width:8px;height:8px;border-radius:50%;display:inline-block}
+.map-leg .dot-swatch.on{background:#9ef09f}
+.map-leg .dot-swatch.off{background:#666;opacity:.5}
+#mapWrap{flex:1;min-height:0;background:#050505;padding:4px}
+#mapSvg{width:100%;height:100%;display:block}
+.map-artcc{fill:#0d0d0d;stroke:#333;stroke-width:0.9;vector-effect:non-scaling-stroke}
+.map-artcc-staffed{fill:rgba(121,210,122,.2);stroke:var(--green);stroke-width:1.5}
+.map-artcc-mine{stroke:var(--cyan);stroke-width:1.6}
+.map-ac{fill:#777;stroke:#999;stroke-width:0.5;opacity:.5}
+.map-ac-conn{fill:#9ef09f;stroke:#d4ffd5;stroke-width:0.7}
+
+/* rows */
+
+</style>
+</head>
+<body>
+
+<nav id="vatflowAppNav" class="vatflow-app-nav" aria-label="VATFLOW">
+  <span class="vf-brand"><b>VATFLOW</b> <span class="vf-tagline">vUSAlink CPDLC</span></span>
+  <a href="../index.html">Hub</a>
+  <a href="index.html" class="active" aria-current="page">vUSAlink</a>
+  <a href="../privacy.html">Privacy</a>
+  <span class="vf-spacer"></span>
+</nav>
+
+<div id="toolbar">
+  <div class="field" id="viewArtccField"><label>VIEW ARTCC</label><input id="viewArtcc" size="6" autocomplete="off" placeholder="KZJX"></div>
+  <label class="chk"><input type="checkbox" id="showAll"> SHOW ALL A/C</label>
+  <div class="field"><label>ADD/FIND</label><input id="find" size="12" autocomplete="off" placeholder="callsign"></div>
+  <button class="tb-btn" id="btnAdd">+ ADD A/C</button>
+  <button class="tb-btn" id="btnRefresh">REFRESH</button>
+  <button class="tb-btn" id="btnMap">LIVE MAP</button>
+  <button class="tb-btn" id="btnHelp">HELP</button>
+  <button class="tb-btn" id="btnSettings">SETTINGS</button>
+  <button class="tb-btn" id="btnSound">SOUND</button>
+  <a class="tb-btn" href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">DISCORD</a>
+  <span id="modeBadge" class="badge view">VIEW ONLY</span>
+  <div id="status">
+    <span class="dot" id="vatDot"></span><span id="vatText">VATSIM idle</span>
+    <span class="sep">|</span>
+    <span class="dot" id="connDot"></span><span id="statusText">CPDLC not configured</span>
+  </div>
+</div>
+
+<div id="addform" class="hidden">
+  <input id="afCs" size="9" placeholder="CALLSIGN"><input id="afType" size="7" placeholder="A320/L">
+  <input id="afAlt" size="4" placeholder="350"><input id="afRoute" class="route" placeholder="KJFK CHUBY Y488 SAUCR MBPV">
+  <button class="tb-btn" id="afSave">ADD</button><button class="tb-btn" id="afCancel">cancel</button>
+</div>
+
+<div id="verifyBar" class="hidden">
+  <b>VERIFY TO SEND CPDLC</b> &mdash; add this code to your VATSIM controller info / ATIS:
+  <span id="verifyCode">VUSA-----</span>, then wait ~30 s. You can remove it once verified &mdash; this device stays verified for 30 days.
+  <span id="verifyState">checking&hellip;</span>
+</div>
+<div id="posBar" class="hidden">
+  <b>POSITION</b> <span id="posLabel">&mdash;</span> <span id="posFreq"></span>
+  <span id="posHint">showing aircraft tuned to this frequency</span>
+</div>
+<table id="board">
+  <thead>
+  <tr id="headClassic">
+    <th data-key="lmh" data-label="L M H">L M H</th>
+    <th data-label="W">W</th>
+    <th data-key="cs" data-label="FLIGHT ID">FLIGHT ID</th>
+    <th data-key="type" data-label="TYPE">TYPE</th>
+    <th data-key="alt" data-label="ALT">ALT</th>
+    <th data-key="gs" data-label="HDG/SPD">HDG/SPD</th>
+    <th data-key="route" data-label="ROUTE">ROUTE</th>
+  </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<div class="footnote">
+  Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
+  Click <b>FLIGHT ID</b> to hand off &middot; <b>ALT</b> for a level &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
+</div>
+
+<!-- ALT menu -->
+<div id="altmenu" class="pop hidden">
+  <div class="hdr"><span class="title">Altitude Information</span><span class="x" data-close="altmenu">X</span></div>
+  <div class="acline" id="altAc">CALLSIGN TYPE</div>
+  <div class="row"><span class="chip amend" id="altAmend" title="Remove last queued item">Amend</span><span class="chip" id="altScratchpad" title="Add to uplink queue">Scratchpad</span>
+    <span class="chip uplink hidden" id="altUplink">UPLINK</span></div>
+  <div class="row"><span style="color:var(--fg-dim)">Altitude</span>
+    <input id="altInput" autocomplete="off" inputmode="numeric" style="width:96px" placeholder="FL / feet"></div>
+  <div class="row hidden" id="altAltimRow">
+    <span style="color:var(--fg-dim)">Altimeter <span id="altAltimIcao"></span></span>
+    <input id="altAltimInput" autocomplete="off" inputmode="decimal" style="width:72px" placeholder="29.83" title="Override destination altimeter"></div>
+  <div class="agrid" id="altList"></div>
+</div>
+
+<!-- HEADING menu -->
+<div id="hdgmenu" class="pop hidden">
+  <div class="hdr"><span class="title">Heading Information</span><span class="x" data-close="hdgmenu">X</span></div>
+  <div class="acline" id="hdgAc">CALLSIGN TYPE</div>
+  <div class="row"><span class="chip amend" id="hdgAmend" title="Remove last queued item">Amend</span><span class="chip" id="hdgScratchpad" title="Add to uplink queue">Scratchpad</span>
+    <span class="chip uplink hidden" id="hdgUplink">UPLINK</span></div>
+  <div class="row"><span style="color:var(--fg-dim)">Heading</span>
+    <input id="hdgInput" autocomplete="off" inputmode="numeric" style="width:62px"></div>
+  <div class="hgrid" id="hdgGrid"></div>
+  <div class="row"><span class="chip wide" id="hdgPresent">Present Heading</span></div>
+</div>
+
+<!-- SPEED menu -->
+<div id="spdmenu" class="pop hidden">
+  <div class="hdr"><span class="title">Speed Information</span><span class="x" data-close="spdmenu">X</span></div>
+  <div class="acline" id="spdAc">CALLSIGN TYPE</div>
+  <div class="row"><span class="chip cyan" id="spdRns" title="Resume normal speed">RNS</span></div>
+  <div class="row"><span class="chip amend" id="spdAmend" title="Remove last queued item">Amend</span><span class="chip" id="spdScratchpad" title="Add to uplink queue">Scratchpad</span>
+    <span class="chip uplink hidden" id="spdUplink">UPLINK</span></div>
+  <div class="row"><span style="color:var(--fg-dim)">Speed:</span>
+    <input id="spdInput" autocomplete="off" inputmode="numeric" style="width:62px"></div>
+  <div class="sgridhdr"><span>KNOTS</span>
+    <span class="tgls"><span class="chip tgl" id="spdPlus">+</span><span class="chip tgl" id="spdMinus">&minus;</span></span>
+    <span>MACH</span></div>
+  <div class="sgrid" id="spdGrid"></div>
+</div>
+
+<!-- ROUTE menu -->
+<div id="routemenu" class="pop hidden">
+  <div class="hdr"><span class="title" id="rtTitle">ROUTE MENU</span><span class="x" data-close="routemenu">X</span></div>
+  <div class="bar"><span class="chip amend" id="rtAmend" title="Remove last queued item">AMEND</span>
+    <span class="chip" id="rtScratchpad" title="Add to uplink queue">SCRATCHPAD</span>
+    <span class="chip uplink" id="rtUplink">DIRECT</span></div>
+  <div class="sectlabel">CURRENT RTE</div><div class="rtearea" id="rtCurrent"></div>
+  <div class="sectlabel">CLICK A FIX &mdash; then DIRECT (top) or set a crossing below</div><div class="fixlist" id="fixList"></div>
+  <div class="customfix"><span style="color:var(--fg-dim)">other fix:</span>
+    <input id="customFix" placeholder="FIX" autocomplete="off"><span class="chip cyan" id="useCustom">use</span></div>
+  <div class="customfix hidden" id="xresBox">
+    <span style="color:var(--fg-dim)">CROSS <b id="xresFix" style="color:var(--fg)">FIX</b> at:</span>
+    <input id="xresAlt" placeholder="alt e.g. 14000 / FL240" autocomplete="off" style="width:150px">
+    <input id="xresSpd" placeholder="spd e.g. 250" autocomplete="off" style="width:95px">
+    <span class="chip uplink" id="xresUplink">UPLINK</span></div>
+  <div class="customfix hidden" id="xresAltimRow">
+    <span style="color:var(--fg-dim)">Altimeter <span id="xresAltimIcao"></span></span>
+    <input id="xresAltimInput" placeholder="29.83" autocomplete="off" inputmode="decimal" style="width:72px" title="Override destination altimeter"></div>
+  <div class="sectlabel">EDIT ROUTE &amp; UPLINK</div>
+  <div class="customfix"><input id="rtEdit" placeholder="enroute route, e.g. OMN J79 CHS" autocomplete="off" style="min-width:420px">
+    <span class="chip cyan" id="rtSendRoute">UPLINK ROUTE</span></div>
+</div>
+
+<!-- HANDOFF menu -->
+<div id="handoffpop" class="pop hidden">
+  <div class="hdr"><span class="title" id="hoTitle">HANDOFF</span><span class="x" data-close="handoffpop">X</span></div>
+  <div class="holist" id="hoList"></div>
+</div>
+
+<!-- MESSAGE popup -->
+<div id="msgpop" class="pop hidden">
+  <div class="hdr"><span class="title" id="mpTitle">MESSAGES</span><span class="x" data-close="msgpop">X</span></div>
+  <div class="mlist" id="mpList"></div>
+</div>
+
+<!-- VOLUME popup -->
+<div id="volpop" class="pop hidden">
+  <div class="hdr"><span class="title">SOUND VOLUME</span><span class="x" data-close="volpop">X</span></div>
+  <div class="volbody"><input type="range" id="volRange" min="0" max="100" step="5" value="100"><span id="volPct">100%</span></div>
+</div>
+
+<!-- uplink queue -->
+<div id="queuewrap" class="hidden">
+  <div class="lh">
+    <span class="title" id="queueToggle">UPLINK QUEUE</span>
+    <span class="chip uplink" id="queueUplink">UPLINK</span>
+    <span style="color:var(--fg-dim);cursor:pointer" id="clearQueue">clear</span>
+  </div>
+  <div id="queueList"></div>
+</div>
+
+<!-- message log -->
+<div id="logwrap">
+  <div class="lh"><span class="title" id="logToggle">DATALINK LOG</span><span style="color:var(--fg-dim);cursor:pointer" id="clearLog">clear</span></div>
+  <div id="log"></div>
+</div>
+
+<!-- live map -->
+<div id="mapScrim" class="hidden">
+  <div id="mapPanel">
+    <div class="map-hdr">
+      <span class="title">LIVE MAP</span>
+      <span class="stats" id="mapStats">loading&hellip;</span>
+      <span class="x" id="mapClose" title="Close">X</span>
+    </div>
+    <div id="mapLegend">
+      <span class="map-leg"><span class="swatch staffed"></span> center using vUSAlink CPDLC</span>
+      <span class="map-leg"><span class="dot-swatch on"></span> aircraft on KUSA</span>
+      <span class="map-leg"><span class="dot-swatch off"></span> other VATSIM traffic</span>
+      <span class="map-leg">ARTCC boundaries from VAT-Spy</span>
+    </div>
+    <div id="mapWrap"><svg id="mapSvg" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet" aria-label="USA ARTCC map"></svg></div>
+  </div>
+</div>
+
+<!-- help -->
+<div id="helpScrim" class="hidden">
+  <div id="helpPanel"><h2>vUSAlink Quick Help</h2>
+    <div class="help-body">
+      <h3>Just watching traffic?</h3>
+      <p>Type a US ARTCC in <b>VIEW ARTCC</b> (for example <b>KZJX</b>). The badge stays <b>VIEW ONLY</b> and the board is read-only — good for monitoring without sending CPDLC.</p>
+
+      <h3>Get started as a controller</h3>
+      <ol>
+        <li>Log on to VATSIM and open a US <b>center</b> position (for example <b>JAX_CTR</b> or <b>ZJX_CTR</b>).</li>
+        <li>Click <b>SETTINGS</b>, enter your <b>VATSIM CID</b>, and click <b>save</b>.</li>
+        <li>vUSAlink reads your live position from VATSIM. The status line should show your center when connected.</li>
+        <li>A yellow <b>VERIFY</b> bar appears with a code like <b>VUSA12345</b>. Paste that code into your VATSIM controller info or ATIS remark, then wait about 30 seconds.</li>
+        <li>Once verified, the badge changes to <b>CONTROLLING</b> and you can send CPDLC. This device stays verified for 30 days.</li>
+      </ol>
+
+      <h3>What the boxes mean</h3>
+      <ul>
+        <li><b>L</b> — CPDLC logon (solid white = connected). Click to force logoff; flashes when a pilot asks to log back on.</li>
+        <li><b>M</b> — Pilot message (flashes red on new traffic — click to read).</li>
+        <li><b>H</b> — Handoff pending (amber).</li>
+        <li><b>W</b> — Waiting for a pilot reply (WILCO/ROGER). Flashes red if no reply in 2 minutes.</li>
+      </ul>
+
+      <h3>Sending clearances</h3>
+      <p>Click a row on the board:</p>
+      <ul>
+        <li><b>FLIGHT ID</b> — hand off or contact another facility</li>
+        <li><b>ALT</b> — climb, descend, or maintain altitude</li>
+        <li><b>HDG/SPD</b> — heading or speed instructions</li>
+        <li><b>ROUTE</b> — direct-to a fix, crossing restrictions, or uplink a route</li>
+      </ul>
+      <p>Pilots with compatible avionics auto-logon in your sector unless you force-logged them off.</p>
+
+      <h3>Multi-message uplinks</h3>
+      <p>Stage several clearances for one aircraft, then send them in a single CPDLC message:</p>
+      <ol>
+        <li>Open <b>ALT</b>, <b>HDG/SPD</b>, or <b>ROUTE</b> and set your instruction.</li>
+        <li>Click <b>Scratchpad</b> to add it to the queue (bottom-left panel) instead of sending.</li>
+        <li>Repeat for other instructions (up to 5 elements).</li>
+        <li>Click <b>UPLINK</b> in the <b>UPLINK QUEUE</b> panel to send all staged items at once.</li>
+      </ol>
+      <p>To send just one clearance immediately, use <b>UPLINK</b> in the menu as before. <b>Amend</b> removes the last queued item for that aircraft.</p>
+
+      <h3>Useful tips</h3>
+      <ul>
+        <li><b>SHOW ALL A/C</b> — show every aircraft in the sector, not only those tuned to your frequency.</li>
+        <li><b>SOUND</b> — adjust alert volume (50% is normal).</li>
+        <li><b>REFRESH</b> — reload live VATSIM traffic.</li>
+      </ul>
+      <p class="help-tip">Still stuck? <a href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">Join our Discord</a> or open <b>SETTINGS</b> to check your CID.</p>
+    </div>
+    <div class="actions"><button class="tb-btn" id="helpClose">close</button></div>
+  </div>
+</div>
+
+<!-- settings -->
+<div id="scrim" class="hidden">
+  <div id="settings"><h2>vUSAlink Settings</h2>
+    <div class="body">
+      <div id="soloSettings">
+      <div class="frow"><label>Your Hoppie logon code (controller secret)</label>
+        <input id="setLogon" type="password" autocomplete="off">
+        <div class="hint">From hoppie.nl &rarr; Get Logon Code. Stored only in this browser.</div></div>
+      <div class="frow"><label>Your station ID (what pilots log into, e.g. KZJX)</label>
+        <input id="setStation" autocomplete="off" placeholder="KZJX">
+        <div class="hint">CPDLC <b>from</b> callsign, and the airspace whose VATSIM traffic is pulled.</div></div>
+      <div class="frow"><label>Airspace ICAO override (optional)</label>
+        <input id="setAirspace" autocomplete="off" placeholder="defaults to station ID">
+        <div class="hint">Use if station differs from the ARTCC/FIR ICAO (station <b>JAX_CTR</b> &rarr; airspace <b>KZJX</b>).</div></div>
+      </div>
+      <div id="hubSettings">
+      <div id="hubHdr" style="border-top:1px solid #333;margin:6px 0 10px;padding-top:8px;color:var(--cyan)">Shared HUB mode (optional)</div>
+      <div class="frow" id="hubUrlRow"><label>Hub URL</label>
+        <input id="setHubUrl" autocomplete="off" placeholder="https://hub.example.com">
+        <div class="hint">Set this with your VATSIM CID below to use the shared KUSA hub instead of Hoppie directly. Leave blank for solo/direct mode.</div></div>
+      <div class="frow" id="cidRow"><label>My VATSIM CID</label>
+        <input id="setCid" autocomplete="off" inputmode="numeric" placeholder="1234567" readonly>
+        <div class="hint" id="cidHint">Sign in with VATSIM (top bar) to connect. Your sector is taken from your live VATSIM position \u2014 you must be controlling a center (e.g. JAX_CTR).</div></div>
+      </div>
+    </div>
+    <p class="discord-hint">Questions? <a href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">Join our Discord</a>.</p>
+    <div class="actions"><button class="tb-btn" id="setCancel">cancel</button><button class="tb-btn" id="setSave">save</button></div>
+  </div>
+</div>
+
+<script>
+//============================================================ state
+const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},
+          set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+const HUB_FEATURE=true;   // Shared HUB mode (KUSA) — approved by Hoppie owner
+const DEFAULT_HUB_URL='https://web-production-3d9fe.up.railway.app';   // shared KUSA hub, baked in
+// This app is hub-only: every controller connects to the shared KUSA hub with just their
+// VATSIM CID. The hub URL is built in, so Settings only asks for the CID. (Solo/direct-Hoppie
+// is retired — a browser can't reach Hoppie directly, which is why the hub exists.)
+const WEB_ONLY=true;
+let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false});
+if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
+function isMuted(){return !(settings.volume>0);}                 // volume 0 (or unset) = muted
+// settings.volume is the gain multiplier: 1.0 = current sound levels (shown as 50%),
+// 2.0 = double (shown as 100%). Slider% = multiplier*50.
+function volScale(){return Math.max(0,Math.min(2,settings.volume==null?1:settings.volume));}
+settings.hubUrl=DEFAULT_HUB_URL;          // always the shared hub (ignore any stale stored URL)
+settings.logon='';settings.station='';    // retire any stale solo credentials
+let SID=LS.get('vedst_sid','');
+if(!SID){SID=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));LS.set('vedst_sid',SID);}
+// Hub-signed "remember verification for 30 days" token, bound to a CID. Stored
+// here and presented on every hub call so an active controller re-pastes the
+// VUSA code at most once a month (survives hub redeploys + browser restarts).
+let VERIFY=LS.get('vedst_verify',{});   // {cid, token}
+function verifyTokenFor(cid){return (VERIFY&&VERIFY.cid===cid&&VERIFY.token)?VERIFY.token:'';}
+function storeVerifyToken(cid,token){if(!token||!cid)return;VERIFY={cid,token};LS.set('vedst_verify',VERIFY);}
+function clearVerifyToken(){if(VERIFY&&VERIFY.token){VERIFY={};LS.set('vedst_verify',VERIFY);}}
+let minCounter=LS.get('vedst_min',1);
+let manual=LS.get('vedst_manual',[]);
+let assigned=LS.get('vedst_assigned',{});
+let liveFlights=demoLive();
+let facilities=[];                       // nearby online facilities (handoff targets)
+const connected=new Set();               // green +: on KUSA (hub connection)
+const logonReq=new Set();                // L flashes: blocked a/c requesting to log back on
+let hubConnReady=false;                   // suppress logon chime on first hub poll
+let pollPrimed=false;                     // first poll after (re)connect replays backlog
+let suppressSounds=false;                 // silence chimes while replaying that backlog
+let listSoundPrimed=false;                // first list snapshot after poll primed: no chime
+const prevDisplayedConnected=new Set();   // connected a/c on controller list last render
+const msgAlert=new Set();                // M: unread incoming
+const WILCO_TIMEOUT_MS=120000;           // 2 min without a pilot reply -> red W alarm
+const wilcoUi={};                        // W: cs -> {kind:'received'|'timeout', at:ms}
+const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting pilot reply
+const handoffPending=new Set();          // H: awaiting WILCO
+const handoffMin={};                     // cs -> MIN of CONTACT msg
+const altMin={}, rtMin={};               // cs -> MIN of last alt / route uplink
+const altPending=new Set();              // alt clearance sent, awaiting WILCO (green)
+const routePending=new Set();            // route clearance sent, awaiting WILCO (green)
+const messages={};                       // cs -> [{text,time}]
+const seenMsgIds=new Set();
+const msgRepeatTimers={};                // cs -> interval id for unread message chime
+let pollTimer=null,burstUntil=0,vatsimTimer=null;
+let myPosition={callsign:'',label:'',freqMhz:null};
+const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM transceivers feed
+
+function demoLive(){return [
+ {cs:'JBU1111',type:'A320/L',alt:330,hs:'/450',route:'KJFK LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM KARUM1B TNCC',_routeRaw:'LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM'},
+ {cs:'JBU149', type:'A320/L',alt:350,hs:'/452',route:'KJFK MANTA068031 GMENN Y488 BEHHR Y490 ROLLE ATUGI L454 LUCTI MNDEZ FIPEK GESSO ANADA PERRY BETIN TGPY',_routeRaw:'GMENN Y488 BEHHR Y490 ROLLE ATUGI L454 LUCTI MNDEZ FIPEK GESSO ANADA PERRY BETIN'},
+ {cs:'KII9145',type:'B734/L',alt:310,hs:'/430',route:'KEWR ELVAE NECCK DIXIE Y481 KINGG KINER L461 BOVIC MOMOM1 TXKF',_routeRaw:'ELVAE NECCK DIXIE Y481 KINGG KINER L461 BOVIC'},
+];}
+function persist(){LS.set('vedst_settings',settings);LS.set('vedst_min',minCounter);
+  LS.set('vedst_manual',manual);LS.set('vedst_assigned',assigned);}
+function board(){return manual.concat(liveFlights);}
+let sortState={key:null,dir:1};
+function gsOf(a){const m=(a.hs||'').match(/(\d+)/);return m?+m[1]:0;}
+function statusScore(a){return (msgAlert.has(a.cs)?4:0)+(handoffPending.has(a.cs)?2:0)+(connected.has(a.cs)?1:0);}
+function freqsMatch(a,b){return a!=null&&b!=null&&Math.abs(a-b)<0.0015;}
+function formatFreqMhz(mhz){return mhz==null?'':mhz.toFixed(3);}
+function positionLabelFromCallsign(cs){
+  const u=(cs||'').toUpperCase();
+  if(u.endsWith('_CTR'))return u.slice(0,-4);
+  const i=u.lastIndexOf('_');
+  return i>0?u.slice(0,i):u;
+}
+function pilotMatchesOurFreq(cs){
+  if(myPosition.freqMhz==null)return true;
+  const freqs=pilotFreqs.get((cs||'').toUpperCase())||[];
+  return freqs.some(f=>freqsMatch(f,myPosition.freqMhz));
+}
+function freqFilterActive(){
+  return !monitorMode()&&!settings.showAll&&myPosition.freqMhz!=null&&(hubMode()||configured());
+}
+function annotateFlights(){
+  liveFlights.forEach(f=>{f.onFreq=pilotMatchesOurFreq(f.cs);});
+}
+function updatePositionBar(){
+  const bar=document.getElementById('posBar');if(!bar)return;
+  if(myPosition.label&&myPosition.freqMhz!=null&&!monitorMode()&&(hubMode()||configured())){
+    document.getElementById('posLabel').textContent=myPosition.label;
+    document.getElementById('posFreq').textContent=formatFreqMhz(myPosition.freqMhz);
+    bar.classList.remove('hidden');
+  }else bar.classList.add('hidden');
+}
+function applyFreqMeta(d){
+  // Frequency data is resolved server-side by the hub (no browser CORS fetch of
+  // VATSIM feeds). d.myFreq = our voice freq; d.pilotFreqs = {callsign:[mhz]}.
+  if(monitorMode()||(!hubMode()&&!configured())){
+    myPosition={callsign:'',label:'',freqMhz:null};pilotFreqs.clear();return;
+  }
+  const f=(d&&d.myFreq!=null)?Number(d.myFreq):null;
+  if(f!=null&&Number.isFinite(f)){
+    const cs=(d.myCallsign||'').toUpperCase();
+    myPosition={callsign:cs,label:positionLabelFromCallsign(cs),freqMhz:f};
+  }else myPosition={callsign:'',label:'',freqMhz:null};
+  pilotFreqs.clear();
+  const pf=(d&&d.pilotFreqs)||{};
+  Object.keys(pf).forEach(cs=>{const a=pf[cs];if(Array.isArray(a)&&a.length)pilotFreqs.set(cs.toUpperCase(),a);});
+}
+function displayList(){
+  let list=board().slice();
+  if(!settings.showAll)list=list.filter(a=>connected.has(a.cs));   // GREEN / on KUSA only
+  if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
+  const k=sortState.key;if(!k)return list;
+  const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
+  if(!acc)return list;
+  list.sort((x,y)=>{const A=acc(x),B=acc(y);return A<B?-sortState.dir:A>B?sortState.dir:0;});
+  return list;
+}
+
+//============================================================ route fixes
+function routeFixEntries(a){
+  if(a&&a.routeFixes&&a.routeFixes.length)return a.routeFixes;
+  return parseFixes((a&&(a._routeRaw||a.route))||'').map(name=>({name}));
+}
+function routeFixNames(a){return routeFixEntries(a).map(f=>f.name);}
+function parseFixes(route){
+  // Offline/demo fallback only — hub routeFixes includes full SID/STAR expansion.
+  const SKIP=new Set(['DCT','SID','STAR','DIRECT']);const out=[];
+  for(let t of (route||'').split(/[.\s]+/).filter(Boolean)){
+    if(SKIP.has(t)||t.includes('/'))continue;
+    if(/^[JQV]\d+[A-Z]?$/i.test(t))continue;
+    let m;
+    if((m=t.match(/^([A-Z]{3,5})\d{4,6}$/)))t=m[1];
+    else if((m=t.match(/^([A-Z]{2,6})\d[A-Z]?$/)))t=m[1];
+    if(/^[A-Z]{2,6}$/.test(t)&&!out.includes(t))out.push(t);
+  }
+  return out;
+}
+
+//============================================================ CPDLC
+function pad3(n){return ('000'+Math.round(Math.abs(n))).slice(-3);}
+function round10(fl){return Math.round((Number(fl)||0)/10)*10;}   // FL to nearest 10 (331->330, 146->150)
+function flStr(fl){return 'FL'+pad3(fl);}
+function buildPacket(min,mrn,ra,msg){return `/data2/${min}/${mrn||''}/${ra}/${msg}`;}
+function parsePacket(pk){const p=pk.split('/');if(p[1]!=='data2')return null;
+  return {min:p[2],mrn:p[3],ra:p[4],message:p.slice(5).join('/')};}
+function configured(){return settings.logon&&settings.station;}
+let hubArtcc='';   // ARTCC the hub resolved from our VATSIM position (hub mode)
+function oauthSignedIn(){return !!(window.VatflowAuth&&window.VatflowAuth.isSignedIn());}
+function syncCidFromOAuth(){
+  const s=window.VatflowAuth&&window.VatflowAuth.getSession();
+  if(s&&s.cid){settings.cid=String(s.cid);return true;}
+  if(WEB_ONLY&&!oauthSignedIn())settings.cid='';
+  return false;
+}
+function hubMode(){return HUB_FEATURE&&!!(settings.hubUrl&&oauthSignedIn()&&settings.cid);}
+function canControl(){return configured()||(hubMode()&&verifyOK);}   // solo OR verified hub
+function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (no position signed in)
+function monitorArtcc(){return (settings.viewArtcc||'').trim().toUpperCase();}
+function airspaceId(){return (hubMode()?hubArtcc:(settings.airspace||settings.station||'')).trim().toUpperCase();}
+const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter'};
+function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
+async function api(path,extra){
+  extra=extra||{};
+  if(hubMode()){                      // call the hub directly (works as a static site)
+    const cid=(settings.cid||'').trim();
+    const body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
+      vatflowToken:(window.VatflowAuth&&window.VatflowAuth.getStoredToken())||''};
+    if(path==='/api/send'){body.to=extra.to||'';body.packet=extra.packet||'';}
+    if(path==='/api/conn'){body.to=extra.to||'';body.action=extra.action||'';}
+    if(path==='/api/altimeter'){body.icao=extra.icao||'';}
+    return (await fetch(hubBase()+HUB_EP[path],{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+  }
+  const body=Object.assign({logon:settings.logon,from:settings.station,
+    hubUrl:settings.hubUrl,cid:(settings.cid||'').trim(),hubToken:settings.hubToken||'',sid:SID,
+    verifyToken:verifyTokenFor((settings.cid||'').trim())},extra);
+  return (await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+}
+let verifyOK=true, verifyCode='';
+function applyVerify(v){
+  const bar=document.getElementById('verifyBar');if(!bar)return;
+  if(!hubMode()||!v){verifyOK=true;bar.classList.add('hidden');return;}
+  if(v.ok){verifyOK=true;bar.classList.add('hidden');
+    // Hub hands back a fresh 30-day token on verify / sliding-window refresh.
+    if(v.token)storeVerifyToken((settings.cid||'').trim(),v.token);}
+  else{
+    verifyOK=false;verifyCode=v.code||verifyCode;
+    clearVerifyToken();   // any stored token was rejected/expired -> fall back to the code
+    document.getElementById('verifyCode').textContent=verifyCode||'VUSA-----';
+    document.getElementById('verifyState').textContent='not verified yet \u2014 add the code, then wait a moment\u2026';
+    bar.classList.remove('hidden');
+  }
+}
+async function sendCpdlc(to,ra,message,mrn){
+  if(!configured()&&!hubMode()){
+    if(WEB_ONLY&&window.VatflowAuth&&!oauthSignedIn())window.VatflowAuth.login();
+    else openSettings();
+    return null;
+  }
+  if(hubMode()&&!verifyOK){applyVerify({ok:false,code:verifyCode});
+    setHoppie(true,'verify position to send');return null;}
+  const localMin=minCounter++;persist();
+  const packet=buildPacket(localMin,mrn,ra,message);
+  logMsg('out',to,packet);
+  let finalMin=localMin;
+  try{const res=await api('/api/send',{to,type:'cpdlc',packet});
+    if(res&&res.needVerify){applyVerify({ok:false,code:res.verifyCode});
+      logMsg('err',to,'not verified \u2014 add '+(res.verifyCode||'code')+' to your controller info');return null;}
+    else if(!res||!res.ok){logMsg('err',to,'send failed: '+((res&&res.error)||'unknown'));return null;}
+    else if(res.min!=null)finalMin=res.min;        // hub assigns the authoritative MIN
+  }catch(e){logMsg('err',to,'proxy error: '+e.message);return null;}
+  burstUntil=Date.now()+90000;
+  if(wilcoExpectsReply(ra))trackWilcoAwait((to||'').toUpperCase(),finalMin);
+  return finalMin;
+}
+
+//============================================================ uplink queue (multi-element CPDLC)
+const UPLINK_QUEUE_MAX=5;
+const uplinkQueue={};                    // callsign -> [{label, msg, effects}]
+let queueActiveCs='';
+
+function applyUplinkEffects(cs,min,effects){
+  if(!effects||min==null)return;
+  if(effects.type==='alt'){
+    if(effects.alt!=null){assigned[cs]=effects.alt;persist();}
+    altMin[cs]=min;altPending.add(cs);
+  }else if(effects.type==='route'){
+    rtMin[cs]=min;routePending.add(cs);
+  }
+}
+async function sendUplinkEntry(cs,entry){
+  if(!entry||!entry.msg)return null;
+  const min=await sendCpdlc(cs,'WU',entry.msg);
+  if(min!=null)applyUplinkEffects(cs,min,entry.effects);
+  return min;
+}
+function queueTotalCount(){
+  return Object.values(uplinkQueue).reduce((n,a)=>n+a.length,0);
+}
+function queueAdd(cs,entry){
+  cs=(cs||'').toUpperCase();if(!cs||!entry||!entry.msg)return false;
+  const list=uplinkQueue[cs]||(uplinkQueue[cs]=[]);
+  if(list.length>=UPLINK_QUEUE_MAX){
+    logMsg('err',cs,`uplink queue full (${UPLINK_QUEUE_MAX} elements max)`);return false;
+  }
+  list.push(entry);queueActiveCs=cs;renderQueuePanel();
+  return true;
+}
+function queuePopLast(cs){
+  cs=(cs||'').toUpperCase();
+  const list=uplinkQueue[cs];if(!list||!list.length)return;
+  list.pop();if(!list.length)delete uplinkQueue[cs];
+  if(queueActiveCs===cs&&!uplinkQueue[cs])queueActiveCs=Object.keys(uplinkQueue)[0]||'';
+  renderQueuePanel();
+}
+function queueClear(cs){
+  if(cs){delete uplinkQueue[(cs||'').toUpperCase()];}
+  else{Object.keys(uplinkQueue).forEach(k=>delete uplinkQueue[k]);}
+  queueActiveCs=Object.keys(uplinkQueue)[0]||'';
+  renderQueuePanel();
+}
+function renderQueuePanel(){
+  const wrap=document.getElementById('queuewrap');
+  const listEl=document.getElementById('queueList');
+  const toggle=document.getElementById('queueToggle');
+  if(!wrap||!listEl)return;
+  const total=queueTotalCount();
+  if(!total){wrap.classList.add('hidden');return;}
+  wrap.classList.remove('hidden');
+  if(!queueActiveCs||!uplinkQueue[queueActiveCs]){
+    queueActiveCs=Object.keys(uplinkQueue)[0]||'';
+  }
+  const items=uplinkQueue[queueActiveCs]||[];
+  const n=items.length;
+  toggle.textContent=(settings.queueCollapsed?'\u25b8':'\u25be')+` UPLINK QUEUE${queueActiveCs?' \u2014 '+queueActiveCs:''}${n?' ('+n+')':''}`;
+  listEl.style.display=settings.queueCollapsed?'none':'';
+  listEl.innerHTML='';
+  if(!n){
+    listEl.innerHTML='<div class="qitem"><span class="meta">No staged uplinks.</span></div>';
+    return;
+  }
+  items.forEach((it,i)=>{
+    const div=document.createElement('div');div.className='qitem';
+    div.innerHTML=`<span class="meta">${i+1}. ${esc(it.label||'MSG')}</span> ${esc(it.msg)}`;
+    listEl.appendChild(div);
+  });
+}
+async function sendQueuedUplink(cs){
+  cs=(cs||queueActiveCs||'').toUpperCase();
+  const items=uplinkQueue[cs]||[];
+  if(!items.length)return;
+  const combined=items.map(i=>i.msg).join(' @_@ ');
+  const min=await sendCpdlc(cs,'WU',combined);
+  if(min!=null){
+    items.forEach(i=>applyUplinkEffects(cs,min,i.effects));
+    delete uplinkQueue[cs];
+    if(queueActiveCs===cs)queueActiveCs=Object.keys(uplinkQueue)[0]||'';
+    renderQueuePanel();renderBoard();
+  }
+}
+function applyQueueCollapsed(){
+  renderQueuePanel();
+}
+async function pollOnce(){
+  if(!configured()&&!hubMode())return;
+  try{const res=await api('/api/poll',{});
+    setHoppie(true,hubMode()?('hub '+(hubArtcc||'\u2026')):('online as '+settings.station));
+    if(res.error){setHoppie(false,'verify position to send');return;}
+    if(hubMode()){applyVerify(res.verify);updateConnState(res.connected,res.pending);}
+    const batch=res.messages||[];
+    if(!pollPrimed){                       // first batch is replayed backlog: sync state silently
+      suppressSounds=true;
+      try{batch.forEach(handleIncoming);}finally{suppressSounds=false;pollPrimed=true;}
+    }else batch.forEach(handleIncoming);
+  }catch(e){setHoppie(false,'proxy offline');}
+}
+// Hub is authoritative for who is on CPDLC (connected) and who was force-logged-off
+// and is now asking to come back (pending). Diff against what we had to chime on a
+// new logon and alert on a new re-logon request. Runs every poll (~3s) in hub mode.
+function updateConnState(connList,pendList){
+  if(connList===undefined&&pendList===undefined)return;   // solo poll: managed elsewhere
+  const nc=new Set(connList||[]), np=new Set(pendList||[]);
+  let reqd=false;
+  // only alert for aircraft that would actually appear on this controller's list
+  // (frequency filter off/absent -> all; filter on -> only our frequency)
+  const onList=c=>!freqFilterActive()||pilotMatchesOurFreq(c);
+  np.forEach(c=>{if(!logonReq.has(c)&&onList(c))reqd=true;});
+  connected.clear();nc.forEach(c=>connected.add(c));
+  logonReq.clear();np.forEach(c=>logonReq.add(c));
+  if(pollPrimed&&!suppressSounds){ if(reqd)soundLogonReq(); }
+  hubConnReady=true;renderBoard();
+}
+function schedulePoll(){if(pollTimer)clearTimeout(pollTimer);
+  let base,j;
+  if(hubMode()){base=2500;j=1500;}        // hub poll is a cheap in-memory read -> near real-time co-ctrl sync (2.5-4s)
+  else{const burst=Date.now()<burstUntil;base=burst?15000:55000;j=burst?4000:18000;}   // solo hits Hoppie: respect rate
+  pollTimer=setTimeout(async()=>{await pollOnce();schedulePoll();},base+Math.random()*j);}
+
+//============================================================ incoming handling
+const RESP=/^(WILCO|UNABLE|ROGER|ACCEPT|AFFIRM|AFFIRMATIVE|NEGATIVE|STANDBY|LOGOFF|LOGGED OFF)\b/;
+function wilcoExpectsReply(ra){return ra==='WU'||ra==='R';}
+function isPositiveAck(msg){return /\b(WILCO|ROGER|ACCEPT)\b/.test(msg||'');}
+function clearWilcoAwait(cs){
+  cs=(cs||'').toUpperCase();
+  const a=wilcoAwait[cs];if(a&&a.timer)clearTimeout(a.timer);
+  delete wilcoAwait[cs];
+}
+function trackWilcoAwait(cs,min){
+  cs=(cs||'').toUpperCase();if(!cs)return;
+  clearWilcoAwait(cs);
+  const sentAt=Date.now();
+  wilcoAwait[cs]={min,sentAt,timer:setTimeout(()=>triggerWilcoTimeout(cs),WILCO_TIMEOUT_MS)};
+}
+function triggerWilcoTimeout(cs){
+  cs=(cs||'').toUpperCase();if(!wilcoAwait[cs])return;
+  clearWilcoAwait(cs);
+  wilcoUi[cs]={kind:'timeout',at:Date.now()};
+  if(!isMuted()&&!suppressSounds)soundWilcoTimeout();
+  renderBoard();
+}
+function checkWilcoTimeouts(){
+  const now=Date.now();
+  Object.keys(wilcoAwait).forEach(cs=>{if(now-wilcoAwait[cs].sentAt>=WILCO_TIMEOUT_MS)triggerWilcoTimeout(cs);});
+}
+function recordWilcoReceived(cs){
+  cs=(cs||'').toUpperCase();
+  clearWilcoAwait(cs);
+  wilcoUi[cs]={kind:'received',at:Date.now()};
+  if(!isMuted()&&!suppressSounds)soundWilco();
+  setTimeout(()=>renderBoard(),WILCO_TIMEOUT_MS+1);
+}
+function ackWilcoUi(cs){delete wilcoUi[(cs||'').toUpperCase()];}
+function minMatches(stored,mrn){
+  if(stored==null)return false;
+  const mr=(mrn||'').toString();
+  if(!mr||mr==='0')return true;          // some clients omit or zero the MRN
+  return mr===String(stored);
+}
+function clearPendingOnAck(cs,mrn){
+  cs=(cs||'').toUpperCase();
+  let matched=false;
+  if(handoffMin[cs]!=null&&minMatches(handoffMin[cs],mrn)){
+    connected.delete(cs);handoffPending.delete(cs);delete handoffMin[cs];
+    logMsg('sys',cs,'handoff acknowledged');matched=true;
+  }
+  if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];matched=true;}
+  if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];matched=true;}
+  if(!matched&&(handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs))){
+    if(handoffPending.has(cs)){connected.delete(cs);handoffPending.delete(cs);delete handoffMin[cs];
+      logMsg('sys',cs,'handoff acknowledged');}
+    if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];}
+    if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
+  }
+}
+function clearPendingOnReject(cs,mrn){
+  cs=(cs||'').toUpperCase();
+  if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];delete assigned[cs];persist();}
+  else if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];delete assigned[cs];persist();}
+  if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];}
+  else if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
+}
+function handleIncoming(m){
+  const key=m.from+'|'+m.packet;if(seenMsgIds.has(key))return;seenMsgIds.add(key);
+  if(m.peer){handlePeerUplink(m);return;}   // a co-controller on our shared position sent this
+  const cs=m.from;
+  if(m.type==='cpdlc'){
+    const d=parsePacket(m.packet);
+    if(d){
+      const msg=(d.message||'').trim().toUpperCase();
+      if(/REQUEST LOGON/.test(msg)){if(!hubMode())autoAcceptLogon(cs,d.min);return;}
+      if(/LOG\s?OFF|LOGGED OFF/.test(msg)){       // aircraft left us (e.g. after a handover)
+        connected.delete(cs);handoffPending.delete(cs);delete handoffMin[cs];
+        clearWilcoAwait(cs);ackWilcoUi(cs);
+        logMsg('sys',cs,'logged off CPDLC');renderBoard();return;
+      }
+      if(RESP.test(msg)||isPositiveAck(msg)){handleResponse(cs,d,msg);return;}
+      pushMessage(cs,d.message);return;
+    }
+  }
+  pushMessage(cs,m.packet);              // telex / unparsed
+}
+// A controller sharing our position/frequency (separate CID) sent this uplink;
+// the hub mirrors it to us with peer:true so both stations stay in sync. We
+// replicate the same pending state the sender set, keyed on the hub MIN, so the
+// matching WILCO downlink (same MRN, fanned out to everyone) clears it for us too.
+function handlePeerUplink(m){
+  const d=m.type==='cpdlc'?parsePacket(m.packet||''):null;
+  const cs=(m.to||'').toUpperCase();
+  if(!cs)return;
+  if(!d){logMsg('out',cs+' \u00b7 co-ctrl',m.packet||'');return;}
+  const min=d.min, msg=(d.message||'').toUpperCase().replace(/@/g,'');
+  logMsg('out',cs+' \u00b7 co-ctrl',d.message||'');
+  if(/REQUEST LOGON|LOGON ACCEPTED/.test(msg)){renderBoard();return;}
+  // CPDLC SERVICES TERMINATED is a service advisory, not a handoff (contains CONTACT).
+  if(/CPDLC SERVICES TERMINATED/.test(msg)){renderBoard();return;}
+  if(wilcoExpectsReply(d.ra))trackWilcoAwait(cs,min);
+  if(/HANDOVER/.test(msg)){
+    handoffPending.add(cs);
+  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC/.test(msg)){
+    handoffMin[cs]=min;handoffPending.add(cs);
+  }else if(/CROSS|PROCEED DIRECT|CLEARED/.test(msg)){
+    rtMin[cs]=min;routePending.add(cs);
+  }else if(/CLIMB|DESCEND|MAINTAIN/.test(msg)){
+    const fl=msg.match(/FL(\d{3})/);              // altitude (not a speed/heading uplink)
+    if(fl){assigned[cs]=parseInt(fl[1],10);altMin[cs]=min;altPending.add(cs);persist();}
+  }
+  renderBoard();
+}
+function autoAcceptLogon(cs,theirMin){
+  sendCpdlc(cs,'N','LOGON ACCEPTED',theirMin);
+  connected.add(cs);logMsg('sys',cs,'logon auto-accepted \u2014 CPDLC connected');renderBoard();
+}
+function handleResponse(cs,d,msg){
+  if(!pilotMatchesOurFreq(cs))return;   // WILCO belongs to the controller on that voice freq
+  logMsg('in',cs,'response: '+msg);
+  const mrn=d.mrn!=null?String(d.mrn):'';
+  if(isPositiveAck(msg)){
+    if(wilcoAwait[cs])recordWilcoReceived(cs);
+    else{clearWilcoAwait(cs);ackWilcoUi(cs);}   // e.g. ROGER to CPDLC SERVICES TERMINATED: no chime
+    clearPendingOnAck(cs,mrn);
+  }else if(/UNABLE|NEGATIVE/.test(msg)){
+    clearWilcoAwait(cs);
+    clearPendingOnReject(cs,mrn);
+  }
+  renderBoard();
+}
+function stopMsgRepeat(cs){
+  if(msgRepeatTimers[cs]){clearInterval(msgRepeatTimers[cs]);delete msgRepeatTimers[cs];}
+}
+function startMsgRepeat(cs){
+  stopMsgRepeat(cs);
+  msgRepeatTimers[cs]=setInterval(()=>{
+    if(msgAlert.has(cs)&&!isMuted())soundMessage(true);
+  },60000);
+}
+function pushMessage(cs,text){
+  if(myPosition.freqMhz!=null&&!pilotMatchesOurFreq(cs)){
+    logMsg('in',cs,text);return;        // other sector position — log only, no M alert
+  }
+  msgAlert.add(cs);logMsg('in',cs,text);soundMessage();startMsgRepeat(cs);renderBoard();
+}
+
+//============================================================ VATSIM
+let feedSince=0, feedArtcc='';
+function renderFeed(msgs,evtId){
+  (msgs||[]).forEach(m=>{
+    const who=m.kind==='up'?`${m.frm} \u2192 ${m.to}`:`${m.frm}`;
+    logMsg(m.kind==='up'?'out':'in',who,m.msg);
+  });
+  if(evtId!=null)feedSince=evtId;
+}
+function menusOpen(){return !altmenu.classList.contains('hidden')||!routemenu.classList.contains('hidden')
+  ||!handoffpop.classList.contains('hidden')||!hdgmenu.classList.contains('hidden')||!spdmenu.classList.contains('hidden');}
+async function refreshMonitor(force){
+  const art=monitorArtcc();
+  if(!art){liveFlights=[];connected.clear();renderBoard();
+    setVat('','VIEW ONLY \u2014 type an ARTCC above (e.g. KZJX)');return;}
+  if(art!==feedArtcc){feedArtcc=art;feedSince=0;log.innerHTML='';}
+  if(!force&&menusOpen())return;
+  setVat('busy','VIEW '+art+' \u2026');
+  try{
+    const d=await (await fetch(hubBase()+'/hub/monitor',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({airspace:art,since:feedSince})})).json();
+    if(!d.ok){setVat('err',d.error||'view error');return;}
+    liveFlights=(d.flights||[]).map(mapLive);facilities=[];
+    connected.clear();(d.connected||[]).forEach(c=>connected.add(c));logonReq.clear();
+    renderFeed(d.messages,d.evtId);
+    setVat('on',`VIEW ${art} \u00b7 ${connected.size} on KUSA \u00b7 ${liveFlights.length} a/c`);
+    renderBoard();
+  }catch(e){setVat('err','hub unreachable');}
+}
+async function refreshVatsim(force){
+  if(monitorMode())return refreshMonitor(force);
+  const hub=hubMode();
+  const airspace=airspaceId();
+  if(!hub&&!airspace)return;
+  if(!force&&(!altmenu.classList.contains('hidden')||!routemenu.classList.contains('hidden')
+     ||!handoffpop.classList.contains('hidden')))return;
+  setVat('busy','VATSIM '+(airspace||'hub')+' ...');
+  try{
+    const d=await api('/api/vatsim',{airspace});
+    if(!d.ok){setVat('err',d.error||'vatsim error');updatePositionBar();return;}
+    applyFreqMeta(d);                  // controller freq + pilot freqs come from the hub now
+    liveFlights=d.flights.map(mapLive);annotateFlights();facilities=d.facilities||[];
+    if(hub){
+      hubArtcc=d.airspace||hubArtcc;
+      applyVerify(d.verify);          // connected/pending are owned by the fast poll (updateConnState)
+      setVat('on',`hub ${d.airspace} \u00b7 ${liveFlights.length} a/c \u00b7 ${connected.size} CPDLC`
+        +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
+    }else{
+      const c=d.counts||{};
+      setVat('on',`${d.airspace}  ${c.DEP||0}dep ${c.ARR||0}arr ${c.OVR||0}ovr ${c.INT||0}int \u00b7 ${facilities.length} adj`
+        +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
+    }
+    updatePositionBar();
+    renderBoard();
+  }catch(e){setVat('err','proxy offline');}
+}
+function mapLive(f){
+  const full=[f.dep,f.route,f.arr].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+  return {cs:f.callsign,type:f.type||'----',alt:f.fl||0,hs:'/'+(f.gs||''),
+    cid:f.cid||'',squawk:f.squawk||'',hdg:f.hdg||0,gs:f.gs||0,
+    route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
+}
+function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
+  vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?12000:15000);}   // hub 15s = VATSIM feed update cadence
+
+//============================================================ live map
+const MAP_BND_URL='https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson';
+const US_ARTCC_EXTRA=new Set(['PAZA','PHZH','KZAK','KZWY','TJZS']);
+const MAP_VIEW={minLon:-130,maxLon:-63,minLat:22,maxLat:52,w:960,h:600,m:12};
+function isUsArtcc(id){return /^KZ[A-Z]{2}$/.test(id)||US_ARTCC_EXTRA.has(id);}
+let mapBoundaryGeoms=null,mapTimer=null,mapLoading=false;
+function mapProj(lon,lat){
+  const bw=MAP_VIEW.w-2*MAP_VIEW.m,bh=MAP_VIEW.h-2*MAP_VIEW.m;
+  const x=MAP_VIEW.m+(lon-MAP_VIEW.minLon)/(MAP_VIEW.maxLon-MAP_VIEW.minLon)*bw;
+  const y=MAP_VIEW.m+(MAP_VIEW.maxLat-lat)/(MAP_VIEW.maxLat-MAP_VIEW.minLat)*bh;
+  return [x,y];
+}
+function mapRingPath(ring){
+  if(!ring||!ring.length)return '';
+  return ring.map((pt,i)=>{
+    const xy=mapProj(pt[0],pt[1]);
+    return (i?'L':'M')+xy[0].toFixed(1)+','+xy[1].toFixed(1);
+  }).join(' ')+' Z';
+}
+function mapGeomPaths(geom){
+  const out=[];
+  const polys=geom.type==='Polygon'?[geom.coordinates]:
+    geom.type==='MultiPolygon'?geom.coordinates:[];
+  for(const poly of polys)for(const ring of poly)out.push(mapRingPath(ring));
+  return out;
+}
+async function loadMapBoundaries(){
+  if(mapBoundaryGeoms)return mapBoundaryGeoms;
+  const r=await fetch(MAP_BND_URL);
+  const gj=await r.json();
+  mapBoundaryGeoms={};
+  for(const f of gj.features||[]){
+    const id=(f.properties&&f.properties.id||'').toUpperCase();
+    if(!isUsArtcc(id)||!f.geometry)continue;
+    mapBoundaryGeoms[id]=f.geometry;
+  }
+  return mapBoundaryGeoms;
+}
+async function fetchMapData(){
+  const res=await fetch(hubBase()+'/hub/map',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:'{}'});
+  let data;
+  try{data=await res.json();}catch(e){throw new Error('hub map response invalid');}
+  if(!res.ok)throw new Error((data&&data.error)||('hub map HTTP '+res.status));
+  return data;
+}
+function renderMapSvg(bnd,data,statsEl){
+  const svg=document.getElementById('mapSvg');
+  if(!svg)return;
+  const staffed=new Set((data&&data.staffed)||[]);
+  const flights=(data&&data.flights)||[];
+  const onKusa=flights.filter(f=>f.connected).length;
+  const myArtcc=(hubMode()?hubArtcc:monitorArtcc()||'').toUpperCase();
+  const ctrlByArtcc={};
+  ((data&&data.controllers)||[]).forEach(c=>{if(c.artcc&&c.callsign)ctrlByArtcc[c.artcc]=c.callsign;});
+  if(statsEl){
+    const hubNote=data?'':' \u00b7 traffic unavailable';
+    statsEl.textContent=`${flights.length} a/c \u00b7 ${onKusa} on KUSA \u00b7 ${staffed.size} CPDLC center${staffed.size===1?'':'s'}${hubNote}`;
+  }
+  let html='';
+  Object.keys(bnd).sort().forEach(id=>{
+    let cls='map-artcc';
+    if(staffed.has(id))cls+=' map-artcc-staffed';
+    if(myArtcc&&id===myArtcc)cls+=' map-artcc-mine';
+    const tip=id+(staffed.has(id)?(' \u00b7 CPDLC: '+(ctrlByArtcc[id]||'active')):'');
+    mapGeomPaths(bnd[id]).forEach(d=>{
+      if(d)html+=`<path class="${cls}" data-artcc="${id}" d="${d}"><title>${esc(tip)}</title></path>`;
+    });
+  });
+  flights.forEach(f=>{
+    if(f.lat==null||f.lon==null)return;
+    const xy=mapProj(f.lon,f.lat);
+    const cls=f.connected?'map-ac-conn':'map-ac';
+    const tip=`${f.callsign} FL${f.fl||'?'}${f.connected?' \u00b7 KUSA':''}${f.artcc?' \u00b7 '+f.artcc:''}`;
+    html+=`<circle class="${cls}" cx="${xy[0].toFixed(1)}" cy="${xy[1].toFixed(1)}" r="2.5"><title>${esc(tip)}</title></circle>`;
+  });
+  svg.innerHTML=html;
+}
+async function renderLiveMap(){
+  const statsEl=document.getElementById('mapStats');
+  const svg=document.getElementById('mapSvg');
+  if(!svg||mapLoading)return;
+  mapLoading=true;
+  if(statsEl)statsEl.textContent='loading\u2026';
+  try{
+    let bnd,data,hubErr='';
+    try{bnd=await loadMapBoundaries();}
+    catch(e){if(statsEl)statsEl.textContent='boundaries load failed';return;}
+    try{data=await fetchMapData();}
+    catch(e){hubErr=e.message||'hub map unavailable';}
+    if(!data||!data.ok){
+      hubErr=(data&&data.error)||hubErr||'hub map unavailable';
+      renderMapSvg(bnd,null,statsEl);
+      if(statsEl)statsEl.textContent=hubErr+' \u00b7 boundaries only';
+      return;
+    }
+    renderMapSvg(bnd,data,statsEl);
+  }catch(e){if(statsEl)statsEl.textContent=(e&&e.message)||'map load failed';}
+  finally{mapLoading=false;}
+}
+function openLiveMap(){
+  document.getElementById('mapScrim').classList.remove('hidden');
+  renderLiveMap();
+  if(mapTimer)clearInterval(mapTimer);
+  mapTimer=setInterval(()=>renderLiveMap(),15000);
+}
+function closeLiveMap(){
+  document.getElementById('mapScrim').classList.add('hidden');
+  if(mapTimer){clearInterval(mapTimer);mapTimer=null;}
+}
+document.getElementById('btnMap').onclick=openLiveMap;
+document.getElementById('mapClose').onclick=closeLiveMap;
+document.getElementById('mapScrim').onclick=e=>{if(e.target.id==='mapScrim')closeLiveMap();};
+
+//============================================================ board
+const rows=document.getElementById('rows');
+function boxHtml(cs){
+  const conn=connected.has(cs), req=logonReq.has(cs);
+  const lcls=conn?'on':(req?'lreq':'');
+  const ltt=conn?'on CPDLC \u2014 click to force logoff'
+           :(req?'requesting logon \u2014 click to accept':'logon');
+  return `<span class="sbox lbox ${lcls}" data-logon="${cs}" title="${ltt}">L</span>`
+        +`<span class="sbox msgbox ${msgAlert.has(cs)?'flash':''}" data-msg="${cs}" title="message">M</span>`
+        +`<span class="sbox ${handoffPending.has(cs)?'ho':''}" title="handoff">H</span>`;
+}
+function wilcoBoxHtml(cs){
+  const s=wilcoUi[cs];
+  if(!s)return '<span class="wbox" title="WILCO"></span>';
+  if(s.kind==='timeout')
+    return '<span class="wbox flash-red" data-wilco="'+cs+'" title="No response in 2 min \u2014 click to acknowledge">W</span>';
+  if(s.kind==='received'&&Date.now()-s.at<WILCO_TIMEOUT_MS)
+    return '<span class="wbox flash" data-wilco="'+cs+'" title="WILCO/ROGER/ACCEPT received \u2014 click to acknowledge">W</span>';
+  return isMuted()?'<span class="wbox solid" title="WILCO received (muted)"></span>'
+                       :'<span class="wbox done" title="WILCO received"></span>';
+}
+function altCellHtml(a){
+  const asg=assigned[a.cs];
+  if(asg!=null){
+    const col=altPending.has(a.cs)?'var(--green)':'#fff';
+    const cur=round10(a.alt||0);
+    return (cur&&cur!==asg?`<span style="color:var(--fg-dim)">${pad3(cur)}</span> `:'')
+          +`<span style="color:${col}">${pad3(asg)}</span>`;
+  }
+  return pad3(round10(a.alt||0));
+}
+function hsCellHtml(a,idx){
+  const h=a.hdg?('H'+pad3(a.hdg)):'---';
+  const s=a.gs?String(a.gs):'---';
+  return `<span class="hdg-cell" data-hdg="${idx}" title="heading">${h}</span>`
+        +`<span class="hssep"> / </span>`
+        +`<span class="spd-cell spd" data-spd="${idx}" title="speed">${s}</span>`;
+}
+function renderRowClassic(a,idx){
+  const rcol=routePending.has(a.cs)?'color:var(--green)':'';
+  return `<td>${boxHtml(a.cs)}</td>
+    <td>${wilcoBoxHtml(a.cs)}</td>
+    <td><span class="fid ${connected.has(a.cs)?'conn':''}" data-fid="${idx}">${connected.has(a.cs)?'+':''}${a.cs}</span></td>
+    <td>${a.type||''}</td>
+    <td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>
+    <td class="hs-cell">${hsCellHtml(a,idx)}</td>
+    <td class="route-cell" data-route="${idx}" style="${rcol}">${a.route||''}</td>`;
+}
+function updateMode(){
+  const badge=document.getElementById('modeBadge'),field=document.getElementById('viewArtccField');
+  if(!badge)return;
+  if(canControl()){badge.textContent='CONTROLLING';badge.className='badge ctrl';if(field)field.style.display='none';}
+  else if(WEB_ONLY&&!oauthSignedIn()){badge.textContent='SIGN IN TO CONTROL';badge.className='badge view';if(field)field.style.display='';}
+  else if(hubMode()){badge.textContent='VERIFY TO CONTROL';badge.className='badge view';if(field)field.style.display='none';}
+  else{badge.textContent='VIEW ONLY';badge.className='badge view';if(field)field.style.display='';}
+}
+function updateTabTitle(){
+  const n=connected.size;
+  document.title=n?`(${n})vUSAlink`:'vUSAlink';
+}
+function renderBoard(){
+  checkWilcoTimeouts();
+  updateMode();updatePositionBar();updateTabTitle();
+  annotateFlights();
+  const list=displayList();
+  const onListConnected=new Set(list.filter(a=>connected.has(a.cs)).map(a=>a.cs));
+  if(pollPrimed&&!suppressSounds&&!isMuted()){
+    if(listSoundPrimed){
+      for(const cs of onListConnected){
+        if(!prevDisplayedConnected.has(cs)){soundLogon();break;}
+      }
+    }else listSoundPrimed=true;
+  }
+  prevDisplayedConnected.clear();onListConnected.forEach(cs=>prevDisplayedConnected.add(cs));
+  rows.innerHTML='';
+  list.forEach((a,idx)=>{
+    const tr=document.createElement('tr');
+    // ADJ = approaching from a neighbor sector; dim unless tuned to our frequency.
+    if(a.cat==='ADJ'&&(myPosition.freqMhz==null||!a.onFreq))tr.classList.add('adj');
+    tr.innerHTML=renderRowClassic(a,idx);
+    rows.appendChild(tr);
+  });
+}
+
+//============================================================ ALT menu
+const altmenu=document.getElementById('altmenu');
+let altTarget=null,altSelected=null,altAltimManual=false;
+const altimeterCache={};                 // ICAO -> {val, ts}
+function normalizeIcao(icao){
+  icao=(icao||'').trim().toUpperCase();
+  if(icao.length===3&&/^[A-Z]{3}$/.test(icao)){
+    if(icao[0]==='Y')return 'C'+icao;   // Canadian IATA (YYZ -> CYYZ)
+    return 'K'+icao;
+  }
+  return icao;
+}
+function isBelowFl180(fl){return fl!=null&&fl<180;}
+function formatFeetAlt(fl){return (fl*100).toLocaleString('en-US')+'ft';}
+function parseAltitudeInput(s){
+  s=(s||'').replace(/[,\s]/g,'').toUpperCase();
+  if(!s)return null;
+  if(s.startsWith('FL')){const fl=parseInt(s.slice(2),10)||0;return fl?{fl,below180:fl<180}:null;}
+  const n=parseInt(s,10)||0;
+  if(!n)return null;
+  if(n>=1000)return {fl:Math.round(n/100),feet:n,below180:n<18000};
+  if(n<=600)return {fl:n,below180:n<180};
+  return null;
+}
+async function fetchDestAltimeter(icao){
+  icao=normalizeIcao(icao);if(!icao)return null;
+  const hit=altimeterCache[icao];
+  if(hit&&Date.now()-hit.ts<300000)return hit.val;
+  try{
+    const res=await api('/api/altimeter',{icao});
+    if(res&&res.ok&&res.altimeter){
+      altimeterCache[icao]={val:res.altimeter,ts:Date.now()};
+      return res.altimeter;
+    }
+  }catch(e){}
+  return null;
+}
+async function populateAltimInput(inputEl,icaoEl,icao,manual){
+  const row=inputEl.closest('.row')||inputEl.closest('.customfix');
+  icao=normalizeIcao(icao);
+  if(!icao){if(row)row.classList.add('hidden');return;}
+  if(icaoEl)icaoEl.textContent=icao;
+  if(row)row.classList.remove('hidden');
+  if(manual||inputEl.dataset.manual)return;
+  const req=icao;
+  inputEl.placeholder='…';
+  inputEl.value='';
+  const alt=await fetchDestAltimeter(req);
+  if(manual||inputEl.dataset.manual||normalizeIcao(icaoEl&&icaoEl.textContent)!==req)return;
+  inputEl.value=alt||'';
+  inputEl.placeholder=alt?'29.83':'n/a';
+}
+function altimeterSuffix(icao,altim){
+  icao=normalizeIcao(icao);altim=(altim||'').trim();
+  return (icao&&altim)?`, ${icao} altimeter ${altim}`:'';
+}
+function parseAlt(v){
+  v=(v||'').replace(/[,\s]/g,'').toUpperCase().replace(/^FL/,'');
+  if(!/^\d+$/.test(v))return null;
+  let n=parseInt(v,10);
+  if(n>=1000)n=Math.round(n/100);     // entered in feet -> flight level
+  return (n<10||n>600)?null:n;
+}
+async function buildAltMessage(target,tgt,altimVal){
+  if(!target||tgt==null)return null;
+  const cur=target.alt||0;
+  let msg;
+  if(isBelowFl180(tgt)){
+    const verb=tgt>cur?'CLIMB AND MAINTAIN':tgt<cur?'DESCEND AND MAINTAIN':'MAINTAIN';
+    const dest=normalizeIcao(target.arr);
+    const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
+    msg=`${verb} ${formatFeetAlt(tgt)}${altimeterSuffix(dest,altim)}`;
+  }else{
+    const verb=tgt>cur?'CLIMB TO AND MAINTAIN':tgt<cur?'DESCEND TO AND MAINTAIN':'MAINTAIN';
+    msg=`${verb} @${flStr(tgt)}@`;
+  }
+  return {label:'ALT',msg,effects:{type:'alt',alt:tgt}};
+}
+function buildHdgMessage(cmd){
+  if(!cmd)return null;
+  return {label:'HDG',msg:cmd,effects:null};
+}
+function buildSpdMessage(cmd){
+  if(!cmd)return null;
+  return {label:'SPD',msg:cmd,effects:null};
+}
+function buildRouteDirectMessage(fix){
+  if(!fix)return null;
+  return {label:'DIRECT',msg:`PROCEED DIRECT TO @${fix}@`,effects:{type:'route'}};
+}
+async function buildCrossingMessage(target,fix,alt,spd,altimVal){
+  if(!target||!fix)return null;
+  const altP=alt?parseAltitudeInput(alt):null;
+  const A=alt?(altP&&altP.below180?crossAltText(alt):normLevel(alt)):'';
+  const S=spd?normSpeed(spd):'';
+  if(!A&&!S)return null;
+  let msg=(A&&S)?`CROSS @${fix}@ AT @${A}@ AT @${S}@`
+           :A?`CROSS @${fix}@ AT @${A}@`
+           :`CROSS @${fix}@ AT @${S}@`;
+  if(altP&&altP.below180){
+    const dest=normalizeIcao(target.arr);
+    const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
+    msg+=altimeterSuffix(dest,altim);
+  }
+  return {label:'CROSS',msg,effects:{type:'route'}};
+}
+function buildRouteUplinkMessage(target,route){
+  if(!target||!route)return null;
+  const dest=(target.arr||'').toUpperCase();
+  const msg=dest?`CLEARED TO @${dest}@ VIA @${route}@`:`CLEARED ROUTE @${route}@`;
+  return {label:'ROUTE',msg,effects:{type:'route'}};
+}
+function openAltMenu(idx,x,y){
+  const a=displayList()[idx];altTarget=a;altSelected=null;altAltimManual=false;
+  document.getElementById('altAc').textContent=`${a.cs}  ${a.type||''}`;
+  document.getElementById('altInput').value=a.alt?flStr(a.alt):'';
+  document.getElementById('altAltimInput').value='';
+  delete document.getElementById('altAltimInput').dataset.manual;
+  document.getElementById('altAltimRow').classList.add('hidden');
+  showUplink('altUplink',false);
+  const L=document.getElementById('altList');L.innerHTML='';
+  const levels=[];for(let fl=450;fl>=60;fl-=10)levels.push(fl);
+  for(let i=0;i<levels.length;i+=3){
+    const row=document.createElement('div');row.className='arow';
+    for(let j=0;j<3;j++){
+      const fl=levels[i+j];const c=document.createElement('div');c.className='cellbtn';
+      if(fl==null){c.innerHTML='&nbsp;';}
+      else{c.textContent=pad3(fl);if(fl===a.alt)c.classList.add('cur');c.onclick=()=>stageAlt(fl);}
+      row.appendChild(c);
+    }
+    L.appendChild(row);
+  }
+  placePop(altmenu,x,y);
+  const cur=L.querySelector('.cellbtn.cur');if(cur)cur.scrollIntoView({block:'center'});
+}
+function altHighlight(fl){
+  document.getElementById('altList').querySelectorAll('.cellbtn').forEach(e=>
+    e.classList.toggle('sel',fl!=null&&e.textContent===pad3(fl)));
+}
+function stageAlt(fl){
+  altSelected=fl;altHighlight(fl);
+  document.getElementById('altInput').value=flStr(fl);
+  showUplink('altUplink',true);
+  syncAltAltimeterRow();
+}
+function syncAltAltimeterRow(){
+  const row=document.getElementById('altAltimRow');
+  if(!altTarget||altSelected==null||!isBelowFl180(altSelected)){
+    row.classList.add('hidden');return;
+  }
+  populateAltimInput(document.getElementById('altAltimInput'),
+    document.getElementById('altAltimIcao'),altTarget.arr,altAltimManual);
+}
+document.getElementById('altAltimInput').addEventListener('input',()=>{
+  altAltimManual=true;
+  document.getElementById('altAltimInput').dataset.manual='1';
+});
+document.getElementById('altInput').addEventListener('input',()=>{
+  const fl=parseAlt(document.getElementById('altInput').value);
+  altSelected=fl;altHighlight(fl);showUplink('altUplink',fl!=null);
+  if(fl!=null)syncAltAltimeterRow();else document.getElementById('altAltimRow').classList.add('hidden');
+});
+document.getElementById('altUplink').onclick=async()=>{
+  if(!altTarget||altSelected==null)return;
+  const cs=altTarget.cs;
+  const altim=document.getElementById('altAltimInput').value.trim();
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null);
+  if(!entry)return;
+  close('altmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('altScratchpad').onclick=async()=>{
+  if(!altTarget||altSelected==null)return;
+  const altim=document.getElementById('altAltimInput').value.trim();
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null);
+  if(!entry||!queueAdd(altTarget.cs,entry))return;
+  close('altmenu');
+};
+document.getElementById('altAmend').onclick=()=>{if(altTarget)queuePopLast(altTarget.cs);};
+
+//============================================================ HEADING menu
+const hdgmenu=document.getElementById('hdgmenu');
+let hdgTarget=null,hdgCmd=null;
+function norm360(h){h=Math.round(h)%360;if(h<=0)h+=360;return h;}
+function showUplink(id,on){document.getElementById(id).classList.toggle('hidden',!on);}
+function openHeadingMenu(idx,x,y){
+  const a=displayList()[idx];hdgTarget=a;hdgCmd=null;
+  const present=a.hdg||0;
+  const base=norm360(Math.round(present/5)*5);   // round current hdg so all menu options land on 5s
+  document.getElementById('hdgAc').textContent=`${a.cs}  ${a.type||''}`;
+  document.getElementById('hdgInput').value=present?pad3(present):'';
+  showUplink('hdgUplink',false);
+  const G=document.getElementById('hdgGrid');G.innerHTML='';
+  const hdr=document.createElement('div');hdr.className='hrow';
+  hdr.innerHTML='<div class="hh">Heading</div><div class="hlab">Turn L</div><div class="hlab">Turn R</div>';
+  G.appendChild(hdr);
+  for(let k=0;k<12;k++){
+    const turn=60-k*5;
+    const hL=norm360(base+50-k*10), hR=norm360(base+55-k*10);
+    const row=document.createElement('div');row.className='hrow';
+    const cA=document.createElement('div');cA.className='cellbtn';cA.textContent=pad3(hL);
+    const cB=document.createElement('div');cB.className='cellbtn';cB.textContent=pad3(hR);
+    const tL=document.createElement('div');tL.className='cellbtn';tL.textContent=turn;
+    const tR=document.createElement('div');tR.className='cellbtn';tR.textContent=turn;
+    cA.onclick=()=>stageHdg(cA,'FLY HEADING',hL);
+    cB.onclick=()=>stageHdg(cB,'FLY HEADING',hR);
+    tL.onclick=()=>stageHdg(tL,'TURN LEFT HEADING',norm360(base-turn));
+    tR.onclick=()=>stageHdg(tR,'TURN RIGHT HEADING',norm360(base+turn));
+    row.appendChild(cA);row.appendChild(cB);row.appendChild(tL);row.appendChild(tR);
+    G.appendChild(row);
+  }
+  placePop(hdgmenu,x,y);
+}
+function stageHdg(cell,verb,hdg){
+  document.getElementById('hdgGrid').querySelectorAll('.cellbtn').forEach(e=>e.classList.remove('sel'));
+  cell.classList.add('sel');
+  document.getElementById('hdgInput').value=pad3(hdg);
+  hdgCmd=`${verb} @${pad3(hdg)}@`;showUplink('hdgUplink',true);
+}
+document.getElementById('hdgPresent').onclick=()=>{
+  document.getElementById('hdgGrid').querySelectorAll('.cellbtn').forEach(e=>e.classList.remove('sel'));
+  hdgCmd='FLY PRESENT HEADING';showUplink('hdgUplink',true);
+};
+document.getElementById('hdgInput').addEventListener('input',()=>{
+  const v=document.getElementById('hdgInput').value.trim();
+  if(/^\d{1,3}$/.test(v)){hdgCmd=`FLY HEADING @${pad3(norm360(+v))}@`;showUplink('hdgUplink',true);}
+});
+document.getElementById('hdgUplink').onclick=async()=>{
+  if(!hdgTarget||!hdgCmd)return;
+  const cs=hdgTarget.cs;const entry=buildHdgMessage(hdgCmd);
+  if(!entry)return;
+  close('hdgmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('hdgScratchpad').onclick=()=>{
+  if(!hdgTarget||!hdgCmd)return;
+  const entry=buildHdgMessage(hdgCmd);
+  if(!entry||!queueAdd(hdgTarget.cs,entry))return;
+  close('hdgmenu');
+};
+document.getElementById('hdgAmend').onclick=()=>{if(hdgTarget)queuePopLast(hdgTarget.cs);};
+
+//============================================================ SPEED menu
+const spdmenu=document.getElementById('spdmenu');
+let spdTarget=null,spdCmd=null,spdToggle='';   // '', '+', '-'
+function openSpeedMenu(idx,x,y){
+  const a=displayList()[idx];spdTarget=a;spdCmd=null;spdToggle='';
+  document.getElementById('spdAc').textContent=`${a.cs}  ${a.type||''}`;
+  document.getElementById('spdInput').value=a.gs?String(a.gs):'';
+  showUplink('spdUplink',false);
+  document.getElementById('spdPlus').classList.remove('on');
+  document.getElementById('spdMinus').classList.remove('on');
+  buildSpeedGrid();placePop(spdmenu,x,y);
+}
+function spdSuffix(){return spdToggle==='+'?'+':spdToggle==='-'?'-':'';}
+function spdTail(){return spdToggle==='+'?' OR GREATER':spdToggle==='-'?' OR LESS':'';}
+function buildSpeedGrid(){
+  const G=document.getElementById('spdGrid');G.innerHTML='';
+  const machs=['.84','.83','.82','.81','.80','.79','.78','.77','.76','.75','.74'];
+  let mi=0;
+  for(let kt=330;kt>=230;kt-=10){
+    const row=document.createElement('div');row.className='srow';
+    const kL=document.createElement('div');kL.className='cellbtn';kL.textContent=kt+spdSuffix();
+    const kR=document.createElement('div');kR.className='cellbtn';kR.textContent=(kt+5)+spdSuffix();
+    const m=machs[mi++]||'';
+    const mC=document.createElement('div');mC.className='cellbtn';mC.textContent=m?(m+spdSuffix()):'';
+    kL.onclick=()=>stageSpd(kL,kt+'KT');
+    kR.onclick=()=>stageSpd(kR,(kt+5)+'KT');
+    if(m)mC.onclick=()=>stageSpd(mC,'MACH '+m);
+    row.appendChild(kL);row.appendChild(kR);row.appendChild(mC);
+    G.appendChild(row);
+  }
+}
+function stageSpd(cell,val){
+  document.getElementById('spdGrid').querySelectorAll('.cellbtn').forEach(e=>e.classList.remove('sel'));
+  cell.classList.add('sel');
+  document.getElementById('spdInput').value=val.replace('KT','').replace('MACH ','M');
+  spdCmd=`MAINTAIN @${val}@${spdTail()}`;showUplink('spdUplink',true);
+}
+function setSpdToggle(t){
+  spdToggle=(spdToggle===t)?'':t;
+  document.getElementById('spdPlus').classList.toggle('on',spdToggle==='+');
+  document.getElementById('spdMinus').classList.toggle('on',spdToggle==='-');
+  buildSpeedGrid();spdCmd=null;showUplink('spdUplink',false);   // pick +/- first, then a speed
+}
+document.getElementById('spdPlus').onclick=()=>setSpdToggle('+');
+document.getElementById('spdMinus').onclick=()=>setSpdToggle('-');
+document.getElementById('spdRns').onclick=()=>{
+  document.getElementById('spdGrid').querySelectorAll('.cellbtn').forEach(e=>e.classList.remove('sel'));
+  document.getElementById('spdInput').value='';
+  spdCmd='RESUME NORMAL SPEED';
+  showUplink('spdUplink',true);
+};
+document.getElementById('spdInput').addEventListener('input',()=>{
+  const v=document.getElementById('spdInput').value.trim().toUpperCase();
+  if(/^\d{2,3}$/.test(v)){spdCmd=`MAINTAIN @${v}KT@${spdTail()}`;showUplink('spdUplink',true);}
+  else if(/^M?\.\d{2}$/.test(v)){spdCmd=`MAINTAIN @MACH ${v.replace('M','')}@${spdTail()}`;showUplink('spdUplink',true);}
+});
+document.getElementById('spdUplink').onclick=async()=>{
+  if(!spdTarget||!spdCmd)return;
+  const cs=spdTarget.cs;const entry=buildSpdMessage(spdCmd);
+  if(!entry)return;
+  close('spdmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('spdScratchpad').onclick=()=>{
+  if(!spdTarget||!spdCmd)return;
+  const entry=buildSpdMessage(spdCmd);
+  if(!entry||!queueAdd(spdTarget.cs,entry))return;
+  close('spdmenu');
+};
+document.getElementById('spdAmend').onclick=()=>{if(spdTarget)queuePopLast(spdTarget.cs);};
+
+//============================================================ ROUTE menu
+const routemenu=document.getElementById('routemenu');
+let rtTarget=null,fixSelected=null,xresAltimManual=false;
+function appendFixRow(list,fix,onPick){
+  const fi=document.createElement('div');fi.className='fi';fi.textContent=fix;
+  fi.onclick=()=>{document.querySelectorAll('#fixList .fi').forEach(e=>e.classList.remove('sel'));fi.classList.add('sel');document.getElementById('customFix').value='';onPick(fix);};
+  list.appendChild(fi);
+}
+function openRouteMenu(idx,x,y){
+  const a=displayList()[idx];rtTarget=a;fixSelected=null;
+  const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
+  let title='ROUTE MENU '+a.cs;
+  if(dep||arr)title+='  '+[dep,arr].filter(Boolean).join(' \u2192 ');
+  document.getElementById('rtTitle').textContent=title;
+  document.getElementById('rtCurrent').innerHTML='<span class="slash">/.</span>'+(a.route||'');
+  const F=document.getElementById('fixList');F.innerHTML='';
+  const entries=routeFixEntries(a);
+  const hasKind=entries.some(f=>f.kind);
+  const pick=fix=>selectFix(fix);
+  if(hasKind){
+    [{label:'SID',kind:'sid'},{label:'ENROUTE',kind:'enroute'},{label:'STAR',kind:'star'}].forEach(g=>{
+      const seg=entries.filter(f=>f.kind===g.kind);
+      if(!seg.length)return;
+      const wrap=document.createElement('div');wrap.className='fixseg';
+      const lbl=document.createElement('div');lbl.className='seglabel';lbl.textContent=g.label;
+      wrap.appendChild(lbl);
+      const list=document.createElement('div');list.className='segfixes';
+      seg.forEach(f=>appendFixRow(list,f.name,pick));
+      wrap.appendChild(list);F.appendChild(wrap);
+    });
+    entries.filter(f=>f.kind&&f.kind!=='sid'&&f.kind!=='enroute'&&f.kind!=='star').forEach(f=>appendFixRow(F,f.name,pick));
+  }else entries.forEach(f=>appendFixRow(F,f.name,pick));
+  document.getElementById('customFix').value='';
+  document.getElementById('xresAlt').value='';document.getElementById('xresSpd').value='';
+  document.getElementById('xresBox').classList.add('hidden');
+  document.getElementById('xresAltimRow').classList.add('hidden');
+  document.getElementById('xresAltimInput').value='';
+  delete document.getElementById('xresAltimInput').dataset.manual;
+  xresAltimManual=false;
+  document.getElementById('rtEdit').value=a._routeRaw||a.route||'';
+  placePop(routemenu,x,y);
+}
+function selectFix(fix){
+  fixSelected=fix;
+  document.getElementById('xresFix').textContent=fix;
+  document.getElementById('xresBox').classList.remove('hidden');
+  syncXresAltimeterRow();
+}
+function normSpeed(s){s=s.replace(/\s/g,'').toUpperCase();return /^\d+$/.test(s)?s+'KT':s;}
+function normLevel(s){
+  const p=parseAltitudeInput(s);
+  if(!p)return '';
+  if(p.feet!=null&&!s.toUpperCase().includes('FL'))return String(p.feet);
+  return 'FL'+pad3(p.fl);
+}
+function crossAltText(s){
+  const p=parseAltitudeInput(s);
+  if(!p)return '';
+  if(p.below180)return formatFeetAlt(p.fl);
+  return 'FL'+pad3(p.fl);
+}
+function syncXresAltimeterRow(){
+  const alt=document.getElementById('xresAlt').value.trim();
+  const p=alt?parseAltitudeInput(alt):null;
+  const row=document.getElementById('xresAltimRow');
+  if(!rtTarget||!p||!p.below180){row.classList.add('hidden');return;}
+  populateAltimInput(document.getElementById('xresAltimInput'),
+    document.getElementById('xresAltimIcao'),rtTarget.arr,xresAltimManual);
+}
+document.getElementById('xresAlt').addEventListener('input',syncXresAltimeterRow);
+document.getElementById('xresAltimInput').addEventListener('input',()=>{
+  xresAltimManual=true;
+  document.getElementById('xresAltimInput').dataset.manual='1';
+});
+document.getElementById('useCustom').onclick=()=>{
+  const v=document.getElementById('customFix').value.trim().toUpperCase();
+  if(v){document.querySelectorAll('#fixList .fi').forEach(e=>e.classList.remove('sel'));selectFix(v);}
+};
+document.getElementById('xresUplink').onclick=async()=>{
+  if(!rtTarget||!fixSelected)return;
+  const alt=document.getElementById('xresAlt').value.trim();
+  const spd=document.getElementById('xresSpd').value.trim();
+  if(!alt&&!spd)return;
+  const altim=document.getElementById('xresAltimInput').value.trim();
+  const entry=await buildCrossingMessage(rtTarget,fixSelected,alt,spd,altim||null);
+  if(!entry)return;
+  const cs=rtTarget.cs;close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('rtUplink').onclick=async()=>{
+  const v=document.getElementById('customFix').value.trim().toUpperCase();const fix=v||fixSelected;
+  if(!rtTarget||!fix)return;
+  const entry=buildRouteDirectMessage(fix);
+  if(!entry)return;
+  const cs=rtTarget.cs;close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('rtSendRoute').onclick=async()=>{
+  if(!rtTarget)return;
+  const rt=document.getElementById('rtEdit').value.trim().toUpperCase().replace(/\s+/g,' ');
+  if(!rt)return;
+  const entry=buildRouteUplinkMessage(rtTarget,rt);
+  if(!entry)return;
+  const cs=rtTarget.cs;close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('rtScratchpad').onclick=async()=>{
+  if(!rtTarget)return;
+  const alt=document.getElementById('xresAlt').value.trim();
+  const spd=document.getElementById('xresSpd').value.trim();
+  const v=document.getElementById('customFix').value.trim().toUpperCase();
+  const fix=v||fixSelected;
+  let entry=null;
+  if(fix&&(alt||spd)){
+    const altim=document.getElementById('xresAltimInput').value.trim();
+    entry=await buildCrossingMessage(rtTarget,fix,alt,spd,altim||null);
+  }else if(fix){
+    entry=buildRouteDirectMessage(fix);
+  }else{
+    const rt=document.getElementById('rtEdit').value.trim().toUpperCase().replace(/\s+/g,' ');
+    if(rt)entry=buildRouteUplinkMessage(rtTarget,rt);
+  }
+  if(!entry||!queueAdd(rtTarget.cs,entry))return;
+  close('routemenu');
+};
+document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarget.cs);};
+
+//============================================================ HANDOFF menu (FLIGHT ID)
+const handoffpop=document.getElementById('handoffpop');
+function openHandoff(idx,x,y){
+  const a=displayList()[idx];
+  document.getElementById('hoTitle').textContent='HANDOFF '+a.cs;
+  const L=document.getElementById('hoList');L.innerHTML='';
+  // UNICOM release -- always available (no further ATC)
+  const uni=document.createElement('div');uni.className='ho unicom';
+  uni.innerHTML=`<span class="uni">UNICOM</span><span class="meta">122.800 \u00b7 release, no further ATC</span>`;
+  uni.onclick=()=>sendUnicom(a.cs);
+  L.appendChild(uni);
+  if(hubMode()){
+    const aps=(facilities||[]).filter(f=>f.kind&&f.kind!=='CTR');
+    const ctrs=(facilities||[]).filter(f=>!f.kind||f.kind==='CTR');
+    if(aps.length){
+      const h=document.createElement('div');h.className='empty';h.textContent='Approach / tower online (voice handoff):';L.appendChild(h);
+      aps.forEach(f=>{
+        const div=document.createElement('div');div.className='ho';
+        div.innerHTML=`<span class="left"><span class="app">${f.callsign}</span>`
+          +`<span class="meta"> ${f.freq||''}</span></span>`
+          +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
+        div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+        L.appendChild(div);
+      });
+    }
+    if(ctrs.length){
+      const note=document.createElement('div');note.className='empty';
+      note.innerHTML='Online centers in range \u2014 CONTACT issues the voice frequency change:';
+      L.appendChild(note);
+      ctrs.forEach(f=>{
+        const div=document.createElement('div');div.className='ho';
+        div.innerHTML=`<span class="left"><span class="ctr">${f.callsign||f.icao}</span>`
+          +`<span class="meta"> ${f.freq||''}${f.dist?(' \u00b7 '+f.dist+'nm'):''}</span></span>`
+          +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
+        div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+        L.appendChild(div);
+      });
+    }
+    placePop(handoffpop,x,y);return;
+  }
+  if(!facilities.length){const e=document.createElement('div');e.className='empty';e.textContent='No nearby ATC facilities online (within 200 nm).';L.appendChild(e);}
+  facilities.forEach(f=>{
+    const div=document.createElement('div');div.className='ho';
+    const kc=f.kind==='CTR'?'ctr':'app';
+    const handoverBtn=(f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
+    div.innerHTML=`<span class="left"><span class="${kc}">${f.callsign}</span>`
+      +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
+      +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
+    div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+    const hb=div.querySelector('.handover');
+    if(hb)hb.onclick=()=>sendHandover(a.cs,f);
+    L.appendChild(div);
+  });
+  placePop(handoffpop,x,y);
+}
+async function sendUnicom(cs){
+  close('handoffpop');
+  const min=await sendCpdlc(cs,'WU','MONITOR ADVISORY 122.8');
+  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
+    logMsg('sys',cs,'released to UNICOM (122.800)');renderBoard();}
+}
+// CONTACT = voice frequency change (pilot WILCOs; L clears on WILCO).
+async function sendHandoff(cs,fac){
+  close('handoffpop');
+  const min=await sendCpdlc(cs,'WU',`CONTACT @${fac.name}@ @${fac.freq||''}@`);
+  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
+    logMsg('sys',cs,'contact '+fac.callsign+' '+(fac.freq||''));renderBoard();}
+}
+// HANDOVER = CPDLC next-data-authority transfer. A capable aircraft logs off us
+// and logs on to the named ICAO; no WILCO is expected, so we clear L when the
+// aircraft sends LOGOFF (see handleIncoming). Edit HANDOVER_MSG if a client
+// needs a different wording.
+const HANDOVER_MSG=icao=>`HANDOVER @${icao}@`;
+async function sendHandover(cs,fac){
+  close('handoffpop');
+  const min=await sendCpdlc(cs,'N',HANDOVER_MSG(fac.icao));
+  if(min!=null){handoffPending.add(cs);
+    logMsg('sys',cs,'CPDLC handover \u2192 '+fac.icao+' (next data authority)');renderBoard();}
+}
+
+//============================================================ MESSAGE popup (M box)
+const msgpop=document.getElementById('msgpop');
+function openMessages(cs,x,y){
+  msgAlert.delete(cs);stopMsgRepeat(cs);renderBoard();
+  document.getElementById('mpTitle').textContent='MESSAGES '+cs;
+  const L=document.getElementById('mpList');L.innerHTML='';
+  const arr=messages[(cs||'').toUpperCase()]||[];
+  if(!arr.length){L.innerHTML='<div class="empty">No messages.</div>';}
+  arr.slice().reverse().forEach(m=>{                 // newest first
+    const dir=m.kind==='in'?'\u25c0 IN':m.kind==='out'?'\u25b6 OUT':m.kind==='sys'?'\u2713 SYS':m.kind==='err'?'\u26a0 ERR':'';
+    const d=document.createElement('div');d.className='mitem '+(m.kind||'');
+    d.innerHTML=`<span class="dir">${dir}</span> <span class="meta">${m.time}</span><br>${esc(m.text)}`;L.appendChild(d);
+  });
+  placePop(msgpop,x,y);
+}
+
+//============================================================ popups
+function placePop(el,x,y){el.classList.remove('hidden');
+  el.style.left=Math.min(x,window.innerWidth-el.offsetWidth-10)+'px';
+  el.style.top=Math.min(y,window.innerHeight-el.offsetHeight-10)+'px';}
+function close(id){document.getElementById(id).classList.add('hidden');}
+document.querySelectorAll('[data-close]').forEach(e=>e.onclick=()=>close(e.dataset.close));
+document.addEventListener('mousedown',ev=>{
+  ['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu','volpop'].forEach(id=>{const el=document.getElementById(id);
+    if(!el.classList.contains('hidden')&&!el.contains(ev.target)
+       &&!ev.target.closest('.alt-cell')&&!ev.target.closest('.route-cell')
+       &&!ev.target.closest('.hdg-cell')&&!ev.target.closest('.spd-cell')
+       &&!ev.target.closest('[data-fid]')&&!ev.target.closest('[data-msg]')
+       &&ev.target.id!=='btnSound')close(id);});
+});
+
+//============================================================ log + status
+const log=document.getElementById('log');
+function csFromWho(who){
+  let w=(who||'').split('\u00b7')[0].trim();            // strip " · co-ctrl" suffix
+  if(w.includes('\u2192'))w=w.split('\u2192')[1].trim();  // "FRM → TO" (feed uplink) -> aircraft (TO)
+  return w.toUpperCase();
+}
+function recordHist(cs,kind,text){
+  if(!cs)return;
+  const arr=(messages[cs]=messages[cs]||[]);
+  arr.push({kind,text:(text||'').replace(/@/g,' '),time:new Date().toLocaleTimeString()});
+  if(arr.length>250)arr.shift();                         // cap per-aircraft history
+}
+function logMsg(kind,who,text){
+  const d=document.createElement('div');d.className='msg '+kind;
+  const dir=kind==='in'?'\u25c0 IN':kind==='out'?'\u25b6 OUT':kind==='sys'?'\u2713 SYS':'\u26a0 ERR';
+  d.innerHTML=`<span class="dir">${dir}</span> <b>${who||''}</b> <span class="meta">${new Date().toLocaleTimeString()}</span><br>${esc((text||'').replace(/@/g,' '))}`;
+  log.prepend(d);
+  recordHist(csFromWho(who),kind,text);                  // also keep per-aircraft history for the M popup
+}
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+document.getElementById('clearLog').onclick=()=>log.innerHTML='';
+function setHoppie(ok,t){document.getElementById('connDot').className='dot '+(ok?'on':'err');document.getElementById('statusText').textContent=t||'';}
+function setVat(s,t){document.getElementById('vatDot').className='dot '+(s==='on'?'on':s==='busy'?'busy':s==='err'?'err':'');document.getElementById('vatText').textContent=t||'';}
+
+//============================================================ help
+const helpScrim=document.getElementById('helpScrim');
+function openHelp(){helpScrim.classList.remove('hidden');}
+function closeHelp(){helpScrim.classList.add('hidden');}
+document.getElementById('btnHelp').onclick=openHelp;
+document.getElementById('helpClose').onclick=closeHelp;
+helpScrim.onclick=e=>{if(e.target===helpScrim)closeHelp();};
+
+//============================================================ settings
+const scrim=document.getElementById('scrim');
+function openSettings(){
+  document.getElementById('setLogon').value=settings.logon||'';
+  document.getElementById('setStation').value=settings.station||'';
+  document.getElementById('setAirspace').value=settings.airspace||'';
+  document.getElementById('setHubUrl').value=settings.hubUrl||'';
+  document.getElementById('setCid').value=settings.cid||'';
+  scrim.classList.remove('hidden');
+}
+document.getElementById('btnSettings').onclick=openSettings;
+document.getElementById('setCancel').onclick=()=>scrim.classList.add('hidden');
+document.getElementById('setSave').onclick=()=>{
+  settings.logon=document.getElementById('setLogon').value.trim();
+  settings.station=document.getElementById('setStation').value.trim().toUpperCase();
+  settings.airspace=document.getElementById('setAirspace').value.trim().toUpperCase();
+  settings.hubUrl=document.getElementById('setHubUrl').value.trim();
+  if(!WEB_ONLY)settings.cid=document.getElementById('setCid').value.trim();
+  else syncCidFromOAuth();
+  persist();scrim.classList.add('hidden');
+  const op=configured()||hubMode();
+  setHoppie(false,op?'connecting...':'not configured');
+  if(op){burstUntil=Date.now()+30000;pollOnce();schedulePoll();}
+  refreshVatsim(true);scheduleVatsim();
+};
+
+//============================================================ add / find / refresh
+document.getElementById('btnAdd').onclick=()=>document.getElementById('addform').classList.toggle('hidden');
+document.getElementById('afCancel').onclick=()=>document.getElementById('addform').classList.add('hidden');
+document.getElementById('afSave').onclick=()=>{
+  const cs=afv('afCs').toUpperCase();if(!cs)return;
+  const rt=afv('afRoute').toUpperCase();
+  manual.unshift({cs,type:afv('afType').toUpperCase()||'----',alt:parseInt(afv('afAlt'))||350,hs:'/',route:rt,_routeRaw:rt,source:'manual'});
+  persist();renderBoard();
+  ['afCs','afType','afAlt','afRoute'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('addform').classList.add('hidden');
+};
+function afv(id){return document.getElementById(id).value.trim();}
+document.getElementById('btnRefresh').onclick=()=>refreshVatsim(true);
+(function(){
+  const va=document.getElementById('viewArtcc');va.value=settings.viewArtcc||'';
+  const go=()=>{settings.viewArtcc=va.value.trim().toUpperCase();va.value=settings.viewArtcc;persist();
+    refreshVatsim(true);scheduleVatsim();};
+  va.addEventListener('change',go);
+  va.addEventListener('keydown',e=>{if(e.key==='Enter'){va.blur();go();}});
+  const sa=document.getElementById('showAll');sa.checked=!!settings.showAll;
+  sa.addEventListener('change',()=>{settings.showAll=sa.checked;persist();renderBoard();});
+})();
+document.getElementById('find').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;const q=e.target.value.trim().toUpperCase();if(!q)return;
+  const row=[...rows.children].find(tr=>tr.querySelector('.fid')?.textContent.includes(q));
+  if(row){row.scrollIntoView({block:'center'});row.style.outline='1px solid var(--amber)';setTimeout(()=>row.style.outline='',1200);}
+  e.target.value='';
+});
+
+//============================================================ column sorting
+function updateSortIndicators(){
+  document.querySelectorAll('#board th[data-key]').forEach(th=>{
+    th.textContent=th.dataset.label+(sortState.key===th.dataset.key?(sortState.dir>0?' \u25b2':' \u25bc'):'');
+  });
+}
+document.querySelector('#board thead').addEventListener('click',e=>{
+  const th=e.target.closest('th[data-key]');if(!th)return;
+  const k=th.dataset.key;
+  if(sortState.key===k)sortState.dir*=-1;else{sortState.key=k;sortState.dir=1;}
+  updateSortIndicators();renderBoard();
+});
+
+//============================================================ board clicks
+rows.addEventListener('click',e=>{
+  const wbox=e.target.closest('[data-wilco]');     // flashing W (white or red): acknowledge
+  if(wbox){ackWilcoUi(wbox.dataset.wilco);renderBoard();return;}
+  if(!canControl())return;            // VIEW ONLY: board is read-only until verified
+  const mbox=e.target.closest('[data-msg]');
+  const lbox=e.target.closest('[data-logon]');
+  const fid=e.target.closest('[data-fid]');
+  const alt=e.target.closest('.alt-cell');
+  const hdgc=e.target.closest('.hdg-cell');
+  const spdc=e.target.closest('.spd-cell');
+  const rt=e.target.closest('.route-cell');
+  if(lbox){const cs=lbox.dataset.logon;
+    if(logonReq.has(cs)){                         // flashing L: accept the re-logon
+      logonReq.delete(cs);connected.add(cs);renderBoard();
+      api('/api/conn',{to:cs,action:'accept'}).then(r=>{if(r&&r.ok)logMsg('sys',cs,'logon accepted');});
+    }else if(connected.has(cs)){                  // solid L: force this aircraft off KUSA
+      if(!confirm('Force '+cs+' off CPDLC?\nAuto-logon will be disabled until they request and you accept again.'))return;
+      connected.delete(cs);logonReq.delete(cs);renderBoard();
+      api('/api/conn',{to:cs,action:'logoff'}).then(r=>{if(r&&r.ok)logMsg('sys',cs,'forced logoff \u2014 auto-logon disabled');});
+    }
+    return;}
+  if(mbox){const r=mbox.getBoundingClientRect();openMessages(mbox.dataset.msg,r.left,r.bottom+2);}
+  else if(fid){const r=fid.getBoundingClientRect();openHandoff(+fid.dataset.fid,r.left,r.bottom+2);}
+  else if(alt){const r=alt.getBoundingClientRect();openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);}
+  else if(hdgc){const r=hdgc.getBoundingClientRect();openHeadingMenu(+hdgc.dataset.hdg,r.left,r.bottom+2);}
+  else if(spdc){const r=spdc.getBoundingClientRect();openSpeedMenu(+spdc.dataset.spd,r.left,r.bottom+2);}
+  else if(rt){const r=rt.getBoundingClientRect();openRouteMenu(+rt.dataset.route,r.left,r.bottom+2);}
+});
+
+//============================================================ sounds (Web Audio, no files)
+let audioCtx=null;
+function ensureAudio(){
+  if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}}
+  if(audioCtx.state==='suspended')audioCtx.resume();
+}
+function beep(freq,dur,delay,vol,type){
+  if(!audioCtx)return;
+  const v=(vol||0.12)*volScale();
+  if(v<=0)return;                                  // silent at volume 0 (ramp target must be >0)
+  const t=audioCtx.currentTime+(delay||0);
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type||'sine';o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(v,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(audioCtx.destination);o.start(t);o.stop(t+dur+0.03);
+}
+function soundLogon(){soundMessage();}   // logon uses the message (M) chime
+function soundMessage(isRepeat){
+  if(isMuted()||suppressSounds)return;ensureAudio();
+  const vol=isRepeat?0.40:0.36;
+  beep(520,0.16,0,vol,'triangle');beep(520,0.16,0.20,vol,'triangle');
+}
+function soundWilco(){if(isMuted()||suppressSounds)return;ensureAudio();beep(784,0.12,0,0.36,'sine');beep(1047,0.15,0.10,0.40,'sine');} // rising WILCO chime
+function soundWilcoTimeout(){if(isMuted()||suppressSounds)return;ensureAudio();   // no reply in 2 min: loud alarm burst
+  const v=Math.min(0.95*volScale(),1);
+  [880,1100,880,1100,880].forEach((f,i)=>beep(f,0.08,i*0.09,v,'square'));}
+function soundLogonReq(){if(isMuted()||suppressSounds)return;ensureAudio();   // re-logon request: distinct two-tone alert
+  beep(988,0.13,0,0.42,'square');beep(740,0.13,0.16,0.42,'square');beep(988,0.16,0.32,0.42,'square');}
+['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,ensureAudio,{once:true}));   // unlock on first interaction
+
+function openVolume(){
+  const b=document.getElementById('btnSound').getBoundingClientRect();
+  const r=document.getElementById('volRange');
+  r.value=Math.round(volScale()*50);   // multiplier 1.0 -> 50%, 2.0 -> 100%
+  document.getElementById('volPct').textContent=r.value+'%';
+  placePop(document.getElementById('volpop'),b.left,b.bottom+4);
+}
+document.getElementById('btnSound').onclick=()=>{
+  const p=document.getElementById('volpop');
+  if(!p.classList.contains('hidden')){close('volpop');return;}   // toggle
+  ensureAudio();openVolume();
+};
+const volRange=document.getElementById('volRange');
+volRange.addEventListener('input',e=>{
+  const wasMuted=isMuted();
+  settings.volume=(+e.target.value)/50;   // 50% -> 1.0x (current), 100% -> 2.0x (double)
+  document.getElementById('volPct').textContent=(+e.target.value)+'%';
+  if(isMuted()!==wasMuted){                                       // mute boundary crossed
+    if(isMuted())Object.keys(msgRepeatTimers).forEach(stopMsgRepeat);
+    else msgAlert.forEach(cs=>startMsgRepeat(cs));
+    renderBoard();                                                // W box: solid (muted) vs done
+  }
+});
+volRange.addEventListener('change',()=>{persist();if(!isMuted()){ensureAudio();soundWilco();}});  // save + preview on release
+
+//============================================================ collapsible log
+function applyLogCollapsed(){
+  const c=!!settings.logCollapsed;
+  document.getElementById('log').style.display=c?'none':'';
+  document.getElementById('logToggle').textContent=(c?'\u25b8':'\u25be')+' DATALINK LOG';
+}
+document.getElementById('logToggle').onclick=()=>{settings.logCollapsed=!settings.logCollapsed;persist();applyLogCollapsed();};
+if(!settings.logCollapseInit){settings.logCollapsed=true;settings.logCollapseInit=true;persist();}  // start collapsed once; never auto-opens on messages
+applyLogCollapsed();
+
+//============================================================ collapsible uplink queue
+document.getElementById('queueToggle').onclick=()=>{
+  settings.queueCollapsed=!settings.queueCollapsed;persist();applyQueueCollapsed();
+};
+document.getElementById('queueUplink').onclick=()=>sendQueuedUplink(queueActiveCs);
+document.getElementById('clearQueue').onclick=()=>queueClear(queueActiveCs);
+if(settings.queueCollapsed==null){settings.queueCollapsed=true;persist();}
+applyQueueCollapsed();
+
+//============================================================ draggable popups
+function makeDraggable(el,handle){
+  if(!el||!handle)return;handle.style.cursor='move';
+  handle.addEventListener('mousedown',e=>{
+    if(e.target.closest('.x'))return;          // let the close button work
+    e.preventDefault();
+    const r=el.getBoundingClientRect();const ox=e.clientX-r.left,oy=e.clientY-r.top;
+    function mv(ev){
+      el.style.left=Math.max(0,Math.min(ev.clientX-ox,window.innerWidth-60))+'px';
+      el.style.top=Math.max(0,Math.min(ev.clientY-oy,window.innerHeight-30))+'px';
+    }
+    function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  });
+}
+['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu'].forEach(id=>{const el=document.getElementById(id);if(el)makeDraggable(el,el.querySelector('.hdr'));});
+
+//============================================================ boot
+renderBoard();
+if(!HUB_FEATURE){const hs=document.getElementById('hubSettings');if(hs)hs.style.display='none';}
+if(WEB_ONLY){            // website build: hub-only, hub URL pre-set to the shared KUSA hub
+  const solo=document.getElementById('soloSettings');if(solo)solo.style.display='none';
+  const ur=document.getElementById('hubUrlRow');if(ur)ur.style.display='none';
+  const hdr=document.getElementById('hubHdr');if(hdr){hdr.textContent='Sign in with VATSIM to control';hdr.style.borderTop='none';hdr.style.marginTop='0';}
+}
+function onOAuthReady(){
+  syncCidFromOAuth();
+  const cidEl=document.getElementById('setCid');
+  if(cidEl)cidEl.value=settings.cid||'';
+  setHoppie(false,(configured()||hubMode())?'connecting...':'VIEW ONLY \u2014 monitoring, not signed in');
+  setVat('',(airspaceId()||hubMode())?('VATSIM '+(airspaceId()||'hub')):'VIEW ONLY \u2014 type an ARTCC to watch');
+  if(configured()||hubMode()){pollOnce();}schedulePoll();
+  refreshVatsim(true);scheduleVatsim();
+  renderBoard();
+}
+window.addEventListener('vatflow-auth-changed',onOAuthReady);
+</script>
+<script type="module">
+import { initVatflowAuth, mountAuthNav } from "../shared/vatflow-auth.js";
+const nav=document.getElementById("vatflowAppNav");
+await initVatflowAuth();
+mountAuthNav(nav);
+onOAuthReady();
+</script>
+</body>
+</html>
