@@ -287,6 +287,7 @@ import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
   getAirport, hasAirport, parseAlt, markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+  airportArtcc,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -899,12 +900,25 @@ function updateMap() {
   });
 }
 
+function filterFcasByArtccScope(active, artcc) {
+  if (!artcc) return active;
+  const id = ("" + artcc).toUpperCase();
+  return active.filter(f => !f.scope || !f.scope.length ||
+    f.scope.map(x => ("" + x).toUpperCase()).includes(id));
+}
+
+function artccForReleaseField(field) {
+  const f = (field || "").toUpperCase();
+  if (!f) return null;
+  if (/^Z[A-Z]{2}$/.test(f) && !hasAirport(f)) return f;
+  let artcc = airportArtcc(f);
+  if (!artcc && f.length === 3) artcc = airportArtcc("K" + f);
+  return artcc;
+}
+
 function activeFcasForArtcc() {
   const active = state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
-  const artcc = (state.artcc || "").toUpperCase();
-  if (!artcc) return active;
-  return active.filter(f => !f.scope || !f.scope.length ||
-    f.scope.map(x => ("" + x).toUpperCase()).includes(artcc));
+  return filterFcasByArtccScope(active, state.artcc);
 }
 
 function isArtccModeField() {
@@ -913,10 +927,9 @@ function isArtccModeField() {
 
 function activeFcasForField() {
   const active = state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
-  if (!isArtccModeField()) return active;
-  const artcc = (state.field || "").toUpperCase();
-  return active.filter(f => !f.scope || !f.scope.length ||
-    f.scope.map(x => ("" + x).toUpperCase()).includes(artcc));
+  const artcc = artccForReleaseField(state.field);
+  if (artcc) return filterFcasByArtccScope(active, artcc);
+  return active;
 }
 
 function seqHintHtml() {
