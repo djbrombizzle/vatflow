@@ -15,14 +15,40 @@
 <body>
   <div class="box" id="msg">Completing VATSIM sign-in…</div>
   <script type="module">
+    import { getAccessApiBase } from "./shared/vatflow-access-api.js";
     import {
       acceptTokenFromCallback, consumeReturnPath, refreshSession,
     } from "./shared/vatflow-auth.js";
 
     const params = new URLSearchParams(window.location.search);
-    if (params.get("auth_error")) {
+
+    async function finishWithToken(token) {
+      acceptTokenFromCallback(token);
+      await refreshSession();
+      const dest = consumeReturnPath();
+      window.location.replace(dest);
+    }
+
+    if (params.get("auth_error") || params.get("error")) {
       document.getElementById("msg").innerHTML =
         '<span class="err">Sign-in failed or was cancelled.</span><br><a href="index.html">Return to VATFLOW</a>';
+    } else if (params.get("code") && params.get("state")) {
+      try {
+        const res = await fetch(`${getAccessApiBase()}/auth/vatsim/exchange`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            code: params.get("code"),
+            state: params.get("state"),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok || !data.token) throw new Error("exchange failed");
+        await finishWithToken(data.token);
+      } catch {
+        document.getElementById("msg").innerHTML =
+          '<span class="err">Could not complete sign-in.</span><br><a href="index.html">Return to VATFLOW</a>';
+      }
     } else {
       const hash = window.location.hash.replace(/^#/, "");
       const hashParams = new URLSearchParams(hash);
@@ -31,10 +57,9 @@
         document.getElementById("msg").innerHTML =
           '<span class="err">No session token received.</span><br><a href="index.html">Return to VATFLOW</a>';
       } else {
-        acceptTokenFromCallback(decodeURIComponent(token));
-        refreshSession().finally(() => {
-          const dest = consumeReturnPath();
-          window.location.replace(dest);
+        finishWithToken(decodeURIComponent(token)).catch(() => {
+          document.getElementById("msg").innerHTML =
+            '<span class="err">Could not complete sign-in.</span><br><a href="index.html">Return to VATFLOW</a>';
         });
       }
     }
