@@ -912,7 +912,7 @@ const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
-/* ---- controller access: VATSIM Connect OAuth (full tier = C1+ or whitelist) ---- */
+/* ---- controller access: VATSIM Connect OAuth (full tier = whitelist only) ---- */
 function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
 const groundStops = [];     // ground stop entries (shared): {id,airport,scope,until,updated,flashUntil}
 /* ARTCC/FIR boundary polygons (lazy-loaded from VAT-Spy when needed) */

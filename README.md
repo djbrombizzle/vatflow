@@ -6,7 +6,9 @@ VATFLOW is a single-file web app that helps virtual air traffic controllers mana
 
 Everything runs in one HTML file. No build step, no server, no install. 
 
-Download or test via this link here https://djbrombizzle.github.io/vatflow/vatflow-tbfm%20v2.html
+Download or test via this link here https://vatflow.io/vatflow-tbfm%20v2.html (also https://djbrombizzle.github.io/vatflow/vatflow-tbfm%20v2.html)
+
+**Operator guide:** [ACCESS-AND-ADMIN.md](ACCESS-AND-ADMIN.md) — permissions, whitelist, and admin setup after VATSIM OAuth.
 
 ---
 

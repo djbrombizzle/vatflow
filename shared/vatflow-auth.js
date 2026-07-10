@@ -189,7 +189,7 @@ export function clearLocalVatflowData() {
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (!k) continue;
-    if (k.startsWith("vatflow.") || k.startsWith("towerDep.") || k.startsWith("fcaBuilder.") ||
+    if (k.startsWith("vatflow.") || k.startsWith("towerDep.") || k.startsWith("artccDashboard.") || k.startsWith("fcaBuilder.") ||
         k.startsWith("runwayBalancer.") || k === "vatflow_pilot_cid") keys.push(k);
   }
   keys.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
