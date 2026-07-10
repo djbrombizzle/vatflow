@@ -5,7 +5,7 @@ import { initVatflowAuth, mountAuthNav } from "./vatflow-auth.js";
 
 /**
  * @param {HTMLElement|null} container
- * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"admin"|"hub"} active
+ * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"vusalink"|"admin"|"hub"} active
  */
 export function mountVatflowNav(container, active) {
   if (!container) return;
@@ -14,6 +14,7 @@ export function mountVatflowNav(container, active) {
     { id: "fca", href: "FCA-builderv02.html", label: "FCA TMU" },
     { id: "artcc", href: "artcc-dashboard.html", label: "ARTCC Dashboard" },
     { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
+    { id: "vusalink", href: "vusalink/", label: "vUSAlink" },
     { id: "admin", href: "admin-access.html", label: "Admin Access" },
   ];
   const nav = document.createElement("nav");
