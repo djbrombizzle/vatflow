@@ -37,11 +37,17 @@
     color: var(--amber); font-family: var(--mono); font-size: 13px; font-weight: 700; padding: 6px 10px;
   }
   #mapPanel {
-    height: min(42vh, 420px); min-height: 240px; margin: 0 16px 12px;
+    height: min(48vh, 480px); min-height: 280px; margin: 0 16px 12px;
     border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0a0e14;
   }
   #mapPanel .leaflet-container { background: #0a0e14; font-family: var(--mono); }
-  .artcc-label { background: rgba(8, 11, 16, 0.92) !important; border: 1px solid #2a3848 !important; color: #d4dde6 !important; font: 10px/1.2 var(--mono) !important; padding: 2px 5px !important; box-shadow: none !important; }
+  .artcc-label {
+    background: none !important; border: none !important; box-shadow: none !important;
+    color: #5e7184 !important; font-family: var(--mono) !important;
+    font-size: 10px !important; letter-spacing: 0.08em !important; padding: 0 !important;
+  }
+  .plane { transform-origin: center; }
+  .plane svg { display: block; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.9)); }
   .release-panel {
     margin: 0 16px 12px; padding: 10px 12px; background: var(--panel);
     border: 1px solid var(--line); border-radius: 8px;
@@ -889,7 +895,7 @@ function syncFcaGrid(activeFcas, byFca, dragOk) {
   return true;
 }
 
-function updateMap() {
+function updateMap({ refit = false } = {}) {
   if (!dashboardMap || !state.artcc) return;
   const activeFcas = activeFcasForArtcc();
   dashboardMap.update({
@@ -897,6 +903,7 @@ function updateMap() {
     fcas: activeFcas,
     pilots: state.pilots,
     prefiles: state.prefiles,
+    refit,
   });
 }
 
@@ -1141,7 +1148,7 @@ function activateArtcc(artcc) {
     const fi = document.getElementById("fieldInput");
     if (fi) fi.value = artcc;
   }
-  updateMap();
+  updateMap({ refit: true });
   render();
 }
 
