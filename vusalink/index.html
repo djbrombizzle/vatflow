@@ -691,16 +691,16 @@ function syncCidFromOAuth(){
   return false;
 }
 function oauthReady(){return HUB_FEATURE&&!!(settings.hubUrl&&oauthSignedIn()&&settings.cid);}
-function hubMode(){return oauthReady()&&verifyOK;}   // controller session (vNAS verified)
-function canControl(){return configured()||hubMode();}
-function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (default, incl. signed-in OAuth)
+function hubMode(){return oauthReady();}   // signed-in hub session (VATSIM position drives feed)
+function canControl(){return configured()||(hubMode()&&verifyOK);}   // CPDLC uplinks need vNAS verify
+function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (unsigned-in observers)
 function monitorArtcc(){return (settings.viewArtcc||'').trim().toUpperCase();}
 function airspaceId(){return (hubMode()?hubArtcc:(settings.airspace||settings.station||'')).trim().toUpperCase();}
 const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter'};
 function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
 async function api(path,extra){
   extra=extra||{};
-  if(oauthReady()||hubMode()){        // hub API (controller or verify probe)
+  if(hubMode()){                      // hub API (signed-in session)
     const cid=(settings.cid||'').trim();
     const body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
       vatflowToken:(window.VatflowAuth&&window.VatflowAuth.getStoredToken())||''};
@@ -721,12 +721,12 @@ function applyVerify(v,showBar){
   const atisBlk=document.getElementById('verifyAtisBlock');
   const vnasBlk=document.getElementById('verifyVnasBlock');
   const stateEl=document.getElementById('verifyState');
-  if(!oauthReady()||!v){verifyOK=false;bar.classList.add('hidden');return;}
-  const wasControl=hubMode();
+  if(!hubMode()||!v){verifyOK=false;bar.classList.add('hidden');return;}
+  const wasControl=canControl();
   verifyMethod=(v.method==='vnas')?'vnas':'atis';
   if(v.ok){verifyOK=true;bar.classList.add('hidden');
     if(v.token)storeVerifyToken((settings.cid||'').trim(),v.token);
-    if(!wasControl&&hubMode()){pollOnce();schedulePoll();refreshVatsim(true);scheduleVatsim();}}
+    if(!wasControl&&canControl()){pollOnce();schedulePoll();refreshVatsim(true);scheduleVatsim();}}
   else{
     verifyOK=false;verifyCode=v.code||verifyCode;
     clearVerifyToken();
@@ -746,7 +746,7 @@ function applyVerify(v,showBar){
   renderBoard();
 }
 async function probeVerify(){
-  if(!oauthReady()||verifyOK)return;
+  if(!hubMode()||verifyOK)return;
   try{
     const d=await api('/api/vatsim',{});
     if(d&&d.verify)applyVerify(d.verify);
@@ -754,9 +754,6 @@ async function probeVerify(){
 }
 async function sendCpdlc(to,ra,message,mrn){
   if(!configured()&&!hubMode()){
-    if(oauthReady()&&!verifyOK){
-      applyVerify({ok:false,method:'vnas',vnasMessage:'Log in to vNAS with the same VATSIM account to send CPDLC.'},true);
-      setHoppie(true,'vNAS verify to control');return null;}
     if(WEB_ONLY&&!oauthSignedIn())window.VatflowAuth.login();
     return null;
   }
@@ -1079,7 +1076,7 @@ async function refreshMonitor(force){
     renderFeed(d.messages,d.evtId);
     setVat('on',`VIEW ${art} \u00b7 ${connected.size} on KUSA \u00b7 ${liveFlights.length} a/c`);
     renderBoard();
-    if(oauthReady())await probeVerify();
+    if(hubMode())await probeVerify();
   }catch(e){setVat('err','hub unreachable');}
 }
 async function refreshVatsim(force){
@@ -1285,6 +1282,7 @@ function updateMode(){
   if(!badge)return;
   if(canControl()){badge.textContent='CONTROLLING';badge.className='badge ctrl';if(field)field.style.display='none';}
   else if(WEB_ONLY&&!oauthSignedIn()){badge.textContent='SIGN IN TO CONTROL';badge.className='badge view';if(field)field.style.display='';}
+  else if(hubMode()){badge.textContent=verifyOK?'CONTROLLING':'vNAS VERIFY';badge.className=verifyOK?'badge ctrl':'badge view';if(field)field.style.display='none';}
   else{badge.textContent='VIEW ONLY';badge.className='badge view';if(field)field.style.display='';}
 }
 function updateTabTitle(){
@@ -1911,9 +1909,9 @@ if(WEB_ONLY){
 }
 function onOAuthReady(){
   syncCidFromOAuth();
-  setHoppie(false,hubMode()?'connecting...':'VIEW ONLY \u2014 type an ARTCC to watch');
-  setVat('',hubMode()?('VATSIM '+(airspaceId()||'hub')):'VIEW ONLY \u2014 type an ARTCC to watch');
-  if(hubMode()){pollOnce();schedulePoll();}
+  setHoppie(false,(configured()||hubMode())?'connecting...':'VIEW ONLY \u2014 type an ARTCC to watch');
+  setVat('',(airspaceId()||hubMode())?('VATSIM '+(airspaceId()||'hub')):'VIEW ONLY \u2014 type an ARTCC to watch');
+  if(configured()||hubMode()){pollOnce();schedulePoll();}
   refreshVatsim(true);scheduleVatsim();
   renderBoard();
 }
