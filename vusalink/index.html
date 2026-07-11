@@ -248,7 +248,6 @@
   <button class="tb-btn" id="btnRefresh">REFRESH</button>
   <button class="tb-btn" id="btnMap">LIVE MAP</button>
   <button class="tb-btn" id="btnHelp">HELP</button>
-  <button class="tb-btn" id="btnSettings">SETTINGS</button>
   <button class="tb-btn" id="btnSound">SOUND</button>
   <a class="tb-btn" href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">DISCORD</a>
   <span id="modeBadge" class="badge view">VIEW ONLY</span>
@@ -462,7 +461,7 @@
         <li><b>SOUND</b> — adjust alert volume (50% is normal).</li>
         <li><b>REFRESH</b> — reload live VATSIM traffic.</li>
       </ul>
-      <p class="help-tip">Still stuck? <a href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">Join our Discord</a> or open <b>SETTINGS</b> to check your CID.</p>
+      <p class="help-tip">Still stuck? <a href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">Join our Discord</a>.</p>
     </div>
     <div class="actions"><button class="tb-btn" id="helpClose">close</button></div>
   </div>
@@ -691,16 +690,17 @@ function syncCidFromOAuth(){
   if(WEB_ONLY&&!oauthSignedIn())settings.cid='';
   return false;
 }
-function hubMode(){return HUB_FEATURE&&!!(settings.hubUrl&&oauthSignedIn()&&settings.cid);}
-function canControl(){return configured()||(hubMode()&&verifyOK);}   // solo OR verified hub
-function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (no position signed in)
+function oauthReady(){return HUB_FEATURE&&!!(settings.hubUrl&&oauthSignedIn()&&settings.cid);}
+function hubMode(){return oauthReady()&&verifyOK;}   // controller session (vNAS verified)
+function canControl(){return configured()||hubMode();}
+function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (default, incl. signed-in OAuth)
 function monitorArtcc(){return (settings.viewArtcc||'').trim().toUpperCase();}
 function airspaceId(){return (hubMode()?hubArtcc:(settings.airspace||settings.station||'')).trim().toUpperCase();}
 const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter'};
 function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
 async function api(path,extra){
   extra=extra||{};
-  if(hubMode()){                      // call the hub directly (works as a static site)
+  if(oauthReady()||hubMode()){        // hub API (controller or verify probe)
     const cid=(settings.cid||'').trim();
     const body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
       vatflowToken:(window.VatflowAuth&&window.VatflowAuth.getStoredToken())||''};
@@ -715,16 +715,18 @@ async function api(path,extra){
     verifyToken:verifyTokenFor((settings.cid||'').trim())},extra);
   return (await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
 }
-let verifyOK=true, verifyCode='', verifyMethod='atis';
-function applyVerify(v){
+let verifyOK=false, verifyCode='', verifyMethod='atis';
+function applyVerify(v,showBar){
   const bar=document.getElementById('verifyBar');if(!bar)return;
   const atisBlk=document.getElementById('verifyAtisBlock');
   const vnasBlk=document.getElementById('verifyVnasBlock');
   const stateEl=document.getElementById('verifyState');
-  if(!hubMode()||!v){verifyOK=true;bar.classList.add('hidden');return;}
+  if(!oauthReady()||!v){verifyOK=false;bar.classList.add('hidden');return;}
+  const wasControl=hubMode();
   verifyMethod=(v.method==='vnas')?'vnas':'atis';
   if(v.ok){verifyOK=true;bar.classList.add('hidden');
-    if(v.token)storeVerifyToken((settings.cid||'').trim(),v.token);}
+    if(v.token)storeVerifyToken((settings.cid||'').trim(),v.token);
+    if(!wasControl&&hubMode()){pollOnce();schedulePoll();refreshVatsim(true);scheduleVatsim();}}
   else{
     verifyOK=false;verifyCode=v.code||verifyCode;
     clearVerifyToken();
@@ -738,13 +740,24 @@ function applyVerify(v){
       document.getElementById('verifyCode').textContent=verifyCode||'VUSA-----';
       if(stateEl)stateEl.textContent='not verified yet \u2014 add the code, then wait a moment\u2026';
     }
-    bar.classList.remove('hidden');
+    if(showBar)bar.classList.remove('hidden');
+    else bar.classList.add('hidden');
   }
+  renderBoard();
+}
+async function probeVerify(){
+  if(!oauthReady()||verifyOK)return;
+  try{
+    const d=await api('/api/vatsim',{});
+    if(d&&d.verify)applyVerify(d.verify);
+  }catch(e){}
 }
 async function sendCpdlc(to,ra,message,mrn){
   if(!configured()&&!hubMode()){
-    if(WEB_ONLY&&window.VatflowAuth&&!oauthSignedIn())window.VatflowAuth.login();
-    else openSettings();
+    if(oauthReady()&&!verifyOK){
+      applyVerify({ok:false,method:'vnas',vnasMessage:'Log in to vNAS with the same VATSIM account to send CPDLC.'},true);
+      setHoppie(true,'vNAS verify to control');return null;}
+    if(WEB_ONLY&&!oauthSignedIn())window.VatflowAuth.login();
     return null;
   }
   if(hubMode()&&!verifyOK){applyVerify({ok:false,code:verifyCode,method:verifyMethod});
@@ -1066,6 +1079,7 @@ async function refreshMonitor(force){
     renderFeed(d.messages,d.evtId);
     setVat('on',`VIEW ${art} \u00b7 ${connected.size} on KUSA \u00b7 ${liveFlights.length} a/c`);
     renderBoard();
+    if(oauthReady())await probeVerify();
   }catch(e){setVat('err','hub unreachable');}
 }
 async function refreshVatsim(force){
@@ -1271,7 +1285,6 @@ function updateMode(){
   if(!badge)return;
   if(canControl()){badge.textContent='CONTROLLING';badge.className='badge ctrl';if(field)field.style.display='none';}
   else if(WEB_ONLY&&!oauthSignedIn()){badge.textContent='SIGN IN TO CONTROL';badge.className='badge view';if(field)field.style.display='';}
-  else if(hubMode()){badge.textContent=verifyOK?'CONTROLLING':'vNAS VERIFY';badge.className=verifyOK?'badge ctrl':'badge view';if(field)field.style.display='none';}
   else{badge.textContent='VIEW ONLY';badge.className='badge view';if(field)field.style.display='';}
 }
 function updateTabTitle(){
@@ -1887,33 +1900,24 @@ document.getElementById('btnHelp').onclick=openHelp;
 document.getElementById('helpClose').onclick=closeHelp;
 helpScrim.onclick=e=>{if(e.target===helpScrim)closeHelp();};
 
-//============================================================ settings
-const scrim=document.getElementById('scrim');
-function openSettings(){
-  document.getElementById('setLogon').value=settings.logon||'';
-  document.getElementById('setStation').value=settings.station||'';
-  document.getElementById('setAirspace').value=settings.airspace||'';
-  document.getElementById('setHubUrl').value=settings.hubUrl||'';
-  document.getElementById('setCid').value=settings.cid||'';
-  scrim.classList.remove('hidden');
+//============================================================ boot
+renderBoard();
+if(!HUB_FEATURE){const hs=document.getElementById('hubSettings');if(hs)hs.style.display='none';}
+if(WEB_ONLY){
+  const solo=document.getElementById('soloSettings');if(solo)solo.style.display='none';
+  const ur=document.getElementById('hubUrlRow');if(ur)ur.style.display='none';
+  const hdr=document.getElementById('hubHdr');if(hdr)hdr.style.display='none';
+  const scrimEl=document.getElementById('scrim');if(scrimEl)scrimEl.style.display='none';
 }
-document.getElementById('btnSettings').onclick=openSettings;
-document.getElementById('setCancel').onclick=()=>scrim.classList.add('hidden');
-document.getElementById('setSave').onclick=()=>{
-  settings.logon=document.getElementById('setLogon').value.trim();
-  settings.station=document.getElementById('setStation').value.trim().toUpperCase();
-  settings.airspace=document.getElementById('setAirspace').value.trim().toUpperCase();
-  settings.hubUrl=document.getElementById('setHubUrl').value.trim();
-  if(!WEB_ONLY)settings.cid=document.getElementById('setCid').value.trim();
-  else syncCidFromOAuth();
-  persist();scrim.classList.add('hidden');
-  const op=configured()||hubMode();
-  setHoppie(false,op?'connecting...':'not configured');
-  if(op){burstUntil=Date.now()+30000;pollOnce();schedulePoll();}
+function onOAuthReady(){
+  syncCidFromOAuth();
+  setHoppie(false,hubMode()?'connecting...':'VIEW ONLY \u2014 type an ARTCC to watch');
+  setVat('',hubMode()?('VATSIM '+(airspaceId()||'hub')):'VIEW ONLY \u2014 type an ARTCC to watch');
+  if(hubMode()){pollOnce();schedulePoll();}
   refreshVatsim(true);scheduleVatsim();
-};
-
-//============================================================ add / find / refresh
+  renderBoard();
+}
+window.addEventListener('vatflow-auth-changed',onOAuthReady);
 document.getElementById('btnAdd').onclick=()=>document.getElementById('addform').classList.toggle('hidden');
 document.getElementById('afCancel').onclick=()=>document.getElementById('addform').classList.add('hidden');
 document.getElementById('afSave').onclick=()=>{
@@ -2078,25 +2082,6 @@ function makeDraggable(el,handle){
 }
 ['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu'].forEach(id=>{const el=document.getElementById(id);if(el)makeDraggable(el,el.querySelector('.hdr'));});
 
-//============================================================ boot
-renderBoard();
-if(!HUB_FEATURE){const hs=document.getElementById('hubSettings');if(hs)hs.style.display='none';}
-if(WEB_ONLY){            // website build: hub-only, hub URL pre-set to the shared KUSA hub
-  const solo=document.getElementById('soloSettings');if(solo)solo.style.display='none';
-  const ur=document.getElementById('hubUrlRow');if(ur)ur.style.display='none';
-  const hdr=document.getElementById('hubHdr');if(hdr){hdr.textContent='Sign in with VATSIM to control';hdr.style.borderTop='none';hdr.style.marginTop='0';}
-}
-function onOAuthReady(){
-  syncCidFromOAuth();
-  const cidEl=document.getElementById('setCid');
-  if(cidEl)cidEl.value=settings.cid||'';
-  setHoppie(false,(configured()||hubMode())?'connecting...':'VIEW ONLY \u2014 monitoring, not signed in');
-  setVat('',(airspaceId()||hubMode())?('VATSIM '+(airspaceId()||'hub')):'VIEW ONLY \u2014 type an ARTCC to watch');
-  if(configured()||hubMode()){pollOnce();}schedulePoll();
-  refreshVatsim(true);scheduleVatsim();
-  renderBoard();
-}
-window.addEventListener('vatflow-auth-changed',onOAuthReady);
 </script>
 <script type="module">
 import { initVatflowAuth, mountAuthNav } from "../shared/vatflow-auth.js";
