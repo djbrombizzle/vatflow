@@ -686,4 +686,23 @@ assert(scopeShown(zaaArtcc, { scope:["ZAA"] }), "tower sees an FCA scoped to its
 assert(scopeShown(zaaArtcc, { scope:["ZAA","ZBB"] }), "tower sees a multi-center FCA including it");
 assert(scopeShown(zaaArtcc, { scope:[] }), "tower always sees an unscoped (global) FCA");
 
+/* ============================================================
+   21. PCT filter — Potomac TRACON departure cluster
+   ============================================================ */
+import {
+  fcaTouchesPctDepartures, pctDepartureMatch, getAirport, PCT_ARTCC, isPctField,
+} from "../shared/fca-metering.js";
+seedAirports({ KDCA:[38.8521,-77.0377], KIAD:[38.9445,-77.4558], KBWI:[39.1754,-76.6683], KRIC:[37.5052,-77.3197], KJFK:[40.64,-73.78] });
+assert(isPctField("pct") && !isPctField("DCA"), "PCT field token");
+assert(PCT_ARTCC === "ZDC", "PCT maps to Washington Center");
+assert(getAirport("DCA") && getAirport("KDCA"), "3-letter dep resolves via K-prefix lookup");
+assert(pctDepartureMatch("DCA") && pctDepartureMatch("KDCA"), "PCT matches DCA with or without K");
+assert(!pctDepartureMatch("KJFK"), "PCT does not match non-cluster airports");
+assert(fcaTouchesPctDepartures({ origins:[] }), "blank origins = all departures (include)");
+assert(fcaTouchesPctDepartures({ origins:["DCA"] }), "3-letter PCT origin matches");
+assert(fcaTouchesPctDepartures({ origins:["KDCA","KIAD"] }), "4-letter PCT origins match");
+assert(!fcaTouchesPctDepartures({ origins:["KBOS"] }), "non-PCT origin filter excludes");
+assert(fcaTouchesPctDepartures({ origins:[], dests:["KJFK"] }), "dest-only FCA still meters PCT departures");
+assert(!fcaTouchesPctDepartures({ origins:["KBOS"], dests:["KJFK"] }), "non-PCT origin with dests excluded");
+
 console.log(`test-fca-metering: all ${passed} assertions passed`);

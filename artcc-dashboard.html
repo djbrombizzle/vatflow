@@ -308,7 +308,7 @@ import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
   getAirport, hasAirport, parseAlt, markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
-  airportArtcc, airportCodesMatch, isPctField, PCT_AIRPORTS,
+  airportArtcc, isPctField, PCT_ARTCC, fcaTouchesPctDepartures,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -938,7 +938,7 @@ function filterFcasByArtccScope(active, artcc) {
 function artccForReleaseField(field) {
   const f = (field || "").toUpperCase();
   if (!f) return null;
-  if (isPctField(f)) return state.artcc || "ZDC";
+  if (isPctField(f)) return PCT_ARTCC;
   if (/^Z[A-Z]{2}$/.test(f) && !hasAirport(f)) return f;
   let artcc = airportArtcc(f);
   if (!artcc && f.length === 3) artcc = airportArtcc("K" + f);
@@ -950,14 +950,7 @@ function isPctModeField() {
 }
 
 function activeFcasForPct(active) {
-  const touchesPct = f => {
-    if (!f.dests?.length && !f.origins?.length) return true;
-    const hit = code => PCT_AIRPORTS.some(apt => airportCodesMatch(code, apt));
-    if (f.dests?.length && f.dests.some(hit)) return true;
-    if (f.origins?.length && f.origins.some(hit)) return true;
-    return false;
-  };
-  return active.filter(touchesPct);
+  return active.filter(fcaTouchesPctDepartures);
 }
 
 function activeFcasForArtcc() {
