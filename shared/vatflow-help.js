@@ -65,7 +65,7 @@ export const ARTCC_DASHBOARD_HELP = {
       open: true,
       items: [
         "Select your <b>ARTCC</b> from the dropdown — the map zooms to that center and shows scoped FCA programs plus aircraft in those sequences.",
-        "In <b>Release management</b>, enter an ARTCC code (e.g. ZDC) for center-wide departures or an airport (e.g. DCA, IAD) for ground releases at that field.",
+        "In <b>Release management</b>, enter an ARTCC code (e.g. ZDC) for center-wide departures, an airport (e.g. DCA, IAD), or <b>PCT</b> for metered departures at DCA, IAD, BWI, and RIC.",
         "Only <b>metered</b> departures appear — aircraft not in an active FCA program are hidden.",
         "FCAs load from Supabase realtime (same as FCA TMU) with local cache fallback.",
       ],

@@ -287,7 +287,7 @@
   <h2>RELEASE MANAGEMENT</h2>
   <div class="field-row">
     <label for="fieldInput">FILTER</label>
-    <input id="fieldInput" maxlength="4" placeholder="ZDC or DCA" autocomplete="off">
+    <input id="fieldInput" maxlength="4" placeholder="ZDC, DCA, or PCT" autocomplete="off">
     <button type="button" class="btn primary sm" id="loadBtn">Load</button>
   </div>
 </div>
@@ -308,7 +308,7 @@ import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, computeTowerDepartures, reorderFcaGlobalOrder,
   getAirport, hasAirport, parseAlt, markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
-  airportArtcc,
+  airportArtcc, airportCodesMatch, isPctField, PCT_AIRPORTS,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -378,6 +378,7 @@ let dashboardMap = null;
 const DEMO_AIRPORTS = {
   KATL: [33.64, -84.43], KJFK: [40.64, -73.78], KORD: [41.98, -87.90], KDFW: [32.90, -97.04],
   KDEN: [39.86, -104.67], KLAX: [33.94, -118.41], KMIA: [25.79, -80.29], KBOS: [42.36, -71.01],
+  KDCA: [38.85, -77.04], KIAD: [38.94, -77.46], KBWI: [39.18, -76.67], KRIC: [37.51, -77.32],
 };
 seedAirports(DEMO_AIRPORTS);
 
@@ -740,10 +741,14 @@ function groupDeparturesByFca(departures) {
 
 function renderStripHtml(result) {
   const holding = result.departures.filter(d => hasEdctDelay(d.delayMin)).length;
+  const fieldLabel = isPctModeField()
+    ? "PCT DEPARTURES (DCA · IAD · BWI · RIC)"
+    : `${state.field} DEPARTURES`;
   return `<div class="dep-strip" id="depStrip">` +
-    `<span class="field">${escapeHtml(state.field)} DEPARTURES</span>` +
+    `<span class="field">${escapeHtml(fieldLabel)}</span>` +
     `<span class="stat">TOTAL <b>${result.total}</b></span>` +
     (result.artccMode ? `<span class="stat" style="color:var(--amber)">ARTCC-WIDE ${escapeHtml(state.field)}${isArtccScopeReady() ? "" : " · loading boundaries…"}</span>` : "") +
+    (result.pctMode ? `<span class="stat" style="color:var(--amber)">PCT · FCA-metered only</span>` : "") +
     `<span class="stat stat-warn">METERED <b>${result.metered}</b></span>` +
     (holding ? `<span class="stat stat-alert">HOLDING <b>${holding}</b></span>` : "") +
     `</div>`;
@@ -933,10 +938,26 @@ function filterFcasByArtccScope(active, artcc) {
 function artccForReleaseField(field) {
   const f = (field || "").toUpperCase();
   if (!f) return null;
+  if (isPctField(f)) return state.artcc || "ZDC";
   if (/^Z[A-Z]{2}$/.test(f) && !hasAirport(f)) return f;
   let artcc = airportArtcc(f);
   if (!artcc && f.length === 3) artcc = airportArtcc("K" + f);
   return artcc;
+}
+
+function isPctModeField() {
+  return isPctField(state.field);
+}
+
+function activeFcasForPct(active) {
+  const touchesPct = f => {
+    if (!f.dests?.length && !f.origins?.length) return true;
+    const hit = code => PCT_AIRPORTS.some(apt => airportCodesMatch(code, apt));
+    if (f.dests?.length && f.dests.some(hit)) return true;
+    if (f.origins?.length && f.origins.some(hit)) return true;
+    return false;
+  };
+  return active.filter(touchesPct);
 }
 
 function activeFcasForArtcc() {
@@ -945,11 +966,15 @@ function activeFcasForArtcc() {
 }
 
 function isArtccModeField() {
-  return /^Z[A-Z]{2}$/.test(state.field || "") && !hasAirport(state.field);
+  return /^Z[A-Z]{2}$/.test(state.field || "") && !hasAirport(state.field) && !isPctModeField();
 }
 
 function activeFcasForField() {
   const active = state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
+  if (isPctModeField()) {
+    const scoped = filterFcasByArtccScope(active, artccForReleaseField(state.field));
+    return activeFcasForPct(scoped);
+  }
   const artcc = artccForReleaseField(state.field);
   if (artcc) return filterFcasByArtccScope(active, artcc);
   return active;
@@ -1082,7 +1107,7 @@ function render() {
   if (!state.field) {
     main.innerHTML =
       `<div class="emptystate"><h2>RELEASE FILTER</h2>` +
-      `<p>Enter an ARTCC code (e.g. ZDC) for center-wide departures, or an airport (e.g. DCA, IAD) for ground releases at that field.</p>` +
+      `<p>Enter an ARTCC code (e.g. ZDC) for center-wide departures, an airport (e.g. DCA, IAD), or <b>PCT</b> for FCA-metered departures at DCA, IAD, BWI, and RIC.</p>` +
       `<div class="emptystate-actions">` +
       `<input id="splashField" maxlength="4" placeholder="${escapeHtml(state.artcc || "ZDC")}" class="field-row input">` +
       `<button type="button" class="btn primary" id="splashLoad">Load</button></div></div>`;

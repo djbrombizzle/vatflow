@@ -1160,19 +1160,34 @@ function isDepartureShape(p) {
   return true;
 }
 
+/** Potomac TRACON cluster — ARTCC dashboard PCT filter. */
+export const PCT_AIRPORTS = ["KDCA", "KIAD", "KBWI", "KRIC"];
+
+export function isPctField(code) {
+  return (code || "").toUpperCase() === "PCT";
+}
+
 export function isDepartureCandidate(p, depIcao) {
-  return isDepartureShape(p) && (p.dep || "").toUpperCase() === depIcao;
+  if (isPctField(depIcao)) {
+    return isDepartureShape(p) && PCT_AIRPORTS.some(apt => airportCodesMatch(p.dep, apt));
+  }
+  return isDepartureShape(p) && airportCodesMatch(p.dep, depIcao);
 }
 
 export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles, opts = {}) {
   const nowMs = Date.now();
   const dep = (depIcao || "").toUpperCase();
   if (!dep) return { departures: [], nowMs };
+  const pctMode = isPctField(dep);
   // ARTCC-wide mode: a Zxx key that isn't an airport shows departures from
   // EVERY field inside that center's boundary (with airport overrides).
-  const artccMode = opts.artcc === true ||
-    (opts.artcc !== false && /^Z[A-Z]{2}$/.test(dep) && !hasAirport(dep));
-  const matches = artccMode ? (p => depMatchesArtcc(p, dep)) : (p => (p.dep || "").toUpperCase() === dep);
+  const artccMode = !pctMode && (opts.artcc === true ||
+    (opts.artcc !== false && /^Z[A-Z]{2}$/.test(dep) && !hasAirport(dep)));
+  const matches = pctMode
+    ? (p => PCT_AIRPORTS.some(apt => airportCodesMatch(p.dep, apt)))
+    : artccMode
+      ? (p => depMatchesArtcc(p, dep))
+      : (p => airportCodesMatch(p.dep, dep));
 
   const seen = new Set();
   let total = 0;
@@ -1221,5 +1236,5 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles, opts = 
   }
 
   const departures = [...byCallsign.values()].sort((a, b) => a.edctMs - b.edctMs || a.callsign.localeCompare(b.callsign));
-  return { departures, nowMs, total, metered: departures.length, artccMode };
+  return { departures, nowMs, total, metered: departures.length, artccMode, pctMode };
 }
