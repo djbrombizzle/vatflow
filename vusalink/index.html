@@ -543,6 +543,7 @@ const wilcoUi={};                        // W: cs -> {kind:'received'|'timeout',
 const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting pilot reply
 const handoffPending=new Set();          // H: awaiting WILCO
 const handoffMin={};                     // cs -> MIN of CONTACT msg
+const handoffAwaitFreq=new Set();        // handoff WILCO received; drop from list when pilot leaves our freq
 const altMin={}, rtMin={};               // cs -> MIN of last alt / route uplink
 const altPending=new Set();              // alt clearance sent, awaiting WILCO (green)
 const routePending=new Set();            // route clearance sent, awaiting WILCO (green)
@@ -577,6 +578,20 @@ function pilotMatchesOurFreq(cs){
   const freqs=pilotFreqs.get((cs||'').toUpperCase())||[];
   return freqs.some(f=>freqsMatch(f,myPosition.freqMhz));
 }
+function countsForController(cs){
+  cs=(cs||'').toUpperCase();
+  if(handoffAwaitFreq.has(cs)&&!pilotMatchesOurFreq(cs))return false;
+  if(freqFilterActive()&&!pilotMatchesOurFreq(cs))return false;
+  return true;
+}
+function countMyCpdlc(){
+  let n=0;
+  connected.forEach(cs=>{if(countsForController(cs))n++;});
+  return n;
+}
+function pruneHandoffAwait(){
+  handoffAwaitFreq.forEach(cs=>{if(!pilotMatchesOurFreq(cs))handoffAwaitFreq.delete(cs);});
+}
 function freqFilterActive(){
   return !monitorMode()&&!settings.showAll&&myPosition.freqMhz!=null&&(hubMode()||configured());
 }
@@ -610,6 +625,7 @@ function displayList(){
   let list=board().slice();
   if(!settings.showAll)list=list.filter(a=>connected.has(a.cs));   // GREEN / on KUSA only
   if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
+  list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||pilotMatchesOurFreq(a.cs));
   const k=sortState.key;if(!k)return list;
   const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
   if(!acc)return list;
@@ -618,9 +634,31 @@ function displayList(){
 }
 
 //============================================================ route fixes
+function distNm(lat1,lon1,lat2,lon2){
+  if(lat1==null||lon1==null||lat2==null||lon2==null)return Infinity;
+  const R=3440.065;
+  const r=d=>d*Math.PI/180;
+  const dLat=r(lat2-lat1), dLon=r(lon2-lon1);
+  const x=Math.sin(dLat/2)**2+Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));
+}
+function fixesAheadOfAircraft(entries,lat,lon){
+  if(!entries.length||lat==null||lon==null||!Number.isFinite(lat)||!Number.isFinite(lon))return entries;
+  let cutoff=0;
+  for(let i=0;i<entries.length-1;i++){
+    const f=entries[i], g=entries[i+1];
+    if(f.lat==null||f.lon==null||g.lat==null||g.lon==null)continue;
+    const da=distNm(lat,lon,f.lat,f.lon);
+    const db=distNm(lat,lon,g.lat,g.lon);
+    if(db<da)cutoff=i+1;   // closer to next fix than this one — this fix is behind us
+  }
+  return entries.slice(cutoff);
+}
 function routeFixEntries(a){
-  if(a&&a.routeFixes&&a.routeFixes.length)return a.routeFixes;
-  return parseFixes((a&&(a._routeRaw||a.route))||'').map(name=>({name}));
+  let entries;
+  if(a&&a.routeFixes&&a.routeFixes.length)entries=a.routeFixes;
+  else entries=parseFixes((a&&(a._routeRaw||a.route))||'').map(name=>({name}));
+  return fixesAheadOfAircraft(entries,a.lat,a.lon);
 }
 function routeFixNames(a){return routeFixEntries(a).map(f=>f.name);}
 function parseFixes(route){
@@ -835,7 +873,10 @@ function updateConnState(connList,pendList){
   let reqd=false;
   // only alert for aircraft that would actually appear on this controller's list
   // (frequency filter off/absent -> all; filter on -> only our frequency)
-  const onList=c=>!freqFilterActive()||pilotMatchesOurFreq(c);
+  const onList=c=>{
+    if(handoffAwaitFreq.has(c))return false;
+    return !freqFilterActive()||pilotMatchesOurFreq(c);
+  };
   np.forEach(c=>{if(!logonReq.has(c)&&onList(c))reqd=true;});
   connected.clear();nc.forEach(c=>connected.add(c));
   logonReq.clear();np.forEach(c=>logonReq.add(c));
@@ -888,18 +929,23 @@ function minMatches(stored,mrn){
   if(!mr||mr==='0')return true;          // some clients omit or zero the MRN
   return mr===String(stored);
 }
+function ackHandoff(cs){
+  cs=(cs||'').toUpperCase();
+  handoffPending.delete(cs);
+  delete handoffMin[cs];
+  handoffAwaitFreq.add(cs);
+  logMsg('sys',cs,'handoff acknowledged — awaiting frequency change');
+}
 function clearPendingOnAck(cs,mrn){
   cs=(cs||'').toUpperCase();
   let matched=false;
   if(handoffMin[cs]!=null&&minMatches(handoffMin[cs],mrn)){
-    connected.delete(cs);handoffPending.delete(cs);delete handoffMin[cs];
-    logMsg('sys',cs,'handoff acknowledged');matched=true;
+    ackHandoff(cs);matched=true;
   }
   if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];matched=true;}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];matched=true;}
   if(!matched&&(handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs))){
-    if(handoffPending.has(cs)){connected.delete(cs);handoffPending.delete(cs);delete handoffMin[cs];
-      logMsg('sys',cs,'handoff acknowledged');}
+    if(handoffPending.has(cs))ackHandoff(cs);
     if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];}
     if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
   }
@@ -921,7 +967,7 @@ function handleIncoming(m){
       const msg=(d.message||'').trim().toUpperCase();
       if(/REQUEST LOGON/.test(msg)){if(!hubMode())autoAcceptLogon(cs,d.min);return;}
       if(/LOG\s?OFF|LOGGED OFF/.test(msg)){       // aircraft left us (e.g. after a handover)
-        connected.delete(cs);handoffPending.delete(cs);delete handoffMin[cs];
+        connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);delete handoffMin[cs];
         clearWilcoAwait(cs);ackWilcoUi(cs);
         logMsg('sys',cs,'logged off CPDLC');renderBoard();return;
       }
@@ -1038,7 +1084,7 @@ async function refreshVatsim(force){
     if(hub){
       hubArtcc=d.airspace||hubArtcc;
       applyVerify(d.verify);          // connected/pending are owned by the fast poll (updateConnState)
-      setVat('on',`hub ${d.airspace} \u00b7 ${liveFlights.length} a/c \u00b7 ${connected.size} CPDLC`
+      setVat('on',`hub ${d.airspace} \u00b7 ${liveFlights.length} a/c \u00b7 ${countMyCpdlc()} CPDLC`
         +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
     }else{
       const c=d.counts||{};
@@ -1052,7 +1098,7 @@ async function refreshVatsim(force){
 function mapLive(f){
   const full=[f.dep,f.route,f.arr].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
   return {cs:f.callsign,type:f.type||'----',alt:f.fl||0,hs:'/'+(f.gs||''),
-    cid:f.cid||'',squawk:f.squawk||'',hdg:f.hdg||0,gs:f.gs||0,
+    cid:f.cid||'',squawk:f.squawk||'',hdg:f.hdg||0,gs:f.gs||0,lat:f.lat,lon:f.lon,
     route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
@@ -1229,13 +1275,14 @@ function updateMode(){
   else{badge.textContent='VIEW ONLY';badge.className='badge view';if(field)field.style.display='';}
 }
 function updateTabTitle(){
-  const n=connected.size;
+  const n=countMyCpdlc();
   document.title=n?`(${n})vUSAlink`:'vUSAlink';
 }
 function renderBoard(){
   checkWilcoTimeouts();
   updateMode();updatePositionBar();updateTabTitle();
   annotateFlights();
+  pruneHandoffAwait();
   const list=displayList();
   const onListConnected=new Set(list.filter(a=>connected.has(a.cs)).map(a=>a.cs));
   if(pollPrimed&&!suppressSounds&&!isMuted()){
