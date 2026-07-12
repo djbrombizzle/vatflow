@@ -69,10 +69,13 @@ const toDeg = r => r * 180 / Math.PI;
    ============================================================ */
 export function getAirport(icao) {
   if (!icao) return null;
-  return AIRPORTS.get(("" + icao).toUpperCase()) || null;
+  const u = ("" + icao).toUpperCase();
+  if (AIRPORTS.has(u)) return AIRPORTS.get(u);
+  if (u.length === 3) return AIRPORTS.get("K" + u) || null;
+  return null;
 }
 export function hasAirport(icao) {
-  return AIRPORTS.has(("" + icao).toUpperCase());
+  return !!getAirport(icao);
 }
 export function isAirportsReady() { return airportsReady; }
 export function seedAirports(map) {
@@ -1161,15 +1164,28 @@ function isDepartureShape(p) {
 }
 
 /** Potomac TRACON cluster — ARTCC dashboard PCT filter. */
+export const PCT_ARTCC = "ZDC";
 export const PCT_AIRPORTS = ["KDCA", "KIAD", "KBWI", "KRIC"];
 
 export function isPctField(code) {
   return (code || "").toUpperCase() === "PCT";
 }
 
+/** True when an FCA can meter departures from a PCT field (origins blank = all deps). */
+export function fcaTouchesPctDepartures(f) {
+  if (!f) return false;
+  const hit = code => PCT_AIRPORTS.some(apt => airportCodesMatch(code, apt));
+  if (!f.origins?.length) return true;
+  return f.origins.some(hit);
+}
+
+export function pctDepartureMatch(dep) {
+  return PCT_AIRPORTS.some(apt => airportCodesMatch(dep, apt));
+}
+
 export function isDepartureCandidate(p, depIcao) {
   if (isPctField(depIcao)) {
-    return isDepartureShape(p) && PCT_AIRPORTS.some(apt => airportCodesMatch(p.dep, apt));
+    return isDepartureShape(p) && pctDepartureMatch(p.dep);
   }
   return isDepartureShape(p) && airportCodesMatch(p.dep, depIcao);
 }
@@ -1184,7 +1200,7 @@ export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles, opts = 
   const artccMode = !pctMode && (opts.artcc === true ||
     (opts.artcc !== false && /^Z[A-Z]{2}$/.test(dep) && !hasAirport(dep)));
   const matches = pctMode
-    ? (p => PCT_AIRPORTS.some(apt => airportCodesMatch(p.dep, apt)))
+    ? (p => pctDepartureMatch(p.dep))
     : artccMode
       ? (p => depMatchesArtcc(p, dep))
       : (p => airportCodesMatch(p.dep, dep));
