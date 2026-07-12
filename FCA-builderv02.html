@@ -488,6 +488,7 @@ import { buildRouteAnchorsForAircraft, loadNavData, isNavReady, getNavMeta } fro
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
 import { parseZuluHhmm } from "./shared/time-parse.js";
+import * as VFRefresh from "./shared/vatflow-refresh.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -505,7 +506,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";   //
 
 const US_BOUNDS = [[18, -130],[52, -64]];
 const FCA_COLORS = ["#f5a623","#e879f9","#a3e635","#fb923c","#38bdf8","#f87171"];
-const REFRESH_SEC = 20;
+const REFRESH_SEC = 30;
 
 /* ---- controller access: VATSIM Connect OAuth tiers ---- */
 function canControl(){ return canFullControl(); }
@@ -1163,7 +1164,12 @@ function afterData(){
   if(state.layers.sectors) renderSectors();
   else if(state.openSectorId) renderSectorPanel();
   else syncThresholdInputs();
-  if(state.selectedId) renderSequence();
+  if(state.selectedId) scheduleRenderSequence();
+}
+
+function scheduleRenderSequence() {
+  if (VFRefresh.deferWhileTyping(renderSequence)) return;
+  renderSequence();
 }
 
 /* ============================================================
@@ -1575,6 +1581,8 @@ document.addEventListener("keydown", e => {
 
 function renderSequence(){
   if(stripDragging) return;
+  const snap = VFRefresh.captureFocus();
+  try {
   const sel=state.fcas.find(f=>f.id===state.selectedId);
   const panel=document.getElementById("seqPanel");
   if(!sel){ panel.classList.remove("show"); return; }
@@ -1724,6 +1732,9 @@ function renderSequence(){
   // excluded section
   const ex=document.createElement("div"); ex.innerHTML=exHtml;
   body.appendChild(ex); wireExcluded(sel);
+  } finally {
+    VFRefresh.restoreFocus(document, snap);
+  }
 }
 /* controller drags a strip -> lock in a manual order and recompute everyone's times */
 function moveSeq(fca,orderCS,from,to){

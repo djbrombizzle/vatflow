@@ -1063,6 +1063,10 @@ async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
     setVat('','VIEW ONLY \u2014 type an ARTCC above (e.g. KZJX)');return;}
+  if(!force&&window.VFRefresh&&window.VFRefresh.isUserTyping()){
+    window.VFRefresh.deferWhileTyping(()=>refreshMonitor(false));
+    return;
+  }
   if(art!==feedArtcc){feedArtcc=art;feedSince=0;log.innerHTML='';}
   if(!force&&menusOpen())return;
   setVat('busy','VIEW '+art+' \u2026');
@@ -1081,6 +1085,10 @@ async function refreshMonitor(force){
 }
 async function refreshVatsim(force){
   if(monitorMode())return refreshMonitor(force);
+  if(!force && window.VFRefresh&&window.VFRefresh.isUserTyping()){
+    window.VFRefresh.deferWhileTyping(()=>refreshVatsim(false));
+    return;
+  }
   const hub=hubMode();
   const airspace=airspaceId();
   if(!hub&&!airspace)return;
@@ -1113,7 +1121,7 @@ function mapLive(f){
     route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
-  vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?12000:15000);}   // hub 15s = VATSIM feed update cadence
+  vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?20000:30000);}
 
 //============================================================ live map
 const MAP_BND_URL='https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson';
@@ -1219,7 +1227,7 @@ function openLiveMap(){
   document.getElementById('mapScrim').classList.remove('hidden');
   renderLiveMap();
   if(mapTimer)clearInterval(mapTimer);
-  mapTimer=setInterval(()=>renderLiveMap(),15000);
+  mapTimer=setInterval(()=>renderLiveMap(),30000);
 }
 function closeLiveMap(){
   document.getElementById('mapScrim').classList.add('hidden');
@@ -2083,6 +2091,8 @@ function makeDraggable(el,handle){
 </script>
 <script type="module">
 import { initVatflowAuth, mountAuthNav } from "../shared/vatflow-auth.js";
+import * as VFRefresh from "../shared/vatflow-refresh.js";
+window.VFRefresh = VFRefresh;
 const nav=document.getElementById("vatflowAppNav");
 await initVatflowAuth();
 mountAuthNav(nav);
