@@ -2,18 +2,23 @@
  * Shared Supabase FCA store — load/subscribe, normalize, push, membership lookup.
  */
 import {
-  explainFcaExclusion, computeSequence, getRelease, fpFields,
+  explainFcaExclusion, computeSequence, getRelease, fpFields, loadAirports,
 } from "./fca-metering.js";
+import { loadNavData } from "./route-engine.js";
+import { fetchArtccBoundaries } from "./artcc-scope.js";
 
 export const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 export const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
 export const LS_FCAS = "fcaBuilder.fcas.v1";
 export const FCAS_CHANGED = "vatflow-fcas-changed";
+export const METERING_READY = "vatflow-fca-metering-ready";
 
 let sb = null;
 let fcas = [];
 let canPushFn = () => false;
 let ready = false;
+let meteringReady = false;
+let meteringBoot = null;
 
 export function normalizeFca(f) {
   if (!f) return null;
@@ -50,7 +55,7 @@ export function meterPilotsFromVatsim(vatsim) {
 }
 
 /**
- * First enabled FCA program that includes this pilot in its ground sequence.
+ * First enabled FCA program that includes this pilot (ground departures metered by FCA).
  */
 export function fcaMembershipForPilot(pilot, pilots, opts = {}) {
   const nowMs = opts.nowMs != null ? opts.nowMs : Date.now();
@@ -62,8 +67,9 @@ export function fcaMembershipForPilot(pilot, pilots, opts = {}) {
     if (!gate.included) continue;
     const seq = computeSequence(fca, list, [], { includeEdct: true, nowMs });
     const item = seq.items.find(it => it.p && it.p.callsign === pilot.callsign && it.phase === "gnd");
-    if (item) {
-      return { fca, item, release: getRelease(fca, pilot.callsign) };
+    const release = getRelease(fca, pilot.callsign);
+    if (item || (pilot.phase === "gnd" && pilot.gs < 50)) {
+      return { fca, item: item || null, release };
     }
   }
   return null;
@@ -80,10 +86,14 @@ export function cloudPushFca(fca, opts = {}) {
     .then(({ error }) => { if (error) console.warn("fca push:", error); });
 }
 
+function notifyFcasChanged() {
+  window.dispatchEvent(new CustomEvent(FCAS_CHANGED, { detail: { fcas } }));
+}
+
 function setFcas(arr) {
   fcas = (arr || []).map(normalizeFca).filter(Boolean);
   persistLocalFcas();
-  window.dispatchEvent(new CustomEvent(FCAS_CHANGED, { detail: { fcas } }));
+  notifyFcasChanged();
 }
 
 function loadLocalFcas() {
@@ -93,12 +103,31 @@ function loadLocalFcas() {
   } catch (_) {}
 }
 
+/** Airports, nav fixes, and ARTCC boundaries required for FCA membership on TMU Tools. */
+export function bootstrapMeteringDeps() {
+  if (meteringReady) return Promise.resolve();
+  if (meteringBoot) return meteringBoot;
+  meteringBoot = Promise.all([
+    loadAirports().catch(err => { console.warn("fca-store airports:", err); }),
+    loadNavData().catch(err => { console.warn("fca-store nav:", err); }),
+    fetchArtccBoundaries().catch(err => { console.warn("fca-store artcc:", err); }),
+  ]).then(() => {
+    meteringReady = true;
+    window.dispatchEvent(new Event(METERING_READY));
+  });
+  return meteringBoot;
+}
+
+export function isMeteringReady() { return meteringReady; }
+
 /**
  * @param {{ canPush?: () => boolean }} opts
  */
 export async function init(opts = {}) {
   canPushFn = opts.canPush || (() => false);
   loadLocalFcas();
+  if (fcas.length) notifyFcasChanged();
+  await bootstrapMeteringDeps();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !window.supabase) {
     ready = true;
     return;
