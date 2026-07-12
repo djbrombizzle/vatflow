@@ -23,6 +23,9 @@ import {
   markReady, clearReady, getRelease, isReady, fmtZulu,
   COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
+import * as VFRefresh from "./shared/vatflow-refresh.js";
+
+window.VFRefresh = VFRefresh;
 
 function canFcaPush() {
   return window.VatflowAuth && (window.VatflowAuth.canFullControl() || window.VatflowAuth.canUseFcaRdy());
@@ -1015,7 +1018,8 @@ let feedStatus = "idle";    // idle | fetching | ok | error
 let lastFetch = null;
 let pollTimer = null;
 const FEED_POLL_MS = 30000;
-const TAXI_POLL_MS = 10000;
+const TAXI_POLL_MS = 20000;
+const UI_DRIFT_MS = 30000;
 let pollIntervalMs = FEED_POLL_MS;
 let sortKey = "seq";   // active sort column
 let sortDir = 1;       // 1 asc, -1 desc
@@ -2162,6 +2166,7 @@ async function fetchFeed() {
     feedStatus = "error";
   }
   renderHeaderStatus();
+  if (window.VFRefresh && window.VFRefresh.deferWhileTyping(renderContent)) return;
   renderContent();
 }
 
@@ -2523,37 +2528,27 @@ function renderHeaderStatus() {
 
 function renderContent() {
   ensureBoundariesIfNeeded();
-  /* preserve focus (filter boxes, TMU form) and ladder scroll across re-renders */
-  let refocus = null;
-  const act = document.activeElement;
-  if (act && act.dataset && (act.dataset.filter || act.dataset.keep)) {
-    refocus = {
-      sel: act.dataset.filter ? 'input[data-filter="' + act.dataset.filter + '"]'
-                              : '[data-keep="' + act.dataset.keep + '"]',
-      s: act.selectionStart, e: act.selectionEnd
-    };
-  }
+  const snap = window.VFRefresh ? window.VFRefresh.captureFocus() : null;
   const oldScroll = document.getElementById("ladderScroll");
   if (oldScroll) ladderScrollPos = oldScroll.scrollTop;
 
-  if (activeTab === "home") { renderHome(); restoreFocus(refocus); return; }
+  if (activeTab === "home") { renderHome(); finishRenderFocus(snap); return; }
   if (activeTab === "help") { renderHelp(); return; }
-  if (activeTab === "tmu") { renderTMU(); restoreFocus(refocus); return; }
-  if (activeTab === "restrict") { renderRestrict(); restoreFocus(refocus); return; }
-  if (activeTab === "mydash") { renderMyDash(); restoreFocus(refocus); return; }
-  if (activeTab === "dep") { renderDep(); restoreFocus(refocus); return; }
-  if (activeTab === "taximon") { renderTaxiMonitor(); restoreFocus(refocus); return; }
-  if (activeTab === "pilot") { renderPilot(); restoreFocus(refocus); return; }
-  renderMeter(refocus);
+  if (activeTab === "tmu") { renderTMU(); finishRenderFocus(snap); return; }
+  if (activeTab === "restrict") { renderRestrict(); finishRenderFocus(snap); return; }
+  if (activeTab === "mydash") { renderMyDash(); finishRenderFocus(snap); return; }
+  if (activeTab === "dep") { renderDep(); finishRenderFocus(snap); return; }
+  if (activeTab === "taximon") { renderTaxiMonitor(); finishRenderFocus(snap); return; }
+  if (activeTab === "pilot") { renderPilot(); finishRenderFocus(snap); return; }
+  renderMeter(snap);
+}
+
+function finishRenderFocus(snap) {
+  if (window.VFRefresh) window.VFRefresh.restoreFocus(document, snap);
 }
 
 function restoreFocus(refocus) {
-  if (!refocus) return;
-  const el = contentEl.querySelector(refocus.sel);
-  if (el) {
-    el.focus();
-    try { el.setSelectionRange(refocus.s, refocus.e); } catch (e) {}
-  }
+  finishRenderFocus(refocus);
 }
 
 function renderMeter(refocus) {
@@ -4982,12 +4977,10 @@ setInterval(() => {
   if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" ||
       activeTab === "mydash" || activeTab === "dep" || activeTab === "taximon" ||
       activeTab === "pilot" || (icao && vatsim)) {
-    /* avoid yanking focus/caret while a restriction field is being typed */
-    const a = document.activeElement;
-    if (a && a.dataset && a.dataset.restrfield) return;
+    if (window.VFRefresh && window.VFRefresh.deferWhileTyping(renderContent)) return;
     renderContent();
   }
-}, 10000);
+}, UI_DRIFT_MS);
 
 /* ============================================================
    Multi-controller sync bridge (talks to the Firebase module below).
@@ -5279,7 +5272,10 @@ function refreshHubAuth() {
 }
 function onHubAuthResult() { updateAuthUI(); }
 window.onVatflowAuthChanged = () => { updateAuthUI(); refreshHubAuth(); renderContent(); };
-window.onVatflowFcasChanged = () => renderContent();
+window.onVatflowFcasChanged = () => {
+  if (window.VFRefresh && window.VFRefresh.deferWhileTyping(renderContent)) return;
+  renderContent();
+};
 window.addEventListener("vf-fca-ready", () => renderContent());
 window.addEventListener("vatflow-fca-metering-ready", () => renderContent());
 updateAuthUI();

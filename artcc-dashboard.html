@@ -333,6 +333,7 @@ import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries, isArtccScopeReady } from "./shared/artcc-scope.js";
 import { parseZuluHhmm } from "./shared/time-parse.js";
+import * as VFRefresh from "./shared/vatflow-refresh.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -342,7 +343,7 @@ const LS_ARTCC = "artccDashboard.artcc";
 const LS_CID = "towerDep.cid.v1";
 const LS_TOWER_UI = "artccDashboard.ui.v1";
 const LS_MAP_H = "artccDashboard.mapH.v1";
-const REFRESH_SEC = 20;
+const REFRESH_SEC = 30;
 
 function canControl() { return canFullControl(); }
 function canReadyOnly() { return isSignedIn() && state.atcVerified && !canControl(); }
@@ -602,7 +603,7 @@ function initSync() {
     state.fcas = (data || []).map(r => normalizeFca(r.data || {}));
     persistLocalFcas();
     setSyncStatus("connected");
-    render();
+    scheduleRender();
   });
   sb.channel("fcas-realtime")
     .on("postgres_changes", { event: "*", schema: "public", table: "fcas" }, () => {
@@ -610,7 +611,7 @@ function initSync() {
         if (data) {
           state.fcas = data.map(r => normalizeFca(r.data || {}));
           persistLocalFcas();
-          if (!stripDragging) render(); else pendingRender = true;
+          if (!stripDragging) scheduleRender(); else pendingRender = true;
         }
       });
     })
@@ -651,7 +652,7 @@ function fetchLive() {
       state.controllers = d.controllers || [];
       setFeed("live");
       revalidateAtcAuth();
-      if (!stripDragging) render(); else pendingRender = true;
+      if (!stripDragging) scheduleRender(); else pendingRender = true;
     })
     .catch(err => {
       console.warn(err);
@@ -1061,7 +1062,7 @@ function wireTableDrag(list, fcaId) {
     clearHl();
     stripDragging = false;
     dragCs = null; dragFcaId = null;
-    if (pendingRender) { pendingRender = false; render(); }
+    if (pendingRender) { pendingRender = false; scheduleRender(); }
   });
 
   list.addEventListener("dragover", e => {
@@ -1153,6 +1154,20 @@ function moveTowerOrder(fcaId, fromCs, toCs) {
 }
 
 function render() {
+  const snap = VFRefresh.captureFocus();
+  try {
+    renderBody();
+  } finally {
+    VFRefresh.restoreFocus(document, snap);
+  }
+}
+
+function scheduleRender() {
+  if (VFRefresh.deferWhileTyping(render)) return;
+  render();
+}
+
+function renderBody() {
   updateMap();
   const main = document.getElementById("main");
   if (!state.field) {

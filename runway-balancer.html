@@ -229,6 +229,7 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { initVatflowAuth, canUseRunwayBalancer, authStatusLabel } from "./shared/vatflow-auth.js";
 import { loadAirports, seedAirports, getAirport, fpFields, fmtZulu, haversineNm, parseAlt } from "./shared/fca-metering.js";
+import * as VFRefresh from "./shared/vatflow-refresh.js";
 mountVatflowNav(document.getElementById("vatflowAppNav"), "runways");
 await initVatflowAuth();
 
@@ -793,6 +794,7 @@ function renderHeader() {
 }
 
 function renderAll() {
+  const snap = VFRefresh.captureFocus();
   computeArrivals();
   assignRunways();
   renderRunwayGrid();
@@ -800,6 +802,7 @@ function renderAll() {
   renderGraph();
   renderArrivals();
   renderHeader();
+  VFRefresh.restoreFocus(document, snap);
 }
 
 /* ---------- feed + boot ---------- */
@@ -810,6 +813,7 @@ async function fetchFeed() {
     state.vatsim = await r.json();
     state.feed = "ok";
   } catch (_) { state.feed = "err"; }
+  if (VFRefresh.deferWhileTyping(renderAll)) return;
   renderAll();
 }
 
@@ -881,7 +885,7 @@ $("clock").textContent = fmtZulu(Date.now());
 
 loadAirports().catch(() => { seedAirports({}); });
 fetchFeed();
-setInterval(fetchFeed, 15000);
+setInterval(fetchFeed, 30000);
 setInterval(() => { if (state.field) fetchMetar(state.field); }, 5 * 60000);
 
 try {
