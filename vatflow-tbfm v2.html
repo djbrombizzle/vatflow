@@ -15,6 +15,32 @@ window.addEventListener("vatflow-auth-changed", () => {
   if (typeof window.onVatflowAuthChanged === "function") window.onVatflowAuthChanged();
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+import * as FcaStore from "./shared/fca-store.js";
+import { parseZuluHhmm } from "./shared/time-parse.js";
+import {
+  markReady, clearReady, getRelease, isReady, fmtZulu,
+  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+} from "./shared/fca-metering.js";
+
+function canFcaPush() {
+  return window.VatflowAuth && (window.VatflowAuth.canFullControl() || window.VatflowAuth.canUseFcaRdy());
+}
+await FcaStore.init({ canPush: canFcaPush });
+window.VF_Fca = {
+  ...FcaStore,
+  parseZuluHhmm, markReady, clearReady, getRelease, isReady, fmtZulu,
+  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+};
+window.addEventListener("vatflow-fcas-changed", () => {
+  if (typeof window.onVatflowFcasChanged === "function") window.onVatflowFcasChanged();
+});
+window.addEventListener("vatflow-fca-metering-ready", () => {
+  if (typeof window.onVatflowFcasChanged === "function") window.onVatflowFcasChanged();
+});
+window.dispatchEvent(new Event("vf-fca-ready"));
+</script>
 <style>
 /* VATFLOW design system — injected into vatflow-tbfm v2.html */
 :root {
@@ -929,6 +955,7 @@ function meterPilots() {
 }
 function fcaMembership(callsign, now) {
   if (!window.VF_Fca || !window.VF_Fca.fcaMembershipForPilot) return null;
+  if (window.VF_Fca.isMeteringReady && !window.VF_Fca.isMeteringReady()) return null;
   const pilots = meterPilots();
   const p = pilots.find(x => x.callsign === callsign);
   if (!p) return null;
@@ -5253,6 +5280,8 @@ function refreshHubAuth() {
 function onHubAuthResult() { updateAuthUI(); }
 window.onVatflowAuthChanged = () => { updateAuthUI(); refreshHubAuth(); renderContent(); };
 window.onVatflowFcasChanged = () => renderContent();
+window.addEventListener("vf-fca-ready", () => renderContent());
+window.addEventListener("vatflow-fca-metering-ready", () => renderContent());
 updateAuthUI();
 
 document.addEventListener("visibilitychange", () => {
@@ -5267,30 +5296,6 @@ document.addEventListener("visibilitychange", () => {
 document.addEventListener("pagehide", () => saveTaxiSessions());
 
 renderContent();
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module">
-import * as FcaStore from "./shared/fca-store.js";
-import { parseZuluHhmm } from "./shared/time-parse.js";
-import {
-  markReady, clearReady, getRelease, isReady, fmtZulu,
-  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
-} from "./shared/fca-metering.js";
-
-function canFcaPush() {
-  return window.VatflowAuth && (window.VatflowAuth.canFullControl() || window.VatflowAuth.canUseFcaRdy());
-}
-await FcaStore.init({ canPush: canFcaPush });
-window.VF_Fca = {
-  ...FcaStore,
-  parseZuluHhmm, markReady, clearReady, getRelease, isReady, fmtZulu,
-  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
-};
-window.addEventListener("vatflow-fcas-changed", () => {
-  if (typeof window.onVatflowFcasChanged === "function") window.onVatflowFcasChanged();
-});
-window.dispatchEvent(new Event("vf-fca-ready"));
 </script>
 
 <script type="module">

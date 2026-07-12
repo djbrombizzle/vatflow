@@ -146,12 +146,17 @@
   .strip .rdy:hover{color:var(--amber);border-color:var(--amber)}
   .strip .rdy.on{color:#56d364;border-color:#56d364;background:#0e1a10}
   .strip .rdy.on:hover{color:var(--red);border-color:var(--red);background:#1a1010}
-  .strip .rdy-time-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
-  .strip .rdy-time-input{font:600 10px/1 var(--mono,monospace);width:44px;padding:3px 4px;text-align:center;
-    background:var(--surface-2);border:1px solid var(--border);border-radius:3px;color:var(--text)}
+  .strip .rdy-time-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;
+    background:#0e1319;border:1px solid #2a3848;border-radius:6px;padding:6px 8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.55);position:relative;z-index:2}
+  .strip .rdy-time-input{font:600 11px/1 var(--mono,monospace);width:52px;padding:5px 6px;text-align:center;
+    background:#161e28;border:1px solid #3a4a5c;border-radius:4px;color:#e8edf2;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+  .strip .rdy-time-input::placeholder{color:#5c6b78}
+  .strip .rdy-time-input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
   .strip .rdy-time-input--err{border-color:var(--red)}
-  .strip .rdy-set-btn{font:700 8px/1 var(--mono,monospace);letter-spacing:.4px;cursor:pointer;padding:3px 5px;
-    background:transparent;border:1px solid var(--border);border-radius:3px;color:var(--muted-2)}
+  .strip .rdy-set-btn{font:700 8px/1 var(--mono,monospace);letter-spacing:.4px;cursor:pointer;padding:4px 6px;
+    background:#161e28;border:1px solid #3a4a5c;border-radius:3px;color:var(--muted-2)}
   .strip .rdy-set-btn:hover{color:var(--amber);border-color:var(--amber)}
   .strip[draggable=true]{cursor:default}
   .strip .num{cursor:grab}
@@ -1542,6 +1547,32 @@ document.querySelectorAll("#seqView [data-sv]").forEach(chip=>{
     renderSequence();
   });
 });
+function issueRdyFromStripInput(fca, cs, input) {
+  if (!canReady() || !fca || !input || !cs) return;
+  const readyMs = parseZuluHhmm(input.value, Date.now());
+  if (!readyMs) {
+    input.classList.add("rdy-time-input--err");
+    setTimeout(() => input.classList.remove("rdy-time-input--err"), 1500);
+    return;
+  }
+  const rel = markReady(fca, cs, state.pilots, Date.now(), { readyMs });
+  if (rel) toast(cs + " CFR issued — release " + fmtZulu(rel.edctMs) + " (requested floor " + fmtZulu(readyMs) + ")", 4000);
+  else toast("Couldn't compute a release for " + cs + ".", 3000);
+  cloudPush(fca, { readyOnly: true });
+  invalidateSequences();
+  renderAll();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const input = e.target.closest(".rdy-time-input");
+  if (!input || !input.closest(".stripList")) return;
+  e.preventDefault();
+  const wrap = input.closest(".rdy-time-wrap");
+  const setEl = wrap && wrap.querySelector("[data-rdy-set]");
+  if (setEl) setEl.click();
+});
+
 function renderSequence(){
   if(stripDragging) return;
   const sel=state.fcas.find(f=>f.id===state.selectedId);
@@ -1650,21 +1681,10 @@ function renderSequence(){
     const rdySetEl=strip.querySelector("[data-rdy-set]");
     if(rdySetEl) rdySetEl.addEventListener("click",e=>{
       e.stopPropagation();
-      if(!canReady()) return;
       const cs=rdySetEl.getAttribute("data-rdy-set");
       const wrap=rdySetEl.closest(".rdy-time-wrap");
       const input=wrap&&wrap.querySelector(".rdy-time-input");
-      if(!input||!cs) return;
-      const readyMs=parseZuluHhmm(input.value,Date.now());
-      if(!readyMs){
-        input.classList.add("rdy-time-input--err");
-        setTimeout(()=>input.classList.remove("rdy-time-input--err"),1500);
-        return;
-      }
-      const rel=markReady(sel,cs,state.pilots,Date.now(),{readyMs});
-      if(rel) toast(cs+" CFR issued — release "+fmtZulu(rel.edctMs)+" (requested floor "+fmtZulu(readyMs)+")",4000);
-      else toast("Couldn't compute a release for "+cs+".",3000);
-      cloudPush(sel, { readyOnly: true }); invalidateSequences(); renderAll();
+      issueRdyFromStripInput(sel, cs, input);
     });
     const rdyEl=strip.querySelector("[data-rdy]");
     if(rdyEl) rdyEl.addEventListener("click",e=>{
