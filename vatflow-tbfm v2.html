@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VATFLOW — TBFM for VATSIM</title>
+<title>VATFLOW — TMU Tools for VATSIM</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
@@ -298,6 +298,12 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
   padding: 2px 7px; font-size: 10px; font-weight: 600; font-family: var(--font-data); cursor: pointer;
 }
 .ready-btn:hover { background: #1c2632; }
+.fca-prgm-tag {
+  display: inline-block; font: 600 10px/1 var(--font-data); padding: 2px 6px;
+  border: 1px solid var(--border); border-radius: 3px; letter-spacing: .3px;
+}
+.fca-rlsd-badge { color: var(--ok); font-size: 9px; margin-left: 4px; font-weight: 600; }
+.fca-cfr-badge { color: var(--accent-text); font-weight: 600; }
 .ready-badge { color: var(--text-muted); font-size: 10.5px; font-family: var(--font-data); }
 
 /* ---------- chips ---------- */
@@ -914,6 +920,32 @@ let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
 /* ---- controller access: VATSIM Connect OAuth (full tier = whitelist only) ---- */
 function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
+function canFcaRelease() {
+  return window.VatflowAuth && (window.VatflowAuth.canFullControl() || window.VatflowAuth.canUseFcaRdy());
+}
+function meterPilots() {
+  return window.VF_Fca && window.VF_Fca.meterPilotsFromVatsim
+    ? window.VF_Fca.meterPilotsFromVatsim(vatsim) : [];
+}
+function fcaMembership(callsign, now) {
+  if (!window.VF_Fca || !window.VF_Fca.fcaMembershipForPilot) return null;
+  const pilots = meterPilots();
+  const p = pilots.find(x => x.callsign === callsign);
+  if (!p) return null;
+  return window.VF_Fca.fcaMembershipForPilot(p, pilots, { nowMs: now || Date.now() });
+}
+function fmtFcaZ(ms) {
+  if (window.VF_Fca && window.VF_Fca.fmtZulu) return window.VF_Fca.fmtZulu(ms).replace(/Z$/, "");
+  return fmtZ(ms);
+}
+function fcaPrgmCell(callsign, now) {
+  const mem = fcaMembership(callsign, now);
+  if (!mem) return '<span class="cell-dim">\u2014</span>';
+  const color = mem.fca.color || "";
+  const style = color ? ' style="color:' + color + ';border-color:' + color + '55"' : "";
+  const badge = mem.release ? '<span class="fca-rlsd-badge">RLSD</span>' : "";
+  return '<span class="fca-prgm-tag"' + style + ">" + esc(mem.fca.name || mem.fca.id) + badge + "</span>";
+}
 const groundStops = [];     // ground stop entries (shared): {id,airport,scope,until,updated,flashUntil}
 /* ARTCC/FIR boundary polygons (lazy-loaded from VAT-Spy when needed) */
 const BOUNDARIES_URL = "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";
@@ -1772,6 +1804,7 @@ function fmtZ(ms) {
   return String(d.getUTCHours()).padStart(2,"0") + String(d.getUTCMinutes()).padStart(2,"0");
 }
 function parseZuluHhmm(s, now) {
+  if (window.VF_Fca && window.VF_Fca.parseZuluHhmm) return window.VF_Fca.parseZuluHhmm(s, now);
   const m = String(s || "").trim().replace(/z$/i, "").match(/^(\d{2})(\d{2})$/);
   if (!m) return null;
   const h = +m[1], min = +m[2];
@@ -2285,8 +2318,10 @@ function computeFlow(target) {
 
   /* Tier 2a: GROUND flights with a manually issued CFR keep their issued
      wheels-up; their slot is fixed and reserved before anyone else slots in. */
-  const groundIssued = groundF.filter(f => f.status === "GROUND" && issuedEdcts[f.callsign] != null);
-  const groundAuto   = groundF.filter(f => !(f.status === "GROUND" && issuedEdcts[f.callsign] != null));
+  const groundIssued = groundF.filter(f =>
+    f.status === "GROUND" && issuedEdcts[f.callsign] != null && !fcaMembership(f.callsign, now));
+  const groundAuto   = groundF.filter(f =>
+    !(f.status === "GROUND" && issuedEdcts[f.callsign] != null && !fcaMembership(f.callsign, now)));
 
   for (const f of groundIssued) {
     const rec = issuedEdcts[f.callsign];
@@ -2357,6 +2392,7 @@ const COLUMNS = [
   { key:"eta",      label:"ETA Z",            num:true },
   { key:"sta",      label:"STA Z",            num:true },
   { key:"delay",    label:"DLY MIN",          num:true },
+  { key:"fcaPrgm",  label:"FCA PRGM" },
   { key:"readyTime", label:"READY TIME" },
   { key:"wheelsUp", label:"CALL FOR RELEASE (CFR)", num:true }
 ];
@@ -2392,6 +2428,7 @@ function cellText(f, key) {
     case "eta":      return fmtZ(f.eta);
     case "sta":      return fmtZ(f.sta);
     case "delay":    return String(Math.round(f.delay / 60000));
+    case "fcaPrgm":  return fcaMembership(f.callsign, Date.now()) ? "FCA" : "";
     case "readyTime": {
       const rec = issuedEdcts[f.callsign];
       return rec && rec.ready ? fmtZ(rec.ready) : "";
@@ -2593,10 +2630,13 @@ function renderMeter(refocus) {
       const rowOpts = {
         arrived: f.status === "ARRIVED",
         vfr: f.vfr,
-        gs
+        gs,
+        now: flow.now,
+        callsign: f.callsign,
       };
       const ready = readyTimeCell(f.callsign, f.dep, icao, f, f.status, rowOpts);
       const edct = cfrCell(f.callsign, f.dep, icao, f, flow.now, f.status, rowOpts);
+      const fcaPrgm = fcaPrgmCell(f.callsign, flow.now);
       const gateColor = flow.gateColors[f.gate] || "";
       h += '<tr>' +
         '<td class="cell-muted">' + f.seq + '</td>' +
@@ -2610,6 +2650,7 @@ function renderMeter(refocus) {
         '<td>' + fmtZ(f.eta) + '</td>' +
         '<td class="cell-strong">' + fmtZ(f.sta) + '</td>' +
         '<td class="' + dlyCls + '">' + fmtDelay(f.delay) + '</td>' +
+        '<td>' + fcaPrgm + '</td>' +
         '<td>' + ready + '</td>' +
         '<td>' + edct + '</td>' +
         '</tr>';
@@ -2773,7 +2814,8 @@ function renderHelp() {
   contentEl.innerHTML =
     '<div class="helpwrap">' +
     '<div class="helptitle">Quick reference</div>' +
-    '<p class="helpintro">VATFLOW meters arrivals and issues Call For Release (CFR) times for VATSIM events. ' +
+    '<p class="helpintro">VATFLOW TMU Tools meters arrivals and issues Call For Release (CFR) times for VATSIM events. ' +
+    'When an aircraft is in an FCA program, releases delegate to FCA TMU / Supabase. ' +
     'Live traffic comes from the VATSIM feed (refreshes every 30 seconds).</p>' +
     '<div class="help-quickstart">' +
     '<span><b>1.</b> Set AAR on TMU</span>' +
@@ -2814,7 +2856,8 @@ function renderHelp() {
     '<li><b>Ground stops</b> hold ground departures into a named airport.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Departures</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Set your tower field in the header. Shows ground and prefiled departures only.</li>' +
-    '<li>CFR controls appear for destinations with a TMU program.</li>' +
+    '<li>CFR controls appear for destinations with a TMU program, or when <b>FCA PRGM</b> is set.</li>' +
+    '<li><b>FCA PRGM</b> — shows active FCA flow program; READY/CFR delegates to FCA metering (not Firebase).</li>' +
     '<li><b>Ready Time</b> column — enter pilot-estimated wheels-up (HHMMz) and press <b>Set</b> for a release at or after that time.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
@@ -3096,7 +3139,7 @@ function renderMyDash() {
 
   h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
     '<th>CALLSIGN</th><th>TYPE</th><th>DEP</th><th>DEST</th><th>TMU PGM</th>' +
-    '<th>STA AT DEST Z</th><th>DLY MIN</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
+    '<th>STA AT DEST Z</th><th>DLY MIN</th><th>FCA PRGM</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
     '</tr></thead><tbody>';
   for (const d of deps) {
     const cells = departureReleaseCells(
@@ -3107,6 +3150,7 @@ function renderMyDash() {
       '<td class="cell-info">' + esc(d.dep) + '</td>' +
       '<td>' + esc(d.dest) + '</td>' +
       '<td>' + cells.pgm + '</td><td>' + cells.sta + '</td><td>' + cells.dly + '</td>' +
+      '<td>' + cells.fcaPrgm + '</td>' +
       '<td>' + cells.ready + '</td><td>' + cells.cfr + '</td>' +
       '</tr>';
   }
@@ -3781,13 +3825,68 @@ function earliestEdctAfter(cs, depField, destField, floorMs) {
 
 function isReadyTimeEligible(e, status, dest, opts) {
   if (opts.arrived || opts.vfr || (e && e.excluded) || opts.gs) return false;
+  if (fcaMembership(opts.callsign, opts.now)) return status === "GROUND";
   if (!tmuRates[dest]) return false;
   if (!e || e.flightTimeMs == null) return false;
   if (status === "PROPOSED" || status === "AIRBORNE") return false;
   return true;
 }
+function fcaReadyTimeCell(callsign, mem, status, opts) {
+  const dim = '<span class="cell-dim">\u2014</span>';
+  if (opts.arrived || opts.vfr || opts.gs || status !== "GROUND") return dim;
+  const rel = mem.release;
+  if (rel && rel.readyMs) return readyTimeDisplayHtml(rel.readyMs);
+  if (rel) return dim;
+  if (!canFcaRelease()) return dim;
+  return '<span class="readywrap">' +
+    '<input class="ready-input" data-fca-ready="1" data-ready-cs="' + esc(callsign) +
+    '" placeholder="HHMMz" maxlength="5" autocomplete="off" title="RDY @ wheels-up earliest">' +
+    '<button type="button" class="ready-btn" data-fca-ready-submit data-ready-cs="' + esc(callsign) +
+    '">Set</button></span>';
+}
+function fcaCfrCell(callsign, mem, now, status, opts) {
+  if (opts.arrived) return '<span class="cell-muted">Arrived</span>';
+  if (opts.vfr) return '<span class="vfrtag">VFR \u2014 NO CFR</span>';
+  if (opts.gs) {
+    return '<span class="gsflag"><span class="status-dot alert pulse"></span> GS \u2013 ' +
+      esc(fmtUntil(opts.gs.until)) + '</span>';
+  }
+  if (status === "PROPOSED") return '<span class="cell-info">Pending \u2014 not connected</span>';
+  const rel = mem.release;
+  if (rel) {
+    if (!canFcaRelease()) {
+      return '<span class="fca-cfr-badge">' + fmtFcaZ(rel.edctMs) + 'Z</span>';
+    }
+    const tmin = Math.max(0, Math.round((rel.edctMs - now) / 60000));
+    return '<span class="cfr-badge cfr-badge--countdown">' + fmtFcaZ(rel.edctMs) + 'Z' +
+      '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span>' +
+      '<button class="btn-icon edctcxl" data-fca-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button></span>';
+  }
+  if (!canFcaRelease()) return '<span class="cell-dim">FCA metered</span>';
+  return '<button type="button" class="cfrbtn" data-fca-rdy="' + esc(callsign) + '">RDY now</button>';
+}
+function fcaDepartureReleaseCells(d, mem, now, depField, flowCache) {
+  const dim = '<span class="cell-dim">\u2014</span>';
+  const opts = { arrived: d.arrived, vfr: d.vfr, gs: d.gs, callsign: d.callsign, now };
+  let pgm = dim, sta = "\u2014", dly = "\u2014";
+  if (!d.arrived && !d.vfr && d.entry && tmuRates[d.dest]) {
+    pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
+    sta = fmtZ(d.entry.sta);
+    dly = fmtDelay(d.entry.delay);
+  } else if (!d.arrived && !d.vfr && tmuRates[d.dest]) {
+    pgm = esc(String(getRate(d.dest).aar)) + "/hr";
+  }
+  return {
+    pgm, sta, dly,
+    fcaPrgm: fcaPrgmCell(d.callsign, now),
+    ready: fcaReadyTimeCell(d.callsign, mem, d.status, opts),
+    cfr: fcaCfrCell(d.callsign, mem, now, d.status, opts),
+  };
+}
 function readyTimeCell(callsign, dep, dest, e, status, opts) {
   const dim = '<span class="cell-dim">\u2014</span>';
+  const mem = fcaMembership(callsign, opts.now || Date.now());
+  if (mem) return fcaReadyTimeCell(callsign, mem, status, { ...opts, callsign });
   if (!isReadyTimeEligible(e, status, dest, opts)) return dim;
   const rec = issuedEdcts[callsign];
   if (rec && rec.ready) return readyTimeDisplayHtml(rec.ready);
@@ -3795,6 +3894,8 @@ function readyTimeCell(callsign, dep, dest, e, status, opts) {
   return dim;
 }
 function cfrCell(callsign, dep, dest, e, now, status, opts) {
+  const mem = fcaMembership(callsign, now);
+  if (mem) return fcaCfrCell(callsign, mem, now, status, opts);
   if (opts.arrived) return '<span class="cell-muted">Arrived</span>';
   if (opts.vfr) return '<span class="vfrtag">VFR \u2014 NO CFR</span>';
   if (e && e.excluded) return '<span class="excludedtag">Excluded \u2014 no CFR</span>';
@@ -3817,6 +3918,9 @@ function cfrCell(callsign, dep, dest, e, now, status, opts) {
 
 /* shared Ready Time + CFR cells for Departures and My Dashboard rows */
 function departureReleaseCells(d, e, now, depField, flowCache) {
+  const mem = fcaMembership(d.callsign, now);
+  if (mem) return fcaDepartureReleaseCells(d, mem, now, depField, flowCache);
+
   const callsign = d.callsign;
   const dest = d.dest;
   const vfr = d.vfr;
@@ -3874,7 +3978,7 @@ function departureReleaseCells(d, e, now, depField, flowCache) {
   } else {
     cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign, depField, dest);
   }
-  return { pgm, sta, dly, ready, cfr };
+  return { pgm, sta, dly, fcaPrgm: fcaPrgmCell(callsign, now), ready, cfr };
 }
 
 function renderDep() {
@@ -3970,7 +4074,7 @@ function renderDep() {
   } else {
     h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
       '<th>CALLSIGN</th><th>TYPE</th><th>DEST</th><th>STATUS</th><th>TMU PGM</th>' +
-      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
+      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>FCA PRGM</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
       '</tr></thead><tbody>';
     for (const d of deps) {
       const cells = departureReleaseCells(d, d.entry, now, depIcao, flowCache);
@@ -3980,6 +4084,7 @@ function renderDep() {
         '<td>' + esc(d.dest) + '</td>' +
         '<td class="' + (d.arrived ? 'cell-muted' : d.status === 'GROUND' ? 'cell-warn' : 'cell-info') + '">' + d.status + '</td>' +
         '<td>' + cells.pgm + '</td><td>' + cells.sta + '</td><td>' + cells.dly + '</td>' +
+        '<td>' + cells.fcaPrgm + '</td>' +
         '<td>' + cells.ready + '</td><td>' + cells.cfr + '</td>' +
         '</tr>';
     }
@@ -4458,6 +4563,15 @@ contentEl.addEventListener("click", e => {
     const dep = issueBtn.dataset.issueDep;
     const dest = issueBtn.dataset.issueDest;
     if (!cs || !dep || !dest) return;
+    const mem = fcaMembership(cs, Date.now());
+    if (mem) {
+      if (!canFcaRelease()) return;
+      const rel = window.VF_Fca.markReady(mem.fca, cs, meterPilots(), Date.now());
+      if (!rel) return;
+      window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
+      renderContent();
+      return;
+    }
     const wu = earliestEdct(cs, dep, dest);
     if (wu == null) return;
     issuedEdcts[cs] = { t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null };
@@ -4465,11 +4579,21 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
-  const readyBtn = e.target.closest("[data-ready-submit]");
+  const fcaRdyBtn = e.target.closest("[data-fca-rdy]");
+  if (fcaRdyBtn) {
+    if (!canFcaRelease()) return;
+    const cs = fcaRdyBtn.dataset.fcaRdy;
+    const mem = fcaMembership(cs, Date.now());
+    if (!mem) return;
+    const rel = window.VF_Fca.markReady(mem.fca, cs, meterPilots(), Date.now());
+    if (!rel) return;
+    window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
+    renderContent();
+    return;
+  }
+  const readyBtn = e.target.closest("[data-ready-submit],[data-fca-ready-submit]");
   if (readyBtn) {
     const cs = readyBtn.dataset.readyCs;
-    const dep = readyBtn.dataset.readyDep;
-    const dest = readyBtn.dataset.readyDest;
     const wrap = readyBtn.closest(".readywrap");
     const input = wrap && wrap.querySelector(".ready-input");
     if (!input || !cs) return;
@@ -4479,6 +4603,17 @@ contentEl.addEventListener("click", e => {
       setTimeout(() => input.classList.remove("ready-input--err"), 1500);
       return;
     }
+    const mem = fcaMembership(cs, Date.now());
+    if (mem) {
+      if (!canFcaRelease()) return;
+      const rel = window.VF_Fca.markReady(mem.fca, cs, meterPilots(), Date.now(), { readyMs: floor });
+      if (!rel) return;
+      window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
+      renderContent();
+      return;
+    }
+    const dep = readyBtn.dataset.readyDep;
+    const dest = readyBtn.dataset.readyDest;
     const wu = earliestEdctAfter(cs, dep, dest, floor);
     if (wu == null) return;
     issuedEdcts[cs] = {
@@ -4503,10 +4638,19 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
-  const cxl = e.target.closest("[data-cxl]");
+  const cxl = e.target.closest("[data-cxl],[data-fca-cxl]");
   if (cxl) {
+    const cs = cxl.dataset.cxl || cxl.dataset.fcaCxl;
+    const mem = cs ? fcaMembership(cs, Date.now()) : null;
+    if (mem && mem.release) {
+      if (!canFcaRelease()) return;
+      window.VF_Fca.clearReady(mem.fca, cs);
+      window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
+      renderContent();
+      return;
+    }
     if (!canControl()) return;
-    delete issuedEdcts[cxl.dataset.cxl];
+    delete issuedEdcts[cs];
     compressEdcts();      /* pull remaining issued EDCTs up into the freed slot */
     pushSync();
     renderContent();
@@ -5108,6 +5252,7 @@ function refreshHubAuth() {
 }
 function onHubAuthResult() { updateAuthUI(); }
 window.onVatflowAuthChanged = () => { updateAuthUI(); refreshHubAuth(); renderContent(); };
+window.onVatflowFcasChanged = () => renderContent();
 updateAuthUI();
 
 document.addEventListener("visibilitychange", () => {
@@ -5122,6 +5267,30 @@ document.addEventListener("visibilitychange", () => {
 document.addEventListener("pagehide", () => saveTaxiSessions());
 
 renderContent();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+import * as FcaStore from "./shared/fca-store.js";
+import { parseZuluHhmm } from "./shared/time-parse.js";
+import {
+  markReady, clearReady, getRelease, isReady, fmtZulu,
+  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+} from "./shared/fca-metering.js";
+
+function canFcaPush() {
+  return window.VatflowAuth && (window.VatflowAuth.canFullControl() || window.VatflowAuth.canUseFcaRdy());
+}
+await FcaStore.init({ canPush: canFcaPush });
+window.VF_Fca = {
+  ...FcaStore,
+  parseZuluHhmm, markReady, clearReady, getRelease, isReady, fmtZulu,
+  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+};
+window.addEventListener("vatflow-fcas-changed", () => {
+  if (typeof window.onVatflowFcasChanged === "function") window.onVatflowFcasChanged();
+});
+window.dispatchEvent(new Event("vf-fca-ready"));
 </script>
 
 <script type="module">
