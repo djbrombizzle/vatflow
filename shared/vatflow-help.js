@@ -48,7 +48,7 @@ export const FCA_HELP = {
       title: "Sync & access",
       items: [
         "FCAs save locally and sync to <b>Supabase</b> when URL/key are configured in the file header.",
-        "Controller password matches TBFM — unlock on any VATFLOW page if you use the shared password.",
+        "Controller password matches TMU Tools — unlock on any VATFLOW page if you use the shared password.",
         "<b>⤓ / ⤒</b> export or import FCA JSON for backup or offline events.",
       ],
     },
@@ -91,6 +91,39 @@ export const ARTCC_DASHBOARD_HELP = {
 };
 
 export const TOWER_HELP = ARTCC_DASHBOARD_HELP;
+
+export const TMU_TOOLS_HELP = {
+  title: "TMU Tools — Quick reference",
+  intro: "Airport-wide TMU suite: destination capacity programs, ground stops, restrictions, and CFR issuance. FCA flow programs are built on FCA TMU — this page surfaces FCA status and delegates releases when applicable.",
+  sections: [
+    {
+      title: "TMU Tools vs FCA TMU",
+      open: true,
+      items: [
+        "<b>TMU Tools</b> — airport capacity: AAR/trail/MIT, ground stops, route sequencing, and dest-based CFR via <code>issuedEdcts</code>.",
+        "<b>FCA TMU</b> — detailed flow control: draw lines, filters, line MIT/rate, crossing geometry, and <code>fca.releases</code> via Supabase.",
+        "When <b>FCA PRGM</b> is set on a departure, FCA metering is authoritative — READY/CFR routes to the FCA engine, not Firebase.",
+      ],
+    },
+    {
+      title: "Release priority",
+      items: [
+        "<b>1 — FCA program</b> (FCA PRGM column populated): <code>markReady()</code> / Supabase <code>fca.releases</code>.",
+        "<b>2 — Route sequencing</b> (no FCA): <code>DEP_RELEASE_INT</code> and issued-order compression.",
+        "<b>3 — Airport capacity</b> (no FCA): destination AAR/trail/MIT via <code>solveEarliestWheelsUp()</code>.",
+      ],
+    },
+    {
+      title: "Ready time",
+      items: [
+        "<b>RDY @ (wheels-up earliest)</b> — enter HHMMz for the earliest CFR/wheels-up time; spacing may push later.",
+        "One-click <b>RDY</b> / <b>CFR time</b> without a time uses the standard ready-now buffer.",
+        "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA TMU and ARTCC Dashboard.",
+      ],
+    },
+  ],
+  footer: "For VATSIM simulation only — not for real-world ATC.",
+};
 
 function renderHelpHtml(cfg) {
   const secs = (cfg.sections || []).map(s => {

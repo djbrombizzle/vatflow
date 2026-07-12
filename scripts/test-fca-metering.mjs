@@ -236,6 +236,13 @@ computeSequence(fcaR, [gndX, gndYAir], [], { includeEdct: true, nowMs: stale });
 assert(!getRelease(fcaR, "GNDY"), "airborne aircraft's release is consumed");
 assert(clearReady(fcaR, "GNDX") && !getRelease(fcaR, "GNDX"), "clearReady removes the release");
 
+// manual ready floor: wheels-up no earlier than requested time
+const fcaFloor = { ...FCA_N, id: "floor1", releases: {}, excluded: [], order: [] };
+const floorMs = fixedNow + 20 * 60000;
+const relFloor = markReady(fcaFloor, "GNDX", [gndX], fixedNow, { readyMs: floorMs });
+assert(relFloor && relFloor.readyMs === floorMs, "markReady stores readyMs on release");
+assert(relFloor.edctMs >= floorMs - 1000, "EDCT honors wheels-up floor");
+
 /* ============================================================
    7. Airborne encroachment bumps a frozen release LATER only
    ============================================================ */

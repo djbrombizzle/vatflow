@@ -700,29 +700,41 @@ function committedTimes(fca, pilots, nowMs, exceptCallsign) {
   return times;
 }
 
+/** Earliest FCA crossing (sec from now) honoring an optional wheels-up floor. */
+function readyCrossingFloorSec(c, nowMs, readyMs) {
+  const transit = c.transitSec || 0;
+  if (readyMs != null && isFinite(readyMs)) {
+    return Math.max((readyMs - nowMs) / 1000, 0) + transit;
+  }
+  return READY_BUFFER_SEC + transit;
+}
+
 /**
  * Mark a ground aircraft ready: compute earliest slot vs airborne + other frozen
  * releases (advisory traffic holds nothing) and freeze it into fca.releases.
+ * opts.readyMs — earliest wheels-up / CFR time (Option A floor).
  * Returns the release record or null if no crossing.
  */
-export function markReady(fca, callsign, pilots, nowMs) {
+export function markReady(fca, callsign, pilots, nowMs, opts) {
   nowMs = nowMs != null ? nowMs : Date.now();
+  const readyMs = opts && opts.readyMs != null ? opts.readyMs : null;
   const p = (pilots || []).find(x => x.callsign === callsign);
   if (!p) return null;
   const c = buildGroundCandidate(p, fca, nowMs, true);
   if (!c) return null;
   const sep = sepSeconds(fca, c);
+  const floor = readyCrossingFloorSec(c, nowMs, readyMs);
+  const cFloor = { ...c, eta: floor };
   let slot;
   if (isManualSeq(fca)) {
     // Controller has set an explicit order — freeze this aircraft's slot IN that
     // order rather than greedily jumping it to the earliest global gap.
     const seq = computeSequence(fca, pilots, [], { includeEdct: true, nowMs });
     const item = seq.items.find(x => x.p && x.p.callsign === callsign && x.phase === "gnd");
-    const floor = READY_BUFFER_SEC + c.transitSec;
     slot = item ? Math.max(item.sched, floor)
-                : slotAgainstCommitted({ ...c, eta: floor }, committedTimes(fca, pilots, nowMs, callsign), sep);
+                : slotAgainstCommitted(cFloor, committedTimes(fca, pilots, nowMs, callsign), sep);
   } else {
-    slot = slotAgainstCommitted(c, committedTimes(fca, pilots, nowMs, callsign), sep);
+    slot = slotAgainstCommitted(cFloor, committedTimes(fca, pilots, nowMs, callsign), sep);
   }
   const rel = {
     ctaMs: Math.round(nowMs + slot * 1000),
@@ -730,6 +742,7 @@ export function markReady(fca, callsign, pilots, nowMs) {
     transitSec: Math.round(c.transitSec),
     assignedMs: nowMs,
   };
+  if (readyMs != null && isFinite(readyMs)) rel.readyMs = readyMs;
   releasesOf(fca)[callsign] = rel;
   return rel;
 }
@@ -756,8 +769,8 @@ function refreshRelease(fca, c, airTimes, nowMs) {
   let changed = false;
 
   if (nowMs > rel.edctMs + COMPLIANCE_LATE_MS) {
-    // stale — pilot missed the window; re-slot as ready-now
-    const fresh = { ...c, eta: READY_BUFFER_SEC + c.transitSec };
+    // stale — pilot missed the window; re-slot honoring any stored ready floor
+    const fresh = { ...c, eta: readyCrossingFloorSec(c, nowMs, rel.readyMs) };
     const slot = slotAgainstCommitted(fresh, committedTimes(fca, [], nowMs, cs).concat(airTimes), sep);
     rel.ctaMs = Math.round(nowMs + slot * 1000);
     rel.edctMs = Math.round(rel.ctaMs - c.transitSec * 1000);
@@ -963,10 +976,19 @@ export function scheduleCandidates(cand, fca, manualOrder, candById, nowMs, out)
         // crossings, earlier releases) or a missed window may bump it later.
         // A drifting advisory proposal ahead of it never moves it — if the
         // advisory crowds inside separation, the conflict is flagged instead.
-        const floor = Math.max(c.eta, prevHard + sepC);
+        let readyFloor = c.eta;
+        if (rel.readyMs != null && isFinite(rel.readyMs)) {
+          readyFloor = Math.max(readyFloor, readyCrossingFloorSec(c, nowMs, rel.readyMs));
+        }
+        const floor = Math.max(readyFloor, prevHard + sepC);
         let t = (rel.ctaMs - nowMs) / 1000;
         const stale = nowMs > (rel.edctMs || 0) + COMPLIANCE_LATE_MS;
-        if (stale) t = Math.max(floor, prev + sepC);           // missed window: re-slot at chain position
+        if (stale) {
+          const staleFloor = rel.readyMs != null && isFinite(rel.readyMs)
+            ? readyCrossingFloorSec(c, nowMs, rel.readyMs)
+            : READY_BUFFER_SEC + (c.transitSec || 0);
+          t = Math.max(Math.max(c.eta, staleFloor), prev + sepC);
+        }
         else if (floor - t > FREEZE_TOL_SEC) t = floor;        // hard constraint forces later: bump, never earlier
         if (Math.abs(nowMs + t * 1000 - rel.ctaMs) > 1500) {
           rel.ctaMs = Math.round(nowMs + t * 1000);
