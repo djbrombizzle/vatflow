@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "auth != null && $room.matches(/^[A-Z0-9_-]{1,24}$/)",
+        ".write": "auth != null && $room.matches(/^[A-Z0-9_-]{1,24}$/)",
+        "$child": {
+          ".validate": "$child.matches(/^(edcts|rates|restrictions|groundStops)$/)"
+        }
+      }
+    },
+    "taximon": {
+      "airports": {
+        ".read": "auth != null",
+        "$icao": {
+          ".write": "auth != null && $icao.matches(/^[A-Z][A-Z0-9]{2,3}$/) && (!newData.exists() || newData.isBoolean())"
+        }
+      },
+      "samples": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null && (!newData.exists() || (newData.hasChildren(['airport', 'callsign', 'startMs', 'endMs', 'durationMs']) && newData.child('airport').isString() && newData.child('airport').val().length >= 3 && newData.child('airport').val().length <= 4 && newData.child('callsign').isString() && newData.child('callsign').val().length > 0 && newData.child('callsign').val().length <= 12 && newData.child('startMs').isNumber() && newData.child('endMs').isNumber() && newData.child('durationMs').isNumber() && newData.child('durationMs').val() > 0))"
+        }
+      }
+    }
+  }
+}

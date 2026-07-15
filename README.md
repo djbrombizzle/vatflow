@@ -90,7 +90,7 @@ Status indicator:
 - `LOCAL ONLY` — working solo (no sync).
 - `SYNC ERROR` — check your connection or Firebase setup.
 
-> To run sync, you need your own Firebase project (free tier is fine). Paste your Firebase config into the file, enable **Anonymous Authentication**, and set your database rules to require authentication.
+> To run sync, you need your own Firebase project (free tier is fine). Paste your Firebase config into the file, enable **Anonymous Authentication**, and deploy `database.rules.json` (`firebase deploy --only database`). Those rules require auth and only allow `/rooms/$room` and `/taximon/*` — never open root read/write.
 
 ---
 

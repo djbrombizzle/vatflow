@@ -5312,10 +5312,10 @@ mountVatflowNav(document.getElementById("vatflowAppNav"), "tbfm");
      With the placeholder left in place, the app runs fully LOCAL-ONLY and
      the CONNECT button just reports that no config is present.
 
-     Security note: test-mode rules are open to anyone with the URL. For a
-     real event, lock the database rules down (e.g. require auth, or scope
-     writes under /rooms). The config keys themselves are safe to ship in
-     client code — they are identifiers, not secrets.
+     Security note: RTDB rules live in database.rules.json (deploy with
+     `firebase deploy --only database`). They require anonymous auth and
+     only permit /rooms/$room and /taximon/* — never root-level open access.
+     Config keys themselves are safe to ship; they are identifiers, not secrets.
      ===================================================================== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
