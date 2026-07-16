@@ -1,7 +1,7 @@
 .vf-help-btn {
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   padding: 5px 10px;
   border-radius: 5px;
   cursor: pointer;
@@ -17,7 +17,7 @@
   position: fixed;
   inset: 0;
   z-index: 900;
-  background: rgba(8, 11, 16, 0.72);
+  background: rgba(8, 11, 16, 0.78);
   backdrop-filter: blur(4px);
   display: none;
   align-items: flex-start;
@@ -41,6 +41,7 @@
   line-height: 1.6;
   color: #d4dde6;
 }
+.vf-help-panel--page { max-width: 920px; }
 .vf-help-panel::-webkit-scrollbar { width: 8px; }
 .vf-help-panel::-webkit-scrollbar-thumb { background: #22303d; border-radius: 4px; }
 
@@ -76,7 +77,52 @@
 .vf-help-close:hover { color: #d4dde6; }
 
 .vf-help-body { padding: 12px 16px 20px; }
-.vf-help-intro { color: #8a97a3; margin: 0 0 16px; font-size: 13px; }
+.vf-help-intro { color: #8a97a3; margin: 0 0 14px; font-size: 13px; }
+
+.vf-help-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid #1e2834;
+  border-radius: 8px;
+  background: #0f151e;
+}
+.vf-help-quick span {
+  font-size: 12px;
+  color: #8a97a3;
+}
+.vf-help-quick b { color: #e8a838; font-family: ui-monospace, Menlo, monospace; }
+
+.vf-help-layout {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .vf-help-layout { grid-template-columns: 1fr; }
+  .vf-help-nav { display: none; }
+}
+
+.vf-help-nav {
+  position: sticky;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vf-help-nav a {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #5c6b78;
+  text-decoration: none;
+  padding: 6px 8px;
+  border-radius: 5px;
+}
+.vf-help-nav a:hover { color: #e8a838; background: rgba(232, 168, 56, 0.08); }
 
 .vf-help-sec {
   margin-bottom: 14px;
@@ -84,6 +130,7 @@
   border-radius: 8px;
   overflow: hidden;
   background: #0f151e;
+  scroll-margin-top: 56px;
 }
 .vf-help-sec summary {
   cursor: pointer;
@@ -109,6 +156,14 @@
 }
 .vf-help-sec li { margin-bottom: 6px; }
 .vf-help-sec li b { color: #d4dde6; font-weight: 600; }
+.vf-help-sec code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: #e8a838;
+  background: rgba(232, 168, 56, 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
 
 .vf-help-foot {
   margin-top: 12px;
