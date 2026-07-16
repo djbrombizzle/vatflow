@@ -5,7 +5,7 @@ import { initVatflowAuth, mountAuthNav } from "./vatflow-auth.js";
 
 /**
  * @param {HTMLElement|null} container
- * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"vusalink"|"admin"|"hub"} active
+ * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"vusalink"|"cpdlc-map"|"admin"|"hub"} active
  * @param {{ base?: string }} [opts] — prefix for hrefs when mounted from a subfolder (e.g. "../")
  */
 export function mountVatflowNav(container, active, opts = {}) {
@@ -17,6 +17,7 @@ export function mountVatflowNav(container, active, opts = {}) {
     { id: "artcc", href: "artcc-dashboard.html", label: "Release Board" },
     { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
     { id: "vusalink", href: "vusalink/", label: "vUSAlink" },
+    { id: "cpdlc-map", href: "cpdlc-map.html", label: "CPDLC Map" },
     { id: "admin", href: "admin-access.html", label: "Admin Access" },
   ];
   const nav = document.createElement("nav");
