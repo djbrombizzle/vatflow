@@ -1936,7 +1936,6 @@ function deleteFca(id){
   if(!canControl()){ toast("View only — sign in to delete FCAs.",2600); return; }
   const f=state.fcas.find(x=>x.id===id);
   if(f && !canControlFca(f)){ toast("You can only delete FCAs for your ARTCC.",2800); return; }
-  const f=state.fcas.find(x=>x.id===id);
   if(f && !confirm(`Delete FCA "${f.name}"? This removes it for everyone if sync is on.`)) return;
   state.fcas=state.fcas.filter(f=>f.id!==id);
   cloudDelete(id);
