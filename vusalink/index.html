@@ -152,6 +152,11 @@
   .mlist{max-height:300px;overflow:auto;padding:4px 8px}
   .mitem{border-bottom:1px solid #181818;padding:4px 0;white-space:normal;word-break:break-word}
   .mitem .meta{color:var(--fg-dim);font-size:11px}
+  .mp-acts{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid #333;background:#101010}
+  .mp-acts .hobtn{margin-left:0;padding:2px 10px;cursor:pointer}
+  .mp-acts .hobtn.unable{color:#e08a8a;border-color:#7a2a2a}
+  .mp-acts .hobtn.standby{color:var(--amber);border-color:#5a4a22}
+  .mp-acts .hobtn:disabled{opacity:.4;cursor:default}
 
   #logwrap{position:fixed;right:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;z-index:40}
   #logwrap .lh{display:flex;justify-content:space-between;padding:3px 8px;background:#161616;border-bottom:1px solid #333}
@@ -285,7 +290,7 @@
 </table>
 
 <div class="footnote">
-  Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
+  Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read; <b>UNABLE</b> / <b>STANDBY</b> reply from the menu) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
   Click <b>FLIGHT ID</b> to hand off &middot; <b>ALT</b> for a level &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
 </div>
 
@@ -362,6 +367,10 @@
 <!-- MESSAGE popup -->
 <div id="msgpop" class="pop hidden">
   <div class="hdr"><span class="title" id="mpTitle">MESSAGES</span><span class="x" data-close="msgpop">X</span></div>
+  <div class="mp-acts" id="mpActs">
+    <span class="hobtn unable" id="mpUnable" title="UM0 — reply UNABLE to the pilot request">UNABLE</span>
+    <span class="hobtn standby" id="mpStandby" title="UM1 — reply STANDBY to the pilot request">STANDBY</span>
+  </div>
   <div class="mlist" id="mpList"></div>
 </div>
 
@@ -424,7 +433,7 @@
       <h3>What the boxes mean</h3>
       <ul>
         <li><b>L</b> — CPDLC logon (solid white = connected). Click to force logoff; flashes when a pilot asks to log back on.</li>
-        <li><b>M</b> — Pilot message (flashes red on new traffic — click to read).</li>
+        <li><b>M</b> — Pilot message (flashes red on new traffic — click to read). From the menu, reply <b>UNABLE</b> (UM0) or <b>STANDBY</b> (UM1).</li>
         <li><b>H</b> — Handoff pending (amber).</li>
         <li><b>W</b> — Waiting for a pilot reply (WILCO/ROGER). Flashes red if no reply in 2 minutes.</li>
       </ul>
@@ -531,6 +540,7 @@ let suppressSounds=false;                 // silence chimes while replaying that
 let listSoundPrimed=false;                // first list snapshot after poll primed: no chime
 const prevDisplayedConnected=new Set();   // connected a/c on controller list last render
 const msgAlert=new Set();                // M: unread incoming
+const lastPilotMsgMin={};                // cs -> MIN of latest inbound pilot CPDLC (for UM0/UM1 MRN)
 const WILCO_TIMEOUT_MS=120000;           // 2 min without a pilot reply -> red W alarm
 const wilcoUi={};                        // W: cs -> {kind:'received'|'timeout', at:ms}
 const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting pilot reply
@@ -976,6 +986,7 @@ function handleIncoming(m){
         logMsg('sys',cs,'logged off CPDLC');renderBoard();return;
       }
       if(RESP.test(msg)||isPositiveAck(msg)){handleResponse(cs,d,msg);return;}
+      if(d.min!=null&&d.min!=='')lastPilotMsgMin[cs]=String(d.min);
       pushMessage(cs,d.message);return;
     }
   }
@@ -1838,18 +1849,47 @@ async function sendHandover(cs,fac){
 
 //============================================================ MESSAGE popup (M box)
 const msgpop=document.getElementById('msgpop');
+let msgPopCs='';
+// UM0 UNABLE / UM1 STANDBY — Hoppie free-text FANS elements, RA N (no further reply),
+// MRN = pilot request MIN (same pattern as LOGON ACCEPTED).
+async function sendMsgReply(text){
+  const cs=(msgPopCs||'').toUpperCase();
+  if(!cs||!canControl())return;
+  const mrn=lastPilotMsgMin[cs]||'';
+  const min=await sendCpdlc(cs,'N',text,mrn);
+  if(min!=null){
+    logMsg('sys',cs,text+(mrn?' (ref MIN '+mrn+')':''));
+    // Refresh popup list so the outbound reply appears immediately
+    if(!msgpop.classList.contains('hidden'))openMessages(cs);
+  }
+}
+document.getElementById('mpUnable').onclick=()=>sendMsgReply('UNABLE');
+document.getElementById('mpStandby').onclick=()=>sendMsgReply('STANDBY');
 function openMessages(cs,x,y){
+  cs=(cs||'').toUpperCase();
+  msgPopCs=cs;
   msgAlert.delete(cs);stopMsgRepeat(cs);renderBoard();
   document.getElementById('mpTitle').textContent='MESSAGES '+cs;
+  const canReply=canControl();
+  document.getElementById('mpUnable').style.opacity=canReply?'':'0.4';
+  document.getElementById('mpStandby').style.opacity=canReply?'':'0.4';
+  document.getElementById('mpUnable').title=canReply
+    ?('UM0 — reply UNABLE'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
+    :'Sign in / verify to send';
+  document.getElementById('mpStandby').title=canReply
+    ?('UM1 — reply STANDBY'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
+    :'Sign in / verify to send';
   const L=document.getElementById('mpList');L.innerHTML='';
-  const arr=messages[(cs||'').toUpperCase()]||[];
+  const arr=messages[cs]||[];
   if(!arr.length){L.innerHTML='<div class="empty">No messages.</div>';}
   arr.slice().reverse().forEach(m=>{                 // newest first
     const dir=m.kind==='in'?'\u25c0 IN':m.kind==='out'?'\u25b6 OUT':m.kind==='sys'?'\u2713 SYS':m.kind==='err'?'\u26a0 ERR':'';
     const d=document.createElement('div');d.className='mitem '+(m.kind||'');
     d.innerHTML=`<span class="dir">${dir}</span> <span class="meta">${m.time}</span><br>${esc(m.text)}`;L.appendChild(d);
   });
-  placePop(msgpop,x,y);
+  if(x!=null&&y!=null)placePop(msgpop,x,y);
+  else if(msgpop.classList.contains('hidden'))placePop(msgpop,20,80);
+  else msgpop.classList.remove('hidden');
 }
 
 //============================================================ popups
