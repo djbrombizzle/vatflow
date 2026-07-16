@@ -325,8 +325,9 @@
 <!-- TOP BAR -->
 <div class="topbar">
   <button class="btn ghost sm" id="toggleSide" title="Panels">☰</button>
-  <div class="brand"><b>FCA&nbsp;TMU</b><span class="tag">VATSIM&nbsp;FLOW</span></div>
+  <div class="brand"><b>FCA&nbsp;BUILDER</b><span class="tag">VATSIM&nbsp;FLOW</span></div>
   <div class="spacer" style="flex:1"></div>
+  <button type="button" class="vf-help-btn" id="helpBtn" data-vf-help-btn title="Open help page">HELP</button>
   <div id="lockCtl">
     <span id="authStatusLbl" class="stat" style="font-family:var(--mono);font-size:10px;color:var(--muted)">View only</span>
   </div>
@@ -2411,7 +2412,7 @@ await initVatflowAuth();
 updateAuthStatusLbl();
 setFeed("init");
 mountVatflowNav(document.getElementById("vatflowAppNav"), "fca");
-mountHelp(document.getElementById("lockCtl"), FCA_HELP);
+mountHelp(document.getElementById("helpBtn"), FCA_HELP);
 loadAirportsLocal();
 loadSectorThresholds();
 loadLocal();               // restore FCAs from the last session

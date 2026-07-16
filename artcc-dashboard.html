@@ -274,12 +274,13 @@
 <div id="vatflowAppNav"></div>
 
 <header class="topbar">
-  <div class="brand"><b>ARTCC DASHBOARD</b><span class="tag">FCA METERING</span></div>
+  <div class="brand"><b>RELEASE BOARD</b><span class="tag">FCA METERING</span></div>
   <div class="artcc-select-wrap">
     <label for="artccSelect">ARTCC</label>
     <select id="artccSelect"></select>
   </div>
   <div class="spacer"></div>
+  <button type="button" class="vf-help-btn" id="helpBtn" data-vf-help-btn title="Open help page">HELP</button>
   <button type="button" class="btn sm" id="settingsBtn" title="Controller settings">⚙</button>
   <div id="lockCtl">
     <span id="authStatusLbl" class="stat" style="font-family:var(--mono);font-size:10px">View only</span>
@@ -293,7 +294,7 @@
 
 <div class="settings-panel" id="settingsPanel">
   <div id="atcStatus">Sign in with VATSIM to use RDY.</div>
-  <div class="settings-hint">RDY requires sign-in and an active controller position on the VATSIM feed. Full sequencing requires admin whitelist.</div>
+  <div class="settings-hint">RDY requires sign-in and an active controller position on the VATSIM feed. Full sequencing requires ARTCC editor whitelist. Press HELP for the full guide.</div>
 </div>
 
 <div class="map-section" id="mapSection">
@@ -1335,7 +1336,7 @@ function wireMapResizer() {
 
 /* boot */
 mountVatflowNav(document.getElementById("vatflowAppNav"), "artcc");
-mountHelp(document.getElementById("lockCtl"), ARTCC_DASHBOARD_HELP);
+mountHelp(document.getElementById("helpBtn"), ARTCC_DASHBOARD_HELP);
 
 dashboardMap = createArtccDashboardMap(document.getElementById("mapPanel"));
 wireMapResizer();
