@@ -408,7 +408,7 @@
       <span class="map-leg"><span class="swatch staffed"></span> center using vUSAlink CPDLC</span>
       <span class="map-leg"><span class="dot-swatch on"></span> aircraft on KUSA</span>
       <span class="map-leg"><span class="dot-swatch off"></span> other VATSIM traffic</span>
-      <span class="map-leg">ARTCC boundaries from VAT-Spy</span>
+      <span class="map-leg">ARTCC HIGH boundaries (local FAA / VAT-Spy fallback)</span>
     </div>
     <div id="mapWrap"><svg id="mapSvg" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet" aria-label="USA ARTCC map"></svg></div>
   </div>
@@ -1129,10 +1129,36 @@ function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
   vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?20000:30000);}
 
 //============================================================ live map
+// Prefer repo HIGH-stratum polygons (no oceanic FIRs). VAT-Spy is fallback only.
+const MAP_BND_LOCAL='../data/artcc-boundaries-high.geojson';
 const MAP_BND_URL='https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson';
-const US_ARTCC_EXTRA=new Set(['PAZA','PHZH','KZAK','KZWY','TJZS']);
+// Non-KZ** US centers for VAT-Spy fallback. Do NOT include KZAK/KZWY (oceanic).
+const US_ARTCC_EXTRA=new Set(['PAZA','PHZH','TJZS']);
+const OCEANIC_EXCLUDE=new Set(['KZAK','KZWY','ZAK','ZWY']);
 const MAP_VIEW={minLon:-130,maxLon:-63,minLat:22,maxLat:52,w:960,h:600,m:12};
-function isUsArtcc(id){return /^KZ[A-Z]{2}$/.test(id)||US_ARTCC_EXTRA.has(id);}
+/** Strip ICAO K prefix so hub KZNY matches local ZNY. */
+function normArtccId(id){return (id||'').toUpperCase().replace(/^K(?=Z)/,'');}
+function isOceanicProp(p){const o=p&&p.oceanic;return o===true||o===1||o==='1';}
+function isUsArtccFeature(f){
+  const p=f.properties||{};
+  const id=(p.id||'').toUpperCase();
+  if(!id||!f.geometry)return false;
+  if(OCEANIC_EXCLUDE.has(id)||isOceanicProp(p))return false;
+  // Exact center FIR only (drops KZNY-W, KZNY-BDA, KZMA-OCN, …)
+  if(/^KZ[A-Z]{2}$/.test(id)||/^Z[A-Z]{2}$/.test(id))return true;
+  return US_ARTCC_EXTRA.has(id);
+}
+function geomToMultiPolys(geom){
+  if(!geom)return [];
+  if(geom.type==='Polygon')return [geom.coordinates];
+  if(geom.type==='MultiPolygon')return geom.coordinates.slice();
+  return [];
+}
+function mergeGeom(a,b){
+  const coords=geomToMultiPolys(a).concat(geomToMultiPolys(b));
+  if(!coords.length)return a||b;
+  return {type:'MultiPolygon',coordinates:coords};
+}
 let mapBoundaryGeoms=null,mapTimer=null,mapLoading=false;
 function mapProj(lon,lat){
   const bw=MAP_VIEW.w-2*MAP_VIEW.m,bh=MAP_VIEW.h-2*MAP_VIEW.m;
@@ -1154,16 +1180,32 @@ function mapGeomPaths(geom){
   for(const poly of polys)for(const ring of poly)out.push(mapRingPath(ring));
   return out;
 }
+function ingestBoundaryFeatures(features,fromVatspy){
+  const out={};
+  for(const f of features||[]){
+    if(fromVatspy&&!isUsArtccFeature(f))continue;
+    const raw=(f.properties&&f.properties.id||'').toUpperCase();
+    if(!raw||!f.geometry)continue;
+    if(isOceanicProp(f.properties)||OCEANIC_EXCLUDE.has(raw))continue;
+    const id=normArtccId(raw);
+    if(!id)continue;
+    out[id]=out[id]?mergeGeom(out[id],f.geometry):f.geometry;
+  }
+  return out;
+}
 async function loadMapBoundaries(){
   if(mapBoundaryGeoms)return mapBoundaryGeoms;
+  try{
+    const r=await fetch(MAP_BND_LOCAL);
+    if(r.ok){
+      const gj=await r.json();
+      const local=ingestBoundaryFeatures(gj.features||[],false);
+      if(Object.keys(local).length){mapBoundaryGeoms=local;return mapBoundaryGeoms;}
+    }
+  }catch(e){/* fall through to VAT-Spy */}
   const r=await fetch(MAP_BND_URL);
   const gj=await r.json();
-  mapBoundaryGeoms={};
-  for(const f of gj.features||[]){
-    const id=(f.properties&&f.properties.id||'').toUpperCase();
-    if(!isUsArtcc(id)||!f.geometry)continue;
-    mapBoundaryGeoms[id]=f.geometry;
-  }
+  mapBoundaryGeoms=ingestBoundaryFeatures(gj.features||[],true);
   return mapBoundaryGeoms;
 }
 async function fetchMapData(){
@@ -1177,12 +1219,14 @@ async function fetchMapData(){
 function renderMapSvg(bnd,data,statsEl){
   const svg=document.getElementById('mapSvg');
   if(!svg)return;
-  const staffed=new Set((data&&data.staffed)||[]);
+  const staffed=new Set(((data&&data.staffed)||[]).map(normArtccId));
   const flights=(data&&data.flights)||[];
   const onKusa=flights.filter(f=>f.connected).length;
-  const myArtcc=(hubMode()?hubArtcc:monitorArtcc()||'').toUpperCase();
+  const myArtcc=normArtccId(hubMode()?hubArtcc:monitorArtcc()||'');
   const ctrlByArtcc={};
-  ((data&&data.controllers)||[]).forEach(c=>{if(c.artcc&&c.callsign)ctrlByArtcc[c.artcc]=c.callsign;});
+  ((data&&data.controllers)||[]).forEach(c=>{
+    if(c.artcc&&c.callsign)ctrlByArtcc[normArtccId(c.artcc)]=c.callsign;
+  });
   if(statsEl){
     const hubNote=data?'':' \u00b7 traffic unavailable';
     statsEl.textContent=`${flights.length} a/c \u00b7 ${onKusa} on KUSA \u00b7 ${staffed.size} CPDLC center${staffed.size===1?'':'s'}${hubNote}`;
@@ -1201,7 +1245,8 @@ function renderMapSvg(bnd,data,statsEl){
     if(f.lat==null||f.lon==null)return;
     const xy=mapProj(f.lon,f.lat);
     const cls=f.connected?'map-ac-conn':'map-ac';
-    const tip=`${f.callsign} FL${f.fl||'?'}${f.connected?' \u00b7 KUSA':''}${f.artcc?' \u00b7 '+f.artcc:''}`;
+    const art=f.artcc?normArtccId(f.artcc):'';
+    const tip=`${f.callsign} FL${f.fl||'?'}${f.connected?' \u00b7 KUSA':''}${art?' \u00b7 '+art:''}`;
     html+=`<circle class="${cls}" cx="${xy[0].toFixed(1)}" cy="${xy[1].toFixed(1)}" r="2.5"><title>${esc(tip)}</title></circle>`;
   });
   svg.innerHTML=html;
