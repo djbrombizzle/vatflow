@@ -1,7 +1,9 @@
 /**
  * VATFLOW — VATSIM Connect session (browser).
+ * Supports ARTCC-scoped staff/editor grants from the hub JWT.
  */
 import { getAccessApiBase } from "./vatflow-access-api.js";
+import { primaryAirportArtcc } from "./artcc-access.js";
 
 const LS_TOKEN = "vatflow.sessionToken.v1";
 const LS_RETURN = "vatflow.authReturnPath.v1";
@@ -23,6 +25,11 @@ function isExpired(claims) {
   return !claims || !claims.exp || Date.now() / 1000 >= claims.exp;
 }
 
+function normalizeArtccs(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(a => String(a || "").toUpperCase()).filter(Boolean);
+}
+
 function claimsToSession(claims) {
   if (!claims || !claims.cid) return null;
   return {
@@ -36,6 +43,8 @@ function claimsToSession(claims) {
     fullAccess: !!claims.fullAccess || claims.tier === "full",
     fullAccessReason: claims.fullAccessReason || null,
     isAdmin: !!claims.isAdmin,
+    accessRole: claims.accessRole || null,
+    artccs: normalizeArtccs(claims.artccs),
     exp: claims.exp,
   };
 }
@@ -79,9 +88,54 @@ export function isAdmin() {
   return isSignedIn() && !!_session.isAdmin;
 }
 
+export function isArtccStaff() {
+  return isSignedIn() && (_session.isAdmin || _session.accessRole === "staff");
+}
+
+export function getArtccs() {
+  if (!isSignedIn()) return [];
+  return _session.artccs || [];
+}
+
+export function hasGlobalArtccAccess() {
+  if (!isSignedIn()) return false;
+  if (_session.isAdmin) return true;
+  return (_session.artccs || []).includes("*");
+}
+
+export function canEditArtcc(artcc) {
+  if (!canFullControl()) return false;
+  if (hasGlobalArtccAccess()) return true;
+  const id = String(artcc || "").toUpperCase();
+  return !!id && (_session.artccs || []).includes(id);
+}
+
+/**
+ * FCA write gate — ownership is fca.artcc (required for scoped editors).
+ */
+export function canEditFca(fca) {
+  if (!canFullControl()) return false;
+  if (hasGlobalArtccAccess()) return true;
+  const owner = fca && fca.artcc ? String(fca.artcc).toUpperCase() : "";
+  if (!owner) return false;
+  return canEditArtcc(owner);
+}
+
+export function canEditAirport(icao) {
+  if (!canFullControl()) return false;
+  if (hasGlobalArtccAccess()) return true;
+  const owner = primaryAirportArtcc(icao);
+  if (!owner) return false;
+  return canEditArtcc(owner);
+}
+
 export function authStatusLabel() {
   if (!isSignedIn()) return "View only";
-  if (canFullControl()) return "Controller";
+  if (canFullControl()) {
+    const arts = getArtccs();
+    if (!hasGlobalArtccAccess() && arts.length) return arts.join("/");
+    return "Controller";
+  }
   return "Signed in";
 }
 
@@ -138,6 +192,8 @@ export async function refreshSession() {
       fullAccess: !!data.fullAccess,
       fullAccessReason: data.fullAccessReason || null,
       isAdmin: !!data.isAdmin,
+      accessRole: data.accessRole || null,
+      artccs: normalizeArtccs(data.artccs),
       exp: data.exp,
     };
     emitAuthChange();
@@ -241,8 +297,8 @@ export function mountAuthNav(container) {
   function render() {
     const el = container.querySelector("#vfAuthNav");
     if (!el) return;
-    const adminLink = container.querySelector('a[href="admin-access.html"]');
-    if (adminLink) adminLink.style.display = isAdmin() ? "" : "none";
+    const adminLink = container.querySelector('a[href="admin-access.html"], a[href$="/admin-access.html"], a[href$="admin-access.html"]');
+    if (adminLink) adminLink.style.display = isArtccStaff() ? "" : "none";
 
     if (!isSignedIn()) {
       el.innerHTML = `<button type="button" class="vf-auth-btn" id="vfSignInBtn">Sign in with VATSIM</button>`;
@@ -271,7 +327,8 @@ export function mountAuthNav(container) {
 if (typeof window !== "undefined") {
   window.VatflowAuth = {
     getSession, isSignedIn, canFullControl, canUseRunwayBalancer, canUseFcaRdy,
-    canUseTowerFull, isAdmin, authStatusLabel, login, logout, refreshSession,
-    initVatflowAuth, requestGdprDelete, getStoredToken,
+    canUseTowerFull, isAdmin, isArtccStaff, getArtccs, hasGlobalArtccAccess,
+    canEditArtcc, canEditFca, canEditAirport, authStatusLabel, login, logout,
+    refreshSession, initVatflowAuth, requestGdprDelete, getStoredToken,
   };
 }

@@ -8,54 +8,76 @@
   <style>
     body { margin: 0; font-family: Arial, sans-serif; background: #0b1016; color: #d4dde6; padding-top: 28px; }
     #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 5; }
-    main { max-width: 760px; margin: 20px auto; padding: 0 14px 24px; }
+    main { max-width: 860px; margin: 20px auto; padding: 0 14px 24px; }
     .card { background: #111925; border: 1px solid #223042; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
     h1 { margin: 0 0 8px; font-size: 18px; }
     h2 { margin: 0 0 8px; font-size: 14px; color: #e8a838; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-    input, button { padding: 8px; border-radius: 6px; border: 1px solid #33475f; background: #0c131d; color: #d4dde6; }
+    input, select, button { padding: 8px; border-radius: 6px; border: 1px solid #33475f; background: #0c131d; color: #d4dde6; }
     button { cursor: pointer; }
     .status { font-size: 12px; color: #8a97a3; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #223042; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #223042; vertical-align: top; }
     th { color: #8a97a3; font-weight: 600; }
     .muted { color: #5c6b78; font-size: 12px; line-height: 1.5; }
+    .artcc-grid { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0 10px; max-height: 120px; overflow: auto; }
+    .artcc-grid label { font-size: 11px; font-family: ui-monospace, monospace; display: flex; gap: 4px; align-items: center; }
+    .chip { display: inline-block; padding: 1px 6px; border-radius: 4px; background: #1a2433; color: #e8a838; font-family: ui-monospace, monospace; font-size: 11px; margin-right: 4px; }
   </style>
 </head>
 <body>
   <div id="vatflowAppNav"></div>
   <main>
     <div class="card">
-      <h1>Admin — Full Access Whitelist</h1>
+      <h1>Admin — ARTCC Access</h1>
       <p class="muted">
-        Full edit access is granted only via the admin whitelist. Add a CID here to grant full access (FCA edit, TMU Tools push, ARTCC sequencing).
-        Sign in with your admin VATSIM account (CID in Railway <code>VATFLOW_ADMIN_CIDS</code>).
+        Grant <b>editors</b> full control for specific ARTCCs (FCA Builder + Airport TMU for that facility).
+        Global admins can also appoint <b>staff</b> who whitelist editors for their own ARTCC without further admin help.
       </p>
       <div id="authStatus" class="status">Checking sign-in…</div>
     </div>
     <div class="card" id="whitelistCard" style="display:none">
-      <h2>Add CID to whitelist</h2>
+      <h2 id="formTitle">Add access</h2>
       <div class="row">
         <input id="cidInput" inputmode="numeric" maxlength="9" placeholder="VATSIM CID">
+        <select id="roleSelect">
+          <option value="editor">Editor</option>
+          <option value="staff">Staff (can whitelist)</option>
+        </select>
         <input id="noteInput" placeholder="Note (optional)" style="flex:1;min-width:160px">
-        <button id="addBtn">Add</button>
+        <button id="addBtn">Add / Update</button>
       </div>
+      <div class="row" id="globalRow" style="display:none">
+        <label style="font-size:12px"><input type="checkbox" id="globalCheck"> All ARTCCs (*)</label>
+      </div>
+      <div id="artccPicker" class="artcc-grid"></div>
       <div id="cfgStatus" class="status"></div>
       <table>
-        <thead><tr><th>CID</th><th>Note</th><th>Added</th><th></th></tr></thead>
-        <tbody id="wlBody"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+        <thead><tr><th>CID</th><th>Role</th><th>ARTCCs</th><th>Note</th><th>Added</th><th></th></tr></thead>
+        <tbody id="wlBody"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
       </table>
     </div>
   </main>
   <script type="module">
     import { mountVatflowNav } from "./shared/vatflow-nav.js";
     import { getAccessApiBase } from "./shared/vatflow-access-api.js";
-    import { initVatflowAuth, isAdmin, isSignedIn, login, getStoredToken } from "./shared/vatflow-auth.js";
+    import { US_ARTCC } from "./shared/artcc-access.js";
+    import {
+      initVatflowAuth, isAdmin, isArtccStaff, isSignedIn, login,
+      getStoredToken, getArtccs, getSession,
+    } from "./shared/vatflow-auth.js";
 
     mountVatflowNav(document.getElementById("vatflowAppNav"), "admin");
     const authStatus = document.getElementById("authStatus");
     const cfgStatus = document.getElementById("cfgStatus");
     const whitelistCard = document.getElementById("whitelistCard");
+    const roleSelect = document.getElementById("roleSelect");
+    const globalCheck = document.getElementById("globalCheck");
+    const globalRow = document.getElementById("globalRow");
+    const artccPicker = document.getElementById("artccPicker");
+
+    let managedArtccs = [];
+    let canPromoteStaff = false;
 
     async function api(path, opts = {}) {
       const token = getStoredToken();
@@ -67,28 +89,65 @@
           ...(opts.headers || {}),
         },
       });
-      if (!res.ok) return null;
-      return res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) return data || { ok: false };
+      return data;
+    }
+
+    function selectableArtccs() {
+      if (canPromoteStaff || managedArtccs.includes("*")) return [...US_ARTCC].sort();
+      return (managedArtccs || []).filter(a => a !== "*").sort();
+    }
+
+    function renderArtccPicker() {
+      const list = selectableArtccs();
+      artccPicker.innerHTML = list.map(id =>
+        `<label><input type="checkbox" data-artcc="${id}" class="artcc-cb"> ${id}</label>`
+      ).join("");
+      syncGlobalUi();
+    }
+
+    function syncGlobalUi() {
+      const useGlobal = canPromoteStaff && globalCheck.checked;
+      artccPicker.style.opacity = useGlobal ? "0.4" : "1";
+      artccPicker.querySelectorAll("input").forEach(cb => { cb.disabled = useGlobal; });
+      roleSelect.querySelector('option[value="staff"]').disabled = !canPromoteStaff;
+      if (!canPromoteStaff) roleSelect.value = "editor";
+    }
+
+    function selectedArtccs() {
+      if (canPromoteStaff && globalCheck.checked) return ["*"];
+      return [...artccPicker.querySelectorAll(".artcc-cb:checked")].map(cb => cb.getAttribute("data-artcc"));
     }
 
     async function loadWhitelist() {
       const data = await api("/auth/admin/whitelist");
       const body = document.getElementById("wlBody");
       if (!data || !data.ok) {
-        body.innerHTML = '<tr><td colspan="4" class="muted">Could not load whitelist.</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" class="muted">Could not load whitelist.</td></tr>';
         return;
       }
+      canPromoteStaff = !!data.canPromoteStaff;
+      managedArtccs = data.managedArtccs || [];
+      globalRow.style.display = canPromoteStaff ? "" : "none";
+      renderArtccPicker();
+
       if (!data.whitelist.length) {
-        body.innerHTML = '<tr><td colspan="4" class="muted">No whitelisted CIDs yet.</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" class="muted">No entries yet.</td></tr>';
         return;
       }
-      body.innerHTML = data.whitelist.map(row => `
+      body.innerHTML = data.whitelist.map(row => {
+        const arts = (row.artccs || []).map(a => `<span class="chip">${a}</span>`).join("") || "—";
+        return `
         <tr>
           <td>${row.cid}</td>
+          <td>${row.role || "editor"}</td>
+          <td>${arts}</td>
           <td>${row.note || "—"}</td>
           <td>${(row.addedAt || "").slice(0, 10)}</td>
           <td><button type="button" data-rm="${row.cid}">Remove</button></td>
-        </tr>`).join("");
+        </tr>`;
+      }).join("");
       body.querySelectorAll("[data-rm]").forEach(btn => {
         btn.addEventListener("click", async () => {
           const cid = btn.getAttribute("data-rm");
@@ -96,7 +155,7 @@
             method: "POST",
             body: JSON.stringify({ cid, remove: true }),
           });
-          cfgStatus.textContent = res && res.ok ? `Removed ${cid}.` : "Failed to remove.";
+          cfgStatus.textContent = res && res.ok ? `Removed ${cid}.` : `Failed: ${(res && res.error) || "unknown"}`;
           loadWhitelist();
         });
       });
@@ -105,30 +164,55 @@
     async function refreshAdminUi() {
       await initVatflowAuth();
       if (!isSignedIn()) {
-        authStatus.innerHTML = 'Sign in with VATSIM to manage the whitelist. <button type="button" id="adminSignIn">Sign in</button>';
+        authStatus.innerHTML = 'Sign in with VATSIM to manage access. <button type="button" id="adminSignIn">Sign in</button>';
         document.getElementById("adminSignIn")?.addEventListener("click", () => login());
         whitelistCard.style.display = "none";
         return;
       }
-      if (!isAdmin()) {
-        authStatus.textContent = "Signed in, but this account is not an admin.";
+      if (!isArtccStaff()) {
+        authStatus.textContent = "Signed in, but this account is not admin or ARTCC staff.";
         whitelistCard.style.display = "none";
         return;
       }
-      authStatus.textContent = "Admin access granted.";
+      const s = getSession();
+      if (isAdmin()) {
+        authStatus.textContent = "Global admin — manage staff and editors for any ARTCC.";
+        document.getElementById("formTitle").textContent = "Add staff or editor";
+      } else {
+        const arts = (s.artccs || []).join(", ");
+        authStatus.textContent = `ARTCC staff (${arts}) — whitelist editors for your facility only.`;
+        document.getElementById("formTitle").textContent = "Add editor for your ARTCC";
+      }
       whitelistCard.style.display = "";
       loadWhitelist();
     }
 
+    globalCheck.addEventListener("change", syncGlobalUi);
+    roleSelect.addEventListener("change", () => {
+      if (roleSelect.value === "staff" && globalCheck.checked) {
+        globalCheck.checked = false;
+        syncGlobalUi();
+      }
+    });
+
     document.getElementById("addBtn").addEventListener("click", async () => {
       const cid = document.getElementById("cidInput").value.replace(/\D/g, "");
       const note = document.getElementById("noteInput").value.trim();
+      const role = roleSelect.value;
+      const artccs = selectedArtccs();
       if (!cid) { cfgStatus.textContent = "Enter a valid CID."; return; }
+      if (!artccs.length) { cfgStatus.textContent = "Select at least one ARTCC (or All ARTCCs)."; return; }
+      if (role === "staff" && artccs.includes("*")) {
+        cfgStatus.textContent = "Staff must be scoped to specific ARTCC(s).";
+        return;
+      }
       const res = await api("/auth/admin/whitelist", {
         method: "POST",
-        body: JSON.stringify({ cid, note }),
+        body: JSON.stringify({ cid, note, role, artccs }),
       });
-      cfgStatus.textContent = res && res.ok ? `Added ${cid} to whitelist.` : "Failed to add CID.";
+      cfgStatus.textContent = res && res.ok
+        ? `Saved ${cid} (${role}, ${artccs.join(",")}).`
+        : `Failed: ${(res && res.error) || "unknown"}`;
       if (res && res.ok) {
         document.getElementById("cidInput").value = "";
         document.getElementById("noteInput").value = "";

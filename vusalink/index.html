@@ -232,13 +232,7 @@
 </head>
 <body>
 
-<nav id="vatflowAppNav" class="vatflow-app-nav" aria-label="VATFLOW">
-  <span class="vf-brand"><b>VATFLOW</b> <span class="vf-tagline">vUSAlink CPDLC</span></span>
-  <a href="../index.html">Hub</a>
-  <a href="index.html" class="active" aria-current="page">vUSAlink</a>
-  <a href="../privacy.html">Privacy</a>
-  <span class="vf-spacer"></span>
-</nav>
+<nav id="vatflowAppNav" class="vatflow-app-nav" aria-label="VATFLOW"></nav>
 
 <div id="toolbar">
   <div class="field" id="viewArtccField"><label>VIEW ARTCC</label><input id="viewArtcc" size="6" autocomplete="off" placeholder="KZJX"></div>
@@ -2090,12 +2084,10 @@ function makeDraggable(el,handle){
 
 </script>
 <script type="module">
-import { initVatflowAuth, mountAuthNav } from "../shared/vatflow-auth.js";
+import { mountVatflowNav } from "../shared/vatflow-nav.js";
 import * as VFRefresh from "../shared/vatflow-refresh.js";
 window.VFRefresh = VFRefresh;
-const nav=document.getElementById("vatflowAppNav");
-await initVatflowAuth();
-mountAuthNav(nav);
+mountVatflowNav(document.getElementById("vatflowAppNav"), "vusalink", { base: "../" });
 onOAuthReady();
 </script>
 </body>

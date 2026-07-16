@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>FCA TMU — VATSIM Flow Control</title>
+<title>FCA Builder — VATSIM Flow Control</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
 <link rel="stylesheet" href="shared/vatflow-help.css">
@@ -482,7 +482,7 @@ import {
   explainFcaExclusion,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-import { initVatflowAuth, canFullControl, canUseFcaRdy, authStatusLabel } from "./shared/vatflow-auth.js";
+import { initVatflowAuth, canFullControl, canUseFcaRdy, canEditFca, canEditArtcc, hasGlobalArtccAccess, getArtccs, authStatusLabel } from "./shared/vatflow-auth.js";
 import { mountHelp, FCA_HELP } from "./shared/vatflow-help.js";
 import { buildRouteAnchorsForAircraft, loadNavData, isNavReady, getNavMeta } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -510,6 +510,7 @@ const REFRESH_SEC = 30;
 
 /* ---- controller access: VATSIM Connect OAuth tiers ---- */
 function canControl(){ return canFullControl(); }
+function canControlFca(f){ return canEditFca(f); }
 function canReady(){ return canUseFcaRdy(); }
 
 function updateAuthStatusLbl(){
@@ -1397,6 +1398,7 @@ function renderFcaList(){
     e.stopPropagation();
     if(!canControl()) return;
     const f=state.fcas.find(x=>x.id===el.getAttribute("data-en"));
+    if(f && !canControlFca(f)){ toast("You can only enable/disable FCAs for your ARTCC.",2800); return; }
     if(f){ f.enabled=!f.enabled; cloudPush(f); renderAll(); }
   }));
   wrap.querySelectorAll("[data-edit]").forEach(el=>el.addEventListener("click",e=>{
@@ -1415,6 +1417,10 @@ function renderFcaList(){
    ============================================================ */
 function openEditor(fca){
   if(!canControl()){ toast("View only — sign in with VATSIM for full FCA control.",2800); return; }
+  if(!canControlFca(fca) && state.fcas.some(f=>f.id===fca.id)){
+    toast("You can only edit FCAs for your ARTCC(s): "+(getArtccs().join(", ")||"none")+".",3200);
+    return;
+  }
   const isNew=!state.fcas.some(f=>f.id===fca.id);
   // snapshot an existing FCA so Cancel reverts live edits (color / filters /
   // mode mutate the object immediately). Don't re-snapshot when the editor
@@ -1516,6 +1522,8 @@ function saveEditor(){
   f.fixes=fixTokens.filter(t=>/^[A-Z0-9]{2,6}$/.test(t));
   if(f.fixes.length<fixTokens.length) toast("Ignored fix entries that aren't 2–6 letter/digit names.",2600);
   f.artcc=(document.getElementById("f_artcc").value||"").toUpperCase().trim().replace(/[^A-Z0-9]/g,"").slice(0,4);
+  if(!f.artcc){ toast("Set an owning ARTCC (e.g. ZDC) before saving.",2800); return; }
+  if(!canEditArtcc(f.artcc)){ toast("You can only save FCAs for your ARTCC(s): "+(getArtccs().join(", ")||"none")+".",3200); return; }
   const scopeTokens=(document.getElementById("f_scope").value||"").toUpperCase().split(/[\s,]+/).filter(Boolean);
   f.scope=scopeTokens.filter(t=>/^[A-Z]{2,4}$/.test(t));
   if(f.scope.length<scopeTokens.length) toast("Ignored scope entries that aren't ARTCC ids.",2600);
@@ -1605,7 +1613,7 @@ function renderSequence(){
     (s.manual?`<span class="manualchip" id="seqAuto" title="Return to automatic sequencing">✋ MANUAL · ↺ auto</span>`:"")+
     (totalDelay>60?`<span style="color:var(--red)">Σdelay ${fmtClock(totalDelay)}</span>`:"");
   const autoBtn=document.getElementById("seqAuto");
-  if(autoBtn) autoBtn.addEventListener("click",()=>{ if(!canControl()) return; sel.order=[]; sel.manualSeq=false; cloudPush(sel); renderAll(); });
+  if(autoBtn) autoBtn.addEventListener("click",()=>{ if(!canControlFca(sel)) return; sel.order=[]; sel.manualSeq=false; cloudPush(sel); renderAll(); });
 
   const body=document.getElementById("seqBody");
   const exHtml=excludedHtml(sel);
@@ -1614,8 +1622,9 @@ function renderSequence(){
 
   // ladder timeline
   body.innerHTML=ladderSvg(s);
+  const seqCtl=canControlFca(sel);
   body.insertAdjacentHTML("beforeend",
-    `<div class="seqhint">${canControl()?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):canReady()?"Sign in for full sequence control · RDY available":"View only — sign in with VATSIM"}</div>`);
+    `<div class="seqhint">${seqCtl?"⠿ drag a strip to reorder · all times recompute"+(s.manual?"":" · airborne hold priority"):canReady()?"Sign in for full sequence control · RDY available":"View only — sign in with VATSIM"}</div>`);
   // strips
   const orderCS=s.items.map(c=>c.p.callsign);
   const view=state.seqView||"all";
@@ -1652,8 +1661,8 @@ function renderSequence(){
     const gapLine=`<div class="gap${gapShort?" short":""}">${gapHtml}</div>`;
     const strip=document.createElement("div");
     strip.className="strip"; strip.style.borderLeftColor=delayColor(c.delay);
-    if(canControl()) strip.setAttribute("draggable","true");
-    const rmBtn=canControl()?`<div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`:"";
+    if(seqCtl) strip.setAttribute("draggable","true");
+    const rmBtn=seqCtl?`<div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`:"";
     if(c.phase==="gnd"){
       const wheelsUp=groundWheelsUpMs(c);
       const edct=wheelsUp?fmtZulu(wheelsUp):"—";
@@ -1708,7 +1717,7 @@ function renderSequence(){
       cloudPush(sel, { readyOnly: true }); invalidateSequences(); renderAll();
     });
     strip.addEventListener("click",()=>{ const o=(c.p.lat!=null)?[c.p.lat,c.p.lon]:getAirport(c.p.dep); if(o) map.panTo(o); });
-    if(canControl()){
+    if(seqCtl){
     // drag-to-reorder
     strip.addEventListener("dragstart",e=>{ dragFrom=i; stripDragging=true; strip.classList.add("dragging");
       e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain",String(i));}catch(_){}});
@@ -1738,7 +1747,7 @@ function renderSequence(){
 }
 /* controller drags a strip -> lock in a manual order and recompute everyone's times */
 function moveSeq(fca,orderCS,from,to){
-  if(!canControl()) return;
+  if(!canControlFca(fca)) return;
   const arr=orderCS.slice();
   const [m]=arr.splice(from,1); arr.splice(to,0,m);
   fca.order=arr; fca.manualSeq=true; cloudPush(fca); renderAll();
@@ -1747,13 +1756,13 @@ function moveSeq(fca,orderCS,from,to){
 function excludedHtml(fca){
   const ex=fca.excluded||[];
   if(!ex.length) return "";
-  const ctl=canControl();
+  const ctl=canControlFca(fca);
   let rows=ex.map(cs=>`<div class="row"><span>✕ ${escapeHtml(cs)}</span>${ctl?`<span class="restore" data-restore="${escapeHtml(cs)}">restore</span>`:""}</div>`).join("");
   return `<div class="excl"><div class="row" style="color:var(--muted-2)"><span>REMOVED (${ex.length})</span>`+
     (ctl?`<span class="restore" data-restore-all="1">restore all</span>`:"")+`</div>${rows}</div>`;
 }
 function wireExcluded(fca){
-  if(!canControl()) return;
+  if(!canControlFca(fca)) return;
   document.querySelectorAll("[data-restore]").forEach(el=>el.addEventListener("click",()=>{
     fca.excluded=(fca.excluded||[]).filter(c=>c!==el.getAttribute("data-restore")); cloudPush(fca); renderAll();
   }));
@@ -1761,7 +1770,7 @@ function wireExcluded(fca){
   if(all) all.addEventListener("click",()=>{ fca.excluded=[]; cloudPush(fca); renderAll(); });
 }
 function excludeAircraft(fca,callsign){
-  if(!canControl()) return;
+  if(!canControlFca(fca)) return;
   fca.excluded=fca.excluded||[];
   if(!fca.excluded.includes(callsign)) fca.excluded.push(callsign);
   cloudPush(fca); renderAll();
@@ -1818,7 +1827,8 @@ function ladderSvg(s){
    DRAWING
    ============================================================ */
 function startDrawing(forFca){
-  if(!canControl()){ toast("View only — unlock with the control password to draw FCAs.",2800); return; }
+  if(!canControl()){ toast("View only — sign in with VATSIM for full FCA control.",2800); return; }
+  if(forFca && !canControlFca(forFca)){ toast("You can only redraw FCAs for your ARTCC.",2800); return; }
   cancelDrawing();
   const target = forFca || makeBlankFca();
   // keep a backup so Esc during a redraw restores the existing line
@@ -1830,7 +1840,9 @@ function startDrawing(forFca){
   renderFcaLines();
 }
 function makeBlankFca(){
-  return { id:nid(), name:"FCA "+(state.fcas.length+1), points:[], dests:[], origins:[], fixes:[], artcc:"", scope:[], minFL:null, maxFL:null,
+  const arts=getArtccs().filter(a=>a!=="*");
+  const defaultArtcc=arts.length===1?arts[0]:"";
+  return { id:nid(), name:"FCA "+(state.fcas.length+1), points:[], dests:[], origins:[], fixes:[], artcc:defaultArtcc, scope:[], minFL:null, maxFL:null,
            dir:"any", mode:"rate", rate:30, mit:15, excluded:[], order:[],
            color:FCA_COLORS[state.fcas.length%FCA_COLORS.length], enabled:true };
 }
@@ -1921,7 +1933,9 @@ window.addEventListener("keydown",e=>{
    DELETE / EXPORT / IMPORT
    ============================================================ */
 function deleteFca(id){
-  if(!canControl()){ toast("View only — unlock to delete FCAs.",2600); return; }
+  if(!canControl()){ toast("View only — sign in to delete FCAs.",2600); return; }
+  const f=state.fcas.find(x=>x.id===id);
+  if(f && !canControlFca(f)){ toast("You can only delete FCAs for your ARTCC.",2800); return; }
   const f=state.fcas.find(x=>x.id===id);
   if(f && !confirm(`Delete FCA "${f.name}"? This removes it for everyone if sync is on.`)) return;
   state.fcas=state.fcas.filter(f=>f.id!==id);
@@ -1985,7 +1999,7 @@ document.getElementById("seqFit").addEventListener("click",()=>{
   if(sel&&sel.points.length>=2) map.fitBounds(L.latLngBounds(sel.points).pad(0.6));
 });
 document.getElementById("seqEdit").addEventListener("click",()=>{
-  if(!canControl()){ toast("View only — unlock to edit FCA settings.",2600); return; }
+  if(!canControl()){ toast("View only — sign in to edit FCA settings.",2600); return; }
   const sel=state.fcas.find(f=>f.id===state.selectedId); if(!sel) return;
   setSide(true);            // editor lives in the sidebar — make sure it's visible
   openEditor(sel);

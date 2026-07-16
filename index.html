@@ -23,9 +23,14 @@
     justify-content: center; padding: 24px;
   }
   #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; }
-  .hub { max-width: 480px; width: 100%; margin-top: calc(var(--vatflow-nav-h) + 32px); text-align: center; }
+  .hub { max-width: 520px; width: 100%; margin-top: calc(var(--vatflow-nav-h) + 32px); text-align: center; }
   .hub h1 { font-family: var(--mono); font-size: 22px; letter-spacing: 0.14em; margin: 0 0 8px; }
-  .hub p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0 0 28px; }
+  .hub > p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0 0 28px; }
+  .section { text-align: left; margin-bottom: 20px; }
+  .section h2 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: #5c6b78;
+    margin: 0 0 10px; font-weight: 600; text-transform: uppercase;
+  }
   .cards { display: flex; flex-direction: column; gap: 12px; }
   .cards a {
     display: block; padding: 16px 18px; border-radius: 8px; border: 1px solid var(--line);
@@ -41,28 +46,36 @@
 <div id="vatflowAppNav"></div>
 <div class="hub">
   <h1>VATFLOW</h1>
-  <p>TMU management for VATSIM &middot; <b>PERSONAL USE ONLY</b></p>
-  <div class="cards">
-    <a href="vatflow-tbfm%20v2.html">
-      <b>TMU Tools</b>
-      <span>Airport capacity TMU suite — CFR, programs, dashboard, and pilot lookup.</span>
-    </a>
-    <a href="FCA-builderv02.html">
-      <b>FCA TMU</b>
-      <span>Draw flow constrained areas, meter traffic, and sync FCAs live.</span>
-    </a>
-    <a href="artcc-dashboard.html">
-      <b>ARTCC Dashboard</b>
-      <span>ARTCC map of active FCA programs, release management, and RDY for metered departures.</span>
-    </a>
-    <a href="runway-balancer.html">
-      <b>Runway Balancer</b>
-      <span>Arrival runway demand — set the airport config, auto-balance or map STARs to runways.</span>
-    </a>
-    <a href="vusalink/">
-      <b>vUSAlink</b>
-      <span>US center CPDLC board — ERAM-style datalink via the shared KUSA hub.</span>
-    </a>
+  <p>Traffic management for VATSIM &middot; <b>PERSONAL USE ONLY</b></p>
+  <div class="section">
+    <h2>Traffic management</h2>
+    <div class="cards">
+      <a href="vatflow-tbfm%20v2.html">
+        <b>Airport TMU</b>
+        <span>Destination capacity — AAR, CFR, restrictions, and ground stops.</span>
+      </a>
+      <a href="FCA-builderv02.html">
+        <b>FCA Builder</b>
+        <span>Draw flow constrained areas, meter crossings, and sync FCA programs.</span>
+      </a>
+      <a href="artcc-dashboard.html">
+        <b>Release Board</b>
+        <span>ARTCC view of active FCAs — RDY / release for metered departures.</span>
+      </a>
+      <a href="runway-balancer.html">
+        <b>Runway Balancer</b>
+        <span>Arrival runway demand — airport config and STAR-to-runway mapping.</span>
+      </a>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Datalink</h2>
+    <div class="cards">
+      <a href="vusalink/">
+        <b>vUSAlink</b>
+        <span>US center CPDLC board — ERAM-style datalink via the shared KUSA network.</span>
+      </a>
+    </div>
   </div>
   <p style="margin-top:28px;font-family:var(--mono,monospace);font-size:11px;color:#5c6b78">
     <a href="privacy.html" style="color:#8a97a3">Privacy &amp; Data Handling Policy</a>

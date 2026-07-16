@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VATFLOW — TMU Tools for VATSIM</title>
+<title>VATFLOW — Airport TMU</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
@@ -806,7 +806,7 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
         <span class="lbl">Room</span>
         <input id="roomInput" placeholder="event name" maxlength="24" autocomplete="off">
         <button id="syncBtn" class="btn-primary">Connect</button>
-        <button id="hubBtn" class="btn-secondary" title="Connect to the global VATFLOW hub — one shared session, no room name">Hub</button>
+        <button id="hubBtn" class="btn-secondary" title="Connect to the global Live sync session — one shared session, no room name">Live sync</button>
         <span id="syncStatus" class="sync-pill synclocal"><span class="status-dot muted"></span><span class="sync-label">Local</span></span>
       </div>
       <span id="feedStatus" class="feed-pill">FEED &mdash; &middot; DB &hellip;</span>
@@ -947,8 +947,13 @@ const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
-/* ---- controller access: VATSIM Connect OAuth (full tier = whitelist only) ---- */
+/* ---- controller access: VATSIM Connect OAuth (full tier = ARTCC whitelist) ---- */
 function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
+function canEditApt(icao) {
+  return window.VatflowAuth && typeof window.VatflowAuth.canEditAirport === "function"
+    ? window.VatflowAuth.canEditAirport(icao)
+    : canControl();
+}
 function canFcaRelease() {
   return window.VatflowAuth && (window.VatflowAuth.canFullControl() || window.VatflowAuth.canUseFcaRdy());
 }
@@ -2751,7 +2756,7 @@ function renderHome() {
   const codes = Object.keys(tmuRates).sort();
 
   let h = '<div class="homewrap">' +
-    '<div class="homehead">vNAS &middot; Virtual National Airspace Status</div>';
+    '<div class="homehead">National Overview &middot; Flow programs &amp; taxi</div>';
 
   /* active TMU programs */
   h += '<div class="homesec">Flow programs</div>';
@@ -2835,9 +2840,10 @@ function renderHelp() {
   const relMin = DEP_RELEASE_INT / 60000;
   contentEl.innerHTML =
     '<div class="helpwrap">' +
-    '<div class="helptitle">Quick reference</div>' +
-    '<p class="helpintro">VATFLOW TMU Tools meters arrivals and issues Call For Release (CFR) times for VATSIM events. ' +
-    'When an aircraft is in an FCA program, releases delegate to FCA TMU / Supabase. ' +
+    '<div class="helptitle">Airport TMU — Quick reference</div>' +
+    '<p class="helpintro">Airport TMU meters destination capacity and issues Call For Release (CFR) times for VATSIM events. ' +
+    'Enroute/line FCAs live in <b>FCA Builder</b>; position RDY is on the <b>Release Board</b>. ' +
+    'When an aircraft is in an FCA program, releases delegate to FCA Builder / Supabase. ' +
     'Live traffic comes from the VATSIM feed (refreshes every 30 seconds).</p>' +
     '<div class="help-quickstart">' +
     '<span><b>1.</b> Set AAR on TMU</span>' +
@@ -2847,8 +2853,9 @@ function renderHelp() {
     '<div class="help-layout">' +
     '<nav class="help-nav">' +
     '<a href="#help-pages">Pages</a>' +
+    '<a href="#help-tools">Suite</a>' +
     '<a href="#help-cfr">CFR</a>' +
-    '<a href="#help-metering">Metering</a>' +
+    '<a href="#help-access">Access</a>' +
     '<a href="#help-sync">Sync</a>' +
     '<a href="#help-terms">Terms</a>' +
     '</nav>' +
@@ -2856,65 +2863,67 @@ function renderHelp() {
 
     '<div class="helpsec" id="help-pages">Pages</div>' +
     '<details class="help-acc" open><summary>Home</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>Overview of every active flow program and its average delay.</li>' +
+    '<li>National overview of every active flow program and its average delay.</li>' +
     '<li><b>Departure taxi times</b> — per-airport averages from the Taxi Monitor, with trend and volume context.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Apt Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Enter an arrival airport and press <b>Load</b> to see inbound traffic, demand vs. AAR, and the arrival ladder.</li>' +
     '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
-    '<li><b>Ready Time</b> — anyone can enter pilot-estimated wheels-up (HHMMz); no control password required.</li>' +
-    '<li>Sort any column by clicking its header; click again to reverse.</li>' +
-    '<li>Filter boxes under headers support text match or <b>&gt;n</b> <b>&lt;n</b> on numeric columns.</li>' +
-    '<li>The arrival ladder scrolls; NOW is at the bottom. Drag the left border to resize the panel.</li></ul></div></details>' +
+    '<li><b>Ready Time</b> — anyone can enter pilot-estimated wheels-up (HHMMz); sign-in not required for the field itself.</li>' +
+    '<li>Sort any column by clicking its header; click again to reverse.</li></ul></div></details>' +
     '<details class="help-acc"><summary>My Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Add up to 20 departure airports. Shows one combined list of pending ground departures.</li>' +
     '<li>Your airport list is saved on this device only.</li></ul></div></details>' +
     '<details class="help-acc"><summary>TMU</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Set flow programs: <b>AAR</b>, <b>route trail</b>, and optional <b>MIT</b>.</li>' +
-    '<li><b>Rate Calculator</b> sub-tab recommends an AAR from staffing inputs.</li>' +
-    '<li>Add up to 10 <b>gate restrictions</b> per airport for STAR/fix-specific spacing.</li>' +
-    '<li><b>Aircraft exclusion</b> options per program. VFR is always excluded.</li></ul></div></details>' +
+    '<li>Scoped editors may only create/edit programs for airports in their ARTCC.</li>' +
+    '<li><b>Rate Calculator</b> sub-tab recommends an AAR from staffing inputs.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Restrictions</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>Free-form restriction entries shared live when connected.</li>' +
+    '<li>Free-form restriction entries shared live when connected to Live sync.</li>' +
     '<li><b>Ground stops</b> hold ground departures into a named airport.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Departures</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Set your tower field in the header. Shows ground and prefiled departures only.</li>' +
     '<li>CFR controls appear for destinations with a TMU program, or when <b>FCA PRGM</b> is set.</li>' +
-    '<li><b>FCA PRGM</b> — shows active FCA flow program; READY/CFR delegates to FCA metering (not Firebase).</li>' +
-    '<li><b>Ready Time</b> column — enter pilot-estimated wheels-up (HHMMz) and press <b>Set</b> for a release at or after that time.</li></ul></div></details>' +
-    '<details class="help-acc"><summary>Taxi Monitor</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>View only for visitors. Controllers add up to 5 monitored airports.</li>' +
-    '<li>Tracks ground departures from 7 kt to 60 kt or climb.</li></ul></div></details>' +
-    '<details class="help-acc"><summary>Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>Enter your VATSIM CID to see your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
+    '<li><b>FCA PRGM</b> — READY/CFR delegates to FCA metering (not Firebase).</li></ul></div></details>' +
+    '<details class="help-acc"><summary>Taxi Monitor / Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li><b>Taxi Monitor</b> — controllers add up to 5 monitored airports; tracks ground departures.</li>' +
+    '<li><b>Pilot</b> — enter your VATSIM CID for your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
+
+    '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
+    '<details class="help-acc" open><summary>Which tool do I use?</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li><b>Airport TMU</b> (this page) — destination capacity, CFR, restrictions, ground stops.</li>' +
+    '<li><b>FCA Builder</b> — draw line FCAs, meter crossings, manage FCA programs by ARTCC.</li>' +
+    '<li><b>Release Board</b> — ARTCC map + RDY for metered ground departures.</li>' +
+    '<li><b>Runway Balancer</b> — arrival runway demand / STAR mapping.</li>' +
+    '<li><b>vUSAlink</b> — US center CPDLC (datalink), separate from TMU metering.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-cfr">Call For Release</div>' +
     '<details class="help-acc" open><summary>CFR workflow</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock the earliest available wheels-up for that departure route and reserve the slot. Unissued peers on the same route do not block you — issue order is up to the controller.</li>' +
-    '<li><b>Ready Time</b> — ask the pilot for estimated wheels-up, enter HHMMz in the <b>Ready Time</b> column, and press <b>Set</b>. ' +
-    'No control password is required. The app assigns the closest valid release <b>at or after</b> that time (never before).</li>' +
-    '<li><b>Released</b> — no delay needed; release at will.</li>' +
-    '<li><b>Release now</b> — wheels-up time has arrived.</li>' +
+    '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock the earliest available wheels-up for that departure route and reserve the slot.</li>' +
+    '<li><b>Ready Time</b> — enter HHMMz and press <b>Set</b>. The app assigns the closest valid release <b>at or after</b> that time.</li>' +
+    '<li><b>Released</b> — no delay needed; release at will. <b>Release now</b> — wheels-up time has arrived.</li>' +
     '<li>Cancel an issued CFR to pull remaining CFRs into the freed slot.</li>' +
-    '<li><b>Swap</b> \u2014 on issued CFRs, choose another flight on the same route from the <b>Swap with\u2026</b> menu to exchange release times (e.g. match taxiway order).</li>' +
     '<li>A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li></ul></div></details>' +
 
-    '<div class="helpsec" id="help-metering">How metering works</div>' +
-    '<details class="help-acc"><summary>Sequencing logic</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li><b>Airborne</b> — flies their ETA; delay assigned only when spacing requires it.</li>' +
-    '<li><b>Ground / Proposed</b> — slotted around airborne arrivals; delay absorbed via CFR.</li>' +
-    '<li>ETE uses great-circle distance at filed cruise speed, plus climb/descent time.</li>' +
-    '<li>US routes may adjust for winds aloft.</li></ul></div></details>' +
+    '<div class="helpsec" id="help-access">Access &amp; ARTCC staff</div>' +
+    '<details class="help-acc" open><summary>Sign-in tiers</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li><b>View only</b> — browse without signing in.</li>' +
+    '<li><b>Signed in</b> — Runway Balancer edit + FCA RDY (with position rules on Release Board).</li>' +
+    '<li><b>Editor</b> (whitelisted for an ARTCC) — edit Airport TMU programs and FCAs for that facility only.</li>' +
+    '<li><b>Staff</b> — whitelist editors for their ARTCC on Admin Access without a global admin.</li>' +
+    '<li><b>Global admin</b> — appoint staff and grant any ARTCC (or <code>*</code> all ARTCCs).</li>' +
+    '<li>There are <b>no control passwords</b> — use Sign in with VATSIM.</li></ul></div></details>' +
 
-    '<div class="helpsec" id="help-sync">Sync &amp; access</div>' +
+    '<div class="helpsec" id="help-sync">Sync</div>' +
     '<details class="help-acc"><summary>Multi-controller sync</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li><b>View only</b> (default) — unlock with the control password to issue CFRs.</li>' +
     '<li><b>Connect</b> — join a named room to share programs, CFRs, and restrictions.</li>' +
-    '<li><b>Hub</b> — join the global shared session (no room name needed).</li>' +
+    '<li><b>Live sync</b> — join the global shared session (button formerly labeled Hub).</li>' +
+    '<li>Scoped editors’ Live sync pushes are merged so they cannot overwrite another ARTCC’s airport programs.</li>' +
     '<li><span class="status-dot live"></span> <b>Live</b> — connected and syncing.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-terms">Key terms</div>' +
     '<dl class="helpterms">' +
-    '<dt>CFR</dt><dd>Call For Release — assigned wheels-up time for a departure.</dd>' +
+    '<dt>CFR</dt><dd>Call For Release — assigned wheels-up time for a departure (Airport TMU).</dd>' +
+    '<dt>Release / RDY</dt><dd>FCA ground release issued from FCA Builder or Release Board.</dd>' +
     '<dt>AAR</dt><dd>Airport Arrival Rate — arrivals per hour the field can accept.</dd>' +
     '<dt>MIT</dt><dd>Miles in Trail — required distance between successive aircraft.</dd>' +
     '<dt>STA</dt><dd>Scheduled Time of Arrival at the destination.</dd>' +
@@ -3492,7 +3501,7 @@ function renderTMUPrograms() {
     'ROUTE TRAIL is minutes-in-trail; type a value in MIT (nm) to override it with miles-in-trail (converted at ~' + MIT_NOMINAL_KT + ' kt). Leave MIT blank for AUTO/minutes.</span>' +
     '</div>';
   } else {
-    h += '<div class="viewonly">View only \u2014 unlock with the control password to set programs.</div>';
+    h += '<div class="viewonly">View only \u2014 sign in with VATSIM (ARTCC whitelist) to set programs.</div>';
   }
 
   const codes = Object.keys(tmuRates).sort();
@@ -4129,7 +4138,7 @@ function renderTaxiMonitor() {
       ' airports &middot; timer: 7 kt start, 60 kt or climb stop &middot; samples sync live via Firebase</span>' +
       '</div>';
   } else {
-    h += '<div class="viewonly">View only \u2014 unlock with the control password to add or remove monitored airports.</div>';
+    h += '<div class="viewonly">View only \u2014 sign in with VATSIM (ARTCC whitelist) to add or remove monitored airports.</div>';
   }
 
   h += '<div class="mydashchips">';
@@ -4342,6 +4351,10 @@ contentEl.addEventListener("click", e => {
     if (!canControl()) return;
     const code = rateCalc.icao.trim().toUpperCase();
     if (!/^[A-Z0-9]{4}$/.test(code)) return;
+    if (!canEditApt(code)) {
+      alert("You can only set programs for airports in your ARTCC.");
+      return;
+    }
     const rec = calcRecommendedAar({
       maxAar: rateCalc.maxAar, fullStaff: rateCalc.fullStaff, onDuty: rateCalc.onDuty,
       exponent: 1, positions: rateCalc.positions, usePositions: rateCalc.usePositions
@@ -4370,24 +4383,29 @@ contentEl.addEventListener("click", e => {
   }
   /* ---- Ground stops: add / remove ---- */
   if (e.target.closest("[data-gsadd]")) {
+    if (!canControl()) return;
     groundStops.unshift({ id: genId(), airport: "", scope: "", until: "", updated: "", flashUntil: 0 });
     pushSync(); renderContent();
     return;
   }
   const gsR = e.target.closest("[data-gsrm]");
   if (gsR) {
+    if (!canControl()) return;
     const i = groundStops.findIndex(x => x.id === gsR.dataset.gsrm);
     if (i >= 0) { groundStops.splice(i, 1); pushSync(); renderContent(); }
     return;
   }
   /* ---- Current Restrictions: add / remove / clear filters ---- */
-  if (e.target.closest("[data-restradd]")) {    restrictions.unshift({ id: genId(), requesting: "", providing: "", restriction: "",
+  if (e.target.closest("[data-restradd]")) {
+    if (!canControl()) return;
+    restrictions.unshift({ id: genId(), requesting: "", providing: "", restriction: "",
       start: "", stop: "", flashUntil: 0 });
     pushSync(); renderContent();
     return;
   }
   const rRm = e.target.closest("[data-restrrm]");
   if (rRm) {
+    if (!canControl()) return;
     const i = restrictions.findIndex(x => x.id === rRm.dataset.restrrm);
     if (i >= 0) { restrictions.splice(i, 1); pushSync(); renderContent(); }
     return;
@@ -4401,6 +4419,7 @@ contentEl.addEventListener("click", e => {
   const gAdd = e.target.closest("[data-tmugateadd]");
   if (gAdd) {
     const code = gAdd.dataset.tmugateadd;
+    if (!canEditApt(code)) return;
     const r = tmuRates[code];
     if (r) {
       r.gates = r.gates || [];
@@ -4412,14 +4431,20 @@ contentEl.addEventListener("click", e => {
   const gRm = e.target.closest("[data-tmugaterm]");
   if (gRm) {
     const code = gRm.dataset.tmugaterm, idx = +gRm.dataset.idx;
+    if (!canEditApt(code)) return;
     const r = tmuRates[code];
     if (r && r.gates) { r.gates.splice(idx, 1); pushSync(); renderContent(); }
     return;
   }
   if (!e.target.closest("[data-tmuset]")) return;
+  if (!canControl()) return;
   const inp = contentEl.querySelector("#tmuIcao");
   const v = inp ? inp.value.trim().toUpperCase() : "";
   if (!/^[A-Z0-9]{4}$/.test(v)) return;
+  if (!canEditApt(v)) {
+    alert("You can only set programs for airports in your ARTCC.");
+    return;
+  }
   const a = parseAar(contentEl.querySelector("#tmuAar").value);
   if (a == null) return;                          /* invalid AAR entry */
   const mitEl = contentEl.querySelector("#tmuMit");
@@ -4444,6 +4469,7 @@ contentEl.addEventListener("click", e => {
 contentEl.addEventListener("change", e => {
   const a = e.target.closest("[data-tmuaar]");
   if (a) {
+    if (!canEditApt(a.dataset.tmuaar)) return;
     const v = parseAar(a.value);
     if (v == null) { a.value = tmuRates[a.dataset.tmuaar].aar; return; }
     tmuRates[a.dataset.tmuaar].aar = v;
@@ -5143,16 +5169,16 @@ window.VATFLOW = {
       if (dot) dot.className = "status-dot " + dotCls;
     };
     if (state === "live") set("Live \u00B7 " + label, "synclive", "live");
-    else if (state === "hublive") set("Hub live", "synclive", "live");
+    else if (state === "hublive") set("Live sync", "synclive", "live");
     else if (state === "connecting") set("Connecting\u2026", "synclocal", "warn pulse");
     else if (state === "error") set("Sync error", "syncerr", "alert");
     else if (state === "noconfig") set("Add Firebase config", "syncerr", "alert");
-    else if (state === "nohub") set("Set hub URL", "syncerr", "alert");
+    else if (state === "nohub") set("Set sync URL", "syncerr", "alert");
     else set("Local", "synclocal", "muted");
     const fbOn = window.VFSync && window.VFSync.connected;
     const hubOn = window.VFHub && window.VFHub.connected;
     if (sb) { sb.textContent = fbOn ? "Disconnect" : "Connect"; sb.disabled = hubOn; }
-    if (hb) { hb.textContent = hubOn ? "Leave hub" : "Hub"; hb.disabled = fbOn; }
+    if (hb) { hb.textContent = hubOn ? "Leave sync" : "Live sync"; hb.disabled = fbOn; }
   }
 };
 
