@@ -3,22 +3,24 @@
  */
 
 export const FCA_HELP = {
-  title: "FCA TMU — Quick reference",
-  intro: "Draw flow constrained areas, meter traffic crossing a line, and issue EDCTs for ground departures. FCAs sync live when Supabase is configured.",
+  title: "FCA Builder — Quick reference",
+  intro: "Draw flow constrained areas, meter traffic crossing a line, and issue ground releases. FCAs sync live via Supabase. Each FCA is owned by an ARTCC — scoped editors can only change programs for their facility.",
   sections: [
     {
       title: "Getting started",
       open: true,
       items: [
-        "<b>View only</b> — browse FCAs, traffic, and sequences. Unlock with the control password to edit.",
-        "<b>＋ New FCA</b> — click the map to place points (min 2). Double-click or close the line to finish.",
+        "<b>View only</b> — browse FCAs, traffic, and sequences without signing in.",
+        "<b>Sign in with VATSIM</b> — basic users can press <b>RDY</b>; whitelisted editors can create and edit FCAs for their ARTCC.",
+        "<b>＋ New FCA</b> — click the map to place points (min 2). Double-click or close the line to finish. Set the owning <b>ARTCC</b> (required for scoped editors).",
         "Select an FCA in the sidebar to open the <b>sequence panel</b> on the right.",
-        "Toggle <b>Ground flights (EDCT)</b> in map layers to include connected taxiing aircraft (not prefiles).",
+        "Toggle <b>Ground flights</b> in map layers to include connected taxiing aircraft (not prefiles).",
       ],
     },
     {
       title: "FCA settings",
       items: [
+        "<b>ARTCC</b> — owning facility for access control and list filters (e.g. ZDC).",
         "<b>Rate</b> — aircraft per hour across the line (e.g. 30/hr ≈ 2 min spacing).",
         "<b>MIT</b> — minimum miles in trail between crossings (converted to time from speed).",
         "Set destination filters and FL band to match the traffic you want. Aircraft are included only when their <b>filed route</b> crosses the FCA line.",
@@ -28,11 +30,19 @@ export const FCA_HELP = {
     {
       title: "Sequence panel",
       items: [
-        "Airborne aircraft are ordered by <b>nm to the crossing</b> (closest first); connected ground departures get <b>EDCT</b> (wheels-up time).",
+        "Airborne aircraft are ordered by <b>nm to the crossing</b> (closest first); connected ground departures get a <b>release</b> (wheels-up time).",
         "Ground strips show <b>gap in minutes</b> behind the previous aircraft at the FCA crossing.",
-        "<b>⠿ Drag</b> a strip to reorder — unlock controller mode first. Times recompute for everyone.",
-        "Tower reorder on the ARTCC Dashboard syncs here via the shared FCA order.",
+        "<b>⠿ Drag</b> a strip to reorder when you can edit this FCA. Times recompute for everyone.",
+        "Reorder on the Release Board syncs here via the shared FCA order.",
         "<b>⧉ Copy</b> sends the sequence as plain text for coordination (Discord, etc.).",
+      ],
+    },
+    {
+      title: "Access by ARTCC",
+      items: [
+        "Whitelisted <b>editors</b> may create/edit/delete only FCAs whose owning ARTCC matches their grant (e.g. ZDC-only).",
+        "<b>Staff</b> for an ARTCC can whitelist editors for that facility on Admin Access — no global admin needed.",
+        "Global editors (<code>*</code>) and global admins can edit any FCA.",
       ],
     },
     {
@@ -45,10 +55,9 @@ export const FCA_HELP = {
       ],
     },
     {
-      title: "Sync & access",
+      title: "Sync",
       items: [
-        "FCAs save locally and sync to <b>Supabase</b> when URL/key are configured in the file header.",
-        "Controller password matches TMU Tools — unlock on any VATFLOW page if you use the shared password.",
+        "FCAs save locally and sync to <b>Supabase</b> when configured.",
         "<b>⤓ / ⤒</b> export or import FCA JSON for backup or offline events.",
       ],
     },
@@ -57,8 +66,8 @@ export const FCA_HELP = {
 };
 
 export const ARTCC_DASHBOARD_HELP = {
-  title: "ARTCC Dashboard — Quick reference",
-  intro: "View FCA programs and metered departures for your ARTCC. EDCT is wheels-up time from FCA spacing (filed departure time is ignored).",
+  title: "Release Board — Quick reference",
+  intro: "View FCA programs and metered departures for your ARTCC. Release times are wheels-up from FCA spacing (filed departure time is ignored).",
   sections: [
     {
       title: "Getting started",
@@ -67,15 +76,15 @@ export const ARTCC_DASHBOARD_HELP = {
         "Select your <b>ARTCC</b> from the dropdown — the map zooms to that center and shows scoped FCA programs plus aircraft in those sequences.",
         "In <b>Release management</b>, enter an ARTCC code (e.g. ZDC) for center-wide departures, an airport (e.g. DCA, IAD), or <b>PCT</b> for metered departures at DCA, IAD, BWI, and RIC.",
         "Only <b>metered</b> departures appear — aircraft not in an active FCA program are hidden.",
-        "FCAs load from Supabase realtime (same as FCA TMU) with local cache fallback.",
+        "FCAs load from Supabase realtime (same as FCA Builder) with local cache fallback.",
       ],
     },
     {
       title: "RDY and full control",
       items: [
-        "<b>⚙ Settings</b> — sign in with VATSIM while online on a controller position to unlock <b>RDY</b>.",
+        "<b>Sign in with VATSIM</b> while online on a controller position to unlock <b>RDY</b>.",
         "<b>RDY</b> issues or cancels a CFR release for a ground departure in sequence.",
-        "<b>Full control</b> (admin whitelist) adds drag-reorder, PIN, and HIDE for FCA blocks.",
+        "<b>Full control</b> (ARTCC whitelist) adds drag-reorder, PIN, and HIDE for FCA blocks you own.",
       ],
     },
     {
@@ -83,42 +92,51 @@ export const ARTCC_DASHBOARD_HELP = {
       items: [
         "Strips show crossing time, distance to the FCA line, and estimated hold until <b>RDY</b> is pressed.",
         "After <b>RDY</b>, the strip shows the issued CFR time in green (<b>RLSD</b>).",
-        "Drag strips to reorder when you have full control — order syncs to FCA TMU via Supabase.",
+        "Drag strips to reorder when you have full control for that FCA’s ARTCC — order syncs to FCA Builder via Supabase.",
       ],
     },
   ],
-  footer: "For VATSIM simulation only — coordinate with flow control via FCA TMU.",
+  footer: "For VATSIM simulation only — coordinate flow programs in FCA Builder.",
 };
 
 export const TOWER_HELP = ARTCC_DASHBOARD_HELP;
 
 export const TMU_TOOLS_HELP = {
-  title: "TMU Tools — Quick reference",
-  intro: "Airport-wide TMU suite: destination capacity programs, ground stops, restrictions, and CFR issuance. FCA flow programs are built on FCA TMU — this page surfaces FCA status and delegates releases when applicable.",
+  title: "Airport TMU — Quick reference",
+  intro: "Airport capacity TMU: destination AAR programs, ground stops, restrictions, and CFR issuance. Enroute/line FCAs are built in FCA Builder — this page surfaces FCA status and delegates releases when applicable.",
   sections: [
     {
-      title: "TMU Tools vs FCA TMU",
+      title: "Airport TMU vs FCA Builder",
       open: true,
       items: [
-        "<b>TMU Tools</b> — airport capacity: AAR/trail/MIT, ground stops, route sequencing, and dest-based CFR via <code>issuedEdcts</code>.",
-        "<b>FCA TMU</b> — detailed flow control: draw lines, filters, line MIT/rate, crossing geometry, and <code>fca.releases</code> via Supabase.",
-        "When <b>FCA PRGM</b> is set on a departure, FCA metering is authoritative — READY/CFR routes to the FCA engine, not Firebase.",
+        "<b>Airport TMU</b> — destination capacity: AAR/trail/MIT, ground stops, route sequencing, and dest-based CFR.",
+        "<b>FCA Builder</b> — line-based flow: draw FCAs, filters, line MIT/rate, crossing geometry, and releases via Supabase.",
+        "<b>Release Board</b> — position-facing RDY for active FCA programs.",
+        "When <b>FCA PRGM</b> is set on a departure, FCA metering is authoritative — READY/CFR routes to the FCA engine.",
+      ],
+    },
+    {
+      title: "Access by ARTCC",
+      items: [
+        "Whitelisted editors can set rates, restrictions, and ground stops only for airports in their ARTCC (e.g. ZDC → KDCA, KIAD, KBWI).",
+        "Live sync pushes are merged on the server so a ZDC editor cannot overwrite another ARTCC’s programs.",
+        "Sign in with VATSIM — no control passwords.",
       ],
     },
     {
       title: "Release priority",
       items: [
-        "<b>1 — FCA program</b> (FCA PRGM column populated): <code>markReady()</code> / Supabase <code>fca.releases</code>.",
-        "<b>2 — Route sequencing</b> (no FCA): <code>DEP_RELEASE_INT</code> and issued-order compression.",
-        "<b>3 — Airport capacity</b> (no FCA): destination AAR/trail/MIT via <code>solveEarliestWheelsUp()</code>.",
+        "<b>1 — FCA program</b> (FCA PRGM column populated): FCA releases via Supabase.",
+        "<b>2 — Route sequencing</b> (no FCA): departure release interval and issued-order compression.",
+        "<b>3 — Airport capacity</b> (no FCA): destination AAR/trail/MIT.",
       ],
     },
     {
-      title: "Ready time",
+      title: "Ready time & CFR",
       items: [
         "<b>RDY @ (wheels-up earliest)</b> — enter HHMMz for the earliest CFR/wheels-up time; spacing may push later.",
         "One-click <b>RDY</b> / <b>CFR time</b> without a time uses the standard ready-now buffer.",
-        "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA TMU and ARTCC Dashboard.",
+        "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA Builder and Release Board.",
       ],
     },
   ],

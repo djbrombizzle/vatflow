@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARTCC Dashboard — VATFLOW</title>
+<title>Release Board — VATFLOW</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
 <link rel="stylesheet" href="shared/vatflow-help.css">
@@ -319,7 +319,7 @@
 "use strict";
 
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-import { initVatflowAuth, canFullControl, canUseFcaRdy, isSignedIn, getSession, authStatusLabel } from "./shared/vatflow-auth.js";
+import { initVatflowAuth, canFullControl, canUseFcaRdy, canEditFca, isSignedIn, getSession, authStatusLabel } from "./shared/vatflow-auth.js";
 import { mountHelp, ARTCC_DASHBOARD_HELP } from "./shared/vatflow-help.js";
 import { ARTCC_LIST } from "./shared/artcc-constants.js";
 import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
@@ -346,6 +346,7 @@ const LS_MAP_H = "artccDashboard.mapH.v1";
 const REFRESH_SEC = 30;
 
 function canControl() { return canFullControl(); }
+function canControlFca(f) { return canEditFca(f); }
 function canReadyOnly() { return isSignedIn() && state.atcVerified && !canControl(); }
 function canReady() { return canUseFcaRdy() && (canControl() || canReadyOnly()); }
 
@@ -859,9 +860,8 @@ function wireFcaBlockActions() {
   });
   document.querySelectorAll(".auto-btn").forEach(btn => {
     btn.onclick = () => {
-      if (!canControl()) return;
       const fca = state.fcas.find(f => f.id === btn.getAttribute("data-fca-id"));
-      if (!fca) return;
+      if (!fca || !canControlFca(fca)) return;
       fca.order = [];
       fca.manualSeq = false;
       cloudPush(fca);
@@ -914,7 +914,7 @@ function syncFcaGridDomOrder(ordered) {
   for (const b of slots.filter(Boolean)) grid.appendChild(b);
 }
 
-function syncFcaGrid(activeFcas, byFca, dragOk) {
+function syncFcaGrid(activeFcas, byFca, _dragOk) {
   const grid = document.getElementById("fcaGrid");
   if (!grid) return false;
 
@@ -928,11 +928,12 @@ function syncFcaGrid(activeFcas, byFca, dragOk) {
 
   for (const fca of ordered) {
     const rows = byFca.get(fca.id) || [];
+    const drag = canControlFca(fca);
     let block = grid.querySelector(`.fca-block[data-fca-id="${fca.id}"]`);
     if (!block) {
-      grid.insertAdjacentHTML("beforeend", renderFcaMiniTable(fca, rows, dragOk));
+      grid.insertAdjacentHTML("beforeend", renderFcaMiniTable(fca, rows, drag));
     } else {
-      updateFcaBlock(fca, rows, dragOk);
+      updateFcaBlock(fca, rows, drag);
     }
   }
 
@@ -1001,10 +1002,10 @@ function activeFcasForField() {
 
 function seqHintHtml() {
   return canControl()
-    ? "⠿ drag # to reorder within each FCA — PIN locks table position · syncs to FCA TMU global sequence"
+    ? "⠿ drag # to reorder within each FCA you own — PIN locks table position · syncs to FCA Builder"
     : (canReadyOnly()
       ? "RDY-only mode — connected CID can issue/cancel releases, but cannot reorder/sequence."
-      : "View only — sign in with VATSIM for RDY; whitelist required for full control.");
+      : "View only — sign in with VATSIM for RDY; ARTCC whitelist required for full control.");
 }
 
 function canIncrementalRender() {
@@ -1018,7 +1019,7 @@ function renderFcaGridOnly() {
   const byFca = groupDeparturesByFca(result.departures);
   updateStrip(result);
   updateHiddenFcasBar(activeFcas);
-  syncFcaGrid(activeFcas, byFca, canControl());
+  syncFcaGrid(activeFcas, byFca);
 }
 
 function refreshAfterReorder(fcaId) {
@@ -1028,7 +1029,7 @@ function refreshAfterReorder(fcaId) {
   if (!fca) { render(); return; }
   const rows = byFca.get(fcaId) || [];
   updateStrip(result);
-  if (!updateFcaBlock(fca, rows, canControl())) render();
+  if (!updateFcaBlock(fca, rows, canControlFca(fca))) render();
 }
 
 /* Drag reorder — rebuild-proof design.
@@ -1144,9 +1145,9 @@ document.addEventListener("click", e => {
 });
 
 function moveTowerOrder(fcaId, fromCs, toCs) {
-  if (!canControl() || fromCs === toCs) return;
+  if (fromCs === toCs) return;
   const fca = state.fcas.find(f => f.id === fcaId);
-  if (!fca) return;
+  if (!fca || !canControlFca(fca)) return;
   fca.order = reorderFcaGlobalOrder(fca, state.pilots, [], fromCs, toCs);
   fca.manualSeq = true;
   cloudPush(fca);
@@ -1189,7 +1190,7 @@ function renderBody() {
 
   const activeFcas = activeFcasForField();
   if (!activeFcas.length) {
-    main.innerHTML = `<div class="msg">No active FCAs for this filter. Enable programs in FCA TMU or adjust scope.</div>`;
+    main.innerHTML = `<div class="msg">No active FCAs for this filter. Enable programs in FCA Builder or adjust scope.</div>`;
     setSyncStatus(state.fcas.length ? "none" : "local");
     return;
   }
@@ -1203,7 +1204,6 @@ function renderBody() {
   }
 
   const byFca = groupDeparturesByFca(result.departures);
-  const dragOk = canControl();
   const orderedFcas = orderedVisibleFcas(activeFcas);
 
   if (canIncrementalRender()) {
@@ -1211,7 +1211,7 @@ function renderBody() {
     let hint = document.querySelector(".seqhint");
     if (hint) hint.textContent = seqHintHtml();
     updateHiddenFcasBar(activeFcas);
-    syncFcaGrid(activeFcas, byFca, dragOk);
+    syncFcaGrid(activeFcas, byFca);
     return;
   }
 
@@ -1221,7 +1221,7 @@ function renderBody() {
   if (orderedFcas.length) {
     html += `<div class="fca-grid" id="fcaGrid">`;
     for (const fca of orderedFcas) {
-      html += renderFcaMiniTable(fca, byFca.get(fca.id) || [], dragOk);
+      html += renderFcaMiniTable(fca, byFca.get(fca.id) || [], canControlFca(fca));
     }
     html += `</div>`;
   }

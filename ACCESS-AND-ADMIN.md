@@ -14,252 +14,198 @@ Personal reference for how sign-in, permissions, and admin tools work after VATS
 flowchart LR
     visitor[Not signed in]
     basic[Signed in — Basic]
-    full[Signed in — Full]
-    admin[Signed in — Admin]
+    editor[ARTCC Editor]
+    staff[ARTCC Staff]
+    admin[Global Admin]
 
     visitor -->|browse only| tools[All VATFLOW tools]
     basic -->|runway + RDY| limited[Limited writes]
-    full -->|TBFM FCA edit tower full| control[Full control]
-    admin -->|whitelist CRUD| adm[Admin Access page]
+    editor -->|own ARTCC only| scoped[FCA + Airport TMU]
+    staff -->|whitelist editors| scoped
+    admin -->|any ARTCC + appoint staff| all[Full + Admin Access]
 ```
 
 1. User clicks **Sign in with VATSIM** → VATSIM Connect verifies identity.
 2. Railway hub exchanges the OAuth code and issues a **short-lived JWT** (~8 hours).
 3. JWT is stored in the browser. Every tool reads it to decide what the user can do.
-4. **Full access** is granted only via your **admin whitelist** (no automatic C1+ access).
-5. **Admin** is separate: only CIDs listed in Railway `VATFLOW_ADMIN_CIDS` can manage the whitelist.
+4. **Full access** is granted only via the **whitelist**, now scoped by **ARTCC** (and optional role).
+5. **Global admin** is separate: CIDs in Railway `VATFLOW_ADMIN_CIDS`.
+6. **ARTCC staff** (appointed by admin) can whitelist editors for their facility without you.
 
-There are **no passwords** anymore. The old bootstrap admin password and per-page passwords are gone.
+There are **no passwords**. Legacy page passwords are gone.
 
 ---
 
-## The four access levels
+## Access levels
 
 | Level | How you get it | Nav shows |
 |---|---|---|
-| **Visitor** | Don't sign in | **Sign in with VATSIM** button |
-| **Basic** | Sign in with any VATSIM account | CID · rating, status **Signed in** |
-| **Full** | Sign in as **whitelisted** CID | CID · rating, status **Controller** |
-| **Admin** | Your CID in `VATFLOW_ADMIN_CIDS` on Railway | Same as above + **Admin Access** link visible |
+| **Visitor** | Don't sign in | **Sign in with VATSIM** |
+| **Basic** | Any VATSIM sign-in | CID · rating, **Signed in** |
+| **Editor** | Whitelist `role: editor` + ARTCC(s) | CID · rating, **Controller** or ARTCC codes |
+| **Staff** | Whitelist `role: staff` + ARTCC(s) | Same + **Admin Access** link |
+| **Global admin** | `VATFLOW_ADMIN_CIDS` | Admin Access + can appoint staff |
 
-### What “full access” means on the server
-
-At sign-in, the hub checks:
+### Full access rule
 
 ```
 fullAccess = (CID is on whitelist)
+artccs     = entry.artccs   // e.g. ["ZDC"] or ["*"]
+accessRole = entry.role     // "editor" | "staff"
 ```
 
-Only CIDs you add on the **Admin Access** page receive full edit (FCA TMU, TBFM hub push, ARTCC Dashboard sequencing). Controller rating (C1, S3, etc.) does **not** grant full access by itself.
+Legacy whitelist rows without `role` / `artccs` are treated as **global editors** (`artccs: ["*"]`) until you re-scope them.
 
-**Note:** Removing someone from the whitelist does **not** kick them out instantly. Their JWT was already issued with `fullAccess: true` and stays valid until it **expires (~8 hours)** or they **sign out** and sign in again. Plan revocations accordingly.
+`/auth/session` **recomputes** access from the live whitelist on each check, so revokes apply on the next page load / refresh (without waiting for JWT expiry for capability flags).
 
 ---
 
-## What each person can do (by tool)
+## What each person can do
 
-### Visitor (not signed in)
+### Visitor
 
 - View live VATSIM feed and all tool UIs in **read-only** mode.
-- Cannot edit runways, FCAs, TBFM programs, hub state, or press RDY.
 
-### Basic (signed in, not full)
+### Basic (signed in, not whitelisted)
 
 | Tool | Can do | Cannot do |
 |---|---|---|
-| **Runway Balancer** | Full edit (runways, STAR rules, configs) | — |
-| **FCA TMU** | Press **RDY** / cancel releases on existing FCAs | Create, edit, delete, or draw FCAs; reorder sequence |
-| **ARTCC Dashboard** | **RDY** only if online on a VATSIM controller position (feed check) | Reorder strips, PIN/HIDE, full sequencing |
-| **CFR / TBFM** | View everything | Set rates, CFRs, restrictions, ground stops, hub writes |
-| **Hub sync (TBFM)** | Receive live state | Push changes to hub |
+| **Runway Balancer** | Full edit | — |
+| **FCA Builder** | **RDY** / cancel releases | Create/edit/delete FCAs |
+| **Release Board** | **RDY** if online on VATSIM ATC | Reorder, PIN/HIDE |
+| **Airport TMU** | View | Set rates, CFRs via Live sync push, restrictions |
 
-### Full (signed in + whitelist)
+### Editor (whitelisted for ARTCC)
 
-Everything Basic can do, **plus**:
+Everything Basic can do, **plus** only for their ARTCC(s):
 
-| Tool | Extra capabilities |
+| Tool | Extra |
 |---|---|
-| **FCA TMU** | Create/edit/delete FCAs, draw areas, reorder, import/export |
-| **ARTCC Dashboard** | Full sequencing, drag-reorder, PIN/HIDE |
-| **CFR / TBFM** | All TMU controls, taxi monitor field edits, hub push |
-| **Hub sync** | WebSocket writes accepted by Railway |
+| **FCA Builder** | Create/edit/delete FCAs whose owning `artcc` matches |
+| **Release Board** | Drag-reorder / PIN/HIDE for owned FCAs |
+| **Airport TMU** | Programs / restrictions / ground stops for airports in that ARTCC; Live sync merges scoped pushes |
 
-### Admin (you)
+### Staff
 
-- Everything Full can do.
-- **Admin Access** page: add/remove CIDs on the whitelist.
-- Admin link is **hidden** from everyone else in the nav.
+Everything an editor for those ARTCC(s) can do, **plus**:
+
+- Open **Admin Access** and add/remove **editors** for their ARTCC only (cannot appoint other staff or grant `*`).
+
+### Global admin
+
+- Appoint **staff** and **editors** for any ARTCC (or `*` = all ARTCCs).
+- Override any facility.
 
 ---
 
-## ARTCC Dashboard — RDY rules (special case)
+## Product map (one job per tool)
 
-ARTCC Dashboard has three modes:
-
-| Mode | Condition |
+| Tool | Purpose |
 |---|---|
-| View only | Not signed in |
-| **RDY only** | Signed in + **currently online** on a VATSIM controller position (verified via live feed) + **not** full tier |
-| **Full control** | Whitelisted CID |
-
-CID comes from VATSIM OAuth automatically (no manual CID box). The feed re-checks every ~20 seconds whether they are still on position.
-
----
-
-## Sign-in flow (what happens technically)
-
-1. User on `vatflow.io` clicks **Sign in with VATSIM**.
-2. Browser goes to Railway: `/auth/vatsim/login?returnTo=https://vatflow.io/auth-callback.html`
-3. Railway redirects to VATSIM Connect.
-4. User approves → VATSIM sends them to `https://vatflow.io/auth-callback.html?code=...&state=...`
-5. Callback page POSTs code to Railway `/auth/vatsim/exchange`.
-6. Hub reads profile from VATSIM (`full_name`, `vatsim_details`), computes tier, signs JWT.
-7. JWT saved in browser (`localStorage` key `vatflow.sessionToken.v1`).
-8. User redirected back to the page they started from.
-
-**Sign out** clears the JWT locally and tells the hub to revoke that token id.
-
-**Delete my data** (nav, red link): purges server records for that CID (whitelist entry, login audit) and wipes all local VATFLOW settings in the browser. Does **not** delete shared FCA data in Supabase.
+| **Airport TMU** | Destination capacity — AAR, CFR, restrictions, GS |
+| **FCA Builder** | Draw/meter flow constrained areas |
+| **Release Board** | Position-facing RDY for active FCAs |
+| **Runway Balancer** | Arrival runway demand |
+| **vUSAlink** | US CPDLC / datalink |
 
 ---
 
-## Your admin setup (one-time)
+## Ownership rules
 
-### Railway variable
+### FCAs
 
-```
-VATFLOW_ADMIN_CIDS=1234567
-```
+- Owning field: `fca.artcc` (required to save for scoped editors).
+- `scope` may list other ARTCCs for metering geography; **ACL uses owner only**.
 
-- Replace `1234567` with **your** VATSIM CID.
-- Multiple admins: comma-separated, no spaces: `1234567,8901234`
-- Change requires a Railway redeploy (usually automatic when you save variables).
+### Airport TMU programs
 
-Only these CIDs get `isAdmin: true` in their JWT and can open the whitelist UI.
+- Airport → primary ARTCC via a shared map (e.g. KDCA → ZDC).
+- Unknown airports: scoped editors cannot edit; global (`*`) can.
 
-### Whitelist storage
+---
 
-Whitelist lives on the Railway **volume** at:
+## Admin Access workflows
 
-```
-/data/vatflow-access.json
-```
+### Appoint ZDC staff (you)
 
-Shape:
+1. Open Admin Access as global admin.
+2. CID + role **Staff** + check **ZDC** → Add.
+3. They sign in again (or refresh) and see Admin Access.
+
+### Staff whitelists a ZDC editor
+
+1. Staff opens Admin Access.
+2. Add CID as **Editor** with ZDC checked.
+3. That CID can edit ZDC FCAs and ZDC airports only.
+
+### Revoke
+
+Remove on Admin Access. Capabilities update on next `/auth/session` refresh; JWT identity still expires ~8h.
+
+---
+
+## Whitelist storage shape
 
 ```json
 {
   "whitelist": {
     "9876543": {
-      "addedAt": "2026-07-10T12:00:00.000Z",
+      "role": "staff",
+      "artccs": ["ZDC"],
+      "addedAt": "2026-07-16T12:00:00.000Z",
       "addedBy": "1234567",
-      "note": "S3 event lead ZDC"
+      "note": "ZDC TMU"
+    },
+    "1112223": {
+      "role": "editor",
+      "artccs": ["ZDC", "ZNY"],
+      "addedAt": "...",
+      "addedBy": "9876543",
+      "note": "Event weekend"
     }
-  },
-  "loginAudit": { ... },
-  "gdprDeleted": { ... }
+  }
 }
 ```
 
-Survives hub restarts as long as the volume is attached at `/data`.
+File: Railway volume `/data/vatflow-access.json` (`ACCESS_FILE`).
 
 ---
 
-## Day-to-day admin tasks
-
-### Grant full access to a controller
-
-1. Go to [https://vatflow.io/admin-access.html](https://vatflow.io/admin-access.html)
-2. **Sign in with VATSIM** (must be your admin CID).
-3. Enter their **CID** and an optional **note** (e.g. `S3 TMU ZDC event`).
-4. Click **Add**.
-
-They get full access the **next time they sign in** (or immediately if they refresh sign-in).
-
-### Revoke whitelist full access
-
-1. Same admin page → **Remove** next to their CID.
-2. They lose full access on **next sign-in** or when their current JWT expires (~8 h).
-
-### Add a second admin
-
-Add their CID to `VATFLOW_ADMIN_CIDS` on Railway, redeploy. They sign in again to get admin in the JWT.
-
----
-
-## What the nav shows users
-
-| State | Nav (right side) |
-|---|---|
-| Signed out | `Sign in with VATSIM` |
-| Basic | `1234567 · S2` `Signed in` `Sign out` `Delete my data` |
-| Full | `1234567 · C1` `Controller` `Sign out` `Delete my data` |
-| Admin (you) | Same as Full + **Admin Access** link in tool list |
-
----
-
-## Hub (TBFM sync) enforcement
-
-The only **server-side** write gate for TBFM is the Railway WebSocket hub:
+## Live sync (Airport TMU) enforcement
 
 - Clients connect to `wss://vatflow-hub-production.up.railway.app`
-- After connect, client sends `{ "type": "auth", "token": "<JWT>" }`
-- Hub allows **push** only if JWT has `fullAccess: true`
-- Viewers can still connect and receive live state without auth
+- Auth: `{ "type": "auth", "token": "<JWT>" }` — push requires `fullAccess`
+- **Scoped push merge:** rates / restrictions / ground stops for airports outside the caller’s ARTCC are preserved; only owned airports are updated or removed
 
-FCA Supabase sync and most UI gates are still **client-side** today (a determined user could bypass UI; Supabase RLS is a future hardening step).
+FCA Supabase writes remain primarily **client-gated** by `canEditFca` (Supabase RLS is a future hardening step).
 
 ---
 
-## Railway variables cheat sheet
+## Railway variables
 
 | Variable | Purpose |
 |---|---|
-| `VATSIM_CLIENT_ID` | From VATSIM Connect |
-| `VATSIM_CLIENT_SECRET` | From VATSIM Connect |
+| `VATSIM_CLIENT_ID` / `SECRET` | VATSIM Connect |
 | `VATSIM_REDIRECT_URI` | `https://vatflow.io/auth-callback.html` |
-| `VATFLOW_DEFAULT_RETURN_URL` | `https://vatflow.io/auth-callback.html` |
-| `VATFLOW_ALLOWED_RETURN_HOSTS` | `vatflow.io,www.vatflow.io,djbrombizzle.github.io` |
-| `JWT_SIGNING_KEY` | Random secret — signs session tokens |
-| `VATFLOW_ADMIN_CIDS` | **Your** CID(s) — who can use Admin Access |
-| `ACCESS_FILE` | `/data/vatflow-access.json` — whitelist + audit file |
-| `FULL_ACCESS_MIN_RATING` | Deprecated (unused); full access is whitelist-only |
+| `JWT_SIGNING_KEY` | Session signing |
+| `VATFLOW_ADMIN_CIDS` | Global admin CIDs |
+| `ACCESS_FILE` | `/data/vatflow-access.json` |
+| `JWT_TTL_SEC` | Default 8h |
 
 ---
 
-## Quick troubleshooting
-
-| Symptom | Likely cause |
-|---|---|
-| No **Sign in** button | Site not deployed with OAuth PR; hard-refresh `vatflow.io` |
-| Sign-in fails after VATSIM | Railway vars wrong; check `https://vatflow-hub-production.up.railway.app/auth/config` → `oauthEnabled: true` |
-| I'm whitelisted but see **Signed in** not **Controller** | Sign out and sign in again; check JWT at `/auth/session` |
-| Admin page says not admin | `VATFLOW_ADMIN_CIDS` wrong CID or not redeployed |
-| Whitelist add fails | Not signed in as admin, or hub volume not mounted |
-| User still has access after whitelist remove | JWT not expired yet — wait or ask them to sign out |
-| TBFM changes don't sync | User lacks full tier, or hub auth failed |
-
----
-
-## What we deliberately did **not** build (v1)
-
-- **ARTCC-scoped** FCA edit limits (e.g. ZDC-only) — deferred to v2
-- **Instant** revoke when removing whitelist — JWT is valid until expiry
-- **Supabase RLS** tied to JWT — client-side gates only for FCA sync
-- Per-page passwords — removed entirely
-
----
-
-## Related files in the repo
+## Related files
 
 | File | Role |
 |---|---|
-| [`shared/vatflow-auth.js`](shared/vatflow-auth.js) | Browser session, tier helpers, nav sign-in UI |
-| [`auth-callback.html`](auth-callback.html) | OAuth return page on `vatflow.io` |
-| [`admin-access.html`](admin-access.html) | Whitelist admin UI |
-| [`vatflow-hub/auth.js`](../vatflow-hub/auth.js) | OAuth, JWT, tier logic, whitelist API |
-| [`privacy.html`](privacy.html) | User-facing privacy + GDPR delete |
+| `shared/vatflow-auth.js` | Session + `canEditFca` / `canEditAirport` |
+| `shared/artcc-access.js` | Airport → ARTCC map (browser) |
+| `admin-access.html` | Staff / admin whitelist UI |
+| `shared/vatflow-help.js` | Quick-reference overlays |
+| `vatflow-hub/auth.js` | OAuth, JWT, whitelist API |
+| `vatflow-hub/artcc-access.js` | Server ACL helpers |
+| `vatflow-hub/server.js` | Live sync WS + scoped merge |
 
 ---
 
-*Last updated for whitelist-only full access and ARTCC Dashboard.*
+*Last updated for ARTCC-scoped staff/editor roles and product clarity renames.*
