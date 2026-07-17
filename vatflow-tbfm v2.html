@@ -4838,43 +4838,52 @@ async function finalizeStaffingHistorical(result, sourceNote) {
   } catch (e) {}
 }
 async function loadStaffingHistoricalFromDb() {
+  const period = staffingHist.period || "thisweek";
+  staffingHist.period = period;
   staffingHist.status = "loading";
-  staffingHist.message = "Loading precomputed " + staffingHist.period + " from database\u2026";
+  staffingHist.result = null;
+  staffingHist.message = "Loading precomputed " + period + " from database\u2026";
   renderContent();
   try {
     if (!window.VF_StaffingHist || !window.VF_StaffingHist.loadStaffingHist) {
       throw new Error("Staffing hist store not loaded");
     }
     ensureBoundariesIfNeeded();
-    const packed = await window.VF_StaffingHist.loadStaffingHist(staffingHist.period);
+    const packed = await window.VF_StaffingHist.loadStaffingHist(period);
+    /* User may have switched period while this request was in flight. */
+    if (staffingHist.period !== period) return;
     const result = packed.result;
     if (!result || !result.towers || !result.towers.length) {
-      throw new Error("Precomputed data for " + staffingHist.period + " is empty. Run live Process or wait for Monday refresh.");
+      throw new Error("Precomputed data for " + period + " is empty. Run live Process or wait for Monday refresh.");
     }
     const when = packed.computedAt ? new Date(packed.computedAt).toISOString().replace("T", " ").slice(0, 16) + "Z" : "unknown";
     await finalizeStaffingHistorical(result,
       "database (" + packed.source + ") \u00b7 computed " + when);
+    if (staffingHist.period !== period) return;
     staffingHist.status = "ok";
   } catch (e) {
+    if (staffingHist.period !== period) return;
     staffingHist.status = "error";
     staffingHist.message = ((e && e.message) || String(e)) +
       " \u2014 use Process live or Paste / upload as a fallback.";
   }
-  renderContent();
+  if (staffingHist.period === period) renderContent();
 }
 function restoreStaffingHistoricalCache() {
   if (staffingHist.result) return;
+  /* Never clobber an in-flight period change / DB load with a stale session. */
+  if (staffingHist.status === "loading" || staffingHist.status === "error") return;
   try {
     const raw = sessionStorage.getItem("vatflow_staffing_hist");
     if (!raw) return;
     const saved = JSON.parse(raw);
-    if (saved && saved.result) {
-      staffingHist.period = saved.period || staffingHist.period;
-      staffingHist.selectedAirport = saved.selectedAirport || null;
-      staffingHist.result = saved.result;
-      staffingHist.status = "ok";
-      staffingHist.message = "Restored last historical analysis from this session.";
-    }
+    if (!saved || !saved.result) return;
+    /* Only restore when the cached period matches the current selection. */
+    if (saved.period && saved.period !== staffingHist.period) return;
+    staffingHist.selectedAirport = saved.selectedAirport || null;
+    staffingHist.result = saved.result;
+    staffingHist.status = "ok";
+    staffingHist.message = "Restored last historical analysis from this session.";
   } catch (e) {}
 }
 function renderStaffingHistorical() {
@@ -6662,7 +6671,8 @@ contentEl.addEventListener("click", e => {
     return;
   }
   if (e.target.closest("[data-hist-clearfilters]")) {
-    staffingHist.filters = { facility: "", type: "", artcc: "", day: "", upcoming: "", score: "", window: "", events: "", upcomingScore: "" };
+    staffingHist.filters = {};
+    for (const c of STAFFING_HIST_TABLE_COLS) staffingHist.filters[c.key] = "";
     renderContent();
     return;
   }
@@ -6814,8 +6824,13 @@ contentEl.addEventListener("click", e => {
 contentEl.addEventListener("change", e => {
   const histPeriod = e.target.closest("[data-hist-period]");
   if (histPeriod) {
-    staffingHist.period = histPeriod.value || "thisweek";
+    const next = histPeriod.value || "thisweek";
+    staffingHist.period = next;
     staffingHist.result = null;
+    staffingHist.selectedAirport = null;
+    staffingHist.status = "loading";
+    staffingHist.message = "Loading precomputed " + next + " from database\u2026";
+    try { sessionStorage.removeItem("vatflow_staffing_hist"); } catch (err) {}
     loadStaffingHistoricalFromDb();
     return;
   }
