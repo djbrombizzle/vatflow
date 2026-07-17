@@ -427,39 +427,90 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
 .gate-tag { margin-left: 8px; font-family: var(--font-data); }
 
 /* ---------- apt dashboard summary ---------- */
-.meter-summary {
-  padding: 20px 24px 36px; max-width: 1100px;
+@keyframes meter-bar-in {
+  from { transform: scaleX(0); opacity: 0.35; }
+  to { transform: scaleX(1); opacity: 1; }
 }
+@keyframes meter-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes meter-ring-draw {
+  from { stroke-dashoffset: var(--ring-circ); }
+  to { stroke-dashoffset: var(--ring-offset); }
+}
+.meter-summary {
+  padding: 0 0 40px;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(232, 168, 56, 0.08), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 0%, rgba(91, 168, 201, 0.06), transparent 50%),
+    linear-gradient(180deg, #0c1219 0%, var(--bg) 42%);
+}
+.meter-summary-inner { padding: 22px 28px 0; max-width: 1120px; }
 .meter-summary-head {
-  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-  margin-bottom: 22px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap; margin-bottom: 22px;
+  animation: meter-fade-up 0.35s ease-out both;
 }
 .meter-summary-icao {
-  font-family: var(--font-display); font-size: 48px; font-weight: 600;
-  letter-spacing: 0.06em; color: var(--text); line-height: 1;
+  font-family: var(--font-display); font-size: 56px; font-weight: 600;
+  letter-spacing: 0.06em; color: var(--text); line-height: 0.95;
 }
 .meter-summary-sub {
-  font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 12px; color: var(--text-muted); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-top: 4px;
 }
+.meter-summary-inbound {
+  text-align: right;
+}
+.meter-summary-inbound .big {
+  font-family: var(--font-display); font-size: 64px; font-weight: 600;
+  letter-spacing: 0.04em; line-height: 1; color: var(--accent-text);
+  text-shadow: 0 0 28px rgba(232, 168, 56, 0.25);
+}
+.meter-summary-inbound .lbl {
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-top: 2px;
+}
+.meter-status-mix {
+  display: flex; height: 10px; border-radius: 999px; overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--border);
+  margin-bottom: 18px; animation: meter-fade-up 0.4s ease-out 0.05s both;
+}
+.meter-status-mix span { display: block; height: 100%; min-width: 0; transition: width 0.4s ease; }
 .meter-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px; margin-bottom: 28px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+@media (max-width: 900px) {
+  .meter-metrics { grid-template-columns: repeat(2, 1fr); }
+  .meter-summary-icao { font-size: 42px; }
+  .meter-summary-inbound .big { font-size: 48px; }
+  .meter-summary-inbound { text-align: left; }
 }
 .meter-metric {
-  background: linear-gradient(165deg, var(--elevated) 0%, var(--surface) 100%);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px 18px 14px;
-  display: flex; flex-direction: column; gap: 6px;
-  min-height: 88px;
+  position: relative; overflow: hidden;
+  background: linear-gradient(165deg, rgba(22, 30, 40, 0.95) 0%, rgba(14, 19, 25, 0.98) 100%);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 16px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  animation: meter-fade-up 0.4s ease-out both;
+}
+.meter-metric:nth-child(1) { animation-delay: 0.06s; }
+.meter-metric:nth-child(2) { animation-delay: 0.1s; }
+.meter-metric:nth-child(3) { animation-delay: 0.14s; }
+.meter-metric:nth-child(4) { animation-delay: 0.18s; }
+.meter-metric::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--metric-accent, var(--border-hi));
 }
 .meter-metric .mk {
-  font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em;
-  text-transform: uppercase; font-weight: 500;
+  font-size: 10px; color: var(--text-muted); letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 600;
 }
 .meter-metric .mv {
-  font-family: var(--font-display); font-size: 42px; font-weight: 600;
+  font-family: var(--font-display); font-size: 40px; font-weight: 600;
   letter-spacing: 0.04em; line-height: 1; font-variant-numeric: tabular-nums;
   color: var(--text);
 }
@@ -468,46 +519,124 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
 .meter-metric .mv.stat-alert { color: var(--alert); }
 .meter-metric .mv.stat-info { color: var(--info); }
 .meter-metric .mv.stat-muted { color: var(--text-muted); }
-.meter-metric--wide { grid-column: span 2; }
+.meter-metric .mbar {
+  margin-top: 8px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+.meter-metric .mbar > i {
+  display: block; height: 100%; border-radius: 2px;
+  background: var(--metric-accent, var(--accent));
+  transform-origin: left center;
+  animation: meter-bar-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.meter-demand-panel {
+  display: grid; grid-template-columns: 140px 1fr; gap: 20px; align-items: center;
+  background: linear-gradient(120deg, rgba(22, 30, 40, 0.9), rgba(14, 19, 25, 0.95));
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 22px; margin-bottom: 26px;
+  animation: meter-fade-up 0.45s ease-out 0.12s both;
+}
 @media (max-width: 700px) {
-  .meter-metric--wide { grid-column: span 1; }
-  .meter-summary-icao { font-size: 36px; }
-  .meter-metric .mv { font-size: 34px; }
+  .meter-demand-panel { grid-template-columns: 1fr; justify-items: center; text-align: center; }
 }
-.meter-metric .mv-ratio {
-  font-family: var(--font-data); font-size: 28px; font-weight: 600;
-  letter-spacing: 0.02em;
+.meter-ring-wrap { width: 120px; height: 120px; position: relative; }
+.meter-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.meter-ring-wrap .ring-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 8; }
+.meter-ring-wrap .ring-fg {
+  fill: none; stroke-width: 8; stroke-linecap: round;
+  stroke: var(--ring-color, var(--ok));
+  stroke-dasharray: var(--ring-circ);
+  stroke-dashoffset: var(--ring-offset);
+  animation: meter-ring-draw 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  filter: drop-shadow(0 0 8px rgba(76, 175, 122, 0.35));
 }
-.meter-metric .msub {
-  font-size: 11px; color: var(--text-dim); margin-top: 2px;
+.meter-ring-wrap.over .ring-fg {
+  filter: drop-shadow(0 0 8px rgba(212, 92, 92, 0.45));
 }
-.meter-sec {
-  margin-top: 8px;
+.meter-ring-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
 }
+.meter-ring-center .pct {
+  font-family: var(--font-display); font-size: 28px; font-weight: 600;
+  letter-spacing: 0.02em; color: var(--text); line-height: 1;
+}
+.meter-ring-center .pct-lbl {
+  font-size: 9px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.meter-demand-copy .mk {
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 600; margin-bottom: 6px;
+}
+.meter-demand-copy .mv-ratio {
+  font-family: var(--font-data); font-size: 32px; font-weight: 600;
+  letter-spacing: 0.02em; line-height: 1.1;
+}
+.meter-demand-copy .mv-ratio.stat-ok { color: var(--ok); }
+.meter-demand-copy .mv-ratio.stat-alert { color: var(--alert); }
+.meter-demand-copy .msub {
+  font-size: 12px; color: var(--text-dim); margin-top: 8px; line-height: 1.45;
+}
+.meter-sec { margin-top: 4px; animation: meter-fade-up 0.45s ease-out 0.16s both; }
 .meter-sec-title {
-  font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em;
-  text-transform: uppercase; margin-bottom: 12px; font-weight: 600;
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 14px; font-weight: 600;
 }
-.meter-gates {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
-}
+.meter-gates { display: flex; flex-direction: column; gap: 10px; }
 .meter-gate {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 4px;
-  border-left: 3px solid var(--border-hi);
+  display: grid; grid-template-columns: 88px 1fr 44px; gap: 12px; align-items: center;
+  background: rgba(14, 19, 25, 0.65); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
 }
 .meter-gate .gk {
-  font-family: var(--font-data); font-size: 13px; font-weight: 600;
-  letter-spacing: 0.04em;
+  font-family: var(--font-data); font-size: 14px; font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.meter-gate .gbar {
+  height: 12px; border-radius: 6px; background: rgba(255,255,255,0.04);
+  overflow: hidden; position: relative;
+}
+.meter-gate .gbar > i {
+  display: block; height: 100%; border-radius: 6px;
+  transform-origin: left center;
+  animation: meter-bar-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  background: linear-gradient(90deg, var(--gate-color), rgba(255,255,255,0.35));
+  box-shadow: 0 0 12px rgba(0,0,0,0.25);
 }
 .meter-gate .gv {
-  font-family: var(--font-display); font-size: 28px; font-weight: 600;
-  letter-spacing: 0.04em; color: var(--text); line-height: 1;
+  font-family: var(--font-display); font-size: 22px; font-weight: 600;
+  letter-spacing: 0.04em; color: var(--text); text-align: right; line-height: 1;
 }
 .meter-gate-empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+
+/* dedicated arrival-ladder page (wider) */
+.meter-ladder-page {
+  padding: 8px 20px 28px; max-width: 920px;
+}
+.meter-ladder-page .ladderwrap { border-left: none; padding: 10px 0 0; }
+.meter-ladder-page .ladderhead { font-size: 13px; margin-bottom: 6px; }
+.meter-ladder-page .ladderhint { font-size: 11px; margin-bottom: 10px; }
+.meter-ladder-page .ladderscroll {
+  min-height: 560px; height: calc(100vh - 210px);
+  border-radius: 8px; background: #0a0e14;
+}
+.meter-ladder-page .ladder { margin: 14px 16px 14px 12px; }
+.meter-ladder-page .ladder .axis { left: 64px; width: 2px; }
+.meter-ladder-page .ladder .gridline { left: 56px; width: 18px; }
+.meter-ladder-page .ladder .gridtime {
+  width: 52px; font-size: 13px; font-family: var(--font-data); color: var(--text-dim);
+}
+.meter-ladder-page .ladder .freeze,
+.meter-ladder-page .ladder .nowline { left: 56px; }
+.meter-ladder-page .ladder .nowline span,
+.meter-ladder-page .ladder .freeze span { font-size: 11px; font-weight: 600; }
+.meter-ladder-page .ladder .lab {
+  font-size: 14px; font-family: var(--font-data); padding: 4px 10px;
+  border-radius: 5px; letter-spacing: 0.02em;
+}
+.meter-ladder-page .ladder .lab .t { margin-left: 6px; font-size: 13px; }
+.meter-ladder-page .ladder .tag { gap: 8px; }
+.meter-ladder-page .ladder .tick { height: 2px; }
 
 /* ---------- demand vs AAR chart ---------- */
 .meter-demand-wrap {
@@ -1941,6 +2070,22 @@ function arrivalGate(route, arr) {
   }
   return "\u2014";
 }
+/* Summary-only: OZZZI1 / OZZZI2 → OZZZI (drop STAR revision digit) */
+function summaryGateName(gate) {
+  if (!gate || gate === "\u2014" || gate === "VFR") return gate;
+  const m = String(gate).toUpperCase().match(/^([A-Z]{3,5})\d[A-Z]?$/);
+  return m ? m[1] : gate;
+}
+function summaryGateCounts(flow) {
+  const gates = {};
+  for (const f of flow.flights) {
+    if (f.status === "ARRIVED" || !isMetered(f) || f.gate === "\u2014") continue;
+    const g = summaryGateName(f.gate);
+    if (!g || g === "\u2014") continue;
+    gates[g] = (gates[g] || 0) + 1;
+  }
+  return Object.entries(gates).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
 function fmtZ(ms) {
   if (!ms || !isFinite(ms)) return "----";
   const d = new Date(ms);
@@ -2809,42 +2954,83 @@ function renderMeterSummaryView(flow) {
   const { air, gnd, pro, arr, inbound } = meterStatusCounts(flow);
   const mRate = getRate(icao);
   const over = flow.demandHr > mRate.aar;
-  const gates = flow.allGates || flow.topGates || [];
+  const gates = summaryGateCounts(flow);
+  const totalKnown = air + gnd + pro + arr;
+  const pctOf = n => totalKnown ? Math.round((n / totalKnown) * 100) : 0;
+  const demandPct = Math.min(100, Math.round((flow.demandHr / Math.max(1, mRate.aar)) * 100));
+  const ringR = 46;
+  const ringCirc = (2 * Math.PI * ringR).toFixed(1);
+  const ringOffset = (ringCirc * (1 - demandPct / 100)).toFixed(1);
+  const ringColor = over ? "var(--alert)" : "var(--ok)";
+  const maxGate = gates.length ? gates[0][1] : 1;
 
-  let h = '<div class="meter-summary">' +
+  const mixSeg = (n, color) =>
+    n ? '<span style="width:' + pctOf(n) + '%;background:' + color + ';" title="' + n + '"></span>' : "";
+
+  let h = '<div class="meter-summary"><div class="meter-summary-inner">' +
     '<div class="meter-summary-head">' +
-    '<span class="meter-summary-icao">' + esc(icao) + '</span>' +
-    '<span class="meter-summary-sub">Arrival summary</span>' +
-    (!flow.arrPt ? '<span class="strip-warn">No coords for field \u2014 ETAs estimated</span>' : '') +
+    '<div><div class="meter-summary-icao">' + esc(icao) + '</div>' +
+    '<div class="meter-summary-sub">Arrival summary' +
+    (!flow.arrPt ? ' \u00b7 <span class="strip-warn">No coords \u2014 ETAs estimated</span>' : '') +
+    '</div></div>' +
+    '<div class="meter-summary-inbound">' +
+    '<div class="big">' + inbound + '</div>' +
+    '<div class="lbl">Inbound total</div></div>' +
+    '</div>' +
+    '<div class="meter-status-mix" title="Status mix of all traffic">' +
+    mixSeg(air, "var(--ok)") + mixSeg(gnd, "var(--warn)") +
+    mixSeg(pro, "var(--info)") + mixSeg(arr, "var(--text-muted)") +
     '</div>' +
     '<div class="meter-metrics">' +
-    '<div class="meter-metric"><span class="mk">Inbound</span><span class="mv">' + inbound + '</span></div>' +
-    '<div class="meter-metric"><span class="mk">Airborne</span><span class="mv stat-ok">' + air + '</span></div>' +
-    '<div class="meter-metric"><span class="mk">Ground</span><span class="mv stat-warn">' + gnd + '</span></div>' +
-    '<div class="meter-metric"><span class="mk">Proposed</span><span class="mv stat-info">' + pro + '</span></div>' +
-    '<div class="meter-metric"><span class="mk">Arrived</span><span class="mv stat-muted">' + arr + '</span></div>' +
-    '<div class="meter-metric meter-metric--wide">' +
-    '<span class="mk">Demand / AAR \u00b7 60 min</span>' +
-    '<span class="mv mv-ratio ' + (over ? "stat-alert" : "stat-ok") + '">' +
-    flow.demandHr + ' / ' + mRate.aar + '</span>' +
-    '<span class="msub">' + (over ? "Demand exceeds acceptance rate" : "Within acceptance rate") +
-    ' \u00b7 rates on TMU tab</span></div>' +
+    '<div class="meter-metric" style="--metric-accent:var(--ok)">' +
+    '<span class="mk">Airborne</span><span class="mv stat-ok">' + air + '</span>' +
+    '<div class="mbar"><i style="width:' + pctOf(air) + '%;animation-delay:0.08s"></i></div></div>' +
+    '<div class="meter-metric" style="--metric-accent:var(--warn)">' +
+    '<span class="mk">Ground</span><span class="mv stat-warn">' + gnd + '</span>' +
+    '<div class="mbar"><i style="width:' + pctOf(gnd) + '%;animation-delay:0.12s"></i></div></div>' +
+    '<div class="meter-metric" style="--metric-accent:var(--info)">' +
+    '<span class="mk">Proposed</span><span class="mv stat-info">' + pro + '</span>' +
+    '<div class="mbar"><i style="width:' + pctOf(pro) + '%;animation-delay:0.16s"></i></div></div>' +
+    '<div class="meter-metric" style="--metric-accent:var(--text-muted)">' +
+    '<span class="mk">Arrived</span><span class="mv stat-muted">' + arr + '</span>' +
+    '<div class="mbar"><i style="width:' + pctOf(arr) + '%;animation-delay:0.2s"></i></div></div>' +
     '</div>' +
+    '<div class="meter-demand-panel" style="--ring-circ:' + ringCirc + ';--ring-offset:' + ringOffset +
+    ';--ring-color:' + ringColor + '">' +
+    '<div class="meter-ring-wrap' + (over ? ' over' : '') + '">' +
+    '<svg viewBox="0 0 120 120" aria-hidden="true">' +
+    '<circle class="ring-bg" cx="60" cy="60" r="' + ringR + '"></circle>' +
+    '<circle class="ring-fg" cx="60" cy="60" r="' + ringR + '"></circle>' +
+    '</svg>' +
+    '<div class="meter-ring-center"><span class="pct">' + demandPct + '%</span>' +
+    '<span class="pct-lbl">of AAR</span></div></div>' +
+    '<div class="meter-demand-copy">' +
+    '<div class="mk">Demand / AAR \u00b7 60 min</div>' +
+    '<div class="mv-ratio ' + (over ? "stat-alert" : "stat-ok") + '">' +
+    flow.demandHr + ' / ' + mRate.aar + '</div>' +
+    '<div class="msub">' + (over
+      ? "Demand is above the acceptance rate \u2014 expect metering delays."
+      : "Demand is within the acceptance rate.") +
+    ' Rates are set on the TMU tab.</div></div></div>' +
     '<div class="meter-sec">' +
-    '<div class="meter-sec-title">Aircraft by arrival gate</div>';
+    '<div class="meter-sec-title">Aircraft by arrival gate' +
+    '<span style="font-weight:400;margin-left:8px;letter-spacing:0.04em;text-transform:none;color:var(--text-muted)">' +
+    '\u00b7 STAR revisions grouped (OZZZI1/2 \u2192 OZZZI)</span></div>';
   if (!gates.length) {
     h += '<div class="meter-gate-empty">No gated arrivals in the metered stream right now.</div>';
   } else {
     h += '<div class="meter-gates">';
-    for (const [g, n] of gates) {
-      const c = flow.gateColors[g] || "var(--border-hi)";
-      h += '<div class="meter-gate" style="border-left-color:' + c + ';">' +
+    gates.forEach(([g, n], i) => {
+      const c = GATE_PALETTE[i % GATE_PALETTE.length];
+      const w = Math.max(6, Math.round((n / maxGate) * 100));
+      h += '<div class="meter-gate" style="--gate-color:' + c + '">' +
         '<span class="gk" style="color:' + c + ';">' + esc(g) + '</span>' +
+        '<div class="gbar"><i style="width:' + w + '%;animation-delay:' + (0.08 + i * 0.04).toFixed(2) + 's"></i></div>' +
         '<span class="gv">' + n + '</span></div>';
-    }
+    });
     h += '</div>';
   }
-  h += '</div></div>';
+  h += '</div></div></div>';
   return h;
 }
 
@@ -2933,26 +3119,29 @@ function renderMeterAircraftView(flow) {
 }
 
 function renderMeterLadderView(flow) {
-  const PX_PER_MIN = 12;
+  const PX_PER_MIN = 14;
   const LADDER_WIN = ladderWinMin;
   const LH = LADDER_WIN * PX_PER_MIN;
   const yOf = min => LH - (Math.max(min, 0) / LADDER_WIN) * LH;
   const gridStep = LADDER_WIN <= 90 ? 10 : LADDER_WIN <= 180 ? 15 : 30;
+  /* wider page: more horizontal lanes so overlapping STAs stay readable */
+  const LANE_X = [78, 250, 422, 594];
+  const LANE_TICK = [14, 160, 332, 504];
 
-  let h = '<div class="ladderwrap" style="border-left:none;max-width:520px;">' +
+  let h = '<div class="meter-ladder-page"><div class="ladderwrap">' +
     '<div class="ladderhead"><span>ARRIVAL LADDER \u00B7 ' + LADDER_WIN + ' MIN</span>' +
     '<span class="ladderwinctl">' +
     '<button data-ladderwin="-30" title="Show 30 min less"' + (LADDER_WIN <= 30 ? ' disabled' : '') + '>\u2212</button>' +
     '<button data-ladderwin="30" title="Show 30 min more"' + (LADDER_WIN >= 360 ? ' disabled' : '') + '>+</button>' +
     '</span></div>' +
-    '<div class="ladderhint">SCROLL \u25B4\u25BE \u00B7 NOW AT BOTTOM</div>' +
+    '<div class="ladderhint">SCROLL \u25B4\u25BE \u00B7 NOW AT BOTTOM \u00B7 GATE COLOR ON TAG</div>' +
     '<div class="ladderscroll" id="ladderScroll">' +
     '<div class="ladder" style="height:' + LH + 'px;"><div class="axis"></div>';
   for (let k = 0; k <= LADDER_WIN / gridStep; k++) {
     const min = k * gridStep;
     const y = yOf(min);
     h += '<div class="gridline" style="top:' + (y-1) + 'px;"></div>' +
-         '<span class="gridtime" style="top:' + (y-7) + 'px;">' + fmtZ(flow.now + min*60000) + '</span>';
+         '<span class="gridtime" style="top:' + (y-8) + 'px;">' + fmtZ(flow.now + min*60000) + '</span>';
   }
   h += '<div class="nowline" style="top:' + yOf(0) + 'px;"><span>NOW</span></div>';
   h += '<div class="freeze" style="top:' + yOf(19) + 'px;"><span>FREEZE</span></div>';
@@ -2963,21 +3152,21 @@ function renderMeterLadderView(flow) {
   if (!ladderFlights.length) {
     h += '<div class="empty">NO STAs IN WINDOW</div>';
   } else {
-    const LANE_X = [56, 168];
     let prevY = Infinity, lane = 0;
     for (const f of ladderFlights) {
       const y = yOf((f.sta - flow.now) / 60000);
-      lane = (prevY - y < 16) ? (lane + 1) % LANE_X.length : 0;
+      lane = (prevY - y < 22) ? (lane + 1) % LANE_X.length : 0;
       prevY = y;
       const c = flow.gateColors[f.gate] || statusColor(f);
-      const op = f.status === "PROPOSED" ? "0.65" : "1";
-      h += '<div class="tag" style="top:' + (y-8) + 'px;left:' + LANE_X[lane] + 'px;">' +
-        '<div class="tick" style="background:' + c + ';width:' + (lane ? 110 : 12) + 'px;"></div>' +
-        '<span class="lab" style="border-left:3px solid ' + c + ';opacity:' + op + ';">' +
-        esc(f.callsign) + ' <span class="t">' + fmtZ(f.sta) + '</span></span></div>';
+      const op = f.status === "PROPOSED" ? "0.7" : "1";
+      const gateLbl = f.gate && f.gate !== "\u2014" ? ' <span class="t">' + esc(f.gate) + '</span>' : "";
+      h += '<div class="tag" style="top:' + (y-11) + 'px;left:' + LANE_X[lane] + 'px;">' +
+        '<div class="tick" style="background:' + c + ';width:' + LANE_TICK[lane] + 'px;"></div>' +
+        '<span class="lab" style="border-left:4px solid ' + c + ';opacity:' + op + ';">' +
+        esc(f.callsign) + ' <span class="t">' + fmtZ(f.sta) + '</span>' + gateLbl + '</span></div>';
     }
   }
-  h += '</div></div></div>';
+  h += '</div></div></div></div>';
   return h;
 }
 
