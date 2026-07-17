@@ -930,6 +930,46 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .staffhist-tablewrap tr.histpick td { outline: 1px solid rgba(232, 168, 56, 0.35); outline-offset: -1px; }
 .staffhist-tablewrap .hist-boost { color: var(--accent-text); }
 .staffhist-count { font-family: var(--font-data); font-size: 11px; color: var(--text-muted); margin: 0 0 8px; }
+.staffhist-lookup {
+  margin: 16px 0 18px; padding: 16px 18px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.staffhist-lookup-title {
+  font-family: var(--font-display); font-size: 20px; letter-spacing: 0.03em;
+  color: var(--text); margin: 0 0 4px;
+}
+.staffhist-lookup-sub {
+  font-size: 12px; color: var(--text-muted); line-height: 1.45; margin: 0 0 14px; max-width: 720px;
+}
+.staffhist-lookup-fields {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px;
+}
+.staffhist-lookup-fields label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em;
+}
+.staffhist-lookup-fields input, .staffhist-lookup-fields select {
+  font-family: var(--font-data); font-size: 13px; padding: 7px 10px;
+  background: var(--elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); min-width: 110px; width: 120px;
+}
+.staffhist-lookup-fields input[data-hist-lookup="facility"] { width: 140px; }
+.staffhist-lookup-best {
+  margin: 10px 0 14px; padding: 12px 14px;
+  background: var(--elevated); border: 1px solid var(--border-hi); border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-text);
+}
+.staffhist-lookup-best .lbl {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;
+}
+.staffhist-lookup-best .pick {
+  font-family: var(--font-display); font-size: 22px; letter-spacing: 0.03em; color: var(--text);
+}
+.staffhist-lookup-best .detail {
+  font-size: 13px; color: var(--text-dim); margin-top: 4px; line-height: 1.4;
+}
+.staffhist-lookup-tablewrap { overflow-x: auto; margin-top: 8px; }
+.staffhist-lookup-tablewrap table { min-width: 720px; }
 .staffhead {
   display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   margin-bottom: 10px;
@@ -1315,7 +1355,7 @@ const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
 let meterSub = "summary";  // Apt Dashboard sub-tab: summary | map | aircraft | ladder | demand
-let staffingSub = "live";  // ATC Staffing sub-tab: live | historical
+let staffingSub = "live";  // ATC Staffing sub-tab: live | historical | lookup
 /* ---- controller access: VATSIM Connect OAuth (full tier = ARTCC whitelist) ---- */
 function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
 function canEditApt(icao) {
@@ -3912,6 +3952,9 @@ let staffingHist = {
   filters: {
     facility: "", type: "", artcc: "", day: "", window: "",
     avgOps: "", upcoming: "", predOps: "", events: ""
+  },
+  lookup: {
+    facility: "", type: "", artcc: "", day: ""
   }
 };
 const STAFFING_HIST_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -4767,6 +4810,154 @@ function buildStaffingHistTableRows(result) {
   for (const slot of (result.centers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
   return rows;
 }
+function histLookupQueryActive() {
+  const l = staffingHist.lookup || {};
+  return !!(String(l.facility || "").trim() || String(l.type || "").trim() ||
+    String(l.artcc || "").trim() || String(l.day || "").trim());
+}
+function histLookupFacilityMatch(row, query) {
+  const q = String(query || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!q) return true;
+  const candidates = [row.id].concat(histSlotAirportIds(row));
+  for (const raw of candidates) {
+    const id = String(raw || "").toUpperCase();
+    if (!id) continue;
+    if (id.indexOf(q) !== -1) return true;
+    if (q.length === 3 && id === "K" + q) return true;
+    if (id.length === 4 && id.charAt(0) === "K" && id.slice(1) === q) return true;
+  }
+  return false;
+}
+function histLookupPasses(row) {
+  const l = staffingHist.lookup || {};
+  const fac = String(l.facility || "").trim();
+  const typ = String(l.type || "").trim().toUpperCase();
+  const art = String(l.artcc || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const day = String(l.day || "").trim().toUpperCase();
+  if (fac && !histLookupFacilityMatch(row, fac)) return false;
+  if (typ && String(row.type || "").toUpperCase().indexOf(typ) === -1) return false;
+  if (art) {
+    const hay = (String(row.artcc || "") + " " + String(row.id || "")).toUpperCase();
+    if (hay.indexOf(art) === -1) return false;
+  }
+  if (day) {
+    const dayHay = (row.dowLabel + " " + row.dow).toUpperCase();
+    if (dayHay.indexOf(day) === -1) return false;
+  }
+  return true;
+}
+function sortedStaffingHistLookupRows(rows) {
+  const out = rows.slice();
+  out.sort((a, b) => {
+    const aOut = !(a.upcomingStartMs < Number.POSITIVE_INFINITY);
+    const bOut = !(b.upcomingStartMs < Number.POSITIVE_INFINITY);
+    if (aOut !== bOut) return aOut ? 1 : -1;
+    const pa = a.predOps != null ? a.predOps : -1;
+    const pb = b.predOps != null ? b.predOps : -1;
+    if (pa !== pb) return pb - pa;
+    const aa = a.avgOps != null ? a.avgOps : -1;
+    const ab = b.avgOps != null ? b.avgOps : -1;
+    if (aa !== ab) return ab - aa;
+    return (a.upcomingStartMs - b.upcomingStartMs) ||
+      String(a.id).localeCompare(String(b.id)) || (a.dow - b.dow);
+  });
+  return out;
+}
+function staffingHistLookupResults(result, limit) {
+  if (!result || !histLookupQueryActive()) return [];
+  const matched = buildStaffingHistTableRows(result).filter(histLookupPasses);
+  return sortedStaffingHistLookupRows(matched).slice(0, limit == null ? 8 : limit);
+}
+function renderStaffingHistLookupPanel(result) {
+  const l = staffingHist.lookup || { facility: "", type: "", artcc: "", day: "" };
+  let h = '<div class="staffhist-lookup">';
+  h += '<div class="staffhist-lookup-title">When should I control?</div>';
+  h += '<div class="staffhist-lookup-sub">Search the loaded historical period for the best day and ' +
+    "2\u20134hr staff-up window. Enter Facility, Type, ARTCC, and/or Day \u2014 leave fields blank to widen the search.</div>";
+  h += '<div class="staffhist-lookup-fields">';
+  h += '<label>Facility<input data-hist-lookup="facility" data-keep="hist-lu-facility" maxlength="8" ' +
+    'placeholder="KMCO / MCO" autocomplete="off" value="' + esc(l.facility || "") + '"></label>';
+  h += '<label>Type<select data-hist-lookup="type" data-keep="hist-lu-type">' +
+    '<option value=""' + (!l.type ? " selected" : "") + ">Any</option>" +
+    '<option value="TWR"' + (l.type === "TWR" ? " selected" : "") + ">TWR</option>" +
+    '<option value="APP"' + (l.type === "APP" ? " selected" : "") + ">APP</option>" +
+    '<option value="CTR"' + (l.type === "CTR" ? " selected" : "") + ">CTR</option>" +
+    "</select></label>";
+  h += '<label>ARTCC<input data-hist-lookup="artcc" data-keep="hist-lu-artcc" maxlength="5" ' +
+    'placeholder="ZJX" autocomplete="off" value="' + esc(l.artcc || "") + '"></label>';
+  h += '<label>Day<select data-hist-lookup="day" data-keep="hist-lu-day">' +
+    '<option value=""' + (!l.day ? " selected" : "") + ">Any</option>";
+  for (const d of STAFFING_HIST_DOW) {
+    h += '<option value="' + d + '"' + (l.day === d ? " selected" : "") + ">" + d + "</option>";
+  }
+  h += "</select></label>";
+  h += '<div class="staffhist-actions">' +
+    '<button type="button" class="ghost" data-hist-lookup-clear' +
+    (histLookupQueryActive() ? "" : " disabled") + ">Clear</button></div>";
+  h += "</div>";
+
+  if (!result) {
+    h += '<div class="staffnone">Load historical data first (Load from database on this tab or Historical Data).</div>';
+    h += "</div>";
+    return h;
+  }
+  if (!histLookupQueryActive()) {
+    h += '<div class="staffnone">Enter at least one of Facility, Type, ARTCC, or Day to see the best control window.</div>';
+    h += "</div>";
+    return h;
+  }
+
+  const rows = staffingHistLookupResults(result, 8);
+  if (!rows.length) {
+    h += '<div class="staffnone">No matching facilities in the loaded ' +
+      esc(staffingHist.period) + " sample. Try a wider search or another period.</div>";
+    h += "</div>";
+    return h;
+  }
+
+  const best = rows[0];
+  const bestWin = best.staffWindowLabel || best.windowLabel || "";
+  h += '<div class="staffhist-lookup-best">';
+  h += '<div class="lbl">Best match</div>';
+  h += '<div class="pick">' + esc(best.id) + " " + esc(best.type) +
+    " \u00b7 " + esc(best.dowLabel) + " " + esc(bestWin) + "</div>";
+  h += '<div class="detail">Typical <b>' + best.avgOps + "</b> ops in that window" +
+    (best.upcomingStartMs < Number.POSITIVE_INFINITY
+      ? " \u00b7 next opportunity <b>" + esc(best.upcomingLabel) + "</b> (pred <b>" + best.predOps + "</b>)"
+      : "") +
+    (best.artcc ? " \u00b7 " + esc(best.artcc) : "") +
+    (best.eventText ? " \u00b7 " + esc(best.eventText) : "") +
+    "</div></div>";
+
+  h += '<div class="staffhist-count">Top ' + rows.length + " matches ranked by predicted ops, then avg ops</div>";
+  h += '<div class="staffhist-lookup-tablewrap tablewrap"><table><thead><tr>' +
+    "<th>Facility</th><th>Type</th><th>ARTCC</th><th>Day</th><th>Best window</th>" +
+    "<th>Avg ops</th><th>Staff next 7 days</th><th>Pred. ops</th><th>Events</th>" +
+    "</tr></thead><tbody>";
+  for (const r of rows) {
+    const pick = r.type === "TWR" && staffingHist.selectedAirport === r.id;
+    const predCell = r.upcomingStartMs < Number.POSITIVE_INFINITY
+      ? (r.eventBoost && r.predOps !== r.avgOps
+        ? '<span class="hist-boost">' + r.avgOps + "\u2192" + r.predOps + "</span>"
+        : String(r.predOps))
+      : '<span class="cell-muted">\u2014</span>';
+    h += '<tr class="' + (pick ? "histpick" : "") + '"' +
+      (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '" style="cursor:pointer"' : "") + ">" +
+      '<td class="cell-strong">' + esc(r.id) + "</td>" +
+      "<td>" + esc(r.type) + "</td>" +
+      "<td>" + esc(r.artcc || "\u2014") + "</td>" +
+      "<td>" + esc(r.dowLabel) + "</td>" +
+      '<td title="' + esc(r.reason || "") + '">' + esc(r.staffWindowLabel || r.windowLabel) +
+      ' <span class="cell-muted">' + esc(r.reason || "") + "</span></td>" +
+      "<td>" + r.avgOps + "</td>" +
+      '<td class="hist-upcoming">' + esc(r.upcomingLabel || "\u2014") + "</td>" +
+      "<td>" + predCell + "</td>" +
+      '<td class="hist-events">' + (r.eventText ? esc(r.eventText) : '<span class="cell-muted">\u2014</span>') +
+      "</td></tr>";
+  }
+  h += "</tbody></table></div></div>";
+  return h;
+}
 function histTableCellText(row, key) {
   switch (key) {
     case "facility": return String(row.id || "");
@@ -5130,9 +5321,8 @@ function restoreStaffingHistoricalCache() {
     staffingHist.message = "Restored last historical analysis from this session.";
   } catch (e) {}
 }
-function renderStaffingHistorical() {
-  restoreStaffingHistoricalCache();
-  const res = staffingHist.result;
+function renderStaffingHistPeriodControls(opts) {
+  const showLive = !opts || opts.showLive !== false;
   let h = '<div class="staffhist-controls">' +
     '<label>Period<select data-hist-period>';
   for (const p of STAFFING_HIST_PERIODS) {
@@ -5142,13 +5332,14 @@ function renderStaffingHistorical() {
   h += "</select></label>" +
     '<div class="staffhist-actions">' +
     '<button type="button" data-hist-load-db' + (staffingHist.status === "loading" ? " disabled" : "") +
-    ">Load from database</button>" +
-    '<button type="button" class="ghost" data-hist-process' + (staffingHist.status === "loading" ? " disabled" : "") +
-    ">Process live</button>" +
-    '<button type="button" class="ghost" data-hist-toggle-paste>Paste / upload</button>' +
-    "</div></div>";
-
-  if (staffingHist.pasteOpen) {
+    ">Load from database</button>";
+  if (showLive) {
+    h += '<button type="button" class="ghost" data-hist-process' + (staffingHist.status === "loading" ? " disabled" : "") +
+      ">Process live</button>" +
+      '<button type="button" class="ghost" data-hist-toggle-paste>Paste / upload</button>';
+  }
+  h += "</div></div>";
+  if (showLive && staffingHist.pasteOpen) {
     h += '<label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">' +
       "Paste StatSim US country HTML or table text, or choose a saved .html file</label>" +
       '<textarea class="staffhist-paste" data-hist-paste placeholder="Paste Departed / Arrived tables from statsim.net\u2026"></textarea>' +
@@ -5157,15 +5348,33 @@ function renderStaffingHistorical() {
       '<button type="button" data-hist-process-paste' + (staffingHist.status === "loading" ? " disabled" : "") +
       ">Process paste</button></div>";
   }
-
   const stCls = staffingHist.status === "error" ? " err"
     : staffingHist.status === "ok" ? " ok" : "";
   h += '<div class="staffhist-status' + stCls + '">' +
     (staffingHist.message
       ? esc(staffingHist.message)
       : "Precomputed StatSim USA aggregates are stored in Supabase and refreshed every Monday. " +
-        "Load from database for week / month / year, or Process live / Paste as a fallback.") +
+        "Load from database for week / month / year" +
+        (showLive ? ", or Process live / Paste as a fallback." : ".")) +
     "</div>";
+  return h;
+}
+function renderStaffingHistLookup() {
+  restoreStaffingHistoricalCache();
+  const res = staffingHist.result;
+  let h = renderStaffingHistPeriodControls({ showLive: false });
+  h += '<div class="staffsub" style="margin-bottom:8px">Uses the same StatSim USA period as Historical Data. Times are UTC.</div>';
+  h += renderStaffingHistLookupPanel(res);
+  if (res && staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport);
+  h += '<div class="staffnote">This search ranks matching facilities by <b>Pred. ops</b> (next 7 days with event uplift), ' +
+    "then <b>Avg ops</b> for the historical 2\u20134hr staff-up window. " +
+    "Open <b>Historical Data</b> for the full filterable table.</div>";
+  return h;
+}
+function renderStaffingHistorical() {
+  restoreStaffingHistoricalCache();
+  const res = staffingHist.result;
+  let h = renderStaffingHistPeriodControls({ showLive: true });
 
   h += '<div class="staffsub" style="margin-bottom:14px">Source page: <a href="' +
     esc(statsimCountryUrl(staffingHist.period)) + '" target="_blank" rel="noopener" style="color:var(--accent-text)">' +
@@ -5253,17 +5462,24 @@ function renderStaffing() {
   const subBar = '<div class="subtabs">' +
     '<span class="subtab' + (staffingSub === "live" ? " active" : "") + '" data-staffingsub="live">Live</span>' +
     '<span class="subtab' + (staffingSub === "historical" ? " active" : "") +
-    '" data-staffingsub="historical">Historical Data</span></div>';
+    '" data-staffingsub="historical">Historical Data</span>' +
+    '<span class="subtab' + (staffingSub === "lookup" ? " active" : "") +
+    '" data-staffingsub="lookup">When should I control?</span></div>';
 
   let body;
+  const histWide = staffingSub === "historical" || staffingSub === "lookup";
   if (staffingSub === "historical") {
     body = '<div class="staffhead"><div class="stafftitle">Historical Data</div>' +
       '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">StatSim USA traffic</div></div>' +
       renderStaffingHistorical();
+  } else if (staffingSub === "lookup") {
+    body = '<div class="staffhead"><div class="stafftitle">When should I control?</div>' +
+      '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">Best day / time from history</div></div>' +
+      renderStaffingHistLookup();
   } else {
     body = renderStaffingLiveBody();
   }
-  contentEl.innerHTML = '<div class="staffwrap' + (staffingSub === "historical" ? " hist-wide" : "") + '">' +
+  contentEl.innerHTML = '<div class="staffwrap' + (histWide ? " hist-wide" : "") + '">' +
     subBar + body + "</div>";
 }
 
@@ -5411,6 +5627,8 @@ function renderHelp() {
     '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
+    '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
+    'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
     'Controller examinations are excluded.</li></ul></div></details>' +
 
@@ -6891,10 +7109,16 @@ contentEl.addEventListener("click", e => {
     if (next && next !== staffingSub) {
       staffingSub = next;
       renderContent();
-      if (next === "historical" && !staffingHist.result && staffingHist.status !== "loading") {
+      if ((next === "historical" || next === "lookup") &&
+          !staffingHist.result && staffingHist.status !== "loading") {
         loadStaffingHistoricalFromDb();
       }
     }
+    return;
+  }
+  if (e.target.closest("[data-hist-lookup-clear]")) {
+    staffingHist.lookup = { facility: "", type: "", artcc: "", day: "" };
+    renderContent();
     return;
   }
   if (e.target.closest("[data-hist-process]")) {
@@ -7077,6 +7301,13 @@ contentEl.addEventListener("change", e => {
     staffingHist.message = "Loading precomputed " + next + " from database\u2026";
     try { sessionStorage.removeItem("vatflow_staffing_hist"); } catch (err) {}
     loadStaffingHistoricalFromDb();
+    return;
+  }
+  const histLookupChange = e.target.closest("select[data-hist-lookup]");
+  if (histLookupChange) {
+    if (!staffingHist.lookup) staffingHist.lookup = { facility: "", type: "", artcc: "", day: "" };
+    staffingHist.lookup[histLookupChange.dataset.histLookup] = histLookupChange.value;
+    renderContent();
     return;
   }
   const histFile = e.target.closest("[data-hist-file]");
@@ -7435,6 +7666,19 @@ contentEl.addEventListener("input", e => {
       histFilter.value = v;
     }
     staffingHist.filters[fk] = v;
+    renderContent();
+    return;
+  }
+  const histLookup = e.target.closest("[data-hist-lookup]");
+  if (histLookup) {
+    if (!staffingHist.lookup) staffingHist.lookup = { facility: "", type: "", artcc: "", day: "" };
+    const lk = histLookup.dataset.histLookup;
+    let v = histLookup.value;
+    if (lk === "facility" || lk === "artcc") {
+      v = String(v || "").toUpperCase();
+      if (histLookup.tagName === "INPUT") histLookup.value = v;
+    }
+    staffingHist.lookup[lk] = v;
     renderContent();
     return;
   }
