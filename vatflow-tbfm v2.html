@@ -3985,21 +3985,94 @@ function parseStatsimCountryText(text) {
   }
   return parseStatsimCountryMarkdown(s);
 }
-async function fetchStatsimCountryText(period) {
-  const url = statsimCountryUrl(period);
+/* Month/year StatSim pages are huge (tens of MB) and CORS proxies return 403/timeout.
+   Fetch those ranges as multi-day custom chunks that proxies can handle. */
+const STATSIM_CHUNK_DAYS = 7;
+function pad2(n) { return String(n).padStart(2, "0"); }
+function fmtStatsimDateTime(ms) {
+  const d = new Date(ms);
+  return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate()) +
+    "T" + pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes());
+}
+function statsimCustomRangeUrl(fromMs, toMs) {
+  return STATSIM_COUNTRY_US + "custom/" +
+    encodeURIComponent(fmtStatsimDateTime(fromMs)) + "/" +
+    encodeURIComponent(fmtStatsimDateTime(toMs));
+}
+function statsimFetchJobs(period) {
+  const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
+  if (p === "thisweek") {
+    return [{ label: "this week", url: statsimCountryUrl("thisweek") }];
+  }
+  const now = Date.now();
+  const d = new Date(now);
+  const startMs = p === "thismonth"
+    ? Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0)
+    : Date.UTC(d.getUTCFullYear(), 0, 1, 0, 0, 0);
+  const jobs = [];
+  const span = STATSIM_CHUNK_DAYS * 86400000;
+  for (let t = startMs; t < now; t += span) {
+    const fromMs = t;
+    const toMs = Math.min(t + span - 60000, now);
+    jobs.push({
+      label: fmtStatsimDateTime(fromMs).slice(0, 10) + "\u2013" + fmtStatsimDateTime(toMs).slice(0, 10),
+      url: statsimCustomRangeUrl(fromMs, toMs)
+    });
+  }
+  if (!jobs.length) return [{ label: "this week", url: statsimCountryUrl("thisweek") }];
+  return jobs;
+}
+async function fetchStatsimUrlText(url) {
   let lastErr = null;
   for (const prox of STATSIM_FETCH_PROXIES) {
     try {
-      const r = await fetch(prox(url));
+      const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 90000) : null;
+      const r = await fetch(prox(url), ctrl ? { signal: ctrl.signal } : undefined);
+      if (timer) clearTimeout(timer);
       if (!r.ok) { lastErr = "HTTP " + r.status; continue; }
       const text = await r.text();
-      if (text && /Departed/i.test(text) && /(Arrived|Origin)/i.test(text)) return text;
+      if (text && /Departed/i.test(text) && /(Arrived|Origin|Callsign)/i.test(text)) return text;
       lastErr = "Unexpected response from proxy";
     } catch (e) {
-      lastErr = (e && e.message) || String(e);
+      lastErr = (e && e.name === "AbortError") ? "Request timed out" : ((e && e.message) || String(e));
     }
   }
   throw new Error(lastErr || "Could not reach StatSim");
+}
+async function fetchStatsimCountryFlights(period, onProgress) {
+  const jobs = statsimFetchJobs(period);
+  const all = [];
+  const seen = {};
+  let failed = 0;
+  let lastErr = null;
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    if (typeof onProgress === "function") onProgress(i + 1, jobs.length, job.label);
+    try {
+      const text = await fetchStatsimUrlText(job.url);
+      const rows = parseStatsimCountryText(text);
+      for (const f of rows) {
+        const k = f.kind + "|" + f.callsign + "|" + f.origin + "|" + f.dest + "|" + f.timeMs;
+        if (seen[k]) continue;
+        seen[k] = 1;
+        all.push(f);
+      }
+    } catch (e) {
+      failed++;
+      lastErr = (e && e.message) || String(e);
+      if (jobs.length === 1) throw e;
+    }
+    if (jobs.length > 1 && i < jobs.length - 1) {
+      await new Promise(r => setTimeout(r, 350));
+    }
+  }
+  if (!all.length) {
+    throw new Error(lastErr
+      ? ("Could not load StatSim data (" + lastErr + "). Try This week, or Paste / upload.")
+      : "No flight rows returned from StatSim.");
+  }
+  return { flights: all, chunks: jobs.length, failedChunks: failed };
 }
 function histAirportCoords(icao) {
   const code = resolveUsIcao(icao) || String(icao || "").toUpperCase();
@@ -4400,10 +4473,24 @@ async function processStaffingHistorical(textOverride) {
     : "Fetching StatSim USA " + staffingHist.period + "\u2026";
   renderContent();
   try {
-    const text = textOverride != null ? textOverride : await fetchStatsimCountryText(staffingHist.period);
+    let flights;
+    let chunkNote = "";
+    if (textOverride != null) {
+      flights = parseStatsimCountryText(textOverride);
+    } else {
+      const fetched = await fetchStatsimCountryFlights(staffingHist.period, (i, n, label) => {
+        staffingHist.message = "Fetching StatSim USA " + staffingHist.period +
+          " \u00b7 chunk " + i + "/" + n + " (" + label + ")\u2026";
+        renderContent();
+      });
+      flights = fetched.flights;
+      if (fetched.chunks > 1) {
+        chunkNote = " \u00b7 " + fetched.chunks + " date chunks" +
+          (fetched.failedChunks ? " (" + fetched.failedChunks + " failed)" : "");
+      }
+    }
     staffingHist.message = "Aggregating airport / day / hour peaks\u2026";
     renderContent();
-    const flights = parseStatsimCountryText(text);
     if (!flights.length) throw new Error("No flight rows found. Paste the StatSim US country page HTML or table text.");
     ensureBoundariesIfNeeded();
     let result = aggregateStatsimHistorical(flights);
@@ -4429,7 +4516,7 @@ async function processStaffingHistorical(textOverride) {
       (result.topAirports[0] && result.topAirports[0].icao) || null;
     staffingHist.status = "ok";
     staffingHist.message = "Processed " + result.flightRows + " flight rows \u00b7 " + result.usEvents +
-      " USA airport movements \u00b7 source " + staffingHist.period + eventNote +
+      " USA airport movements \u00b7 source " + staffingHist.period + chunkNote + eventNote +
       (staffingHistApiKey ? " \u00b7 API key saved (country-page analysis does not require it)" : "");
     try {
       sessionStorage.setItem("vatflow_staffing_hist", JSON.stringify({
@@ -4539,9 +4626,10 @@ function renderStaffingHistorical() {
 
   h += '<div class="staffnote">Historical windows use StatSim completed flights (departed at origin, arrived at destination), ' +
     "bucketed by UTC day-of-week and hour, then clustered into contiguous busy blocks. " +
+    "This month / This year are fetched as weekly StatSim custom ranges (full pages are too large for proxies). " +
     "Upcoming VATSIM network events within " + STAFF_EVENT_RADIUS_NM +
     " nm of an airport boost that slot when the event overlaps the same weekday/hours (traffic often rises). " +
-    "Controller examinations are excluded. Large ranges such as This year may need Paste / upload if the proxy times out.</div>";
+    "Controller examinations are excluded. Paste / upload still works as a fallback.</div>";
   return h;
 }
 function renderStaffingLiveBody() {
@@ -4742,8 +4830,8 @@ function renderHelp() {
     '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
     '<li><b>Historical Data</b> sub-tab processes StatSim USA country traffic ' +
     '(<code>statsim.net/flights/countries/country/US/…</code>) to recommend airport / day-of-week / UTC time to control.</li>' +
-    '<li>Historical times are <b>Zulu</b>. Use Paste / upload if a period fetch times out (This year can be large). ' +
-    'An optional StatSim API key is stored locally and is not required for country-page analysis.</li>' +
+    '<li>Historical times are <b>Zulu</b>. <b>This month</b> / <b>This year</b> load as weekly chunks (full StatSim pages are too large and often 403 via proxies). ' +
+    'Paste / upload remains available. An optional StatSim API key is stored locally and is not required for country-page analysis.</li>' +
     '<li>Upcoming <b>VATSIM events</b> within <b>500 nm</b> of an airport are listed and boost historical slots when the event overlaps that weekday/hours (events often increase traffic). Controller examinations are excluded.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
