@@ -968,6 +968,16 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   padding: 2px 7px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border);
 }
 .staffchip strong { color: var(--text); font-weight: 600; }
+.staffchip.win {
+  color: var(--accent-text); border-color: rgba(232, 168, 56, 0.35);
+  background: var(--accent-dim);
+}
+.staffwhy { margin-bottom: 4px; }
+.staffwindow {
+  font-family: var(--font-data); font-size: 13px; font-weight: 600;
+  color: var(--accent-text); letter-spacing: 0.02em; margin: 2px 0 6px;
+}
+.staffwindow span { color: var(--text-dim); font-weight: 500; font-size: 12px; }
 .staffnone { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
 .staffnote { margin-top: 28px; font-size: 11px; color: var(--text-muted); line-height: 1.55; max-width: 820px; }
 
@@ -3435,7 +3445,7 @@ function parseStaffingController(c) {
   return null;
 }
 function emptyDemand() {
-  return { airborne: 0, rolling: 0, ground: 0, proposed: 0, inbound: 0 };
+  return { airborne: 0, rolling: 0, ground: 0, proposed: 0, inbound: 0, events: [] };
 }
 function demandScore(d, weights) {
   const w = weights || { airborne: 2, rolling: 3, ground: 1.5, proposed: 1, inbound: 1.5 };
@@ -3456,6 +3466,11 @@ function bump(map, id, field, n) {
   if (!map[id]) map[id] = emptyDemand();
   map[id][field] = (map[id][field] || 0) + (n || 1);
 }
+function addStaffEvent(map, id, t, reason) {
+  if (!id || t == null || !isFinite(t)) return;
+  if (!map[id]) map[id] = emptyDemand();
+  map[id].events.push({ t, reason });
+}
 function haversineNm(lat1, lon1, lat2, lon2) {
   const R = 3440.065;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -3464,7 +3479,111 @@ function haversineNm(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
+function staffingFlightTimeMs(dep, arr, tasRaw) {
+  const depPt = lookup(dep), arrPt = lookup(arr);
+  let routeNm = 300;
+  if (depPt && arrPt) routeNm = gcDist(depPt[0], depPt[1], arrPt[0], arrPt[1]) * 1.12;
+  const gs = Math.max(parseTAS(tasRaw) || 380, 120);
+  return (routeNm / gs) * 3600000 + 14 * 60000;
+}
+function staffingEtdFromPlan(fp, now, connected) {
+  /* Connected ground: treat as ready soon. Proposed: honor filed deptime when present. */
+  if (connected) return now + 8 * 60000;
+  let etd = now + 20 * 60000;
+  const dep = fp && fp.deptime;
+  if (/^\d{4}$/.test(dep || "")) {
+    const d = new Date(now);
+    d.setUTCHours(+dep.slice(0, 2), +dep.slice(2), 0, 0);
+    let t = d.getTime();
+    if (t < now - 2 * 3600000) t += 24 * 3600000;
+    else if (t - now > 12 * 3600000) t -= 24 * 3600000;
+    etd = Math.max(t, now + 5 * 60000);
+  }
+  return etd;
+}
+function staffingEtaAirborne(lat, lon, arr, gs, now) {
+  const arrPt = lookup(arr);
+  if (!arrPt || lat == null || lon == null || !isFinite(lat) || !isFinite(lon)) return null;
+  const dist = gcDist(lat, lon, arrPt[0], arrPt[1]);
+  if (!isFinite(dist)) return null;
+  const speed = Math.max(gs || 0, 120);
+  return now + (dist / speed) * 3600000;
+}
+function roundStaffTimeDown(ms) {
+  const d = new Date(ms);
+  const m = d.getUTCMinutes();
+  d.setUTCMinutes(m - (m % 5), 0, 0);
+  return d.getTime();
+}
+function roundStaffTimeUp(ms) {
+  const d = new Date(ms);
+  const m = d.getUTCMinutes();
+  const rem = m % 5;
+  if (rem === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0) return d.getTime();
+  d.setUTCMinutes(m + (5 - rem), 0, 0);
+  return d.getTime();
+}
+/* Cluster timed demand into a recommended staffing window (variable length). */
+function computeStaffingWindow(events, now) {
+  if (!events || !events.length) return null;
+  const past = now - 10 * 60000;
+  const horizon = now + 6 * 3600000;
+  const sorted = events
+    .filter(e => e && isFinite(e.t) && e.t >= past && e.t <= horizon)
+    .sort((a, b) => a.t - b.t);
+  if (!sorted.length) return null;
+
+  const GAP = 25 * 60000;
+  const clusters = [];
+  let cur = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].t - cur[cur.length - 1].t <= GAP) cur.push(sorted[i]);
+    else { clusters.push(cur); cur = [sorted[i]]; }
+  }
+  clusters.push(cur);
+  clusters.sort((a, b) => b.length - a.length || a[0].t - b[0].t);
+  const best = clusters[0];
+
+  const PAD_BEFORE = 10 * 60000;
+  const PAD_AFTER = 15 * 60000;
+  let start = best[0].t - PAD_BEFORE;
+  let end = best[best.length - 1].t + PAD_AFTER;
+  if (start < now) start = now;
+  start = roundStaffTimeDown(start);
+  end = roundStaffTimeUp(end);
+  if (end - start < 15 * 60000) end = start + 15 * 60000;
+  if (start < now) {
+    start = roundStaffTimeDown(now);
+    if (end <= start) end = start + 15 * 60000;
+  }
+
+  const reasons = { arrival: 0, departure: 0, enroute: 0 };
+  for (const e of best) {
+    if (e.reason === "arrival") reasons.arrival++;
+    else if (e.reason === "departure") reasons.departure++;
+    else reasons.enroute++;
+  }
+  return { start, end, count: best.length, reasons, clusters: clusters.length };
+}
+function staffingReasonPhrase(reasons) {
+  if (!reasons) return "mixed traffic";
+  const parts = [];
+  if (reasons.arrival) {
+    parts.push(reasons.arrival + " arrival" + (reasons.arrival === 1 ? "" : "s"));
+  }
+  if (reasons.departure) {
+    parts.push(reasons.departure + " departure" + (reasons.departure === 1 ? "" : "s"));
+  }
+  if (reasons.enroute) {
+    parts.push(reasons.enroute + " enroute");
+  }
+  if (!parts.length) return "mixed traffic";
+  if (parts.length === 1) return "mainly " + parts[0];
+  if (parts.length === 2) return parts[0] + " and " + parts[1];
+  return parts[0] + ", " + parts[1] + ", and " + parts[2];
+}
 function computeStaffingRecommendations() {
+  const now = Date.now();
   const centers = {};
   const approaches = {};
   const towers = {};
@@ -3482,29 +3601,45 @@ function computeStaffingRecommendations() {
     online[parsed.type][parsed.id].push(parsed.callsign);
   }
 
-  function countPlan(dep, arr, kind, lat, lon) {
+  function countPlan(dep, arr, kind, lat, lon, gs, fp) {
     const d = (dep || "").toUpperCase();
     const a = (arr || "").toUpperCase();
     const usDep = isUsStaffingAirport(d);
     const usArr = isUsStaffingAirport(a);
+    const connected = kind === "GROUND" || kind === "ROLLING";
+    const etd = (kind === "ROLLING") ? now
+      : (kind === "GROUND" || kind === "PROPOSED")
+        ? staffingEtdFromPlan(fp, now, connected)
+        : null;
+    const flightMs = (usDep || usArr) ? staffingFlightTimeMs(d, a, fp && fp.cruise_tas) : null;
+    const etaArr = kind === "AIRBORNE"
+      ? staffingEtaAirborne(lat, lon, a, gs, now)
+      : (etd != null && flightMs != null ? etd + flightMs : null);
 
     if (usDep) {
       const artcc = airportStaffingArtcc(d);
       const tracon = traconForAirport(d);
-      if (kind === "AIRBORNE") {
-        /* airborne already counted by position for center; still count dep field tower/app inbound/out */
-      } else if (kind === "ROLLING") {
+      if (kind === "ROLLING") {
         bump(centers, artcc, "rolling");
         bump(approaches, tracon, "rolling");
         bump(towers, d, "rolling");
+        addStaffEvent(centers, artcc, etd, "departure");
+        addStaffEvent(approaches, tracon, etd, "departure");
+        addStaffEvent(towers, d, etd, "departure");
       } else if (kind === "GROUND") {
         bump(centers, artcc, "ground");
         bump(approaches, tracon, "ground");
         bump(towers, d, "ground");
+        addStaffEvent(centers, artcc, etd, "departure");
+        addStaffEvent(approaches, tracon, etd, "departure");
+        addStaffEvent(towers, d, etd, "departure");
       } else if (kind === "PROPOSED") {
         bump(centers, artcc, "proposed");
         bump(approaches, tracon, "proposed");
         bump(towers, d, "proposed");
+        addStaffEvent(centers, artcc, etd, "departure");
+        addStaffEvent(approaches, tracon, etd, "departure");
+        addStaffEvent(towers, d, etd, "departure");
       }
     }
 
@@ -3518,20 +3653,33 @@ function computeStaffingRecommendations() {
           bump(centers, artcc, "inbound");
           bump(approaches, tracon, "inbound");
           bump(towers, a, "inbound");
-        }
-      } else if (kind === "PROPOSED" || kind === "GROUND" || kind === "ROLLING") {
-        /* filed toward US field — counts as future inbound pressure for center/app */
-        if (kind === "PROPOSED") {
+          const tArr = etaArr || now;
+          addStaffEvent(centers, artcc, tArr, "arrival");
+          addStaffEvent(approaches, tracon, tArr, "arrival");
+          addStaffEvent(towers, a, tArr, "arrival");
+        } else if (etaArr) {
+          /* farther inbound still pressures destination center/app later */
           bump(centers, artcc, "inbound");
           bump(approaches, tracon, "inbound");
+          addStaffEvent(centers, artcc, etaArr, "arrival");
+          addStaffEvent(approaches, tracon, etaArr, "arrival");
+          if (nm <= STAFF_NEAR_NM * 2.5) {
+            bump(towers, a, "inbound");
+            addStaffEvent(towers, a, etaArr, "arrival");
+          }
         }
+      } else if (kind === "PROPOSED" && etaArr) {
+        bump(centers, artcc, "inbound");
+        bump(approaches, tracon, "inbound");
+        addStaffEvent(centers, artcc, etaArr, "arrival");
+        addStaffEvent(approaches, tracon, etaArr, "arrival");
       }
     }
 
     if (kind === "AIRBORNE" && lat != null && lon != null) {
       const artcc = artccForStaffingPoint(lat, lon);
       bump(centers, artcc, "airborne");
-      /* local TRACON airborne: near any airport in a US TRACON */
+      addStaffEvent(centers, artcc, now, "enroute");
       if (usArr || usDep) {
         const localTracon = traconForAirport(usArr ? a : d);
         if (localTracon) {
@@ -3542,6 +3690,9 @@ function computeStaffingRecommendations() {
               if (!pt) continue;
               if (haversineNm(lat, lon, pt[0], pt[1]) <= STAFF_NEAR_NM) {
                 bump(approaches, localTracon, "airborne");
+                const reason = (usArr && icao === a) ? "arrival"
+                  : (usDep && icao === d) ? "departure" : "enroute";
+                addStaffEvent(approaches, localTracon, reason === "arrival" ? (etaArr || now) : now, reason);
                 break;
               }
             }
@@ -3558,16 +3709,16 @@ function computeStaffingRecommendations() {
     const arr = (fp.arrival || "").toUpperCase();
     if (!isUsStaffingAirport(dep) && !isUsStaffingAirport(arr) &&
         !(p.latitude != null && p.longitude != null)) continue;
-    /* skip if clearly not US-relevant: no US dep/arr and not over US ARTCC */
     const motion = classifyPilotMotion(p);
     if (!isUsStaffingAirport(dep) && !isUsStaffingAirport(arr)) {
       if (motion !== "AIRBORNE") continue;
       const artcc = artccForStaffingPoint(p.latitude, p.longitude);
       if (!artcc) continue;
       bump(centers, artcc, "airborne");
+      addStaffEvent(centers, artcc, now, "enroute");
       continue;
     }
-    countPlan(dep, arr, motion, p.latitude, p.longitude);
+    countPlan(dep, arr, motion, p.latitude, p.longitude, p.groundspeed, fp);
   }
 
   for (const p of (vatsim && vatsim.prefiles) || []) {
@@ -3575,7 +3726,7 @@ function computeStaffingRecommendations() {
     const dep = ((fp && fp.departure) || p.departure || "").toUpperCase();
     const arr = ((fp && fp.arrival) || p.arrival || "").toUpperCase();
     if (!isUsStaffingAirport(dep) && !isUsStaffingAirport(arr)) continue;
-    countPlan(dep, arr, "PROPOSED", null, null);
+    countPlan(dep, arr, "PROPOSED", null, null, 0, fp);
   }
 
   function buildRows(map, type, openThresh, hubThreshFn) {
@@ -3589,9 +3740,10 @@ function computeStaffingRecommendations() {
       if (on.length) status = "staffed";
       else if (score >= thresh) status = "need";
       else if (score >= 1 && score <= STAFF_WATCH_MAX) status = "watch";
-      else if (!on.length && score === 0) continue; /* hide empty unstaffed */
+      else if (!on.length && score === 0) continue;
       if (status === "quiet" && !on.length) continue;
-      rows.push({ id, type, demand: d, score, online: on, status, thresh });
+      const window = computeStaffingWindow(d.events, now);
+      rows.push({ id, type, demand: d, score, online: on, status, thresh, window });
     }
     rows.sort((a, b) => {
       const rank = { need: 0, watch: 1, staffed: 2, quiet: 3 };
@@ -3635,17 +3787,28 @@ function staffingRowsHtml(rows, emptyMsg) {
   if (!rows.length) return '<div class="staffnone">' + emptyMsg + '</div>';
   let h = '<div class="stafflist">';
   for (const r of rows) {
+    const win = r.window;
+    const reason = win ? staffingReasonPhrase(win.reasons) : "";
+    let windowHtml = "";
+    if (win) {
+      windowHtml = '<div class="staffwindow">' + fmtZ(win.start) + "\u2013" + fmtZ(win.end) + "Z" +
+        ' <span>\u00b7 ' + esc(reason) + " (" + win.count + ")</span></div>";
+    }
     const why = r.status === "need"
-      ? "Demand score <b>" + r.score + "</b> meets the Log on threshold (" + r.thresh + ") with no controller online."
+      ? "Log on recommended — demand score <b>" + r.score + "</b> (threshold " + r.thresh + ") with no controller online."
       : r.status === "watch"
         ? "Watch — demand score <b>" + r.score + "</b> (Log on at " + r.thresh + "+)."
         : r.status === "staffed"
           ? "Position online" + (r.score ? " with demand score <b>" + r.score + "</b>." : ".")
           : "Low demand.";
+    const reasonLine = win
+      ? '<div class="staffwhy">Heavy period driven by <b>' + esc(reason) + "</b>.</div>"
+      : "";
     h += '<div class="staffrow ' + r.status + '">' +
       '<span class="stafffac">' + esc(r.id) + '</span>' +
       '<span class="staffbadge ' + r.status + '">' + staffingStatusLabel(r.status) + '</span>' +
-      '<div class="staffdemand">' + why + staffingDemandHtml(r.demand) + '</div>' +
+      '<div class="staffdemand">' + reasonLine + windowHtml +
+      '<div class="staffwhy">' + why + "</div>" + staffingDemandHtml(r.demand) + '</div>' +
       '<div class="staffonline' + (r.online.length ? "" : " empty") + '">' +
       (r.online.length ? r.online.map(esc).join("<br>") : "\u2014") +
       '</div></div>';
@@ -3687,8 +3850,8 @@ function renderStaffing() {
     '<div class="staffsec">Tower <span>' + needTwr + " need coverage</span></div>" +
     staffingRowsHtml(rec.towers, "No Tower staffing recommendations right now.") +
 
-    '<div class="staffnote">Scoring weights airborne and rolling traffic highest, then ground and proposed plans. ' +
-    "Inbound counts aircraft within " + STAFF_NEAR_NM + " NM of the field (or filed toward it for proposed). " +
+    '<div class="staffnote">Staffing windows are built from timed arrivals, departures, and enroute demand ' +
+    "(not fixed hourly blocks) — start/end rounded to 5 minutes. Scoring weights airborne and rolling traffic highest. " +
     "Puerto Rico / Guam (ZUA / ZAP) are excluded from this USA test scope. Feed controllers: " +
     rec.controllerCount + ".</div></div>";
   contentEl.innerHTML = h;
