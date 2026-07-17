@@ -921,6 +921,15 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 /* ---------- ATC staffing ---------- */
 .staffwrap { padding: 20px 24px 48px; max-width: 1180px; }
+.staffwrap.hist-wide { max-width: 1400px; }
+.staffhist-tablewrap { overflow-x: auto; margin: 8px 0 18px; }
+.staffhist-tablewrap table { min-width: 960px; }
+.staffhist-tablewrap th[data-hist-sort] { cursor: pointer; }
+.staffhist-tablewrap td.hist-upcoming { white-space: normal; min-width: 200px; max-width: 280px; line-height: 1.35; }
+.staffhist-tablewrap td.hist-events { white-space: normal; min-width: 140px; max-width: 220px; line-height: 1.35; font-size: 11px; color: var(--text-dim); }
+.staffhist-tablewrap tr.histpick td { outline: 1px solid rgba(232, 168, 56, 0.35); outline-offset: -1px; }
+.staffhist-tablewrap .hist-boost { color: var(--accent-text); }
+.staffhist-count { font-family: var(--font-data); font-size: 11px; color: var(--text-muted); margin: 0 0 8px; }
 .staffhead {
   display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   margin-bottom: 10px;
@@ -3897,8 +3906,26 @@ let staffingHist = {
   message: "",
   selectedAirport: null,
   result: null,
-  pasteOpen: false
+  pasteOpen: false,
+  sortKey: "upcomingScore",
+  sortDir: -1,
+  filters: {
+    facility: "", type: "", artcc: "", day: "", window: "",
+    score: "", upcoming: "", upcomingScore: "", events: ""
+  }
 };
+const STAFFING_HIST_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const STAFFING_HIST_TABLE_COLS = [
+  { key: "facility", label: "Facility" },
+  { key: "type", label: "Type" },
+  { key: "artcc", label: "ARTCC" },
+  { key: "day", label: "Day", num: true },
+  { key: "window", label: "Hist window" },
+  { key: "score", label: "Score", num: true },
+  { key: "upcoming", label: "Staff next 7 days" },
+  { key: "upcomingScore", label: "Rec", num: true },
+  { key: "events", label: "Events" }
+];
 function statsimCountryUrl(period) {
   const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
   return STATSIM_COUNTRY_US + p;
@@ -4383,6 +4410,292 @@ function staffingHistHeatHtml(icao) {
   h += "</div>";
   return h;
 }
+function histSlotAirportIds(slot) {
+  if (!slot) return [];
+  if (slot.type === "TWR") return slot.id ? [slot.id] : [];
+  return Object.keys(slot.airports || {});
+}
+function histSlotArtcc(slot) {
+  if (!slot) return "";
+  if (slot.type === "CTR") {
+    const via = artccFromCtrPrefix(slot.id) || String(slot.id || "").toUpperCase();
+    return STAFFING_ARTCC_SET.has(via) ? via : String(slot.id || "").toUpperCase();
+  }
+  const airports = histSlotAirportIds(slot);
+  const counts = {};
+  for (const icao of airports) {
+    const a = airportStaffingArtcc(icao);
+    if (a) counts[a] = (counts[a] || 0) + 1;
+  }
+  let best = "", bestN = 0;
+  for (const [k, n] of Object.entries(counts)) {
+    if (n > bestN || (n === bestN && k < best)) { best = k; bestN = n; }
+  }
+  if (best) return best;
+  if (slot.type === "TWR") return airportStaffingArtcc(slot.id) || "";
+  return "";
+}
+/** Next UTC window for historical DOW/hours inside the rolling 7 days from now. */
+function histNextUtcWindow(dow, startHour, endHour, nowMs) {
+  const now = nowMs != null ? nowMs : Date.now();
+  const horizon = now + 7 * 24 * 3600 * 1000;
+  const base = new Date(now);
+  const y0 = base.getUTCFullYear(), m0 = base.getUTCMonth(), d0 = base.getUTCDate();
+  for (let add = 0; add <= 7; add++) {
+    const dayStart = Date.UTC(y0, m0, d0 + add);
+    if (new Date(dayStart).getUTCDay() !== dow) continue;
+    const winStart = dayStart + Math.max(0, startHour) * 3600000;
+    const winEnd = dayStart + (Math.min(23, endHour) + 1) * 3600000;
+    if (winEnd <= now) continue;
+    if (winStart > horizon && now < winStart) continue;
+    if (winStart > horizon) continue;
+    return { startMs: winStart, endMs: winEnd };
+  }
+  return null;
+}
+function histFmtUpcomingLabel(win, windowLabel) {
+  if (!win) return "Outside next 7 days";
+  const d = new Date(win.startMs);
+  const day = STAFFING_HIST_DOW[d.getUTCDay()];
+  const datePart = day + " " + d.getUTCDate() + " " + STAFFING_HIST_MONTHS[d.getUTCMonth()];
+  const timePart = windowLabel || (
+    String(d.getUTCHours()).padStart(2, "0") + "00\u2013" +
+    String(new Date(win.endMs).getUTCHours()).padStart(2, "0") + "00Z"
+  );
+  return datePart + " \u00b7 " + timePart;
+}
+function histUpcomingEventsForSlot(slot, win, networkEvents) {
+  if (!slot || !win) return [];
+  const radius = STAFF_EVENT_RADIUS_NM;
+  const ids = histSlotAirportIds(slot);
+  const nearbyMap = {};
+  for (const icao of ids) {
+    for (const ev of eventsNearAirport(icao, networkEvents || [], radius)) {
+      if (!(ev.startMs < win.endMs && ev.endMs > win.startMs)) continue;
+      const k = String(ev.id);
+      if (!nearbyMap[k] || ev.nm < nearbyMap[k].nm) nearbyMap[k] = ev;
+    }
+  }
+  return Object.values(nearbyMap).sort((a, b) => a.startMs - b.startMs || a.nm - b.nm);
+}
+function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
+  const histScoreVal = slot.histScore != null ? slot.histScore : slot.score;
+  const win = histNextUtcWindow(slot.dow, slot.startHour, slot.endHour, nowMs);
+  const upcomingEvents = histUpcomingEventsForSlot(slot, win, networkEvents);
+  let upcomingScore = histScoreVal || 0;
+  if (win && upcomingEvents.length) {
+    upcomingScore = Math.round(upcomingScore * (1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, upcomingEvents.length)));
+  } else if (slot.eventBoost) {
+    upcomingScore = slot.score;
+  }
+  if (!win) upcomingScore = 0;
+  const artcc = histSlotArtcc(slot);
+  const upcomingLabel = histFmtUpcomingLabel(win, slot.windowLabel);
+  const eventNames = upcomingEvents.slice(0, 2).map(ev => ev.name).filter(Boolean);
+  return {
+    id: slot.id,
+    type: slot.type,
+    artcc,
+    dow: slot.dow,
+    dowLabel: slot.dowLabel,
+    startHour: slot.startHour,
+    endHour: slot.endHour,
+    windowLabel: slot.windowLabel,
+    reason: slot.reason,
+    dep: slot.dep,
+    arr: slot.arr,
+    score: slot.score,
+    histScore: histScoreVal,
+    eventBoost: !!slot.eventBoost || upcomingEvents.length > 0,
+    airports: slot.airports || null,
+    upcomingStartMs: win ? win.startMs : Number.POSITIVE_INFINITY,
+    upcomingEndMs: win ? win.endMs : 0,
+    upcomingLabel,
+    upcomingScore,
+    upcomingEvents,
+    eventText: eventNames.length
+      ? eventNames.map(n => n.length > 32 ? n.slice(0, 30) + "\u2026" : n).join(" \u00b7 ")
+      : (slot.eventOverlap && slot.eventOverlap.length
+        ? slot.eventOverlap.slice(0, 2).map(ev => ev.name).join(" \u00b7 ")
+        : "")
+  };
+}
+function buildStaffingHistTableRows(result) {
+  if (!result) return [];
+  const nowMs = Date.now();
+  const events = result.networkEvents || [];
+  const rows = [];
+  for (const slot of (result.towers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
+  for (const slot of (result.approaches || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
+  for (const slot of (result.centers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
+  return rows;
+}
+function histTableCellText(row, key) {
+  switch (key) {
+    case "facility": return String(row.id || "");
+    case "type": return String(row.type || "");
+    case "artcc": return String(row.artcc || "");
+    case "day": return String(row.dowLabel || "");
+    case "window": return String(row.windowLabel || "") + " " + String(row.reason || "");
+    case "score": return String(row.score != null ? row.score : "");
+    case "upcoming": return String(row.upcomingLabel || "");
+    case "upcomingScore": return String(row.upcomingScore != null ? row.upcomingScore : "");
+    case "events": return String(row.eventText || "");
+    default: return "";
+  }
+}
+function histTableNumVal(row, key) {
+  switch (key) {
+    case "day": return row.dow;
+    case "score": return row.score;
+    case "upcomingScore": return row.upcomingScore;
+    case "upcoming": return row.upcomingStartMs;
+    default: return null;
+  }
+}
+function histTablePassesFilters(row) {
+  const f = staffingHist.filters || {};
+  for (const key of Object.keys(f)) {
+    const raw = String(f[key] || "").trim();
+    if (!raw) continue;
+    const m = raw.match(/^([<>]=?)\s*(\d+(?:\.\d+)?)$/);
+    if (m && (key === "score" || key === "upcomingScore" || key === "day")) {
+      const v = histTableNumVal(row, key === "day" ? "day" : key);
+      if (v == null || !isFinite(v)) return false;
+      const n = +m[2];
+      if (m[1] === ">" && !(v > n)) return false;
+      if (m[1] === ">=" && !(v >= n)) return false;
+      if (m[1] === "<" && !(v < n)) return false;
+      if (m[1] === "<=" && !(v <= n)) return false;
+      continue;
+    }
+    const q = raw.toUpperCase();
+    if (key === "facility") {
+      const hay = [
+        row.id, row.artcc, row.type,
+        ...(histSlotAirportIds(row))
+      ].join(" ").toUpperCase();
+      if (hay.indexOf(q) === -1) return false;
+      continue;
+    }
+    if (key === "day") {
+      const dayHay = (row.dowLabel + " " + row.dow + " " + (row.upcomingLabel || "")).toUpperCase();
+      if (dayHay.indexOf(q) === -1) return false;
+      continue;
+    }
+    if (key === "artcc") {
+      if (String(row.artcc || "").toUpperCase().indexOf(q) === -1 &&
+          String(row.id || "").toUpperCase().indexOf(q) === -1) return false;
+      continue;
+    }
+    if (histTableCellText(row, key).toUpperCase().indexOf(q) === -1) return false;
+  }
+  return true;
+}
+function histTableFiltersActive() {
+  const f = staffingHist.filters || {};
+  return Object.keys(f).some(k => String(f[k] || "").trim() !== "");
+}
+function sortedStaffingHistTableRows(rows) {
+  const key = staffingHist.sortKey || "upcomingScore";
+  const dir = staffingHist.sortDir || -1;
+  const col = STAFFING_HIST_TABLE_COLS.find(c => c.key === key) || STAFFING_HIST_TABLE_COLS[0];
+  const out = rows.slice();
+  out.sort((a, b) => {
+    if (key === "upcoming" || key === "upcomingScore") {
+      const aOut = !(a.upcomingStartMs < Number.POSITIVE_INFINITY);
+      const bOut = !(b.upcomingStartMs < Number.POSITIVE_INFINITY);
+      if (aOut !== bOut) return aOut ? 1 : -1;
+    }
+    if (col.num || key === "upcoming") {
+      let va = histTableNumVal(a, key === "upcoming" ? "upcoming" : key);
+      let vb = histTableNumVal(b, key === "upcoming" ? "upcoming" : key);
+      if (va == null || !isFinite(va)) va = key === "upcoming" ? Number.POSITIVE_INFINITY : -1;
+      if (vb == null || !isFinite(vb)) vb = key === "upcoming" ? Number.POSITIVE_INFINITY : -1;
+      if (va !== vb) return (va - vb) * dir;
+    } else {
+      const r = histTableCellText(a, key).localeCompare(histTableCellText(b, key));
+      if (r) return r * dir;
+    }
+    return (b.upcomingScore - a.upcomingScore) || (a.upcomingStartMs - b.upcomingStartMs) ||
+      String(a.id).localeCompare(String(b.id)) || (a.dow - b.dow);
+  });
+  return out;
+}
+function renderStaffingHistTable(result) {
+  const all = buildStaffingHistTableRows(result);
+  const visible = sortedStaffingHistTableRows(all.filter(histTablePassesFilters));
+  let h = '<div class="staffsec">Staffing recommendations <span>filter by ARTCC / APP / TWR \u00b7 sort by day</span></div>';
+  h += '<div class="staffhist-count">Showing ' + visible.length + " of " + all.length +
+    " facilities \u00b7 next-7-day column maps historical DOW/hours into the rolling week" +
+    (histTableFiltersActive()
+      ? ' <span class="clr" data-hist-clearfilters style="color:var(--accent-text);cursor:pointer;text-decoration:underline;margin-left:8px">Clear filters</span>'
+      : "") +
+    "</div>";
+  h += '<div class="staffhist-tablewrap tablewrap"><table><thead><tr>';
+  for (const c of STAFFING_HIST_TABLE_COLS) {
+    if (c.key === "upcomingScore") {
+      h += '<th class="' + (staffingHist.sortKey === c.key ? "sorted" : "") +
+        '" data-hist-sort="' + c.key + '" title="Recommendation score (historical + upcoming VATSIM events)">' +
+        c.label + (staffingHist.sortKey === c.key ? (staffingHist.sortDir === 1 ? " \u25B4" : " \u25BE") : "") +
+        "</th>";
+      continue;
+    }
+    h += '<th class="' + (staffingHist.sortKey === c.key ? "sorted" : "") +
+      '" data-hist-sort="' + c.key + '">' + c.label +
+      (staffingHist.sortKey === c.key ? (staffingHist.sortDir === 1 ? " \u25B4" : " \u25BE") : "") +
+      "</th>";
+  }
+  h += '</tr><tr class="filterrow">';
+  for (const c of STAFFING_HIST_TABLE_COLS) {
+    const ph = c.key === "facility" ? "ZJX / KMCO"
+      : c.key === "type" ? "TWR/APP/CTR"
+      : c.key === "artcc" ? "ZJX"
+      : c.key === "day" ? "Mon"
+      : c.key === "score" || c.key === "upcomingScore" ? ">20"
+      : "\u00B7";
+    h += '<td><input data-hist-filter="' + c.key + '" data-keep="hist-f-' + c.key +
+      '" value="' + esc((staffingHist.filters && staffingHist.filters[c.key]) || "") +
+      '" placeholder="' + ph + '" title="Filter ' + c.label + '" autocomplete="off"></td>';
+  }
+  h += "</tr></thead><tbody>";
+  if (!visible.length) {
+    h += '<tr><td colspan="' + STAFFING_HIST_TABLE_COLS.length +
+      '" class="cell-muted">No rows match the current filters.</td></tr>';
+  } else {
+    for (const r of visible) {
+      const pick = r.type === "TWR" && staffingHist.selectedAirport === r.id;
+      const scoreLabel = r.eventBoost && r.histScore != null && r.histScore !== r.score
+        ? r.histScore + "\u2192" + r.score
+        : String(r.score);
+      const upCls = r.upcomingStartMs < Number.POSITIVE_INFINITY
+        ? (r.upcomingEvents && r.upcomingEvents.length ? " hist-boost" : "")
+        : " cell-muted";
+      h += '<tr class="' + (pick ? "histpick" : "") + '"' +
+        (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '" style="cursor:pointer"' : "") + ">" +
+        '<td class="cell-strong">' + esc(r.id) + "</td>" +
+        "<td>" + esc(r.type) + "</td>" +
+        "<td>" + esc(r.artcc || "\u2014") + "</td>" +
+        "<td>" + esc(r.dowLabel) + "</td>" +
+        '<td title="' + esc(r.reason || "") + '">' + esc(r.windowLabel) +
+        ' <span class="cell-muted">' + esc(r.reason || "") + "</span></td>" +
+        "<td>" + scoreLabel + "</td>" +
+        '<td class="hist-upcoming' + upCls + '">' + esc(r.upcomingLabel) +
+        (r.upcomingEvents && r.upcomingEvents.length
+          ? '<div class="cell-muted" style="margin-top:2px">Event influence \u00b7 ' +
+            esc(r.upcomingEvents[0].name.length > 36
+              ? r.upcomingEvents[0].name.slice(0, 34) + "\u2026"
+              : r.upcomingEvents[0].name) + "</div>"
+          : "") +
+        "</td>" +
+        "<td>" + (r.upcomingStartMs < Number.POSITIVE_INFINITY ? r.upcomingScore : "\u2014") + "</td>" +
+        '<td class="hist-events">' + (r.eventText ? esc(r.eventText) : '<span class="cell-muted">\u2014</span>') +
+        "</td></tr>";
+    }
+  }
+  h += "</tbody></table></div>";
+  return h;
+}
 function staffingHistRowsHtml(rows, emptyMsg, pickAirport) {
   if (!rows.length) return '<div class="staffnone">' + emptyMsg + '</div>';
   let h = '<div class="stafflist">';
@@ -4525,43 +4838,52 @@ async function finalizeStaffingHistorical(result, sourceNote) {
   } catch (e) {}
 }
 async function loadStaffingHistoricalFromDb() {
+  const period = staffingHist.period || "thisweek";
+  staffingHist.period = period;
   staffingHist.status = "loading";
-  staffingHist.message = "Loading precomputed " + staffingHist.period + " from database\u2026";
+  staffingHist.result = null;
+  staffingHist.message = "Loading precomputed " + period + " from database\u2026";
   renderContent();
   try {
     if (!window.VF_StaffingHist || !window.VF_StaffingHist.loadStaffingHist) {
       throw new Error("Staffing hist store not loaded");
     }
     ensureBoundariesIfNeeded();
-    const packed = await window.VF_StaffingHist.loadStaffingHist(staffingHist.period);
+    const packed = await window.VF_StaffingHist.loadStaffingHist(period);
+    /* User may have switched period while this request was in flight. */
+    if (staffingHist.period !== period) return;
     const result = packed.result;
     if (!result || !result.towers || !result.towers.length) {
-      throw new Error("Precomputed data for " + staffingHist.period + " is empty. Run live Process or wait for Monday refresh.");
+      throw new Error("Precomputed data for " + period + " is empty. Run live Process or wait for Monday refresh.");
     }
     const when = packed.computedAt ? new Date(packed.computedAt).toISOString().replace("T", " ").slice(0, 16) + "Z" : "unknown";
     await finalizeStaffingHistorical(result,
       "database (" + packed.source + ") \u00b7 computed " + when);
+    if (staffingHist.period !== period) return;
     staffingHist.status = "ok";
   } catch (e) {
+    if (staffingHist.period !== period) return;
     staffingHist.status = "error";
     staffingHist.message = ((e && e.message) || String(e)) +
       " \u2014 use Process live or Paste / upload as a fallback.";
   }
-  renderContent();
+  if (staffingHist.period === period) renderContent();
 }
 function restoreStaffingHistoricalCache() {
   if (staffingHist.result) return;
+  /* Never clobber an in-flight period change / DB load with a stale session. */
+  if (staffingHist.status === "loading" || staffingHist.status === "error") return;
   try {
     const raw = sessionStorage.getItem("vatflow_staffing_hist");
     if (!raw) return;
     const saved = JSON.parse(raw);
-    if (saved && saved.result) {
-      staffingHist.period = saved.period || staffingHist.period;
-      staffingHist.selectedAirport = saved.selectedAirport || null;
-      staffingHist.result = saved.result;
-      staffingHist.status = "ok";
-      staffingHist.message = "Restored last historical analysis from this session.";
-    }
+    if (!saved || !saved.result) return;
+    /* Only restore when the cached period matches the current selection. */
+    if (saved.period && saved.period !== staffingHist.period) return;
+    staffingHist.selectedAirport = saved.selectedAirport || null;
+    staffingHist.result = saved.result;
+    staffingHist.status = "ok";
+    staffingHist.message = "Restored last historical analysis from this session.";
   } catch (e) {}
 }
 function renderStaffingHistorical() {
@@ -4620,20 +4942,13 @@ function renderStaffingHistorical() {
       : "") +
     "</div>";
 
-  h += '<div class="staffsec">Recommended Tower slots <span>airport \u00b7 day \u00b7 time</span></div>' +
-    staffingHistRowsHtml(res.towers, "No tower peaks found.", true);
+  h += renderStaffingHistTable(res);
 
   if (staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport);
 
   h += staffingHistEventsHtml(res);
 
-  h += '<div class="staffsec">Approach peaks <span>rolled up from airports</span></div>' +
-    staffingHistRowsHtml(res.approaches, "No approach peaks found.", false);
-
-  h += '<div class="staffsec">Center peaks <span>rolled up from airports</span></div>' +
-    staffingHistRowsHtml(res.centers, "No center peaks found.", false);
-
-  if (res.topAirports.length) {
+  if (res.topAirports && res.topAirports.length) {
     h += '<div class="staffsec">Busiest airports in sample <span>total movements</span></div><div class="staffchips">';
     for (const a of res.topAirports.slice(0, 16)) {
       h += '<span class="staffchip' + (staffingHist.selectedAirport === a.icao ? " win" : "") +
@@ -4643,11 +4958,12 @@ function renderStaffingHistorical() {
     h += "</div>";
   }
 
-  h += '<div class="staffnote">Historical windows use StatSim completed flights, precomputed into Supabase ' +
-    "(<code>staffing_hist</code>) every Monday for This week / This month / This year. " +
-    "The browser loads those aggregates instead of scraping large StatSim pages. " +
-    "Upcoming VATSIM network events within " + STAFF_EVENT_RADIUS_NM +
-    " nm of an airport boost that slot when the event overlaps the same weekday/hours. " +
+  h += '<div class="staffnote">Historical windows use StatSim completed flights for the selected period, ' +
+    "precomputed into Supabase (<code>staffing_hist</code>) every Monday. " +
+    "The table maps each historical day/time into the <b>next rolling 7 days</b> (UTC). " +
+    "VATSIM network events within " + STAFF_EVENT_RADIUS_NM +
+    " nm that fall in that upcoming window raise the recommendation score (Rec). " +
+    "Filter Facility/ARTCC (e.g. ZJX), Type (TWR / APP / CTR), or Day (Mon). " +
     "Process live / Paste remain available as fallbacks.</div>";
   return h;
 }
@@ -4702,7 +5018,8 @@ function renderStaffing() {
   } else {
     body = renderStaffingLiveBody();
   }
-  contentEl.innerHTML = '<div class="staffwrap">' + subBar + body + "</div>";
+  contentEl.innerHTML = '<div class="staffwrap' + (staffingSub === "historical" ? " hist-wide" : "") + '">' +
+    subBar + body + "</div>";
 }
 
 function renderHome() {
@@ -6353,6 +6670,23 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
+  if (e.target.closest("[data-hist-clearfilters]")) {
+    staffingHist.filters = {};
+    for (const c of STAFFING_HIST_TABLE_COLS) staffingHist.filters[c.key] = "";
+    renderContent();
+    return;
+  }
+  const histSort = e.target.closest("th[data-hist-sort]");
+  if (histSort) {
+    const key = histSort.dataset.histSort;
+    if (staffingHist.sortKey === key) staffingHist.sortDir = -staffingHist.sortDir;
+    else {
+      staffingHist.sortKey = key;
+      staffingHist.sortDir = (key === "facility" || key === "type" || key === "artcc" || key === "day" || key === "upcoming") ? 1 : -1;
+    }
+    renderContent();
+    return;
+  }
   const histApt = e.target.closest("[data-hist-apt]");
   if (histApt) {
     staffingHist.selectedAirport = histApt.dataset.histApt;
@@ -6490,8 +6824,13 @@ contentEl.addEventListener("click", e => {
 contentEl.addEventListener("change", e => {
   const histPeriod = e.target.closest("[data-hist-period]");
   if (histPeriod) {
-    staffingHist.period = histPeriod.value || "thisweek";
+    const next = histPeriod.value || "thisweek";
+    staffingHist.period = next;
     staffingHist.result = null;
+    staffingHist.selectedAirport = null;
+    staffingHist.status = "loading";
+    staffingHist.message = "Loading precomputed " + next + " from database\u2026";
+    try { sessionStorage.removeItem("vatflow_staffing_hist"); } catch (err) {}
     loadStaffingHistoricalFromDb();
     return;
   }
@@ -6840,6 +7179,20 @@ contentEl.addEventListener("input", e => {
   /* restriction filters */
   if (e.target.id === "rfReq") { restrictFilters.requesting = e.target.value; renderContent(); return; }
   if (e.target.id === "rfProv") { restrictFilters.providing = e.target.value; renderContent(); return; }
+
+  const histFilter = e.target.closest("input[data-hist-filter]");
+  if (histFilter) {
+    if (!staffingHist.filters) staffingHist.filters = {};
+    let v = histFilter.value;
+    const fk = histFilter.dataset.histFilter;
+    if (fk === "facility" || fk === "type" || fk === "artcc" || fk === "day") {
+      v = v.toUpperCase();
+      histFilter.value = v;
+    }
+    staffingHist.filters[fk] = v;
+    renderContent();
+    return;
+  }
 
   const inp = e.target.closest("input[data-filter]");
   if (!inp) return;
