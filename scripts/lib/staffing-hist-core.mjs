@@ -163,23 +163,36 @@ export function parseStatsimCountryText(text) {
 function histEmptyBucket() { return { dep: 0, arr: 0 }; }
 function histScore(b) { return (b.dep || 0) + (b.arr || 0); }
 
+/** Recommended staff-up length: 2hr minimum, 4hr maximum around the busiest block. */
+const STAFF_HIST_MIN_HOURS = 2;
+const STAFF_HIST_MAX_HOURS = 4;
+
+function histBucketAt(hourMap, h) {
+  if (!hourMap) return histEmptyBucket();
+  return hourMap[h] || hourMap[String(h)] || histEmptyBucket();
+}
+
+/** Best contiguous 2–4 hour staff-up window (higher score wins; shorter on ties). */
 function histHourWindow(hourMap) {
-  let bestH = -1, bestScore = 0;
-  for (let h = 0; h < 24; h++) {
-    const sc = histScore(hourMap[h] || histEmptyBucket());
-    if (sc > bestScore) { bestScore = sc; bestH = h; }
+  let best = null;
+  for (let span = STAFF_HIST_MIN_HOURS; span <= STAFF_HIST_MAX_HOURS; span++) {
+    for (let start = 0; start <= 24 - span; start++) {
+      const end = start + span - 1;
+      let dep = 0, arr = 0;
+      for (let h = start; h <= end; h++) {
+        const b = histBucketAt(hourMap, h);
+        dep += b.dep || 0;
+        arr += b.arr || 0;
+      }
+      const score = dep + arr;
+      if (score <= 0) continue;
+      if (!best || score > best.score ||
+          (score === best.score && span < (best.endHour - best.startHour + 1))) {
+        best = { startHour: start, endHour: end, dep, arr, score };
+      }
+    }
   }
-  if (bestH < 0 || bestScore <= 0) return null;
-  const floor = Math.max(2, Math.ceil(bestScore * 0.35));
-  let start = bestH, end = bestH;
-  while (start > 0 && histScore(hourMap[start - 1] || histEmptyBucket()) >= floor) start--;
-  while (end < 23 && histScore(hourMap[end + 1] || histEmptyBucket()) >= floor) end++;
-  let dep = 0, arr = 0;
-  for (let h = start; h <= end; h++) {
-    const b = hourMap[h] || histEmptyBucket();
-    dep += b.dep; arr += b.arr;
-  }
-  return { startHour: start, endHour: end, dep, arr, score: dep + arr };
+  return best;
 }
 
 function histFmtHourRange(startHour, endHour) {

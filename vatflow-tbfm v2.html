@@ -4248,23 +4248,87 @@ function applyVatsimEventsToHistorical(result, events) {
 }
 function histEmptyBucket() { return { dep: 0, arr: 0 }; }
 function histScore(b) { return (b.dep || 0) + (b.arr || 0); }
+/** Recommended staff-up length: 2hr minimum, 4hr maximum around the busiest block. */
+const STAFF_HIST_MIN_HOURS = 2;
+const STAFF_HIST_MAX_HOURS = 4;
+function histBucketAt(hourMap, h) {
+  if (!hourMap) return histEmptyBucket();
+  return hourMap[h] || hourMap[String(h)] || histEmptyBucket();
+}
+/**
+ * Best contiguous 2–4 hour staff-up window from an hourly dep/arr map.
+ * Prefers higher movement score, then the shorter window when tied.
+ */
+function histStaffUpWindow(hourMap, minHours, maxHours) {
+  const minH = minHours != null ? minHours : STAFF_HIST_MIN_HOURS;
+  const maxH = maxHours != null ? maxHours : STAFF_HIST_MAX_HOURS;
+  let best = null;
+  for (let span = minH; span <= maxH; span++) {
+    for (let start = 0; start <= 24 - span; start++) {
+      const end = start + span - 1;
+      let dep = 0, arr = 0;
+      for (let h = start; h <= end; h++) {
+        const b = histBucketAt(hourMap, h);
+        dep += b.dep || 0;
+        arr += b.arr || 0;
+      }
+      const score = dep + arr;
+      if (score <= 0) continue;
+      if (!best || score > best.score || (score === best.score && span < (best.endHour - best.startHour + 1))) {
+        best = { startHour: start, endHour: end, dep, arr, score };
+      }
+    }
+  }
+  return best;
+}
 function histHourWindow(hourMap) {
-  let bestH = -1, bestScore = 0;
-  for (let h = 0; h < 24; h++) {
-    const sc = histScore(hourMap[h] || histEmptyBucket());
-    if (sc > bestScore) { bestScore = sc; bestH = h; }
+  return histStaffUpWindow(hourMap, STAFF_HIST_MIN_HOURS, STAFF_HIST_MAX_HOURS);
+}
+/** Clamp a stored wide window down to a 2–4hr staff-up block (no hourly map). */
+function histClampStaffUpWindow(startHour, endHour, minHours, maxHours) {
+  const minH = minHours != null ? minHours : STAFF_HIST_MIN_HOURS;
+  const maxH = maxHours != null ? maxHours : STAFF_HIST_MAX_HOURS;
+  let start = Math.max(0, Math.min(23, startHour | 0));
+  let end = Math.max(0, Math.min(23, endHour | 0));
+  if (end < start) end = start;
+  let span = end - start + 1;
+  if (span > maxH) {
+    const mid = Math.floor((start + end) / 2);
+    start = mid - Math.floor((maxH - 1) / 2);
+    end = start + maxH - 1;
+    if (start < 0) { start = 0; end = maxH - 1; }
+    if (end > 23) { end = 23; start = 24 - maxH; }
   }
-  if (bestH < 0 || bestScore <= 0) return null;
-  const floor = Math.max(2, Math.ceil(bestScore * 0.35));
-  let start = bestH, end = bestH;
-  while (start > 0 && histScore(hourMap[start - 1] || histEmptyBucket()) >= floor) start--;
-  while (end < 23 && histScore(hourMap[end + 1] || histEmptyBucket()) >= floor) end++;
-  let dep = 0, arr = 0;
-  for (let h = start; h <= end; h++) {
-    const b = hourMap[h] || histEmptyBucket();
-    dep += b.dep; arr += b.arr;
+  span = end - start + 1;
+  while (span < minH && end < 23) { end++; span++; }
+  while (span < minH && start > 0) { start--; span++; }
+  return { startHour: start, endHour: end };
+}
+function histHourMapForSlot(slot) {
+  const res = staffingHist.result;
+  if (!res || !res.byAirport || !slot) return null;
+  if (slot.type === "TWR") {
+    const apt = res.byAirport[slot.id];
+    if (!apt || !apt.days) return null;
+    return apt.days[slot.dow] || apt.days[String(slot.dow)] || null;
   }
-  return { startHour: start, endHour: end, dep, arr, score: dep + arr };
+  const ids = histSlotAirportIds(slot);
+  if (!ids.length) return null;
+  const merged = {};
+  let any = false;
+  for (const icao of ids) {
+    const apt = res.byAirport[icao];
+    const hm = apt && apt.days ? (apt.days[slot.dow] || apt.days[String(slot.dow)]) : null;
+    if (!hm) continue;
+    any = true;
+    for (let h = 0; h < 24; h++) {
+      const b = histBucketAt(hm, h);
+      if (!merged[h]) merged[h] = histEmptyBucket();
+      merged[h].dep += b.dep || 0;
+      merged[h].arr += b.arr || 0;
+    }
+  }
+  return any ? merged : null;
 }
 function histFmtHourRange(startHour, endHour) {
   const a = String(startHour).padStart(2, "0") + "00";
@@ -4568,6 +4632,18 @@ function histFmtUpcomingLabel(win, windowLabel) {
   );
   return datePart + " \u00b7 " + timePart;
 }
+function histFmtEventDate(ev) {
+  if (!ev || !isFinite(ev.startMs)) return "";
+  const d = new Date(ev.startMs);
+  return STAFFING_HIST_DOW[d.getUTCDay()] + " " + d.getUTCDate() + " " +
+    STAFFING_HIST_MONTHS[d.getUTCMonth()];
+}
+function histFmtEventListItem(ev) {
+  const when = histFmtEventDate(ev);
+  const name = String(ev.name || "Event");
+  const short = name.length > 28 ? name.slice(0, 26) + "\u2026" : name;
+  return when ? (when + " \u00b7 " + short) : short;
+}
 function histUpcomingEventsForSlot(slot, win, networkEvents) {
   if (!slot || !win) return [];
   const radius = STAFF_EVENT_RADIUS_NM;
@@ -4584,7 +4660,13 @@ function histUpcomingEventsForSlot(slot, win, networkEvents) {
 }
 function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
   const histScoreVal = slot.histScore != null ? slot.histScore : slot.score;
-  const win = histNextUtcWindow(slot.dow, slot.startHour, slot.endHour, nowMs);
+  const hourMap = histHourMapForSlot(slot);
+  const staffWin = hourMap
+    ? (histStaffUpWindow(hourMap, STAFF_HIST_MIN_HOURS, STAFF_HIST_MAX_HOURS) ||
+      histClampStaffUpWindow(slot.startHour, slot.endHour))
+    : histClampStaffUpWindow(slot.startHour, slot.endHour);
+  const staffLabel = histFmtHourRange(staffWin.startHour, staffWin.endHour);
+  const win = histNextUtcWindow(slot.dow, staffWin.startHour, staffWin.endHour, nowMs);
   const upcomingEvents = histUpcomingEventsForSlot(slot, win, networkEvents);
   let upcomingScore = histScoreVal || 0;
   if (win && upcomingEvents.length) {
@@ -4594,8 +4676,10 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
   }
   if (!win) upcomingScore = 0;
   const artcc = histSlotArtcc(slot);
-  const upcomingLabel = histFmtUpcomingLabel(win, slot.windowLabel);
-  const eventNames = upcomingEvents.slice(0, 2).map(ev => ev.name).filter(Boolean);
+  const upcomingLabel = histFmtUpcomingLabel(win, staffLabel);
+  const eventItems = upcomingEvents.length
+    ? upcomingEvents.slice(0, 2).map(histFmtEventListItem)
+    : (slot.eventOverlap || []).slice(0, 2).map(histFmtEventListItem);
   return {
     id: slot.id,
     type: slot.type,
@@ -4605,6 +4689,7 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
     startHour: slot.startHour,
     endHour: slot.endHour,
     windowLabel: slot.windowLabel,
+    staffWindowLabel: staffLabel,
     reason: slot.reason,
     dep: slot.dep,
     arr: slot.arr,
@@ -4617,11 +4702,7 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
     upcomingLabel,
     upcomingScore,
     upcomingEvents,
-    eventText: eventNames.length
-      ? eventNames.map(n => n.length > 32 ? n.slice(0, 30) + "\u2026" : n).join(" \u00b7 ")
-      : (slot.eventOverlap && slot.eventOverlap.length
-        ? slot.eventOverlap.slice(0, 2).map(ev => ev.name).join(" \u00b7 ")
-        : "")
+    eventText: eventItems.filter(Boolean).join(" \u00b7 ")
   };
 }
 function buildStaffingHistTableRows(result) {
@@ -4778,9 +4859,7 @@ function renderStaffingHistTable(result) {
         '<td class="hist-upcoming' + upCls + '">' + esc(r.upcomingLabel) +
         (r.upcomingEvents && r.upcomingEvents.length
           ? '<div class="cell-muted" style="margin-top:2px">Event influence \u00b7 ' +
-            esc(r.upcomingEvents[0].name.length > 36
-              ? r.upcomingEvents[0].name.slice(0, 34) + "\u2026"
-              : r.upcomingEvents[0].name) + "</div>"
+            esc(histFmtEventListItem(r.upcomingEvents[0])) + "</div>"
           : "") +
         "</td>" +
         "<td>" + (r.upcomingStartMs < Number.POSITIVE_INFINITY ? r.upcomingScore : "\u2014") + "</td>" +
@@ -5056,9 +5135,9 @@ function renderStaffingHistorical() {
 
   h += '<div class="staffnote">Historical windows use StatSim completed flights for the selected period, ' +
     "precomputed into Supabase (<code>staffing_hist</code>) every Monday. " +
-    "The table maps each historical day/time into the <b>next rolling 7 days</b> (UTC). " +
+    "Staff next 7 days recommends a focused <b>2\u20134 hour</b> UTC staff-up block (not a full busy day). " +
     "VATSIM network events within " + STAFF_EVENT_RADIUS_NM +
-    " nm that fall in that upcoming window raise the recommendation score (Rec). " +
+    " nm that fall in that upcoming window raise the recommendation score (Rec); the Events column includes the event date. " +
     "Filter Facility/ARTCC (e.g. ZJX), Type (TWR / APP / CTR), or Day (Mon). " +
     "Process live / Paste remain available as fallbacks.</div>";
   return h;
