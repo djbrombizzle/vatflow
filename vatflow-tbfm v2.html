@@ -426,6 +426,112 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
 .strip-gates { font-size: 11px; color: var(--text-muted); }
 .gate-tag { margin-left: 8px; font-family: var(--font-data); }
 
+/* ---------- apt dashboard summary ---------- */
+.meter-summary {
+  padding: 20px 24px 36px; max-width: 1100px;
+}
+.meter-summary-head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.meter-summary-icao {
+  font-family: var(--font-display); font-size: 48px; font-weight: 600;
+  letter-spacing: 0.06em; color: var(--text); line-height: 1;
+}
+.meter-summary-sub {
+  font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.meter-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-bottom: 28px;
+}
+.meter-metric {
+  background: linear-gradient(165deg, var(--elevated) 0%, var(--surface) 100%);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 88px;
+}
+.meter-metric .mk {
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 500;
+}
+.meter-metric .mv {
+  font-family: var(--font-display); font-size: 42px; font-weight: 600;
+  letter-spacing: 0.04em; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.meter-metric .mv.stat-ok { color: var(--ok); }
+.meter-metric .mv.stat-warn { color: var(--warn); }
+.meter-metric .mv.stat-alert { color: var(--alert); }
+.meter-metric .mv.stat-info { color: var(--info); }
+.meter-metric .mv.stat-muted { color: var(--text-muted); }
+.meter-metric--wide { grid-column: span 2; }
+@media (max-width: 700px) {
+  .meter-metric--wide { grid-column: span 1; }
+  .meter-summary-icao { font-size: 36px; }
+  .meter-metric .mv { font-size: 34px; }
+}
+.meter-metric .mv-ratio {
+  font-family: var(--font-data); font-size: 28px; font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.meter-metric .msub {
+  font-size: 11px; color: var(--text-dim); margin-top: 2px;
+}
+.meter-sec {
+  margin-top: 8px;
+}
+.meter-sec-title {
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 12px; font-weight: 600;
+}
+.meter-gates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.meter-gate {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  border-left: 3px solid var(--border-hi);
+}
+.meter-gate .gk {
+  font-family: var(--font-data); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.meter-gate .gv {
+  font-family: var(--font-display); font-size: 28px; font-weight: 600;
+  letter-spacing: 0.04em; color: var(--text); line-height: 1;
+}
+.meter-gate-empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+
+/* ---------- demand vs AAR chart ---------- */
+.meter-demand-wrap {
+  padding: 16px 20px 32px; max-width: 960px;
+}
+.meter-demand-chart {
+  background: #0a0e14;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px 16px;
+  position: relative;
+}
+.meter-demand-title {
+  font-family: var(--font-data); font-size: 12px; color: #9aa8b5;
+  letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 16px;
+}
+.meter-demand-svg { width: 100%; height: auto; display: block; }
+.meter-demand-hint {
+  margin-top: 10px; font-size: 11px; color: var(--text-muted);
+}
+.meter-demand-empty {
+  padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px;
+}
+
 /* ---------- apt dashboard traffic map ---------- */
 details.meter-map-acc {
   border-bottom: 1px solid var(--border); background: var(--surface);
@@ -947,6 +1053,7 @@ const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
+let meterSub = "summary";  // Apt Dashboard sub-tab: summary | map | aircraft | ladder | demand
 /* ---- controller access: VATSIM Connect OAuth (full tier = ARTCC whitelist) ---- */
 function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
 function canEditApt(icao) {
@@ -2405,11 +2512,80 @@ function computeFlow(target) {
   const demandHr = flights.filter(f => f.status !== "ARRIVED" && isMetered(f) && f.eta < now + 3600000).length;
   const gates = {};
   for (const f of flights) if (f.status !== "ARRIVED" && isMetered(f) && f.gate !== "\u2014") gates[f.gate] = (gates[f.gate] || 0) + 1;
-  const topGates = Object.entries(gates).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const allGates = Object.entries(gates).sort((a,b) => b[1]-a[1]);
+  const topGates = allGates.slice(0,5);
   const gateColors = {};
-  topGates.forEach(([g], i) => gateColors[g] = GATE_PALETTE[i % GATE_PALETTE.length]);
+  allGates.forEach(([g], i) => gateColors[g] = GATE_PALETTE[i % GATE_PALETTE.length]);
 
-  return { flights, demandHr, topGates, gateColors, arrPt, now };
+  return { flights, demandHr, topGates, allGates, gateColors, arrPt, now };
+}
+
+/* Demand vs AAR — 15-minute ETA bins for the next window */
+const DEMAND_BIN_MIN = 15;
+const DEMAND_BIN_COUNT = 8;  /* 2 hours */
+
+function buildDemandBins(flow, aar, binMin, binCount) {
+  const step = binMin || DEMAND_BIN_MIN;
+  const n = binCount || DEMAND_BIN_COUNT;
+  const counts = new Array(n).fill(0);
+  const now = flow.now;
+  const windowMs = n * step * 60000;
+  for (const f of flow.flights) {
+    if (f.status === "ARRIVED" || !isMetered(f)) continue;
+    const dt = f.eta - now;
+    if (dt < 0 || dt >= windowMs) continue;
+    const b = Math.floor(dt / (step * 60000));
+    if (b >= 0 && b < n) counts[b]++;
+  }
+  /* Hourly AAR expressed as capacity per bin */
+  const binCap = Math.max(1, Math.round(aar / (60 / step)));
+  return { counts, binCap, binMin: step, binCount: n, aar };
+}
+
+function renderDemandChartSvg(bins) {
+  const { counts, binCap, aar } = bins;
+  const n = counts.length;
+  const maxCount = Math.max(binCap * 2, ...counts, 1);
+  const W = 720, H = 280, padL = 8, padR = 72, padT = 12, padB = 8;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const gap = 10;
+  const barW = (chartW - gap * (n - 1)) / n;
+  const yOf = v => padT + chartH - (v / maxCount) * chartH;
+  const aarY = yOf(binCap);
+  const under = "#8a7a3a";
+  const over = "#e85a3a";
+
+  let svg = '<svg class="meter-demand-svg" viewBox="0 0 ' + W + ' ' + H +
+    '" width="100%" preserveAspectRatio="xMidYMid meet" aria-label="Demand vs AAR 15 minute bins">';
+
+  /* AAR threshold line + label */
+  svg += '<line x1="' + padL + '" y1="' + aarY + '" x2="' + (W - padR + 8) +
+    '" y2="' + aarY + '" stroke="#e8c84a" stroke-width="1.5" stroke-dasharray="6 5"/>';
+  svg += '<text x="' + (W - padR + 14) + '" y="' + (aarY + 4) +
+    '" fill="#e8c84a" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">AAR ' +
+    aar + '</text>';
+
+  for (let i = 0; i < n; i++) {
+    const c = counts[i];
+    const x = padL + i * (barW + gap);
+    const underH = Math.min(c, binCap);
+    const overH = Math.max(0, c - binCap);
+    if (underH > 0) {
+      const h = (underH / maxCount) * chartH;
+      const y = yOf(underH);
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h +
+        '" fill="' + under + '" rx="1"/>';
+    }
+    if (overH > 0) {
+      const h = (overH / maxCount) * chartH;
+      const y = yOf(c);
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h +
+        '" fill="' + over + '" rx="1" style="filter:drop-shadow(0 0 6px rgba(232,90,58,0.75))"/>';
+    }
+  }
+  svg += '</svg>';
+  return svg;
 }
 
 const statusColor = f =>
@@ -2558,10 +2734,11 @@ function restoreFocus(refocus) {
 
 function renderMeter(refocus) {
   if (!icao) {
+    destroyMeterMap();
     contentEl.innerHTML =
       '<div class="emptystate">' +
       '<h2>Apt Dashboard</h2>' +
-      '<p>Enter an arrival airport and press Load to view inbound traffic, demand vs. AAR, and the arrival ladder.</p>' +
+      '<p>Enter an arrival airport and press Load for an at-a-glance summary. Open Traffic map, Aircraft list, Arrival ladder, or Demand vs AAR for detail.</p>' +
       '<div class="emptystate-actions">' +
       '<input id="splashIcao" list="event-fields" placeholder="ICAO (e.g. KBOS)" maxlength="4" autocomplete="off" class="field-input field-input--wide">' +
       '<button type="button" class="btn-primary" id="splashLoad">Load</button>' +
@@ -2577,6 +2754,7 @@ function renderMeter(refocus) {
   }
   const flow = computeFlow(icao);
   if (!flow) {
+    destroyMeterMap();
     contentEl.innerHTML = '<div class="msg">' +
       (feedStatus === "error"
         ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
@@ -2584,57 +2762,119 @@ function renderMeter(refocus) {
     return;
   }
 
+  const subBar =
+    '<div class="subtabs">' +
+    '<span class="subtab' + (meterSub === "summary" ? " active" : "") + '" data-metersub="summary">Summary</span>' +
+    '<span class="subtab' + (meterSub === "map" ? " active" : "") + '" data-metersub="map">Traffic map</span>' +
+    '<span class="subtab' + (meterSub === "aircraft" ? " active" : "") + '" data-metersub="aircraft">Aircraft list</span>' +
+    '<span class="subtab' + (meterSub === "ladder" ? " active" : "") + '" data-metersub="ladder">Arrival ladder</span>' +
+    '<span class="subtab' + (meterSub === "demand" ? " active" : "") + '" data-metersub="demand">Demand vs AAR</span>' +
+    '</div>';
+
+  /* tear down Leaflet before replacing DOM (preserves pan/zoom via meterMapView) */
+  if (meterMap) destroyMeterMap();
+
+  let body = "";
+  if (meterSub === "map") body = renderMeterMapView(flow);
+  else if (meterSub === "aircraft") body = renderMeterAircraftView(flow);
+  else if (meterSub === "ladder") body = renderMeterLadderView(flow);
+  else if (meterSub === "demand") body = renderMeterDemandView(flow);
+  else body = renderMeterSummaryView(flow);
+
+  contentEl.innerHTML = subBar + body;
+  restoreFocus(refocus);
+
+  if (meterSub === "map" && flow.arrPt) {
+    meterMapOpen = true;
+    ensureMeterMap(flow);
+  } else {
+    meterMapOpen = false;
+  }
+  if (meterSub === "ladder") {
+    const ls = document.getElementById("ladderScroll");
+    if (ls) ls.scrollTop = (ladderScrollPos == null) ? ls.scrollHeight : ladderScrollPos;
+  }
+}
+
+function meterStatusCounts(flow) {
   const air = flow.flights.filter(f => f.status === "AIRBORNE").length;
   const gnd = flow.flights.filter(f => f.status === "GROUND").length;
   const pro = flow.flights.filter(f => f.status === "PROPOSED").length;
   const arr = flow.flights.filter(f => f.status === "ARRIVED").length;
   const inbound = flow.flights.length - arr;
+  return { air, gnd, pro, arr, inbound };
+}
+
+function renderMeterSummaryView(flow) {
+  const { air, gnd, pro, arr, inbound } = meterStatusCounts(flow);
   const mRate = getRate(icao);
   const over = flow.demandHr > mRate.aar;
+  const gates = flow.allGates || flow.topGates || [];
 
-  let h = '<div class="strip">' +
-    '<span class="field">' + esc(icao) + '</span>' +
+  let h = '<div class="meter-summary">' +
+    '<div class="meter-summary-head">' +
+    '<span class="meter-summary-icao">' + esc(icao) + '</span>' +
+    '<span class="meter-summary-sub">Arrival summary</span>' +
     (!flow.arrPt ? '<span class="strip-warn">No coords for field \u2014 ETAs estimated</span>' : '') +
-    stat("INBOUND", inbound) +
-    stat("AIRBORNE", air, "stat-ok") +
-    stat("GROUND", gnd, "stat-warn") +
-    stat("PROPOSED", pro, "stat-info") +
-    (arr ? stat("ARRIVED", arr, "stat-muted") : "") +
-    stat("DEMAND / AAR (60 MIN)", flow.demandHr + " / " + mRate.aar, over ? "stat-alert" : "stat-ok");
-  if (flow.topGates.length) {
-    h += '<span class="strip-gates">Gates ' +
-      flow.topGates.map(([g,n]) =>
-        '<span class="gate-tag" style="color:' + flow.gateColors[g] + ';">' + esc(g) + '\u00B7' + n + '</span>'
-      ).join("") + '</span>';
+    '</div>' +
+    '<div class="meter-metrics">' +
+    '<div class="meter-metric"><span class="mk">Inbound</span><span class="mv">' + inbound + '</span></div>' +
+    '<div class="meter-metric"><span class="mk">Airborne</span><span class="mv stat-ok">' + air + '</span></div>' +
+    '<div class="meter-metric"><span class="mk">Ground</span><span class="mv stat-warn">' + gnd + '</span></div>' +
+    '<div class="meter-metric"><span class="mk">Proposed</span><span class="mv stat-info">' + pro + '</span></div>' +
+    '<div class="meter-metric"><span class="mk">Arrived</span><span class="mv stat-muted">' + arr + '</span></div>' +
+    '<div class="meter-metric meter-metric--wide">' +
+    '<span class="mk">Demand / AAR \u00b7 60 min</span>' +
+    '<span class="mv mv-ratio ' + (over ? "stat-alert" : "stat-ok") + '">' +
+    flow.demandHr + ' / ' + mRate.aar + '</span>' +
+    '<span class="msub">' + (over ? "Demand exceeds acceptance rate" : "Within acceptance rate") +
+    ' \u00b7 rates on TMU tab</span></div>' +
+    '</div>' +
+    '<div class="meter-sec">' +
+    '<div class="meter-sec-title">Aircraft by arrival gate</div>';
+  if (!gates.length) {
+    h += '<div class="meter-gate-empty">No gated arrivals in the metered stream right now.</div>';
+  } else {
+    h += '<div class="meter-gates">';
+    for (const [g, n] of gates) {
+      const c = flow.gateColors[g] || "var(--border-hi)";
+      h += '<div class="meter-gate" style="border-left-color:' + c + ';">' +
+        '<span class="gk" style="color:' + c + ';">' + esc(g) + '</span>' +
+        '<span class="gv">' + n + '</span></div>';
+    }
+    h += '</div>';
   }
-  h += '</div>';
+  h += '</div></div>';
+  return h;
+}
 
-  /* traffic map submenu */
-  h += '<details class="meter-map-acc" id="meterMapAcc"' + (meterMapOpen ? ' open' : '') + '>' +
-    '<summary>Traffic map \u00b7 ' + inbound + ' inbound</summary>' +
-    '<div class="meter-map-body">';
+function renderMeterMapView(flow) {
+  const { inbound } = meterStatusCounts(flow);
+  let h = '<div class="meter-map-panel" style="border-bottom:1px solid var(--border);">' +
+    '<div class="meter-map-legend" style="padding-top:14px;">' +
+    '<span class="leg-item" style="font-weight:600;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;">Traffic map \u00b7 ' +
+    inbound + ' inbound</span>' + meterMapLegendHtml(flow) + '</div>';
   if (!flow.arrPt) {
     h += '<div class="meter-map-nocoords">No coordinates for ' + esc(icao) +
       ' \u2014 map unavailable. ETAs use estimated distances.</div>';
   } else {
-    h += '<div class="meter-map-panel">' +
-      '<div class="meter-map-legend">' + meterMapLegendHtml(flow) + '</div>' +
-      '<div class="meter-map-frame" id="meterMapFrame" style="height:' + Math.round(meterMapHeight) + 'px">' +
+    h += '<div class="meter-map-frame" id="meterMapFrame" style="height:' + Math.round(meterMapHeight) + 'px">' +
       '<div id="meterMapCanvas" class="meter-map-canvas"></div></div>' +
-      '<div class="meter-map-resize" id="meterMapResize" title="Drag to resize the map"></div>' +
-      '</div>';
+      '<div class="meter-map-resize" id="meterMapResize" title="Drag to resize the map"></div>';
   }
-  h += '</div></details>';
+  h += '</div>';
+  return h;
+}
 
-  /* table */
-  h += '<div class="layout" style="--ladder-w:' + Math.round(ladderWidth) + 'px;"><div class="tablewrap">';
+function renderMeterAircraftView(flow) {
+  let h = '<div class="tablewrap">';
   if (!flow.flights.length) {
     h += '<div class="msg">No traffic filed to ' + esc(icao) + ' right now. The feed refreshes every 30 seconds.</div>';
   } else {
     const visible = sortedFlights(flow.flights).filter(passesFilters);
     if (filtersActive()) {
       h += '<div class="filterinfo">FILTER ACTIVE \u2014 SHOWING ' + visible.length + ' OF ' +
-        flow.flights.length + ' \u00B7 metering, stats and ladder still include all traffic' +
+        flow.flights.length + ' \u00B7 metering and stats still include all traffic' +
         '<span class="clr" data-clearfilters>CLEAR FILTERS</span></div>';
     }
     h += '<table><thead><tr>' +
@@ -2689,16 +2929,17 @@ function renderMeter(refocus) {
     h += '</tbody></table>';
   }
   h += '</div>';
+  return h;
+}
 
-  /* metering ladder — fixed 12 px/min scale inside a scrollable viewport */
+function renderMeterLadderView(flow) {
   const PX_PER_MIN = 12;
-  const LADDER_WIN = ladderWinMin;              /* minutes of schedule shown (30-min steps) */
+  const LADDER_WIN = ladderWinMin;
   const LH = LADDER_WIN * PX_PER_MIN;
   const yOf = min => LH - (Math.max(min, 0) / LADDER_WIN) * LH;
-  const gridStep = LADDER_WIN <= 90 ? 10 : LADDER_WIN <= 180 ? 15 : 30;  /* keep labels readable */
+  const gridStep = LADDER_WIN <= 90 ? 10 : LADDER_WIN <= 180 ? 15 : 30;
 
-  h += '<div class="ladderwrap">' +
-    '<div class="ladderresize" id="ladderResize" title="Drag to resize the arrival ladder"></div>' +
+  let h = '<div class="ladderwrap" style="border-left:none;max-width:520px;">' +
     '<div class="ladderhead"><span>ARRIVAL LADDER \u00B7 ' + LADDER_WIN + ' MIN</span>' +
     '<span class="ladderwinctl">' +
     '<button data-ladderwin="-30" title="Show 30 min less"' + (LADDER_WIN <= 30 ? ' disabled' : '') + '>\u2212</button>' +
@@ -2722,8 +2963,6 @@ function renderMeter(refocus) {
   if (!ladderFlights.length) {
     h += '<div class="empty">NO STAs IN WINDOW</div>';
   } else {
-    /* lane staggering: when consecutive tags land within 15 px vertically,
-       push the trailer to the next horizontal lane so labels stay readable */
     const LANE_X = [56, 168];
     let prevY = Infinity, lane = 0;
     for (const f of ladderFlights) {
@@ -2738,16 +2977,29 @@ function renderMeter(refocus) {
         esc(f.callsign) + ' <span class="t">' + fmtZ(f.sta) + '</span></span></div>';
     }
   }
-  h += '</div></div></div></div>';
+  h += '</div></div></div>';
+  return h;
+}
 
-  destroyMeterMap();
-  contentEl.innerHTML = h;
-
-  restoreFocus(refocus);
-  if (meterMapOpen && flow.arrPt) ensureMeterMap(flow);
-  /* restore ladder scroll; first render starts at NOW (bottom) */
-  const ls = document.getElementById("ladderScroll");
-  if (ls) ls.scrollTop = (ladderScrollPos == null) ? ls.scrollHeight : ladderScrollPos;
+function renderMeterDemandView(flow) {
+  const mRate = getRate(icao);
+  const bins = buildDemandBins(flow, mRate.aar, DEMAND_BIN_MIN, DEMAND_BIN_COUNT);
+  const total = bins.counts.reduce((a, b) => a + b, 0);
+  let h = '<div class="meter-demand-wrap">' +
+    '<div class="meter-demand-chart">' +
+    '<div class="meter-demand-title">DEMAND vs AAR \u2014 15 MIN BINS</div>';
+  if (!total && !flow.flights.some(f => f.status !== "ARRIVED" && isMetered(f))) {
+    h += '<div class="meter-demand-empty">No metered demand in the next ' +
+      (DEMAND_BIN_COUNT * DEMAND_BIN_MIN) + ' minutes.</div>';
+  } else {
+    h += renderDemandChartSvg(bins);
+  }
+  h += '</div>' +
+    '<div class="meter-demand-hint">Bars = arrivals by ETA in each 15-minute bin. ' +
+    'Olive is at or below capacity (' + bins.binCap + '/bin from AAR ' + mRate.aar +
+    '/hr). Red is over capacity. Window: next ' +
+    (DEMAND_BIN_COUNT * DEMAND_BIN_MIN) + ' minutes.</div></div>';
+  return h;
 }
 
 /* ---------- HOME view: vNAS overview ---------- */
@@ -2866,10 +3118,11 @@ function renderHelp() {
     '<li>National overview of every active flow program and its average delay.</li>' +
     '<li><b>Departure taxi times</b> — per-airport averages from the Taxi Monitor, with trend and volume context.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Apt Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>Enter an arrival airport and press <b>Load</b> to see inbound traffic, demand vs. AAR, and the arrival ladder.</li>' +
+    '<li>Enter an arrival airport and press <b>Load</b> for a large at-a-glance summary: inbound counts, Demand/AAR (60 min), and aircraft per gate.</li>' +
+    '<li>Use sub-tabs for detail: <b>Traffic map</b>, <b>Aircraft list</b>, <b>Arrival ladder</b>, and <b>Demand vs AAR</b> (15-minute bins).</li>' +
     '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
     '<li><b>Ready Time</b> — anyone can enter pilot-estimated wheels-up (HHMMz); sign-in not required for the field itself.</li>' +
-    '<li>Sort any column by clicking its header; click again to reverse.</li></ul></div></details>' +
+    '<li>On Aircraft list, sort any column by clicking its header; click again to reverse.</li></ul></div></details>' +
     '<details class="help-acc"><summary>My Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Add up to 20 departure airports. Shows one combined list of pending ground departures.</li>' +
     '<li>Your airport list is saved on this device only.</li></ul></div></details>' +
@@ -4346,6 +4599,17 @@ contentEl.addEventListener("click", e => {
   /* ---- TMU page sub-tabs ---- */
   const tmuSubBtn = e.target.closest("[data-tmusub]");
   if (tmuSubBtn) { tmuSub = tmuSubBtn.dataset.tmusub; renderContent(); return; }
+  /* ---- Apt Dashboard sub-tabs ---- */
+  const meterSubBtn = e.target.closest("[data-metersub]");
+  if (meterSubBtn) {
+    const next = meterSubBtn.dataset.metersub;
+    if (next && next !== meterSub) {
+      if (meterSub === "map" && next !== "map") destroyMeterMap();
+      meterSub = next;
+      renderContent();
+    }
+    return;
+  }
   /* ---- Rate calculator: apply / advanced toggle ---- */
   if (e.target.closest("[data-ratecalc-apply]")) {
     if (!canControl()) return;
@@ -4887,7 +5151,7 @@ document.getElementById("gsPopup").addEventListener("click", e => {
   }
 });
 
-/* Apt Dashboard traffic map — open/close submenu */
+/* Apt Dashboard traffic map — legacy details toggle (map is now a sub-tab) */
 contentEl.addEventListener("toggle", e => {
   if (e.target.id !== "meterMapAcc") return;
   meterMapOpen = e.target.open;
