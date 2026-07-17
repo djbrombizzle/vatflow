@@ -1,0 +1,62 @@
+# Precompute ATC Staffing Historical Data (StatSim USA) every Monday.
+#
+# Writes data/staffing-hist/*.json and upserts into Supabase public.staffing_hist
+# when SUPABASE_SERVICE_ROLE_KEY is configured as a repo secret.
+name: Staffing historical data
+
+on:
+  schedule:
+    # Every Monday 06:15 UTC
+    - cron: "15 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      periods:
+        description: "Comma-separated periods (thisweek,thismonth,thisyear) or empty for all"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staffing-hist
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build aggregates
+        env:
+          SUPABASE_URL: https://qoaipsfcidpymboojfwa.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          PERIODS="${{ github.event.inputs.periods }}"
+          if [ -z "$PERIODS" ]; then
+            node scripts/build-staffing-hist.mjs
+          else
+            # shellcheck disable=SC2086
+            node scripts/build-staffing-hist.mjs $(echo "$PERIODS" | tr ',' ' ')
+          fi
+
+      - name: Commit data files
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/staffing-hist
+          if git diff --cached --quiet; then
+            echo "No data changes"
+          else
+            git commit -m "Update staffing historical aggregates"
+            git push
+          fi
