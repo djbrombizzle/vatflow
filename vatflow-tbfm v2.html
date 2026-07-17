@@ -915,6 +915,62 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   border: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 
+/* ---------- ATC staffing ---------- */
+.staffwrap { padding: 20px 24px 48px; max-width: 1180px; }
+.staffhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.stafftitle {
+  font-family: var(--font-display); font-size: 28px; letter-spacing: 0.04em; color: var(--text);
+}
+.staffsub { font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; max-width: 720px; line-height: 1.5; }
+.staffsec {
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;
+  margin: 26px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.staffsec span { font-weight: 400; letter-spacing: 0.04em; text-transform: none; }
+.stafflist { display: flex; flex-direction: column; gap: 8px; }
+.staffrow {
+  display: grid; grid-template-columns: 100px 110px 1fr auto; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-hi);
+}
+@media (max-width: 800px) {
+  .staffrow { grid-template-columns: 1fr 1fr; }
+  .staffrow .staffdemand { grid-column: 1 / -1; }
+}
+.staffrow.need { border-left-color: var(--alert); background: linear-gradient(90deg, rgba(212,92,92,0.08), var(--surface) 40%); }
+.staffrow.staffed { border-left-color: var(--ok); }
+.staffrow.watch { border-left-color: var(--warn); }
+.staffrow.quiet { border-left-color: var(--text-muted); opacity: 0.85; }
+.stafffac { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.04em; color: var(--text); }
+.staffbadge {
+  font-family: var(--font-data); font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 4px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); text-align: center; width: fit-content;
+}
+.staffbadge.need { color: #ffc9c9; background: rgba(212,92,92,0.2); border-color: rgba(212,92,92,0.45); }
+.staffbadge.staffed { color: #b8f0d0; background: rgba(76,175,122,0.18); border-color: rgba(76,175,122,0.4); }
+.staffbadge.watch { color: #f5d09a; background: rgba(212,146,58,0.16); border-color: rgba(212,146,58,0.4); }
+.staffbadge.quiet { color: var(--text-muted); background: var(--elevated); }
+.staffdemand { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
+.staffdemand b { color: var(--text); font-weight: 600; }
+.staffonline {
+  font-family: var(--font-data); font-size: 11px; color: var(--ok);
+  text-align: right; white-space: nowrap;
+}
+.staffonline.empty { color: var(--text-muted); }
+.staffchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.staffchip {
+  font-family: var(--font-data); font-size: 10px; color: var(--text-dim);
+  padding: 2px 7px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border);
+}
+.staffchip strong { color: var(--text); font-weight: 600; }
+.staffnone { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.staffnote { margin-top: 28px; font-size: 11px; color: var(--text-muted); line-height: 1.55; max-width: 820px; }
+
 /* ---------- help ---------- */
 .helpwrap { padding: 24px 28px 48px; max-width: 1100px; }
 .help-layout { display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: start; }
@@ -1063,6 +1119,7 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
       </div>
       <div class="tab-group">
         <span class="tab" data-tab="pilot">Pilot</span>
+        <span class="tab" data-tab="staffing">ATC Staffing</span>
         <span class="tab" data-tab="help">Help</span>
       </div>
     </nav>
@@ -1152,7 +1209,7 @@ const FALLBACK_AIRPORTS = {
 const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
 
 /* ---------- state ---------- */
-let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | taximon | pilot | help
+let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | taximon | pilot | staffing | help
 let icao = null;            // METER view: arrival field being metered
 let depIcao = null;         // DEPARTURES view: tower controller's field
 let taxiMonAirports = [];   // TAXI MONITOR: up to 5 departure fields to measure
@@ -1913,7 +1970,7 @@ async function loadBoundaries() {
       else if (g.type === "MultiPolygon") { for (const poly of g.coordinates) if (poly[0]) rings.push(poly[0]); }
       if (rings.length) (polys[id] = polys[id] || []).push(...rings);
     }
-    firPolys = polys; boundariesStatus = "ok"; scopeCache = {};
+    firPolys = polys; boundariesStatus = "ok"; scopeCache = {}; staffingPtCache = {};
     if (meterMapOpen && meterMap) renderMeterMapArtcc();
   } catch (e) {
     console.error("Boundary load failed:", e);
@@ -2028,9 +2085,10 @@ function fmtUntil(u) {
   if (!s) return "?";
   return /z$/i.test(s) ? s.toUpperCase() : s + "Z";
 }
-/* if any scoped ground stop or My Dashboard airspace filter is active, load boundaries */
+/* if any scoped ground stop, My Dashboard airspace filter, or ATC Staffing is active, load boundaries */
 function ensureBoundariesIfNeeded() {
-  if (myArtccs.length || groundStops.some(g => g.airport && scopeTokens(g.scope).length)) {
+  if (activeTab === "staffing" || myArtccs.length ||
+      groundStops.some(g => g.airport && scopeTokens(g.scope).length)) {
     if (boundariesStatus !== "ok" && boundariesStatus !== "loading") loadBoundaries();
   }
 }
@@ -2866,6 +2924,7 @@ function renderContent() {
   if (activeTab === "dep") { renderDep(); finishRenderFocus(snap); return; }
   if (activeTab === "taximon") { renderTaxiMonitor(); finishRenderFocus(snap); return; }
   if (activeTab === "pilot") { renderPilot(); finishRenderFocus(snap); return; }
+  if (activeTab === "staffing") { renderStaffing(); finishRenderFocus(snap); return; }
   renderMeter(snap);
 }
 
@@ -3192,6 +3251,409 @@ function renderMeterDemandView(flow) {
 }
 
 /* ---------- HOME view: vNAS overview ---------- */
+/* ---------- ATC Staffing (USA: CONUS + AK + HI) ---------- */
+const STAFFING_ARTCCS = [
+  "ZAB","ZAU","ZBW","ZDC","ZDV","ZFW","ZHU","ZID","ZJX","ZKC",
+  "ZLA","ZLC","ZMA","ZME","ZMP","ZNY","ZOA","ZOB","ZSE","ZTL",
+  "ZAN","ZHN"
+];
+const STAFFING_ARTCC_SET = new Set(STAFFING_ARTCCS);
+/* Major US airports → primary ARTCC (mirrors shared/artcc-access.js) */
+const STAFFING_AIRPORT_ARTCC = {
+  KPHX:"ZAB",KABQ:"ZAB",KTUS:"ZAB",
+  KORD:"ZAU",KMDW:"ZAU",KMKE:"ZAU",KMSN:"ZAU",
+  KBOS:"ZBW",KBDL:"ZBW",KPVD:"ZBW",KMHT:"ZBW",KBGR:"ZBW",
+  KDCA:"ZDC",KIAD:"ZDC",KBWI:"ZDC",KRIC:"ZDC",KORF:"ZDC",KRDU:"ZDC",
+  KDEN:"ZDV",KCOS:"ZDV",KSLC:"ZLC",
+  KDFW:"ZFW",KDAL:"ZFW",KAUS:"ZHU",KIAH:"ZHU",KHOU:"ZHU",KMSY:"ZHU",KSAT:"ZHU",KCRP:"ZHU",
+  KIND:"ZID",KCVG:"ZID",KCMH:"ZID",KDAY:"ZID",
+  KMCO:"ZJX",KJAX:"ZJX",KTLH:"ZJX",KCHS:"ZJX",KSAV:"ZJX",
+  KMCI:"ZKC",KSTL:"ZKC",KICT:"ZKC",KOMA:"ZMP",
+  KLAX:"ZLA",KSAN:"ZLA",KSNA:"ZLA",KBUR:"ZLA",KLGB:"ZLA",KPSP:"ZLA",KLAS:"ZLA",KRNO:"ZOA",
+  KMIA:"ZMA",KFLL:"ZMA",KTPA:"ZMA",KPBI:"ZMA",KRSW:"ZMA",KEYW:"ZMA",
+  KMEM:"ZME",KBNA:"ZME",KLIT:"ZME",
+  KMSP:"ZMP",KDSM:"ZMP",
+  KEWR:"ZNY",KLGA:"ZNY",KJFK:"ZNY",KPHL:"ZNY",KALB:"ZNY",KBUF:"ZNY",
+  KSFO:"ZOA",KOAK:"ZOA",KSJC:"ZOA",KSMF:"ZOA",
+  KCLE:"ZOB",KDTW:"ZOB",KPIT:"ZOB",
+  KSEA:"ZSE",KPDX:"ZSE",KGEG:"ZSE",
+  KATL:"ZTL",KCLT:"ZTL",KBHM:"ZTL",KTRI:"ZTL",
+  PANC:"ZAN",PAFA:"ZAN",PAPG:"ZAN",
+  PHNL:"ZHN",PHOG:"ZHN"
+};
+const STAFF_CTR_OPEN = 10;
+const STAFF_APP_OPEN = 6;
+const STAFF_TWR_OPEN = 3;
+const STAFF_TWR_HUB_OPEN = 2;
+const STAFF_NEAR_NM = 40;
+let staffingPtCache = {};
+let staffingUsTraconCache = null;
+
+function isUsStaffingAirport(icao) {
+  const c = (icao || "").toUpperCase();
+  return /^K[A-Z]{3}$/.test(c) || /^PA[A-Z]{2}$/.test(c) || /^PH[A-Z]{2}$/.test(c);
+}
+function resolveUsIcao(code) {
+  const raw = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!raw) return null;
+  if (isUsStaffingAirport(raw) && lookup(raw)) return raw;
+  if (raw.length === 3) {
+    const k = "K" + raw;
+    if (isUsStaffingAirport(k) && lookup(k)) return k;
+  }
+  if (isUsStaffingAirport(raw)) return raw;
+  if (raw.length === 3) return "K" + raw;
+  return null;
+}
+function airportStaffingArtcc(icao) {
+  const code = (icao || "").toUpperCase();
+  if (!isUsStaffingAirport(code)) return null;
+  if (STAFFING_AIRPORT_ARTCC[code]) return STAFFING_AIRPORT_ARTCC[code];
+  const ovr = ARTCC_AIRPORT_OVERRIDES;
+  for (const id of STAFFING_ARTCCS) {
+    const o = ovr[id];
+    if (o && o.include && o.include.includes(code)) return id;
+  }
+  if (firPolys) {
+    for (const id of STAFFING_ARTCCS) {
+      if (airportInArtcc(code, id)) return id;
+    }
+  }
+  return null;
+}
+function artccForStaffingPoint(lat, lon) {
+  if (!firPolys || lat == null || lon == null || !isFinite(lat) || !isFinite(lon)) return null;
+  const key = lat.toFixed(2) + "," + lon.toFixed(2);
+  if (key in staffingPtCache) return staffingPtCache[key];
+  for (const id of STAFFING_ARTCCS) {
+    for (const bid of artccBoundaryIds(id)) {
+      const rings = firPolys[bid];
+      if (!rings) continue;
+      for (const ring of rings) {
+        if (pointInRing(lon, lat, ring)) return (staffingPtCache[key] = id);
+      }
+    }
+  }
+  return (staffingPtCache[key] = null);
+}
+function usTraconIndex() {
+  if (staffingUsTraconCache) return staffingUsTraconCache;
+  const prefixToTracon = {};
+  const traconAirports = {};
+  if (traconPrefixMap) {
+    for (const [tid, prefixes] of Object.entries(traconPrefixMap)) {
+      for (const p of prefixes || []) {
+        const pref = String(p).toUpperCase();
+        if (!prefixToTracon[pref]) prefixToTracon[pref] = tid;
+      }
+    }
+  }
+  if (vatspyApproach) {
+    for (const [icao, prefRaw] of Object.entries(vatspyApproach)) {
+      if (!isUsStaffingAirport(icao)) continue;
+      const pref = String(prefRaw || "").toUpperCase();
+      if (!pref || pref === "IATA/LID") continue;
+      const tid = prefixToTracon[pref];
+      if (!tid) continue;
+      if (!traconAirports[tid]) traconAirports[tid] = new Set();
+      traconAirports[tid].add(icao);
+    }
+  }
+  staffingUsTraconCache = { prefixToTracon, traconAirports };
+  return staffingUsTraconCache;
+}
+function traconForAirport(icao) {
+  if (!vatspyApproach) return null;
+  const pref = String(vatspyApproach[(icao || "").toUpperCase()] || "").toUpperCase();
+  if (!pref) return null;
+  return usTraconIndex().prefixToTracon[pref] || null;
+}
+function parseStaffingController(c) {
+  const cs = String((c && c.callsign) || "").toUpperCase();
+  if (!cs) return null;
+  if (/_CTR$/.test(cs)) {
+    const artcc = cs.split("_")[0].replace(/[^A-Z0-9]/g, "");
+    if (STAFFING_ARTCC_SET.has(artcc)) return { type: "CTR", id: artcc, callsign: cs };
+    return null;
+  }
+  if (/_(APP|DEP)$/.test(cs)) {
+    const fac = cs.split("_")[0].replace(/[^A-Z0-9]/g, "");
+    const idx = usTraconIndex();
+    let tid = null;
+    if (traconPrefixMap && traconPrefixMap[fac] && idx.traconAirports[fac]) tid = fac;
+    else if (idx.prefixToTracon[fac] && idx.traconAirports[idx.prefixToTracon[fac]]) tid = idx.prefixToTracon[fac];
+    if (tid) return { type: "APP", id: tid, callsign: cs, fac };
+    return null;
+  }
+  if (/_TWR$/.test(cs)) {
+    const field = cs.split("_")[0].replace(/[^A-Z0-9]/g, "");
+    const icao = resolveUsIcao(field);
+    if (icao && isUsStaffingAirport(icao)) return { type: "TWR", id: icao, callsign: cs };
+    return null;
+  }
+  return null;
+}
+function emptyDemand() {
+  return { airborne: 0, rolling: 0, ground: 0, proposed: 0, inbound: 0 };
+}
+function demandScore(d, weights) {
+  const w = weights || { airborne: 2, rolling: 3, ground: 1.5, proposed: 1, inbound: 1.5 };
+  return Math.round(
+    d.airborne * w.airborne + d.rolling * w.rolling + d.ground * w.ground +
+    d.proposed * w.proposed + d.inbound * w.inbound
+  );
+}
+function classifyPilotMotion(p) {
+  const gs = p.groundspeed || 0;
+  const alt = p.altitude || 0;
+  if (gs > 60 && alt > 300) return "AIRBORNE";
+  if (gs >= TAXI_GS_START) return "ROLLING";
+  return "GROUND";
+}
+function bump(map, id, field, n) {
+  if (!id) return;
+  if (!map[id]) map[id] = emptyDemand();
+  map[id][field] = (map[id][field] || 0) + (n || 1);
+}
+function haversineNm(lat1, lon1, lat2, lon2) {
+  const R = 3440.065;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+function computeStaffingRecommendations() {
+  const centers = {};
+  const approaches = {};
+  const towers = {};
+  const online = { CTR: {}, APP: {}, TWR: {} };
+  const idx = usTraconIndex();
+
+  for (const id of STAFFING_ARTCCS) centers[id] = emptyDemand();
+  for (const tid of Object.keys(idx.traconAirports)) approaches[tid] = emptyDemand();
+
+  const controllers = (vatsim && vatsim.controllers) || [];
+  for (const c of controllers) {
+    const parsed = parseStaffingController(c);
+    if (!parsed) continue;
+    if (!online[parsed.type][parsed.id]) online[parsed.type][parsed.id] = [];
+    online[parsed.type][parsed.id].push(parsed.callsign);
+  }
+
+  function countPlan(dep, arr, kind, lat, lon) {
+    const d = (dep || "").toUpperCase();
+    const a = (arr || "").toUpperCase();
+    const usDep = isUsStaffingAirport(d);
+    const usArr = isUsStaffingAirport(a);
+
+    if (usDep) {
+      const artcc = airportStaffingArtcc(d);
+      const tracon = traconForAirport(d);
+      if (kind === "AIRBORNE") {
+        /* airborne already counted by position for center; still count dep field tower/app inbound/out */
+      } else if (kind === "ROLLING") {
+        bump(centers, artcc, "rolling");
+        bump(approaches, tracon, "rolling");
+        bump(towers, d, "rolling");
+      } else if (kind === "GROUND") {
+        bump(centers, artcc, "ground");
+        bump(approaches, tracon, "ground");
+        bump(towers, d, "ground");
+      } else if (kind === "PROPOSED") {
+        bump(centers, artcc, "proposed");
+        bump(approaches, tracon, "proposed");
+        bump(towers, d, "proposed");
+      }
+    }
+
+    if (usArr) {
+      const artcc = airportStaffingArtcc(a);
+      const tracon = traconForAirport(a);
+      const arrPt = lookup(a);
+      if (kind === "AIRBORNE" && lat != null && lon != null && arrPt) {
+        const nm = haversineNm(lat, lon, arrPt[0], arrPt[1]);
+        if (nm <= STAFF_NEAR_NM) {
+          bump(centers, artcc, "inbound");
+          bump(approaches, tracon, "inbound");
+          bump(towers, a, "inbound");
+        }
+      } else if (kind === "PROPOSED" || kind === "GROUND" || kind === "ROLLING") {
+        /* filed toward US field — counts as future inbound pressure for center/app */
+        if (kind === "PROPOSED") {
+          bump(centers, artcc, "inbound");
+          bump(approaches, tracon, "inbound");
+        }
+      }
+    }
+
+    if (kind === "AIRBORNE" && lat != null && lon != null) {
+      const artcc = artccForStaffingPoint(lat, lon);
+      bump(centers, artcc, "airborne");
+      /* local TRACON airborne: near any airport in a US TRACON */
+      if (usArr || usDep) {
+        const localTracon = traconForAirport(usArr ? a : d);
+        if (localTracon) {
+          const fields = idx.traconAirports[localTracon];
+          if (fields) {
+            for (const icao of fields) {
+              const pt = lookup(icao);
+              if (!pt) continue;
+              if (haversineNm(lat, lon, pt[0], pt[1]) <= STAFF_NEAR_NM) {
+                bump(approaches, localTracon, "airborne");
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (const p of (vatsim && vatsim.pilots) || []) {
+    const fp = p.flight_plan;
+    if (!fp) continue;
+    const dep = (fp.departure || "").toUpperCase();
+    const arr = (fp.arrival || "").toUpperCase();
+    if (!isUsStaffingAirport(dep) && !isUsStaffingAirport(arr) &&
+        !(p.latitude != null && p.longitude != null)) continue;
+    /* skip if clearly not US-relevant: no US dep/arr and not over US ARTCC */
+    const motion = classifyPilotMotion(p);
+    if (!isUsStaffingAirport(dep) && !isUsStaffingAirport(arr)) {
+      if (motion !== "AIRBORNE") continue;
+      const artcc = artccForStaffingPoint(p.latitude, p.longitude);
+      if (!artcc) continue;
+      bump(centers, artcc, "airborne");
+      continue;
+    }
+    countPlan(dep, arr, motion, p.latitude, p.longitude);
+  }
+
+  for (const p of (vatsim && vatsim.prefiles) || []) {
+    const fp = p.flight_plan || p;
+    const dep = ((fp && fp.departure) || p.departure || "").toUpperCase();
+    const arr = ((fp && fp.arrival) || p.arrival || "").toUpperCase();
+    if (!isUsStaffingAirport(dep) && !isUsStaffingAirport(arr)) continue;
+    countPlan(dep, arr, "PROPOSED", null, null);
+  }
+
+  function buildRows(map, type, openThresh, hubThreshFn) {
+    const rows = [];
+    for (const id of Object.keys(map)) {
+      const d = map[id];
+      const score = demandScore(d);
+      const on = online[type][id] || [];
+      const thresh = hubThreshFn ? hubThreshFn(id) : openThresh;
+      let status = "quiet";
+      if (on.length && score > 0) status = "staffed";
+      else if (on.length) status = "staffed";
+      else if (score >= thresh) status = "need";
+      else if (score >= Math.max(1, Math.ceil(thresh * 0.45))) status = "watch";
+      else if (!on.length && score === 0) continue; /* hide empty unstaffed */
+      if (status === "quiet" && !on.length) continue;
+      rows.push({ id, type, demand: d, score, online: on, status, thresh });
+    }
+    rows.sort((a, b) => {
+      const rank = { need: 0, watch: 1, staffed: 2, quiet: 3 };
+      const dr = rank[a.status] - rank[b.status];
+      if (dr) return dr;
+      return b.score - a.score || a.id.localeCompare(b.id);
+    });
+    return rows;
+  }
+
+  const centerRows = buildRows(centers, "CTR", STAFF_CTR_OPEN);
+  const appRows = buildRows(approaches, "APP", STAFF_APP_OPEN);
+  const twrRows = buildRows(towers, "TWR", STAFF_TWR_OPEN, id =>
+    (RATE_CALC_HUB_ICAOS[id] || RATE_CALC_LARGE_ICAOS[id]) ? STAFF_TWR_HUB_OPEN : STAFF_TWR_OPEN
+  );
+
+  return {
+    centers: centerRows,
+    approaches: appRows,
+    towers: twrRows.slice(0, 40),
+    boundariesReady: boundariesStatus === "ok",
+    controllerCount: controllers.length
+  };
+}
+function staffingStatusLabel(status) {
+  return status === "need" ? "Log on" :
+    status === "watch" ? "Watch" :
+    status === "staffed" ? "Online" : "Quiet";
+}
+function staffingDemandHtml(d) {
+  const bits = [];
+  if (d.airborne) bits.push('<span class="staffchip"><strong>' + d.airborne + '</strong> airborne</span>');
+  if (d.rolling) bits.push('<span class="staffchip"><strong>' + d.rolling + '</strong> rolling</span>');
+  if (d.ground) bits.push('<span class="staffchip"><strong>' + d.ground + '</strong> ground</span>');
+  if (d.proposed) bits.push('<span class="staffchip"><strong>' + d.proposed + '</strong> proposed</span>');
+  if (d.inbound) bits.push('<span class="staffchip"><strong>' + d.inbound + '</strong> inbound</span>');
+  if (!bits.length) return '<span class="staffchip">no demand</span>';
+  return '<div class="staffchips">' + bits.join("") + '</div>';
+}
+function staffingRowsHtml(rows, emptyMsg) {
+  if (!rows.length) return '<div class="staffnone">' + emptyMsg + '</div>';
+  let h = '<div class="stafflist">';
+  for (const r of rows) {
+    const why = r.status === "need"
+      ? "Demand score <b>" + r.score + "</b> meets the open threshold (" + r.thresh + ") with no controller online."
+      : r.status === "watch"
+        ? "Building demand (score <b>" + r.score + "</b>). Not yet at the open threshold (" + r.thresh + ")."
+        : r.status === "staffed"
+          ? "Position online" + (r.score ? " with demand score <b>" + r.score + "</b>." : ".")
+          : "Low demand.";
+    h += '<div class="staffrow ' + r.status + '">' +
+      '<span class="stafffac">' + esc(r.id) + '</span>' +
+      '<span class="staffbadge ' + r.status + '">' + staffingStatusLabel(r.status) + '</span>' +
+      '<div class="staffdemand">' + why + staffingDemandHtml(r.demand) + '</div>' +
+      '<div class="staffonline' + (r.online.length ? "" : " empty") + '">' +
+      (r.online.length ? r.online.map(esc).join("<br>") : "\u2014") +
+      '</div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function renderStaffing() {
+  if (!vatsim) {
+    contentEl.innerHTML = '<div class="msg">' +
+      (feedStatus === "error"
+        ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
+        : "Pulling the VATSIM feed\u2026") + '</div>';
+    return;
+  }
+  ensureBoundariesIfNeeded();
+  const rec = computeStaffingRecommendations();
+  const needCtr = rec.centers.filter(r => r.status === "need").length;
+  const needApp = rec.approaches.filter(r => r.status === "need").length;
+  const needTwr = rec.towers.filter(r => r.status === "need").length;
+
+  let h = '<div class="staffwrap">' +
+    '<div class="staffhead">' +
+    '<div class="stafftitle">ATC Staffing</div>' +
+    '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">' +
+    (needCtr + needApp + needTwr) + " recommended logons" +
+    (rec.boundariesReady ? "" : " \u00b7 loading ARTCC boundaries\u2026") +
+    '</div></div>' +
+    '<div class="staffsub">Recommendations for Center, Approach, and Tower based on airborne traffic, ' +
+    "aircraft rolling / about to depart, and proposed flight plans. Scoped to the USA only " +
+    "(CONUS + Alaska + Hawaii). Online controllers from the VATSIM feed are shown when already staffed.</div>" +
+
+    '<div class="staffsec">Center <span>' + needCtr + " need coverage</span></div>" +
+    staffingRowsHtml(rec.centers, "No Center staffing recommendations right now.") +
+
+    '<div class="staffsec">Approach <span>' + needApp + " need coverage</span></div>" +
+    staffingRowsHtml(rec.approaches, "No Approach staffing recommendations right now.") +
+
+    '<div class="staffsec">Tower <span>' + needTwr + " need coverage</span></div>" +
+    staffingRowsHtml(rec.towers, "No Tower staffing recommendations right now.") +
+
+    '<div class="staffnote">Scoring weights airborne and rolling traffic highest, then ground and proposed plans. ' +
+    "Inbound counts aircraft within " + STAFF_NEAR_NM + " NM of the field (or filed toward it for proposed). " +
+    "Puerto Rico / Guam (ZUA / ZAP) are excluded from this USA test scope. Feed controllers: " +
+    rec.controllerCount + ".</div></div>";
+  contentEl.innerHTML = h;
+}
+
 function renderHome() {
   const now = Date.now();
   const codes = Object.keys(tmuRates).sort();
@@ -3329,6 +3791,11 @@ function renderHelp() {
     '<details class="help-acc"><summary>Taxi Monitor / Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li><b>Taxi Monitor</b> — controllers add up to 5 monitored airports; tracks ground departures.</li>' +
     '<li><b>Pilot</b> — enter your VATSIM CID for your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
+    '<details class="help-acc"><summary>ATC Staffing</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Recommends where ATC should log on for <b>Center</b>, <b>Approach</b>, and <b>Tower</b>.</li>' +
+    '<li>Uses airborne traffic, rolling / about-to-depart ground traffic, and proposed flight plans from the VATSIM feed.</li>' +
+    '<li>Scoped to the <b>USA only</b> for now (CONUS + Alaska + Hawaii). Shows online controllers when a position is already staffed.</li>' +
+    '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
     '<details class="help-acc" open><summary>Which tool do I use?</summary><div class="help-acc-body"><ul class="helplist">' +
@@ -4727,6 +5194,7 @@ function setTab(t) {
   if (t === "taximon" && taxiMonHasAirports()) ensurePolling();
   if (t === "mydash" && myDashHasFilters()) ensurePolling();
   if (t === "pilot" && pilotCid) ensurePolling();
+  if (t === "staffing") ensurePolling();
   renderContent();
 }
 document.querySelectorAll(".tab").forEach(el =>
@@ -5455,7 +5923,7 @@ setInterval(() => {
 setInterval(() => {
   if (activeTab === "home" || activeTab === "restrict" || activeTab === "tmu" ||
       activeTab === "mydash" || activeTab === "dep" || activeTab === "taximon" ||
-      activeTab === "pilot" || (icao && vatsim)) {
+      activeTab === "pilot" || activeTab === "staffing" || (icao && vatsim)) {
     if (window.VFRefresh && window.VFRefresh.deferWhileTyping(renderContent)) return;
     renderContent();
   }
