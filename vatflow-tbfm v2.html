@@ -980,6 +980,59 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .staffwindow span { color: var(--text-dim); font-weight: 500; font-size: 12px; }
 .staffnone { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
 .staffnote { margin-top: 28px; font-size: 11px; color: var(--text-muted); line-height: 1.55; max-width: 820px; }
+.staffhist-controls {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+  margin: 16px 0 12px; padding: 14px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.staffhist-controls label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em;
+}
+.staffhist-controls select, .staffhist-controls input[type="text"], .staffhist-controls input[type="password"] {
+  font-family: var(--font-data); font-size: 13px; padding: 7px 10px;
+  background: var(--elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); min-width: 160px;
+}
+.staffhist-controls input[type="password"] { min-width: 220px; }
+.staffhist-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.staffhist-actions button {
+  font-family: var(--font-data); font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-hi);
+  background: var(--accent-dim); color: var(--accent-text); cursor: pointer;
+}
+.staffhist-actions button:disabled { opacity: 0.5; cursor: default; }
+.staffhist-actions button.ghost {
+  background: var(--elevated); color: var(--text-dim); border-color: var(--border);
+}
+.staffhist-status { font-size: 12px; color: var(--text-muted); line-height: 1.45; margin: 4px 0 12px; }
+.staffhist-status.err { color: var(--alert); }
+.staffhist-status.ok { color: var(--ok); }
+.staffhist-paste {
+  width: 100%; min-height: 72px; margin-top: 8px; resize: vertical;
+  font-family: var(--font-data); font-size: 11px; padding: 8px 10px;
+  background: var(--elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.staffhist-meta { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+.staffheat {
+  display: grid; grid-template-columns: 44px repeat(24, minmax(14px, 1fr));
+  gap: 2px; margin-top: 10px; max-width: 920px; overflow-x: auto;
+}
+.staffheat .hh {
+  font-family: var(--font-data); font-size: 9px; color: var(--text-muted);
+  text-align: center; line-height: 18px;
+}
+.staffheat .hd {
+  font-family: var(--font-data); font-size: 10px; color: var(--text-dim);
+  line-height: 18px;
+}
+.staffheat .hc {
+  height: 18px; border-radius: 2px; background: var(--elevated);
+  border: 1px solid transparent;
+}
+.staffheat .hc.on { cursor: pointer; }
+.staffrow.histpick { outline: 1px solid rgba(232, 168, 56, 0.45); }
 
 /* ---------- help ---------- */
 .helpwrap { padding: 24px 28px 48px; max-width: 1100px; }
@@ -1250,6 +1303,7 @@ const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
 let tmuSub = "programs";  // TMU page sub-tab: programs | calc
 let meterSub = "summary";  // Apt Dashboard sub-tab: summary | map | aircraft | ladder | demand
+let staffingSub = "live";  // ATC Staffing sub-tab: live | historical
 /* ---- controller access: VATSIM Connect OAuth (full tier = ARTCC whitelist) ---- */
 function canControl() { return window.VatflowAuth && window.VatflowAuth.canFullControl(); }
 function canEditApt(icao) {
@@ -3816,13 +3870,455 @@ function staffingRowsHtml(rows, emptyMsg) {
   h += '</div>';
   return h;
 }
-function renderStaffing() {
+
+/* ---------- ATC Staffing: Historical Data (StatSim USA) ---------- */
+const STAFFING_HIST_PERIODS = [
+  { id: "thisweek", label: "This week" },
+  { id: "thismonth", label: "This month" },
+  { id: "thisyear", label: "This year" }
+];
+const STAFFING_HIST_DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const STATSIM_COUNTRY_US = "https://statsim.net/flights/countries/country/US/";
+const STATSIM_FETCH_PROXIES = [
+  u => "https://r.jina.ai/http://" + u.replace(/^https?:\/\//, ""),
+  u => "https://r.jina.ai/https://" + u.replace(/^https?:\/\//, ""),
+  u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  u => "https://corsproxy.io/?url=" + encodeURIComponent(u)
+];
+let staffingHist = {
+  period: "thisweek",
+  status: "idle",
+  message: "",
+  selectedAirport: null,
+  result: null,
+  pasteOpen: false
+};
+let staffingHistApiKey = "";
+try {
+  const savedKey = localStorage.getItem("vatflow_statsim_key");
+  if (savedKey) staffingHistApiKey = savedKey;
+} catch (e) {}
+function saveStaffingHistApiKey() {
+  try {
+    if (staffingHistApiKey) localStorage.setItem("vatflow_statsim_key", staffingHistApiKey);
+    else localStorage.removeItem("vatflow_statsim_key");
+  } catch (e) {}
+}
+function statsimCountryUrl(period) {
+  const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
+  return STATSIM_COUNTRY_US + p;
+}
+function parseStatsimTime(s) {
+  const m = String(s || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return null;
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0);
+}
+function stripHtmlText(s) {
+  return String(s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
+}
+function pushStatsimFlight(out, callsign, origin, dest, timeMs, kind, aircraft) {
+  if (!timeMs || !isFinite(timeMs)) return;
+  const o = String(origin || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const d = String(dest || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!o && !d) return;
+  out.push({
+    callsign: String(callsign || "").trim(),
+    origin: o,
+    dest: d,
+    timeMs,
+    kind,
+    aircraft: String(aircraft || "").trim()
+  });
+}
+function parseStatsimCountryHtml(html) {
+  const out = [];
+  const text = String(html || "");
+  function parseSection(kind, startRe, endRe) {
+    const sm = text.match(startRe);
+    if (!sm) return;
+    const start = sm.index + sm[0].length;
+    const rest = text.slice(start);
+    const em = endRe ? rest.search(endRe) : -1;
+    const chunk = em >= 0 ? rest.slice(0, em) : rest;
+    const rowRe = /<tr[^>]*>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
+    let m;
+    while ((m = rowRe.exec(chunk))) {
+      const cells = m.slice(1).map(stripHtmlText);
+      if (/^callsign$/i.test(cells[0])) continue;
+      pushStatsimFlight(out, cells[0], cells[1], cells[2], parseStatsimTime(cells[3]), kind, cells[4]);
+    }
+  }
+  parseSection("dep", /<h4[^>]*>\s*Departed\b[\s\S]*?<tbody/i, /<h4[^>]*>\s*Arrived\b/i);
+  parseSection("arr", /<h4[^>]*>\s*Arrived\b[\s\S]*?<tbody/i, /<\/main>|<\/body>/i);
+  return out;
+}
+function parseStatsimCountryMarkdown(md) {
+  const out = [];
+  const lines = String(md || "").split(/\r?\n/);
+  let mode = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (/^Departed\b/i.test(line)) { mode = "dep"; continue; }
+    if (/^Arrived\b/i.test(line)) { mode = "arr"; continue; }
+    if (!mode) continue;
+    if (/^Callsign\b/i.test(line)) continue;
+    if (/^#{1,6}\s/.test(line) || /^United States$/i.test(line)) { mode = null; continue; }
+    const parts = line.includes("\t") ? line.split(/\t+/) : line.split(/\|/).map(s => s.trim()).filter(Boolean);
+    if (parts.length < 5) continue;
+    if (/^-{2,}$/.test(parts[0])) continue;
+    const t = parseStatsimTime(parts[3]);
+    if (t == null) continue;
+    pushStatsimFlight(out, parts[0], parts[1], parts[2], t, mode, parts[4]);
+  }
+  return out;
+}
+function parseStatsimCountryText(text) {
+  const s = String(text || "");
+  if (/<table[\s>]/i.test(s) && /Departed/i.test(s)) {
+    const rows = parseStatsimCountryHtml(s);
+    if (rows.length) return rows;
+  }
+  return parseStatsimCountryMarkdown(s);
+}
+async function fetchStatsimCountryText(period) {
+  const url = statsimCountryUrl(period);
+  let lastErr = null;
+  for (const prox of STATSIM_FETCH_PROXIES) {
+    try {
+      const r = await fetch(prox(url));
+      if (!r.ok) { lastErr = "HTTP " + r.status; continue; }
+      const text = await r.text();
+      if (text && /Departed/i.test(text) && /(Arrived|Origin)/i.test(text)) return text;
+      lastErr = "Unexpected response from proxy";
+    } catch (e) {
+      lastErr = (e && e.message) || String(e);
+    }
+  }
+  throw new Error(lastErr || "Could not reach StatSim");
+}
+function histEmptyBucket() { return { dep: 0, arr: 0 }; }
+function histScore(b) { return (b.dep || 0) + (b.arr || 0); }
+function histHourWindow(hourMap) {
+  let bestH = -1, bestScore = 0;
+  for (let h = 0; h < 24; h++) {
+    const sc = histScore(hourMap[h] || histEmptyBucket());
+    if (sc > bestScore) { bestScore = sc; bestH = h; }
+  }
+  if (bestH < 0 || bestScore <= 0) return null;
+  const floor = Math.max(2, Math.ceil(bestScore * 0.35));
+  let start = bestH, end = bestH;
+  while (start > 0 && histScore(hourMap[start - 1] || histEmptyBucket()) >= floor) start--;
+  while (end < 23 && histScore(hourMap[end + 1] || histEmptyBucket()) >= floor) end++;
+  let dep = 0, arr = 0;
+  for (let h = start; h <= end; h++) {
+    const b = hourMap[h] || histEmptyBucket();
+    dep += b.dep; arr += b.arr;
+  }
+  return { startHour: start, endHour: end, dep, arr, score: dep + arr };
+}
+function histFmtHourRange(startHour, endHour) {
+  const a = String(startHour).padStart(2, "0") + "00";
+  const b = String((endHour + 1) % 24).padStart(2, "0") + "00";
+  return a + "\u2013" + b + "Z";
+}
+function histReason(dep, arr) {
+  if (dep && arr) return "arrivals and departures";
+  if (arr) return "arrivals";
+  if (dep) return "departures";
+  return "traffic";
+}
+function aggregateStatsimHistorical(flights) {
+  const byAirport = {};
+  let used = 0;
+  for (const f of flights) {
+    const targets = [];
+    if (f.kind === "dep" && isUsStaffingAirport(f.origin)) targets.push({ icao: f.origin, type: "dep" });
+    if (f.kind === "arr" && isUsStaffingAirport(f.dest)) targets.push({ icao: f.dest, type: "arr" });
+    if (!targets.length) continue;
+    const d = new Date(f.timeMs);
+    const dow = d.getUTCDay();
+    const hour = d.getUTCHours();
+    for (const t of targets) {
+      used++;
+      if (!byAirport[t.icao]) byAirport[t.icao] = { totalDep: 0, totalArr: 0, days: {} };
+      const apt = byAirport[t.icao];
+      if (!apt.days[dow]) apt.days[dow] = {};
+      if (!apt.days[dow][hour]) apt.days[dow][hour] = histEmptyBucket();
+      apt.days[dow][hour][t.type]++;
+      if (t.type === "dep") apt.totalDep++; else apt.totalArr++;
+    }
+  }
+
+  const towerSlots = [];
+  const approachMap = {};
+  const centerMap = {};
+  for (const icao of Object.keys(byAirport)) {
+    const apt = byAirport[icao];
+    const artcc = airportStaffingArtcc(icao);
+    const tracon = traconForAirport(icao);
+    for (let dow = 0; dow < 7; dow++) {
+      const hourMap = apt.days[dow];
+      if (!hourMap) continue;
+      const win = histHourWindow(hourMap);
+      if (!win || win.score < 3) continue;
+      towerSlots.push({
+        id: icao,
+        type: "TWR",
+        dow,
+        dowLabel: STAFFING_HIST_DOW[dow],
+        startHour: win.startHour,
+        endHour: win.endHour,
+        dep: win.dep,
+        arr: win.arr,
+        score: win.score,
+        windowLabel: histFmtHourRange(win.startHour, win.endHour),
+        reason: histReason(win.dep, win.arr)
+      });
+      if (tracon) {
+        const k = tracon + "|" + dow + "|" + win.startHour + "|" + win.endHour;
+        if (!approachMap[k]) {
+          approachMap[k] = {
+            id: tracon, type: "APP", dow, dowLabel: STAFFING_HIST_DOW[dow],
+            startHour: win.startHour, endHour: win.endHour, dep: 0, arr: 0, score: 0,
+            windowLabel: histFmtHourRange(win.startHour, win.endHour), airports: {}
+          };
+        }
+        approachMap[k].dep += win.dep;
+        approachMap[k].arr += win.arr;
+        approachMap[k].score += win.score;
+        approachMap[k].airports[icao] = (approachMap[k].airports[icao] || 0) + win.score;
+      }
+      if (artcc) {
+        const k = artcc + "|" + dow + "|" + win.startHour + "|" + win.endHour;
+        if (!centerMap[k]) {
+          centerMap[k] = {
+            id: artcc, type: "CTR", dow, dowLabel: STAFFING_HIST_DOW[dow],
+            startHour: win.startHour, endHour: win.endHour, dep: 0, arr: 0, score: 0,
+            windowLabel: histFmtHourRange(win.startHour, win.endHour), airports: {}
+          };
+        }
+        centerMap[k].dep += win.dep;
+        centerMap[k].arr += win.arr;
+        centerMap[k].score += win.score;
+        centerMap[k].airports[icao] = (centerMap[k].airports[icao] || 0) + win.score;
+      }
+    }
+  }
+
+  function finishFacility(map) {
+    return Object.values(map).map(r => {
+      r.reason = histReason(r.dep, r.arr);
+      return r;
+    }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow)
+      .slice(0, 20);
+  }
+
+  towerSlots.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow);
+  const topAirports = Object.keys(byAirport).map(icao => ({
+    icao,
+    total: byAirport[icao].totalDep + byAirport[icao].totalArr,
+    dep: byAirport[icao].totalDep,
+    arr: byAirport[icao].totalArr
+  })).sort((a, b) => b.total - a.total || a.icao.localeCompare(b.icao));
+
+  return {
+    flightRows: flights.length,
+    usEvents: used,
+    byAirport,
+    topAirports: topAirports.slice(0, 25),
+    towers: towerSlots.slice(0, 40),
+    approaches: finishFacility(approachMap),
+    centers: finishFacility(centerMap)
+  };
+}
+function staffingHistHeatHtml(icao) {
+  const res = staffingHist.result;
+  if (!res || !res.byAirport[icao]) return "";
+  const apt = res.byAirport[icao];
+  let max = 1;
+  for (let dow = 0; dow < 7; dow++) {
+    const hm = apt.days[dow] || {};
+    for (let h = 0; h < 24; h++) max = Math.max(max, histScore(hm[h] || histEmptyBucket()));
+  }
+  let h = '<div class="staffsec">Hourly pattern \u00b7 ' + esc(icao) + ' <span>UTC</span></div>';
+  h += '<div class="staffheat"><div class="hd"></div>';
+  for (let hr = 0; hr < 24; hr++) h += '<div class="hh">' + String(hr).padStart(2, "0") + "</div>";
+  for (let dow = 0; dow < 7; dow++) {
+    h += '<div class="hd">' + STAFFING_HIST_DOW[dow] + "</div>";
+    const hm = apt.days[dow] || {};
+    for (let hr = 0; hr < 24; hr++) {
+      const sc = histScore(hm[hr] || histEmptyBucket());
+      const t = sc / max;
+      const bg = sc
+        ? "rgba(232,168,56," + (0.12 + t * 0.75).toFixed(2) + ")"
+        : "var(--elevated)";
+      const title = STAFFING_HIST_DOW[dow] + " " + String(hr).padStart(2, "0") + "Z \u00b7 " + sc +
+        " (dep " + ((hm[hr] && hm[hr].dep) || 0) + " / arr " + ((hm[hr] && hm[hr].arr) || 0) + ")";
+      h += '<div class="hc' + (sc ? " on" : "") + '" title="' + esc(title) + '" style="background:' + bg + '"></div>';
+    }
+  }
+  h += "</div>";
+  return h;
+}
+function staffingHistRowsHtml(rows, emptyMsg, pickAirport) {
+  if (!rows.length) return '<div class="staffnone">' + emptyMsg + '</div>';
+  let h = '<div class="stafflist">';
+  for (const r of rows) {
+    const pick = pickAirport && r.type === "TWR" && staffingHist.selectedAirport === r.id;
+    const why = "Historically busy on <b>" + esc(r.dowLabel) + "</b> driven by <b>" + esc(r.reason) + "</b>.";
+    h += '<div class="staffrow need' + (pick ? " histpick" : "") + '"' +
+      (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '"' : "") + ">" +
+      '<span class="stafffac">' + esc(r.id) + '</span>' +
+      '<span class="staffbadge need">' + esc(r.dowLabel) + '</span>' +
+      '<div class="staffdemand">' +
+      '<div class="staffwindow">' + esc(r.windowLabel) +
+      ' <span>\u00b7 ' + esc(r.reason) + " (" + r.score + ")</span></div>" +
+      '<div class="staffwhy">' + why + "</div>" +
+      '<div class="staffchips">' +
+      '<span class="staffchip"><strong>' + r.arr + "</strong> arr</span>" +
+      '<span class="staffchip"><strong>' + r.dep + "</strong> dep</span>" +
+      '<span class="staffchip win"><strong>' + r.score + "</strong> movements</span>" +
+      "</div></div>" +
+      '<div class="staffonline">' + esc(r.windowLabel) + "</div></div>";
+  }
+  h += "</div>";
+  return h;
+}
+async function processStaffingHistorical(textOverride) {
+  staffingHist.status = "loading";
+  staffingHist.message = textOverride
+    ? "Parsing pasted / uploaded StatSim data\u2026"
+    : "Fetching StatSim USA " + staffingHist.period + "\u2026";
+  renderContent();
+  try {
+    const text = textOverride != null ? textOverride : await fetchStatsimCountryText(staffingHist.period);
+    staffingHist.message = "Aggregating airport / day / hour peaks\u2026";
+    renderContent();
+    const flights = parseStatsimCountryText(text);
+    if (!flights.length) throw new Error("No flight rows found. Paste the StatSim US country page HTML or table text.");
+    ensureBoundariesIfNeeded();
+    const result = aggregateStatsimHistorical(flights);
+    if (!result.towers.length) throw new Error("Parsed " + flights.length + " rows but no USA airport peaks met the minimum threshold.");
+    staffingHist.result = result;
+    staffingHist.selectedAirport = (result.towers[0] && result.towers[0].id) || (result.topAirports[0] && result.topAirports[0].icao) || null;
+    staffingHist.status = "ok";
+    staffingHist.message = "Processed " + result.flightRows + " flight rows \u00b7 " + result.usEvents +
+      " USA airport events \u00b7 source " + staffingHist.period +
+      (staffingHistApiKey ? " \u00b7 API key saved (country-page analysis does not require it)" : "");
+    try {
+      sessionStorage.setItem("vatflow_staffing_hist", JSON.stringify({
+        period: staffingHist.period,
+        selectedAirport: staffingHist.selectedAirport,
+        result
+      }));
+    } catch (e) {}
+  } catch (e) {
+    staffingHist.status = "error";
+    staffingHist.message = (e && e.message) || String(e);
+  }
+  renderContent();
+}
+function restoreStaffingHistoricalCache() {
+  if (staffingHist.result) return;
+  try {
+    const raw = sessionStorage.getItem("vatflow_staffing_hist");
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && saved.result) {
+      staffingHist.period = saved.period || staffingHist.period;
+      staffingHist.selectedAirport = saved.selectedAirport || null;
+      staffingHist.result = saved.result;
+      staffingHist.status = "ok";
+      staffingHist.message = "Restored last historical analysis from this session.";
+    }
+  } catch (e) {}
+}
+function renderStaffingHistorical() {
+  restoreStaffingHistoricalCache();
+  const res = staffingHist.result;
+  let h = '<div class="staffhist-controls">' +
+    '<label>Period<select data-hist-period>';
+  for (const p of STAFFING_HIST_PERIODS) {
+    h += '<option value="' + p.id + '"' + (staffingHist.period === p.id ? " selected" : "") + ">" +
+      esc(p.label) + "</option>";
+  }
+  h += "</select></label>" +
+    '<label>StatSim API key (optional)<input type="password" data-hist-apikey placeholder="X-API-Key" value="' +
+    esc(staffingHistApiKey) + '" autocomplete="off"></label>' +
+    '<div class="staffhist-actions">' +
+    '<button type="button" data-hist-process' + (staffingHist.status === "loading" ? " disabled" : "") +
+    ">Process</button>" +
+    '<button type="button" class="ghost" data-hist-toggle-paste>Paste / upload</button>' +
+    '<button type="button" class="ghost" data-hist-clear-key>Clear key</button>' +
+    "</div></div>";
+
+  if (staffingHist.pasteOpen) {
+    h += '<label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">' +
+      "Paste StatSim US country HTML or table text, or choose a saved .html file</label>" +
+      '<textarea class="staffhist-paste" data-hist-paste placeholder="Paste Departed / Arrived tables from statsim.net\u2026"></textarea>' +
+      '<div class="staffhist-actions" style="margin:8px 0 12px">' +
+      '<input type="file" data-hist-file accept=".html,.htm,.txt,.md,text/html,text/plain" style="font-size:12px;color:var(--text-dim)">' +
+      '<button type="button" data-hist-process-paste' + (staffingHist.status === "loading" ? " disabled" : "") +
+      ">Process paste</button></div>";
+  }
+
+  const stCls = staffingHist.status === "error" ? " err"
+    : staffingHist.status === "ok" ? " ok" : "";
+  h += '<div class="staffhist-status' + stCls + '">' +
+    (staffingHist.message
+      ? esc(staffingHist.message)
+      : "Pull StatSim USA traffic for a period, then rank airport / day-of-week / time windows to control. " +
+        "Primary source is the country page (same tables as statsim.net). API key is optional.") +
+    "</div>";
+
+  h += '<div class="staffsub" style="margin-bottom:14px">Source: <a href="' +
+    esc(statsimCountryUrl(staffingHist.period)) + '" target="_blank" rel="noopener" style="color:var(--accent-text)">' +
+    esc(statsimCountryUrl(staffingHist.period)) + "</a>. Times are UTC. USA airports only (K / PA / PH).</div>";
+
+  if (!res) {
+    h += '<div class="staffnone">No historical analysis yet. Press Process, or paste a saved StatSim page.</div>';
+    return h;
+  }
+
+  h += '<div class="staffhist-meta">' + res.usEvents + " USA events from " + res.flightRows +
+    " flight rows \u00b7 top recommendation " +
+    (res.towers[0] ? (res.towers[0].id + " " + res.towers[0].dowLabel + " " + res.towers[0].windowLabel) : "\u2014") +
+    "</div>";
+
+  h += '<div class="staffsec">Recommended Tower slots <span>airport \u00b7 day \u00b7 time</span></div>' +
+    staffingHistRowsHtml(res.towers, "No tower peaks found.", true);
+
+  if (staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport);
+
+  h += '<div class="staffsec">Approach peaks <span>rolled up from airports</span></div>' +
+    staffingHistRowsHtml(res.approaches, "No approach peaks found.", false);
+
+  h += '<div class="staffsec">Center peaks <span>rolled up from airports</span></div>' +
+    staffingHistRowsHtml(res.centers, "No center peaks found.", false);
+
+  if (res.topAirports.length) {
+    h += '<div class="staffsec">Busiest airports in sample <span>total movements</span></div><div class="staffchips">';
+    for (const a of res.topAirports.slice(0, 16)) {
+      h += '<span class="staffchip' + (staffingHist.selectedAirport === a.icao ? " win" : "") +
+        '" data-hist-apt="' + esc(a.icao) + '" style="cursor:pointer"><strong>' + esc(a.icao) +
+        "</strong> " + a.total + "</span>";
+    }
+    h += "</div>";
+  }
+
+  h += '<div class="staffnote">Historical windows use StatSim completed flights (departed at origin, arrived at destination), ' +
+    "bucketed by UTC day-of-week and hour, then clustered into contiguous busy blocks. " +
+    "This complements Live staffing (current VATSIM feed). Large ranges such as This year may need Paste / upload if the proxy times out.</div>";
+  return h;
+}
+function renderStaffingLiveBody() {
   if (!vatsim) {
-    contentEl.innerHTML = '<div class="msg">' +
+    return '<div class="msg">' +
       (feedStatus === "error"
         ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
-        : "Pulling the VATSIM feed\u2026") + '</div>';
-    return;
+        : "Pulling the VATSIM feed\u2026") + "</div>";
   }
   ensureBoundariesIfNeeded();
   const rec = computeStaffingRecommendations();
@@ -3830,13 +4326,12 @@ function renderStaffing() {
   const needApp = rec.approaches.filter(r => r.status === "need").length;
   const needTwr = rec.towers.filter(r => r.status === "need").length;
 
-  let h = '<div class="staffwrap">' +
-    '<div class="staffhead">' +
-    '<div class="stafftitle">ATC Staffing</div>' +
+  return '<div class="staffhead">' +
+    '<div class="stafftitle">Live recommendations</div>' +
     '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">' +
     (needCtr + needApp + needTwr) + " recommended logons" +
     (rec.boundariesReady ? "" : " \u00b7 loading ARTCC boundaries\u2026") +
-    '</div></div>' +
+    "</div></div>" +
     '<div class="staffsub">Recommendations for Center, Approach, and Tower based on airborne traffic, ' +
     "aircraft rolling / about to depart, and proposed flight plans. Scoped to the USA only " +
     "(CONUS + Alaska + Hawaii). Online controllers from the VATSIM feed are shown when already staffed.</div>" +
@@ -3853,8 +4348,23 @@ function renderStaffing() {
     '<div class="staffnote">Staffing windows are built from timed arrivals, departures, and enroute demand ' +
     "(not fixed hourly blocks) — start/end rounded to 5 minutes. Scoring weights airborne and rolling traffic highest. " +
     "Puerto Rico / Guam (ZUA / ZAP) are excluded from this USA test scope. Feed controllers: " +
-    rec.controllerCount + ".</div></div>";
-  contentEl.innerHTML = h;
+    rec.controllerCount + ".</div>";
+}
+function renderStaffing() {
+  const subBar = '<div class="subtabs">' +
+    '<span class="subtab' + (staffingSub === "live" ? " active" : "") + '" data-staffingsub="live">Live</span>' +
+    '<span class="subtab' + (staffingSub === "historical" ? " active" : "") +
+    '" data-staffingsub="historical">Historical Data</span></div>';
+
+  let body;
+  if (staffingSub === "historical") {
+    body = '<div class="staffhead"><div class="stafftitle">Historical Data</div>' +
+      '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">StatSim USA traffic</div></div>' +
+      renderStaffingHistorical();
+  } else {
+    body = renderStaffingLiveBody();
+  }
+  contentEl.innerHTML = '<div class="staffwrap">' + subBar + body + "</div>";
 }
 
 function renderHome() {
@@ -3998,7 +4508,11 @@ function renderHelp() {
     '<li>Recommends where ATC should log on for <b>Center</b>, <b>Approach</b>, and <b>Tower</b>.</li>' +
     '<li>Uses airborne traffic, rolling / about-to-depart ground traffic, and proposed flight plans from the VATSIM feed.</li>' +
     '<li>Scoped to the <b>USA only</b> for now (CONUS + Alaska + Hawaii). Shows online controllers when a position is already staffed.</li>' +
-    '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li></ul></div></details>' +
+    '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
+    '<li><b>Historical Data</b> sub-tab processes StatSim USA country traffic ' +
+    '(<code>statsim.net/flights/countries/country/US/…</code>) to recommend airport / day-of-week / UTC time to control.</li>' +
+    '<li>Historical times are <b>Zulu</b>. Use Paste / upload if a period fetch times out (This year can be large). ' +
+    'An optional StatSim API key is stored locally and is not required for country-page analysis.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
     '<details class="help-acc" open><summary>Which tool do I use?</summary><div class="help-acc-body"><ul class="helplist">' +
@@ -5470,6 +5984,50 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
+  /* ---- ATC Staffing sub-tabs ---- */
+  const staffingSubBtn = e.target.closest("[data-staffingsub]");
+  if (staffingSubBtn) {
+    const next = staffingSubBtn.dataset.staffingsub;
+    if (next && next !== staffingSub) {
+      staffingSub = next;
+      renderContent();
+    }
+    return;
+  }
+  if (e.target.closest("[data-hist-process]")) {
+    processStaffingHistorical();
+    return;
+  }
+  if (e.target.closest("[data-hist-process-paste]")) {
+    const ta = contentEl.querySelector("[data-hist-paste]");
+    processStaffingHistorical(ta ? ta.value : "");
+    return;
+  }
+  if (e.target.closest("[data-hist-toggle-paste]")) {
+    staffingHist.pasteOpen = !staffingHist.pasteOpen;
+    renderContent();
+    return;
+  }
+  if (e.target.closest("[data-hist-clear-key]")) {
+    staffingHistApiKey = "";
+    saveStaffingHistApiKey();
+    renderContent();
+    return;
+  }
+  const histApt = e.target.closest("[data-hist-apt]");
+  if (histApt) {
+    staffingHist.selectedAirport = histApt.dataset.histApt;
+    try {
+      const raw = sessionStorage.getItem("vatflow_staffing_hist");
+      if (raw) {
+        const saved = JSON.parse(raw);
+        saved.selectedAirport = staffingHist.selectedAirport;
+        sessionStorage.setItem("vatflow_staffing_hist", JSON.stringify(saved));
+      }
+    } catch (err) {}
+    renderContent();
+    return;
+  }
   /* ---- Rate calculator: apply / advanced toggle ---- */
   if (e.target.closest("[data-ratecalc-apply]")) {
     if (!canControl()) return;
@@ -5591,6 +6149,24 @@ contentEl.addEventListener("click", e => {
   renderContent();
 });
 contentEl.addEventListener("change", e => {
+  const histPeriod = e.target.closest("[data-hist-period]");
+  if (histPeriod) {
+    staffingHist.period = histPeriod.value || "thisweek";
+    return;
+  }
+  const histFile = e.target.closest("[data-hist-file]");
+  if (histFile && histFile.files && histFile.files[0]) {
+    const file = histFile.files[0];
+    const reader = new FileReader();
+    reader.onload = () => processStaffingHistorical(String(reader.result || ""));
+    reader.onerror = () => {
+      staffingHist.status = "error";
+      staffingHist.message = "Could not read the selected file.";
+      renderContent();
+    };
+    reader.readAsText(file);
+    return;
+  }
   const a = e.target.closest("[data-tmuaar]");
   if (a) {
     if (!canEditApt(a.dataset.tmuaar)) return;
@@ -5874,6 +6450,12 @@ contentEl.addEventListener("input", e => {
   if (e.target.id === "mydashIcao") { e.target.value = e.target.value.toUpperCase(); return; }
   if (e.target.id === "mydashArtcc") { e.target.value = normArtcc(e.target.value); return; }
   if (e.target.id === "mydashApproach") { e.target.value = normApproachSector(e.target.value); return; }
+  const histKey = e.target.closest("[data-hist-apikey]");
+  if (histKey) {
+    staffingHistApiKey = histKey.value.trim();
+    saveStaffingHistApiKey();
+    return;
+  }
   /* rate calculator fields */
   const rcPos = e.target.closest("input[data-ratecalc-pos]");
   if (rcPos) {
