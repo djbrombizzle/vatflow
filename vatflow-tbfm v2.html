@@ -3281,11 +3281,38 @@ const STAFFING_AIRPORT_ARTCC = {
   PANC:"ZAN",PAFA:"ZAN",PAPG:"ZAN",
   PHNL:"ZHN",PHOG:"ZHN"
 };
-const STAFF_CTR_OPEN = 10;
-const STAFF_APP_OPEN = 6;
-const STAFF_TWR_OPEN = 3;
-const STAFF_TWR_HUB_OPEN = 2;
+const STAFF_CTR_OPEN = 30;
+const STAFF_APP_OPEN = 30;
+const STAFF_TWR_OPEN = 30;
+const STAFF_TWR_HUB_OPEN = 30;
+const STAFF_WATCH_MAX = 29;  /* Watch = score 1..29; Log on = score >= 30 */
 const STAFF_NEAR_NM = 40;
+/* VATSIM center stations often use city/airport IDs (MEM_CTR, SLC_CTR, JAX_CTR)
+   instead of the ARTCC id (ZME_CTR). Map common non-Z prefixes here; airport
+   LIDs also resolve via STAFFING_AIRPORT_ARTCC (MEM→KMEM→ZME). */
+const STAFFING_CTR_ALIASES = {
+  CHI:"ZAU", C90:"ZAU", ORD:"ZAU",
+  NYC:"ZNY", NY:"ZNY",
+  DC:"ZDC", WAS:"ZDC",
+  JAX:"ZJX",
+  HOU:"ZHU", IAH:"ZHU",
+  LA:"ZLA", LAX:"ZLA", LAS:"ZLA",
+  SF:"ZOA", SFO:"ZOA", OAK:"ZOA",
+  DEN:"ZDV",
+  DAL:"ZFW", DFW:"ZFW",
+  MIA:"ZMA", FLL:"ZMA", TPA:"ZMA",
+  BOS:"ZBW",
+  SEA:"ZSE", PDX:"ZSE",
+  ATL:"ZTL", CLT:"ZTL",
+  MEM:"ZME", BNA:"ZME",
+  SLC:"ZLC",
+  PHX:"ZAB", ABQ:"ZAB",
+  IND:"ZID", CVG:"ZID",
+  CLE:"ZOB", DTW:"ZOB", PIT:"ZOB",
+  MSP:"ZMP",
+  KC:"ZKC", STL:"ZKC",
+  ANC:"ZAN", HNL:"ZHN"
+};
 let staffingPtCache = {};
 let staffingUsTraconCache = null;
 
@@ -3368,12 +3395,26 @@ function traconForAirport(icao) {
   if (!pref) return null;
   return usTraconIndex().prefixToTracon[pref] || null;
 }
+function artccFromCtrPrefix(prefix) {
+  const p = String(prefix || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!p) return null;
+  if (STAFFING_ARTCC_SET.has(p)) return p;
+  if (STAFFING_CTR_ALIASES[p]) return STAFFING_CTR_ALIASES[p];
+  /* MEM_CTR / SLC_CTR / ATL_CTR → airport → ARTCC */
+  const icao = resolveUsIcao(p);
+  if (icao) {
+    const viaApt = airportStaffingArtcc(icao);
+    if (viaApt && STAFFING_ARTCC_SET.has(viaApt)) return viaApt;
+  }
+  return null;
+}
 function parseStaffingController(c) {
   const cs = String((c && c.callsign) || "").toUpperCase();
   if (!cs) return null;
   if (/_CTR$/.test(cs)) {
-    const artcc = cs.split("_")[0].replace(/[^A-Z0-9]/g, "");
-    if (STAFFING_ARTCC_SET.has(artcc)) return { type: "CTR", id: artcc, callsign: cs };
+    const prefix = cs.split("_")[0].replace(/[^A-Z0-9]/g, "");
+    const artcc = artccFromCtrPrefix(prefix);
+    if (artcc) return { type: "CTR", id: artcc, callsign: cs };
     return null;
   }
   if (/_(APP|DEP)$/.test(cs)) {
@@ -3545,10 +3586,9 @@ function computeStaffingRecommendations() {
       const on = online[type][id] || [];
       const thresh = hubThreshFn ? hubThreshFn(id) : openThresh;
       let status = "quiet";
-      if (on.length && score > 0) status = "staffed";
-      else if (on.length) status = "staffed";
+      if (on.length) status = "staffed";
       else if (score >= thresh) status = "need";
-      else if (score >= Math.max(1, Math.ceil(thresh * 0.45))) status = "watch";
+      else if (score >= 1 && score <= STAFF_WATCH_MAX) status = "watch";
       else if (!on.length && score === 0) continue; /* hide empty unstaffed */
       if (status === "quiet" && !on.length) continue;
       rows.push({ id, type, demand: d, score, online: on, status, thresh });
@@ -3596,9 +3636,9 @@ function staffingRowsHtml(rows, emptyMsg) {
   let h = '<div class="stafflist">';
   for (const r of rows) {
     const why = r.status === "need"
-      ? "Demand score <b>" + r.score + "</b> meets the open threshold (" + r.thresh + ") with no controller online."
+      ? "Demand score <b>" + r.score + "</b> meets the Log on threshold (" + r.thresh + ") with no controller online."
       : r.status === "watch"
-        ? "Building demand (score <b>" + r.score + "</b>). Not yet at the open threshold (" + r.thresh + ")."
+        ? "Watch — demand score <b>" + r.score + "</b> (Log on at " + r.thresh + "+)."
         : r.status === "staffed"
           ? "Position online" + (r.score ? " with demand score <b>" + r.score + "</b>." : ".")
           : "Low demand.";
