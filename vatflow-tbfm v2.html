@@ -3893,7 +3893,7 @@ const STAFFING_HIST_DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const STATSIM_COUNTRY_US = "https://statsim.net/flights/countries/country/US/";
 const VATSIM_EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
 const STAFF_EVENT_RADIUS_NM = 500;
-const STAFF_EVENT_SCORE_BOOST = 0.35;   /* +35% per overlapping nearby event (capped) */
+const STAFF_EVENT_SCORE_BOOST = 0.35;   /* +35% predicted ops per overlapping nearby event (capped at 2) */
 const STATSIM_FETCH_PROXIES = [
   u => "https://r.jina.ai/http://" + u.replace(/^https?:\/\//, ""),
   u => "https://r.jina.ai/https://" + u.replace(/^https?:\/\//, ""),
@@ -3907,11 +3907,11 @@ let staffingHist = {
   selectedAirport: null,
   result: null,
   pasteOpen: false,
-  sortKey: "upcomingScore",
+  sortKey: "predOps",
   sortDir: -1,
   filters: {
     facility: "", type: "", artcc: "", day: "", window: "",
-    score: "", upcoming: "", upcomingScore: "", events: ""
+    avgOps: "", upcoming: "", predOps: "", events: ""
   }
 };
 const STAFFING_HIST_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -3921,9 +3921,9 @@ const STAFFING_HIST_TABLE_COLS = [
   { key: "artcc", label: "ARTCC" },
   { key: "day", label: "Day", num: true },
   { key: "window", label: "Hist window" },
-  { key: "score", label: "Score", num: true },
+  { key: "avgOps", label: "Avg ops", num: true },
   { key: "upcoming", label: "Staff next 7 days" },
-  { key: "upcomingScore", label: "Rec", num: true },
+  { key: "predOps", label: "Pred. ops", num: true },
   { key: "events", label: "Events" }
 ];
 function statsimCountryUrl(period) {
@@ -4658,28 +4658,74 @@ function histUpcomingEventsForSlot(slot, win, networkEvents) {
   }
   return Object.values(nearbyMap).sort((a, b) => a.startMs - b.startMs || a.nm - b.nm);
 }
+/**
+ * How many times this weekday appears in the selected StatSim period.
+ * Used to turn cumulative movement totals into per-day averages.
+ */
+function histDowSampleCount(period, dow, nowMs) {
+  const now = nowMs != null ? nowMs : Date.now();
+  const d = new Date(now);
+  let startMs;
+  if (period === "thismonth") {
+    startMs = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  } else if (period === "thisyear") {
+    startMs = Date.UTC(d.getUTCFullYear(), 0, 1);
+  } else {
+    /* thisweek ≈ last 7 days ending now */
+    startMs = now - 7 * 24 * 3600 * 1000;
+  }
+  const startDay = Date.UTC(
+    new Date(startMs).getUTCFullYear(),
+    new Date(startMs).getUTCMonth(),
+    new Date(startMs).getUTCDate()
+  );
+  const endDay = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  let n = 0;
+  for (let t = startDay; t <= endDay; t += 24 * 3600 * 1000) {
+    if (new Date(t).getUTCDay() === dow) n++;
+  }
+  return Math.max(1, n);
+}
+function histRoundOps(n) {
+  if (!isFinite(n) || n <= 0) return 0;
+  return n >= 10 ? Math.round(n) : Math.round(n * 10) / 10;
+}
 function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
-  const histScoreVal = slot.histScore != null ? slot.histScore : slot.score;
   const hourMap = histHourMapForSlot(slot);
-  const staffWin = hourMap
-    ? (histStaffUpWindow(hourMap, STAFF_HIST_MIN_HOURS, STAFF_HIST_MAX_HOURS) ||
-      histClampStaffUpWindow(slot.startHour, slot.endHour))
-    : histClampStaffUpWindow(slot.startHour, slot.endHour);
+  let staffWin = hourMap
+    ? histStaffUpWindow(hourMap, STAFF_HIST_MIN_HOURS, STAFF_HIST_MAX_HOURS)
+    : null;
+  if (!staffWin) {
+    const clamped = histClampStaffUpWindow(slot.startHour, slot.endHour);
+    staffWin = {
+      startHour: clamped.startHour,
+      endHour: clamped.endHour,
+      dep: slot.dep || 0,
+      arr: slot.arr || 0,
+      score: (slot.dep || 0) + (slot.arr || 0) || slot.score || 0
+    };
+  }
   const staffLabel = histFmtHourRange(staffWin.startHour, staffWin.endHour);
   const win = histNextUtcWindow(slot.dow, staffWin.startHour, staffWin.endHour, nowMs);
   const upcomingEvents = histUpcomingEventsForSlot(slot, win, networkEvents);
-  let upcomingScore = histScoreVal || 0;
-  if (win && upcomingEvents.length) {
-    upcomingScore = Math.round(upcomingScore * (1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, upcomingEvents.length)));
-  } else if (slot.eventBoost) {
-    upcomingScore = slot.score;
-  }
-  if (!win) upcomingScore = 0;
+  const samples = histDowSampleCount(staffingHist.period, slot.dow, nowMs);
+  const totalOps = staffWin.score || ((staffWin.dep || 0) + (staffWin.arr || 0));
+  const avgOps = histRoundOps(totalOps / samples);
+  const avgDep = histRoundOps((staffWin.dep || 0) / samples);
+  const avgArr = histRoundOps((staffWin.arr || 0) / samples);
+  const eventCount = upcomingEvents.length
+    ? upcomingEvents.length
+    : ((slot.eventOverlap && slot.eventOverlap.length) || 0);
+  const eventMult = 1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, eventCount);
+  let predOps = win ? histRoundOps(avgOps * eventMult) : 0;
   const artcc = histSlotArtcc(slot);
   const upcomingLabel = histFmtUpcomingLabel(win, staffLabel);
   const eventItems = upcomingEvents.length
     ? upcomingEvents.slice(0, 2).map(histFmtEventListItem)
     : (slot.eventOverlap || []).slice(0, 2).map(histFmtEventListItem);
+  /* Keep legacy score fields for any leftover list UI / sorting compat. */
+  const histScoreVal = avgOps;
+  const score = eventCount ? predOps : avgOps;
   return {
     id: slot.id,
     type: slot.type,
@@ -4693,14 +4739,20 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
     reason: slot.reason,
     dep: slot.dep,
     arr: slot.arr,
-    score: slot.score,
+    samples,
+    avgOps,
+    avgDep,
+    avgArr,
+    predOps,
+    score,
     histScore: histScoreVal,
+    upcomingScore: predOps,
     eventBoost: !!slot.eventBoost || upcomingEvents.length > 0,
+    eventMult,
     airports: slot.airports || null,
     upcomingStartMs: win ? win.startMs : Number.POSITIVE_INFINITY,
     upcomingEndMs: win ? win.endMs : 0,
     upcomingLabel,
-    upcomingScore,
     upcomingEvents,
     eventText: eventItems.filter(Boolean).join(" \u00b7 ")
   };
@@ -4722,9 +4774,11 @@ function histTableCellText(row, key) {
     case "artcc": return String(row.artcc || "");
     case "day": return String(row.dowLabel || "");
     case "window": return String(row.windowLabel || "") + " " + String(row.reason || "");
-    case "score": return String(row.score != null ? row.score : "");
+    case "avgOps": return String(row.avgOps != null ? row.avgOps : "");
+    case "score": return String(row.avgOps != null ? row.avgOps : (row.score != null ? row.score : ""));
     case "upcoming": return String(row.upcomingLabel || "");
-    case "upcomingScore": return String(row.upcomingScore != null ? row.upcomingScore : "");
+    case "predOps":
+    case "upcomingScore": return String(row.predOps != null ? row.predOps : "");
     case "events": return String(row.eventText || "");
     default: return "";
   }
@@ -4732,8 +4786,10 @@ function histTableCellText(row, key) {
 function histTableNumVal(row, key) {
   switch (key) {
     case "day": return row.dow;
-    case "score": return row.score;
-    case "upcomingScore": return row.upcomingScore;
+    case "avgOps":
+    case "score": return row.avgOps != null ? row.avgOps : row.score;
+    case "predOps":
+    case "upcomingScore": return row.predOps != null ? row.predOps : row.upcomingScore;
     case "upcoming": return row.upcomingStartMs;
     default: return null;
   }
@@ -4744,7 +4800,8 @@ function histTablePassesFilters(row) {
     const raw = String(f[key] || "").trim();
     if (!raw) continue;
     const m = raw.match(/^([<>]=?)\s*(\d+(?:\.\d+)?)$/);
-    if (m && (key === "score" || key === "upcomingScore" || key === "day")) {
+    if (m && (key === "avgOps" || key === "predOps" || key === "score" ||
+        key === "upcomingScore" || key === "day")) {
       const v = histTableNumVal(row, key === "day" ? "day" : key);
       if (v == null || !isFinite(v)) return false;
       const n = +m[2];
@@ -4773,12 +4830,12 @@ function histTableFiltersActive() {
   return Object.keys(f).some(k => String(f[k] || "").trim() !== "");
 }
 function sortedStaffingHistTableRows(rows) {
-  const key = staffingHist.sortKey || "upcomingScore";
+  const key = staffingHist.sortKey || "predOps";
   const dir = staffingHist.sortDir || -1;
   const col = STAFFING_HIST_TABLE_COLS.find(c => c.key === key) || STAFFING_HIST_TABLE_COLS[0];
   const out = rows.slice();
   out.sort((a, b) => {
-    if (key === "upcoming" || key === "upcomingScore") {
+    if (key === "upcoming" || key === "predOps" || key === "upcomingScore") {
       const aOut = !(a.upcomingStartMs < Number.POSITIVE_INFINITY);
       const bOut = !(b.upcomingStartMs < Number.POSITIVE_INFINITY);
       if (aOut !== bOut) return aOut ? 1 : -1;
@@ -4793,7 +4850,7 @@ function sortedStaffingHistTableRows(rows) {
       const r = histTableCellText(a, key).localeCompare(histTableCellText(b, key));
       if (r) return r * dir;
     }
-    return (b.upcomingScore - a.upcomingScore) || (a.upcomingStartMs - b.upcomingStartMs) ||
+    return ((b.predOps || 0) - (a.predOps || 0)) || (a.upcomingStartMs - b.upcomingStartMs) ||
       String(a.id).localeCompare(String(b.id)) || (a.dow - b.dow);
   });
   return out;
@@ -4801,24 +4858,24 @@ function sortedStaffingHistTableRows(rows) {
 function renderStaffingHistTable(result) {
   const all = buildStaffingHistTableRows(result);
   const visible = sortedStaffingHistTableRows(all.filter(histTablePassesFilters));
-  let h = '<div class="staffsec">Staffing recommendations <span>filter by ARTCC / APP / TWR \u00b7 sort by day</span></div>';
+  let h = '<div class="staffsec">Staffing recommendations <span>avg ops from history \u00b7 predicted ops for next week</span></div>';
   h += '<div class="staffhist-count">Showing ' + visible.length + " of " + all.length +
-    " facilities \u00b7 next-7-day column maps historical DOW/hours into the rolling week" +
+    " facilities \u00b7 Avg ops = typical movements in the 2\u20134hr staff-up window \u00b7 Pred. ops adds VATSIM event uplift" +
     (histTableFiltersActive()
       ? ' <span class="clr" data-hist-clearfilters style="color:var(--accent-text);cursor:pointer;text-decoration:underline;margin-left:8px">Clear filters</span>'
       : "") +
     "</div>";
   h += '<div class="staffhist-tablewrap tablewrap"><table><thead><tr>';
   for (const c of STAFFING_HIST_TABLE_COLS) {
-    if (c.key === "upcomingScore") {
-      h += '<th class="' + (staffingHist.sortKey === c.key ? "sorted" : "") +
-        '" data-hist-sort="' + c.key + '" title="Recommendation score (historical + upcoming VATSIM events)">' +
-        c.label + (staffingHist.sortKey === c.key ? (staffingHist.sortDir === 1 ? " \u25B4" : " \u25BE") : "") +
-        "</th>";
-      continue;
+    let title = "";
+    if (c.key === "avgOps") {
+      title = "Average operations (arr+dep) in the 2\u20134hr staff-up window on this weekday, averaged across the selected period";
+    } else if (c.key === "predOps") {
+      title = "Predicted operations for the next matching day: avg ops \u00d7 event uplift when a nearby VATSIM event overlaps";
     }
     h += '<th class="' + (staffingHist.sortKey === c.key ? "sorted" : "") +
-      '" data-hist-sort="' + c.key + '">' + c.label +
+      '" data-hist-sort="' + c.key + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" +
+      c.label +
       (staffingHist.sortKey === c.key ? (staffingHist.sortDir === 1 ? " \u25B4" : " \u25BE") : "") +
       "</th>";
   }
@@ -4828,7 +4885,7 @@ function renderStaffingHistTable(result) {
       : c.key === "type" ? "TWR/APP/CTR"
       : c.key === "artcc" ? "ZJX"
       : c.key === "day" ? "Mon"
-      : c.key === "score" || c.key === "upcomingScore" ? ">20"
+      : c.key === "avgOps" || c.key === "predOps" ? ">20"
       : "\u00B7";
     h += '<td><input data-hist-filter="' + c.key + '" data-keep="hist-f-' + c.key +
       '" value="' + esc((staffingHist.filters && staffingHist.filters[c.key]) || "") +
@@ -4841,28 +4898,40 @@ function renderStaffingHistTable(result) {
   } else {
     for (const r of visible) {
       const pick = r.type === "TWR" && staffingHist.selectedAirport === r.id;
-      const scoreLabel = r.eventBoost && r.histScore != null && r.histScore !== r.score
-        ? r.histScore + "\u2192" + r.score
-        : String(r.score);
+      const avgTitle = "Avg " + r.avgOps + " ops / " + r.dowLabel +
+        " (" + r.avgDep + " dep + " + r.avgArr + " arr) over " + r.samples +
+        " sample " + (r.samples === 1 ? "day" : "days") + " in " + staffingHist.period;
+      const predTitle = r.upcomingStartMs < Number.POSITIVE_INFINITY
+        ? ("Predicted " + r.predOps + " ops" +
+          (r.eventBoost && r.eventMult > 1
+            ? " (" + r.avgOps + " avg \u00d7 " + r.eventMult.toFixed(2) + " event uplift)"
+            : " (same as avg \u2014 no overlapping event)"))
+        : "Outside next 7 days";
       const upCls = r.upcomingStartMs < Number.POSITIVE_INFINITY
         ? (r.upcomingEvents && r.upcomingEvents.length ? " hist-boost" : "")
         : " cell-muted";
+      const predCell = r.upcomingStartMs < Number.POSITIVE_INFINITY
+        ? (r.eventBoost && r.predOps !== r.avgOps
+          ? '<span class="hist-boost" title="' + esc(predTitle) + '">' + r.avgOps + "\u2192" + r.predOps + "</span>"
+          : '<span title="' + esc(predTitle) + '">' + r.predOps + "</span>")
+        : '<span class="cell-muted">\u2014</span>';
       h += '<tr class="' + (pick ? "histpick" : "") + '"' +
         (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '" style="cursor:pointer"' : "") + ">" +
         '<td class="cell-strong">' + esc(r.id) + "</td>" +
         "<td>" + esc(r.type) + "</td>" +
         "<td>" + esc(r.artcc || "\u2014") + "</td>" +
         "<td>" + esc(r.dowLabel) + "</td>" +
-        '<td title="' + esc(r.reason || "") + '">' + esc(r.windowLabel) +
+        '<td title="' + esc(r.reason || "") + '">' + esc(r.staffWindowLabel || r.windowLabel) +
         ' <span class="cell-muted">' + esc(r.reason || "") + "</span></td>" +
-        "<td>" + scoreLabel + "</td>" +
+        '<td title="' + esc(avgTitle) + '">' + r.avgOps +
+        '<div class="cell-muted" style="font-size:10px">' + r.avgDep + "d / " + r.avgArr + "a</div></td>" +
         '<td class="hist-upcoming' + upCls + '">' + esc(r.upcomingLabel) +
         (r.upcomingEvents && r.upcomingEvents.length
           ? '<div class="cell-muted" style="margin-top:2px">Event influence \u00b7 ' +
             esc(histFmtEventListItem(r.upcomingEvents[0])) + "</div>"
           : "") +
         "</td>" +
-        "<td>" + (r.upcomingStartMs < Number.POSITIVE_INFINITY ? r.upcomingScore : "\u2014") + "</td>" +
+        "<td>" + predCell + "</td>" +
         '<td class="hist-events">' + (r.eventText ? esc(r.eventText) : '<span class="cell-muted">\u2014</span>') +
         "</td></tr>";
     }
@@ -5135,9 +5204,10 @@ function renderStaffingHistorical() {
 
   h += '<div class="staffnote">Historical windows use StatSim completed flights for the selected period, ' +
     "precomputed into Supabase (<code>staffing_hist</code>) every Monday. " +
-    "Staff next 7 days recommends a focused <b>2\u20134 hour</b> UTC staff-up block (not a full busy day). " +
-    "VATSIM network events within " + STAFF_EVENT_RADIUS_NM +
-    " nm that fall in that upcoming window raise the recommendation score (Rec); the Events column includes the event date. " +
+    "<b>Avg ops</b> = typical arr+dep movements in the focused <b>2\u20134 hour</b> staff-up block on that weekday " +
+    "(total sample movements \u00f7 number of those weekdays in the period). " +
+    "<b>Pred. ops</b> = avg ops for the next matching day, raised when a nearby VATSIM event " +
+    "(within " + STAFF_EVENT_RADIUS_NM + " nm) overlaps that window (+35% per event, max two). " +
     "Filter Facility/ARTCC (e.g. ZJX), Type (TWR / APP / CTR), or Day (Mon). " +
     "Process live / Paste remain available as fallbacks.</div>";
   return h;
