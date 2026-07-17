@@ -83,7 +83,8 @@ async function buildPeriod(period) {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const outFile = path.join(OUT_DIR, period + ".json");
-  fs.writeFileSync(outFile, JSON.stringify(payload, null, 2));
+  /* Compact JSON — year payloads are large once all facilities are retained. */
+  fs.writeFileSync(outFile, JSON.stringify(payload));
   console.log("wrote", outFile, "flights", agg.flightRows, "us", agg.usEvents, "towers", agg.towers.length);
 
   await upsertSupabase({
