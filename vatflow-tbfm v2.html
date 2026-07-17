@@ -15,6 +15,10 @@ window.addEventListener("vatflow-auth-changed", () => {
   if (typeof window.onVatflowAuthChanged === "function") window.onVatflowAuthChanged();
 });
 </script>
+<script type="module">
+import * as StaffingHistStore from "./shared/staffing-hist-store.js";
+window.VF_StaffingHist = StaffingHistStore;
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 import * as FcaStore from "./shared/fca-store.js";
@@ -989,12 +993,11 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   display: flex; flex-direction: column; gap: 4px;
   font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em;
 }
-.staffhist-controls select, .staffhist-controls input[type="text"], .staffhist-controls input[type="password"] {
+.staffhist-controls select, .staffhist-controls input[type="text"] {
   font-family: var(--font-data); font-size: 13px; padding: 7px 10px;
   background: var(--elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
   color: var(--text); min-width: 160px;
 }
-.staffhist-controls input[type="password"] { min-width: 220px; }
 .staffhist-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .staffhist-actions button {
   font-family: var(--font-data); font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
@@ -3896,17 +3899,6 @@ let staffingHist = {
   result: null,
   pasteOpen: false
 };
-let staffingHistApiKey = "";
-try {
-  const savedKey = localStorage.getItem("vatflow_statsim_key");
-  if (savedKey) staffingHistApiKey = savedKey;
-} catch (e) {}
-function saveStaffingHistApiKey() {
-  try {
-    if (staffingHistApiKey) localStorage.setItem("vatflow_statsim_key", staffingHistApiKey);
-    else localStorage.removeItem("vatflow_statsim_key");
-  } catch (e) {}
-}
 function statsimCountryUrl(period) {
   const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
   return STATSIM_COUNTRY_US + p;
@@ -4495,39 +4487,65 @@ async function processStaffingHistorical(textOverride) {
     ensureBoundariesIfNeeded();
     let result = aggregateStatsimHistorical(flights);
     if (!result.towers.length) throw new Error("Parsed " + flights.length + " rows but no USA airport peaks met the minimum threshold.");
-
-    staffingHist.message = "Matching VATSIM events within " + STAFF_EVENT_RADIUS_NM + " nm\u2026";
-    renderContent();
-    let eventNote = "";
-    try {
-      const networkEvents = await fetchVatsimNetworkEvents();
-      applyVatsimEventsToHistorical(result, networkEvents);
-      eventNote = " \u00b7 " + (result.nearbyNetworkEvents || []).length + " nearby VATSIM events" +
-        (result.eventBoostedSlots ? " \u00b7 " + result.eventBoostedSlots + " slots event-boosted" : "");
-    } catch (evErr) {
-      result.networkEvents = [];
-      result.nearbyNetworkEvents = [];
-      result.eventRadiusNm = STAFF_EVENT_RADIUS_NM;
-      eventNote = " \u00b7 VATSIM events unavailable (" + ((evErr && evErr.message) || "error") + ")";
-    }
-
-    staffingHist.result = result;
-    staffingHist.selectedAirport = (result.towers[0] && result.towers[0].id) ||
-      (result.topAirports[0] && result.topAirports[0].icao) || null;
-    staffingHist.status = "ok";
-    staffingHist.message = "Processed " + result.flightRows + " flight rows \u00b7 " + result.usEvents +
-      " USA airport movements \u00b7 source " + staffingHist.period + chunkNote + eventNote +
-      (staffingHistApiKey ? " \u00b7 API key saved (country-page analysis does not require it)" : "");
-    try {
-      sessionStorage.setItem("vatflow_staffing_hist", JSON.stringify({
-        period: staffingHist.period,
-        selectedAirport: staffingHist.selectedAirport,
-        result
-      }));
-    } catch (e) {}
+    await finalizeStaffingHistorical(result, "live" + chunkNote);
   } catch (e) {
     staffingHist.status = "error";
     staffingHist.message = (e && e.message) || String(e);
+  }
+  renderContent();
+}
+async function finalizeStaffingHistorical(result, sourceNote) {
+  staffingHist.message = "Matching VATSIM events within " + STAFF_EVENT_RADIUS_NM + " nm\u2026";
+  renderContent();
+  let eventNote = "";
+  try {
+    const networkEvents = await fetchVatsimNetworkEvents();
+    applyVatsimEventsToHistorical(result, networkEvents);
+    eventNote = " \u00b7 " + (result.nearbyNetworkEvents || []).length + " nearby VATSIM events" +
+      (result.eventBoostedSlots ? " \u00b7 " + result.eventBoostedSlots + " slots event-boosted" : "");
+  } catch (evErr) {
+    result.networkEvents = [];
+    result.nearbyNetworkEvents = [];
+    result.eventRadiusNm = STAFF_EVENT_RADIUS_NM;
+    eventNote = " \u00b7 VATSIM events unavailable (" + ((evErr && evErr.message) || "error") + ")";
+  }
+
+  staffingHist.result = result;
+  staffingHist.selectedAirport = (result.towers[0] && result.towers[0].id) ||
+    (result.topAirports[0] && result.topAirports[0].icao) || null;
+  staffingHist.status = "ok";
+  staffingHist.message = "Processed " + result.flightRows + " flight rows \u00b7 " + result.usEvents +
+    " USA airport movements \u00b7 " + (sourceNote || staffingHist.period) + eventNote;
+  try {
+    sessionStorage.setItem("vatflow_staffing_hist", JSON.stringify({
+      period: staffingHist.period,
+      selectedAirport: staffingHist.selectedAirport,
+      result
+    }));
+  } catch (e) {}
+}
+async function loadStaffingHistoricalFromDb() {
+  staffingHist.status = "loading";
+  staffingHist.message = "Loading precomputed " + staffingHist.period + " from database\u2026";
+  renderContent();
+  try {
+    if (!window.VF_StaffingHist || !window.VF_StaffingHist.loadStaffingHist) {
+      throw new Error("Staffing hist store not loaded");
+    }
+    ensureBoundariesIfNeeded();
+    const packed = await window.VF_StaffingHist.loadStaffingHist(staffingHist.period);
+    const result = packed.result;
+    if (!result || !result.towers || !result.towers.length) {
+      throw new Error("Precomputed data for " + staffingHist.period + " is empty. Run live Process or wait for Monday refresh.");
+    }
+    const when = packed.computedAt ? new Date(packed.computedAt).toISOString().replace("T", " ").slice(0, 16) + "Z" : "unknown";
+    await finalizeStaffingHistorical(result,
+      "database (" + packed.source + ") \u00b7 computed " + when);
+    staffingHist.status = "ok";
+  } catch (e) {
+    staffingHist.status = "error";
+    staffingHist.message = ((e && e.message) || String(e)) +
+      " \u2014 use Process live or Paste / upload as a fallback.";
   }
   renderContent();
 }
@@ -4556,13 +4574,12 @@ function renderStaffingHistorical() {
       esc(p.label) + "</option>";
   }
   h += "</select></label>" +
-    '<label>StatSim API key (optional)<input type="password" data-hist-apikey placeholder="X-API-Key" value="' +
-    esc(staffingHistApiKey) + '" autocomplete="off"></label>' +
     '<div class="staffhist-actions">' +
-    '<button type="button" data-hist-process' + (staffingHist.status === "loading" ? " disabled" : "") +
-    ">Process</button>" +
+    '<button type="button" data-hist-load-db' + (staffingHist.status === "loading" ? " disabled" : "") +
+    ">Load from database</button>" +
+    '<button type="button" class="ghost" data-hist-process' + (staffingHist.status === "loading" ? " disabled" : "") +
+    ">Process live</button>" +
     '<button type="button" class="ghost" data-hist-toggle-paste>Paste / upload</button>' +
-    '<button type="button" class="ghost" data-hist-clear-key>Clear key</button>' +
     "</div></div>";
 
   if (staffingHist.pasteOpen) {
@@ -4580,16 +4597,18 @@ function renderStaffingHistorical() {
   h += '<div class="staffhist-status' + stCls + '">' +
     (staffingHist.message
       ? esc(staffingHist.message)
-      : "Pull StatSim USA traffic for a period, then rank airport / day-of-week / time windows to control. " +
-        "Primary source is the country page (same tables as statsim.net). API key is optional.") +
+      : "Precomputed StatSim USA aggregates are stored in Supabase and refreshed every Monday. " +
+        "Load from database for week / month / year, or Process live / Paste as a fallback.") +
     "</div>";
 
-  h += '<div class="staffsub" style="margin-bottom:14px">Source: <a href="' +
+  h += '<div class="staffsub" style="margin-bottom:14px">Source page: <a href="' +
     esc(statsimCountryUrl(staffingHist.period)) + '" target="_blank" rel="noopener" style="color:var(--accent-text)">' +
-    esc(statsimCountryUrl(staffingHist.period)) + "</a>. Times are UTC. USA airports only (K / PA / PH).</div>";
+    esc(statsimCountryUrl(staffingHist.period)) + "</a>. Times are UTC. USA airports only (K / PA / PH). " +
+    "Database refresh: Mondays via GitHub Actions.</div>";
 
   if (!res) {
-    h += '<div class="staffnone">No historical analysis yet. Press Process, or paste a saved StatSim page.</div>';
+    h += '<div class="staffnone">No historical analysis loaded. Press <b>Load from database</b> ' +
+      "(or Process live / Paste).</div>";
     return h;
   }
 
@@ -4624,12 +4643,12 @@ function renderStaffingHistorical() {
     h += "</div>";
   }
 
-  h += '<div class="staffnote">Historical windows use StatSim completed flights (departed at origin, arrived at destination), ' +
-    "bucketed by UTC day-of-week and hour, then clustered into contiguous busy blocks. " +
-    "This month / This year are fetched as weekly StatSim custom ranges (full pages are too large for proxies). " +
+  h += '<div class="staffnote">Historical windows use StatSim completed flights, precomputed into Supabase ' +
+    "(<code>staffing_hist</code>) every Monday for This week / This month / This year. " +
+    "The browser loads those aggregates instead of scraping large StatSim pages. " +
     "Upcoming VATSIM network events within " + STAFF_EVENT_RADIUS_NM +
-    " nm of an airport boost that slot when the event overlaps the same weekday/hours (traffic often rises). " +
-    "Controller examinations are excluded. Paste / upload still works as a fallback.</div>";
+    " nm of an airport boost that slot when the event overlaps the same weekday/hours. " +
+    "Process live / Paste remain available as fallbacks.</div>";
   return h;
 }
 function renderStaffingLiveBody() {
@@ -4828,11 +4847,10 @@ function renderHelp() {
     '<li>Uses airborne traffic, rolling / about-to-depart ground traffic, and proposed flight plans from the VATSIM feed.</li>' +
     '<li>Scoped to the <b>USA only</b> for now (CONUS + Alaska + Hawaii). Shows online controllers when a position is already staffed.</li>' +
     '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
-    '<li><b>Historical Data</b> sub-tab processes StatSim USA country traffic ' +
-    '(<code>statsim.net/flights/countries/country/US/…</code>) to recommend airport / day-of-week / UTC time to control.</li>' +
-    '<li>Historical times are <b>Zulu</b>. <b>This month</b> / <b>This year</b> load as weekly chunks (full StatSim pages are too large and often 403 via proxies). ' +
-    'Paste / upload remains available. An optional StatSim API key is stored locally and is not required for country-page analysis.</li>' +
-    '<li>Upcoming <b>VATSIM events</b> within <b>500 nm</b> of an airport are listed and boost historical slots when the event overlaps that weekday/hours (events often increase traffic). Controller examinations are excluded.</li></ul></div></details>' +
+    '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
+    '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
+    '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
+    'Controller examinations are excluded.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
     '<details class="help-acc" open><summary>Which tool do I use?</summary><div class="help-acc-body"><ul class="helplist">' +
@@ -6311,11 +6329,18 @@ contentEl.addEventListener("click", e => {
     if (next && next !== staffingSub) {
       staffingSub = next;
       renderContent();
+      if (next === "historical" && !staffingHist.result && staffingHist.status !== "loading") {
+        loadStaffingHistoricalFromDb();
+      }
     }
     return;
   }
   if (e.target.closest("[data-hist-process]")) {
     processStaffingHistorical();
+    return;
+  }
+  if (e.target.closest("[data-hist-load-db]")) {
+    loadStaffingHistoricalFromDb();
     return;
   }
   if (e.target.closest("[data-hist-process-paste]")) {
@@ -6325,12 +6350,6 @@ contentEl.addEventListener("click", e => {
   }
   if (e.target.closest("[data-hist-toggle-paste]")) {
     staffingHist.pasteOpen = !staffingHist.pasteOpen;
-    renderContent();
-    return;
-  }
-  if (e.target.closest("[data-hist-clear-key]")) {
-    staffingHistApiKey = "";
-    saveStaffingHistApiKey();
     renderContent();
     return;
   }
@@ -6472,6 +6491,8 @@ contentEl.addEventListener("change", e => {
   const histPeriod = e.target.closest("[data-hist-period]");
   if (histPeriod) {
     staffingHist.period = histPeriod.value || "thisweek";
+    staffingHist.result = null;
+    loadStaffingHistoricalFromDb();
     return;
   }
   const histFile = e.target.closest("[data-hist-file]");
@@ -6770,12 +6791,6 @@ contentEl.addEventListener("input", e => {
   if (e.target.id === "mydashIcao") { e.target.value = e.target.value.toUpperCase(); return; }
   if (e.target.id === "mydashArtcc") { e.target.value = normArtcc(e.target.value); return; }
   if (e.target.id === "mydashApproach") { e.target.value = normApproachSector(e.target.value); return; }
-  const histKey = e.target.closest("[data-hist-apikey]");
-  if (histKey) {
-    staffingHistApiKey = histKey.value.trim();
-    saveStaffingHistApiKey();
-    return;
-  }
   /* rate calculator fields */
   const rcPos = e.target.closest("input[data-ratecalc-pos]");
   if (rcPos) {
