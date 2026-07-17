@@ -261,7 +261,7 @@ export function aggregateStatsimHistorical(flights) {
   const centers = Object.values(centerMap).map(r => {
     r.reason = histReason(r.dep, r.arr);
     return r;
-  }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow).slice(0, 20);
+  }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow);
 
   const topAirports = Object.keys(byAirport).map(icao => ({
     icao,
@@ -270,20 +270,25 @@ export function aggregateStatsimHistorical(flights) {
     arr: byAirport[icao].totalArr
   })).sort((a, b) => b.total - a.total || a.icao.localeCompare(b.icao));
 
-  /* Keep heatmap data for busiest airports only (keeps JSON size manageable). */
-  const heatIcaos = new Set(topAirports.slice(0, 40).map(a => a.icao));
-  for (const t of towerSlots.slice(0, 40)) heatIcaos.add(t.id);
-  const byAirportSlim = {};
-  for (const icao of heatIcaos) {
-    if (byAirport[icao]) byAirportSlim[icao] = byAirport[icao];
+  /*
+   * Keep byAirport for every airport that produced a staffing window so the
+   * Historical table can filter any facility (e.g. KMCO / ZJX), not only the
+   * global top-N peaks. Heatmap cells stay compact because days/hours are sparse.
+   */
+  const keepIcaos = new Set(towerSlots.map(t => t.id));
+  for (const a of topAirports.slice(0, 100)) keepIcaos.add(a.icao);
+  const byAirportOut = {};
+  for (const icao of keepIcaos) {
+    if (byAirport[icao]) byAirportOut[icao] = byAirport[icao];
   }
 
   return {
     flightRows: flights.length,
     usEvents: used,
-    byAirport: byAirportSlim,
-    topAirports: topAirports.slice(0, 25),
-    towers: towerSlots.slice(0, 40),
+    byAirport: byAirportOut,
+    topAirports: topAirports.slice(0, 100),
+    /* Full slot lists — table filtering needs more than the top 40 hubs. */
+    towers: towerSlots,
     approaches: [],
     centers
   };

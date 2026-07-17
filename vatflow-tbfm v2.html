@@ -4359,8 +4359,7 @@ function aggregateStatsimHistorical(flights) {
     return Object.values(map).map(r => {
       r.reason = histReason(r.dep, r.arr);
       return r;
-    }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow)
-      .slice(0, 20);
+    }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow);
   }
 
   towerSlots.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow);
@@ -4375,11 +4374,116 @@ function aggregateStatsimHistorical(flights) {
     flightRows: flights.length,
     usEvents: used,
     byAirport,
-    topAirports: topAirports.slice(0, 25),
-    towers: towerSlots.slice(0, 40),
+    topAirports: topAirports.slice(0, 100),
+    towers: towerSlots,
     approaches: finishFacility(approachMap),
     centers: finishFacility(centerMap)
   };
+}
+/** Rebuild TWR/APP/CTR slots from byAirport so truncated top-N payloads stay searchable. */
+function slotsFromStaffingByAirport(byAirport) {
+  const towerSlots = [];
+  const approachMap = {};
+  const centerMap = {};
+  for (const icao of Object.keys(byAirport || {})) {
+    if (!isUsStaffingAirport(icao)) continue;
+    const apt = byAirport[icao];
+    if (!apt || !apt.days) continue;
+    const artcc = airportStaffingArtcc(icao);
+    const tracon = traconForAirport(icao);
+    for (let dow = 0; dow < 7; dow++) {
+      const hourMap = apt.days[dow] || apt.days[String(dow)];
+      if (!hourMap) continue;
+      const win = histHourWindow(hourMap);
+      if (!win || win.score < 3) continue;
+      towerSlots.push({
+        id: icao,
+        type: "TWR",
+        dow,
+        dowLabel: STAFFING_HIST_DOW[dow],
+        startHour: win.startHour,
+        endHour: win.endHour,
+        dep: win.dep,
+        arr: win.arr,
+        score: win.score,
+        windowLabel: histFmtHourRange(win.startHour, win.endHour),
+        reason: histReason(win.dep, win.arr)
+      });
+      if (tracon) {
+        const k = tracon + "|" + dow + "|" + win.startHour + "|" + win.endHour;
+        if (!approachMap[k]) {
+          approachMap[k] = {
+            id: tracon, type: "APP", dow, dowLabel: STAFFING_HIST_DOW[dow],
+            startHour: win.startHour, endHour: win.endHour, dep: 0, arr: 0, score: 0,
+            windowLabel: histFmtHourRange(win.startHour, win.endHour), airports: {}
+          };
+        }
+        approachMap[k].dep += win.dep;
+        approachMap[k].arr += win.arr;
+        approachMap[k].score += win.score;
+        approachMap[k].airports[icao] = (approachMap[k].airports[icao] || 0) + win.score;
+      }
+      if (artcc) {
+        const k = artcc + "|" + dow + "|" + win.startHour + "|" + win.endHour;
+        if (!centerMap[k]) {
+          centerMap[k] = {
+            id: artcc, type: "CTR", dow, dowLabel: STAFFING_HIST_DOW[dow],
+            startHour: win.startHour, endHour: win.endHour, dep: 0, arr: 0, score: 0,
+            windowLabel: histFmtHourRange(win.startHour, win.endHour), airports: {}
+          };
+        }
+        centerMap[k].dep += win.dep;
+        centerMap[k].arr += win.arr;
+        centerMap[k].score += win.score;
+        centerMap[k].airports[icao] = (centerMap[k].airports[icao] || 0) + win.score;
+      }
+    }
+  }
+  const sortFn = (a, b) => b.score - a.score || a.id.localeCompare(b.id) || a.dow - b.dow;
+  towerSlots.sort(sortFn);
+  const finish = map => Object.values(map).map(r => {
+    r.reason = histReason(r.dep, r.arr);
+    return r;
+  }).sort(sortFn);
+  return {
+    towers: towerSlots,
+    approaches: finish(approachMap),
+    centers: finish(centerMap)
+  };
+}
+function expandStaffingHistCoverage(result) {
+  if (!result || !result.byAirport) return result;
+  const rebuilt = slotsFromStaffingByAirport(result.byAirport);
+  const prevTwr = (result.towers || []).length;
+  const prevCtr = (result.centers || []).length;
+  const prevApp = (result.approaches || []).length;
+  if (rebuilt.towers.length >= prevTwr) result.towers = rebuilt.towers;
+  if (rebuilt.centers.length >= prevCtr) result.centers = rebuilt.centers;
+  if (rebuilt.approaches.length >= prevApp) result.approaches = rebuilt.approaches;
+  const topAirports = Object.keys(result.byAirport).map(icao => ({
+    icao,
+    total: (result.byAirport[icao].totalDep || 0) + (result.byAirport[icao].totalArr || 0),
+    dep: result.byAirport[icao].totalDep || 0,
+    arr: result.byAirport[icao].totalArr || 0
+  })).sort((a, b) => b.total - a.total || a.icao.localeCompare(b.icao));
+  if (!result.topAirports || result.topAirports.length < Math.min(25, topAirports.length)) {
+    result.topAirports = topAirports.slice(0, 100);
+  }
+  return result;
+}
+function histFacilityQueryMatch(row, q) {
+  const query = String(q || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!query) return true;
+  const candidates = [row.id, row.artcc, row.type].concat(histSlotAirportIds(row));
+  for (const raw of candidates) {
+    const id = String(raw || "").toUpperCase();
+    if (!id) continue;
+    if (id.indexOf(query) !== -1) return true;
+    /* MCO ↔ KMCO, JAX ↔ KJAX */
+    if (query.length === 3 && id === "K" + query) return true;
+    if (id.length === 4 && id.charAt(0) === "K" && id.slice(1) === query) return true;
+  }
+  return false;
 }
 function staffingHistHeatHtml(icao) {
   const res = staffingHist.result;
@@ -4570,22 +4674,13 @@ function histTablePassesFilters(row) {
       continue;
     }
     const q = raw.toUpperCase();
-    if (key === "facility") {
-      const hay = [
-        row.id, row.artcc, row.type,
-        ...(histSlotAirportIds(row))
-      ].join(" ").toUpperCase();
-      if (hay.indexOf(q) === -1) return false;
+    if (key === "facility" || key === "artcc") {
+      if (!histFacilityQueryMatch(row, q)) return false;
       continue;
     }
     if (key === "day") {
       const dayHay = (row.dowLabel + " " + row.dow + " " + (row.upcomingLabel || "")).toUpperCase();
       if (dayHay.indexOf(q) === -1) return false;
-      continue;
-    }
-    if (key === "artcc") {
-      if (String(row.artcc || "").toUpperCase().indexOf(q) === -1 &&
-          String(row.id || "").toUpperCase().indexOf(q) === -1) return false;
       continue;
     }
     if (histTableCellText(row, key).toUpperCase().indexOf(q) === -1) return false;
@@ -4808,6 +4903,7 @@ async function processStaffingHistorical(textOverride) {
   renderContent();
 }
 async function finalizeStaffingHistorical(result, sourceNote) {
+  expandStaffingHistCoverage(result);
   staffingHist.message = "Matching VATSIM events within " + STAFF_EVENT_RADIUS_NM + " nm\u2026";
   renderContent();
   let eventNote = "";
