@@ -26,7 +26,8 @@ assert.equal(statsimResponseIsEmptyShell("<h4>Departed (0)</h4><h4>Arrived (0)</
 assert.equal(statsimResponseIsEmptyShell("<h4>Departed (12)</h4><h4>Arrived (9)</h4>2026-07-19 06:00"), false);
 
 const week = periodFetchWindows("thisweek");
-assert.ok(week.length >= 1);
+assert.ok(week.length >= 6 && week.length <= 8);
 assert.ok(week[0].toMs > week[0].fromMs);
+assert.ok((week[0].toMs - week[0].fromMs) <= 86400000 + 1000);
 
 console.log("ok");
