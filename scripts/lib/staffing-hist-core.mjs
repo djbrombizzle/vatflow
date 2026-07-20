@@ -247,48 +247,89 @@ function loadUsStaffingIcaos() {
   return [...set].sort();
 }
 
+/*
+ * Shared agent with a modest socket pool. A setInterval heartbeat in the fetch
+ * loop keeps Node alive if a socket ever disappears without settling its Promise
+ * (pending Promises alone do not keep the event loop running → false-green CI).
+ */
+const statsimAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 15000,
+  maxSockets: 8,
+  maxFreeSockets: 4
+});
+
+export function destroyStatsimAgent() {
+  try { statsimAgent.destroy(); } catch (_) {}
+}
+
 /** Reliable JSON GET — Node fetch/undici often truncates StatSim API bodies. */
 export function httpsGetJson(url, headers, { timeoutMs = 180000 } = {}) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers, timeout: timeoutMs }, res => {
+    let settled = false;
+    const settle = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimer);
+      fn(arg);
+    };
+
+    const hardTimer = setTimeout(() => {
+      try { req.destroy(); } catch (_) {}
+      settle(reject, new Error("StatSim API timeout"));
+    }, timeoutMs);
+
+    const req = https.get(url, {
+      headers,
+      agent: statsimAgent,
+      timeout: timeoutMs
+    }, res => {
       const chunks = [];
       res.on("data", c => chunks.push(c));
       res.on("end", () => {
         const buf = Buffer.concat(chunks);
         const text = buf.toString("utf8");
         if (res.statusCode === 401 || res.statusCode === 403) {
-          reject(new Error("StatSim API unauthorized (check STATSIM_API_KEY)"));
+          settle(reject, new Error("StatSim API unauthorized (check STATSIM_API_KEY)"));
           return;
         }
         /* No flights for this ICAO/range — StatSim returns 404. */
         if (res.statusCode === 404) {
-          resolve([]);
+          settle(resolve, []);
           return;
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error("StatSim API HTTP " + res.statusCode + ": " + text.slice(0, 200)));
+          settle(reject, new Error("StatSim API HTTP " + res.statusCode + ": " + text.slice(0, 200)));
           return;
         }
         try {
           const textTrim = text.trim();
           if (!textTrim.startsWith("[") || !textTrim.endsWith("]")) {
-            reject(new Error(
+            settle(reject, new Error(
               "StatSim API truncated body (" + buf.length + " bytes, missing array bounds)"
             ));
             return;
           }
-          resolve(JSON.parse(text));
+          settle(resolve, JSON.parse(text));
         } catch (e) {
-          reject(new Error(
+          settle(reject, new Error(
             "StatSim API truncated/invalid JSON (" + buf.length + " bytes): " + (e && e.message)
           ));
         }
       });
+      /* Defer so a normal end+close sequence is not misread as an early drop. */
+      res.on("close", () => {
+        setImmediate(() => {
+          if (!settled && !res.complete) {
+            settle(reject, new Error("StatSim API connection closed early"));
+          }
+        });
+      });
     });
-    req.on("error", reject);
+    req.on("error", err => settle(reject, err));
     req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("StatSim API timeout"));
+      try { req.destroy(); } catch (_) {}
+      settle(reject, new Error("StatSim API timeout"));
     });
   });
 }
@@ -344,38 +385,57 @@ export async function fetchPeriodFlightsFromApi(period, apiKey, onProgress) {
   const seen = Object.create(null);
   let failed = 0;
   let lastErr = null;
+  let completed = 0;
   const concurrency = Math.max(1, Math.min(6, Number(process.env.STATSIM_API_CONCURRENCY || 4)));
 
-  await mapPool(jobs, concurrency, async (job, idx) => {
-    let rows = null;
-    let err = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        rows = await fetchStatsimIcaoWindow(job.icao, job.fromMs, job.toMs, apiKey, { timeoutMs: 90000 });
-        err = null;
-        break;
-      } catch (e) {
-        err = e && e.message ? e.message : String(e);
-        if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
-      }
-    }
-    if (typeof onProgress === "function" && ((idx + 1) % 25 === 0 || idx + 1 === jobs.length)) {
-      onProgress(idx + 1, jobs.length, job.label);
-    }
-    if (err) {
-      failed++;
-      lastErr = err;
-      if (failed <= 8) console.warn("API icao failed", job.label, err);
-      return;
-    }
-    for (const f of rows) {
-      const k = f.kind + "|" + f.callsign + "|" + f.origin + "|" + f.dest + "|" + f.timeMs;
-      if (seen[k]) continue;
-      seen[k] = 1;
-      all.push(f);
-    }
-  });
+  /*
+   * Heartbeat keeps the event loop alive if a request socket disappears without
+   * settling its Promise (otherwise Node exits 0 while await is still pending).
+   */
+  const heartbeat = setInterval(() => {
+    console.log("  … still fetching", completed + "/" + jobs.length,
+      "flights", all.length, "failed", failed);
+  }, 30000);
 
+  try {
+    await mapPool(jobs, concurrency, async (job, idx) => {
+      let rows = null;
+      let err = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          rows = await fetchStatsimIcaoWindow(job.icao, job.fromMs, job.toMs, apiKey, { timeoutMs: 90000 });
+          err = null;
+          break;
+        } catch (e) {
+          err = e && e.message ? e.message : String(e);
+          if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+        }
+      }
+      completed++;
+      if (typeof onProgress === "function" && (completed % 25 === 0 || completed === jobs.length)) {
+        onProgress(completed, jobs.length, job.label);
+      }
+      if (err) {
+        failed++;
+        lastErr = err;
+        if (failed <= 8) console.warn("API icao failed", job.label, err);
+        return;
+      }
+      for (const f of rows) {
+        const k = f.kind + "|" + f.callsign + "|" + f.origin + "|" + f.dest + "|" + f.timeMs;
+        if (seen[k]) continue;
+        seen[k] = 1;
+        all.push(f);
+      }
+    });
+  } finally {
+    clearInterval(heartbeat);
+  }
+
+  console.log("fetch pool drained", completed + "/" + jobs.length);
+  if (completed !== jobs.length) {
+    throw new Error("StatSim fetch pool ended early (" + completed + "/" + jobs.length + ")");
+  }
   if (!all.length) {
     throw new Error(lastErr || "No StatSim API flights returned");
   }

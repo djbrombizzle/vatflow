@@ -100,6 +100,17 @@ async function buildPeriod(period) {
   return payload;
 }
 
+let buildFinished = false;
+
+process.on("beforeExit", () => {
+  if (buildFinished) return;
+  console.error(
+    "Build aborted before completion — event loop drained while work was still pending " +
+    "(likely an unsettled StatSim HTTP promise). Failing the job."
+  );
+  process.exitCode = 1;
+});
+
 async function main() {
   const periods = parseArgs(process.argv.slice(2));
   console.log("Building staffing hist for:", periods.join(", "));
@@ -137,7 +148,14 @@ async function main() {
     periods: PERIODS.map(id => byPeriod.get(id)).filter(Boolean)
   };
   fs.writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(index, null, 2));
+
+  const marker = (process.env.STAFFING_HIST_DONE_MARKER || "").trim();
+  if (marker) {
+    fs.writeFileSync(marker, new Date().toISOString() + "\n");
+  }
   console.log("done");
+  buildFinished = true;
+  destroyStatsimAgent();
 }
 
 main().catch(err => {
