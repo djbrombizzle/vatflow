@@ -3,11 +3,18 @@
  * Prefers the official StatSim REST API (STATSIM_API_KEY) — HTML country pages
  * often return empty tables to datacenter / CI IPs after StatSim's Blazor rewrite.
  */
+import https from "https";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
 export const PERIODS = ["thisweek", "thismonth", "thisyear"];
 export const STATSIM_COUNTRY_US = "https://statsim.net/flights/countries/country/US/";
 export const STATSIM_API_BASE = "https://api.statsim.net";
 export const STATSIM_CHUNK_DAYS = 7;
 export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const __staffingHistDir = path.dirname(fileURLToPath(import.meta.url));
 
 const STAFFING_AIRPORT_ARTCC = {
   KPHX: "ZAB", KABQ: "ZAB", KTUS: "ZAB",
@@ -195,8 +202,13 @@ export function periodFetchWindows(period) {
     /* thisweek ≈ last 7 days */
     startMs = now - 7 * 86400000;
   }
+  /*
+   * Keep windows short: busy ICAOs (KATL/KORD/…) truncate on multi-day
+   * /api/Flights/Icao responses (~48KB cutoffs observed from CI networks).
+   */
+  const spanDays = period === "thisyear" ? 3 : 1;
   const windows = [];
-  const span = STATSIM_CHUNK_DAYS * 86400000;
+  const span = spanDays * 86400000;
   for (let t = startMs; t < now; t += span) {
     const fromMs = t;
     const toMs = Math.min(t + span, now);
@@ -227,65 +239,149 @@ function flightDtoToRows(f) {
   return out;
 }
 
-export async function fetchStatsimApiWindow(fromMs, toMs, apiKey, { timeoutMs = 180000 } = {}) {
-  const from = new Date(fromMs).toISOString();
-  const to = new Date(toMs).toISOString();
-  const url = STATSIM_API_BASE + "/api/Flights/Dates?from=" + encodeURIComponent(from) +
-    "&to=" + encodeURIComponent(to);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, {
-      signal: ctrl.signal,
-      headers: {
-        "X-API-Key": apiKey,
-        Accept: "application/json",
-        "User-Agent": "VATFLOW-staffing-hist/1.0 (+https://vatflow.io)"
-      }
-    });
-    if (r.status === 401 || r.status === 403) {
-      throw new Error("StatSim API unauthorized (check STATSIM_API_KEY)");
-    }
-    if (!r.ok) throw new Error("StatSim API HTTP " + r.status);
-    const data = await r.json();
-    if (!Array.isArray(data)) throw new Error("StatSim API returned non-array");
-    const rows = [];
-    for (const f of data) rows.push(...flightDtoToRows(f));
-    return rows;
-  } finally {
-    clearTimeout(timer);
-  }
+function loadUsStaffingIcaos() {
+  const fp = path.join(__staffingHistDir, "us-staffing-icaos.json");
+  const fromFile = JSON.parse(fs.readFileSync(fp, "utf8"));
+  const set = new Set(fromFile);
+  for (const icao of Object.keys(STAFFING_AIRPORT_ARTCC)) set.add(icao);
+  return [...set].sort();
 }
 
+/** Reliable JSON GET — Node fetch/undici often truncates StatSim API bodies. */
+export function httpsGetJson(url, headers, { timeoutMs = 180000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers, timeout: timeoutMs }, res => {
+      const chunks = [];
+      res.on("data", c => chunks.push(c));
+      res.on("end", () => {
+        const buf = Buffer.concat(chunks);
+        const text = buf.toString("utf8");
+        if (res.statusCode === 401 || res.statusCode === 403) {
+          reject(new Error("StatSim API unauthorized (check STATSIM_API_KEY)"));
+          return;
+        }
+        /* No flights for this ICAO/range — StatSim returns 404. */
+        if (res.statusCode === 404) {
+          resolve([]);
+          return;
+        }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          reject(new Error("StatSim API HTTP " + res.statusCode + ": " + text.slice(0, 200)));
+          return;
+        }
+        try {
+          const textTrim = text.trim();
+          if (!textTrim.startsWith("[") || !textTrim.endsWith("]")) {
+            reject(new Error(
+              "StatSim API truncated body (" + buf.length + " bytes, missing array bounds)"
+            ));
+            return;
+          }
+          resolve(JSON.parse(text));
+        } catch (e) {
+          reject(new Error(
+            "StatSim API truncated/invalid JSON (" + buf.length + " bytes): " + (e && e.message)
+          ));
+        }
+      });
+    });
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("StatSim API timeout"));
+    });
+  });
+}
+
+export async function fetchStatsimIcaoWindow(icao, fromMs, toMs, apiKey, { timeoutMs = 180000 } = {}) {
+  const from = new Date(fromMs).toISOString();
+  const to = new Date(toMs).toISOString();
+  const url = STATSIM_API_BASE + "/api/Flights/Icao?icao=" + encodeURIComponent(icao) +
+    "&from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to);
+  const data = await httpsGetJson(url, {
+    "X-API-Key": apiKey,
+    Accept: "application/json",
+    "User-Agent": "VATFLOW-staffing-hist/1.0 (+https://vatflow.io)"
+  }, { timeoutMs });
+  if (!Array.isArray(data)) throw new Error("StatSim API returned non-array for " + icao);
+  const rows = [];
+  for (const f of data) rows.push(...flightDtoToRows(f));
+  return rows;
+}
+
+async function mapPool(items, concurrency, worker) {
+  const out = new Array(items.length);
+  let next = 0;
+  async function run() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await worker(items[i], i);
+    }
+  }
+  const n = Math.max(1, Math.min(concurrency, items.length || 1));
+  await Promise.all(Array.from({ length: n }, () => run()));
+  return out;
+}
+
+/**
+ * StatSim /api/Flights/Dates payloads are huge and often truncate mid-transfer.
+ * Query /api/Flights/Icao per US airport instead (smaller responses, reliable).
+ */
 export async function fetchPeriodFlightsFromApi(period, apiKey, onProgress) {
   const windows = periodFetchWindows(period);
+  const icaos = loadUsStaffingIcaos();
+  const jobs = [];
+  for (const w of windows) {
+    for (const icao of icaos) {
+      jobs.push({ icao, fromMs: w.fromMs, toMs: w.toMs, label: w.label + " " + icao });
+    }
+  }
+
+  console.log("StatSim API: %d airports × %d window(s) = %d requests",
+    icaos.length, windows.length, jobs.length);
+
   const all = [];
   const seen = Object.create(null);
   let failed = 0;
   let lastErr = null;
-  for (let i = 0; i < windows.length; i++) {
-    const w = windows[i];
-    if (typeof onProgress === "function") onProgress(i + 1, windows.length, w.label);
-    try {
-      const rows = await fetchStatsimApiWindow(w.fromMs, w.toMs, apiKey);
-      for (const f of rows) {
-        const k = f.kind + "|" + f.callsign + "|" + f.origin + "|" + f.dest + "|" + f.timeMs;
-        if (seen[k]) continue;
-        seen[k] = 1;
-        all.push(f);
+  const concurrency = Math.max(1, Math.min(6, Number(process.env.STATSIM_API_CONCURRENCY || 4)));
+
+  await mapPool(jobs, concurrency, async (job, idx) => {
+    let rows = null;
+    let err = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        rows = await fetchStatsimIcaoWindow(job.icao, job.fromMs, job.toMs, apiKey, { timeoutMs: 90000 });
+        err = null;
+        break;
+      } catch (e) {
+        err = e && e.message ? e.message : String(e);
+        if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
       }
-    } catch (e) {
-      failed++;
-      lastErr = e && e.message ? e.message : String(e);
-      if (windows.length === 1) throw e;
-      console.warn("API chunk failed", w.label, lastErr);
     }
-    if (i < windows.length - 1) await new Promise(r => setTimeout(r, 200));
-  }
+    if (typeof onProgress === "function" && ((idx + 1) % 25 === 0 || idx + 1 === jobs.length)) {
+      onProgress(idx + 1, jobs.length, job.label);
+    }
+    if (err) {
+      failed++;
+      lastErr = err;
+      if (failed <= 8) console.warn("API icao failed", job.label, err);
+      return;
+    }
+    for (const f of rows) {
+      const k = f.kind + "|" + f.callsign + "|" + f.origin + "|" + f.dest + "|" + f.timeMs;
+      if (seen[k]) continue;
+      seen[k] = 1;
+      all.push(f);
+    }
+  });
+
   if (!all.length) {
     throw new Error(lastErr || "No StatSim API flights returned");
   }
-  return { flights: all, chunks: windows.length, failedChunks: failed, source: "api" };
+  console.log("API flights", all.length, "from", icaos.length, "airports ·",
+    windows.length, "window(s) · failed", failed + "/" + jobs.length);
+  return { flights: all, chunks: jobs.length, failedChunks: failed, source: "api-icao" };
 }
 
 function histEmptyBucket() { return { dep: 0, arr: 0 }; }
