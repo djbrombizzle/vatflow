@@ -33,25 +33,44 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Build aggregates
         env:
           SUPABASE_URL: https://qoaipsfcidpymboojfwa.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           STATSIM_API_KEY: ${{ secrets.STATSIM_API_KEY }}
+          NODE_OPTIONS: --max-old-space-size=6144
+          STAFFING_HIST_DONE_MARKER: ${{ runner.temp }}/staffing-hist-done
         run: |
           set -euo pipefail
           if [ -z "${STATSIM_API_KEY}" ]; then
             echo "::error::STATSIM_API_KEY secret is missing. Create a key at https://statsim.net/api-keys and add it as a repo secret."
             exit 1
           fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY is empty — JSON will be committed but the live site (Supabase-first) will keep stale data until this secret is set."
+          fi
+          rm -f "${STAFFING_HIST_DONE_MARKER}"
           PERIODS="${{ github.event.inputs.periods }}"
+          LOG="${RUNNER_TEMP}/staffing-hist-build.log"
           if [ -z "$PERIODS" ]; then
-            node scripts/build-staffing-hist.mjs
+            node scripts/build-staffing-hist.mjs 2>&1 | tee "$LOG"
           else
             # shellcheck disable=SC2086
-            node scripts/build-staffing-hist.mjs $(echo "$PERIODS" | tr ',' ' ')
+            node scripts/build-staffing-hist.mjs $(echo "$PERIODS" | tr ',' ' ') 2>&1 | tee "$LOG"
+          fi
+          if [ ! -f "${STAFFING_HIST_DONE_MARKER}" ]; then
+            echo "::error::Build exited before writing the done marker (false-green / early Node exit)."
+            exit 1
+          fi
+          if ! grep -q '^done$' "$LOG"; then
+            echo "::error::Build log is missing the final 'done' line."
+            exit 1
+          fi
+          if ! grep -q 'API flights' "$LOG" && ! grep -q 'wrote ' "$LOG"; then
+            echo "::error::Build log has no API flights / wrote lines — fetch did not finish."
+            exit 1
           fi
 
       - name: Commit data files
@@ -61,8 +80,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/staffing-hist
           if git diff --cached --quiet; then
-            echo "No data changes"
-          else
-            git commit -m "Update staffing historical aggregates"
-            git push
+            echo "::error::Build produced no data file changes. A real run always updates computed_at."
+            exit 1
           fi
+          git commit -m "Update staffing historical aggregates"
+          git push
