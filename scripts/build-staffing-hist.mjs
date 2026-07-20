@@ -8,6 +8,7 @@
  *   node scripts/build-staffing-hist.mjs thisweek thismonth
  *
  * Env:
+ *   STATSIM_API_KEY              required in CI (https://statsim.net/api-keys)
  *   SUPABASE_URL                 (default: VATFLOW project)
  *   SUPABASE_SERVICE_ROLE_KEY    required to upsert into staffing_hist
  *   STAFFING_HIST_SKIP_DB=1      write JSON only
@@ -63,21 +64,22 @@ async function upsertSupabase(row) {
 
 async function buildPeriod(period) {
   console.log("===", period);
-  const { flights, chunks, failedChunks } = await fetchPeriodFlights(period, (i, n, label) => {
+  const { flights, chunks, failedChunks, source } = await fetchPeriodFlights(period, (i, n, label) => {
     console.log("  chunk", i + "/" + n, label);
   });
   const agg = aggregateStatsimHistorical(flights);
   const computedAt = new Date().toISOString();
+  const src = source || "statsim";
   const payload = {
     period,
     computed_at: computedAt,
-    source_label: "statsim:" + period + (chunks > 1 ? ("/" + chunks + "chunks") : ""),
+    source_label: src + ":" + period + (chunks > 1 ? ("/" + chunks + "chunks") : ""),
     flight_rows: agg.flightRows,
     us_events: agg.usEvents,
     data: {
       ...agg,
       approaches: agg.approaches || [],
-      meta: { chunks, failedChunks, computedAt }
+      meta: { chunks, failedChunks, computedAt, source: src }
     }
   };
 

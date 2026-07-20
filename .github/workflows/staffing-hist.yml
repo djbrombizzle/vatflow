@@ -38,8 +38,13 @@ jobs:
         env:
           SUPABASE_URL: https://qoaipsfcidpymboojfwa.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STATSIM_API_KEY: ${{ secrets.STATSIM_API_KEY }}
         run: |
           set -euo pipefail
+          if [ -z "${STATSIM_API_KEY}" ]; then
+            echo "::error::STATSIM_API_KEY secret is missing. Create a key at https://statsim.net/api-keys and add it as a repo secret."
+            exit 1
+          fi
           PERIODS="${{ github.event.inputs.periods }}"
           if [ -z "$PERIODS" ]; then
             node scripts/build-staffing-hist.mjs

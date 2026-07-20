@@ -1,9 +1,11 @@
 /**
  * Shared StatSim USA historical aggregation for ATC Staffing.
- * Used by the Monday precompute job (Node) — no browser/CORS proxies.
+ * Prefers the official StatSim REST API (STATSIM_API_KEY) — HTML country pages
+ * often return empty tables to datacenter / CI IPs after StatSim's Blazor rewrite.
  */
 export const PERIODS = ["thisweek", "thismonth", "thisyear"];
 export const STATSIM_COUNTRY_US = "https://statsim.net/flights/countries/country/US/";
+export const STATSIM_API_BASE = "https://api.statsim.net";
 export const STATSIM_CHUNK_DAYS = 7;
 export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -134,19 +136,27 @@ export function parseStatsimCountryMarkdown(md) {
   const out = [];
   const lines = String(md || "").split(/\r?\n/);
   let mode = null;
+  function cell(s) {
+    const t = String(s || "").trim();
+    const link = t.match(/^\[([^\]]+)\]/);
+    return link ? link[1].trim() : t;
+  }
   for (const raw of lines) {
     const line = raw.trim();
-    if (/^Departed\b/i.test(line)) { mode = "dep"; continue; }
-    if (/^Arrived\b/i.test(line)) { mode = "arr"; continue; }
+    if (/^#{0,6}\s*Departed\b/i.test(line) || /^Departed\b/i.test(line)) { mode = "dep"; continue; }
+    if (/^#{0,6}\s*Arrived\b/i.test(line) || /^Arrived\b/i.test(line)) { mode = "arr"; continue; }
     if (!mode) continue;
-    if (/^Callsign\b/i.test(line)) continue;
+    if (/^Callsign\b/i.test(line) || /^\|?\s*Callsign\b/i.test(line)) continue;
     if (/^#{1,6}\s/.test(line) || /^United States$/i.test(line)) { mode = null; continue; }
     const parts = line.includes("\t") ? line.split(/\t+/) : line.split(/\|/).map(s => s.trim()).filter(Boolean);
     if (parts.length < 5) continue;
     if (/^-{2,}$/.test(parts[0])) continue;
-    const t = parseStatsimTime(parts[3]);
+    const callsign = cell(parts[0]);
+    const origin = cell(parts[1]);
+    const dest = cell(parts[2]);
+    const t = parseStatsimTime(cell(parts[3]));
     if (t == null) continue;
-    pushFlight(out, parts[0], parts[1], parts[2], t, mode, parts[4]);
+    pushFlight(out, callsign, origin, dest, t, mode, cell(parts[4]));
   }
   return out;
 }
@@ -158,6 +168,124 @@ export function parseStatsimCountryText(text) {
     if (rows.length) return rows;
   }
   return parseStatsimCountryMarkdown(s);
+}
+
+/** True when StatSim returned the Blazor shell with empty Departed/Arrived tables. */
+export function statsimResponseIsEmptyShell(text) {
+  const s = String(text || "");
+  const dep = s.match(/Departed\s*\((\d+)\)/i);
+  const arr = s.match(/Arrived\s*\((\d+)\)/i);
+  if (dep && arr && Number(dep[1]) === 0 && Number(arr[1]) === 0) return true;
+  if (/Departed/i.test(s) && /<table/i.test(s) && !/<tbody[^>]*>\s*<tr/i.test(s)) {
+    /* thead-only tables */
+    if (!/\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)) return true;
+  }
+  return false;
+}
+
+export function periodFetchWindows(period) {
+  const now = Date.now();
+  const d = new Date(now);
+  let startMs;
+  if (period === "thismonth") {
+    startMs = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0);
+  } else if (period === "thisyear") {
+    startMs = Date.UTC(d.getUTCFullYear(), 0, 1, 0, 0, 0);
+  } else {
+    /* thisweek ≈ last 7 days */
+    startMs = now - 7 * 86400000;
+  }
+  const windows = [];
+  const span = STATSIM_CHUNK_DAYS * 86400000;
+  for (let t = startMs; t < now; t += span) {
+    const fromMs = t;
+    const toMs = Math.min(t + span, now);
+    windows.push({
+      fromMs,
+      toMs,
+      label: fmtStatsimDateTime(fromMs).slice(0, 10) + "\u2013" + fmtStatsimDateTime(toMs).slice(0, 10)
+    });
+  }
+  return windows.length ? windows : [{ fromMs: startMs, toMs: now, label: "range" }];
+}
+
+function flightDtoToRows(f) {
+  const out = [];
+  if (!f || typeof f !== "object") return out;
+  const cs = f.callsign;
+  const origin = f.departure;
+  const dest = f.destination;
+  const ac = f.aircraft;
+  if (f.departed) {
+    const t = Date.parse(f.departed);
+    if (isFinite(t)) pushFlight(out, cs, origin, dest, t, "dep", ac);
+  }
+  if (f.arrived) {
+    const t = Date.parse(f.arrived);
+    if (isFinite(t)) pushFlight(out, cs, origin, dest, t, "arr", ac);
+  }
+  return out;
+}
+
+export async function fetchStatsimApiWindow(fromMs, toMs, apiKey, { timeoutMs = 180000 } = {}) {
+  const from = new Date(fromMs).toISOString();
+  const to = new Date(toMs).toISOString();
+  const url = STATSIM_API_BASE + "/api/Flights/Dates?from=" + encodeURIComponent(from) +
+    "&to=" + encodeURIComponent(to);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        "X-API-Key": apiKey,
+        Accept: "application/json",
+        "User-Agent": "VATFLOW-staffing-hist/1.0 (+https://vatflow.io)"
+      }
+    });
+    if (r.status === 401 || r.status === 403) {
+      throw new Error("StatSim API unauthorized (check STATSIM_API_KEY)");
+    }
+    if (!r.ok) throw new Error("StatSim API HTTP " + r.status);
+    const data = await r.json();
+    if (!Array.isArray(data)) throw new Error("StatSim API returned non-array");
+    const rows = [];
+    for (const f of data) rows.push(...flightDtoToRows(f));
+    return rows;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function fetchPeriodFlightsFromApi(period, apiKey, onProgress) {
+  const windows = periodFetchWindows(period);
+  const all = [];
+  const seen = Object.create(null);
+  let failed = 0;
+  let lastErr = null;
+  for (let i = 0; i < windows.length; i++) {
+    const w = windows[i];
+    if (typeof onProgress === "function") onProgress(i + 1, windows.length, w.label);
+    try {
+      const rows = await fetchStatsimApiWindow(w.fromMs, w.toMs, apiKey);
+      for (const f of rows) {
+        const k = f.kind + "|" + f.callsign + "|" + f.origin + "|" + f.dest + "|" + f.timeMs;
+        if (seen[k]) continue;
+        seen[k] = 1;
+        all.push(f);
+      }
+    } catch (e) {
+      failed++;
+      lastErr = e && e.message ? e.message : String(e);
+      if (windows.length === 1) throw e;
+      console.warn("API chunk failed", w.label, lastErr);
+    }
+    if (i < windows.length - 1) await new Promise(r => setTimeout(r, 200));
+  }
+  if (!all.length) {
+    throw new Error(lastErr || "No StatSim API flights returned");
+  }
+  return { flights: all, chunks: windows.length, failedChunks: failed, source: "api" };
 }
 
 function histEmptyBucket() { return { dep: 0, arr: 0 }; }
@@ -321,6 +449,12 @@ export async function fetchStatsimUrlText(url, { timeoutMs = 120000 } = {}) {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const text = await r.text();
     if (!text || !/Departed/i.test(text)) throw new Error("Unexpected StatSim response");
+    if (statsimResponseIsEmptyShell(text)) {
+      throw new Error(
+        "StatSim HTML returned empty Departed/Arrived tables (blocked or Blazor shell). " +
+        "Set STATSIM_API_KEY (create at https://statsim.net/api-keys)."
+      );
+    }
     return text;
   } finally {
     clearTimeout(timer);
@@ -328,6 +462,11 @@ export async function fetchStatsimUrlText(url, { timeoutMs = 120000 } = {}) {
 }
 
 export async function fetchPeriodFlights(period, onProgress) {
+  const apiKey = (process.env.STATSIM_API_KEY || "").trim();
+  if (apiKey) {
+    return fetchPeriodFlightsFromApi(period, apiKey, onProgress);
+  }
+
   const jobs = statsimFetchJobs(period);
   const all = [];
   const seen = Object.create(null);
@@ -353,6 +492,12 @@ export async function fetchPeriodFlights(period, onProgress) {
     }
     if (i < jobs.length - 1) await new Promise(r => setTimeout(r, 250));
   }
-  if (!all.length) throw new Error(lastErr || "No StatSim flights returned");
-  return { flights: all, chunks: jobs.length, failedChunks: failed };
+  if (!all.length) {
+    throw new Error(
+      (lastErr || "No StatSim flights returned") +
+      " — HTML scrape is unreliable from CI; set repo secret STATSIM_API_KEY " +
+      "(https://statsim.net/api-keys)."
+    );
+  }
+  return { flights: all, chunks: jobs.length, failedChunks: failed, source: "html" };
 }
