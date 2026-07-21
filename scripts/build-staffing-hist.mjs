@@ -19,7 +19,8 @@ import { fileURLToPath } from "url";
 import {
   PERIODS,
   fetchPeriodFlights,
-  aggregateStatsimHistorical
+  aggregateStatsimHistorical,
+  destroyStatsimAgent
 } from "./lib/staffing-hist-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -155,8 +156,9 @@ async function main() {
   }
   console.log("done");
   buildFinished = true;
-  destroyStatsimAgent();
+  try { destroyStatsimAgent(); } catch (_) {}
 }
+
 
 main().catch(err => {
   console.error(err);
