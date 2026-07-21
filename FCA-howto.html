@@ -187,11 +187,62 @@
     text-decoration: none;
   }
   .tools a:hover { text-decoration: underline; }
+  .section-break {
+    margin: 48px 0 28px;
+    padding-top: 36px;
+    border-top: 1px solid var(--line);
+  }
+  .section-break h2 {
+    margin: 0 0 8px;
+    font-family: var(--mono);
+    font-size: clamp(22px, 4vw, 28px);
+    letter-spacing: 0.06em;
+  }
+  .section-break > p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.45;
+    max-width: 40rem;
+  }
+  .poster {
+    width: 100%;
+    max-width: 920px;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: block;
+    margin: 0 0 28px;
+  }
+  .paths {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .path h3 {
+    margin: 0 0 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .path ol {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .path li { margin-bottom: 6px; }
+  .path li b { color: var(--text); }
   @media (max-width: 560px) {
     .page { padding-left: 16px; padding-right: 16px; }
     .step { grid-template-columns: 44px 1fr; gap: 12px; }
     .num { width: 44px; height: 44px; font-size: 15px; }
     .step:not(:last-child)::before { left: 21px; top: 44px; }
+    .paths { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -203,6 +254,9 @@
     <h1>FCA How-To</h1>
     <p>One path from creating a Flow Constrained Area to issuing ground releases. Follow the numbers.</p>
   </header>
+
+  <img class="poster" src="docs/vatflow-fca-howto-flow.png"
+    alt="VATFLOW FCA how-to flowchart: create program through Release Board">
 
   <div class="callouts">
     <div class="callout warn">
@@ -265,16 +319,16 @@
       <div class="num">7</div>
       <div class="body">
         <h2>Issue releases (RDY)</h2>
-        <p>Press <b>RDY</b> on a ground departure to freeze a wheels-up time. Optional HHMMz floor = release at or after that time. Press again (<b>RLSD ✕</b>) to cancel.</p>
-        <span class="where">Same releases on Builder + Release Board</span>
+        <p>Press <b>RDY</b> on a ground departure to freeze a wheels-up time. Optional HHMMz floor = release at or after that time. Press again (<b>RLSD ✕</b>) to cancel. You can also issue from <b>Release Board</b> or <b>My Dashboard</b> — see below.</p>
+        <span class="where">Same release · every page</span>
       </div>
     </li>
     <li class="step">
       <div class="num">8</div>
       <div class="body">
-        <h2>On position → Release Board</h2>
-        <p>Tower/center: open <b>Release Board</b>, pick your ARTCC, issue/cancel RDY for metered ground departures. Build/edit programs stays in FCA Builder.</p>
-        <span class="where">Tool · Release Board</span>
+        <h2>On position → pick a release page</h2>
+        <p><b>Release Board</b> for ARTCC-wide metered strips, or <b>My Dashboard</b> (Airport TMU) for your personal airport list. Build/edit programs stays in FCA Builder.</p>
+        <span class="where">Tools · Release Board · My Dashboard</span>
       </div>
     </li>
   </ol>
@@ -287,12 +341,51 @@
     </div>
   </div>
 
+  <section class="section-break" id="releases">
+    <h2>Issue releases</h2>
+    <p>Two ways to RDY once an FCA is enabled. Same program, same sequence, same times — everywhere.</p>
+
+    <img class="poster" src="docs/vatflow-fca-releases-flow.png"
+      alt="VATFLOW issue releases flowchart: Release Board and My Dashboard paths, live sync banner">
+
+    <div class="callouts">
+      <div class="callout warn">
+        <strong>Programs sync across all pages</strong>
+        <p>FCA Builder, Release Board, My Dashboard, and Departures share one live FCA list — order, RDY / RLSD times, and cancels update for everyone in realtime. Create and edit the line in <b>FCA Builder</b>; issue releases from whichever page you are working.</p>
+      </div>
+    </div>
+
+    <div class="paths">
+      <div class="path">
+        <h3>Release Board</h3>
+        <ol>
+          <li>Open <b>Release Board</b></li>
+          <li>Select your <b>ARTCC</b> / filter (center, airport, or PCT)</li>
+          <li>Sign in while online on a controller position</li>
+          <li>Press <b>RDY</b> on the ground strip</li>
+          <li><b>RLSD</b> = issued wheels-up · press again to cancel</li>
+        </ol>
+      </div>
+      <div class="path">
+        <h3>My Dashboard</h3>
+        <ol>
+          <li>Open <b>Airport TMU</b> → <b>My Dashboard</b></li>
+          <li>Add your departure airports / ARTCC filters</li>
+          <li>Find rows with <b>FCA PRGM</b> set</li>
+          <li>Press <b>RDY</b> / CFR on that row</li>
+          <li>Same release shows on Builder + Release Board</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
   <section class="tools">
     <h3>Which tool?</h3>
     <ul>
       <li><b>FCA Builder</b> — draw, configure, enable programs · <a href="FCA-builderv02.html">Open</a></li>
       <li><b>Release Board</b> — on-position RDY for metered departures · <a href="artcc-dashboard.html">Open</a></li>
-      <li><b>Airport TMU</b> — destination capacity / CFR · when it shows <b>FCA PRGM</b>, FCA metering wins · <a href="vatflow-tbfm%20v2.html">Open</a></li>
+      <li><b>My Dashboard</b> — personal airport list + RDY when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Airport TMU</a></li>
+      <li><b>Airport TMU</b> — destination capacity / CFR · FCA metering wins when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Open</a></li>
     </ul>
   </section>
 </main>
