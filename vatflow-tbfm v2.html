@@ -4687,6 +4687,11 @@ function histFmtEventListItem(ev) {
   const short = name.length > 28 ? name.slice(0, 26) + "\u2026" : name;
   return when ? (when + " \u00b7 " + short) : short;
 }
+/**
+ * Events that overlap the specific Staff-next UTC window only.
+ * Do not use DOW-only matches (e.g. a later Saturday) — those confuse the
+ * Events column next to "Staff next 7 days".
+ */
 function histUpcomingEventsForSlot(slot, win, networkEvents) {
   if (!slot || !win) return [];
   const radius = STAFF_EVENT_RADIUS_NM;
@@ -4750,22 +4755,21 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
   }
   const staffLabel = histFmtHourRange(staffWin.startHour, staffWin.endHour);
   const win = histNextUtcWindow(slot.dow, staffWin.startHour, staffWin.endHour, nowMs);
+  /* Only events on the Staff-next window — never fall back to other DOW matches. */
   const upcomingEvents = histUpcomingEventsForSlot(slot, win, networkEvents);
   const samples = histDowSampleCount(staffingHist.period, slot.dow, nowMs);
   const totalOps = staffWin.score || ((staffWin.dep || 0) + (staffWin.arr || 0));
   const avgOps = histRoundOps(totalOps / samples);
   const avgDep = histRoundOps((staffWin.dep || 0) / samples);
   const avgArr = histRoundOps((staffWin.arr || 0) / samples);
-  const eventCount = upcomingEvents.length
-    ? upcomingEvents.length
-    : ((slot.eventOverlap && slot.eventOverlap.length) || 0);
-  const eventMult = 1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, eventCount);
+  const eventCount = upcomingEvents.length;
+  const eventMult = eventCount
+    ? (1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, eventCount))
+    : 1;
   let predOps = win ? histRoundOps(avgOps * eventMult) : 0;
   const artcc = histSlotArtcc(slot);
   const upcomingLabel = histFmtUpcomingLabel(win, staffLabel);
-  const eventItems = upcomingEvents.length
-    ? upcomingEvents.slice(0, 2).map(histFmtEventListItem)
-    : (slot.eventOverlap || []).slice(0, 2).map(histFmtEventListItem);
+  const eventItems = upcomingEvents.slice(0, 2).map(histFmtEventListItem);
   /* Keep legacy score fields for any leftover list UI / sorting compat. */
   const histScoreVal = avgOps;
   const score = eventCount ? predOps : avgOps;
@@ -4790,7 +4794,7 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
     score,
     histScore: histScoreVal,
     upcomingScore: predOps,
-    eventBoost: !!slot.eventBoost || upcomingEvents.length > 0,
+    eventBoost: upcomingEvents.length > 0,
     eventMult,
     airports: slot.airports || null,
     upcomingStartMs: win ? win.startMs : Number.POSITIVE_INFINITY,
