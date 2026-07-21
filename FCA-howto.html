@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FCA How-To — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --line: #1e2834;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --amber: #e8a838;
+    --cyan: #5ba8c9;
+    --green: #4caf7a;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(ellipse 90% 50% at 50% -10%, rgba(232, 168, 56, 0.08), transparent 55%),
+      radial-gradient(ellipse 70% 40% at 100% 100%, rgba(91, 168, 201, 0.06), transparent 50%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--ui);
+  }
+  .page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: calc(var(--vatflow-nav-h) + 36px) 24px 64px;
+  }
+  .hero {
+    margin-bottom: 36px;
+  }
+  .hero .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  .hero h1 {
+    margin: 0 0 12px;
+    font-family: var(--mono);
+    font-size: clamp(28px, 5vw, 42px);
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .hero p {
+    margin: 0;
+    max-width: 40rem;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 16px;
+    align-items: start;
+    position: relative;
+  }
+  .step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 27px;
+    top: 56px;
+    bottom: -8px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--amber), rgba(232, 168, 56, 0.15));
+  }
+  .num {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--amber);
+    background: rgba(232, 168, 56, 0.1);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+  }
+  .body {
+    padding: 8px 0 28px;
+  }
+  .body h2 {
+    margin: 0 0 6px;
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .body p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .body .where {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--cyan);
+  }
+  .callouts {
+    display: grid;
+    gap: 12px;
+    margin-top: 8px;
+    margin-bottom: 40px;
+  }
+  .callout {
+    border-left: 3px solid var(--cyan);
+    padding: 12px 14px;
+    background: rgba(91, 168, 201, 0.06);
+  }
+  .callout.warn {
+    border-left-color: var(--amber);
+    background: rgba(232, 168, 56, 0.06);
+  }
+  .callout strong {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+  .callout p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .tools {
+    margin-top: 8px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .tools h3 {
+    margin: 0 0 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .tools ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+  }
+  .tools li {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .tools li b {
+    color: var(--text);
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+  .tools a {
+    color: var(--cyan);
+    text-decoration: none;
+  }
+  .tools a:hover { text-decoration: underline; }
+  .section-break {
+    margin: 48px 0 28px;
+    padding-top: 36px;
+    border-top: 1px solid var(--line);
+  }
+  .section-break h2 {
+    margin: 0 0 8px;
+    font-family: var(--mono);
+    font-size: clamp(22px, 4vw, 28px);
+    letter-spacing: 0.06em;
+  }
+  .section-break > p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.45;
+    max-width: 40rem;
+  }
+  .poster {
+    width: 100%;
+    max-width: 920px;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: block;
+    margin: 0 0 28px;
+  }
+  .paths {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .path h3 {
+    margin: 0 0 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .path ol {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .path li { margin-bottom: 6px; }
+  .path li b { color: var(--text); }
+  @media (max-width: 560px) {
+    .page { padding-left: 16px; padding-right: 16px; }
+    .step { grid-template-columns: 44px 1fr; gap: 12px; }
+    .num { width: 44px; height: 44px; font-size: 15px; }
+    .step:not(:last-child)::before { left: 21px; top: 44px; }
+    .paths { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflow-nav"></div>
+<main class="page">
+  <header class="hero">
+    <p class="eyebrow">VATFLOW · Staff briefing</p>
+    <h1>FCA How-To</h1>
+    <p>One path from creating a Flow Constrained Area to issuing ground releases. Follow the numbers.</p>
+  </header>
+
+  <img class="poster" src="docs/vatflow-fca-howto-flow.png"
+    alt="VATFLOW FCA how-to flowchart: create program through Release Board">
+
+  <div class="callouts">
+    <div class="callout warn">
+      <strong>Before you start</strong>
+      <p>Sign in with VATSIM. Anyone signed in can press <b>RDY</b>. Creating or editing an FCA needs ARTCC editor access for that facility.</p>
+    </div>
+  </div>
+
+  <ol class="flow" style="list-style:none;margin:0;padding:0">
+    <li class="step">
+      <div class="num">1</div>
+      <div class="body">
+        <h2>Open FCA Builder</h2>
+        <p>Use the top nav → <b>FCA Builder</b>. This is where programs are drawn and enabled.</p>
+        <span class="where">Tool · FCA Builder</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">2</div>
+      <div class="body">
+        <h2>Create the FCA</h2>
+        <p>Click <b>＋ New FCA</b>. Click the map to place points (at least 2). Double-click or press Enter to finish. Esc cancels.</p>
+        <span class="where">Action · Draw the metering line</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">3</div>
+      <div class="body">
+        <h2>Set owning ARTCC</h2>
+        <p>Tag the facility that owns this program (e.g. ZDC). Scoped editors can only edit FCAs for their ARTCC.</p>
+        <span class="where">Required · Access control</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">4</div>
+      <div class="body">
+        <h2>Scope, rate / MIT, filters</h2>
+        <p><b>Scope</b> (optional) = aircraft must be inside listed ARTCC(s) to be metered. Separate from owning ARTCC.<br>
+        Set <b>Rate</b> (aircraft/hour) and/or <b>MIT</b>, plus dest/origin/fix/FL filters so the right traffic is included.</p>
+        <span class="where">Settings · Who gets metered &amp; how tight</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">5</div>
+      <div class="body">
+        <h2>Enable the FCA</h2>
+        <p>Turn it on when ready. Disabled FCAs do not meter. Aircraft only join when their <b>filed route</b> crosses the line.</p>
+        <span class="where">Go live · Sequencing starts</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">6</div>
+      <div class="body">
+        <h2>Work the sequence</h2>
+        <p>Select the FCA → sequence panel. Airborne = nearest to the line first. Ground strips show proposed release spacing. Drag to reorder if you can edit.</p>
+        <span class="where">Panel · Order &amp; gaps</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">7</div>
+      <div class="body">
+        <h2>Issue releases (RDY)</h2>
+        <p>Press <b>RDY</b> on a ground departure to freeze a wheels-up time. Optional HHMMz floor = release at or after that time. Press again (<b>RLSD ✕</b>) to cancel. You can also issue from <b>Release Board</b> or <b>My Dashboard</b> — see below.</p>
+        <span class="where">Same release · every page</span>
+      </div>
+    </li>
+    <li class="step">
+      <div class="num">8</div>
+      <div class="body">
+        <h2>On position → pick a release page</h2>
+        <p><b>Release Board</b> for ARTCC-wide metered strips, or <b>My Dashboard</b> (Airport TMU) for your personal airport list. Build/edit programs stays in FCA Builder.</p>
+        <span class="where">Tools · Release Board · My Dashboard</span>
+      </div>
+    </li>
+  </ol>
+
+  <div class="callouts">
+    <div class="callout">
+      <strong>Owning ARTCC vs Scope</strong>
+      <p><b>Owning ARTCC</b> = who may edit the program.<br>
+      <b>Scope</b> = optional geographic filter for which aircraft are metered.</p>
+    </div>
+  </div>
+
+  <section class="section-break" id="releases">
+    <h2>Issue releases</h2>
+    <p>Two ways to RDY once an FCA is enabled. Same program, same sequence, same times — everywhere.</p>
+
+    <img class="poster" src="docs/vatflow-fca-releases-flow.png"
+      alt="VATFLOW issue releases flowchart: Release Board and My Dashboard paths, live sync banner">
+
+    <div class="callouts">
+      <div class="callout warn">
+        <strong>Programs sync across all pages</strong>
+        <p>FCA Builder, Release Board, My Dashboard, and Departures share one live FCA list — order, RDY / RLSD times, and cancels update for everyone in realtime. Create and edit the line in <b>FCA Builder</b>; issue releases from whichever page you are working.</p>
+      </div>
+    </div>
+
+    <div class="paths">
+      <div class="path">
+        <h3>Release Board</h3>
+        <ol>
+          <li>Open <b>Release Board</b></li>
+          <li>Select your <b>ARTCC</b> / filter (center, airport, or PCT)</li>
+          <li>Sign in while online on a controller position</li>
+          <li>Press <b>RDY</b> on the ground strip</li>
+          <li><b>RLSD</b> = issued wheels-up · press again to cancel</li>
+        </ol>
+      </div>
+      <div class="path">
+        <h3>My Dashboard</h3>
+        <ol>
+          <li>Open <b>Airport TMU</b> → <b>My Dashboard</b></li>
+          <li>Add your departure airports / ARTCC filters</li>
+          <li>Find rows with <b>FCA PRGM</b> set</li>
+          <li>Press <b>RDY</b> / CFR on that row</li>
+          <li>Same release shows on Builder + Release Board</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="tools">
+    <h3>Which tool?</h3>
+    <ul>
+      <li><b>FCA Builder</b> — draw, configure, enable programs · <a href="FCA-builderv02.html">Open</a></li>
+      <li><b>Release Board</b> — on-position RDY for metered departures · <a href="artcc-dashboard.html">Open</a></li>
+      <li><b>My Dashboard</b> — personal airport list + RDY when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Airport TMU</a></li>
+      <li><b>Airport TMU</b> — destination capacity / CFR · FCA metering wins when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Open</a></li>
+    </ul>
+  </section>
+</main>
+<script type="module">
+  import { mountVatflowNav } from "./shared/vatflow-nav.js";
+  mountVatflowNav(document.getElementById("vatflow-nav"), "fca");
+</script>
+</body>
+</html>
