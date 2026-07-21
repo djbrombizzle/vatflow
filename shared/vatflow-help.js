@@ -9,6 +9,7 @@ export const FCA_HELP = {
     { step: "1", text: "＋ New FCA — draw the line on the map" },
     { step: "2", text: "Set owning ARTCC, rate/MIT, and filters" },
     { step: "3", text: "Enable the FCA and use RDY on ground strips" },
+    { step: "→", text: 'Full staff flow diagram: <a href="FCA-howto.html">FCA How-To</a>' },
   ],
   nav: [
     { id: "fca-start", label: "Getting started" },
