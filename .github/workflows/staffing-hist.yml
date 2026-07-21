@@ -2,6 +2,9 @@
 #
 # Writes data/staffing-hist/*.json and upserts into Supabase public.staffing_hist
 # when SUPABASE_SERVICE_ROLE_KEY is configured as a repo secret.
+#
+# Periods run as parallel matrix jobs so thisyear (~13k StatSim requests) does not
+# blow a single 3h job timeout after week+month already finished.
 name: Staffing historical data
 
 on:
@@ -23,9 +26,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    outputs:
+      periods: ${{ steps.periods.outputs.periods }}
+    steps:
+      - name: Resolve periods
+        id: periods
+        run: |
+          set -euo pipefail
+          RAW="${{ github.event.inputs.periods }}"
+          if [ -z "${RAW}" ]; then
+            echo 'periods=["thisweek","thismonth","thisyear"]' >> "$GITHUB_OUTPUT"
+          else
+            node -e '
+              const parts = String(process.env.RAW || "")
+                .split(",")
+                .map(s => s.trim())
+                .filter(Boolean);
+              const allowed = new Set(["thisweek", "thismonth", "thisyear"]);
+              const bad = parts.filter(p => !allowed.has(p));
+              if (bad.length) {
+                console.error("Unknown period(s):", bad.join(", "));
+                process.exit(1);
+              }
+              if (!parts.length) {
+                console.error("No periods provided");
+                process.exit(1);
+              }
+              console.log("periods=" + JSON.stringify(parts));
+            ' >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          RAW: ${{ github.event.inputs.periods }}
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    # GitHub max is 6h; thisyear alone is ~4h at concurrency 4.
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        period: ${{ fromJson(needs.setup.outputs.periods) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,11 +78,12 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Build aggregates
+      - name: Build ${{ matrix.period }}
         env:
           SUPABASE_URL: https://qoaipsfcidpymboojfwa.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           STATSIM_API_KEY: ${{ secrets.STATSIM_API_KEY }}
+          STATSIM_API_CONCURRENCY: "6"
           NODE_OPTIONS: --max-old-space-size=6144
           STAFFING_HIST_DONE_MARKER: ${{ runner.temp }}/staffing-hist-done
         run: |
@@ -52,14 +96,8 @@ jobs:
             echo "::warning::SUPABASE_SERVICE_ROLE_KEY is empty — JSON will be committed but the live site (Supabase-first) will keep stale data until this secret is set."
           fi
           rm -f "${STAFFING_HIST_DONE_MARKER}"
-          PERIODS="${{ github.event.inputs.periods }}"
-          LOG="${RUNNER_TEMP}/staffing-hist-build.log"
-          if [ -z "$PERIODS" ]; then
-            node scripts/build-staffing-hist.mjs 2>&1 | tee "$LOG"
-          else
-            # shellcheck disable=SC2086
-            node scripts/build-staffing-hist.mjs $(echo "$PERIODS" | tr ',' ' ') 2>&1 | tee "$LOG"
-          fi
+          LOG="${RUNNER_TEMP}/staffing-hist-${{ matrix.period }}.log"
+          node scripts/build-staffing-hist.mjs "${{ matrix.period }}" 2>&1 | tee "$LOG"
           if [ ! -f "${STAFFING_HIST_DONE_MARKER}" ]; then
             echo "::error::Build exited before writing the done marker (false-green / early Node exit)."
             exit 1
@@ -72,16 +110,74 @@ jobs:
             echo "::error::Build log has no API flights / wrote lines — fetch did not finish."
             exit 1
           fi
+          test -f "data/staffing-hist/${{ matrix.period }}.json"
 
-      - name: Commit data files
+      - name: Upload ${{ matrix.period }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: staffing-hist-${{ matrix.period }}
+          path: data/staffing-hist/${{ matrix.period }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download period artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: staffing-hist-*
+          path: /tmp/staffing-hist-artifacts
+          merge-multiple: true
+
+      - name: Apply artifacts and commit
         run: |
           set -euo pipefail
+          shopt -s nullglob
+          files=(/tmp/staffing-hist-artifacts/*.json)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No period artifacts to publish (all matrix builds failed?)."
+            exit 1
+          fi
+          mkdir -p data/staffing-hist
+          for f in "${files[@]}"; do
+            base="$(basename "$f")"
+            echo "Applying $base"
+            cp "$f" "data/staffing-hist/$base"
+          done
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+          const dir = "data/staffing-hist";
+          const PERIODS = ["thisweek", "thismonth", "thisyear"];
+          const periods = [];
+          for (const id of PERIODS) {
+            const fp = path.join(dir, id + ".json");
+            if (!fs.existsSync(fp)) continue;
+            const j = JSON.parse(fs.readFileSync(fp, "utf8"));
+            periods.push({
+              period: j.period || id,
+              computed_at: j.computed_at || null,
+              flight_rows: j.flight_rows || 0,
+              us_events: j.us_events || 0,
+              towers: ((j.data && j.data.towers) || []).length
+            });
+          }
+          const index = { updated_at: new Date().toISOString(), periods };
+          fs.writeFileSync(path.join(dir, "index.json"), JSON.stringify(index, null, 2) + "\n");
+          console.log("index periods:", periods.map(p => p.period).join(", "));
+          NODE
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/staffing-hist
           if git diff --cached --quiet; then
-            echo "::error::Build produced no data file changes. A real run always updates computed_at."
-            exit 1
+            echo "No data file changes to commit (artifacts matched existing files)."
+            exit 0
           fi
           git commit -m "Update staffing historical aggregates"
           git push
