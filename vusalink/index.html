@@ -152,11 +152,15 @@
   .mlist{max-height:300px;overflow:auto;padding:4px 8px}
   .mitem{border-bottom:1px solid #181818;padding:4px 0;white-space:normal;word-break:break-word}
   .mitem .meta{color:var(--fg-dim);font-size:11px}
-  .mp-acts{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid #333;background:#101010}
+  .mp-acts{display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;border-bottom:1px solid #333;background:#101010;align-items:center}
   .mp-acts .hobtn{margin-left:0;padding:2px 10px;cursor:pointer}
   .mp-acts .hobtn.unable{color:#e08a8a;border-color:#7a2a2a}
   .mp-acts .hobtn.standby{color:var(--amber);border-color:#5a4a22}
+  .mp-acts .hobtn.send{color:var(--cyan);border-color:#2a5a58}
   .mp-acts .hobtn:disabled{opacity:.4;cursor:default}
+  .mp-free{display:flex;gap:6px;flex:1 1 100%;min-width:0;align-items:center}
+  .mp-free input{flex:1;min-width:0;background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;font:inherit}
+  .mp-free input:disabled{opacity:.4}
 
   #logwrap{position:fixed;right:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;z-index:40}
   #logwrap .lh{display:flex;justify-content:space-between;padding:3px 8px;background:#161616;border-bottom:1px solid #333}
@@ -290,7 +294,7 @@
 </table>
 
 <div class="footnote">
-  Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read; <b>UNABLE</b> / <b>STANDBY</b> reply from the menu) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
+  Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read; <b>UNABLE</b> / <b>STANDBY</b> / free-text reply from the menu) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
   Click <b>FLIGHT ID</b> to hand off &middot; <b>ALT</b> for a level &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
 </div>
 
@@ -370,6 +374,11 @@
   <div class="mp-acts" id="mpActs">
     <span class="hobtn unable" id="mpUnable" title="UM0 — reply UNABLE to the pilot request">UNABLE</span>
     <span class="hobtn standby" id="mpStandby" title="UM1 — reply STANDBY to the pilot request">STANDBY</span>
+    <div class="mp-free">
+      <input id="mpFreeText" type="text" maxlength="220" autocomplete="off" spellcheck="false"
+        placeholder="Free-text reply…" title="Custom CPDLC reply to the pilot request">
+      <span class="hobtn send" id="mpFreeSend" title="Send free-text reply">SEND</span>
+    </div>
   </div>
   <div class="mlist" id="mpList"></div>
 </div>
@@ -1895,35 +1904,54 @@ async function sendHandover(cs,fac){
 //============================================================ MESSAGE popup (M box)
 const msgpop=document.getElementById('msgpop');
 let msgPopCs='';
-// UM0 UNABLE / UM1 STANDBY — Hoppie free-text FANS elements, RA N (no further reply),
+// UM0 UNABLE / UM1 STANDBY / free-text — Hoppie free-text FANS elements, RA N (no further reply),
 // MRN = pilot request MIN (same pattern as LOGON ACCEPTED).
 async function sendMsgReply(text){
   const cs=(msgPopCs||'').toUpperCase();
-  if(!cs||!canControl())return;
+  const body=String(text||'').trim();
+  if(!cs||!body||!canControl())return;
   const mrn=lastPilotMsgMin[cs]||'';
-  const min=await sendCpdlc(cs,'N',text,mrn);
+  const min=await sendCpdlc(cs,'N',body,mrn);
   if(min!=null){
-    logMsg('sys',cs,text+(mrn?' (ref MIN '+mrn+')':''));
+    logMsg('sys',cs,body+(mrn?' (ref MIN '+mrn+')':''));
+    const free=document.getElementById('mpFreeText');
+    if(free)free.value='';
     // Refresh popup list so the outbound reply appears immediately
     if(!msgpop.classList.contains('hidden'))openMessages(cs);
   }
 }
+function sendMsgFreeText(){
+  const free=document.getElementById('mpFreeText');
+  sendMsgReply(free?free.value:'');
+}
 document.getElementById('mpUnable').onclick=()=>sendMsgReply('UNABLE');
 document.getElementById('mpStandby').onclick=()=>sendMsgReply('STANDBY');
+document.getElementById('mpFreeSend').onclick=()=>sendMsgFreeText();
+document.getElementById('mpFreeText').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();sendMsgFreeText();}
+});
 function openMessages(cs,x,y){
   cs=(cs||'').toUpperCase();
   msgPopCs=cs;
   msgAlert.delete(cs);stopMsgRepeat(cs);renderBoard();
   document.getElementById('mpTitle').textContent='MESSAGES '+cs;
   const canReply=canControl();
+  const free=document.getElementById('mpFreeText');
+  const freeSend=document.getElementById('mpFreeSend');
   document.getElementById('mpUnable').style.opacity=canReply?'':'0.4';
   document.getElementById('mpStandby').style.opacity=canReply?'':'0.4';
+  freeSend.style.opacity=canReply?'':'0.4';
+  free.disabled=!canReply;
   document.getElementById('mpUnable').title=canReply
     ?('UM0 — reply UNABLE'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
     :'Sign in / verify to send';
   document.getElementById('mpStandby').title=canReply
     ?('UM1 — reply STANDBY'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
     :'Sign in / verify to send';
+  free.title=canReply
+    ?('Free-text reply'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
+    :'Sign in / verify to send';
+  freeSend.title=canReply?'Send free-text reply':'Sign in / verify to send';
   const L=document.getElementById('mpList');L.innerHTML='';
   const arr=messages[cs]||[];
   if(!arr.length){L.innerHTML='<div class="empty">No messages.</div>';}
