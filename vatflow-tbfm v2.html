@@ -1568,16 +1568,6 @@ function meterPlaneIcon(color, hdg, dim) {
     '</svg></div>';
   return L.divIcon({ className: "", html: svg, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
-function meterTrailDatablockHtml(color, trailInfo) {
-  if (!trailInfo) return "";
-  if (!trailInfo.leader) {
-    return '<div class="meter-db-trail">\u2265' + Math.round(trailInfo.reqNm) + ' NM req</div>';
-  }
-  const sign = trailInfo.deltaNm >= 0 ? "+" : "";
-  const spClr = trailInfo.deltaNm < -0.5 ? "#d45c5c" : trailInfo.deltaNm > 1 ? "#d4923a" : "#4caf7a";
-  return '<div class="meter-db-trail">' + trailInfo.distNm.toFixed(1) + '/' + Math.round(trailInfo.reqNm) +
-    ' NM <span style="color:' + spClr + '">' + sign + trailInfo.deltaNm.toFixed(1) + '</span></div>';
-}
 function meterAirborneIcon(f, color, hdg, arrived) {
   /* Map labels stay callsign-only — spacing / trail detail lives in the click popup. */
   const sz = arrived ? 10 : 14;
