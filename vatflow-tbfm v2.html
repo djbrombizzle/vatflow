@@ -735,13 +735,12 @@ body.meter-map-resizing { cursor: ns-resize; user-select: none; }
 .meter-ac-plane { flex-shrink: 0; width: 14px; height: 14px; line-height: 0; }
 .meter-ac-plane svg { display: block; }
 .meter-datablock {
-  font-family: var(--font-data); font-size: 9px; line-height: 1.25;
+  font-family: var(--font-data); font-size: 10px; line-height: 1.2;
   background: rgba(14, 19, 25, 0.9); border: 1px solid var(--border);
-  border-radius: 3px; padding: 2px 6px; white-space: nowrap;
+  border-radius: 3px; padding: 1px 5px; white-space: nowrap;
   box-shadow: 0 1px 5px rgba(0,0,0,0.45); pointer-events: none;
 }
 .meter-db-cs { font-weight: 600; font-size: 10px; letter-spacing: 0.03em; }
-.meter-db-trail { color: var(--text-dim); font-size: 9px; font-variant-numeric: tabular-nums; }
 .meter-ac-mark.arrived { opacity: 0.55; }
 .meter-map-nocoords { padding: 24px 20px; color: var(--text-muted); font-size: 12px; }
 .meter-mappop { font-size: 12px; line-height: 1.5; font-family: var(--font-data); }
@@ -1569,30 +1568,21 @@ function meterPlaneIcon(color, hdg, dim) {
     '</svg></div>';
   return L.divIcon({ className: "", html: svg, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
-function meterTrailDatablockHtml(color, trailInfo) {
-  if (!trailInfo) return "";
-  if (!trailInfo.leader) {
-    return '<div class="meter-db-trail">\u2265' + Math.round(trailInfo.reqNm) + ' NM req</div>';
-  }
-  const sign = trailInfo.deltaNm >= 0 ? "+" : "";
-  const spClr = trailInfo.deltaNm < -0.5 ? "#d45c5c" : trailInfo.deltaNm > 1 ? "#d4923a" : "#4caf7a";
-  return '<div class="meter-db-trail">' + trailInfo.distNm.toFixed(1) + '/' + Math.round(trailInfo.reqNm) +
-    ' NM <span style="color:' + spClr + '">' + sign + trailInfo.deltaNm.toFixed(1) + '</span></div>';
-}
-function meterAirborneIcon(f, color, hdg, trailInfo, arrived) {
+function meterAirborneIcon(f, color, hdg, arrived) {
+  /* Map labels stay callsign-only — spacing / trail detail lives in the click popup. */
   const sz = arrived ? 10 : 14;
   const cls = arrived ? "meter-ac-mark arrived" : "meter-ac-mark";
-  const trailHtml = !arrived ? meterTrailDatablockHtml(color, trailInfo) : "";
+  const cs = String(f.callsign || "");
   const html = '<div class="' + cls + '">' +
     '<div class="meter-ac-plane" style="transform:rotate(' + (hdg || 0) + 'deg)">' +
     '<svg viewBox="0 0 24 24" width="' + sz + '" height="' + sz + '">' +
     '<path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="' + color + '" stroke="#0a0e14" stroke-width="1.2"/>' +
     '</svg></div>' +
     '<div class="meter-datablock">' +
-    '<div class="meter-db-cs" style="color:' + color + '">' + esc(f.callsign) + '</div>' +
-    trailHtml + '</div></div>';
-  const w = arrived ? 72 : (trailInfo && trailInfo.leader ? 108 : 88);
-  return L.divIcon({ className: "", html, iconSize: [w, 28], iconAnchor: [7, 14] });
+    '<div class="meter-db-cs" style="color:' + color + '">' + esc(cs) + '</div>' +
+    '</div></div>';
+  const w = Math.max(56, 22 + cs.length * 7);
+  return L.divIcon({ className: "", html, iconSize: [w, 22], iconAnchor: [7, 11] });
 }
 function meterMapPopupHtml(f, gateColors, trailInfo) {
   const gateColor = flightMarkerColor(f, gateColors);
@@ -1744,7 +1734,7 @@ function updateMeterMapMarkers(flow) {
     const arrived = f.status === "ARRIVED";
     const trailInfo = f.status === "AIRBORNE" ? trailMap[f.callsign] : null;
     const m = L.marker([f.lat, f.lon], {
-      icon: meterAirborneIcon(f, color, f.hdg || 0, trailInfo, arrived),
+      icon: meterAirborneIcon(f, color, f.hdg || 0, arrived),
       keyboard: false, riseOnHover: true
     });
     m.bindPopup(meterMapPopupHtml(f, flow.gateColors, trailInfo), { className: "meter-mappop-wrap", maxWidth: 280 });
