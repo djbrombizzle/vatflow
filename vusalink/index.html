@@ -134,7 +134,7 @@
   .customfix input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;width:120px}
 
   /* handoff + message popups */
-  .holist{max-height:280px;overflow:auto}
+  .holist{max-height:320px;overflow:auto}
   .holist .ho{padding:4px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:14px}
   .holist .ho:hover{background:#1c1c1c}
   .holist .ho .meta{color:var(--fg-dim)}
@@ -143,6 +143,10 @@
   .holist .ho{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .holist .ho .left{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .holist .acts{white-space:nowrap}
+  .holist .ho-group{padding:6px 10px 2px;color:var(--fg);font-weight:bold;font-size:12px;
+    border-top:1px solid #333;margin-top:2px;letter-spacing:.02em}
+  .holist .ho-group:first-child{border-top:none;margin-top:0}
+  .holist .ho.unicom+.ho-group{border-top:none}
   .hobtn{border:1px solid #555;padding:0 6px;margin-left:4px;background:#141414;color:var(--fg);font-size:11px}
   .hobtn:hover{background:#242424}
   .hobtn.handover{color:#9fe6e0;border-color:#2f6b73}
@@ -1823,6 +1827,32 @@ document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarge
 
 //============================================================ HANDOFF menu (FLIGHT ID)
 const handoffpop=document.getElementById('handoffpop');
+function artccHandoffGroups(ctrs){
+  // Group center sectors under "ZBW - Boston ARTCC" style headers.
+  const map=new Map();
+  (ctrs||[]).forEach(f=>{
+    const key=f.group||f.icao||'ATC';
+    if(!map.has(key))map.set(key,{title:key,dist:f.dist==null?999:f.dist,items:[]});
+    const g=map.get(key);
+    g.items.push(f);
+    if(f.dist!=null&&f.dist<g.dist)g.dist=f.dist;
+  });
+  const out=[...map.values()];
+  out.sort((a,b)=>a.dist-b.dist||a.title.localeCompare(b.title));
+  out.forEach(g=>g.items.sort((a,b)=>
+    String(a.label||a.callsign||'').localeCompare(String(b.label||b.callsign||''))));
+  return out;
+}
+function appendHandoffContactRow(L,a,f,kindClass){
+  const div=document.createElement('div');div.className='ho';
+  const hoLabel=f.label||f.callsign||f.icao||'';
+  const dist=f.dist?(' \u00b7 '+f.dist+'nm'):'';
+  div.innerHTML=`<span class="left"><span class="${kindClass}">${hoLabel}</span>`
+    +`<span class="meta"> ${f.freq||''}${dist}</span></span>`
+    +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
+  div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+  L.appendChild(div);
+}
 function openHandoff(idx,x,y){
   const a=displayList()[idx];
   document.getElementById('hoTitle').textContent='HANDOFF '+a.cs;
@@ -1837,45 +1867,47 @@ function openHandoff(idx,x,y){
     const ctrs=(facilities||[]).filter(f=>!f.kind||f.kind==='CTR');
     if(aps.length){
       const h=document.createElement('div');h.className='empty';h.textContent='Approach / tower online (voice handoff):';L.appendChild(h);
-      aps.forEach(f=>{
-        const div=document.createElement('div');div.className='ho';
-        const hoLabel=f.label||f.callsign;
-        div.innerHTML=`<span class="left"><span class="app">${hoLabel}</span>`
-          +`<span class="meta"> ${f.freq||''}</span></span>`
-          +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
-        div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
-        L.appendChild(div);
-      });
+      aps.forEach(f=>appendHandoffContactRow(L,a,f,'app'));
     }
     if(ctrs.length){
-      const note=document.createElement('div');note.className='empty';
-      note.innerHTML='Online centers in range \u2014 CONTACT issues the voice frequency change:';
-      L.appendChild(note);
-      ctrs.forEach(f=>{
-        const div=document.createElement('div');div.className='ho';
-        const hoLabel=f.label||f.callsign||f.icao;
-        div.innerHTML=`<span class="left"><span class="ctr">${hoLabel}</span>`
-          +`<span class="meta"> ${f.freq||''}${f.dist?(' \u00b7 '+f.dist+'nm'):''}</span></span>`
-          +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
-        div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
-        L.appendChild(div);
+      artccHandoffGroups(ctrs).forEach(g=>{
+        const hdr=document.createElement('div');hdr.className='ho-group';hdr.textContent=g.title;
+        L.appendChild(hdr);
+        g.items.forEach(f=>appendHandoffContactRow(L,a,f,'ctr'));
       });
     }
     placePop(handoffpop,x,y);return;
   }
   if(!facilities.length){const e=document.createElement('div');e.className='empty';e.textContent='No nearby ATC facilities online (within 200 nm).';L.appendChild(e);}
-  facilities.forEach(f=>{
-    const div=document.createElement('div');div.className='ho';
-    const kc=f.kind==='CTR'?'ctr':'app';
-    const hoLabel=f.label||f.callsign;
-    const handoverBtn=(f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
-    div.innerHTML=`<span class="left"><span class="${kc}">${hoLabel}</span>`
-      +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
-      +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
-    div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
-    const hb=div.querySelector('.handover');
-    if(hb)hb.onclick=()=>sendHandover(a.cs,f);
-    L.appendChild(div);
+  const aps=(facilities||[]).filter(f=>f.kind&&f.kind!=='CTR');
+  const ctrs=(facilities||[]).filter(f=>!f.kind||f.kind==='CTR');
+  if(aps.length){
+    const h=document.createElement('div');h.className='empty';h.textContent='Approach / tower online (voice handoff):';L.appendChild(h);
+    aps.forEach(f=>{
+      const div=document.createElement('div');div.className='ho';
+      const hoLabel=f.label||f.callsign;
+      div.innerHTML=`<span class="left"><span class="app">${hoLabel}</span>`
+        +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
+        +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
+      div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+      L.appendChild(div);
+    });
+  }
+  artccHandoffGroups(ctrs).forEach(g=>{
+    const hdr=document.createElement('div');hdr.className='ho-group';hdr.textContent=g.title;
+    L.appendChild(hdr);
+    g.items.forEach(f=>{
+      const div=document.createElement('div');div.className='ho';
+      const hoLabel=f.label||f.callsign;
+      const handoverBtn=(f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
+      div.innerHTML=`<span class="left"><span class="ctr">${hoLabel}</span>`
+        +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
+        +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
+      div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+      const hb=div.querySelector('.handover');
+      if(hb)hb.onclick=()=>sendHandover(a.cs,f);
+      L.appendChild(div);
+    });
   });
   placePop(handoffpop,x,y);
 }
