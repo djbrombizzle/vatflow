@@ -1839,7 +1839,8 @@ function openHandoff(idx,x,y){
       const h=document.createElement('div');h.className='empty';h.textContent='Approach / tower online (voice handoff):';L.appendChild(h);
       aps.forEach(f=>{
         const div=document.createElement('div');div.className='ho';
-        div.innerHTML=`<span class="left"><span class="app">${f.callsign}</span>`
+        const hoLabel=f.label||f.callsign;
+        div.innerHTML=`<span class="left"><span class="app">${hoLabel}</span>`
           +`<span class="meta"> ${f.freq||''}</span></span>`
           +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
         div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
@@ -1852,7 +1853,8 @@ function openHandoff(idx,x,y){
       L.appendChild(note);
       ctrs.forEach(f=>{
         const div=document.createElement('div');div.className='ho';
-        div.innerHTML=`<span class="left"><span class="ctr">${f.callsign||f.icao}</span>`
+        const hoLabel=f.label||f.callsign||f.icao;
+        div.innerHTML=`<span class="left"><span class="ctr">${hoLabel}</span>`
           +`<span class="meta"> ${f.freq||''}${f.dist?(' \u00b7 '+f.dist+'nm'):''}</span></span>`
           +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
         div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
@@ -1865,8 +1867,9 @@ function openHandoff(idx,x,y){
   facilities.forEach(f=>{
     const div=document.createElement('div');div.className='ho';
     const kc=f.kind==='CTR'?'ctr':'app';
+    const hoLabel=f.label||f.callsign;
     const handoverBtn=(f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
-    div.innerHTML=`<span class="left"><span class="${kc}">${f.callsign}</span>`
+    div.innerHTML=`<span class="left"><span class="${kc}">${hoLabel}</span>`
       +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
       +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
     div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
