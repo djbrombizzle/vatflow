@@ -309,6 +309,7 @@
 <div id="toolbar">
   <div class="field" id="viewArtccField"><label>VIEW ARTCC</label><input id="viewArtcc" size="6" autocomplete="off" placeholder="KZJX"></div>
   <label class="chk"><input type="checkbox" id="showAll"> SHOW ALL A/C</label>
+  <label class="chk" title="Browser tab shows [n] for CPDLC count on your freq"><input type="checkbox" id="compactTitle"> COMPACT TITLE</label>
   <div class="field"><label>ADD/FIND</label><input id="find" size="12" autocomplete="off" placeholder="callsign"></div>
   <button class="tb-btn" id="btnAdd">+ ADD A/C</button>
   <button class="tb-btn" id="btnRefresh">REFRESH</button>
@@ -537,6 +538,7 @@
       <h3>Useful tips</h3>
       <ul>
         <li><b>SHOW ALL A/C</b> — show every aircraft in the sector, not only those tuned to your frequency.</li>
+        <li><b>COMPACT TITLE</b> — set the browser tab to <b>[n]</b> (CPDLC aircraft on your frequency) to save tab space. Off uses <b>(n)vUSAlink</b>.</li>
         <li><b>SOUND</b> — adjust alert volume (50% is normal).</li>
         <li><b>REFRESH</b> — reload live VATSIM traffic.</li>
       </ul>
@@ -586,8 +588,9 @@ const DEFAULT_HUB_URL='https://web-production-3d9fe.up.railway.app';   // shared
 // VATSIM CID. The hub URL is built in, so Settings only asks for the CID. (Solo/direct-Hoppie
 // is retired — a browser can't reach Hoppie directly, which is why the hub exists.)
 const WEB_ONLY=true;
-let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false});
+let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,compactTabTitle:false});
 if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
+if(typeof settings.compactTabTitle!=='boolean')settings.compactTabTitle=false;
 function isMuted(){return !(settings.volume>0);}                 // volume 0 (or unset) = muted
 // settings.volume is the gain multiplier: 1.0 = current sound levels (shown as 50%),
 // 2.0 = double (shown as 100%). Slider% = multiplier*50.
@@ -1421,7 +1424,8 @@ function updateMode(){
 }
 function updateTabTitle(){
   const n=countMyCpdlc();
-  document.title=n?`(${n})vUSAlink`:'vUSAlink';
+  if(settings.compactTabTitle)document.title='['+n+']';
+  else document.title=n?`(${n})vUSAlink`:'vUSAlink';
 }
 function renderBoard(){
   checkWilcoTimeouts();
@@ -2152,6 +2156,8 @@ document.getElementById('btnRefresh').onclick=()=>refreshVatsim(true);
   va.addEventListener('keydown',e=>{if(e.key==='Enter'){va.blur();go();}});
   const sa=document.getElementById('showAll');sa.checked=!!settings.showAll;
   sa.addEventListener('change',()=>{settings.showAll=sa.checked;persist();renderBoard();});
+  const ct=document.getElementById('compactTitle');ct.checked=!!settings.compactTabTitle;
+  ct.addEventListener('change',()=>{settings.compactTabTitle=ct.checked;persist();updateTabTitle();});
 })();
 document.getElementById('find').addEventListener('keydown',e=>{
   if(e.key!=='Enter')return;const q=e.target.value.trim().toUpperCase();if(!q)return;
