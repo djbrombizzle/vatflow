@@ -1894,6 +1894,25 @@ document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarge
 
 //============================================================ HANDOFF menu (FLIGHT ID)
 const handoffpop=document.getElementById('handoffpop');
+function isHandoffCenter(f){
+  const k=(f.kind||'').toUpperCase();
+  return !k||k==='CTR'||k==='FSS';
+}
+function isLocalControl(f){
+  // Tower / ground / delivery — not useful for center CPDLC voice handoff.
+  const k=(f.kind||'').toUpperCase();
+  return k==='TWR'||k==='GND'||k==='DEL';
+}
+function isHandoffApproach(f){
+  const k=(f.kind||'').toUpperCase();
+  return k==='APP'||k==='DEP';
+}
+function isInternalCenter(f){
+  if(!isHandoffCenter(f))return false;
+  const mine=normArtccId(airspaceId());
+  if(mine&&f.icao)return normArtccId(f.icao)===mine;
+  return f.dist===0;
+}
 function artccHandoffGroups(ctrs){
   // Group center sectors under "ZBW - Boston ARTCC" style headers.
   const map=new Map();
@@ -1910,15 +1929,45 @@ function artccHandoffGroups(ctrs){
     String(a.label||a.callsign||'').localeCompare(String(b.label||b.callsign||''))));
   return out;
 }
-function appendHandoffContactRow(L,a,f,kindClass){
+function appendHandoffContactRow(L,a,f,kindClass,withHandover){
   const div=document.createElement('div');div.className='ho';
   const hoLabel=f.label||f.callsign||f.icao||'';
   const dist=f.dist?(' \u00b7 '+f.dist+'nm'):'';
+  const handoverBtn=(withHandover&&f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
   div.innerHTML=`<span class="left"><span class="${kindClass}">${hoLabel}</span>`
     +`<span class="meta"> ${f.freq||''}${dist}</span></span>`
-    +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
+    +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
   div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+  const hb=div.querySelector('.handover');
+  if(hb)hb.onclick=()=>sendHandover(a.cs,f);
   L.appendChild(div);
+}
+function appendHandoffCenterGroups(L,a,ctrs,withHandover){
+  artccHandoffGroups(ctrs).forEach(g=>{
+    const hdr=document.createElement('div');hdr.className='ho-group';hdr.textContent=g.title;
+    L.appendChild(hdr);
+    g.items.forEach(f=>appendHandoffContactRow(L,a,f,'ctr',withHandover));
+  });
+}
+function appendHandoffApproaches(L,a,aps){
+  if(!aps.length)return;
+  const h=document.createElement('div');h.className='empty';
+  h.textContent='Approach / departure online (voice handoff):';L.appendChild(h);
+  aps.slice().sort((x,y)=>
+    String(x.label||x.callsign||'').localeCompare(String(y.label||y.callsign||'')))
+    .forEach(f=>appendHandoffContactRow(L,a,f,'app',false));
+}
+function handoffFacilityBuckets(list){
+  // Drop TWR/GND/DEL; order targets as internal CTR → external CTR → APP/DEP.
+  const facs=(list||[]).filter(f=>!isLocalControl(f));
+  const internal=[],external=[],approaches=[];
+  facs.forEach(f=>{
+    if(isHandoffApproach(f))approaches.push(f);
+    else if(isHandoffCenter(f)){
+      if(isInternalCenter(f))internal.push(f);else external.push(f);
+    }
+  });
+  return {internal,external,approaches};
 }
 function openHandoff(idx,x,y){
   const a=displayList()[idx];
@@ -1929,53 +1978,17 @@ function openHandoff(idx,x,y){
   uni.innerHTML=`<span class="uni">UNICOM</span><span class="meta">122.800 \u00b7 release, no further ATC</span>`;
   uni.onclick=()=>sendUnicom(a.cs);
   L.appendChild(uni);
+  const {internal,external,approaches}=handoffFacilityBuckets(facilities);
   if(hubMode()){
-    const aps=(facilities||[]).filter(f=>f.kind&&f.kind!=='CTR');
-    const ctrs=(facilities||[]).filter(f=>!f.kind||f.kind==='CTR');
-    if(aps.length){
-      const h=document.createElement('div');h.className='empty';h.textContent='Approach / tower online (voice handoff):';L.appendChild(h);
-      aps.forEach(f=>appendHandoffContactRow(L,a,f,'app'));
-    }
-    if(ctrs.length){
-      artccHandoffGroups(ctrs).forEach(g=>{
-        const hdr=document.createElement('div');hdr.className='ho-group';hdr.textContent=g.title;
-        L.appendChild(hdr);
-        g.items.forEach(f=>appendHandoffContactRow(L,a,f,'ctr'));
-      });
-    }
+    appendHandoffCenterGroups(L,a,internal,false);
+    appendHandoffCenterGroups(L,a,external,false);
+    appendHandoffApproaches(L,a,approaches);
     placePop(handoffpop,x,y);return;
   }
   if(!facilities.length){const e=document.createElement('div');e.className='empty';e.textContent='No nearby ATC facilities online (within 200 nm).';L.appendChild(e);}
-  const aps=(facilities||[]).filter(f=>f.kind&&f.kind!=='CTR');
-  const ctrs=(facilities||[]).filter(f=>!f.kind||f.kind==='CTR');
-  if(aps.length){
-    const h=document.createElement('div');h.className='empty';h.textContent='Approach / tower online (voice handoff):';L.appendChild(h);
-    aps.forEach(f=>{
-      const div=document.createElement('div');div.className='ho';
-      const hoLabel=f.label||f.callsign;
-      div.innerHTML=`<span class="left"><span class="app">${hoLabel}</span>`
-        +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
-        +`<span class="acts"><span class="hobtn contact">CONTACT</span></span>`;
-      div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
-      L.appendChild(div);
-    });
-  }
-  artccHandoffGroups(ctrs).forEach(g=>{
-    const hdr=document.createElement('div');hdr.className='ho-group';hdr.textContent=g.title;
-    L.appendChild(hdr);
-    g.items.forEach(f=>{
-      const div=document.createElement('div');div.className='ho';
-      const hoLabel=f.label||f.callsign;
-      const handoverBtn=(f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
-      div.innerHTML=`<span class="left"><span class="ctr">${hoLabel}</span>`
-        +`<span class="meta"> ${f.freq||''} ${f.dist?('\u00b7 '+f.dist+'nm'):''}</span></span>`
-        +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
-      div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
-      const hb=div.querySelector('.handover');
-      if(hb)hb.onclick=()=>sendHandover(a.cs,f);
-      L.appendChild(div);
-    });
-  });
+  appendHandoffCenterGroups(L,a,internal,true);
+  appendHandoffCenterGroups(L,a,external,true);
+  appendHandoffApproaches(L,a,approaches);
   placePop(handoffpop,x,y);
 }
 async function sendUnicom(cs){
