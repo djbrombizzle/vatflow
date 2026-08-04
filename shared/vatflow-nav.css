@@ -14,12 +14,21 @@
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   font-size: 10px;
   letter-spacing: 0.06em;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.vatflow-app-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .vatflow-app-nav .vf-brand {
   color: #8a97a3;
   margin-right: 8px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vatflow-app-nav .vf-brand b {
@@ -44,9 +53,11 @@
   border: 1px solid transparent;
   transition: 0.12s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.vatflow-app-nav a:hover {
+.vatflow-app-nav a:hover,
+.vatflow-app-nav a:active {
   color: #d4dde6;
   background: #121820;
   border-color: #2a3848;
@@ -61,6 +72,7 @@
 
 .vatflow-app-nav .vf-spacer {
   flex: 1;
+  min-width: 8px;
 }
 
 .vatflow-app-nav .vf-privacy {
@@ -69,7 +81,8 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.vatflow-app-nav .vf-privacy:hover {
+.vatflow-app-nav .vf-privacy:hover,
+.vatflow-app-nav .vf-privacy:active {
   color: #8a97a3;
   background: transparent;
   border-color: transparent;
@@ -80,6 +93,7 @@
   align-items: center;
   gap: 6px;
   margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .vf-auth-btn {
@@ -95,7 +109,8 @@
   cursor: pointer;
 }
 
-.vf-auth-btn:hover {
+.vf-auth-btn:hover,
+.vf-auth-btn:active {
   background: rgba(232, 168, 56, 0.2);
 }
 
@@ -122,7 +137,8 @@
   text-transform: uppercase;
 }
 
-.vf-auth-link:hover {
+.vf-auth-link:hover,
+.vf-auth-link:active {
   color: #d4dde6;
 }
 
@@ -130,12 +146,19 @@
   color: #a86a6a;
 }
 
-.vf-auth-danger:hover {
+.vf-auth-danger:hover,
+.vf-auth-danger:active {
   color: #e07070;
 }
 
 @media (max-width: 900px) {
   .vf-auth-tier, .vf-auth-danger { display: none; }
+  .vatflow-app-nav a {
+    padding: 4px 8px;
+  }
+  .vf-auth-btn {
+    padding: 5px 10px;
+  }
 }
 
 /* Sticky header variant (TBFM, tower page) */

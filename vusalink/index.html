@@ -37,7 +37,7 @@
   .badge{padding:2px 9px;border:1px solid #555;border-radius:2px;font-weight:bold;letter-spacing:.5px;font-size:12px}
   .badge.view{background:#3a2e10;color:#e8c469;border-color:#8a6320}
   .badge.ctrl{background:#10331a;color:#7fe6a0;border-color:#2f7347}
-  .tb-btn:hover{background:#262626}
+  .tb-btn:hover,.tb-btn:active{background:#262626}
   a.tb-btn{color:var(--fg);text-decoration:none;display:inline-block}
   #status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--fg-dim)}
   .sep{color:#444}
@@ -46,13 +46,14 @@
 
   #addform{display:flex;gap:6px;padding:4px 8px;border-bottom:1px solid var(--line);background:#070707;align-items:center;flex-wrap:wrap}
   #addform input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px}
-  #addform input.route{min-width:360px;flex:1}
+  #addform input.route{min-width:min(360px,96vw);flex:1;max-width:100%}
 
+  #boardwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2.75rem;max-width:100%}
   #board{width:100%;border-collapse:collapse;white-space:nowrap}
-  #board th{color:var(--amber);text-align:left;font-weight:normal;padding:3px 8px;border-bottom:1px solid var(--grid);position:sticky;top:0;background:#050505;cursor:pointer;user-select:none}
-  #board th:hover{color:#e3c98a}
+  #board th{color:var(--amber);text-align:left;font-weight:normal;padding:3px 8px;border-bottom:1px solid var(--grid);position:sticky;top:0;background:#050505;cursor:pointer;user-select:none;z-index:1}
+  #board th:hover,#board th:active{color:#e3c98a}
   #board td{padding:2px 8px;border-bottom:1px solid #141414;vertical-align:top}
-  #board tr:hover td{background:#0a0a0a}
+  #board tr:hover td,#board tr:active td{background:#0a0a0a}
   .sbox{display:inline-block;width:14px;height:14px;border:1px solid #4a4a4a;margin-right:2px;
     text-align:center;line-height:13px;color:var(--fg-dim);font-size:10px;vertical-align:middle}
   .sbox.on{background:#fff;color:#000;border-color:#fff}
@@ -72,15 +73,15 @@
   @keyframes wflash{50%{background:transparent;color:transparent}}
   @keyframes wflash-red{50%{background:transparent;color:var(--alert)}}
     .fid{font-weight:bold;letter-spacing:.3px;cursor:pointer}
-  .fid:hover{color:#fff;text-decoration:underline}
+  .fid:hover,.fid:active{color:#fff;text-decoration:underline}
   .fid.conn{color:var(--green)}
   .alt-cell{cursor:pointer;border:1px solid transparent;padding:0 4px}
-  .alt-cell:hover{border-color:#555;background:#111}
+  .alt-cell:hover,.alt-cell:active{border-color:#555;background:#111}
   .route-cell{cursor:pointer;max-width:720px;overflow:hidden;text-overflow:ellipsis}
-  .route-cell:hover{color:#fff}
+  .route-cell:hover,.route-cell:active{color:#fff}
 
-  .pop{position:absolute;z-index:50;background:#0b0b0b;border:1px solid #6a6a6a;box-shadow:0 8px 24px rgba(0,0,0,.8);min-width:210px}
-  .pop .hdr{display:flex;justify-content:space-between;align-items:center;background:#161616;border-bottom:1px solid #444;padding:3px 8px}
+  .pop{position:absolute;z-index:50;background:#0b0b0b;border:1px solid #6a6a6a;box-shadow:0 8px 24px rgba(0,0,0,.8);min-width:210px;max-width:min(560px,96vw)}
+  .pop .hdr{display:flex;justify-content:space-between;align-items:center;background:#161616;border-bottom:1px solid #444;padding:3px 8px;touch-action:none}
   .pop .hdr .title{color:#fff;letter-spacing:.5px} .pop .hdr .x{cursor:pointer;color:#bbb;padding:0 4px}
   #volpop .volbody{display:flex;align-items:center;gap:10px;padding:11px 12px}
   #volpop #volRange{flex:1;cursor:pointer;accent-color:#39c0ff}
@@ -89,18 +90,18 @@
   .chip{border:1px solid #555;padding:1px 8px;background:#141414;color:var(--fg)}
   .chip.amend{background:var(--red-bg);color:var(--red-fg);border-color:#7a2a2a}
   .chip.uplink{background:#15303a;color:#9fe6e0;border-color:#2f6b73}
-  .chip.uplink:hover{background:#1d4250}
-  .chip.cyan{color:var(--cyan);border-color:#2f6b73} .chip:hover{background:#222}
+  .chip.uplink:hover,.chip.uplink:active{background:#1d4250}
+  .chip.cyan{color:var(--cyan);border-color:#2f6b73} .chip:hover,.chip:active{background:#222}
   .chip.disabled{opacity:.45}
 
   .altlist{max-height:230px;overflow:auto;border-top:1px solid #333}
   .agrid{border-top:1px solid #333;max-height:340px;overflow:auto}
   .agrid .arow{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center}
   .altlist .ai{padding:2px 10px;cursor:pointer;display:flex;justify-content:space-between}
-  .altlist .ai:hover{background:#1c1c1c} .altlist .ai.sel{background:var(--sel);color:#fff}
+  .altlist .ai:hover,.altlist .ai:active{background:#1c1c1c} .altlist .ai.sel{background:var(--sel);color:#fff}
   .altlist .ai .t{color:var(--fg-dim)}
   .hdg-cell,.spd-cell{cursor:pointer;padding:0 2px}
-  .hdg-cell:hover,.spd-cell:hover{background:var(--sel);color:#fff}
+  .hdg-cell:hover,.spd-cell:hover,.hdg-cell:active,.spd-cell:active{background:var(--sel);color:#fff}
   .hssep{color:var(--fg-dim)}
   .acline{text-align:center;color:#fff;padding:6px 8px 2px;letter-spacing:.5px}
   .chip.wide{flex:1;text-align:center;justify-content:center}
@@ -116,27 +117,28 @@
   .sgridhdr .tgls{display:flex;gap:4px;justify-content:center}
   .sgrid .srow{grid-template-columns:1fr 1fr 1fr}
   .cellbtn{padding:2px 4px;cursor:pointer;text-align:center}
-  .cellbtn:hover{background:#1c1c1c}.cellbtn.sel{background:var(--sel);color:#fff}
+  .cellbtn:hover,.cellbtn:active{background:#1c1c1c}.cellbtn.sel{background:var(--sel);color:#fff}
   .cellbtn.cur{color:var(--cyan)}
   .cellbtn.dim{color:var(--fg-dim)}
 
-  #routemenu{min-width:560px}
+  #routemenu{min-width:min(560px,96vw);max-width:96vw}
   #routemenu .bar{display:flex;flex-wrap:wrap;gap:6px;padding:4px 8px;border-bottom:1px solid #333}
   .sectlabel{text-align:center;color:var(--cyan);border-top:1px solid #333;border-bottom:1px solid #333;padding:2px;background:#0e1a1a;letter-spacing:1px}
   .rtearea{padding:5px 8px;background:#060606;border-bottom:1px solid #222;white-space:normal;word-break:break-all}
   .rtearea .slash{color:var(--cyan)}
   .fixlist{max-height:280px;overflow:auto}
-  .fixlist .fi{padding:3px 12px;cursor:pointer} .fixlist .fi:hover{background:#1c1c1c} .fixlist .fi.sel{background:var(--sel);color:#fff}
+  .fixlist .fi{padding:3px 12px;cursor:pointer} .fixlist .fi:hover,.fixlist .fi:active{background:#1c1c1c} .fixlist .fi.sel{background:var(--sel);color:#fff}
   .fixseg .seglabel{color:var(--amber);font-size:11px;letter-spacing:1px;padding:2px 12px 1px;background:#141008;border-top:1px solid #332a18}
   .fixseg:first-child .seglabel{border-top:none}
   .fixseg .segfixes{padding-bottom:2px}
-  .customfix{display:flex;gap:6px;padding:5px 8px;border-top:1px solid #333;align-items:center}
+  .customfix{display:flex;gap:6px;padding:5px 8px;border-top:1px solid #333;align-items:center;flex-wrap:wrap}
   .customfix input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;width:120px}
+  #rtEdit{min-width:min(420px,90vw);flex:1;max-width:100%}
 
   /* handoff + message popups */
   .holist{max-height:320px;overflow:auto}
   .holist .ho{padding:4px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:14px}
-  .holist .ho:hover{background:#1c1c1c}
+  .holist .ho:hover,.holist .ho:active{background:#1c1c1c}
   .holist .ho .meta{color:var(--fg-dim)}
   .holist .ctr{color:var(--cyan)} .holist .app{color:var(--amber)}
   .holist .ho.unicom{border-bottom:1px solid #333} .holist .uni{color:var(--green);font-weight:bold}
@@ -148,11 +150,11 @@
   .holist .ho-group:first-child{border-top:none;margin-top:0}
   .holist .ho.unicom+.ho-group{border-top:none}
   .hobtn{border:1px solid #555;padding:0 6px;margin-left:4px;background:#141414;color:var(--fg);font-size:11px}
-  .hobtn:hover{background:#242424}
+  .hobtn:hover,.hobtn:active{background:#242424}
   .hobtn.handover{color:#9fe6e0;border-color:#2f6b73}
   .hobtn.contact{color:var(--amber);border-color:#5a4a22}
   .empty{padding:8px 10px;color:var(--fg-dim)}
-  #msgpop{min-width:320px;max-width:460px}
+  #msgpop{min-width:min(320px,96vw);max-width:min(460px,96vw)}
   .mlist{max-height:300px;overflow:auto;padding:4px 8px}
   .mitem{border-bottom:1px solid #181818;padding:4px 0;white-space:normal;word-break:break-word}
   .mitem .meta{color:var(--fg-dim);font-size:11px}
@@ -166,11 +168,13 @@
   .mp-free input{flex:1;min-width:0;background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;font:inherit}
   .mp-free input:disabled{opacity:.4}
 
-  #logwrap{position:fixed;right:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;z-index:40}
+  #bottomdock{position:fixed;left:0;right:0;bottom:0;z-index:40;pointer-events:none}
+  #bottomdock>*{pointer-events:auto}
+  #logwrap{position:absolute;right:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column}
   #logwrap .lh{display:flex;justify-content:space-between;padding:3px 8px;background:#161616;border-bottom:1px solid #333}
   #logwrap .lh .title{color:var(--amber);cursor:pointer;user-select:none}
   #log{overflow:auto;padding:4px 8px}
-  #queuewrap{position:fixed;left:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-right:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;z-index:40}
+  #queuewrap{position:absolute;left:0;bottom:0;width:430px;max-height:42vh;background:var(--panel);border-right:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column}
   #queuewrap .lh{display:flex;align-items:center;gap:8px;padding:3px 8px;background:#161616;border-bottom:1px solid #333;flex-wrap:wrap}
   #queuewrap .lh .title{color:var(--amber);cursor:pointer;user-select:none;flex:1;min-width:120px}
   #queuewrap .lh .chip.uplink{font-size:12px;padding:1px 10px}
@@ -241,6 +245,61 @@
 
 /* rows */
 
+/* ---- tablet / iPad layout ---- */
+@media (max-width: 1024px) {
+  html,body{font-size:14px}
+  #board td{padding:5px 8px}
+  #board th{padding:6px 8px;top:0}
+  #boardwrap{
+    overflow:auto;
+    max-height:calc(100dvh - var(--vatflow-nav-h) - 10rem);
+  }
+  .tb-btn{padding:8px 12px;min-height:36px}
+  .chip{padding:6px 10px}
+  .hobtn{padding:6px 10px;font-size:12px}
+  .mp-acts .hobtn{padding:8px 12px}
+  .sbox,.wbox{
+    width:28px;height:28px;line-height:26px;font-size:12px;margin-right:4px;
+    box-sizing:border-box;
+  }
+  .altlist .ai,.fixlist .fi,.holist .ho,.cellbtn{padding:8px 12px;min-height:36px}
+  #toolbar{gap:10px;padding:6px 8px}
+  #status{flex-wrap:wrap}
+  .route-cell{max-width:480px}
+  #boardwrap{padding-bottom:3.5rem}
+}
+
+@media (max-width: 900px) {
+  #bottomdock{
+    display:flex;flex-direction:column;align-items:stretch;
+    max-height:48vh;
+  }
+  #queuewrap,#logwrap{
+    position:relative;left:auto;right:auto;bottom:auto;
+    width:100%;max-width:100%;max-height:28vh;
+    border-left:none;border-right:none;
+  }
+  #queuewrap{order:1;border-top:1px solid var(--line)}
+  #logwrap{order:2}
+  #routemenu{min-width:0;width:min(560px,96vw)}
+  #msgpop{min-width:0;width:min(460px,96vw)}
+  #addform input.route{min-width:0}
+  #rtEdit{min-width:0}
+  .map-hdr{flex-wrap:wrap}
+  .map-hdr .stats{margin-left:0;white-space:normal}
+  #posBar #posHint{display:block;margin-left:0;margin-top:2px}
+  #boardwrap{padding-bottom:4.5rem}
+}
+
+@media (max-width: 820px) {
+  html,body{font-size:15px}
+  .sbox,.wbox{width:32px;height:32px;line-height:30px;font-size:13px}
+  .tb-btn{padding:10px 14px;min-height:40px}
+  .field input,#find,#viewArtcc{padding:6px 8px;min-height:36px}
+  #verifyBar,#posBar{margin:6px;padding:10px 12px}
+  .footnote{padding:8px;line-height:1.5}
+}
+
 </style>
 </head>
 <body>
@@ -282,6 +341,7 @@
   <b>POSITION</b> <span id="posLabel">&mdash;</span> <span id="posFreq"></span>
   <span id="posHint">showing aircraft tuned to this frequency</span>
 </div>
+<div id="boardwrap">
 <table id="board">
   <thead>
   <tr id="headClassic">
@@ -296,6 +356,7 @@
   </thead>
   <tbody id="rows"></tbody>
 </table>
+</div>
 
 <div class="footnote">
   Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read; <b>UNABLE</b> / <b>STANDBY</b> / free-text reply from the menu) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
@@ -362,7 +423,7 @@
     <span style="color:var(--fg-dim)">Altimeter <span id="xresAltimIcao"></span></span>
     <input id="xresAltimInput" placeholder="29.83" autocomplete="off" inputmode="decimal" style="width:72px" title="Override destination altimeter"></div>
   <div class="sectlabel">EDIT ROUTE &amp; UPLINK</div>
-  <div class="customfix"><input id="rtEdit" placeholder="enroute route, e.g. OMN J79 CHS" autocomplete="off" style="min-width:420px">
+  <div class="customfix"><input id="rtEdit" placeholder="enroute route, e.g. OMN J79 CHS" autocomplete="off">
     <span class="chip cyan" id="rtSendRoute">UPLINK ROUTE</span></div>
 </div>
 
@@ -393,7 +454,8 @@
   <div class="volbody"><input type="range" id="volRange" min="0" max="100" step="5" value="100"><span id="volPct">100%</span></div>
 </div>
 
-<!-- uplink queue -->
+<!-- uplink queue + datalink log (dock: side-by-side on desktop, stacked on tablet) -->
+<div id="bottomdock">
 <div id="queuewrap" class="hidden">
   <div class="lh">
     <span class="title" id="queueToggle">UPLINK QUEUE</span>
@@ -407,6 +469,7 @@
 <div id="logwrap">
   <div class="lh"><span class="title" id="logToggle">DATALINK LOG</span><span style="color:var(--fg-dim);cursor:pointer" id="clearLog">clear</span></div>
   <div id="log"></div>
+</div>
 </div>
 
 <!-- live map -->
@@ -2002,11 +2065,14 @@ function openMessages(cs,x,y){
 
 //============================================================ popups
 function placePop(el,x,y){el.classList.remove('hidden');
-  el.style.left=Math.min(x,window.innerWidth-el.offsetWidth-10)+'px';
-  el.style.top=Math.min(y,window.innerHeight-el.offsetHeight-10)+'px';}
+  const left=Math.max(0,Math.min(x,window.innerWidth-el.offsetWidth-10));
+  const top=Math.max(0,Math.min(y,window.innerHeight-el.offsetHeight-10));
+  el.style.left=left+'px';
+  el.style.top=top+'px';
+}
 function close(id){document.getElementById(id).classList.add('hidden');}
 document.querySelectorAll('[data-close]').forEach(e=>e.onclick=()=>close(e.dataset.close));
-document.addEventListener('mousedown',ev=>{
+document.addEventListener('pointerdown',ev=>{
   ['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu','volpop'].forEach(id=>{const el=document.getElementById(id);
     if(!el.classList.contains('hidden')&&!el.contains(ev.target)
        &&!ev.target.closest('.alt-cell')&&!ev.target.closest('.route-cell')
@@ -2216,16 +2282,28 @@ applyQueueCollapsed();
 //============================================================ draggable popups
 function makeDraggable(el,handle){
   if(!el||!handle)return;handle.style.cursor='move';
-  handle.addEventListener('mousedown',e=>{
+  handle.addEventListener('pointerdown',e=>{
     if(e.target.closest('.x'))return;          // let the close button work
+    if(e.button!=null&&e.button!==0)return;    // primary button / touch only
     e.preventDefault();
     const r=el.getBoundingClientRect();const ox=e.clientX-r.left,oy=e.clientY-r.top;
+    const pid=e.pointerId;
+    try{handle.setPointerCapture(pid);}catch(_){}
     function mv(ev){
+      if(ev.pointerId!==pid)return;
       el.style.left=Math.max(0,Math.min(ev.clientX-ox,window.innerWidth-60))+'px';
       el.style.top=Math.max(0,Math.min(ev.clientY-oy,window.innerHeight-30))+'px';
     }
-    function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}
-    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+    function up(ev){
+      if(ev.pointerId!==pid)return;
+      handle.removeEventListener('pointermove',mv);
+      handle.removeEventListener('pointerup',up);
+      handle.removeEventListener('pointercancel',up);
+      try{handle.releasePointerCapture(pid);}catch(_){}
+    }
+    handle.addEventListener('pointermove',mv);
+    handle.addEventListener('pointerup',up);
+    handle.addEventListener('pointercancel',up);
   });
 }
 ['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu'].forEach(id=>{const el=document.getElementById(id);if(el)makeDraggable(el,el.querySelector('.hdr'));});
