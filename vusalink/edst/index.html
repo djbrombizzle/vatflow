@@ -119,7 +119,75 @@ a{color:inherit}
 .efid .acid{color:#f0f0ec}
 .efid.conn .acid{color:#fff}
 .etyp,.ecod{color:#d2d2cd}
-.alt-cell{color:#d2d2cd}
+
+.alt-cell{color:#d2d2cd;cursor:pointer}
+.alt-cell:hover{color:#fff;text-decoration:underline}
+
+/* EDST altitude menu (screenshot chrome) */
+#altmenu.edst-pop{
+  position:absolute;z-index:60;min-width:132px;width:132px;
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#altmenu .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#altmenu .edst-pop-hdr .title{letter-spacing:.5px;font-weight:normal}
+#altmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:#fff}
+#altmenu .edst-pop-hdr .x:hover{background:#333}
+#altmenu .edst-alt-actions{background:#4a4a4a;border-bottom:1px solid #cfcfcf}
+#altmenu .edst-alt-btn{
+  display:block;width:100%;box-sizing:border-box;text-align:left;
+  background:#4a4a4a;color:#fff;border:0;border-bottom:1px solid #cfcfcf;
+  font:inherit;padding:3px 8px;cursor:pointer;line-height:1.25;
+}
+#altmenu .edst-alt-btn:hover{background:#5a5a5a}
+#altmenu .edst-alt-btn.amend{background:#6b3a3a}
+#altmenu .edst-alt-btn.amend:hover{background:#7a4545}
+#altmenu .edst-alt-btn.uplink{background:#4a4a4a;color:#fff}
+#altmenu .edst-alt-btn.uplink:not(.hidden){display:block}
+#altmenu .edst-alt-btn.tgl.on{background:#6b3a3a}
+#altmenu .edst-alt-btn.fp{
+  display:flex;align-items:center;gap:6px;cursor:text;background:#4a4a4a;color:#c8c8c8;
+}
+#altmenu .edst-alt-btn.fp input{
+  flex:1;min-width:0;background:transparent;border:0;color:#fff;font:inherit;padding:0;outline:none;width:48px;
+}
+#altmenu .edst-alt-split{display:flex;border-bottom:1px solid #cfcfcf}
+#altmenu .edst-alt-split .edst-alt-btn{flex:1;border-bottom:0;border-right:1px solid #cfcfcf}
+#altmenu .edst-alt-split .edst-alt-btn:last-child{border-right:0}
+#altmenu .edst-alt-altim{
+  background:#3a3a3a;border-bottom:1px solid #cfcfcf;padding:4px 8px;font-size:12px;color:#ddd;
+}
+#altmenu .edst-alt-altim input{
+  background:#111;border:1px solid #777;color:#fff;font:inherit;padding:1px 4px;width:56px;margin-left:4px;
+}
+#altmenu .altlist{max-height:230px;overflow:auto;background:#000}
+#altmenu .altlist .ai{
+  padding:2px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+  color:#f0f0ec;border:0;
+}
+#altmenu .altlist .ai:hover{background:#1c1c1c}
+#altmenu .altlist .ai.sel{background:#6b3a3a;color:#fff}
+#altmenu .altlist .ai.cur{color:#9fe6e0}
+#altmenu .altlist .ai.sel.cur{color:#fff}
+#altmenu .altlist .ai .t{color:#a0a0a0;margin-left:8px}
+#altmenu .altlist .ai.sel .t{color:#e8d0d0}
+
+#queuewrap{
+  position:fixed;right:8px;bottom:8px;width:min(360px,92vw);max-height:22vh;
+  background:rgba(0,0,0,.92);border:1px solid #333;font-size:11px;z-index:5;
+}
+#queuewrap .lh{display:flex;align-items:center;gap:8px;padding:4px 8px;background:#111;border-bottom:1px solid #333}
+#queuewrap .lh .title{color:#aaa;cursor:pointer;flex:1}
+#queuewrap .lh .chip{border:1px solid #2f6b73;background:#15303a;color:#9fe6e0;padding:1px 8px;cursor:pointer}
+#queuewrap .lh .clear{color:#888;cursor:pointer}
+#queueList{padding:4px 8px;max-height:16vh;overflow:auto}
+#queueList .qitem{margin:2px 0;color:#9c9;border-bottom:1px solid #1a1a1a;padding-bottom:2px}
+#queueList .qitem .meta{color:#888}
 .ehs{white-space:nowrap}
 .ehs .spd{color:#dcd63f}
 .route-cell{color:#aeb6af}
@@ -254,6 +322,45 @@ a{color:inherit}
   </thead>
   <tbody id="rows"></tbody>
 </table>
+</div>
+
+
+<!-- EDST ALT menu -->
+<div id="altmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="altTitle">CALLSIGN</span>
+    <span class="x" data-close="altmenu" title="Close">X</span>
+  </div>
+  <div class="edst-alt-actions">
+    <button type="button" class="edst-alt-btn" id="altTrialPlan" data-stub="Trial Plan">TRIAL PLAN</button>
+    <button type="button" class="edst-alt-btn amend" id="altAmend" title="Remove last queued item">AMEND</button>
+    <label class="edst-alt-btn fp" title="Flight plan / selected altitude">FP
+      <input id="altInput" autocomplete="off" inputmode="numeric" placeholder="FL">
+    </label>
+    <button type="button" class="edst-alt-btn uplink" id="altUplink">UPLINK</button>
+    <div class="edst-alt-split">
+      <button type="button" class="edst-alt-btn tgl" id="altApd" title="UM177 — append AT PILOTS DISCRETION">PD</button>
+      <button type="button" class="edst-alt-btn" id="altTfc" data-stub="TFC">TFC &#9660;</button>
+    </div>
+    <button type="button" class="edst-alt-btn" id="altScratchpad" title="Add to uplink queue">SCRATCHPAD</button>
+    <button type="button" class="edst-alt-btn" id="altXres" data-stub="X RES">X RES</button>
+    <button type="button" class="edst-alt-btn" id="altLocalTalt" data-stub="LOCAL TALT">LOCAL TALT</button>
+    <button type="button" class="edst-alt-btn" id="altProcedure" data-stub="PROCEDURE">PROCEDURE</button>
+  </div>
+  <div class="edst-alt-altim hidden" id="altAltimRow">
+    Altimeter <span id="altAltimIcao"></span>
+    <input id="altAltimInput" autocomplete="off" inputmode="decimal" placeholder="29.83" title="Override destination altimeter">
+  </div>
+  <div class="altlist" id="altList"></div>
+</div>
+
+<div id="queuewrap" class="hidden">
+  <div class="lh">
+    <span class="title" id="queueToggle">&#9658; UPLINK QUEUE</span>
+    <span class="chip" id="queueUplink">UPLINK</span>
+    <span class="clear" id="clearQueue">clear</span>
+  </div>
+  <div id="queueList"></div>
 </div>
 
 <div id="logwrap">
@@ -613,7 +720,33 @@ function queueClear(cs){
   queueActiveCs=Object.keys(uplinkQueue)[0]||'';
   renderQueuePanel();
 }
-function renderQueuePanel(){}
+function renderQueuePanel(){
+  const wrap=document.getElementById('queuewrap');
+  const listEl=document.getElementById('queueList');
+  const toggle=document.getElementById('queueToggle');
+  if(!wrap||!listEl)return;
+  const total=queueTotalCount();
+  if(!total){wrap.classList.add('hidden');return;}
+  wrap.classList.remove('hidden');
+  if(!queueActiveCs||!uplinkQueue[queueActiveCs]){
+    queueActiveCs=Object.keys(uplinkQueue)[0]||'';
+  }
+  const items=uplinkQueue[queueActiveCs]||[];
+  const n=items.length;
+  const collapsed=!!settings.queueCollapsed;
+  if(toggle)toggle.textContent=(collapsed?'\u25b8':'\u25be')+` UPLINK QUEUE${queueActiveCs?' \u2014 '+queueActiveCs:''}${n?' ('+n+')':''}`;
+  listEl.style.display=collapsed?'none':'';
+  listEl.innerHTML='';
+  if(!n){
+    listEl.innerHTML='<div class="qitem"><span class="meta">No staged uplinks.</span></div>';
+    return;
+  }
+  items.forEach((it,i)=>{
+    const div=document.createElement('div');div.className='qitem';
+    div.innerHTML=`<span class="meta">${i+1}. ${esc(it.label||'MSG')}</span> ${esc(it.msg)}`;
+    listEl.appendChild(div);
+  });
+}
 async function sendQueuedUplink(cs){
   cs=(cs||queueActiveCs||'').toUpperCase();
   const items=uplinkQueue[cs]||[];
@@ -840,7 +973,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return false;}
+function menusOpen(){const m=document.getElementById('altmenu');return !!(m&&!m.classList.contains('hidden'));}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -975,7 +1108,7 @@ function renderRowEdst(a,idx){
   return `<td class="eh-bk">${bk}</td><td class="eh-al">${rbox}</td><td class="eh-al">${ybox}</td><td class="eh-al">${abox}</td>`
         +`<td>${fid}</td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
-        +`<td class="alt-cell">${altCellHtml(a)}</td>`
+        +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
         +`<td class="ecod">${sqkCellHtml(a)}</td>`
         +`<td class="ehs">${hs}</td>`
         +`<td class="route-cell" style="${rcol}">${a.route||''}</td>`;
@@ -1019,8 +1152,27 @@ function renderBoard(){
 }
 
 //============================================================ popups (deferred)
-function placePop(){}
+function placePop(el,x,y){
+  if(!el)return;
+  el.classList.remove('hidden');
+  const left=Math.max(0,Math.min(x,window.innerWidth-el.offsetWidth-10));
+  const top=Math.max(0,Math.min(y,window.innerHeight-el.offsetHeight-10));
+  el.style.left=left+'px';
+  el.style.top=top+'px';
+}
 function close(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
+function showUplink(id,on){
+  const el=document.getElementById(id);if(!el)return;
+  if(id==='altUplink'){el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;}
+  el.classList.toggle('hidden',!on);
+}
+document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
+document.addEventListener('pointerdown',ev=>{
+  const altmenu=document.getElementById('altmenu');
+  if(!altmenu||altmenu.classList.contains('hidden'))return;
+  if(altmenu.contains(ev.target)||ev.target.closest('.alt-cell'))return;
+  close('altmenu');
+});
 
 //============================================================ log + status
 function csFromWho(who){
@@ -1113,7 +1265,203 @@ document.querySelector('#board thead').addEventListener('click',e=>{
   updateSortIndicators();renderBoard();
 });
 
-//============================================================ board clicks (deferred)
+
+//============================================================ ALT menu
+const altmenu=document.getElementById('altmenu');
+let altTarget=null,altSelected=null,altAltimManual=false,altApd=false;
+const altimeterCache={};
+function normalizeIcao(icao){
+  icao=(icao||'').trim().toUpperCase();
+  if(icao.length===3&&/^[A-Z]{3}$/.test(icao)){
+    if(icao[0]==='Y')return 'C'+icao;
+    return 'K'+icao;
+  }
+  return icao;
+}
+function isBelowFl180(fl){return fl!=null&&fl<180;}
+function formatFeetAlt(fl){return (fl*100).toLocaleString('en-US')+'ft';}
+async function fetchDestAltimeter(icao){
+  icao=normalizeIcao(icao);if(!icao)return null;
+  const hit=altimeterCache[icao];
+  if(hit&&Date.now()-hit.ts<300000)return hit.val;
+  try{
+    const res=await api('/api/altimeter',{icao});
+    if(res&&res.ok&&res.altimeter){
+      altimeterCache[icao]={val:res.altimeter,ts:Date.now()};
+      return res.altimeter;
+    }
+  }catch(e){}
+  return null;
+}
+async function populateAltimInput(inputEl,icaoEl,icao,manual){
+  const row=document.getElementById('altAltimRow');
+  icao=normalizeIcao(icao);
+  if(!icao){if(row)row.classList.add('hidden');return;}
+  if(icaoEl)icaoEl.textContent=icao;
+  if(row)row.classList.remove('hidden');
+  if(manual||inputEl.dataset.manual)return;
+  const req=icao;
+  inputEl.placeholder='\u2026';
+  inputEl.value='';
+  const alt=await fetchDestAltimeter(req);
+  if(manual||inputEl.dataset.manual||normalizeIcao(icaoEl&&icaoEl.textContent)!==req)return;
+  inputEl.value=alt||'';
+  inputEl.placeholder=alt?'29.83':'n/a';
+}
+function altimeterSuffix(icao,altim){
+  icao=normalizeIcao(icao);altim=(altim||'').trim();
+  return (icao&&altim)?`, ${icao} altimeter ${altim}`:'';
+}
+function parseAlt(v){
+  v=(v||'').replace(/[,\s]/g,'').toUpperCase().replace(/^FL/,'');
+  if(!/^\d+$/.test(v))return null;
+  let n=parseInt(v,10);
+  if(n>=1000)n=Math.round(n/100);
+  return (n<10||n>600)?null:n;
+}
+async function buildAltMessage(target,tgt,altimVal,apd){
+  if(!target||tgt==null)return null;
+  const cur=target.alt||0;
+  let msg;
+  if(isBelowFl180(tgt)){
+    const verb=tgt>cur?'CLIMB AND MAINTAIN':tgt<cur?'DESCEND AND MAINTAIN':'MAINTAIN';
+    const dest=normalizeIcao(target.arr);
+    const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
+    msg=`${verb} ${formatFeetAlt(tgt)}${altimeterSuffix(dest,altim)}`;
+  }else{
+    const verb=tgt>cur?'CLIMB TO AND MAINTAIN':tgt<cur?'DESCEND TO AND MAINTAIN':'MAINTAIN';
+    msg=`${verb} @${flStr(tgt)}@`;
+  }
+  if(apd)msg+=' AT PILOTS DISCRETION';
+  return {label:apd?'ALT APD':'ALT',msg,effects:{type:'alt',alt:tgt}};
+}
+function setAltApd(on){
+  altApd=!!on;
+  const el=document.getElementById('altApd');
+  if(el)el.classList.toggle('on',altApd);
+}
+function openAltMenu(idx,x,y){
+  const a=displayList()[idx];if(!a)return;
+  altTarget=a;altSelected=null;altAltimManual=false;
+  setAltApd(false);
+  document.getElementById('altTitle').textContent=a.cs;
+  const fp=assigned[a.cs]!=null?assigned[a.cs]:(a.alt||0);
+  document.getElementById('altInput').value=fp?pad3(round10(fp)):'';
+  const altimIn=document.getElementById('altAltimInput');
+  altimIn.value='';delete altimIn.dataset.manual;
+  document.getElementById('altAltimRow').classList.add('hidden');
+  showUplink('altUplink',true);
+  const L=document.getElementById('altList');L.innerHTML='';
+  const curAlt=round10(a.alt||0);
+  for(let fl=450;fl>=60;fl-=10){
+    const ai=document.createElement('div');ai.className='ai';
+    ai.dataset.fl=String(fl);
+    ai.innerHTML=`<span>${pad3(fl)}</span><span class="t">T</span>`;
+    if(fl===curAlt)ai.classList.add('cur');
+    ai.onclick=()=>stageAlt(fl);
+    L.appendChild(ai);
+  }
+  placePop(altmenu,x,y);
+  const cur=L.querySelector('.ai.cur');if(cur)cur.scrollIntoView({block:'center'});
+}
+function altHighlight(fl){
+  document.getElementById('altList').querySelectorAll('.ai').forEach(e=>
+    e.classList.toggle('sel',fl!=null&&e.dataset.fl===String(fl)));
+}
+function stageAlt(fl){
+  altSelected=fl;altHighlight(fl);
+  document.getElementById('altInput').value=pad3(fl);
+  showUplink('altUplink',true);
+  syncAltAltimeterRow();
+}
+function syncAltAltimeterRow(){
+  const row=document.getElementById('altAltimRow');
+  if(!altTarget||altSelected==null||!isBelowFl180(altSelected)){
+    row.classList.add('hidden');return;
+  }
+  populateAltimInput(document.getElementById('altAltimInput'),
+    document.getElementById('altAltimIcao'),altTarget.arr,altAltimManual);
+}
+document.getElementById('altAltimInput').addEventListener('input',()=>{
+  altAltimManual=true;
+  document.getElementById('altAltimInput').dataset.manual='1';
+});
+document.getElementById('altInput').addEventListener('input',()=>{
+  const fl=parseAlt(document.getElementById('altInput').value);
+  altSelected=fl;altHighlight(fl);showUplink('altUplink',fl!=null);
+  if(fl!=null)syncAltAltimeterRow();else document.getElementById('altAltimRow').classList.add('hidden');
+});
+document.getElementById('altApd').onclick=()=>setAltApd(!altApd);
+document.getElementById('altUplink').onclick=async()=>{
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!altTarget||altSelected==null)return;
+  const cs=altTarget.cs;
+  const altim=document.getElementById('altAltimInput').value.trim();
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd);
+  if(!entry)return;
+  close('altmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('altScratchpad').onclick=async()=>{
+  if(!canControl()){comingSoon('Sign in / verify to queue');return;}
+  if(!altTarget||altSelected==null)return;
+  const altim=document.getElementById('altAltimInput').value.trim();
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd);
+  if(!entry||!queueAdd(altTarget.cs,entry))return;
+  close('altmenu');
+};
+document.getElementById('altAmend').onclick=()=>{if(altTarget)queuePopLast(altTarget.cs);};
+
+// queue panel controls
+const _queueToggle=document.getElementById('queueToggle');
+if(_queueToggle)_queueToggle.onclick=()=>{settings.queueCollapsed=!settings.queueCollapsed;persist();renderQueuePanel();};
+const _queueUplink=document.getElementById('queueUplink');
+if(_queueUplink)_queueUplink.onclick=()=>sendQueuedUplink(queueActiveCs);
+const _clearQueue=document.getElementById('clearQueue');
+if(_clearQueue)_clearQueue.onclick=()=>queueClear(queueActiveCs);
+if(settings.queueCollapsed==null){settings.queueCollapsed=true;persist();}
+renderQueuePanel();
+
+// draggable ALT menu
+(function(){
+  const el=altmenu;const handle=el&&el.querySelector('.edst-pop-hdr');
+  if(!el||!handle)return;
+  handle.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.x'))return;
+    if(e.button!=null&&e.button!==0)return;
+    e.preventDefault();
+    const r=el.getBoundingClientRect();const ox=e.clientX-r.left,oy=e.clientY-r.top;
+    const pid=e.pointerId;
+    try{handle.setPointerCapture(pid);}catch(_){}
+    function mv(ev){
+      if(ev.pointerId!==pid)return;
+      el.style.left=Math.max(0,Math.min(ev.clientX-ox,window.innerWidth-60))+'px';
+      el.style.top=Math.max(0,Math.min(ev.clientY-oy,window.innerHeight-30))+'px';
+    }
+    function up(ev){
+      if(ev.pointerId!==pid)return;
+      handle.removeEventListener('pointermove',mv);
+      handle.removeEventListener('pointerup',up);
+      handle.removeEventListener('pointercancel',up);
+      try{handle.releasePointerCapture(pid);}catch(_){}
+    }
+    handle.addEventListener('pointermove',mv);
+    handle.addEventListener('pointerup',up);
+    handle.addEventListener('pointercancel',up);
+  });
+})();
+
+//============================================================ board clicks (ALT)
+rows.addEventListener('click',e=>{
+  const alt=e.target.closest('.alt-cell');
+  if(!alt)return;
+  if(!canControl()){
+    comingSoon('Sign in / verify to issue altitudes');
+    return;
+  }
+  const r=alt.getBoundingClientRect();
+  openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);
+});
 
 //============================================================ sounds (Web Audio, no files)
 let audioCtx=null;
