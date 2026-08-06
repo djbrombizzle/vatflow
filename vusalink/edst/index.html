@@ -103,12 +103,27 @@ a{color:inherit}
 #board tbody tr.adj td{opacity:.55}
 #board tbody tr.find-hit{outline:1px solid var(--yellow)}
 
-.gc{position:relative;display:inline-block;width:13px;height:13px}
-.gc::before{content:"";position:absolute;left:0;top:0;
-  border-left:8px solid #39d24b;border-bottom:8px solid transparent}
+/* CRC ERAM Visual Communications Indicator (VCI) — on-frequency symbology
+   Color/shape per https://docs.virtualnas.net/crc/eram/ Fig. 29 (green #00CC00 right-angle).
+   Used here for CPDLC logged-on aircraft. */
+.gc,.vci{
+  position:relative;display:inline-block;width:12px;height:12px;vertical-align:middle;
+}
+.gc::before,.vci::before{
+  content:"";position:absolute;left:1px;top:0;width:0;height:0;
+  border-style:solid;border-width:0 0 10px 10px;
+  border-color:transparent transparent transparent #00cc00;
+}
+.vci{cursor:pointer}
+.vci:hover::before{filter:brightness(1.25)}
+.vci.lreq::before{animation:vciflash .7s steps(1,start) infinite}
+@keyframes vciflash{
+  0%,49%{opacity:1}
+  50%,100%{opacity:0}
+}
+td.eh-bk{text-align:center;min-width:18px}
 .abox{width:14px;height:14px;border:1px solid #c9cfca;display:inline-flex;
   align-items:center;justify-content:center;font-size:11px;line-height:1;vertical-align:middle}
-.bkN{color:#f0f0ec}
 .abox.msg.flash{background:#e0483b;border-color:#e0483b;color:#000;animation:edstflash 1s steps(2,start) infinite}
 .abox.ho{background:#e0913f;border-color:#e0913f}
 @keyframes edstflash{50%{background:#3a0f0c}}
@@ -501,7 +516,7 @@ a{color:inherit}
 <table id="board">
   <thead>
   <tr id="headEdst">
-    <th class="eh-bk"><span class="gc"></span></th>
+    <th class="eh-bk" title="ON FREQ / CPDLC"><span class="gc" title="CRC VCI — CPDLC logged on"></span></th>
     <th class="eh-al r">R</th>
     <th class="eh-al y">Y</th>
     <th class="eh-al a">A</th>
@@ -1380,8 +1395,16 @@ function hsCellHtml(a,idx){
         +`<span class="hssep"> / </span>`
         +`<span class="spd-cell spd" data-spd="${idx}" title="speed">${s}</span>`;
 }
+function onFreqCellHtml(cs){
+  const conn=connected.has(cs), req=logonReq.has(cs);
+  if(!conn&&!req)return '';
+  const cls=conn?'vci':'vci lreq';
+  const title=conn?'on CPDLC — click to force logoff'
+             :'requesting logon — click to accept';
+  return `<span class="${cls}" data-logon="${cs}" title="${title}"></span>`;
+}
 function renderRowEdst(a,idx){
-  const bk=connected.has(a.cs)?'<span class="gc" title="CPDLC connected"></span>':'<span class="bkN">N</span>';
+  const bk=onFreqCellHtml(a.cs);
   const rbox=`<span class="abox msg ${msgAlert.has(a.cs)?'flash':''}" title="message"></span>`;
   const ybox=`<span class="abox" title=""></span>`;
   const abox=`<span class="abox ${handoffPending.has(a.cs)?'ho':''}" title="handoff"></span>`;
@@ -2184,8 +2207,22 @@ makeEdstDraggable(xresmenu);
 makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
 
-//============================================================ board clicks (ALT / HDG / SPD)
+//============================================================ board clicks (ON FREQ / ALT / HDG / SPD)
 rows.addEventListener('click',e=>{
+  const lbox=e.target.closest('[data-logon]');
+  if(lbox){
+    if(!canControl()){comingSoon('Sign in / verify to manage CPDLC logons');return;}
+    const cs=lbox.dataset.logon;
+    if(logonReq.has(cs)){                         // flashing VCI: accept the re-logon
+      logonReq.delete(cs);connected.add(cs);renderBoard();
+      api('/api/conn',{to:cs,action:'accept'}).then(r=>{if(r&&r.ok)logMsg('sys',cs,'logon accepted');});
+    }else if(connected.has(cs)){                  // solid VCI: force this aircraft off KUSA
+      if(!confirm('Force '+cs+' off CPDLC?\nAuto-logon will be disabled until they request and you accept again.'))return;
+      connected.delete(cs);logonReq.delete(cs);renderBoard();
+      api('/api/conn',{to:cs,action:'logoff'}).then(r=>{if(r&&r.ok)logMsg('sys',cs,'forced logoff \u2014 auto-logon disabled');});
+    }
+    return;
+  }
   const alt=e.target.closest('.alt-cell');
   const hdgc=e.target.closest('.hdg-cell');
   const spdc=e.target.closest('.spd-cell');
