@@ -601,17 +601,36 @@ td.eh-bk{text-align:center;min-width:18px}
 #addform input.route{flex:1;min-width:160px}
 #addform .tb-btn{border:1px solid #8a8a8a;background:#111;color:#ddd;font:inherit;padding:3px 10px;cursor:pointer}
 
-#logwrap{position:fixed;left:8px;bottom:8px;width:min(420px,92vw);max-height:22vh;
-  background:rgba(0,0,0,.92);border:1px solid #333;font-size:11px;z-index:5}
-#logToggle{display:block;width:100%;text-align:left;background:#111;border:0;border-bottom:1px solid #333;
-  color:#aaa;font:inherit;padding:4px 8px;cursor:pointer}
-#log{padding:4px 8px;max-height:16vh;overflow:auto}
-#log .msg{margin:2px 0;color:#9a9;border-bottom:1px solid #1a1a1a;padding-bottom:2px}
-#log .msg.in{color:#cde}
-#log .msg.out{color:#9c9}
-#log .msg.err{color:#e88}
-#log .msg .dir{opacity:.7;margin-right:4px}
-#log .msg .meta{opacity:.5;font-size:10px}
+/* CPDLC HIST (datalink log popup) */
+#cpdlchist.edst-pop{
+  position:absolute;z-index:65;width:min(460px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#cpdlchist .edst-pop-hdr{
+  display:flex;align-items:center;gap:8px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#cpdlchist .edst-pop-hdr .title{flex:1;letter-spacing:.4px}
+#cpdlchist .edst-pop-hdr .clear{
+  cursor:pointer;padding:0 6px;color:#ddd;font-size:11px;letter-spacing:.04em;
+}
+#cpdlchist .edst-pop-hdr .clear:hover{background:#333;color:#fff}
+#cpdlchist .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#cpdlchist .edst-pop-hdr .x:hover{background:#333}
+#cpdlchist .hist-list{
+  max-height:min(360px,55vh);min-height:160px;overflow:auto;padding:4px 8px;background:#000;
+}
+#cpdlchist .hist-empty{padding:20px 10px;color:#777;text-align:center}
+#cpdlchist .msg{margin:2px 0;color:#9a9;border-bottom:1px solid #1a1a1a;padding:3px 0 4px;line-height:1.35}
+#cpdlchist .msg.in{color:#cde}
+#cpdlchist .msg.out{color:#9c9}
+#cpdlchist .msg.sys{color:#9a9}
+#cpdlchist .msg.err{color:#e88}
+#cpdlchist .msg .dir{opacity:.7;margin-right:4px}
+#cpdlchist .msg .meta{opacity:.5;font-size:10px}
 
 @media (max-width: 900px){
   #boardwrap{height:calc(100vh - 180px)}
@@ -636,7 +655,7 @@ td.eh-bk{text-align:center;min-width:18px}
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
     <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
-    <span class="etb-btn" data-stub="CPDLC HIST">CPDLC<br>HIST</span>
+    <span class="etb-btn" id="btnCpdlcHist" title="CPDLC history / datalink log">CPDLC<br>HIST</span>
     <span class="etb-btn" data-stub="CPDLC MSGOUT">CPDLC<br>MSGOUT</span>
     <span class="etb-btn" data-stub="CPDLC ALL">CPDLC<br>ALL</span>
     <span class="etb-btn" data-stub="KEEP ALL">KEEP<br>ALL</span>
@@ -940,9 +959,14 @@ td.eh-bk{text-align:center;min-width:18px}
   <div id="queueList"></div>
 </div>
 
-<div id="logwrap">
-  <button type="button" id="logToggle">&#9658; DATALINK LOG</button>
-  <div id="log" style="display:none"></div>
+<!-- EDST CPDLC HIST (datalink log) -->
+<div id="cpdlchist" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">CPDLC HIST</span>
+    <span class="clear" id="cpdlcHistClear" title="Clear log">CLEAR</span>
+    <span class="x" data-close="cpdlchist" title="Close">X</span>
+  </div>
+  <div class="hist-list" id="cpdlcHistList"><div class="hist-empty">No datalink messages</div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -1562,7 +1586,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1758,7 +1782,13 @@ function placePop(el,x,y){
   el.style.left=left+'px';
   el.style.top=top+'px';
 }
-function close(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
+function close(id){
+  const el=document.getElementById(id);if(el)el.classList.add('hidden');
+  if(id==='cpdlchist'){
+    const btn=document.getElementById('btnCpdlcHist');
+    if(btn)btn.classList.remove('active');
+  }
+}
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
   if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'){
@@ -1768,7 +1798,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -1780,6 +1810,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='gimenu')giSelectedId=null;
+    if(id==='cpdlchist'&&ev.target.closest('#btnCpdlcHist'))return;
     close(id);
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
@@ -1789,6 +1820,8 @@ document.addEventListener('pointerdown',ev=>{
 });
 
 //============================================================ log + status
+const CPDLC_HIST_KEEP=400;
+const cpdlcHistLog=[];                   // newest first: [{kind,who,text,time}]
 function csFromWho(who){
   let w=(who||'').split('\u00b7')[0].trim();            // strip " · co-ctrl" suffix
   if(w.includes('\u2192'))w=w.split('\u2192')[1].trim();  // "FRM → TO" (feed uplink) -> aircraft (TO)
@@ -1800,14 +1833,50 @@ function recordHist(cs,kind,text){
   arr.push({kind,text:(text||'').replace(/@/g,' '),time:new Date().toLocaleTimeString()});
   if(arr.length>250)arr.shift();                         // cap per-aircraft history
 }
-function logMsg(kind,who,text){
-  const logEl=document.getElementById('log');
-  if(logEl){
-    const d=document.createElement('div');d.className='msg '+kind;
-    const dir=kind==='in'?'\u25c0 IN':kind==='out'?'\u25b6 OUT':kind==='sys'?'\u2713 SYS':'\u26a0 ERR';
-    d.innerHTML=`<span class=\"dir\">${dir}</span> <b>${who||''}</b> <span class=\"meta\">${new Date().toLocaleTimeString()}</span><br>${esc((text||'').replace(/@/g,' '))}`;
-    logEl.prepend(d);
+function histDirLabel(kind){
+  return kind==='in'?'\u25c0 IN':kind==='out'?'\u25b6 OUT':kind==='sys'?'\u2713 SYS':'\u26a0 ERR';
+}
+function renderCpdlcHist(){
+  const list=document.getElementById('cpdlcHistList');if(!list)return;
+  if(!cpdlcHistLog.length){
+    list.innerHTML='<div class="hist-empty">No datalink messages</div>';
+    return;
   }
+  list.innerHTML=cpdlcHistLog.map(e=>{
+    return '<div class="msg '+esc(e.kind||'')+'">'
+      +'<span class="dir">'+histDirLabel(e.kind)+'</span> <b>'+esc(e.who||'')+'</b> '
+      +'<span class="meta">'+esc(e.time||'')+'</span><br>'
+      +esc((e.text||'').replace(/@/g,' '))
+      +'</div>';
+  }).join('');
+}
+function clearCpdlcHist(){
+  cpdlcHistLog.length=0;
+  renderCpdlcHist();
+}
+function cpdlcHistOpen(){
+  const el=document.getElementById('cpdlchist');
+  return !!(el&&!el.classList.contains('hidden'));
+}
+function openCpdlcHist(){
+  const menu=document.getElementById('cpdlchist');
+  const btn=document.getElementById('btnCpdlcHist');
+  if(!menu||!btn)return;
+  if(!menu.classList.contains('hidden')){close('cpdlchist');return;}
+  renderCpdlcHist();
+  const r=btn.getBoundingClientRect();
+  placePop(menu,Math.max(8,r.right-menu.offsetWidth||420),r.bottom+4);
+  // placePop shows it before width is reliable — reposition after layout
+  const w=menu.offsetWidth||420;
+  const left=Math.max(0,Math.min(r.right-w,window.innerWidth-w-10));
+  menu.style.left=left+'px';
+  btn.classList.add('active');
+}
+function logMsg(kind,who,text){
+  const entry={kind:kind||'sys',who:who||'',text:text||'',time:new Date().toLocaleTimeString()};
+  cpdlcHistLog.unshift(entry);
+  if(cpdlcHistLog.length>CPDLC_HIST_KEEP)cpdlcHistLog.length=CPDLC_HIST_KEEP;
+  if(cpdlcHistOpen())renderCpdlcHist();
   recordHist(csFromWho(who),kind,text);
 }
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
@@ -2508,6 +2577,14 @@ makeEdstDraggable(xresmenu);
 makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
 makeEdstDraggable(document.getElementById('gimenu'));
+makeEdstDraggable(document.getElementById('cpdlchist'));
+
+(function(){
+  const btn=document.getElementById('btnCpdlcHist');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();openCpdlcHist();});
+  const clr=document.getElementById('cpdlcHistClear');
+  if(clr)clr.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();clearCpdlcHist();});
+})();
 
 //============================================================ GI (General Information)
 function giMenuOpen(){
@@ -3177,18 +3254,6 @@ if(authChip){
   });
 }
 window.addEventListener('vatflow-auth-changed',updateAuthChip);
-
-(function(){
-  const tog=document.getElementById('logToggle');
-  const log=document.getElementById('log');
-  if(!tog||!log)return;
-  let collapsed=true;
-  tog.onclick=()=>{
-    collapsed=!collapsed;
-    log.style.display=collapsed?'none':'';
-    tog.textContent=(collapsed?'\u25b8':'\u25be')+' DATALINK LOG';
-  };
-})();
 </script>
 <script type="module">
 import * as VatflowAuth from "../../shared/vatflow-auth.js";
