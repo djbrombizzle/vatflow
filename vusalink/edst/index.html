@@ -545,12 +545,25 @@ td.eh-bk{text-align:center;min-width:18px}
 }
 #gimenu .gi-empty{padding:16px 10px;color:#777;text-align:center}
 #gimenu .gi-item{
-  padding:6px 8px;border-bottom:1px solid #222;line-height:1.35;
+  padding:6px 8px;border-bottom:1px solid #222;line-height:1.35;cursor:pointer;position:relative;
 }
+#gimenu .gi-item:hover{background:#121212}
+#gimenu .gi-item.selected{background:#1c1c1c;outline:1px solid #777;outline-offset:-1px}
 #gimenu .gi-item .gi-meta{color:#8a9088;font-size:11px;margin-bottom:2px}
-#gimenu .gi-item .gi-meta b{color:#cdd3ce;font-weight:normal}
-#gimenu .gi-item .gi-text{color:#f0f0ec;white-space:pre-wrap;word-break:break-word}
-#gimenu .gi-item.mine .gi-meta b{color:#9fe6e0}
+#gimenu .gi-item .gi-meta b{color:var(--fg);font-weight:normal}
+#gimenu .gi-item .gi-text{color:var(--fg);white-space:pre-wrap;word-break:break-word}
+#gimenu .gi-item.unread .gi-meta,
+#gimenu .gi-item.unread .gi-meta b,
+#gimenu .gi-item.unread .gi-text{color:#fff;font-weight:bold}
+#gimenu .gi-item.mine:not(.unread) .gi-meta b{color:#9fe6e0}
+#gimenu .gi-actions{
+  display:flex;gap:4px;margin-top:6px;
+}
+#gimenu .gi-actions button{
+  border:1px solid #8a8a8a;background:#4a4a4a;color:#fff;font:inherit;
+  padding:2px 12px;cursor:pointer;letter-spacing:.05em;
+}
+#gimenu .gi-actions button:hover{background:#5a5a5a}
 #gimenu .gi-compose{
   display:flex;gap:6px;padding:6px;border-top:1px solid #444;background:#1a1a1a;
 }
@@ -997,7 +1010,9 @@ const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM t
 // GI (General Information) — free text synced via hub to tier-1 neighbor centers
 const giMessages=[];                     // [{id,ts,from,fromShort,cid,callsign,text}] newest last
 let giSince=0;                           // hub poll cursor (max seen id)
-let giLastReadId=LS.get('vedst_gi_read',0)||0;
+const giReadIds=new Set((LS.get('vedst_gi_read_ids',[])||[]).map(Number).filter(n=>n>0));
+const giDeletedIds=new Set((LS.get('vedst_gi_deleted',[])||[]).map(Number).filter(n=>n>0));
+let giSelectedId=null;                   // only one message action menu at a time
 let giUnread=0;
 
 function demoLive(){return [
@@ -2510,6 +2525,26 @@ function giFmtTime(ts){
 function giArtccLabel(m){
   return (m&& (m.fromShort||m.from||'')).toString().replace(/^K/,'')||'----';
 }
+function persistGiState(){
+  const trim=ids=>{
+    const a=[...ids].map(Number).filter(n=>n>0).sort((x,y)=>x-y);
+    return a.length>300?a.slice(a.length-300):a;
+  };
+  LS.set('vedst_gi_read_ids',trim(giReadIds));
+  LS.set('vedst_gi_deleted',trim(giDeletedIds));
+}
+function giVisibleMessages(){
+  return giMessages.filter(m=>m&&m.id!=null&&!giDeletedIds.has(m.id));
+}
+function giIsMine(m){
+  const myCid=(settings.cid||'').trim();
+  return !!(myCid&&String(m.cid||'')===myCid);
+}
+function giIsUnread(m){
+  if(!m||m.id==null||giDeletedIds.has(m.id))return false;
+  if(giIsMine(m))return false;
+  return !giReadIds.has(m.id);
+}
 function updateGiBadge(){
   const btn=document.getElementById('btnGi');if(!btn)return;
   const n=giUnread|0;
@@ -2517,17 +2552,43 @@ function updateGiBadge(){
   btn.innerHTML=n>0?('GI<br>('+n+')'):'GI';
   btn.title=n>0?(n+' unread General Information message'+(n===1?'':'s')):'General Information (neighbor centers)';
 }
-function markGiRead(){
-  const maxId=giMessages.reduce((m,x)=>Math.max(m,x.id||0),giSince||0);
-  giLastReadId=maxId;
-  LS.set('vedst_gi_read',giLastReadId);
-  giUnread=0;
+function recountGiUnread(){
+  giUnread=giVisibleMessages().filter(giIsUnread).length;
   updateGiBadge();
 }
-function recountGiUnread(){
-  const myCid=(settings.cid||'').trim();
-  giUnread=giMessages.filter(m=>m.id>giLastReadId&&String(m.cid||'')!==myCid).length;
-  updateGiBadge();
+function markGiMessageRead(id){
+  id=Number(id);if(!id)return;
+  giReadIds.add(id);
+  if(giSelectedId===id)giSelectedId=null;
+  persistGiState();
+  recountGiUnread();
+  renderGiList();
+}
+function deleteGiMessage(id){
+  id=Number(id);if(!id)return;
+  giDeletedIds.add(id);
+  giReadIds.add(id);
+  if(giSelectedId===id)giSelectedId=null;
+  const ix=giMessages.findIndex(m=>m.id===id);
+  if(ix>=0)giMessages.splice(ix,1);
+  persistGiState();
+  recountGiUnread();
+  renderGiList();
+}
+function markGiIdsRead(ids){
+  let changed=false;
+  (ids||[]).forEach(id=>{
+    id=Number(id);if(!id||giReadIds.has(id))return;
+    giReadIds.add(id);changed=true;
+  });
+  if(changed)persistGiState();
+  recountGiUnread();
+}
+function selectGiMessage(id){
+  id=Number(id)||null;
+  // Only one message selected at a time; click again to deselect.
+  giSelectedId=(id&&giSelectedId===id)?null:id;
+  renderGiList();
 }
 function renderGiList(){
   const list=document.getElementById('giList');if(!list)return;
@@ -2536,18 +2597,33 @@ function renderGiList(){
   if(scope)scope.textContent=art
     ?('Visible to '+art.replace(/^K/,'')+' and tier-1 neighbors')
     :'Neighbor centers (tier 1)';
-  if(!giMessages.length){
+  const visible=giVisibleMessages();
+  if(!visible.length){
     list.innerHTML='<div class="gi-empty">No messages</div>';
     return;
   }
-  const myCid=(settings.cid||'').trim();
-  const rows=[...giMessages].reverse().map(m=>{
-    const mine=myCid&&String(m.cid||'')===myCid;
+  if(giSelectedId!=null&&!visible.some(m=>m.id===giSelectedId))giSelectedId=null;
+  const rows=[...visible].reverse().map(m=>{
+    const mine=giIsMine(m);
+    const unread=giIsUnread(m);
+    const sel=giSelectedId===m.id;
     const who=esc(m.callsign||m.cid||'CTRL');
     const fac=esc(giArtccLabel(m));
-    return '<div class="gi-item'+(mine?' mine':'')+'">'
+    const cls=['gi-item'];
+    if(mine)cls.push('mine');
+    if(unread)cls.push('unread');
+    if(sel)cls.push('selected');
+    let actions='';
+    if(sel){
+      actions='<div class="gi-actions">'
+        +(unread?'<button type="button" data-gi-act="read">READ</button>':'')
+        +'<button type="button" data-gi-act="delete">DELETE</button>'
+        +'</div>';
+    }
+    return '<div class="'+cls.join(' ')+'" data-gi-id="'+m.id+'">'
       +'<div class="gi-meta"><b>'+fac+'</b> · '+who+' · '+giFmtTime(m.ts)+'</div>'
-      +'<div class="gi-text">'+esc(m.text||'')+'</div></div>';
+      +'<div class="gi-text">'+esc(m.text||'')+'</div>'
+      +actions+'</div>';
   }).join('');
   list.innerHTML=rows;
 }
@@ -2555,26 +2631,27 @@ function ingestGiBatch(batch,opts){
   opts=opts||{};
   if(!batch||!batch.length)return;
   const known=new Set(giMessages.map(m=>m.id));
-  let added=0;
+  const addedIds=[];
   batch.forEach(m=>{
-    if(!m||m.id==null||known.has(m.id))return;
+    if(!m||m.id==null||known.has(m.id)||giDeletedIds.has(m.id))return;
     giMessages.push(m);
     known.add(m.id);
     if(m.id>giSince)giSince=m.id;
-    added++;
+    addedIds.push(m.id);
+    // Own sends are already "read"; never flash the badge for them.
+    if(giIsMine(m))giReadIds.add(m.id);
   });
-  if(!added)return;
+  if(!addedIds.length)return;
   giMessages.sort((a,b)=>(a.id||0)-(b.id||0));
   if(giMessages.length>200)giMessages.splice(0,giMessages.length-200);
-  if(giMenuOpen()){
-    markGiRead();
-    renderGiList();
-  }else if(opts.silent){
-    // First hub backlog: treat as already seen so the badge doesn't light up on sign-in.
-    markGiRead();
+  if(opts.silent){
+    // First hub backlog: treat historical notes as already read.
+    markGiIdsRead(addedIds);
   }else{
+    persistGiState();
     recountGiUnread();
   }
+  if(giMenuOpen())renderGiList();
 }
 function openGiMenu(){
   if(!hubMode()){
@@ -2584,11 +2661,15 @@ function openGiMenu(){
   const menu=document.getElementById('gimenu');
   const btn=document.getElementById('btnGi');
   if(!menu||!btn)return;
-  if(!menu.classList.contains('hidden')){close('gimenu');return;}
+  if(!menu.classList.contains('hidden')){
+    giSelectedId=null;
+    close('gimenu');
+    return;
+  }
+  giSelectedId=null;
   renderGiList();
   const r=btn.getBoundingClientRect();
   placePop(menu,r.left,r.bottom+4);
-  markGiRead();
   const inp=document.getElementById('giInput');
   if(inp)setTimeout(()=>inp.focus(),30);
 }
@@ -2616,8 +2697,7 @@ async function sendGiMessage(){
     }
     if(inp)inp.value='';
     if(res.gi)ingestGiBatch([res.gi],{});
-    renderGiList();
-    markGiRead();
+    else renderGiList();
   }catch(e){
     logMsg('err','GI','proxy error: '+e.message);
   }finally{
@@ -2632,6 +2712,24 @@ async function sendGiMessage(){
   const inp=document.getElementById('giInput');
   if(inp)inp.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();sendGiMessage();}
+  });
+  const list=document.getElementById('giList');
+  if(list)list.addEventListener('click',e=>{
+    const act=e.target.closest('[data-gi-act]');
+    if(act){
+      e.preventDefault();
+      e.stopPropagation();
+      const item=act.closest('.gi-item');
+      const id=item&&Number(item.dataset.giId);
+      if(!id)return;
+      if(act.dataset.giAct==='read')markGiMessageRead(id);
+      else if(act.dataset.giAct==='delete')deleteGiMessage(id);
+      return;
+    }
+    const item=e.target.closest('.gi-item');
+    if(!item)return;
+    e.preventDefault();
+    selectGiMessage(Number(item.dataset.giId));
   });
   updateGiBadge();
 })();
