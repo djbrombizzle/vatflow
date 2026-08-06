@@ -1781,6 +1781,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
+    if(id==='gimenu')giSelectedId=null;
     close(id);
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
@@ -2616,7 +2617,7 @@ function renderGiList(){
     let actions='';
     if(sel){
       actions='<div class="gi-actions">'
-        +(unread?'<button type="button" data-gi-act="read">READ</button>':'')
+        +'<button type="button" data-gi-act="read">READ</button>'
         +'<button type="button" data-gi-act="delete">DELETE</button>'
         +'</div>';
     }
