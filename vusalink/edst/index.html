@@ -183,7 +183,7 @@ a{color:inherit}
 
 /* X RES popup */
 #xresmenu.edst-pop{
-  position:absolute;z-index:70;width:min(420px,96vw);
+  position:absolute;z-index:70;width:min(520px,96vw);
   background:#000;border:1px solid #cfcfcf;
   font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
   box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
@@ -200,28 +200,40 @@ a{color:inherit}
 #xresmenu .edst-pop-hdr .title{flex:1;letter-spacing:.3px}
 #xresmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
 #xresmenu .xres-cols{
-  display:grid;grid-template-columns:1.1fr 1fr 1fr;min-height:220px;max-height:280px;
-  border-bottom:1px solid #333;
+  display:grid;grid-template-columns:minmax(90px,1fr) minmax(140px,1.8fr) minmax(90px,1fr);
+  min-height:220px;max-height:280px;border-bottom:1px solid #333;
 }
-#xresmenu .xres-col{display:flex;flex-direction:column;border-right:1px solid #333;min-width:0}
+#xresmenu .xres-col{display:flex;flex-direction:column;border-right:1px solid #333;min-width:0;overflow:hidden}
 #xresmenu .xres-col:last-child{border-right:0}
 #xresmenu .xres-col-h{
   background:#2a2a2a;color:#cdd3ce;padding:2px 6px;border-bottom:1px solid #444;
-  text-align:center;letter-spacing:.4px;
+  text-align:center;letter-spacing:.4px;flex-shrink:0;
 }
 #xresmenu .xres-spd-tools{
   display:flex;align-items:center;gap:2px;padding:2px 4px;border-bottom:1px solid #333;background:#1a1a1a;
+  flex-shrink:0;
 }
 #xresmenu .xres-spd-tools .xb{
   border:1px solid #777;background:#333;color:#fff;font:inherit;padding:1px 6px;cursor:pointer;
 }
 #xresmenu .xres-spd-tools .xb.on{background:#6b3a3a;border-color:#8a5050}
-#xresmenu .xres-list{flex:1;overflow:auto;background:#000}
+#xresmenu .xres-list{flex:1;overflow:auto;background:#000;min-height:0}
+#xresmenu .xres-list.xres-alt-multi{
+  display:flex;flex-direction:row;align-items:flex-start;
+  overflow-x:auto;overflow-y:hidden;
+}
+#xresmenu .xres-alt-col{
+  flex:0 0 auto;min-width:58px;border-right:1px solid #333;
+}
+#xresmenu .xres-alt-col:last-child{border-right:0}
 #xresmenu .xres-list .xi{
-  padding:2px 8px;cursor:pointer;display:flex;justify-content:space-between;color:#f0f0ec;
+  padding:2px 8px;cursor:pointer;display:flex;justify-content:space-between;gap:6px;color:#f0f0ec;
+  white-space:nowrap;
 }
 #xresmenu .xres-list .xi:hover{background:#1c1c1c}
 #xresmenu .xres-list .xi.sel{background:#6b3a3a;color:#fff}
+#xresmenu .xres-list .xi.cur{color:#9fe6e0}
+#xresmenu .xres-list .xi.sel.cur{color:#fff}
 #xresmenu .xres-list .xi .t{color:#a0a0a0}
 #xresmenu .xres-list .xi.sel .t{color:#e8d0d0}
 #xresmenu .xres-foot{
@@ -1672,25 +1684,38 @@ function openXresMenu(target,x,y){
       fixL.appendChild(xi);
     });
   }
-  // ALT column
-  const altL=document.getElementById('xresAltList');altL.innerHTML='';
+  // ALT column — wrap every 15 rows into a new column to the right
+  const altL=document.getElementById('xresAltList');
+  altL.className='xres-list xres-alt-multi';
+  altL.innerHTML='';
   const curAlt=round10(target.alt||0);
-  for(let fl=450;fl>=60;fl-=10){
-    const xi=document.createElement('div');xi.className='xi';
-    xi.dataset.fl=String(fl);
-    xi.innerHTML=`<span>${pad3(fl)}</span><span class="t">T</span>`;
-    if(fl===curAlt)xi.classList.add('cur');
-    xi.onclick=()=>{
-      xresAlt=fl;
-      altL.querySelectorAll('.xi').forEach(e=>e.classList.toggle('sel',e===xi));
-      syncXresUplink();
-    };
-    altL.appendChild(xi);
+  const levels=[];for(let fl=450;fl>=60;fl-=10)levels.push(fl);
+  const ALT_ROWS=15;
+  let curXi=null;
+  for(let i=0;i<levels.length;i+=ALT_ROWS){
+    const col=document.createElement('div');col.className='xres-alt-col';
+    levels.slice(i,i+ALT_ROWS).forEach(fl=>{
+      const xi=document.createElement('div');xi.className='xi';
+      xi.dataset.fl=String(fl);
+      xi.innerHTML=`<span>${pad3(fl)}</span><span class="t">T</span>`;
+      if(fl===curAlt){xi.classList.add('cur');curXi=xi;}
+      xi.onclick=()=>{
+        xresAlt=fl;
+        altL.querySelectorAll('.xi').forEach(e=>e.classList.toggle('sel',e===xi));
+        syncXresUplink();
+      };
+      col.appendChild(xi);
+    });
+    altL.appendChild(col);
   }
   buildXresSpdList();
   syncXresUplink();
   placePop(xresmenu,x,y);
-  const cur=altL.querySelector('.xi.cur');if(cur)cur.scrollIntoView({block:'center'});
+  if(curXi){
+    const col=curXi.parentElement;
+    if(col)col.scrollIntoView({inline:'nearest',block:'nearest'});
+    curXi.scrollIntoView({block:'nearest',inline:'nearest'});
+  }
 }
 function buildXresSpdList(){
   const spdL=document.getElementById('xresSpdList');spdL.innerHTML='';
