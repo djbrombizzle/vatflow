@@ -159,6 +159,81 @@ a{color:inherit}
 #altmenu .edst-alt-split{display:flex;border-bottom:1px solid #cfcfcf}
 #altmenu .edst-alt-split .edst-alt-btn{flex:1;border-bottom:0;border-right:1px solid #cfcfcf}
 #altmenu .edst-alt-split .edst-alt-btn:last-child{border-right:0}
+
+#altmenu .edst-alt-btn.fp.struck{text-decoration:line-through;color:#9a9a9a}
+#altmenu .edst-alt-btn.fp.struck input{color:#9a9a9a;text-decoration:line-through}
+#altmenu .edst-alt-btn.on,
+#altmenu .edst-alt-btn.tgl.on{background:#6b3a3a}
+#altmenu .edst-tfc-row{display:flex;border-bottom:1px solid #cfcfcf}
+#altmenu .edst-tfc-row .edst-alt-btn{flex:1;border-bottom:0;border-right:1px solid #cfcfcf}
+#altmenu .edst-tfc-row .edst-alt-btn:last-child{border-right:0}
+#altmenu .edst-tfc-chev{
+  flex:0 0 28px;display:flex;align-items:center;justify-content:center;
+  background:#6b3a3a;color:#fff;border:0;border-left:1px solid #cfcfcf;
+  font:inherit;cursor:pointer;padding:0;
+}
+#altmenu .edst-tfc-chev:not(.open){background:#4a4a4a}
+#altmenu .edst-tfc-panel{display:none;background:#4a4a4a;border-bottom:1px solid #cfcfcf}
+#altmenu .edst-tfc-panel.open{display:block}
+#altmenu .edst-tfc-panel .edst-tfc-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+}
+#altmenu .edst-tfc-panel .edst-alt-btn{border-bottom:1px solid #cfcfcf;border-right:1px solid #cfcfcf}
+#altmenu .edst-tfc-panel .edst-alt-btn:nth-child(2n){border-right:0}
+
+/* X RES popup */
+#xresmenu.edst-pop{
+  position:absolute;z-index:70;width:min(420px,96vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#xresmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:6px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#xresmenu .edst-pop-hdr .tri{
+  width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:9px solid #39d24b;flex-shrink:0;
+}
+#xresmenu .edst-pop-hdr .title{flex:1;letter-spacing:.3px}
+#xresmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#xresmenu .xres-cols{
+  display:grid;grid-template-columns:1.1fr 1fr 1fr;min-height:220px;max-height:280px;
+  border-bottom:1px solid #333;
+}
+#xresmenu .xres-col{display:flex;flex-direction:column;border-right:1px solid #333;min-width:0}
+#xresmenu .xres-col:last-child{border-right:0}
+#xresmenu .xres-col-h{
+  background:#2a2a2a;color:#cdd3ce;padding:2px 6px;border-bottom:1px solid #444;
+  text-align:center;letter-spacing:.4px;
+}
+#xresmenu .xres-spd-tools{
+  display:flex;align-items:center;gap:2px;padding:2px 4px;border-bottom:1px solid #333;background:#1a1a1a;
+}
+#xresmenu .xres-spd-tools .xb{
+  border:1px solid #777;background:#333;color:#fff;font:inherit;padding:1px 6px;cursor:pointer;
+}
+#xresmenu .xres-spd-tools .xb.on{background:#6b3a3a;border-color:#8a5050}
+#xresmenu .xres-list{flex:1;overflow:auto;background:#000}
+#xresmenu .xres-list .xi{
+  padding:2px 8px;cursor:pointer;display:flex;justify-content:space-between;color:#f0f0ec;
+}
+#xresmenu .xres-list .xi:hover{background:#1c1c1c}
+#xresmenu .xres-list .xi.sel{background:#6b3a3a;color:#fff}
+#xresmenu .xres-list .xi .t{color:#a0a0a0}
+#xresmenu .xres-list .xi.sel .t{color:#e8d0d0}
+#xresmenu .xres-foot{
+  display:flex;justify-content:flex-end;align-items:center;gap:4px;
+  padding:8px;background:#000;min-height:48px;
+}
+#xresmenu .xres-uplink{
+  border:1px solid #8a8a8a;background:#4a4a4a;color:#fff;font:inherit;
+  padding:4px 14px;cursor:pointer;
+}
+#xresmenu .xres-uplink:hover{background:#5a5a5a}
+#xresmenu .xres-uplink.disabled{opacity:.45;cursor:default}
 #altmenu .edst-alt-altim{
   background:#3a3a3a;border-bottom:1px solid #cfcfcf;padding:4px 8px;font-size:12px;color:#ddd;
 }
@@ -332,26 +407,64 @@ a{color:inherit}
     <span class="x" data-close="altmenu" title="Close">X</span>
   </div>
   <div class="edst-alt-actions">
-    <button type="button" class="edst-alt-btn" id="altTrialPlan" data-stub="Trial Plan">TRIAL PLAN</button>
     <button type="button" class="edst-alt-btn amend" id="altAmend" title="Remove last queued item">AMEND</button>
-    <label class="edst-alt-btn fp" title="Flight plan / selected altitude">FP
+    <label class="edst-alt-btn fp" id="altFpRow" title="Flight plan / selected altitude">FP
       <input id="altInput" autocomplete="off" inputmode="numeric" placeholder="FL">
     </label>
     <button type="button" class="edst-alt-btn uplink" id="altUplink">UPLINK</button>
-    <div class="edst-alt-split">
+    <div class="edst-tfc-row">
       <button type="button" class="edst-alt-btn tgl" id="altApd" title="UM177 — append AT PILOTS DISCRETION">PD</button>
-      <button type="button" class="edst-alt-btn" id="altTfc" data-stub="TFC">TFC &#9660;</button>
+      <button type="button" class="edst-alt-btn tgl" id="altTfc" title="Due to traffic">TFC</button>
+      <button type="button" class="edst-tfc-chev" id="altTfcChev" title="Show reason options" aria-expanded="false">&#9660;</button>
+    </div>
+    <div class="edst-tfc-panel" id="altTfcPanel">
+      <div class="edst-tfc-grid">
+        <button type="button" class="edst-alt-btn tgl" id="altReasonImm" data-reason="IMM" title="Immediately">IMM</button>
+        <button type="button" class="edst-alt-btn tgl" id="altReasonRes" data-reason="RES" title="Restricted airspace">RES</button>
+        <button type="button" class="edst-alt-btn tgl" id="altReasonExp" data-reason="EXP" title="Expedite">EXP</button>
+        <button type="button" class="edst-alt-btn tgl" id="altReasonWx" data-reason="WX" title="Weather">WX</button>
+      </div>
     </div>
     <button type="button" class="edst-alt-btn" id="altScratchpad" title="Add to uplink queue">SCRATCHPAD</button>
-    <button type="button" class="edst-alt-btn" id="altXres" data-stub="X RES">X RES</button>
-    <button type="button" class="edst-alt-btn" id="altLocalTalt" data-stub="LOCAL TALT">LOCAL TALT</button>
-    <button type="button" class="edst-alt-btn" id="altProcedure" data-stub="PROCEDURE">PROCEDURE</button>
+    <button type="button" class="edst-alt-btn" id="altXres" title="Crossing restriction">X RES</button>
+    <button type="button" class="edst-alt-btn tgl" id="altLocalTalt" title="Include destination altimeter in clearance">LOCAL TALT</button>
   </div>
   <div class="edst-alt-altim hidden" id="altAltimRow">
     Altimeter <span id="altAltimIcao"></span>
     <input id="altAltimInput" autocomplete="off" inputmode="decimal" placeholder="29.83" title="Override destination altimeter">
   </div>
   <div class="altlist" id="altList"></div>
+</div>
+
+<!-- EDST X RES (crossing restriction) menu -->
+<div id="xresmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="tri" aria-hidden="true"></span>
+    <span class="title" id="xresTitle">X RES</span>
+    <span class="x" data-close="xresmenu" title="Close">X</span>
+  </div>
+  <div class="xres-cols">
+    <div class="xres-col">
+      <div class="xres-col-h">FIX</div>
+      <div class="xres-list" id="xresFixList"></div>
+    </div>
+    <div class="xres-col">
+      <div class="xres-col-h">ALT</div>
+      <div class="xres-list" id="xresAltList"></div>
+    </div>
+    <div class="xres-col">
+      <div class="xres-col-h">SPD</div>
+      <div class="xres-spd-tools">
+        <button type="button" class="xb on" id="xresKt">KT</button>
+        <button type="button" class="xb" id="xresSpdPlus" title="Higher speeds">+</button>
+        <button type="button" class="xb" id="xresSpdMinus" title="Lower speeds">&minus;</button>
+      </div>
+      <div class="xres-list" id="xresSpdList"></div>
+    </div>
+  </div>
+  <div class="xres-foot">
+    <button type="button" class="xres-uplink disabled" id="xresUplink">UPLINK</button>
+  </div>
 </div>
 
 <div id="queuewrap" class="hidden">
@@ -973,7 +1086,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){const m=document.getElementById('altmenu');return !!(m&&!m.classList.contains('hidden'));}
+function menusOpen(){return ['altmenu','xresmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1168,10 +1281,13 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  const altmenu=document.getElementById('altmenu');
-  if(!altmenu||altmenu.classList.contains('hidden'))return;
-  if(altmenu.contains(ev.target)||ev.target.closest('.alt-cell'))return;
-  close('altmenu');
+  ['altmenu','xresmenu'].forEach(id=>{
+    const menu=document.getElementById(id);
+    if(!menu||menu.classList.contains('hidden'))return;
+    if(menu.contains(ev.target))return;
+    if(id==='altmenu'&&ev.target.closest('.alt-cell'))return;
+    close(id);
+  });
 });
 
 //============================================================ log + status
@@ -1268,7 +1384,17 @@ document.querySelector('#board thead').addEventListener('click',e=>{
 
 //============================================================ ALT menu
 const altmenu=document.getElementById('altmenu');
-let altTarget=null,altSelected=null,altAltimManual=false,altApd=false;
+const xresmenu=document.getElementById('xresmenu');
+let altTarget=null,altSelected=null,altAltimManual=false,altApd=false,altLocalTalt=false,altFpBase=null;
+let altTfcOpen=false;
+const altReasons=new Set();   // TFC, IMM, RES, EXP, WX
+const ALT_REASON_TEXT={
+  TFC:'DUE TO TRAFFIC',
+  IMM:'IMMEDIATELY',
+  RES:'DUE TO RESTRICTED AIRSPACE',
+  EXP:'EXPEDITE',
+  WX:'DUE TO WEATHER'
+};
 const altimeterCache={};
 function normalizeIcao(icao){
   icao=(icao||'').trim().toUpperCase();
@@ -1280,6 +1406,16 @@ function normalizeIcao(icao){
 }
 function isBelowFl180(fl){return fl!=null&&fl<180;}
 function formatFeetAlt(fl){return (fl*100).toLocaleString('en-US')+'ft';}
+function parseAltitudeInput(s){
+  s=(s||'').replace(/[,\s]/g,'').toUpperCase();
+  if(!s)return null;
+  if(s.startsWith('FL')){const fl=parseInt(s.slice(2),10)||0;return fl?{fl,below180:fl<180}:null;}
+  const n=parseInt(s,10)||0;
+  if(!n)return null;
+  if(n>=1000)return {fl:Math.round(n/100),feet:n,below180:n<18000};
+  if(n<=600)return {fl:n,below180:n<180};
+  return null;
+}
 async function fetchDestAltimeter(icao){
   icao=normalizeIcao(icao);if(!icao)return null;
   const hit=altimeterCache[icao];
@@ -1319,34 +1455,87 @@ function parseAlt(v){
   if(n>=1000)n=Math.round(n/100);
   return (n<10||n>600)?null:n;
 }
-async function buildAltMessage(target,tgt,altimVal,apd){
+function altReasonSuffix(){
+  const order=['IMM','EXP','TFC','RES','WX'];
+  const parts=[];
+  order.forEach(k=>{if(altReasons.has(k)&&ALT_REASON_TEXT[k])parts.push(ALT_REASON_TEXT[k]);});
+  return parts.length?', '+parts.join(', '):'';
+}
+async function buildAltMessage(target,tgt,altimVal,apd,localTalt){
   if(!target||tgt==null)return null;
   const cur=target.alt||0;
   let msg;
+  const includeAltim=!!localTalt;
   if(isBelowFl180(tgt)){
     const verb=tgt>cur?'CLIMB AND MAINTAIN':tgt<cur?'DESCEND AND MAINTAIN':'MAINTAIN';
-    const dest=normalizeIcao(target.arr);
-    const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
-    msg=`${verb} ${formatFeetAlt(tgt)}${altimeterSuffix(dest,altim)}`;
+    msg=`${verb} ${formatFeetAlt(tgt)}`;
   }else{
     const verb=tgt>cur?'CLIMB TO AND MAINTAIN':tgt<cur?'DESCEND TO AND MAINTAIN':'MAINTAIN';
     msg=`${verb} @${flStr(tgt)}@`;
   }
+  if(includeAltim){
+    const dest=normalizeIcao(target.arr);
+    const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
+    msg+=altimeterSuffix(dest,altim);
+  }
   if(apd)msg+=' AT PILOTS DISCRETION';
-  return {label:apd?'ALT APD':'ALT',msg,effects:{type:'alt',alt:tgt}};
+  msg+=altReasonSuffix();
+  const label=apd?'ALT APD':(altReasons.size?'ALT REASON':'ALT');
+  return {label,msg,effects:{type:'alt',alt:tgt}};
 }
 function setAltApd(on){
   altApd=!!on;
   const el=document.getElementById('altApd');
   if(el)el.classList.toggle('on',altApd);
 }
+function setAltLocalTalt(on){
+  altLocalTalt=!!on;
+  const el=document.getElementById('altLocalTalt');
+  if(el)el.classList.toggle('on',altLocalTalt);
+  syncAltAltimeterRow();
+}
+function setAltTfcOpen(on){
+  altTfcOpen=!!on;
+  const panel=document.getElementById('altTfcPanel');
+  const chev=document.getElementById('altTfcChev');
+  if(panel)panel.classList.toggle('open',altTfcOpen);
+  if(chev){
+    chev.classList.toggle('open',altTfcOpen);
+    chev.innerHTML=altTfcOpen?'&#9650;':'&#9660;';
+    chev.setAttribute('aria-expanded',altTfcOpen?'true':'false');
+  }
+}
+function syncAltReasonButtons(){
+  const tfc=document.getElementById('altTfc');
+  if(tfc)tfc.classList.toggle('on',altReasons.has('TFC'));
+  document.querySelectorAll('#altTfcPanel [data-reason]').forEach(btn=>{
+    btn.classList.toggle('on',altReasons.has(btn.dataset.reason));
+  });
+}
+function toggleAltReason(key){
+  if(altReasons.has(key))altReasons.delete(key);else altReasons.add(key);
+  syncAltReasonButtons();
+}
+function updateAltFpStruck(){
+  const row=document.getElementById('altFpRow');
+  if(!row)return;
+  const struck=altSelected!=null&&altFpBase!=null&&altSelected!==altFpBase;
+  row.classList.toggle('struck',struck);
+}
+function resetAltReasons(){
+  altReasons.clear();
+  setAltTfcOpen(false);
+  syncAltReasonButtons();
+}
 function openAltMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   altTarget=a;altSelected=null;altAltimManual=false;
-  setAltApd(false);
+  setAltApd(false);setAltLocalTalt(false);resetAltReasons();
   document.getElementById('altTitle').textContent=a.cs;
-  const fp=assigned[a.cs]!=null?assigned[a.cs]:(a.alt||0);
-  document.getElementById('altInput').value=fp?pad3(round10(fp)):'';
+  const fp=assigned[a.cs]!=null?assigned[a.cs]:round10(a.alt||0);
+  altFpBase=fp||null;
+  document.getElementById('altInput').value=fp?pad3(fp):'';
+  updateAltFpStruck();
   const altimIn=document.getElementById('altAltimInput');
   altimIn.value='';delete altimIn.dataset.manual;
   document.getElementById('altAltimRow').classList.add('hidden');
@@ -1372,11 +1561,13 @@ function stageAlt(fl){
   altSelected=fl;altHighlight(fl);
   document.getElementById('altInput').value=pad3(fl);
   showUplink('altUplink',true);
-  syncAltAltimeterRow();
+  updateAltFpStruck();
+  // LOCAL TALT auto-on below FL180; auto-off when going back above
+  setAltLocalTalt(isBelowFl180(fl));
 }
 function syncAltAltimeterRow(){
   const row=document.getElementById('altAltimRow');
-  if(!altTarget||altSelected==null||!isBelowFl180(altSelected)){
+  if(!altTarget||altSelected==null||!altLocalTalt){
     row.classList.add('hidden');return;
   }
   populateAltimInput(document.getElementById('altAltimInput'),
@@ -1389,15 +1580,23 @@ document.getElementById('altAltimInput').addEventListener('input',()=>{
 document.getElementById('altInput').addEventListener('input',()=>{
   const fl=parseAlt(document.getElementById('altInput').value);
   altSelected=fl;altHighlight(fl);showUplink('altUplink',fl!=null);
-  if(fl!=null)syncAltAltimeterRow();else document.getElementById('altAltimRow').classList.add('hidden');
+  updateAltFpStruck();
+  if(fl!=null)setAltLocalTalt(isBelowFl180(fl));
+  else{setAltLocalTalt(false);document.getElementById('altAltimRow').classList.add('hidden');}
 });
 document.getElementById('altApd').onclick=()=>setAltApd(!altApd);
+document.getElementById('altLocalTalt').onclick=()=>setAltLocalTalt(!altLocalTalt);
+document.getElementById('altTfcChev').onclick=e=>{e.stopPropagation();setAltTfcOpen(!altTfcOpen);};
+document.getElementById('altTfc').onclick=()=>toggleAltReason('TFC');
+document.querySelectorAll('#altTfcPanel [data-reason]').forEach(btn=>{
+  btn.onclick=()=>toggleAltReason(btn.dataset.reason);
+});
 document.getElementById('altUplink').onclick=async()=>{
   if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
   if(!altTarget||altSelected==null)return;
   const cs=altTarget.cs;
   const altim=document.getElementById('altAltimInput').value.trim();
-  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd);
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd,altLocalTalt);
   if(!entry)return;
   close('altmenu');
   await sendUplinkEntry(cs,entry);renderBoard();
@@ -1406,11 +1605,123 @@ document.getElementById('altScratchpad').onclick=async()=>{
   if(!canControl()){comingSoon('Sign in / verify to queue');return;}
   if(!altTarget||altSelected==null)return;
   const altim=document.getElementById('altAltimInput').value.trim();
-  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd);
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd,altLocalTalt);
   if(!entry||!queueAdd(altTarget.cs,entry))return;
   close('altmenu');
 };
 document.getElementById('altAmend').onclick=()=>{if(altTarget)queuePopLast(altTarget.cs);};
+document.getElementById('altXres').onclick=()=>{
+  if(!altTarget)return;
+  const r=altmenu.getBoundingClientRect();
+  openXresMenu(altTarget,r.right+4,r.top);
+};
+
+//============================================================ X RES menu
+let xresTarget=null,xresFix=null,xresAlt=null,xresSpd=null,xresSpdBase=310;
+function normSpeed(s){s=String(s||'').replace(/\s/g,'').toUpperCase();return /^\d+$/.test(s)?s+'KT':s;}
+function normLevel(s){
+  const p=parseAltitudeInput(s);
+  if(!p)return '';
+  if(p.feet!=null&&!String(s).toUpperCase().includes('FL'))return String(p.feet);
+  return 'FL'+pad3(p.fl);
+}
+function crossAltText(s){
+  const p=parseAltitudeInput(s);
+  if(!p)return '';
+  if(p.below180)return formatFeetAlt(p.fl);
+  return 'FL'+pad3(p.fl);
+}
+async function buildCrossingMessage(target,fix,alt,spd,altimVal){
+  if(!target||!fix)return null;
+  const altP=alt?parseAltitudeInput(alt):null;
+  const A=alt?(altP&&altP.below180?crossAltText(alt):normLevel(alt)):'';
+  const S=spd?normSpeed(spd):'';
+  if(!A&&!S)return null;
+  let msg=(A&&S)?`CROSS @${fix}@ AT @${A}@ AT @${S}@`
+           :A?`CROSS @${fix}@ AT @${A}@`
+           :`CROSS @${fix}@ AT @${S}@`;
+  if(altP&&altP.below180){
+    const dest=normalizeIcao(target.arr);
+    const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
+    msg+=altimeterSuffix(dest,altim);
+  }
+  return {label:'CROSS',msg,effects:{type:'route'}};
+}
+function syncXresUplink(){
+  const btn=document.getElementById('xresUplink');
+  const ok=!!(xresTarget&&xresFix&&(xresAlt!=null||xresSpd!=null));
+  if(btn)btn.classList.toggle('disabled',!ok);
+}
+function openXresMenu(target,x,y){
+  xresTarget=target;xresFix=null;xresAlt=null;xresSpd=null;xresSpdBase=310;
+  document.getElementById('xresTitle').textContent='X RES-'+(target.cs||'');
+  // FIX column
+  const fixL=document.getElementById('xresFixList');fixL.innerHTML='';
+  const fixes=routeFixNames(target);
+  if(!fixes.length){
+    const empty=document.createElement('div');empty.className='xi';empty.style.opacity='.5';
+    empty.textContent='(no fixes)';fixL.appendChild(empty);
+  }else{
+    fixes.forEach(name=>{
+      const xi=document.createElement('div');xi.className='xi';xi.textContent=name;
+      xi.onclick=()=>{
+        xresFix=name;
+        fixL.querySelectorAll('.xi').forEach(e=>e.classList.toggle('sel',e===xi));
+        syncXresUplink();
+      };
+      fixL.appendChild(xi);
+    });
+  }
+  // ALT column
+  const altL=document.getElementById('xresAltList');altL.innerHTML='';
+  const curAlt=round10(target.alt||0);
+  for(let fl=450;fl>=60;fl-=10){
+    const xi=document.createElement('div');xi.className='xi';
+    xi.dataset.fl=String(fl);
+    xi.innerHTML=`<span>${pad3(fl)}</span><span class="t">T</span>`;
+    if(fl===curAlt)xi.classList.add('cur');
+    xi.onclick=()=>{
+      xresAlt=fl;
+      altL.querySelectorAll('.xi').forEach(e=>e.classList.toggle('sel',e===xi));
+      syncXresUplink();
+    };
+    altL.appendChild(xi);
+  }
+  buildXresSpdList();
+  syncXresUplink();
+  placePop(xresmenu,x,y);
+  const cur=altL.querySelector('.xi.cur');if(cur)cur.scrollIntoView({block:'center'});
+}
+function buildXresSpdList(){
+  const spdL=document.getElementById('xresSpdList');spdL.innerHTML='';
+  const start=Math.max(100,Math.min(400,xresSpdBase));
+  for(let i=0;i<8;i++){
+    const kt=start-i*10;
+    if(kt<80)break;
+    const xi=document.createElement('div');xi.className='xi';
+    xi.textContent=String(kt);
+    if(xresSpd!=null&&+xresSpd===kt)xi.classList.add('sel');
+    xi.onclick=()=>{
+      xresSpd=String(kt);
+      spdL.querySelectorAll('.xi').forEach(e=>e.classList.toggle('sel',e===xi));
+      syncXresUplink();
+    };
+    spdL.appendChild(xi);
+  }
+}
+document.getElementById('xresSpdPlus').onclick=()=>{xresSpdBase=Math.min(400,xresSpdBase+20);buildXresSpdList();};
+document.getElementById('xresSpdMinus').onclick=()=>{xresSpdBase=Math.max(120,xresSpdBase-20);buildXresSpdList();};
+document.getElementById('xresUplink').onclick=async()=>{
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!xresTarget||!xresFix||(xresAlt==null&&xresSpd==null))return;
+  const altStr=xresAlt!=null?('FL'+pad3(xresAlt)):'';
+  const spdStr=xresSpd!=null?String(xresSpd):'';
+  const entry=await buildCrossingMessage(xresTarget,xresFix,altStr,spdStr,null);
+  if(!entry)return;
+  const cs=xresTarget.cs;
+  close('xresmenu');close('altmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
 
 // queue panel controls
 const _queueToggle=document.getElementById('queueToggle');
@@ -1422,9 +1733,9 @@ if(_clearQueue)_clearQueue.onclick=()=>queueClear(queueActiveCs);
 if(settings.queueCollapsed==null){settings.queueCollapsed=true;persist();}
 renderQueuePanel();
 
-// draggable ALT menu
-(function(){
-  const el=altmenu;const handle=el&&el.querySelector('.edst-pop-hdr');
+// draggable EDST popups
+function makeEdstDraggable(el){
+  const handle=el&&el.querySelector('.edst-pop-hdr');
   if(!el||!handle)return;
   handle.addEventListener('pointerdown',e=>{
     if(e.target.closest('.x'))return;
@@ -1449,7 +1760,9 @@ renderQueuePanel();
     handle.addEventListener('pointerup',up);
     handle.addEventListener('pointercancel',up);
   });
-})();
+}
+makeEdstDraggable(altmenu);
+makeEdstDraggable(xresmenu);
 
 //============================================================ board clicks (ALT)
 rows.addEventListener('click',e=>{
