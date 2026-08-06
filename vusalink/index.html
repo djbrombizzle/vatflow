@@ -655,10 +655,33 @@ function positionLabelFromCallsign(cs){
   const i=u.lastIndexOf('_');
   return i>0?u.slice(0,i):u;
 }
-function pilotMatchesOurFreq(cs){
-  if(myPosition.freqMhz==null)return true;
+function tunedToOurFreq(cs){
+  // Raw transceiver match — false when we don't know our own voice freq yet.
+  if(myPosition.freqMhz==null)return false;
   const freqs=pilotFreqs.get((cs||'').toUpperCase())||[];
   return freqs.some(f=>freqsMatch(f,myPosition.freqMhz));
+}
+function cpdlcActiveWith(cs){
+  // Pending CPDLC with this aircraft (clearance / unread / flashing W).
+  // Used so transceiver lag after a handoff can't keep the row gray or drop WILCOs.
+  cs=(cs||'').toUpperCase();
+  if(!cs)return false;
+  if(wilcoAwait[cs]||handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||msgAlert.has(cs))return true;
+  const w=wilcoUi[cs];
+  return !!(w&&(w.kind==='received'||w.kind==='timeout'));
+}
+function pilotMatchesOurFreq(cs){
+  cs=(cs||'').toUpperCase();
+  if(cpdlcActiveWith(cs))return true;
+  if(myPosition.freqMhz==null)return true;   // no position freq yet — don't filter anyone out
+  return tunedToOurFreq(cs);
+}
+function shouldDimAdj(a){
+  // ADJ (outside our ARTCC, in the 20 nm buffer) is gray unless the pilot is on
+  // our voice frequency — or we already have live CPDLC with them.
+  if(!a||a.cat!=='ADJ')return false;
+  if(cpdlcActiveWith(a.cs)||tunedToOurFreq(a.cs))return false;
+  return true;
 }
 function countsForController(cs){
   cs=(cs||'').toUpperCase();
@@ -1103,7 +1126,10 @@ function autoAcceptLogon(cs,theirMin){
   connected.add(cs);logMsg('sys',cs,'logon auto-accepted \u2014 CPDLC connected');renderBoard();
 }
 function handleResponse(cs,d,msg){
-  if(!pilotMatchesOurFreq(cs))return;   // WILCO belongs to the controller on that voice freq
+  // WILCO normally belongs to the controller on the pilot's voice freq. Always
+  // accept it when we originated the uplink (wilcoAwait) so transceiver lag
+  // after an adjacent-sector handoff can't swallow the reply.
+  if(!wilcoAwait[cs]&&!pilotMatchesOurFreq(cs))return;
   logMsg('in',cs,'response: '+msg);
   const mrn=d.mrn!=null?String(d.mrn):'';
   if(isPositiveAck(msg)){
@@ -1445,8 +1471,8 @@ function renderBoard(){
   rows.innerHTML='';
   list.forEach((a,idx)=>{
     const tr=document.createElement('tr');
-    // ADJ = approaching from a neighbor sector; dim unless tuned to our frequency.
-    if(a.cat==='ADJ'&&(myPosition.freqMhz==null||!a.onFreq))tr.classList.add('adj');
+    // ADJ = approaching from a neighbor center; dim unless on our freq / CPDLC-active.
+    if(shouldDimAdj(a))tr.classList.add('adj');
     tr.innerHTML=renderRowClassic(a,idx);
     rows.appendChild(tr);
   });
