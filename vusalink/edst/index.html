@@ -38,6 +38,7 @@ a{color:inherit}
 #edstbar .etb-btn:hover{background:#1a1a1a}
 #edstbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #edstbar .etb-btn.sig{border-color:#d8d63f;color:#d8d63f}
+#edstbar .etb-btn.gi-unread{background:#fff;color:#000;border-color:#fff;font-weight:bold}
 #edstbar .etb-stat{cursor:default}
 #edstbar .etb-stat.on{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #edstbar .etb-spacer{flex:1;min-width:8px}
@@ -521,6 +522,49 @@ td.eh-bk{text-align:center;min-width:18px}
 #gpdmenu .gpd-tip{background:rgba(0,0,0,.85);border:1px solid #555;padding:3px 6px}
 #edstbar .etb-btn.active-gpd{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
 
+/* GI (General Information) popup */
+#gimenu.edst-pop{
+  position:absolute;z-index:65;width:min(420px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#gimenu .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#gimenu .edst-pop-hdr .title{letter-spacing:.4px}
+#gimenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#gimenu .edst-pop-hdr .x:hover{background:#333}
+#gimenu .gi-scope{
+  padding:3px 8px;background:#2a2a2a;color:#aeb6af;border-bottom:1px solid #444;font-size:11px;
+}
+#gimenu .gi-list{
+  max-height:min(280px,42vh);overflow:auto;background:#000;min-height:120px;
+}
+#gimenu .gi-empty{padding:16px 10px;color:#777;text-align:center}
+#gimenu .gi-item{
+  padding:6px 8px;border-bottom:1px solid #222;line-height:1.35;
+}
+#gimenu .gi-item .gi-meta{color:#8a9088;font-size:11px;margin-bottom:2px}
+#gimenu .gi-item .gi-meta b{color:#cdd3ce;font-weight:normal}
+#gimenu .gi-item .gi-text{color:#f0f0ec;white-space:pre-wrap;word-break:break-word}
+#gimenu .gi-item.mine .gi-meta b{color:#9fe6e0}
+#gimenu .gi-compose{
+  display:flex;gap:6px;padding:6px;border-top:1px solid #444;background:#1a1a1a;
+}
+#gimenu .gi-compose textarea{
+  flex:1;min-height:52px;max-height:100px;resize:vertical;
+  background:#0a0a0a;border:1px solid #8a8a8a;color:#f0f0ec;font:inherit;padding:4px 6px;
+}
+#gimenu .gi-compose textarea:focus{outline:1px solid #9a9a9a}
+#gimenu .gi-send{
+  align-self:stretch;border:1px solid #8a8a8a;background:#4a4a4a;color:#fff;
+  font:inherit;padding:0 12px;cursor:pointer;min-width:64px;
+}
+#gimenu .gi-send:hover{background:#5a5a5a}
+#gimenu .gi-send:disabled{opacity:.45;cursor:default}
 
 
 #queuewrap{
@@ -576,7 +620,7 @@ td.eh-bk{text-align:center;min-width:18px}
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
     <span class="etb-btn" data-stub="WX REPORT">WX<br>REPORT</span>
     <span class="etb-btn sig" data-stub="SIG">SIG</span>
-    <span class="etb-btn" data-stub="GI">GI</span>
+    <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
     <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
     <span class="etb-btn" data-stub="CPDLC HIST">CPDLC<br>HIST</span>
@@ -860,6 +904,22 @@ td.eh-bk{text-align:center;min-width:18px}
   </div>
 </div>
 
+<!-- EDST GI (General Information) -->
+<div id="gimenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">GENERAL INFORMATION</span>
+    <span class="x" data-close="gimenu" title="Close">X</span>
+  </div>
+  <div class="gi-scope" id="giScope">Neighbor centers (tier 1)</div>
+  <div class="gi-list" id="giList"><div class="gi-empty">No messages</div></div>
+  <div class="gi-compose">
+    <textarea id="giInput" maxlength="500" placeholder="Free-text note for neighboring controllers" rows="2"></textarea>
+    <button type="button" class="gi-send" id="giSend">SEND</button>
+  </div>
+</div>
+  </div>
+</div>
+
 <div id="queuewrap" class="hidden">
   <div class="lh">
     <span class="title" id="queueToggle">&#9658; UPLINK QUEUE</span>
@@ -934,6 +994,11 @@ const msgRepeatTimers={};                // cs -> interval id for unread message
 let pollTimer=null,burstUntil=0,vatsimTimer=null;
 let myPosition={callsign:'',label:'',freqMhz:null};
 const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM transceivers feed
+// GI (General Information) — free text synced via hub to tier-1 neighbor centers
+const giMessages=[];                     // [{id,ts,from,fromShort,cid,callsign,text}] newest last
+let giSince=0;                           // hub poll cursor (max seen id)
+let giLastReadId=LS.get('vedst_gi_read',0)||0;
+let giUnread=0;
 
 function demoLive(){return [
  {cs:'JBU1111',type:'A320/L',alt:330,hs:'/450',squawk:'1200',assignedSquawk:'3456',route:'KJFK LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM KARUM1B TNCC',_routeRaw:'LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM'},
@@ -1101,7 +1166,7 @@ function canControl(){return configured()||(hubMode()&&verifyOK);}   // CPDLC up
 function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (unsigned-in observers)
 function monitorArtcc(){return (settings.viewArtcc||'').trim().toUpperCase();}
 function airspaceId(){return (hubMode()?hubArtcc:(settings.airspace||settings.station||'')).trim().toUpperCase();}
-const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter'};
+const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter','/api/gi':'/hub/gi'};
 function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
 async function api(path,extra){
   extra=extra||{};
@@ -1109,9 +1174,11 @@ async function api(path,extra){
     const cid=(settings.cid||'').trim();
     const body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
       vatflowToken:(window.VatflowAuth&&window.VatflowAuth.getStoredToken())||''};
+    if(path==='/api/poll'){body.sinceGi=extra.sinceGi!=null?extra.sinceGi:giSince;}
     if(path==='/api/send'){body.to=extra.to||'';body.packet=extra.packet||'';}
     if(path==='/api/conn'){body.to=extra.to||'';body.action=extra.action||'';}
     if(path==='/api/altimeter'){body.icao=extra.icao||'';}
+    if(path==='/api/gi'){body.text=extra.text||'';}
     return (await fetch(hubBase()+HUB_EP[path],{method:'POST',
       headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
   }
@@ -1272,15 +1339,17 @@ function applyQueueCollapsed(){
 }
 async function pollOnce(){
   if(!configured()&&!hubMode())return;
-  try{const res=await api('/api/poll',{});
+  try{const res=await api('/api/poll',{sinceGi:giSince});
     setHoppie(true,hubMode()?('hub '+(hubArtcc||'\u2026')):('online as '+settings.station));
     if(res.error){setHoppie(false,'verify position to send');return;}
     if(hubMode()){applyVerify(res.verify);updateConnState(res.connected,res.pending);}
     const batch=res.messages||[];
+    const firstPoll=!pollPrimed;
     if(!pollPrimed){                       // first batch is replayed backlog: sync state silently
       suppressSounds=true;
       try{batch.forEach(handleIncoming);}finally{suppressSounds=false;pollPrimed=true;}
     }else batch.forEach(handleIncoming);
+    if(hubMode())ingestGiBatch(res.gi||[],{silent:firstPoll});
   }catch(e){setHoppie(false,'proxy offline');}
 }
 // Hub is authoritative for who is on CPDLC (connected) and who was force-logged-off
@@ -1686,7 +1755,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -1696,6 +1765,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
+    if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     close(id);
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
@@ -2423,6 +2493,148 @@ makeEdstDraggable(altmenu);
 makeEdstDraggable(xresmenu);
 makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
+makeEdstDraggable(document.getElementById('gimenu'));
+
+//============================================================ GI (General Information)
+function giMenuOpen(){
+  const el=document.getElementById('gimenu');
+  return !!(el&&!el.classList.contains('hidden'));
+}
+function giFmtTime(ts){
+  const d=new Date((ts||0)*1000);
+  if(isNaN(d.getTime()))return '--:--';
+  const hh=String(d.getUTCHours()).padStart(2,'0');
+  const mm=String(d.getUTCMinutes()).padStart(2,'0');
+  return hh+mm+'z';
+}
+function giArtccLabel(m){
+  return (m&& (m.fromShort||m.from||'')).toString().replace(/^K/,'')||'----';
+}
+function updateGiBadge(){
+  const btn=document.getElementById('btnGi');if(!btn)return;
+  const n=giUnread|0;
+  btn.classList.toggle('gi-unread',n>0);
+  btn.innerHTML=n>0?('GI<br>('+n+')'):'GI';
+  btn.title=n>0?(n+' unread General Information message'+(n===1?'':'s')):'General Information (neighbor centers)';
+}
+function markGiRead(){
+  const maxId=giMessages.reduce((m,x)=>Math.max(m,x.id||0),giSince||0);
+  giLastReadId=maxId;
+  LS.set('vedst_gi_read',giLastReadId);
+  giUnread=0;
+  updateGiBadge();
+}
+function recountGiUnread(){
+  const myCid=(settings.cid||'').trim();
+  giUnread=giMessages.filter(m=>m.id>giLastReadId&&String(m.cid||'')!==myCid).length;
+  updateGiBadge();
+}
+function renderGiList(){
+  const list=document.getElementById('giList');if(!list)return;
+  const scope=document.getElementById('giScope');
+  const art=airspaceId();
+  if(scope)scope.textContent=art
+    ?('Visible to '+art.replace(/^K/,'')+' and tier-1 neighbors')
+    :'Neighbor centers (tier 1)';
+  if(!giMessages.length){
+    list.innerHTML='<div class="gi-empty">No messages</div>';
+    return;
+  }
+  const myCid=(settings.cid||'').trim();
+  const rows=[...giMessages].reverse().map(m=>{
+    const mine=myCid&&String(m.cid||'')===myCid;
+    const who=esc(m.callsign||m.cid||'CTRL');
+    const fac=esc(giArtccLabel(m));
+    return '<div class="gi-item'+(mine?' mine':'')+'">'
+      +'<div class="gi-meta"><b>'+fac+'</b> · '+who+' · '+giFmtTime(m.ts)+'</div>'
+      +'<div class="gi-text">'+esc(m.text||'')+'</div></div>';
+  }).join('');
+  list.innerHTML=rows;
+}
+function ingestGiBatch(batch,opts){
+  opts=opts||{};
+  if(!batch||!batch.length)return;
+  const known=new Set(giMessages.map(m=>m.id));
+  let added=0;
+  batch.forEach(m=>{
+    if(!m||m.id==null||known.has(m.id))return;
+    giMessages.push(m);
+    known.add(m.id);
+    if(m.id>giSince)giSince=m.id;
+    added++;
+  });
+  if(!added)return;
+  giMessages.sort((a,b)=>(a.id||0)-(b.id||0));
+  if(giMessages.length>200)giMessages.splice(0,giMessages.length-200);
+  if(giMenuOpen()){
+    markGiRead();
+    renderGiList();
+  }else if(opts.silent){
+    // First hub backlog: treat as already seen so the badge doesn't light up on sign-in.
+    markGiRead();
+  }else{
+    recountGiUnread();
+  }
+}
+function openGiMenu(){
+  if(!hubMode()){
+    comingSoon('Sign in to use GI');
+    return;
+  }
+  const menu=document.getElementById('gimenu');
+  const btn=document.getElementById('btnGi');
+  if(!menu||!btn)return;
+  if(!menu.classList.contains('hidden')){close('gimenu');return;}
+  renderGiList();
+  const r=btn.getBoundingClientRect();
+  placePop(menu,r.left,r.bottom+4);
+  markGiRead();
+  const inp=document.getElementById('giInput');
+  if(inp)setTimeout(()=>inp.focus(),30);
+}
+async function sendGiMessage(){
+  const inp=document.getElementById('giInput');
+  const btn=document.getElementById('giSend');
+  const text=(inp&&inp.value||'').trim();
+  if(!text)return;
+  if(!hubMode()){comingSoon('Sign in to use GI');return;}
+  if(!canControl()){
+    applyVerify({ok:false,code:verifyCode,method:verifyMethod},true);
+    setHoppie(true,verifyMethod==='vnas'?'vNAS verify to send GI':'verify position to send GI');
+    return;
+  }
+  if(btn)btn.disabled=true;
+  try{
+    const res=await api('/api/gi',{text});
+    if(res&&res.needVerify){
+      applyVerify({ok:false,code:res.verifyCode,method:res.verifyMethod||verifyMethod,vnasMessage:res.error},true);
+      return;
+    }
+    if(!res||!res.ok){
+      logMsg('err','GI',(res&&res.error)||'send failed');
+      return;
+    }
+    if(inp)inp.value='';
+    if(res.gi)ingestGiBatch([res.gi],{});
+    renderGiList();
+    markGiRead();
+  }catch(e){
+    logMsg('err','GI','proxy error: '+e.message);
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+}
+(function(){
+  const btn=document.getElementById('btnGi');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();openGiMenu();});
+  const send=document.getElementById('giSend');
+  if(send)send.addEventListener('click',()=>sendGiMessage());
+  const inp=document.getElementById('giInput');
+  if(inp)inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();sendGiMessage();}
+  });
+  updateGiBadge();
+})();
 
 //============================================================ ACL row selection
 let selectedCs=null;
