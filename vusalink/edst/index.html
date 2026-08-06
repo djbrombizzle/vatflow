@@ -102,6 +102,11 @@ a{color:inherit}
 #board tbody tr:hover{background:#0c0f0d}
 #board tbody tr.adj td{opacity:.55}
 #board tbody tr.find-hit{outline:1px solid var(--yellow)}
+#board tbody tr.selected{background:#1a3a3a}
+#board tbody tr.selected:hover{background:#1f4545}
+#edstTools .et-btn:disabled,#edstTools .et-btn.disabled{
+  opacity:.4;cursor:default;pointer-events:none;
+}
 
 .gc{position:relative;display:inline-block;width:13px;height:13px}
 .gc::before{content:"";position:absolute;left:0;top:0;
@@ -370,6 +375,94 @@ a{color:inherit}
 .hdg-cell,.spd-cell{cursor:pointer}
 .hdg-cell:hover,.spd-cell:hover{color:#fff;text-decoration:underline}
 
+/* EDST HOLD DATA menu */
+#holdmenu.edst-pop{
+  position:absolute;z-index:70;width:min(520px,96vw);
+  background:#1a1a1a;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#holdmenu .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:3px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#holdmenu .edst-pop-hdr .title{letter-spacing:.4px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#holdmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:#fff}
+#holdmenu .edst-pop-hdr .x:hover{background:#333}
+#holdmenu .hold-top{
+  display:flex;gap:4px;padding:4px;background:#2a2a2a;border-bottom:1px solid #555;flex-wrap:wrap;
+}
+#holdmenu .hold-top-btn{
+  border:1px solid #8a8a8a;background:#3a3a3a;color:#fff;font:inherit;padding:4px 10px;cursor:pointer;
+}
+#holdmenu .hold-top-btn:hover{background:#4a4a4a}
+#holdmenu .hold-top-btn.disabled{opacity:.4;cursor:default;pointer-events:none;color:#888}
+#holdmenu .hold-body{display:grid;grid-template-columns:1.1fr 1.4fr;gap:0;min-height:220px}
+#holdmenu .hold-loc{border-right:1px solid #555;background:#111;display:flex;flex-direction:column}
+#holdmenu .hold-loc-h{
+  background:#3a3a3a;padding:3px 8px;border-bottom:1px solid #555;letter-spacing:.06em;color:#ddd;
+}
+#holdmenu .hold-fix-list{overflow:auto;max-height:260px;flex:1}
+#holdmenu .hold-fix{
+  display:flex;justify-content:space-between;gap:8px;padding:3px 8px;cursor:pointer;border:1px solid transparent;
+}
+#holdmenu .hold-fix:hover{background:#1c1c1c}
+#holdmenu .hold-fix.on{background:var(--amber);color:#111;border-color:#fff}
+#holdmenu .hold-fix .eta{opacity:.85;font-variant-numeric:tabular-nums}
+#holdmenu .hold-params{padding:6px 8px;background:#1a1a1a;display:flex;flex-direction:column;gap:8px}
+#holdmenu .hold-param-h{color:#bbb;font-size:11px;letter-spacing:.05em;margin-bottom:2px}
+#holdmenu .hold-dirs{
+  display:grid;grid-template-columns:repeat(3,36px);gap:3px;justify-content:start;
+}
+#holdmenu .hold-dir{
+  width:36px;height:26px;border:1px solid #777;background:#2a2a2a;color:#eee;font:inherit;cursor:pointer;padding:0;
+}
+#holdmenu .hold-dir:hover{background:#3a3a3a}
+#holdmenu .hold-dir.on{background:var(--amber);color:#111;border-color:#fff}
+#holdmenu .hold-dir.spacer{visibility:hidden;pointer-events:none}
+#holdmenu .hold-io{display:flex;flex-direction:column;gap:3px;margin-top:6px;font-size:11px;color:#bbb}
+#holdmenu .hold-io label{display:flex;align-items:center;gap:6px}
+#holdmenu .hold-io input{
+  width:52px;background:#000;border:1px solid #777;color:#fff;font:inherit;padding:1px 4px;text-align:center;
+}
+#holdmenu .hold-row3{display:grid;grid-template-columns:1fr 1.2fr;gap:10px}
+#holdmenu .hold-turns{display:flex;gap:4px}
+#holdmenu .hold-turn,#holdmenu .hold-leg{
+  border:1px solid #777;background:#2a2a2a;color:#eee;font:inherit;padding:4px 8px;cursor:pointer;min-width:40px;
+}
+#holdmenu .hold-turn.on,#holdmenu .hold-leg.on{background:var(--amber);color:#111;border-color:#fff}
+#holdmenu .hold-legs{display:grid;grid-template-columns:repeat(2,1fr);gap:3px}
+#holdmenu .hold-clear{
+  display:block;width:100%;border:1px solid var(--teal);background:var(--teal);color:#06201f;
+  font:inherit;font-weight:700;padding:6px 8px;cursor:pointer;margin-top:4px;
+}
+#holdmenu .hold-clear:hover{filter:brightness(1.08)}
+#holdmenu .hold-efc{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px;border-top:1px solid #555;background:#222;
+}
+#holdmenu .hold-efc label{color:#ccc}
+#holdmenu .hold-efc input{
+  width:56px;background:#000;border:1px solid #777;color:#fff;font:inherit;padding:2px 4px;text-align:center;
+}
+#holdmenu .hold-efc .step{
+  border:1px solid #777;background:#2a2a2a;color:#eee;font:inherit;width:26px;height:24px;cursor:pointer;padding:0;
+}
+#holdmenu .hold-efc .del-efc{
+  border:1px solid var(--teal);background:transparent;color:var(--teal);font:inherit;padding:3px 8px;cursor:pointer;margin-left:auto;
+}
+#holdmenu .hold-foot{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:1px solid #555;
+}
+#holdmenu .hold-foot-btn{
+  border:0;border-right:1px solid #555;background:#2a2a2a;color:#888;font:inherit;padding:8px 6px;cursor:pointer;
+}
+#holdmenu .hold-foot-btn:last-child{border-right:0}
+#holdmenu .hold-foot-btn:hover:not(:disabled):not(.disabled){background:#3a3a3a;color:#ddd}
+#holdmenu .hold-foot-btn.on{background:#1a1a1a;color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+#holdmenu .hold-foot-btn:disabled,#holdmenu .hold-foot-btn.disabled{opacity:.45;cursor:default;pointer-events:none}
+
+
 
 #queuewrap{
   position:fixed;right:8px;bottom:8px;width:min(360px,92vw);max-height:22vh;
@@ -454,7 +547,7 @@ a{color:inherit}
 
 <div id="edstTools">
   <button type="button" class="et-btn" data-stub="Plan Options">Plan Options...</button>
-  <button type="button" class="et-btn" data-stub="Hold">Hold...</button>
+  <button type="button" class="et-btn disabled" id="btnHold" title="Select an aircraft row first">Hold...</button>
   <button type="button" class="et-btn" data-stub="Show">Show</button>
   <button type="button" class="et-btn" id="btnShowAll">Show ALL</button>
   <button type="button" class="et-btn" data-stub="Sort">Sort...</button>
@@ -637,6 +730,60 @@ a{color:inherit}
   <div class="sm-footer">
     <button type="button" class="sm-footer-btn" id="spdDel" title="Close without uplinking">DEL</button>
     <button type="button" class="sm-footer-btn" id="spdRns" title="Resume normal speed">RNS</button>
+  </div>
+</div>
+
+<!-- EDST HOLD DATA menu -->
+<div id="holdmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="holdTitle">HOLD DATA</span>
+    <span class="x" data-close="holdmenu" title="Close">X</span>
+  </div>
+  <div class="hold-top">
+    <button type="button" class="hold-top-btn" id="holdUplink">UPLINK</button>
+    <button type="button" class="hold-top-btn disabled" id="holdUplinkEfc">UPLINK EFC ONLY</button>
+    <button type="button" class="hold-top-btn" id="holdRouteMenu">ROUTE MENU</button>
+  </div>
+  <div class="hold-body">
+    <div class="hold-loc">
+      <div class="hold-loc-h">LOCATION</div>
+      <div class="hold-fix-list" id="holdFixList"></div>
+    </div>
+    <div class="hold-params">
+      <div>
+        <div class="hold-param-h">DIRECTION</div>
+        <div class="hold-dirs" id="holdDirs"></div>
+        <div class="hold-io">
+          <label>OUTBOUND: <input id="holdOutbound" maxlength="3" inputmode="numeric" autocomplete="off"></label>
+          <label>INBOUND: <input id="holdInbound" maxlength="3" inputmode="numeric" autocomplete="off"></label>
+        </div>
+      </div>
+      <div class="hold-row3">
+        <div>
+          <div class="hold-param-h">TURNS</div>
+          <div class="hold-turns">
+            <button type="button" class="hold-turn" data-turn="LT">LT</button>
+            <button type="button" class="hold-turn" data-turn="RT">RT</button>
+          </div>
+        </div>
+        <div>
+          <div class="hold-param-h">LEG LENGTHS</div>
+          <div class="hold-legs" id="holdLegs"></div>
+        </div>
+      </div>
+      <button type="button" class="hold-clear" id="holdClearData">CLEAR HOLD DATA</button>
+    </div>
+  </div>
+  <div class="hold-efc">
+    <label>EFC <input id="holdEfc" maxlength="4" inputmode="numeric" autocomplete="off"></label>
+    <button type="button" class="step" id="holdEfcMinus" title="-1 min">&minus;</button>
+    <button type="button" class="step" id="holdEfcPlus" title="+1 min">+</button>
+    <button type="button" class="del-efc" id="holdEfcDelete">DELETE EFC</button>
+  </div>
+  <div class="hold-foot">
+    <button type="button" class="hold-foot-btn disabled" id="holdModeSpa" title="Hold SPA — coming soon">HOLD/SPA</button>
+    <button type="button" class="hold-foot-btn on" id="holdModeHold">HOLD</button>
+    <button type="button" class="hold-foot-btn" id="holdModeCancel">CANCEL HOLD</button>
   </div>
 </div>
 
@@ -1259,7 +1406,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1427,11 +1574,14 @@ function renderBoard(){
   rows.innerHTML='';
   list.forEach((a,idx)=>{
     const tr=document.createElement('tr');
+    tr.dataset.cs=a.cs;
     // ADJ = approaching from a neighbor center; dim unless on our freq / CPDLC-active.
     if(shouldDimAdj(a))tr.classList.add('adj');
+    if(selectedCs&&selectedCs===a.cs)tr.classList.add('selected');
     tr.innerHTML=renderRowEdst(a,idx);
     rows.appendChild(tr);
   });
+  syncHoldButton();
 }
 
 //============================================================ popups (deferred)
@@ -1446,14 +1596,14 @@ function placePop(el,x,y){
 function close(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
-  if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'){
+  if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'){
     el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;
   }
   el.classList.toggle('hidden',!on);
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -1461,6 +1611,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='hdgmenu'&&ev.target.closest('.hdg-cell'))return;
     if(id==='spdmenu'&&ev.target.closest('.spd-cell'))return;
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')))return;
+    if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     close(id);
   });
 });
@@ -2184,28 +2335,269 @@ makeEdstDraggable(xresmenu);
 makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
 
-//============================================================ board clicks (ALT / HDG / SPD)
+//============================================================ ACL row selection
+let selectedCs=null;
+function isMenuClickTarget(el){
+  return !!(el.closest('.alt-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
+    ||el.closest('.sqk-asg')||el.closest('.abox'));
+}
+function syncHoldButton(){
+  const btn=document.getElementById('btnHold');
+  if(!btn)return;
+  const ok=!!selectedCs;
+  btn.classList.toggle('disabled',!ok);
+  btn.disabled=!ok;
+  btn.title=ok?('Hold data for '+selectedCs):'Select an aircraft row first';
+}
+function selectAircraftRow(cs){
+  if(cs&&selectedCs===cs)selectedCs=null;
+  else selectedCs=cs||null;
+  rows.querySelectorAll('tr').forEach(tr=>tr.classList.toggle('selected',!!selectedCs&&tr.dataset.cs===selectedCs));
+  syncHoldButton();
+  if(!selectedCs)close('holdmenu');
+  else if(holdmenu&&!holdmenu.classList.contains('hidden')&&holdTarget&&holdTarget.cs!==selectedCs){
+    const a=displayList().find(x=>x.cs===selectedCs);
+    if(a)openHoldMenu(a);
+  }
+}
+function selectedAircraft(){
+  if(!selectedCs)return null;
+  return displayList().find(a=>a.cs===selectedCs)||null;
+}
+
+//============================================================ HOLD DATA menu
+const holdmenu=document.getElementById('holdmenu');
+let holdTarget=null,holdFix=null,holdDir='N',holdTurn='RT',holdLeg='STD',holdMode='HOLD';
+const HOLD_DIR_HDG={
+  N:{out:0,inb:180},NE:{out:45,inb:225},E:{out:90,inb:270},SE:{out:135,inb:315},
+  S:{out:180,inb:0},SW:{out:225,inb:45},W:{out:270,inb:90},NW:{out:315,inb:135}
+};
+const HOLD_DIR_ORDER=['NW','N','NE','W','','E','SW','S','SE'];
+const HOLD_LEGS=['STD','15 NM','5 NM','20 NM','10 NM','25 NM'];
+function pad2(n){return ('0'+Math.round(Math.abs(n))).slice(-2);}
+function pad4hhmm(n){
+  n=((Math.round(n)%2400)+2400)%2400;
+  const hh=Math.floor(n/100)%24, mm=n%100;
+  return pad2(hh)+pad2(Math.min(59,mm));
+}
+function parseHhmm(s){
+  s=String(s||'').replace(/\D/g,'');
+  if(s.length<3||s.length>4)return null;
+  if(s.length===3)s='0'+s;
+  const hh=+s.slice(0,2), mm=+s.slice(2,4);
+  if(hh>23||mm>59)return null;
+  return hh*100+mm;
+}
+function nowHhmm(){const d=new Date();return d.getUTCHours()*100+d.getUTCMinutes();}
+function estimateFixEta(a,fix){
+  if(!a||!fix||fix.lat==null||fix.lon==null||a.lat==null||a.lon==null)return '';
+  const gs=+a.gs||0;if(gs<40)return '';
+  const nm=distNm(a.lat,a.lon,fix.lat,fix.lon);
+  if(!Number.isFinite(nm)||nm>2000)return '';
+  const mins=nm/(gs/60);
+  const d=new Date(Date.now()+mins*60000);
+  return pad2(d.getUTCHours())+pad2(d.getUTCMinutes());
+}
+function holdAltText(a){
+  const fl=assigned[a.cs]!=null?assigned[a.cs]:round10(a.alt||0);
+  if(!fl)return '';
+  if(isBelowFl180(fl))return formatFeetAlt(fl);
+  return flStr(fl);
+}
+function syncHoldDirButtons(){
+  document.querySelectorAll('#holdDirs .hold-dir').forEach(b=>{
+    if(!b.dataset.dir)return;
+    b.classList.toggle('on',b.dataset.dir===holdDir);
+  });
+}
+function applyHoldDirection(dir,forceIo){
+  holdDir=dir||'N';
+  syncHoldDirButtons();
+  const map=HOLD_DIR_HDG[holdDir]||HOLD_DIR_HDG.N;
+  if(forceIo!==false){
+    document.getElementById('holdOutbound').value=pad3(map.out);
+    document.getElementById('holdInbound').value=pad3(map.inb);
+  }
+  syncHoldUplink();
+}
+function syncHoldTurnButtons(){
+  document.querySelectorAll('#holdmenu .hold-turn').forEach(b=>b.classList.toggle('on',b.dataset.turn===holdTurn));
+}
+function syncHoldLegButtons(){
+  document.querySelectorAll('#holdLegs .hold-leg').forEach(b=>b.classList.toggle('on',b.dataset.leg===holdLeg));
+}
+function syncHoldModeButtons(){
+  document.getElementById('holdModeHold').classList.toggle('on',holdMode==='HOLD');
+  document.getElementById('holdModeCancel').classList.toggle('on',holdMode==='CANCEL');
+}
+function syncHoldUplink(){
+  const efcOk=parseHhmm(document.getElementById('holdEfc').value)!=null;
+  const canFull=holdMode==='CANCEL'?!!holdTarget:!!(holdTarget&&holdFix);
+  showUplink('holdUplink',canFull);
+  showUplink('holdUplinkEfc',!!(holdTarget&&efcOk&&holdMode!=='CANCEL'));
+}
+function buildHoldDirs(){
+  const G=document.getElementById('holdDirs');G.innerHTML='';
+  HOLD_DIR_ORDER.forEach(d=>{
+    const b=document.createElement('button');b.type='button';
+    if(!d){b.className='hold-dir spacer';b.tabIndex=-1;b.setAttribute('aria-hidden','true');}
+    else{
+      b.className='hold-dir';b.dataset.dir=d;b.textContent=d;
+      b.onclick=()=>applyHoldDirection(d,true);
+    }
+    G.appendChild(b);
+  });
+  syncHoldDirButtons();
+}
+function buildHoldLegs(){
+  const G=document.getElementById('holdLegs');G.innerHTML='';
+  HOLD_LEGS.forEach(leg=>{
+    const b=document.createElement('button');b.type='button';b.className='hold-leg';
+    b.dataset.leg=leg;b.textContent=leg;
+    b.onclick=()=>{holdLeg=leg;syncHoldLegButtons();syncHoldUplink();};
+    G.appendChild(b);
+  });
+  syncHoldLegButtons();
+}
+function buildHoldFixList(){
+  const L=document.getElementById('holdFixList');L.innerHTML='';
+  if(!holdTarget)return;
+  const mk=(name,eta,key)=>{
+    const row=document.createElement('div');row.className='hold-fix';
+    row.dataset.fix=key;
+    if(holdFix===key)row.classList.add('on');
+    row.innerHTML=`<span>${esc(name)}</span><span class="eta">${esc(eta||'')}</span>`;
+    row.onclick=()=>{holdFix=key;buildHoldFixList();syncHoldUplink();};
+    L.appendChild(row);
+  };
+  mk('PRESENT POSITION','','PRESENT POSITION');
+  routeFixEntries(holdTarget).forEach(f=>{
+    mk(f.name,estimateFixEta(holdTarget,f),f.name);
+  });
+}
+function resetHoldForm(keepTarget){
+  const a=keepTarget?holdTarget:null;
+  holdFix=null;holdDir='N';holdTurn='RT';holdLeg='STD';holdMode='HOLD';
+  applyHoldDirection('N',true);
+  syncHoldTurnButtons();syncHoldLegButtons();syncHoldModeButtons();
+  const efc=document.getElementById('holdEfc');
+  efc.value=pad4hhmm(nowHhmm()+30);
+  if(a){holdTarget=a;buildHoldFixList();}
+  syncHoldUplink();
+}
+function openHoldMenu(a,x,y){
+  if(!a)return;
+  close('altmenu');close('hdgmenu');close('spdmenu');close('xresmenu');
+  holdTarget=a;selectedCs=a.cs;
+  rows.querySelectorAll('tr').forEach(tr=>tr.classList.toggle('selected',tr.dataset.cs===selectedCs));
+  syncHoldButton();
+  const cid='---';
+  document.getElementById('holdTitle').textContent=`HOLD DATA ${cid} ${a.cs} ${a.type||''}`.trim();
+  if(!document.getElementById('holdDirs').childElementCount)buildHoldDirs();
+  if(!document.getElementById('holdLegs').childElementCount)buildHoldLegs();
+  resetHoldForm(true);
+  const btn=document.getElementById('btnHold');
+  const r=(btn||document.body).getBoundingClientRect();
+  placePop(holdmenu,x!=null?x:r.left,y!=null?y:r.bottom+4);
+}
+function holdLegPhrase(){
+  if(holdLeg==='STD')return 'LEG TIME @1 MIN@';
+  const nm=(holdLeg.match(/(\d+)/)||[])[1]||'10';
+  return `LEG DISTANCE @${nm} NM@`;
+}
+function buildHoldMessage(efcOnly){
+  if(!holdTarget)return null;
+  if(holdMode==='CANCEL'){
+    return {label:'HOLD CANCEL',msg:'CANCEL HOLDING INSTRUCTIONS',effects:{type:'route'}};
+  }
+  const efc=parseHhmm(document.getElementById('holdEfc').value);
+  if(efcOnly){
+    if(efc==null)return null;
+    return {label:'EFC',msg:`EXPECT FURTHER CLEARANCE AT @${pad4hhmm(efc)}@`,effects:null};
+  }
+  if(!holdFix)return null;
+  const alt=holdAltText(holdTarget)||flStr(round10(holdTarget.alt||350));
+  const inb=pad3(parseInt(document.getElementById('holdInbound').value,10)||0);
+  const turns=holdTurn==='LT'?'LEFT':'RIGHT';
+  let msg=`HOLD AT @${holdFix}@ MAINTAIN @${alt}@ INBOUND TRACK @${inb}@ ${turns} TURNS ${holdLegPhrase()}`;
+  if(efc!=null)msg+=` EXPECT FURTHER CLEARANCE AT @${pad4hhmm(efc)}@`;
+  return {label:'HOLD',msg,effects:{type:'route'}};
+}
+document.getElementById('btnHold').onclick=()=>{
+  if(document.getElementById('btnHold').disabled)return;
+  const a=selectedAircraft();
+  if(!a){comingSoon('Select an aircraft row first');return;}
+  openHoldMenu(a);
+};
+document.querySelectorAll('#holdmenu .hold-turn').forEach(b=>{
+  b.onclick=()=>{holdTurn=b.dataset.turn;syncHoldTurnButtons();syncHoldUplink();};
+});
+document.getElementById('holdModeHold').onclick=()=>{holdMode='HOLD';syncHoldModeButtons();syncHoldUplink();};
+document.getElementById('holdModeCancel').onclick=()=>{holdMode='CANCEL';syncHoldModeButtons();syncHoldUplink();};
+document.getElementById('holdClearData').onclick=()=>resetHoldForm(true);
+document.getElementById('holdEfcDelete').onclick=()=>{document.getElementById('holdEfc').value='';syncHoldUplink();};
+document.getElementById('holdEfc').addEventListener('input',syncHoldUplink);
+document.getElementById('holdInbound').addEventListener('input',syncHoldUplink);
+document.getElementById('holdEfcPlus').onclick=()=>{
+  const cur=parseHhmm(document.getElementById('holdEfc').value);
+  const base=cur!=null?cur:nowHhmm();
+  let hh=Math.floor(base/100), mm=base%100;mm+=1;if(mm>=60){mm=0;hh=(hh+1)%24;}
+  document.getElementById('holdEfc').value=pad2(hh)+pad2(mm);syncHoldUplink();
+};
+document.getElementById('holdEfcMinus').onclick=()=>{
+  const cur=parseHhmm(document.getElementById('holdEfc').value);
+  const base=cur!=null?cur:nowHhmm();
+  let hh=Math.floor(base/100), mm=base%100;mm-=1;if(mm<0){mm=59;hh=(hh+23)%24;}
+  document.getElementById('holdEfc').value=pad2(hh)+pad2(mm);syncHoldUplink();
+};
+document.getElementById('holdRouteMenu').onclick=()=>comingSoon('ROUTE MENU');
+document.getElementById('holdUplink').onclick=async()=>{
+  if(document.getElementById('holdUplink').classList.contains('disabled'))return;
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  const entry=buildHoldMessage(false);if(!entry||!holdTarget)return;
+  const cs=holdTarget.cs;
+  close('holdmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('holdUplinkEfc').onclick=async()=>{
+  if(document.getElementById('holdUplinkEfc').classList.contains('disabled'))return;
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  const entry=buildHoldMessage(true);if(!entry||!holdTarget)return;
+  const cs=holdTarget.cs;
+  close('holdmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+buildHoldDirs();buildHoldLegs();syncHoldButton();
+makeEdstDraggable(holdmenu);
+
+//============================================================ board clicks (ALT / HDG / SPD / row select)
 rows.addEventListener('click',e=>{
   const alt=e.target.closest('.alt-cell');
   const hdgc=e.target.closest('.hdg-cell');
   const spdc=e.target.closest('.spd-cell');
-  if(!alt&&!hdgc&&!spdc)return;
-  if(!canControl()){
-    comingSoon(alt?'Sign in / verify to issue altitudes'
-      :hdgc?'Sign in / verify to issue headings'
-      :'Sign in / verify to issue speeds');
+  if(alt||hdgc||spdc){
+    if(!canControl()){
+      comingSoon(alt?'Sign in / verify to issue altitudes'
+        :hdgc?'Sign in / verify to issue headings'
+        :'Sign in / verify to issue speeds');
+      return;
+    }
+    if(alt){
+      const r=alt.getBoundingClientRect();
+      openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);
+    }else if(hdgc){
+      const r=hdgc.getBoundingClientRect();
+      openHeadingMenu(+hdgc.dataset.hdg,r.left,r.bottom+2);
+    }else if(spdc){
+      const r=spdc.getBoundingClientRect();
+      openSpeedMenu(+spdc.dataset.spd,r.left,r.bottom+2);
+    }
     return;
   }
-  if(alt){
-    const r=alt.getBoundingClientRect();
-    openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);
-  }else if(hdgc){
-    const r=hdgc.getBoundingClientRect();
-    openHeadingMenu(+hdgc.dataset.hdg,r.left,r.bottom+2);
-  }else if(spdc){
-    const r=spdc.getBoundingClientRect();
-    openSpeedMenu(+spdc.dataset.spd,r.left,r.bottom+2);
-  }
+  if(isMenuClickTarget(e.target))return;
+  const tr=e.target.closest('tr');
+  if(!tr||!rows.contains(tr))return;
+  selectAircraftRow(tr.dataset.cs||null);
 });
 
 //============================================================ sounds (Web Audio, no files)
