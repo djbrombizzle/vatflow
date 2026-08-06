@@ -4,12 +4,16 @@
 #   Source MUST be "GitHub Actions" (not "Deploy from a branch").
 #   Using both causes duplicate deploys and stale CDN content.
 #
-# Stale remote branches do NOT affect Pages; only pushes to main deploy.
-# Last force-touch: 2026-08-06T20:12Z (push triggers were not firing for #129/#130)
-name: Deploy to GitHub Pages
+# Renamed from pages.yml (2026-08-06) so GitHub re-registers workflow
+# webhooks after push triggers stopped firing for merges to main.
+# Dual trigger: push to main + merged PR closed (backup if push is flaky).
+name: Deploy VATFLOW Pages
 
 on:
   push:
+    branches: [main]
+  pull_request:
+    types: [closed]
     branches: [main]
   workflow_dispatch:
 
@@ -18,12 +22,16 @@ permissions:
   pages: write
   id-token: write
 
+# Unique group name (not bare "pages") so we don't share a lock with the
+# legacy dynamic pages-build-deployment runs. Cancel superseded deploys.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: vatflow-pages-deploy
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    # Skip closed PRs that were not merged (backup trigger is merge-only).
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     environment:
       name: github-pages
       url: https://vatflow.io/
@@ -31,13 +39,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Prefer the merge commit when fired from pull_request.closed;
+          # otherwise deploy the push / workflow_dispatch SHA.
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Prepare site artifact
         run: |
-          SHA="${{ github.sha }}"
+          SHA="$(git rev-parse HEAD)"
           mkdir -p _site
           rsync -a \
             --exclude '.git' \
@@ -51,7 +63,7 @@ jobs:
           if [ -f _site/index.html ]; then
             sed -i "s|</head>|  <!-- vatflow-deploy-sha:${SHA} -->\n</head>|" _site/index.html
           fi
-          echo "Stamped artifact with $SHA"
+          echo "Stamped artifact with $SHA (event=${{ github.event_name }})"
           grep -o 'vatflow-deploy-sha:[a-f0-9]*' _site/index.html || true
 
       - name: Upload artifact
@@ -98,16 +110,16 @@ jobs:
         if: steps.deployment.outcome != 'success' && steps.deployment2.outcome != 'success' && steps.deployment3.outcome != 'success' && steps.deployment4.outcome != 'success'
         run: |
           echo "::error::GitHub Pages deploy failed after 4 attempts (often a transient GitHub API issue)."
-          echo "Re-run this workflow from the Actions tab, or merge a no-op commit to main."
+          echo "Re-run this workflow from the Actions tab, or merge another commit to main."
           exit 1
 
       - name: Confirm deployment (non-blocking)
         if: steps.deployment.outcome == 'success' || steps.deployment2.outcome == 'success' || steps.deployment3.outcome == 'success' || steps.deployment4.outcome == 'success'
         run: |
-          SHA="${{ github.sha }}"
+          SHA="$(git rev-parse HEAD)"
           BASE="https://djbrombizzle.github.io/vatflow"
           echo "Deploy succeeded. Spot-checking CDN (does not fail the workflow)…"
-          sleep 30
+          sleep 20
           for i in $(seq 1 6); do
             HTML=$(curl -fsSL "$BASE/index.html" -H "Cache-Control: no-cache" -H "Pragma: no-cache" 2>/dev/null || true)
             LIVE=$(echo "$HTML" | grep -oE 'vatflow-deploy-sha:[a-f0-9]{40}' | head -1 | cut -d: -f2 || true)
