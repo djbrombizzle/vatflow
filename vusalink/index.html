@@ -366,7 +366,7 @@
 
 <div class="footnote">
   Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read; <b>UNABLE</b> / <b>STANDBY</b> / free-text reply from the menu) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
-  Click <b>FLIGHT ID</b> to hand off &middot; <b>SQK</b> for a squawk (amber assigned = mismatch — click to uplink) &middot; <b>ALT</b> for a level &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
+  Click <b>FLIGHT ID</b> to hand off &middot; <b>SQK</b> for a squawk (amber assigned = mismatch — click to uplink) &middot; <b>ALT</b> for a level (toggle <b>APD</b> for AT PILOTS DISCRETION) &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
 </div>
 
 <!-- SQUAWK menu -->
@@ -387,6 +387,8 @@
   <div class="acline" id="altAc">CALLSIGN TYPE</div>
   <div class="row"><span class="chip amend" id="altAmend" title="Remove last queued item">Amend</span><span class="chip" id="altScratchpad" title="Add to uplink queue">Scratchpad</span>
     <span class="chip uplink hidden" id="altUplink">UPLINK</span></div>
+  <div class="row"><span class="chip tgl" id="altApd" title="UM177 — append AT PILOTS DISCRETION to the altitude clearance">APD</span>
+    <span style="color:var(--fg-dim);font-size:11px">AT PILOTS DISCRETION</span></div>
   <div class="row"><span style="color:var(--fg-dim)">Altitude</span>
     <input id="altInput" autocomplete="off" inputmode="numeric" style="width:96px" placeholder="FL / feet"></div>
   <div class="row hidden" id="altAltimRow">
@@ -537,7 +539,7 @@
       <ul>
         <li><b>FLIGHT ID</b> — hand off or contact another facility</li>
         <li><b>SQK</b> — current / assigned squawk. Click to uplink a code. If the pilot is not squawking the assigned code, the amber assigned value is clickable to uplink it.</li>
-        <li><b>ALT</b> — climb, descend, or maintain altitude</li>
+        <li><b>ALT</b> — climb, descend, or maintain altitude. Toggle <b>APD</b> to append <b>AT PILOTS DISCRETION</b> (UM177).</li>
         <li><b>HDG/SPD</b> — heading or speed instructions</li>
         <li><b>ROUTE</b> — direct-to a fix, crossing restrictions, or uplink a route</li>
       </ul>
@@ -1534,7 +1536,7 @@ function renderBoard(){
 
 //============================================================ ALT menu
 const altmenu=document.getElementById('altmenu');
-let altTarget=null,altSelected=null,altAltimManual=false;
+let altTarget=null,altSelected=null,altAltimManual=false,altApd=false;
 const altimeterCache={};                 // ICAO -> {val, ts}
 function normalizeIcao(icao){
   icao=(icao||'').trim().toUpperCase();
@@ -1595,7 +1597,7 @@ function parseAlt(v){
   if(n>=1000)n=Math.round(n/100);     // entered in feet -> flight level
   return (n<10||n>600)?null:n;
 }
-async function buildAltMessage(target,tgt,altimVal){
+async function buildAltMessage(target,tgt,altimVal,apd){
   if(!target||tgt==null)return null;
   const cur=target.alt||0;
   let msg;
@@ -1608,7 +1610,8 @@ async function buildAltMessage(target,tgt,altimVal){
     const verb=tgt>cur?'CLIMB TO AND MAINTAIN':tgt<cur?'DESCEND TO AND MAINTAIN':'MAINTAIN';
     msg=`${verb} @${flStr(tgt)}@`;
   }
-  return {label:'ALT',msg,effects:{type:'alt',alt:tgt}};
+  if(apd)msg+=' AT PILOTS DISCRETION';
+  return {label:apd?'ALT APD':'ALT',msg,effects:{type:'alt',alt:tgt}};
 }
 function buildHdgMessage(cmd){
   if(!cmd)return null;
@@ -1644,8 +1647,13 @@ function buildRouteUplinkMessage(target,route){
   const msg=dest?`CLEARED TO @${dest}@ VIA @${route}@`:`CLEARED ROUTE @${route}@`;
   return {label:'ROUTE',msg,effects:{type:'route'}};
 }
+function setAltApd(on){
+  altApd=!!on;
+  document.getElementById('altApd').classList.toggle('on',altApd);
+}
 function openAltMenu(idx,x,y){
   const a=displayList()[idx];altTarget=a;altSelected=null;altAltimManual=false;
+  setAltApd(false);
   document.getElementById('altAc').textContent=`${a.cs}  ${a.type||''}`;
   document.getElementById('altInput').value=a.alt?flStr(a.alt):'';
   document.getElementById('altAltimInput').value='';
@@ -1694,11 +1702,12 @@ document.getElementById('altInput').addEventListener('input',()=>{
   altSelected=fl;altHighlight(fl);showUplink('altUplink',fl!=null);
   if(fl!=null)syncAltAltimeterRow();else document.getElementById('altAltimRow').classList.add('hidden');
 });
+document.getElementById('altApd').onclick=()=>setAltApd(!altApd);
 document.getElementById('altUplink').onclick=async()=>{
   if(!altTarget||altSelected==null)return;
   const cs=altTarget.cs;
   const altim=document.getElementById('altAltimInput').value.trim();
-  const entry=await buildAltMessage(altTarget,altSelected,altim||null);
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd);
   if(!entry)return;
   close('altmenu');
   await sendUplinkEntry(cs,entry);renderBoard();
@@ -1706,7 +1715,7 @@ document.getElementById('altUplink').onclick=async()=>{
 document.getElementById('altScratchpad').onclick=async()=>{
   if(!altTarget||altSelected==null)return;
   const altim=document.getElementById('altAltimInput').value.trim();
-  const entry=await buildAltMessage(altTarget,altSelected,altim||null);
+  const entry=await buildAltMessage(altTarget,altSelected,altim||null,altApd);
   if(!entry||!queueAdd(altTarget.cs,entry))return;
   close('altmenu');
 };
