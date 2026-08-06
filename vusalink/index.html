@@ -77,6 +77,10 @@
   .fid.conn{color:var(--green)}
   .alt-cell{cursor:pointer;border:1px solid transparent;padding:0 4px}
   .alt-cell:hover,.alt-cell:active{border-color:#555;background:#111}
+  .sqk-cell{cursor:pointer;border:1px solid transparent;padding:0 4px;white-space:nowrap}
+  .sqk-cell:hover,.sqk-cell:active{border-color:#555;background:#111}
+  .sqk-asg{color:var(--amber);margin-left:6px;text-decoration:underline;text-underline-offset:2px}
+  .sqk-asg:hover,.sqk-asg:active{color:#e3c98a}
   .route-cell{cursor:pointer;max-width:720px;overflow:hidden;text-overflow:ellipsis}
   .route-cell:hover,.route-cell:active{color:#fff}
 
@@ -350,6 +354,7 @@
     <th data-label="W">W</th>
     <th data-key="cs" data-label="FLIGHT ID">FLIGHT ID</th>
     <th data-key="type" data-label="TYPE">TYPE</th>
+    <th data-key="squawk" data-label="SQK">SQK</th>
     <th data-key="alt" data-label="ALT">ALT</th>
     <th data-key="gs" data-label="HDG/SPD">HDG/SPD</th>
     <th data-key="route" data-label="ROUTE">ROUTE</th>
@@ -361,7 +366,19 @@
 
 <div class="footnote">
   Boxes: <b>L</b> logon (solid white = on CPDLC; <b>click</b> to force logoff, which disables auto-logon; flashes white + alerts when a force-logged-off aircraft asks to log back on &mdash; click to accept) &middot; <b>M</b> message (flashes red on incoming &mdash; click to read; <b>UNABLE</b> / <b>STANDBY</b> / free-text reply from the menu) &middot; <b>H</b> handoff (amber = pending) &middot; <b>W</b> WILCO (flashes white + chime on WILCO/ROGER/ACCEPT; flashes red + alarm if no reply in 2 min &mdash; click to acknowledge).
-  Click <b>FLIGHT ID</b> to hand off &middot; <b>ALT</b> for a level &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
+  Click <b>FLIGHT ID</b> to hand off &middot; <b>SQK</b> for a squawk (amber assigned = mismatch — click to uplink) &middot; <b>ALT</b> for a level &middot; <b>ROUTE</b> for direct. Logons auto-accept unless force-logged off.
+</div>
+
+<!-- SQUAWK menu -->
+<div id="sqkmenu" class="pop hidden">
+  <div class="hdr"><span class="title">Squawk Code</span><span class="x" data-close="sqkmenu">X</span></div>
+  <div class="acline" id="sqkAc">CALLSIGN TYPE</div>
+  <div class="row"><span class="chip amend" id="sqkAmend" title="Remove last queued item">Amend</span><span class="chip" id="sqkScratchpad" title="Add to uplink queue">Scratchpad</span>
+    <span class="chip uplink hidden" id="sqkUplink">UPLINK</span></div>
+  <div class="row"><span style="color:var(--fg-dim)">Code</span>
+    <input id="sqkInput" autocomplete="off" inputmode="numeric" maxlength="4" style="width:72px" placeholder="3456"
+      title="4-digit octal squawk (digits 0–7)"></div>
+  <div class="row" id="sqkMeta" style="color:var(--fg-dim);font-size:11px"></div>
 </div>
 
 <!-- ALT menu -->
@@ -519,6 +536,7 @@
       <p>Click a row on the board:</p>
       <ul>
         <li><b>FLIGHT ID</b> — hand off or contact another facility</li>
+        <li><b>SQK</b> — current / assigned squawk. Click to uplink a code. If the pilot is not squawking the assigned code, the amber assigned value is clickable to uplink it.</li>
         <li><b>ALT</b> — climb, descend, or maintain altitude</li>
         <li><b>HDG/SPD</b> — heading or speed instructions</li>
         <li><b>ROUTE</b> — direct-to a fix, crossing restrictions, or uplink a route</li>
@@ -528,7 +546,7 @@
       <h3>Multi-message uplinks</h3>
       <p>Stage several clearances for one aircraft, then send them in a single CPDLC message:</p>
       <ol>
-        <li>Open <b>ALT</b>, <b>HDG/SPD</b>, or <b>ROUTE</b> and set your instruction.</li>
+        <li>Open <b>ALT</b>, <b>HDG/SPD</b>, <b>SQK</b>, or <b>ROUTE</b> and set your instruction.</li>
         <li>Click <b>Scratchpad</b> to add it to the queue (bottom-left panel) instead of sending.</li>
         <li>Repeat for other instructions (up to 5 elements).</li>
         <li>Click <b>UPLINK</b> in the <b>UPLINK QUEUE</b> panel to send all staged items at once.</li>
@@ -609,6 +627,7 @@ function clearVerifyToken(){if(VERIFY&&VERIFY.token){VERIFY={};LS.set('vedst_ver
 let minCounter=LS.get('vedst_min',1);
 let manual=LS.get('vedst_manual',[]);
 let assigned=LS.get('vedst_assigned',{});
+let sqPending=LS.get('vedst_sq_pending',{});   // cs -> pending CPDLC squawk code
 let liveFlights=demoLive();
 let facilities=[];                       // nearby online facilities (handoff targets)
 const connected=new Set();               // green +: on KUSA (hub connection)
@@ -626,9 +645,10 @@ const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting 
 const handoffPending=new Set();          // H: awaiting WILCO
 const handoffMin={};                     // cs -> MIN of CONTACT msg
 const handoffAwaitFreq=new Set();        // handoff WILCO received; drop from list when pilot leaves our freq
-const altMin={}, rtMin={};               // cs -> MIN of last alt / route uplink
+const altMin={}, rtMin={}, sqMin={};     // cs -> MIN of last alt / route / squawk uplink
 const altPending=new Set();              // alt clearance sent, awaiting WILCO (green)
 const routePending=new Set();            // route clearance sent, awaiting WILCO (green)
+const sqPendingSet=new Set(Object.keys(sqPending||{})); // pending squawk awaiting WILCO
 const messages={};                       // cs -> [{text,time}]
 const seenMsgIds=new Set();
 const msgRepeatTimers={};                // cs -> interval id for unread message chime
@@ -637,12 +657,12 @@ let myPosition={callsign:'',label:'',freqMhz:null};
 const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM transceivers feed
 
 function demoLive(){return [
- {cs:'JBU1111',type:'A320/L',alt:330,hs:'/450',route:'KJFK LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM KARUM1B TNCC',_routeRaw:'LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM'},
- {cs:'JBU149', type:'A320/L',alt:350,hs:'/452',route:'KJFK MANTA068031 GMENN Y488 BEHHR Y490 ROLLE ATUGI L454 LUCTI MNDEZ FIPEK GESSO ANADA PERRY BETIN TGPY',_routeRaw:'GMENN Y488 BEHHR Y490 ROLLE ATUGI L454 LUCTI MNDEZ FIPEK GESSO ANADA PERRY BETIN'},
- {cs:'KII9145',type:'B734/L',alt:310,hs:'/430',route:'KEWR ELVAE NECCK DIXIE Y481 KINGG KINER L461 BOVIC MOMOM1 TXKF',_routeRaw:'ELVAE NECCK DIXIE Y481 KINGG KINER L461 BOVIC'},
+ {cs:'JBU1111',type:'A320/L',alt:330,hs:'/450',squawk:'1200',assignedSquawk:'3456',route:'KJFK LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM KARUM1B TNCC',_routeRaw:'LINND342020 CHUBY Y488 SAUCR L453 LAMER L453 RODRK POKEG UT17 KARUM'},
+ {cs:'JBU149', type:'A320/L',alt:350,hs:'/452',squawk:'2201',assignedSquawk:'2201',route:'KJFK MANTA068031 GMENN Y488 BEHHR Y490 ROLLE ATUGI L454 LUCTI MNDEZ FIPEK GESSO ANADA PERRY BETIN TGPY',_routeRaw:'GMENN Y488 BEHHR Y490 ROLLE ATUGI L454 LUCTI MNDEZ FIPEK GESSO ANADA PERRY BETIN'},
+ {cs:'KII9145',type:'B734/L',alt:310,hs:'/430',squawk:'0000',assignedSquawk:'',route:'KEWR ELVAE NECCK DIXIE Y481 KINGG KINER L461 BOVIC MOMOM1 TXKF',_routeRaw:'ELVAE NECCK DIXIE Y481 KINGG KINER L461 BOVIC'},
 ];}
 function persist(){LS.set('vedst_settings',settings);LS.set('vedst_min',minCounter);
-  LS.set('vedst_manual',manual);LS.set('vedst_assigned',assigned);}
+  LS.set('vedst_manual',manual);LS.set('vedst_assigned',assigned);LS.set('vedst_sq_pending',sqPending);}
 function board(){return manual.concat(liveFlights);}
 let sortState={key:null,dir:1};
 function gsOf(a){const m=(a.hs||'').match(/(\d+)/);return m?+m[1]:0;}
@@ -666,7 +686,7 @@ function cpdlcActiveWith(cs){
   // Used so transceiver lag after a handoff can't keep the row gray or drop WILCOs.
   cs=(cs||'').toUpperCase();
   if(!cs)return false;
-  if(wilcoAwait[cs]||handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||msgAlert.has(cs))return true;
+  if(wilcoAwait[cs]||handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||sqPendingSet.has(cs)||msgAlert.has(cs))return true;
   const w=wilcoUi[cs];
   return !!(w&&(w.kind==='received'||w.kind==='timeout'));
 }
@@ -892,6 +912,9 @@ function applyUplinkEffects(cs,min,effects){
     altMin[cs]=min;altPending.add(cs);
   }else if(effects.type==='route'){
     rtMin[cs]=min;routePending.add(cs);
+  }else if(effects.type==='squawk'){
+    if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();}
+    sqMin[cs]=min;
   }
 }
 async function sendUplinkEntry(cs,entry){
@@ -1060,10 +1083,14 @@ function clearPendingOnAck(cs,mrn){
   }
   if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];matched=true;}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];matched=true;}
-  if(!matched&&(handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs))){
+  if(sqMin[cs]!=null&&minMatches(sqMin[cs],mrn)){
+    delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();matched=true;
+  }
+  if(!matched&&(handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||sqPendingSet.has(cs))){
     if(handoffPending.has(cs))ackHandoff(cs);
     if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];}
     if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
+    if(sqPendingSet.has(cs)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
   }
 }
 function clearPendingOnReject(cs,mrn){
@@ -1072,6 +1099,8 @@ function clearPendingOnReject(cs,mrn){
   else if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];delete assigned[cs];persist();}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];}
   else if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
+  if(sqMin[cs]!=null&&minMatches(sqMin[cs],mrn)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
+  else if(sqPendingSet.has(cs)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
 }
 function handleIncoming(m){
   const key=m.from+'|'+m.packet;if(seenMsgIds.has(key))return;seenMsgIds.add(key);
@@ -1084,6 +1113,7 @@ function handleIncoming(m){
       if(/REQUEST LOGON/.test(msg)){if(!hubMode())autoAcceptLogon(cs,d.min);return;}
       if(/LOG\s?OFF|LOGGED OFF/.test(msg)){       // aircraft left us (e.g. after a handover)
         connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);delete handoffMin[cs];
+        delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();
         clearWilcoAwait(cs);ackWilcoUi(cs);
         logMsg('sys',cs,'logged off CPDLC');renderBoard();return;
       }
@@ -1115,6 +1145,9 @@ function handlePeerUplink(m){
     handoffMin[cs]=min;handoffPending.add(cs);
   }else if(/CROSS|PROCEED DIRECT|CLEARED/.test(msg)){
     rtMin[cs]=min;routePending.add(cs);
+  }else if(/\bSQUAWK\b/.test(msg)){
+    const m=msg.match(/\bSQUAWK\s+(\d{4})\b/);
+    if(m){sqPending[cs]=m[1];sqPendingSet.add(cs);sqMin[cs]=min;persist();}
   }else if(/CLIMB|DESCEND|MAINTAIN/.test(msg)){
     const fl=msg.match(/FL(\d{3})/);              // altitude (not a speed/heading uplink)
     if(fl){assigned[cs]=parseInt(fl[1],10);altMin[cs]=min;altPending.add(cs);persist();}
@@ -1168,7 +1201,8 @@ function renderFeed(msgs,evtId){
   if(evtId!=null)feedSince=evtId;
 }
 function menusOpen(){return !altmenu.classList.contains('hidden')||!routemenu.classList.contains('hidden')
-  ||!handoffpop.classList.contains('hidden')||!hdgmenu.classList.contains('hidden')||!spdmenu.classList.contains('hidden');}
+  ||!handoffpop.classList.contains('hidden')||!hdgmenu.classList.contains('hidden')||!spdmenu.classList.contains('hidden')
+  ||!sqkmenu.classList.contains('hidden');}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1203,7 +1237,7 @@ async function refreshVatsim(force){
   const airspace=airspaceId();
   if(!hub&&!airspace)return;
   if(!force&&(!altmenu.classList.contains('hidden')||!routemenu.classList.contains('hidden')
-     ||!handoffpop.classList.contains('hidden')))return;
+     ||!handoffpop.classList.contains('hidden')||!sqkmenu.classList.contains('hidden')))return;
   setVat('busy','VATSIM '+(airspace||'hub')+' ...');
   try{
     const d=await api('/api/vatsim',{airspace});
@@ -1227,7 +1261,8 @@ async function refreshVatsim(force){
 function mapLive(f){
   const full=[f.dep,f.route,f.arr].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
   return {cs:f.callsign,type:f.type||'----',alt:f.fl||0,hs:'/'+(f.gs||''),
-    cid:f.cid||'',squawk:f.squawk||'',hdg:f.hdg||0,gs:f.gs||0,lat:f.lat,lon:f.lon,
+    cid:f.cid||'',squawk:f.squawk||'',assignedSquawk:f.assignedSquawk||'',
+    hdg:f.hdg||0,gs:f.gs||0,lat:f.lat,lon:f.lon,
     route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
@@ -1423,6 +1458,24 @@ function altCellHtml(a){
   }
   return pad3(round10(a.alt||0));
 }
+function normSquawk(s){
+  s=String(s||'').replace(/\D/g,'').slice(0,4);
+  if(s.length!==4||/[89]/.test(s))return '';
+  return s;
+}
+function sqkCellHtml(a){
+  const cur=normSquawk(a.squawk)||'----';
+  const pend=normSquawk(sqPending[a.cs]);
+  if(pend){
+    const curBit=(cur!=='----'&&cur!==pend)?`<span style="color:var(--fg-dim)">${cur}</span> `:'';
+    return curBit+`<span style="color:var(--green)">${pend}</span>`;
+  }
+  const asg=normSquawk(a.assignedSquawk);
+  if(asg&&asg!==cur){
+    return `${cur} <span class="sqk-asg" data-sqk-asg="${asg}" title="Uplink assigned ${asg}">${asg}</span>`;
+  }
+  return cur;
+}
 function hsCellHtml(a,idx){
   const h=a.hdg?('H'+pad3(a.hdg)):'---';
   const s=a.gs?String(a.gs):'---';
@@ -1436,6 +1489,7 @@ function renderRowClassic(a,idx){
     <td>${wilcoBoxHtml(a.cs)}</td>
     <td><span class="fid ${connected.has(a.cs)?'conn':''}" data-fid="${idx}">${connected.has(a.cs)?'+':''}${a.cs}</span></td>
     <td>${a.type||''}</td>
+    <td class="sqk-cell" data-sqk="${idx}">${sqkCellHtml(a)}</td>
     <td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>
     <td class="hs-cell">${hsCellHtml(a,idx)}</td>
     <td class="route-cell" data-route="${idx}" style="${rcol}">${a.route||''}</td>`;
@@ -1657,6 +1711,59 @@ document.getElementById('altScratchpad').onclick=async()=>{
   close('altmenu');
 };
 document.getElementById('altAmend').onclick=()=>{if(altTarget)queuePopLast(altTarget.cs);};
+
+//============================================================ SQUAWK menu
+const sqkmenu=document.getElementById('sqkmenu');
+let sqkTarget=null,sqkSelected=null;
+function buildSquawkMessage(code){
+  code=normSquawk(code);if(!code)return null;
+  return {label:'SQK '+code,msg:'SQUAWK @'+code+'@',effects:{type:'squawk',code}};
+}
+function syncSqkMeta(){
+  if(!sqkTarget){document.getElementById('sqkMeta').textContent='';return;}
+  const cur=normSquawk(sqkTarget.squawk)||'----';
+  const asg=normSquawk(sqkTarget.assignedSquawk)||'----';
+  document.getElementById('sqkMeta').textContent=`Current ${cur}  ·  Assigned ${asg}`;
+}
+function stageSqk(code){
+  sqkSelected=normSquawk(code);
+  document.getElementById('sqkInput').value=sqkSelected||'';
+  showUplink('sqkUplink',!!sqkSelected);
+}
+function openSqkMenu(idx,x,y){
+  const a=displayList()[idx];sqkTarget=a;
+  document.getElementById('sqkAc').textContent=`${a.cs}  ${a.type||''}`;
+  const asg=normSquawk(a.assignedSquawk),cur=normSquawk(a.squawk);
+  const pre=asg&&asg!==cur?asg:(cur||asg||'');
+  stageSqk(pre);
+  syncSqkMeta();
+  placePop(sqkmenu,x,y);
+  const inp=document.getElementById('sqkInput');inp.focus();inp.select();
+}
+async function uplinkSquawkCode(cs,code){
+  const entry=buildSquawkMessage(code);if(!entry)return;
+  await sendUplinkEntry(cs,entry);renderBoard();
+}
+document.getElementById('sqkInput').addEventListener('input',()=>{
+  const raw=document.getElementById('sqkInput').value.replace(/[^0-7]/g,'').slice(0,4);
+  document.getElementById('sqkInput').value=raw;
+  stageSqk(raw);
+});
+document.getElementById('sqkInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&sqkSelected)document.getElementById('sqkUplink').click();
+});
+document.getElementById('sqkUplink').onclick=async()=>{
+  if(!sqkTarget||!sqkSelected)return;
+  const cs=sqkTarget.cs;close('sqkmenu');
+  await uplinkSquawkCode(cs,sqkSelected);
+};
+document.getElementById('sqkScratchpad').onclick=()=>{
+  if(!sqkTarget||!sqkSelected)return;
+  const entry=buildSquawkMessage(sqkSelected);
+  if(!entry||!queueAdd(sqkTarget.cs,entry))return;
+  close('sqkmenu');
+};
+document.getElementById('sqkAmend').onclick=()=>{if(sqkTarget)queuePopLast(sqkTarget.cs);};
 
 //============================================================ HEADING menu
 const hdgmenu=document.getElementById('hdgmenu');
@@ -2116,9 +2223,9 @@ function placePop(el,x,y){el.classList.remove('hidden');
 function close(id){document.getElementById(id).classList.add('hidden');}
 document.querySelectorAll('[data-close]').forEach(e=>e.onclick=()=>close(e.dataset.close));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu','volpop'].forEach(id=>{const el=document.getElementById(id);
+  ['altmenu','sqkmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu','volpop'].forEach(id=>{const el=document.getElementById(id);
     if(!el.classList.contains('hidden')&&!el.contains(ev.target)
-       &&!ev.target.closest('.alt-cell')&&!ev.target.closest('.route-cell')
+       &&!ev.target.closest('.alt-cell')&&!ev.target.closest('.sqk-cell')&&!ev.target.closest('.route-cell')
        &&!ev.target.closest('.hdg-cell')&&!ev.target.closest('.spd-cell')
        &&!ev.target.closest('[data-fid]')&&!ev.target.closest('[data-msg]')
        &&ev.target.id!=='btnSound')close(id);});
@@ -2226,6 +2333,8 @@ rows.addEventListener('click',e=>{
   const mbox=e.target.closest('[data-msg]');
   const lbox=e.target.closest('[data-logon]');
   const fid=e.target.closest('[data-fid]');
+  const asg=e.target.closest('[data-sqk-asg]');
+  const sqk=e.target.closest('.sqk-cell');
   const alt=e.target.closest('.alt-cell');
   const hdgc=e.target.closest('.hdg-cell');
   const spdc=e.target.closest('.spd-cell');
@@ -2242,6 +2351,12 @@ rows.addEventListener('click',e=>{
     return;}
   if(mbox){const r=mbox.getBoundingClientRect();openMessages(mbox.dataset.msg,r.left,r.bottom+2);}
   else if(fid){const r=fid.getBoundingClientRect();openHandoff(+fid.dataset.fid,r.left,r.bottom+2);}
+  else if(asg){
+    const cell=asg.closest('.sqk-cell');const idx=cell?+cell.dataset.sqk:NaN;
+    const a=displayList()[idx];if(!a)return;
+    uplinkSquawkCode(a.cs,asg.dataset.sqkAsg);
+  }
+  else if(sqk){const r=sqk.getBoundingClientRect();openSqkMenu(+sqk.dataset.sqk,r.left,r.bottom+2);}
   else if(alt){const r=alt.getBoundingClientRect();openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);}
   else if(hdgc){const r=hdgc.getBoundingClientRect();openHeadingMenu(+hdgc.dataset.hdg,r.left,r.bottom+2);}
   else if(spdc){const r=spdc.getBoundingClientRect();openSpeedMenu(+spdc.dataset.spd,r.left,r.bottom+2);}
@@ -2351,7 +2466,7 @@ function makeDraggable(el,handle){
     handle.addEventListener('pointercancel',up);
   });
 }
-['altmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu'].forEach(id=>{const el=document.getElementById(id);if(el)makeDraggable(el,el.querySelector('.hdr'));});
+['altmenu','sqkmenu','routemenu','handoffpop','msgpop','hdgmenu','spdmenu'].forEach(id=>{const el=document.getElementById(id);if(el)makeDraggable(el,el.querySelector('.hdr'));});
 
 </script>
 <script type="module">
