@@ -5,6 +5,7 @@
 #   Using both causes duplicate deploys and stale CDN content.
 #
 # Stale remote branches do NOT affect Pages; only pushes to main deploy.
+# Last force-touch: 2026-08-06T20:12Z (push triggers were not firing for #129/#130)
 name: Deploy to GitHub Pages
 
 on:
