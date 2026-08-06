@@ -262,7 +262,114 @@ a{color:inherit}
 #altmenu .altlist .ai.cur{color:#9fe6e0}
 #altmenu .altlist .ai.sel.cur{color:#fff}
 #altmenu .altlist .ai .t{color:#a0a0a0;margin-left:8px}
+
 #altmenu .altlist .ai.sel .t{color:#e8d0d0}
+
+/* EDST HDG / SPD menus */
+#hdgmenu.edst-pop,#spdmenu.edst-pop{
+  position:absolute;z-index:60;min-width:168px;
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#hdgmenu.edst-pop{width:168px}
+#spdmenu.edst-pop{width:132px}
+#hdgmenu .edst-pop-hdr,#spdmenu .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#hdgmenu .edst-pop-hdr .title,#spdmenu .edst-pop-hdr .title{letter-spacing:.5px;font-weight:normal}
+#hdgmenu .edst-pop-hdr .x,#spdmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:#fff}
+#hdgmenu .edst-pop-hdr .x:hover,#spdmenu .edst-pop-hdr .x:hover{background:#333}
+#hdgmenu .hm-modes{
+  display:grid;grid-template-columns:repeat(4,1fr);background:#4a4a4a;border-bottom:1px solid #cfcfcf;
+}
+#hdgmenu .hm-mode{
+  border:0;border-right:1px solid #cfcfcf;background:#4a4a4a;color:#fff;font:inherit;
+  padding:4px 2px;cursor:pointer;min-height:26px;
+}
+#hdgmenu .hm-mode:last-child{border-right:0}
+#hdgmenu .hm-mode:hover{background:#5a5a5a}
+#hdgmenu .hm-mode.on{background:#6b3a3a}
+#hdgmenu .hm-uplink-bar,#spdmenu .sm-uplink-bar{
+  background:#5a5a5a;text-align:center;letter-spacing:.08em;padding:3px 4px;
+  border-bottom:1px solid #cfcfcf;color:#fff;cursor:pointer;user-select:none;
+}
+#hdgmenu .hm-uplink-bar:hover,#spdmenu .sm-uplink-bar:hover{background:#6a6a6a}
+#hdgmenu .hm-uplink-bar.disabled,#spdmenu .sm-uplink-bar.disabled{opacity:.45;cursor:default}
+#hdgmenu .hm-list{
+  display:grid;grid-template-columns:1fr 1fr;gap:0 8px;max-height:210px;overflow:auto;
+  padding:4px 6px;background:#000;scrollbar-width:thin;
+}
+#hdgmenu .hm-item{
+  display:block;width:100%;text-align:left;border:0;background:transparent;color:#f0f0ec;
+  font:inherit;padding:2px 4px;cursor:pointer;
+}
+#hdgmenu .hm-item:hover{background:#1c1c1c}
+#hdgmenu .hm-item.on{background:#6b3a3a;color:#fff}
+#hdgmenu .hm-delete{
+  display:block;width:100%;border:0;border-top:1px solid #cfcfcf;background:#4a4a4a;
+  color:#fff;font:inherit;padding:5px 8px;cursor:pointer;letter-spacing:.06em;text-align:center;
+}
+#hdgmenu .hm-delete:hover{background:#5a5a5a}
+#spdmenu .sm-row2{display:flex;border-bottom:1px solid #cfcfcf;background:#4a4a4a}
+#spdmenu .sm-btn{
+  flex:1;border:0;border-right:1px solid #cfcfcf;background:#4a4a4a;color:#fff;font:inherit;
+  padding:4px 4px;cursor:pointer;min-height:26px;
+}
+#spdmenu .sm-btn:last-child{border-right:0}
+#spdmenu .sm-btn:hover{background:#5a5a5a}
+#spdmenu .sm-btn.on{background:#6b3a3a}
+#spdmenu .sm-xres{
+  display:block;width:100%;border:0;border-bottom:1px solid #cfcfcf;background:#4a4a4a;color:#fff;
+  font:inherit;padding:4px 8px;cursor:pointer;text-align:left;
+}
+#spdmenu .sm-xres:hover{background:#5a5a5a}
+#spdmenu .sm-modes{
+  display:grid;grid-template-columns:repeat(4,1fr);background:#4a4a4a;border-bottom:1px solid #cfcfcf;
+}
+#spdmenu .sm-mode{
+  border:0;border-right:1px solid #cfcfcf;background:#4a4a4a;color:#fff;font:inherit;
+  padding:4px 2px;cursor:pointer;min-height:26px;
+}
+#spdmenu .sm-mode:last-child{border-right:0}
+#spdmenu .sm-mode:hover{background:#5a5a5a}
+#spdmenu .sm-mode.on{background:#6b3a3a}
+#spdmenu .sm-reasons{display:none;background:#4a4a4a;border-bottom:1px solid #cfcfcf}
+#spdmenu .sm-reasons.open{display:block}
+#spdmenu .sm-reasons .sm-reason-grid{display:grid;grid-template-columns:1fr 1fr}
+#spdmenu .sm-reason{
+  border:0;border-right:1px solid #cfcfcf;border-bottom:1px solid #cfcfcf;background:#4a4a4a;
+  color:#ddd;font:inherit;font-size:12px;padding:4px 2px;cursor:pointer;
+}
+#spdmenu .sm-reason:nth-child(2n){border-right:0}
+#spdmenu .sm-reason:hover{background:#5a5a5a}
+#spdmenu .sm-reason.on{background:#6b3a3a;color:#fff}
+#spdmenu .sm-list-wrap{position:relative;background:#000}
+#spdmenu .sm-list{max-height:196px;overflow:auto;padding:4px 16px 4px 8px;scrollbar-width:thin}
+#spdmenu .sm-item{
+  display:block;width:100%;text-align:left;border:0;background:transparent;color:#f0f0ec;
+  font:inherit;padding:2px 4px;cursor:pointer;
+}
+#spdmenu .sm-item:hover{background:#1c1c1c}
+#spdmenu .sm-item.on{background:#6b3a3a;color:#fff}
+#spdmenu .sm-scroll{
+  position:absolute;top:4px;right:2px;bottom:4px;width:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  pointer-events:none;color:#aaa;font-size:9px;line-height:1;
+}
+#spdmenu .sm-footer{border-top:1px solid #cfcfcf}
+#spdmenu .sm-footer-btn{
+  display:block;width:100%;border:0;border-top:1px solid #cfcfcf;background:#4a4a4a;
+  color:#c8c8c8;font:inherit;padding:5px 8px;cursor:pointer;letter-spacing:.05em;text-align:center;
+}
+#spdmenu .sm-footer-btn:first-child{border-top:0}
+#spdmenu .sm-footer-btn:hover{background:#5a5a5a;color:#fff}
+#spdmenu .sm-footer-btn.on{background:#6b3a3a;color:#fff}
+.hdg-cell,.spd-cell{cursor:pointer}
+.hdg-cell:hover,.spd-cell:hover{color:#fff;text-decoration:underline}
+
 
 #queuewrap{
   position:fixed;right:8px;bottom:8px;width:min(360px,92vw);max-height:22vh;
@@ -476,6 +583,60 @@ a{color:inherit}
   </div>
   <div class="xres-foot">
     <button type="button" class="xres-uplink disabled" id="xresUplink">UPLINK</button>
+  </div>
+</div>
+
+<!-- EDST HDG menu -->
+<div id="hdgmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="hdgTitle">CALLSIGN</span>
+    <span class="x" data-close="hdgmenu" title="Close">X</span>
+  </div>
+  <div class="hm-modes">
+    <button type="button" class="hm-mode" data-mode="LT" title="Turn left heading">LT</button>
+    <button type="button" class="hm-mode" data-mode="PH" title="Fly present heading">PH</button>
+    <button type="button" class="hm-mode" data-mode="RH" title="Turn right heading">RH</button>
+    <button type="button" class="hm-mode" data-mode="NP" title="Fly heading">NP</button>
+  </div>
+  <div class="hm-uplink-bar disabled" id="hdgUplink" title="Uplink selected heading">UPLINK</div>
+  <div class="hm-list" id="hdgList"></div>
+  <button type="button" class="hm-delete" id="hdgDelete" title="Close without uplinking">DELETE</button>
+</div>
+
+<!-- EDST SPD menu -->
+<div id="spdmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="spdTitle">CALLSIGN</span>
+    <span class="x" data-close="spdmenu" title="Close">X</span>
+  </div>
+  <div class="sm-uplink-bar disabled" id="spdUplink" title="Uplink selected speed">UPLINK</div>
+  <div class="sm-row2">
+    <button type="button" class="sm-btn" id="spdSpc" title="Add to uplink queue">SPC ▾</button>
+    <button type="button" class="sm-btn" id="spdTfc" title="Show reason options">TFC ▾</button>
+  </div>
+  <div class="sm-reasons" id="spdReasons">
+    <div class="sm-reason-grid">
+      <button type="button" class="sm-reason" data-reason="IMM" title="Immediately">IMM</button>
+      <button type="button" class="sm-reason" data-reason="RES" title="Restricted airspace">RES</button>
+      <button type="button" class="sm-reason" data-reason="EXP" title="Expedite">EXP</button>
+      <button type="button" class="sm-reason" data-reason="WX" title="Weather">WX</button>
+      <button type="button" class="sm-reason" data-reason="TFC" title="Due to traffic">TFC</button>
+    </div>
+  </div>
+  <button type="button" class="sm-xres" id="spdXres" title="Crossing restriction">X RES</button>
+  <div class="sm-modes">
+    <button type="button" class="sm-mode" data-mode="KT" title="Knots">KT</button>
+    <button type="button" class="sm-mode" data-mode="+" title="Or greater">+</button>
+    <button type="button" class="sm-mode" data-mode="-" title="Or less">&minus;</button>
+    <button type="button" class="sm-mode" data-mode="NP" title="Exact speed (no +/-)">NP</button>
+  </div>
+  <div class="sm-list-wrap">
+    <div class="sm-list" id="spdList"></div>
+    <div class="sm-scroll" aria-hidden="true"><span>▲</span><span>▼</span></div>
+  </div>
+  <div class="sm-footer">
+    <button type="button" class="sm-footer-btn" id="spdDel" title="Close without uplinking">DEL</button>
+    <button type="button" class="sm-footer-btn" id="spdRns" title="Resume normal speed">RNS</button>
   </div>
 </div>
 
@@ -1098,7 +1259,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1226,16 +1387,13 @@ function renderRowEdst(a,idx){
   const abox=`<span class="abox ${handoffPending.has(a.cs)?'ho':''}" title="handoff"></span>`;
   const connCue=connected.has(a.cs)?' conn':'';
   const fid=`<span class="efid${connCue}" data-cs="${a.cs}"><span class="cid">---</span><span class="smbox fidbox"></span> <span class="acid">${a.cs}</span></span>`;
-  const hdg=(a.hdg?('H'+pad3(a.hdg)):'');
-  const spd=(a.gs?('<span class="spd">'+a.gs+'</span>'):'');
-  const hs=(hdg||spd)?`${hdg} / ${spd}`:'/';
   const rcol=routePending.has(a.cs)?'color:var(--green)':'';
   return `<td class="eh-bk">${bk}</td><td class="eh-al">${rbox}</td><td class="eh-al">${ybox}</td><td class="eh-al">${abox}</td>`
         +`<td>${fid}</td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
         +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
         +`<td class="ecod">${sqkCellHtml(a)}</td>`
-        +`<td class="ehs">${hs}</td>`
+        +`<td class="ehs">${hsCellHtml(a,idx)}</td>`
         +`<td class="route-cell" style="${rcol}">${a.route||''}</td>`;
 }
 function updateMode(){
@@ -1288,16 +1446,21 @@ function placePop(el,x,y){
 function close(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
-  if(id==='altUplink'){el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;}
+  if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'){
+    el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;
+  }
   el.classList.toggle('hidden',!on);
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
     if(id==='altmenu'&&ev.target.closest('.alt-cell'))return;
+    if(id==='hdgmenu'&&ev.target.closest('.hdg-cell'))return;
+    if(id==='spdmenu'&&ev.target.closest('.spd-cell'))return;
+    if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')))return;
     close(id);
   });
 });
@@ -1744,8 +1907,238 @@ document.getElementById('xresUplink').onclick=async()=>{
   const entry=await buildCrossingMessage(xresTarget,xresFix,altStr,spdStr,null);
   if(!entry)return;
   const cs=xresTarget.cs;
-  close('xresmenu');close('altmenu');
+  close('xresmenu');close('altmenu');close('spdmenu');
   await sendUplinkEntry(cs,entry);renderBoard();
+};
+
+
+//============================================================ HEADING menu
+const hdgmenu=document.getElementById('hdgmenu');
+let hdgTarget=null,hdgCmd=null,hdgMode='NP',hdgSelected=null;
+function norm360(h){h=Math.round(h)%360;if(h<=0)h+=360;return h;}
+function buildHdgMessage(cmd){
+  if(!cmd)return null;
+  return {label:'HDG',msg:cmd,effects:null};
+}
+function syncHdgModes(){
+  document.querySelectorAll('#hdgmenu .hm-mode').forEach(btn=>{
+    btn.classList.toggle('on',btn.dataset.mode===hdgMode);
+  });
+}
+function syncHdgUplink(){
+  const ready=!!(hdgTarget&&hdgCmd);
+  showUplink('hdgUplink',ready);
+}
+function hdgVerb(){
+  if(hdgMode==='LT')return 'TURN LEFT HEADING';
+  if(hdgMode==='RH')return 'TURN RIGHT HEADING';
+  return 'FLY HEADING';
+}
+function stageHdg(h){
+  hdgSelected=h;
+  document.querySelectorAll('#hdgList .hm-item').forEach(e=>{
+    e.classList.toggle('on',+e.dataset.hdg===h);
+  });
+  if(hdgMode==='PH'){
+    hdgCmd='FLY PRESENT HEADING';
+  }else{
+    hdgCmd=`${hdgVerb()} @${pad3(h)}@`;
+  }
+  syncHdgUplink();
+}
+function buildHdgList(){
+  const L=document.getElementById('hdgList');L.innerHTML='';
+  const present=hdgTarget&&hdgTarget.hdg?hdgTarget.hdg:0;
+  const base=norm360(Math.round(present/5)*5||360);
+  // Two columns: left = base, base-10, ... ; right = base+5, base-5, ...
+  const left=[],right=[];
+  for(let i=0;i<36;i++){
+    left.push(norm360(base-i*10));
+    right.push(norm360(base+5-i*10));
+  }
+  for(let i=0;i<36;i++){
+    const mk=(h)=>{
+      const b=document.createElement('button');
+      b.type='button';b.className='hm-item';b.dataset.hdg=String(h);
+      b.textContent=pad3(h);
+      if(hdgSelected!=null&&hdgSelected===h)b.classList.add('on');
+      b.onclick=()=>stageHdg(h);
+      return b;
+    };
+    L.appendChild(mk(left[i]));
+    L.appendChild(mk(right[i]));
+  }
+}
+function openHeadingMenu(idx,x,y){
+  const a=displayList()[idx];if(!a)return;
+  close('altmenu');close('spdmenu');close('xresmenu');
+  hdgTarget=a;hdgCmd=null;hdgSelected=null;hdgMode='NP';
+  document.getElementById('hdgTitle').textContent=a.cs;
+  syncHdgModes();syncHdgUplink();
+  buildHdgList();
+  placePop(hdgmenu,x,y);
+}
+document.querySelectorAll('#hdgmenu .hm-mode').forEach(btn=>{
+  btn.onclick=()=>{
+    hdgMode=btn.dataset.mode;
+    syncHdgModes();
+    if(hdgMode==='PH'){
+      document.querySelectorAll('#hdgList .hm-item').forEach(e=>e.classList.remove('on'));
+      hdgSelected=null;
+      hdgCmd='FLY PRESENT HEADING';
+      syncHdgUplink();
+      return;
+    }
+    if(hdgSelected!=null)stageHdg(hdgSelected);
+    else{hdgCmd=null;syncHdgUplink();}
+  };
+});
+document.getElementById('hdgUplink').onclick=async()=>{
+  if(document.getElementById('hdgUplink').classList.contains('disabled'))return;
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!hdgTarget||!hdgCmd)return;
+  const cs=hdgTarget.cs;const entry=buildHdgMessage(hdgCmd);
+  if(!entry)return;
+  close('hdgmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('hdgDelete').onclick=()=>{close('hdgmenu');hdgTarget=null;hdgCmd=null;};
+
+//============================================================ SPEED menu
+const spdmenu=document.getElementById('spdmenu');
+let spdTarget=null,spdCmd=null,spdToggle='',spdSelected=null,spdTfcOpen=false;
+const spdReasons=new Set();
+const SPD_REASON_TEXT={
+  TFC:'DUE TO TRAFFIC',
+  IMM:'IMMEDIATELY',
+  RES:'DUE TO RESTRICTED AIRSPACE',
+  EXP:'EXPEDITE',
+  WX:'DUE TO WEATHER'
+};
+function buildSpdMessage(cmd){
+  if(!cmd)return null;
+  return {label:'SPD',msg:cmd,effects:null};
+}
+function spdTail(){return spdToggle==='+'?' OR GREATER':spdToggle==='-'?' OR LESS':'';}
+function spdReasonSuffix(){
+  const order=['IMM','EXP','TFC','RES','WX'];
+  const parts=[];
+  order.forEach(k=>{if(spdReasons.has(k)&&SPD_REASON_TEXT[k])parts.push(SPD_REASON_TEXT[k]);});
+  return parts.length?', '+parts.join(', '):'';
+}
+function syncSpdModes(){
+  document.querySelectorAll('#spdmenu .sm-mode').forEach(btn=>{
+    const m=btn.dataset.mode;
+    let on=false;
+    if(m==='KT')on=true;
+    else if(m==='NP')on=!spdToggle;
+    else if(m==='+'||m==='-')on=spdToggle===m;
+    btn.classList.toggle('on',on);
+  });
+}
+function syncSpdReasons(){
+  document.querySelectorAll('#spdReasons [data-reason]').forEach(btn=>{
+    btn.classList.toggle('on',spdReasons.has(btn.dataset.reason));
+  });
+  const tfc=document.getElementById('spdTfc');
+  if(tfc)tfc.classList.toggle('on',spdTfcOpen||spdReasons.size>0);
+}
+function setSpdTfcOpen(on){
+  spdTfcOpen=!!on;
+  const panel=document.getElementById('spdReasons');
+  if(panel)panel.classList.toggle('open',spdTfcOpen);
+  syncSpdReasons();
+}
+function toggleSpdReason(key){
+  if(spdReasons.has(key))spdReasons.delete(key);else spdReasons.add(key);
+  syncSpdReasons();
+  if(spdSelected!=null)stageSpd(spdSelected);
+  else if(spdCmd&&spdCmd.startsWith('RESUME NORMAL SPEED')){
+    spdCmd='RESUME NORMAL SPEED'+spdReasonSuffix();
+    syncSpdUplink();
+  }
+}
+function syncSpdUplink(){
+  showUplink('spdUplink',!!(spdTarget&&spdCmd));
+}
+function stageSpd(kt){
+  spdSelected=kt;
+  document.querySelectorAll('#spdList .sm-item').forEach(e=>{
+    e.classList.toggle('on',+e.dataset.kt===kt);
+  });
+  document.getElementById('spdRns').classList.remove('on');
+  spdCmd=`MAINTAIN @${kt}KT@${spdTail()}${spdReasonSuffix()}`;
+  syncSpdUplink();
+}
+function buildSpdList(){
+  const L=document.getElementById('spdList');L.innerHTML='';
+  const gs=spdTarget&&spdTarget.gs?+spdTarget.gs:280;
+  let start=Math.round(gs/10)*10;
+  start=Math.max(160,Math.min(400,start+40));
+  for(let kt=start;kt>=100;kt-=10){
+    const b=document.createElement('button');
+    b.type='button';b.className='sm-item';b.dataset.kt=String(kt);
+    b.textContent=String(kt)+(spdToggle==='+'?'+':spdToggle==='-'?'-':'');
+    if(spdSelected!=null&&spdSelected===kt)b.classList.add('on');
+    b.onclick=()=>stageSpd(kt);
+    L.appendChild(b);
+  }
+}
+function openSpeedMenu(idx,x,y){
+  const a=displayList()[idx];if(!a)return;
+  close('altmenu');close('hdgmenu');close('xresmenu');
+  spdTarget=a;spdCmd=null;spdSelected=null;spdToggle='';spdReasons.clear();
+  setSpdTfcOpen(false);
+  document.getElementById('spdTitle').textContent=a.cs;
+  document.getElementById('spdRns').classList.remove('on');
+  syncSpdModes();syncSpdReasons();syncSpdUplink();
+  buildSpdList();
+  placePop(spdmenu,x,y);
+}
+document.querySelectorAll('#spdmenu .sm-mode').forEach(btn=>{
+  btn.onclick=()=>{
+    const m=btn.dataset.mode;
+    if(m==='KT'){/* always knots */}
+    else if(m==='NP'){spdToggle='';}
+    else if(m==='+'||m==='-'){spdToggle=(spdToggle===m)?'':m;}
+    syncSpdModes();
+    buildSpdList();
+    if(spdSelected!=null)stageSpd(spdSelected);
+    else{spdCmd=null;syncSpdUplink();}
+  };
+});
+document.getElementById('spdTfc').onclick=()=>setSpdTfcOpen(!spdTfcOpen);
+document.querySelectorAll('#spdReasons [data-reason]').forEach(btn=>{
+  btn.onclick=()=>toggleSpdReason(btn.dataset.reason);
+});
+document.getElementById('spdSpc').onclick=()=>{
+  if(!canControl()){comingSoon('Sign in / verify to queue');return;}
+  if(!spdTarget||!spdCmd)return;
+  const entry=buildSpdMessage(spdCmd);
+  if(!entry||!queueAdd(spdTarget.cs,entry))return;
+  close('spdmenu');
+};
+document.getElementById('spdXres').onclick=()=>{
+  if(!spdTarget)return;
+  const r=spdmenu.getBoundingClientRect();
+  openXresMenu(spdTarget,r.right+4,r.top);
+};
+document.getElementById('spdUplink').onclick=async()=>{
+  if(document.getElementById('spdUplink').classList.contains('disabled'))return;
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!spdTarget||!spdCmd)return;
+  const cs=spdTarget.cs;const entry=buildSpdMessage(spdCmd);
+  if(!entry)return;
+  close('spdmenu');close('xresmenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+document.getElementById('spdDel').onclick=()=>{close('spdmenu');spdTarget=null;spdCmd=null;};
+document.getElementById('spdRns').onclick=()=>{
+  document.querySelectorAll('#spdList .sm-item').forEach(e=>e.classList.remove('on'));
+  spdSelected=null;
+  spdCmd='RESUME NORMAL SPEED'+spdReasonSuffix();
+  document.getElementById('spdRns').classList.add('on');
+  syncSpdUplink();
 };
 
 // queue panel controls
@@ -1788,17 +2181,31 @@ function makeEdstDraggable(el){
 }
 makeEdstDraggable(altmenu);
 makeEdstDraggable(xresmenu);
+makeEdstDraggable(hdgmenu);
+makeEdstDraggable(spdmenu);
 
-//============================================================ board clicks (ALT)
+//============================================================ board clicks (ALT / HDG / SPD)
 rows.addEventListener('click',e=>{
   const alt=e.target.closest('.alt-cell');
-  if(!alt)return;
+  const hdgc=e.target.closest('.hdg-cell');
+  const spdc=e.target.closest('.spd-cell');
+  if(!alt&&!hdgc&&!spdc)return;
   if(!canControl()){
-    comingSoon('Sign in / verify to issue altitudes');
+    comingSoon(alt?'Sign in / verify to issue altitudes'
+      :hdgc?'Sign in / verify to issue headings'
+      :'Sign in / verify to issue speeds');
     return;
   }
-  const r=alt.getBoundingClientRect();
-  openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);
+  if(alt){
+    const r=alt.getBoundingClientRect();
+    openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);
+  }else if(hdgc){
+    const r=hdgc.getBoundingClientRect();
+    openHeadingMenu(+hdgc.dataset.hdg,r.left,r.bottom+2);
+  }else if(spdc){
+    const r=spdc.getBoundingClientRect();
+    openSpeedMenu(+spdc.dataset.spd,r.left,r.bottom+2);
+  }
 });
 
 //============================================================ sounds (Web Audio, no files)
