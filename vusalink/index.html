@@ -751,8 +751,13 @@ function applyFreqMeta(d){
 }
 function displayList(){
   let list=board().slice();
-  if(!settings.showAll)list=list.filter(a=>connected.has(a.cs));   // GREEN / on KUSA only
-  if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
+  // SHOW ALL off:
+  //  - with a known voice freq → aircraft on this frequency (matches posHint)
+  //  - otherwise → CPDLC/KUSA green list only
+  if(!settings.showAll){
+    if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
+    else list=list.filter(a=>connected.has(a.cs));
+  }
   list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||pilotMatchesOurFreq(a.cs));
   const k=sortState.key;if(!k)return list;
   const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
@@ -1011,7 +1016,6 @@ async function pollOnce(){
 // new logon and alert on a new re-logon request. Runs every poll (~3s) in hub mode.
 function updateConnState(connList,pendList){
   if(connList===undefined&&pendList===undefined)return;   // solo poll: managed elsewhere
-  const nc=new Set(connList||[]), np=new Set(pendList||[]);
   let reqd=false;
   // only alert for aircraft that would actually appear on this controller's list
   // (frequency filter off/absent -> all; filter on -> only our frequency)
@@ -1019,9 +1023,15 @@ function updateConnState(connList,pendList){
     if(handoffAwaitFreq.has(c))return false;
     return !freqFilterActive()||pilotMatchesOurFreq(c);
   };
-  np.forEach(c=>{if(!logonReq.has(c)&&onList(c))reqd=true;});
-  connected.clear();nc.forEach(c=>connected.add(c));
-  logonReq.clear();np.forEach(c=>logonReq.add(c));
+  if(pendList!==undefined){
+    const np=new Set(pendList||[]);
+    np.forEach(c=>{if(!logonReq.has(c)&&onList(c))reqd=true;});
+    logonReq.clear();np.forEach(c=>logonReq.add(c));
+  }
+  if(connList!==undefined){
+    const nc=new Set(connList||[]);
+    connected.clear();nc.forEach(c=>connected.add(c));
+  }
   if(pollPrimed&&!suppressSounds){ if(reqd)soundLogonReq(); }
   hubConnReady=true;renderBoard();
 }
@@ -1246,10 +1256,11 @@ async function refreshVatsim(force){
     const d=await api('/api/vatsim',{airspace});
     if(!d.ok){setVat('err',d.error||'vatsim error');updatePositionBar();return;}
     applyFreqMeta(d);                  // controller freq + pilot freqs come from the hub now
-    liveFlights=d.flights.map(mapLive);annotateFlights();facilities=d.facilities||[];
+    liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];
     if(hub){
       hubArtcc=d.airspace||hubArtcc;
-      applyVerify(d.verify);          // connected/pending are owned by the fast poll (updateConnState)
+      applyVerify(d.verify);          // pending logons stay owned by the fast poll
+      if(Array.isArray(d.connected))updateConnState(d.connected,undefined);
       setVat('on',`hub ${d.airspace} \u00b7 ${liveFlights.length} a/c \u00b7 ${countMyCpdlc()} CPDLC`
         +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
     }else{

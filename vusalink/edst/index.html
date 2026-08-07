@@ -1180,8 +1180,13 @@ function applyFreqMeta(d){
 }
 function displayList(){
   let list=board().slice();
-  if(!settings.showAll)list=list.filter(a=>connected.has(a.cs));   // GREEN / on KUSA only
-  if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
+  // SHOW ALL off:
+  //  - with a known voice freq → aircraft on this frequency (matches posHint)
+  //  - otherwise → CPDLC/KUSA green list only
+  if(!settings.showAll){
+    if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
+    else list=list.filter(a=>connected.has(a.cs));
+  }
   list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||pilotMatchesOurFreq(a.cs));
   const k=sortState.key;if(!k)return list;
   const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
@@ -1258,22 +1263,33 @@ const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/
 function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
 async function api(path,extra){
   extra=extra||{};
+  let url, body;
   if(hubMode()){                      // hub API (signed-in session)
     const cid=(settings.cid||'').trim();
-    const body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
+    const ep=HUB_EP[path];
+    if(!ep)throw new Error('unknown hub path '+path);
+    body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
       vatflowToken:(window.VatflowAuth&&window.VatflowAuth.getStoredToken())||''};
     if(path==='/api/poll'){body.sinceGi=extra.sinceGi!=null?extra.sinceGi:giSince;}
     if(path==='/api/send'){body.to=extra.to||'';body.packet=extra.packet||'';}
     if(path==='/api/conn'){body.to=extra.to||'';body.action=extra.action||'';}
     if(path==='/api/altimeter'){body.icao=extra.icao||'';}
     if(path==='/api/gi'){body.text=extra.text||'';}
-    return (await fetch(hubBase()+HUB_EP[path],{method:'POST',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    url=hubBase()+ep;
+  }else{
+    body=Object.assign({logon:settings.logon,from:settings.station,
+      hubUrl:settings.hubUrl,cid:(settings.cid||'').trim(),hubToken:settings.hubToken||'',sid:SID,
+      verifyToken:verifyTokenFor((settings.cid||'').trim())},extra);
+    url=path;
   }
-  const body=Object.assign({logon:settings.logon,from:settings.station,
-    hubUrl:settings.hubUrl,cid:(settings.cid||'').trim(),hubToken:settings.hubToken||'',sid:SID,
-    verifyToken:verifyTokenFor((settings.cid||'').trim())},extra);
-  return (await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+  const res=await fetch(url,{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const text=await res.text();
+  let data=null;
+  try{data=text?JSON.parse(text):null;}
+  catch(e){throw new Error('hub returned non-JSON ('+res.status+')');}
+  if(!data||typeof data!=='object')throw new Error('hub returned empty response');
+  return data;
 }
 let verifyOK=false, verifyCode='', verifyMethod='atis';
 function applyVerify(v,showBar){
@@ -1429,7 +1445,7 @@ async function pollOnce(){
   if(!configured()&&!hubMode())return;
   try{const res=await api('/api/poll',{sinceGi:giSince});
     setHoppie(true,hubMode()?('hub '+(hubArtcc||'\u2026')):('online as '+settings.station));
-    if(res.error){setHoppie(false,'verify position to send');return;}
+    if(res.error){setHoppie(false,res.error==='VATSIM sign-in required'?'sign in required':'verify position to send');return;}
     if(hubMode()){applyVerify(res.verify);updateConnState(res.connected,res.pending);}
     const batch=res.messages||[];
     const firstPoll=!pollPrimed;
@@ -1437,15 +1453,23 @@ async function pollOnce(){
       suppressSounds=true;
       try{batch.forEach(handleIncoming);}finally{suppressSounds=false;pollPrimed=true;}
     }else batch.forEach(handleIncoming);
-    if(hubMode())ingestGiBatch(res.gi||[],{silent:firstPoll});
-  }catch(e){setHoppie(false,'proxy offline');}
+    // GI is best-effort — never mark the hub offline if only GI parsing fails
+    if(hubMode()){
+      try{ingestGiBatch(res.gi||[],{silent:firstPoll});}
+      catch(giErr){console.warn('GI ingest failed',giErr);}
+    }
+  }catch(e){
+    console.warn('poll failed',e);
+    setHoppie(false,'proxy offline');
+  }
 }
 // Hub is authoritative for who is on CPDLC (connected) and who was force-logged-off
 // and is now asking to come back (pending). Diff against what we had to chime on a
 // new logon and alert on a new re-logon request. Runs every poll (~3s) in hub mode.
+// Pass `undefined` for either list to leave that set unchanged (VATSIM refresh may
+// seed `connected` without pending logon requests).
 function updateConnState(connList,pendList){
   if(connList===undefined&&pendList===undefined)return;   // solo poll: managed elsewhere
-  const nc=new Set(connList||[]), np=new Set(pendList||[]);
   let reqd=false;
   // only alert for aircraft that would actually appear on this controller's list
   // (frequency filter off/absent -> all; filter on -> only our frequency)
@@ -1453,9 +1477,15 @@ function updateConnState(connList,pendList){
     if(handoffAwaitFreq.has(c))return false;
     return !freqFilterActive()||pilotMatchesOurFreq(c);
   };
-  np.forEach(c=>{if(!logonReq.has(c)&&onList(c))reqd=true;});
-  connected.clear();nc.forEach(c=>connected.add(c));
-  logonReq.clear();np.forEach(c=>logonReq.add(c));
+  if(pendList!==undefined){
+    const np=new Set(pendList||[]);
+    np.forEach(c=>{if(!logonReq.has(c)&&onList(c))reqd=true;});
+    logonReq.clear();np.forEach(c=>logonReq.add(c));
+  }
+  if(connList!==undefined){
+    const nc=new Set(connList||[]);
+    connected.clear();nc.forEach(c=>connected.add(c));
+  }
   if(pollPrimed&&!suppressSounds){ if(reqd)soundLogonReq(); }
   hubConnReady=true;renderBoard();
 }
@@ -1677,10 +1707,13 @@ async function refreshVatsim(force){
     const d=await api('/api/vatsim',{airspace});
     if(!d.ok){setVat('err',d.error||'vatsim error');updatePositionBar();return;}
     applyFreqMeta(d);                  // controller freq + pilot freqs come from the hub now
-    liveFlights=d.flights.map(mapLive);annotateFlights();facilities=d.facilities||[];
+    liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];
     if(hub){
       hubArtcc=d.airspace||hubArtcc;
-      applyVerify(d.verify);          // connected/pending are owned by the fast poll (updateConnState)
+      applyVerify(d.verify);
+      // Seed CPDLC connected from VATSIM too — poll owns pending, but ACL must not
+      // stay empty when poll is slow/offline while traffic refresh succeeded.
+      if(Array.isArray(d.connected))updateConnState(d.connected,undefined);
       setVat('on',`hub ${d.airspace} \u00b7 ${liveFlights.length} a/c \u00b7 ${countMyCpdlc()} CPDLC`
         +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
     }else{
@@ -1689,8 +1722,12 @@ async function refreshVatsim(force){
         +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
     }
     updatePositionBar();
-    renderBoard();
-  }catch(e){setVat('err','proxy offline');}
+    try{renderBoard();}
+    catch(re){console.warn('renderBoard failed',re);}
+  }catch(e){
+    console.warn('VATSIM refresh failed',e);
+    setVat('err','proxy offline');
+  }
 }
 function mapLive(f){
   const full=[f.dep,f.route,f.arr].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
