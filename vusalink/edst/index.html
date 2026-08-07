@@ -811,6 +811,35 @@ td.eh-bk{text-align:center;min-width:14px}
 #msgpop .mitem.sys .dir{color:var(--green)}
 #msgpop .mitem.err .dir{color:#e08a8a}
 #msgpop .empty{padding:8px 10px;color:var(--fg-dim)}
+
+/* ERAM Message Composition Area (MCA) — floatable command uplink box */
+#mca{
+  position:fixed;z-index:55;left:12px;bottom:12px;width:min(420px,94vw);
+  background:#000;border:1px solid #cfcfcf;color:#fff;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.75);user-select:none;
+}
+#mca .mca-preview{
+  border-bottom:1px solid #555;padding:4px 8px;min-height:28px;
+  display:flex;align-items:center;cursor:move;touch-action:none;
+}
+#mca .mca-preview input{
+  flex:1;min-width:0;background:transparent;border:0;outline:0;
+  color:#fff;font:inherit;caret-color:#fff;padding:0;margin:0;
+  text-transform:uppercase;cursor:text;
+}
+#mca .mca-preview input::placeholder{color:#555;text-transform:none}
+#mca .mca-feedback{
+  padding:6px 8px;min-height:54px;max-height:120px;overflow:auto;
+  cursor:move;touch-action:none;line-height:1.35;white-space:pre-wrap;
+}
+#mca .mca-feedback .ok{color:var(--green)}
+#mca .mca-feedback .err{color:var(--red)}
+#mca .mca-feedback .dim{color:#8a9088}
+#mca .mca-hint{
+  position:absolute;top:-18px;left:0;font-size:10px;color:#8a9088;
+  letter-spacing:.04em;pointer-events:none;
+}
 #handoffpop .empty{padding:8px 10px;color:var(--fg-dim)}
 
 /* EDST DEPARTURE LIST */
@@ -1271,6 +1300,16 @@ td.eh-bk{text-align:center;min-width:14px}
     </div>
   </div>
   <div class="mlist" id="mpList"></div>
+</div>
+
+<!-- ERAM Message Composition Area (keyboard /U uplinks) -->
+<div id="mca" title="Message Composition Area — drag to move">
+  <div class="mca-hint">MCA · ERAM /U</div>
+  <div class="mca-preview">
+    <input id="mcaInput" type="text" maxlength="220" autocomplete="off" spellcheck="false"
+      placeholder="QZ 340 AAL123 /U" title="ERAM command — end with /U to uplink">
+  </div>
+  <div class="mca-feedback" id="mcaFeedback"><span class="dim">Enter ERAM command + /U</span></div>
 </div>
 
 <!-- EDST HDG menu -->
@@ -3288,6 +3327,7 @@ makeEdstDraggable(document.getElementById('routemenu'));
 makeEdstDraggable(document.getElementById('handoffpop'));
 makeEdstDraggable(document.getElementById('msgpop'));
 makeEdstDraggable(document.getElementById('depmenu'));
+// MCA uses custom drag (no title bar) — see MCA section below.
 makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
 makeEdstDraggable(document.getElementById('sigmenu'));
@@ -4765,6 +4805,133 @@ function openMessages(cs,x,y){
   else if(msgpop.classList.contains('hidden'))placePop(msgpop,20,80);
   else msgpop.classList.remove('hidden');
 }
+
+//============================================================ MCA (ERAM Message Composition Area)
+let mcaMod=null,mcaLastCmd='';
+const mcaEl=document.getElementById('mca');
+const mcaInput=document.getElementById('mcaInput');
+const mcaFeedback=document.getElementById('mcaFeedback');
+function mcaFindAircraft(cs){
+  cs=(cs||'').toUpperCase();
+  return (typeof displayList==='function'?displayList():[]).find(a=>a.cs===cs)
+    || liveFlights.find(a=>a.cs===cs)
+    || manual.find(a=>a.cs===cs)
+    || null;
+}
+function mcaSetFeedback(lines, kind){
+  if(!mcaFeedback)return;
+  const mark=kind==='ok'
+    ?'<span class="ok">\u2713 </span>'
+    :kind==='err'?'<span class="err">\u2717 </span>':'';
+  const body=(lines||[]).filter(Boolean).map((ln,i)=>{
+    if(i===0)return mark+'<span class="'+(kind==='ok'?'ok':kind==='err'?'err':'')+'">'+esc(ln)+'</span>';
+    return esc(ln);
+  }).join('<br>');
+  mcaFeedback.innerHTML=body||'<span class="dim">Enter ERAM command + /U</span>';
+}
+function mcaClear(){
+  if(mcaInput)mcaInput.value='';
+  mcaSetFeedback([],'');
+}
+async function mcaEnsureMod(){
+  if(mcaMod)return mcaMod;
+  mcaMod=await import('../../shared/edst-mca-commands.js');
+  return mcaMod;
+}
+async function mcaExecute(){
+  const raw=(mcaInput&&mcaInput.value||'').trim();
+  if(!raw){mcaSetFeedback(['NULL CMD'],'err');return;}
+  mcaLastCmd=raw;
+  const mod=await mcaEnsureMod();
+  const parsed=mod.parseMcaCommand(raw,{selectedCs:selectedCs});
+  if(!parsed.ok){
+    mcaSetFeedback(mod.formatMcaReject(parsed.error, parsed.flid||''),'err');
+    return;
+  }
+  if(!canControl()){
+    mcaSetFeedback(mod.formatMcaReject('NOT AUTH', parsed.flid),'err');
+    return;
+  }
+  const ac=mcaFindAircraft(parsed.flid);
+  if(!ac){
+    mcaSetFeedback(mod.formatMcaReject('NO TRACK', parsed.flid),'err');
+    return;
+  }
+  if(!connected.has(parsed.flid)){
+    mcaSetFeedback(mod.formatMcaReject('NO CPDLC', parsed.flid),'err');
+    return;
+  }
+  const entry=mod.buildMcaUplinkEntry(parsed,{alt:ac.alt});
+  if(!entry){
+    mcaSetFeedback(mod.formatMcaReject('ILL CMD', parsed.flid),'err');
+    return;
+  }
+  mcaSetFeedback(['SENDING…', entry.label, parsed.flid],'');
+  const min=await sendUplinkEntry(parsed.flid,entry);
+  if(min==null){
+    mcaSetFeedback(mod.formatMcaReject('SEND FAIL', parsed.flid),'err');
+    return;
+  }
+  mcaSetFeedback(mod.formatMcaAccept(parsed,entry),'ok');
+  if(mcaInput)mcaInput.value='';
+  renderBoard();
+}
+function mcaRestorePos(){
+  if(!mcaEl)return;
+  const pos=LS.get('vedst_mca_pos',null);
+  if(pos&&typeof pos.left==='number'&&typeof pos.top==='number'){
+    mcaEl.style.left=pos.left+'px';
+    mcaEl.style.top=pos.top+'px';
+    mcaEl.style.bottom='auto';
+  }
+}
+function mcaSavePos(){
+  if(!mcaEl)return;
+  const r=mcaEl.getBoundingClientRect();
+  LS.set('vedst_mca_pos',{left:Math.round(r.left),top:Math.round(r.top)});
+}
+function mcaMakeDraggable(){
+  if(!mcaEl)return;
+  let dragging=false,ox=0,oy=0;
+  const onDown=ev=>{
+    if(ev.button!=null&&ev.button!==0)return;
+    if(ev.target&&ev.target.closest&&ev.target.closest('input,textarea,button,a'))return;
+    dragging=true;
+    const r=mcaEl.getBoundingClientRect();
+    ox=ev.clientX-r.left;oy=ev.clientY-r.top;
+    mcaEl.style.bottom='auto';
+    ev.preventDefault();
+  };
+  const onMove=ev=>{
+    if(!dragging)return;
+    const left=Math.max(0,Math.min(ev.clientX-ox,window.innerWidth-mcaEl.offsetWidth-4));
+    const top=Math.max(0,Math.min(ev.clientY-oy,window.innerHeight-mcaEl.offsetHeight-4));
+    mcaEl.style.left=left+'px';
+    mcaEl.style.top=top+'px';
+  };
+  const onUp=()=>{
+    if(!dragging)return;
+    dragging=false;
+    mcaSavePos();
+  };
+  mcaEl.addEventListener('pointerdown',onDown);
+  window.addEventListener('pointermove',onMove);
+  window.addEventListener('pointerup',onUp);
+}
+(function initMca(){
+  if(!mcaEl||!mcaInput)return;
+  mcaRestorePos();
+  mcaMakeDraggable();
+  mcaInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();mcaExecute();return;}
+    if(e.key==='Escape'){e.preventDefault();mcaClear();return;}
+    if(e.key==='r'&&e.ctrlKey){
+      e.preventDefault();
+      mcaInput.value=mcaLastCmd||'';
+      mcaInput.setSelectionRange(mcaInput.value.length,mcaInput.value.length);
+    }
+  });
+})();
 
 //============================================================ sounds (Web Audio, no files)
 let audioCtx=null;
