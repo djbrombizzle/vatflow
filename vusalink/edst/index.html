@@ -580,6 +580,45 @@ td.eh-bk{text-align:center;min-width:14px}
   text-shadow:0 0 4px #000,0 0 4px #000;
 }
 #gpdmenu .gpd-tip{background:rgba(0,0,0,.85);border:1px solid #555;padding:3px 6px}
+#gpdmenu .gpd-tools{
+  flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:3px 6px;
+  background:#1a1a1a;border-bottom:1px solid #444;
+}
+#gpdmenu .gpd-tools .et-btn{
+  border:1px solid #8a8a8a;color:#d6d6d6;background:#000;padding:2px 10px;
+  font:inherit;cursor:pointer;
+}
+#gpdmenu .gpd-tools .et-btn:hover{background:#1a1a1a}
+#gpdmenu .gpd-tools .et-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
+#gpdmapopts.edst-pop{
+  position:absolute;z-index:72;width:220px;
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#gpdmapopts.hidden{display:none!important}
+#gpdmapopts .edst-pop-hdr{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  cursor:move;user-select:none;
+}
+#gpdmapopts .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#gpdmapopts .edst-pop-hdr .x:hover{background:#333}
+#gpdmapopts .gpd-opt-body{padding:8px 10px}
+#gpdmapopts .gpd-opt-label{
+  font-size:11px;letter-spacing:.06em;color:#aeb6af;margin-bottom:6px;
+}
+#gpdmapopts .gpd-opt-seg{display:flex;border:1px solid #8a8a8a}
+#gpdmapopts .gpd-opt-seg button{
+  flex:1;border:0;border-right:1px solid #8a8a8a;background:#2a2a2a;color:#ddd;
+  font:inherit;padding:6px 4px;cursor:pointer;
+}
+#gpdmapopts .gpd-opt-seg button:last-child{border-right:0}
+#gpdmapopts .gpd-opt-seg button:hover{background:#3a3a3a}
+#gpdmapopts .gpd-opt-seg button.on{background:#6b3a3a;color:#fff}
+#gpdmapopts .gpd-opt-hint{
+  margin-top:8px;font-size:10px;color:#8a9088;line-height:1.4;
+}
 #edstbar .etb-btn.active-gpd{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
 
 /* GI (General Information) popup */
@@ -1467,11 +1506,32 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="title" id="gpdTitle">GPD — GRAPHICAL PLAN DISPLAY</span>
     <span class="x" data-close="gpdmenu" title="Close">X</span>
   </div>
+  <div class="gpd-tools">
+    <button type="button" class="et-btn" id="btnGpdMapOpts" title="Map Options">Map Options...</button>
+  </div>
   <div id="gpdMap" role="img" aria-label="Graphical plan display map"></div>
   <div class="gpd-foot">
     <span>ARTCC <b id="gpdArtcc">——</b></span>
     <span>TRAFFIC <b id="gpdCount">0</b></span>
+    <span>SECTORS <b id="gpdSectorMode">OFF</b></span>
     <span style="opacity:.65">Routes from hub fixes / FCA route engine</span>
+  </div>
+</div>
+
+<!-- GPD Map Options (sector lines OFF / HIGH / LOW) -->
+<div id="gpdmapopts" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">MAP OPTIONS</span>
+    <span class="x" data-close="gpdmapopts" title="Close">X</span>
+  </div>
+  <div class="gpd-opt-body">
+    <div class="gpd-opt-label">SECTOR LINES</div>
+    <div class="gpd-opt-seg" id="gpdSectorSeg" role="group" aria-label="Sector lines">
+      <button type="button" data-gpd-sector="off" class="on">OFF</button>
+      <button type="button" data-gpd-sector="high">HIGH</button>
+      <button type="button" data-gpd-sector="low">LOW</button>
+    </div>
+    <div class="gpd-opt-hint">HIGH / LOW ERAM sector boundaries for the viewing ARTCC.</div>
   </div>
 </div>
 
@@ -2253,7 +2313,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2598,7 +2658,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2612,6 +2672,10 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
+    if(id==='gpdmenu'&&ev.target.closest('#gpdmapopts'))return;
+    if(id==='gpdmenu'&&ev.target.closest('#btnGpdMapOpts'))return;
+    if(id==='gpdmapopts'&&ev.target.closest('#btnGpdMapOpts'))return;
+    if(id==='gpdmapopts'&&ev.target.closest('#gpdmenu'))return;
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
@@ -2622,6 +2686,9 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
       if(btn)btn.classList.remove('active-gpd');
+      close('gpdmapopts');
+      const mo=document.getElementById('btnGpdMapOpts');
+      if(mo)mo.classList.remove('active');
     }
     if(id==='depmenu'){
       const btn=document.getElementById('tabDep');
@@ -4501,6 +4568,49 @@ makeEdstDraggable(holdmenu);
 //============================================================ GPD (Graphical Plan Display)
 const gpdmenu=document.getElementById('gpdmenu');
 let gpdMapApi=null,gpdReady=null,gpdFitOnce=false;
+let gpdSectorMode='off'; // 'off' | 'high' | 'low'
+
+function syncGpdSectorUi(){
+  const label=document.getElementById('gpdSectorMode');
+  if(label)label.textContent=(gpdSectorMode||'off').toUpperCase();
+  document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
+    btn.classList.toggle('on',btn.dataset.gpdSector===gpdSectorMode);
+  });
+  const mo=document.getElementById('btnGpdMapOpts');
+  if(mo)mo.classList.toggle('active',gpdSectorMode!=='off');
+}
+function setGpdSectorMode(mode){
+  const m=String(mode||'off').toLowerCase();
+  gpdSectorMode=(m==='high'||m==='low')?m:'off';
+  syncGpdSectorUi();
+  if(gpdMapApi&&gpdMapApi.setSectorMode)gpdMapApi.setSectorMode(gpdSectorMode);
+  else if(gpdMapApi)refreshGpdMap(false);
+}
+function openGpdMapOptions(){
+  const menu=document.getElementById('gpdmapopts');
+  const btn=document.getElementById('btnGpdMapOpts');
+  if(!menu||!btn)return;
+  if(!menu.classList.contains('hidden')){
+    close('gpdmapopts');
+    return;
+  }
+  syncGpdSectorUi();
+  const r=btn.getBoundingClientRect();
+  placePop(menu,r.left,r.bottom+4);
+}
+const _btnGpdMapOpts=document.getElementById('btnGpdMapOpts');
+if(_btnGpdMapOpts)_btnGpdMapOpts.addEventListener('click',e=>{
+  e.preventDefault();e.stopPropagation();
+  openGpdMapOptions();
+});
+document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
+  btn.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    setGpdSectorMode(btn.dataset.gpdSector);
+  });
+});
+makeEdstDraggable(document.getElementById('gpdmapopts'));
+syncGpdSectorUi();
 
 async function ensureConflictProbe(){
   if(conflictProbeMod)return conflictProbeMod;
@@ -4665,9 +4775,11 @@ function refreshGpdMap(refit){
     refit:!!refit,
     alertByCs:conflictAlerts,
     alertShowFilter:alertShowFilter,
+    sectorMode:gpdSectorMode,
   });
   const n=gpdMapApi.getTrafficCount?gpdMapApi.getTrafficCount():0;
   document.getElementById('gpdCount').textContent=String(n);
+  syncGpdSectorUi();
   document.getElementById('gpdTitle').textContent=art
     ?('GPD — '+art+' GRAPHICAL PLAN DISPLAY')
     :'GPD — GRAPHICAL PLAN DISPLAY';
@@ -4693,8 +4805,11 @@ async function openGpdMenu(){
 }
 function closeGpdMenu(){
   close('gpdmenu');
+  close('gpdmapopts');
   const btn=document.getElementById('btnGpd');
   if(btn)btn.classList.remove('active-gpd');
+  const mo=document.getElementById('btnGpdMapOpts');
+  if(mo)mo.classList.remove('active');
 }
 document.getElementById('btnGpd').addEventListener('click',e=>{
   e.preventDefault();e.stopPropagation();

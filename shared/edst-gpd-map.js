@@ -14,6 +14,7 @@ import {
 } from "./route-engine.js";
 
 const ARTCC_STYLE = { color: "#5a9ab8", weight: 1.5, opacity: 0.95, fill: false };
+const SECTOR_STYLE = { color: "#8aa8b8", weight: 1, opacity: 0.75, fill: false };
 const ROUTE_FAINT = { color: "#5a7a9a", weight: 1.25, opacity: 0.55 };
 const ROUTE_SEL = { color: "#8ab4ff", weight: 2.5, opacity: 0.95 };
 const ROUTE_ALERT_R = { color: "#e0483b", weight: 2.25, opacity: 0.95 };
@@ -24,6 +25,51 @@ const ROUTE_ALERT_Y_DIM = { color: "#8a8030", weight: 1.75, opacity: 0.7 };
 const ROUTE_ALERT_A_DIM = { color: "#8a5a28", weight: 1.75, opacity: 0.7 };
 const AC_COLOR = "#49d3e6";
 const AC_SEL = "#e0a13b";
+
+/** @type {{ high: object|null, low: object|null }} */
+const sectorCache = { high: null, low: null };
+let sectorsLoading = null;
+
+/** Normalize ARTCC id for sector property match (ZJX). */
+export function sectorArtccKey(artccId) {
+  return normArtccId(artccId || "").replace(/^K(?=Z)/, "");
+}
+
+/** Features for one ARTCC from a sector FeatureCollection. */
+export function filterSectorsByArtcc(geojson, artccId) {
+  const key = sectorArtccKey(artccId);
+  if (!key || !geojson || !Array.isArray(geojson.features)) return [];
+  return geojson.features.filter(f => {
+    const a = ((f.properties && f.properties.artcc) || "").toUpperCase().replace(/^K(?=Z)/, "");
+    return a === key;
+  });
+}
+
+export function getSectorCache() {
+  return sectorCache;
+}
+
+export async function loadSectorData(baseUrl = "") {
+  if (sectorCache.high && sectorCache.low) return sectorCache;
+  if (sectorsLoading) return sectorsLoading;
+  const root = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+  sectorsLoading = (async () => {
+    const loadOne = async (name) => {
+      try {
+        const r = await fetch(root + "data/artcc-sectors-" + name + ".geojson");
+        if (!r.ok) return null;
+        return await r.json();
+      } catch (_) {
+        return null;
+      }
+    };
+    const [high, low] = await Promise.all([loadOne("high"), loadOne("low")]);
+    if (high) sectorCache.high = high;
+    if (low) sectorCache.low = low;
+    return sectorCache;
+  })().finally(() => { sectorsLoading = null; });
+  return sectorsLoading;
+}
 
 function routeStyleForAlert(sev, muted, selected) {
   if (selected && !sev) return ROUTE_SEL;
@@ -159,6 +205,7 @@ export async function prepareEdstGpdData(repoRoot = "../../") {
     fetchArtccBoundaries(root),
     loadNavData(root + "data/nav").catch(() => null),
     loadAirports().catch(() => null),
+    loadSectorData(root).catch(() => null),
   ];
   // Optional SUA for A-box / GPD — ignore failures
   try {
@@ -188,6 +235,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   try { map.getContainer().style.background = "#000"; } catch (_) { /* ignore */ }
 
   const boundaryLayer = L.layerGroup().addTo(map);
+  const sectorLayer = L.layerGroup().addTo(map);
   const labelLayer = L.layerGroup().addTo(map);
   const routeLayer = L.layerGroup().addTo(map);
   const trafficLayer = L.layerGroup().addTo(map);
@@ -199,7 +247,21 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   let trafficCount = 0;
   let alertByCs = null; // Map or object: cs -> {r,y,a,rMuted,yMuted,aMuted,status}
   let alertShowFilter = null; // {type:'r'|'y'|'a', cs?:string} — Show / Show All
+  let sectorMode = "off"; // 'off' | 'high' | 'low'
   const onSelect = typeof opts.onSelect === "function" ? opts.onSelect : null;
+
+  function drawSectors(artccId) {
+    sectorLayer.clearLayers();
+    if (sectorMode !== "high" && sectorMode !== "low") return;
+    const gj = sectorCache[sectorMode];
+    const feats = filterSectorsByArtcc(gj, artccId);
+    for (const f of feats) {
+      L.geoJSON(f, {
+        style: SECTOR_STYLE,
+        interactive: false,
+      }).addTo(sectorLayer);
+    }
+  }
 
   function drawBoundary(artccId) {
     boundaryLayer.clearLayers();
@@ -313,12 +375,14 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   function render({ refit = false } = {}) {
     if (!currentArtcc) {
       drawBoundary("");
+      drawSectors("");
       routeLayer.clearLayers();
       trafficLayer.clearLayers();
       trafficCount = 0;
       return;
     }
     drawBoundary(currentArtcc);
+    drawSectors(currentArtcc);
     if (refit || lastFitArtcc !== currentArtcc) {
       fitToArtcc(currentArtcc, lastFlights);
       lastFitArtcc = currentArtcc;
@@ -333,9 +397,24 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   }
 
   /**
+   * Map Options sector lines: 'off' | 'high' | 'low'
+   * @param {string} mode
+   */
+  function setSectorMode(mode) {
+    const m = String(mode || "off").toLowerCase();
+    sectorMode = (m === "high" || m === "low") ? m : "off";
+    drawSectors(currentArtcc);
+  }
+
+  function getSectorMode() {
+    return sectorMode;
+  }
+
+  /**
    * @param {object[]} flights liveFlights / board aircraft
    * @param {{ selectedCs?: string|null, artccId?: string, refit?: boolean,
-   *           alertByCs?: Map|object|null, alertShowFilter?: object|null }} [options]
+   *           alertByCs?: Map|object|null, alertShowFilter?: object|null,
+   *           sectorMode?: string }} [options]
    */
   function update(flights, options = {}) {
     if (options.artccId) currentArtcc = normArtccId(options.artccId);
@@ -345,6 +424,10 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     }
     if ("alertByCs" in options) alertByCs = options.alertByCs || null;
     if ("alertShowFilter" in options) alertShowFilter = options.alertShowFilter || null;
+    if ("sectorMode" in options && options.sectorMode != null) {
+      const m = String(options.sectorMode).toLowerCase();
+      sectorMode = (m === "high" || m === "low") ? m : "off";
+    }
     render({ refit: !!options.refit });
   }
 
@@ -365,5 +448,8 @@ export function createEdstGpdMap(containerEl, opts = {}) {
 
   map.setView([39, -98], 4);
   invalidateSize();
-  return { map, setArtcc, update, destroy, invalidateSize, getTrafficCount };
+  return {
+    map, setArtcc, update, destroy, invalidateSize, getTrafficCount,
+    setSectorMode, getSectorMode,
+  };
 }
