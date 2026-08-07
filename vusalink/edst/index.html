@@ -2642,6 +2642,10 @@ function close(id){
   if(id==='gpdmenu'){
     const btn=document.getElementById('btnGpd');
     if(btn)btn.classList.remove('active-gpd');
+    const opts=document.getElementById('gpdmapopts');
+    if(opts)opts.classList.add('hidden');
+    const mo=document.getElementById('btnGpdMapOpts');
+    if(mo)mo.classList.remove('active');
   }
   if(id==='wxmenu'){
     const btn=document.getElementById('btnWx');
