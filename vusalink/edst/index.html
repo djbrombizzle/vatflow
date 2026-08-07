@@ -152,6 +152,24 @@ td.eh-bk{text-align:center;min-width:14px}
 .efid:hover .acid,.efid:active .acid{color:#fff;text-decoration:underline}
 .etyp,.ecod{color:#d2d2cd}
 
+/* Uplink ▲ / downlink ▼ beside callsign — same glyphs as column sort; invisible until active */
+.fid-wrap{display:inline-flex;align-items:center;gap:0;white-space:nowrap}
+.msg-tri{
+  display:inline-block;min-width:1em;margin-left:3px;padding:0 1px;
+  font-size:inherit;line-height:1;vertical-align:middle;
+  opacity:0;pointer-events:none;cursor:default;user-select:none;
+  color:transparent;
+}
+.msg-tri.up,.msg-tri.dn,.msg-tri.ho{
+  opacity:1;pointer-events:auto;cursor:pointer;
+}
+.msg-tri.up,.msg-tri.ho{color:#fff}
+.msg-tri.up.timeout,.msg-tri.ho.timeout{color:var(--red)}
+.msg-tri.dn{color:var(--teal)}
+.msg-tri.dn.flash{color:var(--red);animation:msgtriflash 1s steps(2,start) infinite}
+@keyframes msgtriflash{50%{opacity:0}}
+.msg-tri:hover{filter:brightness(1.25)}
+
 .alt-cell{color:#d2d2cd;cursor:pointer}
 .alt-cell:hover{color:#fff;text-decoration:underline}
 
@@ -750,6 +768,49 @@ td.eh-bk{text-align:center;min-width:14px}
 #handoffpop .hobtn:hover,#handoffpop .hobtn:active{background:#3a3a3a}
 #handoffpop .hobtn.handover{color:#9fe6e0;border-color:#2f6b73}
 #handoffpop .hobtn.contact{color:var(--amber);border-color:#5a4a22}
+
+/* EDST per-aircraft MESSAGE popup (callsign uplink/downlink triangle) */
+#msgpop.edst-pop{
+  position:absolute;z-index:70;min-width:min(320px,96vw);max-width:min(460px,96vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#msgpop .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#msgpop .edst-pop-hdr .title{letter-spacing:.3px}
+#msgpop .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#msgpop .edst-pop-hdr .x:hover{background:#333}
+#msgpop .mp-acts{
+  display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;border-bottom:1px solid #333;
+  background:#101010;align-items:center;
+}
+#msgpop .mp-acts .hobtn{
+  border:1px solid #777;padding:1px 10px;margin:0;background:#2a2a2a;color:#eee;
+  font:inherit;font-size:11px;cursor:pointer;display:inline-block;
+}
+#msgpop .mp-acts .hobtn:hover{background:#3a3a3a}
+#msgpop .mp-acts .hobtn.unable{color:#e08a8a;border-color:#7a2a2a}
+#msgpop .mp-acts .hobtn.standby{color:var(--amber);border-color:#5a4a22}
+#msgpop .mp-acts .hobtn.send{color:#9fe6e0;border-color:#2f6b73}
+#msgpop .mp-free{display:flex;gap:6px;flex:1 1 100%;min-width:0;align-items:center}
+#msgpop .mp-free input{
+  flex:1;min-width:0;background:#000;border:1px solid #555;color:#f0f0ec;
+  padding:2px 6px;font:inherit;
+}
+#msgpop .mp-free input:disabled{opacity:.4}
+#msgpop .mlist{max-height:300px;overflow:auto;padding:4px 8px;background:#000}
+#msgpop .mitem{border-bottom:1px solid #181818;padding:4px 0;white-space:normal;word-break:break-word}
+#msgpop .mitem .meta{color:var(--fg-dim);font-size:11px}
+#msgpop .mitem .dir{font-weight:700;font-size:11px}
+#msgpop .mitem.in .dir{color:var(--teal)}
+#msgpop .mitem.out .dir{color:var(--amber)}
+#msgpop .mitem.sys .dir{color:var(--green)}
+#msgpop .mitem.err .dir{color:#e08a8a}
+#msgpop .empty{padding:8px 10px;color:var(--fg-dim)}
 #handoffpop .empty{padding:8px 10px;color:var(--fg-dim)}
 
 /* EDST DEPARTURE LIST */
@@ -1192,6 +1253,24 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="x" data-close="handoffpop" title="Close">X</span>
   </div>
   <div class="holist" id="hoList"></div>
+</div>
+
+<!-- EDST MESSAGE popup (uplink ▲ / downlink ▼ beside callsign) -->
+<div id="msgpop" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="mpTitle">MESSAGES</span>
+    <span class="x" data-close="msgpop" title="Close">X</span>
+  </div>
+  <div class="mp-acts" id="mpActs">
+    <span class="hobtn unable" id="mpUnable" title="UM0 — reply UNABLE to the pilot request">UNABLE</span>
+    <span class="hobtn standby" id="mpStandby" title="UM1 — reply STANDBY to the pilot request">STANDBY</span>
+    <div class="mp-free">
+      <input id="mpFreeText" type="text" maxlength="220" autocomplete="off" spellcheck="false"
+        placeholder="Free-text reply…" title="Custom CPDLC reply to the pilot request">
+      <span class="hobtn send" id="mpFreeSend" title="Send free-text reply">SEND</span>
+    </div>
+  </div>
+  <div class="mlist" id="mpList"></div>
 </div>
 
 <!-- EDST HDG menu -->
@@ -2086,7 +2165,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2276,20 +2355,48 @@ function onFreqCellHtml(cs){
              :'requesting logon — click to accept';
   return `<span class="${cls}" data-logon="${cs}" title="${title}"></span>`;
 }
+/** Callsign uplink ▲ / handoff ▶ / downlink ▼ — same glyphs as column sort headers. */
+function msgTriHtml(cs){
+  cs=(cs||'').toUpperCase();
+  const w=wilcoUi[cs];
+  const timeout=!!(w&&w.kind==='timeout');
+  // Downlink unread takes priority.
+  if(msgAlert.has(cs)){
+    return `<span class="msg-tri dn flash" data-msg="${cs}" title="Downlink message — click to open">\u25bc</span>`;
+  }
+  // Handoff pending → right-pointing triangle (clears on WILCO).
+  if(handoffPending.has(cs)){
+    const tip=timeout
+      ?'Handoff timeout — click to view; acknowledge to clear'
+      :'Handoff pending WILCO — click to view';
+    return `<span class="msg-tri ho${timeout?' timeout':''}" data-msg="${cs}" title="${tip}">\u25b6</span>`;
+  }
+  // Other uplink pending → solid white up triangle.
+  if(hasUplinkPending(cs)){
+    const tip=timeout
+      ?'Uplink timeout — click to view; acknowledge red underline to clear'
+      :'Uplink pending WILCO — click to view';
+    return `<span class="msg-tri up${timeout?' timeout':''}" data-msg="${cs}" title="${tip}">\u25b2</span>`;
+  }
+  // Invisible placeholder keeps Flight ID column width stable.
+  return `<span class="msg-tri" aria-hidden="true">\u25b2</span>`;
+}
 function renderRowEdst(a,idx){
   const bk=onFreqCellHtml(a.cs);
-  const rbox=`<span class="abox msg ${msgAlert.has(a.cs)?'flash':''}" title="message"></span>`;
+  // R box is reserved (no message button — uplink/downlink lives beside callsign).
+  const rbox=`<span class="abox" title=""></span>`;
   const ybox=`<span class="abox" title=""></span>`;
   const abox=`<span class="abox ${handoffPending.has(a.cs)?'ho':''}" title="handoff"></span>`;
   const conn=connected.has(a.cs);
   const connCue=conn?' conn':'';
   const fidTitle=conn?'on CPDLC \u00b7 handoff':'handoff';
   const fid=`<span class="efid${connCue}" data-cs="${a.cs}" data-ho="${idx}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid">${a.cs}</span></span>`;
+  const tri=msgTriHtml(a.cs);
   const rMark=uplinkMarkClass(a.cs,routePending);
   const rRed=rMark.includes('ul-red')?` data-pend="route" data-cs="${a.cs}"`:'';
   const routeHtml=`<span class="${(rMark||'ul-val').trim()}"${rRed}>${esc(a.route||'')}</span>`;
   return `<td class="eh-bk">${bk}</td><td class="eh-al">${rbox}</td><td class="eh-al">${ybox}</td><td class="eh-al">${abox}</td>`
-        +`<td>${fid}</td><td class="eh-pa"><span class="smbox"></span></td>`
+        +`<td><span class="fid-wrap">${fid}${tri}</span></td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
         +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
         +`<td class="ecod">${sqkCellHtml(a)}</td>`
@@ -2380,7 +2487,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2389,6 +2496,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='spdmenu'&&ev.target.closest('.spd-cell'))return;
     if(id==='routemenu'&&ev.target.closest('.route-cell'))return;
     if(id==='handoffpop'&&ev.target.closest('.efid'))return;
+    if(id==='msgpop'&&ev.target.closest('[data-msg]'))return;
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
@@ -3178,6 +3286,7 @@ makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
 makeEdstDraggable(document.getElementById('routemenu'));
 makeEdstDraggable(document.getElementById('handoffpop'));
+makeEdstDraggable(document.getElementById('msgpop'));
 makeEdstDraggable(document.getElementById('depmenu'));
 makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
@@ -4034,7 +4143,8 @@ async function sendGiMessage(){
 function isMenuClickTarget(el){
   return !!(el.closest('.alt-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
     ||el.closest('.route-cell')||el.closest('.sqk-asg')||el.closest('.abox')
-    ||el.closest('.efid')||el.closest('[data-logon]')||el.closest('.vci')||el.closest('.ul-red'));
+    ||el.closest('.efid')||el.closest('[data-msg]')||el.closest('[data-logon]')
+    ||el.closest('.vci')||el.closest('.ul-red'));
 }
 function syncHoldButton(){
   const btn=document.getElementById('btnHold');
@@ -4510,12 +4620,19 @@ document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
   });
 });
 
-//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / row select)
+//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / MSG / row select)
 rows.addEventListener('click',e=>{
   const pendAck=e.target.closest('.ul-red[data-pend]');
   if(pendAck){
     e.preventDefault();e.stopPropagation();
     ackColumnPending(pendAck.dataset.cs,pendAck.dataset.pend);
+    return;
+  }
+  const mtri=e.target.closest('[data-msg]');
+  if(mtri){
+    e.preventDefault();e.stopPropagation();
+    const r=mtri.getBoundingClientRect();
+    openMessages(mtri.dataset.msg,r.left,r.bottom+2);
     return;
   }
   const lbox=e.target.closest('[data-logon]');
@@ -4571,6 +4688,83 @@ rows.addEventListener('click',e=>{
   if(!tr||!rows.contains(tr))return;
   selectAircraftRow(tr.dataset.cs||null);
 });
+
+//============================================================ MESSAGE popup (callsign ▲/▼)
+const msgpop=document.getElementById('msgpop');
+let msgPopCs='';
+// UM0 UNABLE / UM1 STANDBY / free-text — same pattern as classic board M-box.
+async function sendMsgReply(text){
+  const cs=(msgPopCs||'').toUpperCase();
+  const body=String(text||'').trim();
+  if(!cs||!body||!canControl())return;
+  const mrn=lastPilotMsgMin[cs]||'';
+  const min=await sendCpdlc(cs,'N',body,mrn);
+  if(min!=null){
+    logMsg('sys',cs,body+(mrn?' (ref MIN '+mrn+')':''));
+    const free=document.getElementById('mpFreeText');
+    if(free)free.value='';
+    if(msgpop&&!msgpop.classList.contains('hidden'))openMessages(cs);
+  }
+}
+function sendMsgFreeText(){
+  const free=document.getElementById('mpFreeText');
+  sendMsgReply(free?free.value:'');
+}
+(function wireMsgPopActs(){
+  const unable=document.getElementById('mpUnable');
+  const standby=document.getElementById('mpStandby');
+  const freeSend=document.getElementById('mpFreeSend');
+  const free=document.getElementById('mpFreeText');
+  if(unable)unable.onclick=()=>sendMsgReply('UNABLE');
+  if(standby)standby.onclick=()=>sendMsgReply('STANDBY');
+  if(freeSend)freeSend.onclick=()=>sendMsgFreeText();
+  if(free)free.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();sendMsgFreeText();}
+  });
+})();
+function openMessages(cs,x,y){
+  cs=(cs||'').toUpperCase();
+  if(!cs||!msgpop)return;
+  msgPopCs=cs;
+  msgAlert.delete(cs);stopMsgRepeat(cs);renderBoard();
+  document.getElementById('mpTitle').textContent='MESSAGES '+cs;
+  const canReply=canControl();
+  const free=document.getElementById('mpFreeText');
+  const freeSend=document.getElementById('mpFreeSend');
+  const unable=document.getElementById('mpUnable');
+  const standby=document.getElementById('mpStandby');
+  if(unable)unable.style.opacity=canReply?'':'0.4';
+  if(standby)standby.style.opacity=canReply?'':'0.4';
+  if(freeSend)freeSend.style.opacity=canReply?'':'0.4';
+  if(free)free.disabled=!canReply;
+  if(unable)unable.title=canReply
+    ?('UM0 — reply UNABLE'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
+    :'Sign in / verify to send';
+  if(standby)standby.title=canReply
+    ?('UM1 — reply STANDBY'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
+    :'Sign in / verify to send';
+  if(free)free.title=canReply
+    ?('Free-text reply'+(lastPilotMsgMin[cs]?' (ref MIN '+lastPilotMsgMin[cs]+')':''))
+    :'Sign in / verify to send';
+  if(freeSend)freeSend.title=canReply?'Send free-text reply':'Sign in / verify to send';
+  const L=document.getElementById('mpList');
+  if(L){
+    L.innerHTML='';
+    const arr=messages[cs]||[];
+    if(!arr.length){L.innerHTML='<div class="empty">No messages.</div>';}
+    else{
+      arr.slice().reverse().forEach(m=>{
+        const dir=histDirLabel(m.kind);
+        const d=document.createElement('div');d.className='mitem '+(m.kind||'');
+        d.innerHTML=`<span class="dir">${dir}</span> <span class="meta">${esc(m.time||'')}</span><br>${esc(m.text||'')}`;
+        L.appendChild(d);
+      });
+    }
+  }
+  if(x!=null&&y!=null)placePop(msgpop,x,y);
+  else if(msgpop.classList.contains('hidden'))placePop(msgpop,20,80);
+  else msgpop.classList.remove('hidden');
+}
 
 //============================================================ sounds (Web Audio, no files)
 let audioCtx=null;
