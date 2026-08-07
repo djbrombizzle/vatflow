@@ -135,9 +135,44 @@ a{color:inherit}
 }
 td.eh-bk{text-align:center;min-width:14px}
 .abox{width:12px;height:12px;border:1px solid #c9cfca;display:inline-flex;
-  align-items:center;justify-content:center;font-size:10px;line-height:1;vertical-align:middle;margin:0}
+  align-items:center;justify-content:center;font-size:10px;line-height:1;vertical-align:middle;margin:0;
+  box-sizing:border-box;font-family:inherit;color:transparent;background:transparent;cursor:default;user-select:none}
 .abox.msg.flash{background:#e0483b;border-color:#e0483b;color:#000;animation:edstflash 1s steps(2,start) infinite}
 .abox.ho{background:#e0913f;border-color:#e0913f}
+/* R/Y/A conflict alert fills — bright vs muted (uncleared altitude change) */
+.abox.alert{cursor:pointer;font-weight:bold}
+.abox[data-alert]{cursor:pointer}
+.abox.alert-r{border-color:#e0483b;color:#e0483b}
+.abox.alert-r.bright{background:rgba(224,72,59,.22);color:#ff5a4a;border-color:#ff5a4a}
+.abox.alert-r.muted{border-color:#8a3030;color:#8a3030;background:transparent}
+.abox.alert-y{border-color:#dcd63f;color:#dcd63f}
+.abox.alert-y.bright{background:rgba(220,214,63,.2);color:#ebe64a;border-color:#ebe64a}
+.abox.alert-y.muted{border-color:#8a8030;color:#8a8030;background:transparent}
+.abox.alert-a{border-color:#e0913f;color:#e0913f}
+.abox.alert-a.bright{background:rgba(224,145,63,.22);color:#f0a04a;border-color:#f0a04a}
+.abox.alert-a.muted{border-color:#8a5a28;color:#8a5a28;background:transparent}
+.abox.alert-sel{outline:1px solid #fff;outline-offset:1px}
+.abox.probe-mark{border-color:#8a5a30;color:#8a5a30;font-size:9px;font-weight:bold}
+.acid.probe-brown{color:#8a5a30!important}
+
+/* Conflict acknowledge menu */
+#ackmenu.edst-pop{
+  position:absolute;z-index:72;min-width:200px;width:min(260px,92vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#ackmenu .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#ackmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#ackmenu .ack-list .ack-item{
+  padding:6px 10px;cursor:pointer;border-bottom:1px solid #222;
+}
+#ackmenu .ack-list .ack-item:hover{background:#1c1c1c}
+#ackmenu .ack-list .ack-meta{color:#8a9088;font-size:11px}
 @keyframes edstflash{50%{background:#3a0f0c}}
 .smbox{width:14px;height:14px;border:1px solid #7d847e;display:inline-block;vertical-align:middle;box-sizing:border-box}
 /* Flight ID CPDLC indicator — hollow white square; solid white when logged on */
@@ -1092,8 +1127,8 @@ td.eh-bk{text-align:center;min-width:14px}
 <div id="edstTools">
   <button type="button" class="et-btn" data-stub="Plan Options">Plan Options...</button>
   <button type="button" class="et-btn disabled" id="btnHold" title="Select an aircraft row first">Hold...</button>
-  <button type="button" class="et-btn" data-stub="Show">Show</button>
-  <button type="button" class="et-btn" id="btnShowAll">Show ALL</button>
+  <button type="button" class="et-btn disabled" id="btnShow" title="Select an alert box first">Show</button>
+  <button type="button" class="et-btn disabled" id="btnShowAll" title="Select an alert box first">Show ALL</button>
   <button type="button" class="et-btn" data-stub="Sort">Sort...</button>
   <button type="button" class="et-btn" data-stub="Tools">Tools...</button>
   <button type="button" class="et-btn" data-stub="Posting Mode">Posting Mode</button>
@@ -1300,6 +1335,15 @@ td.eh-bk{text-align:center;min-width:14px}
     </div>
   </div>
   <div class="mlist" id="mpList"></div>
+</div>
+
+<!-- Conflict Acknowledge Menu (right-click R/Y/A) -->
+<div id="ackmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="ackTitle">CONFLICT ACK</span>
+    <span class="x" data-close="ackmenu" title="Close">X</span>
+  </div>
+  <div class="ack-list" id="ackList"></div>
 </div>
 
 <!-- ERAM Message Composition Area (keyboard /U uplinks) -->
@@ -1600,7 +1644,15 @@ const sqPendingSet=new Set(Object.keys(sqPending||{})); // pending squawk awaiti
 const messages={};                       // cs -> [{text,time}]
 const seenMsgIds=new Set();
 const msgRepeatTimers={};                // cs -> interval id for unread message chime
-let pollTimer=null,burstUntil=0,vatsimTimer=null;
+// R/Y/A conflict probe
+let conflictProbeMod=null;
+let conflictAlerts=new Map();            // cs -> probe entry
+const stopProbeCs=new Set();             // brown S
+const holdActiveCs=new Set();            // brown H (after HOLD uplink)
+const frozenCs=new Set();                // brown F
+let alertSelection=null;                 // {cs, type:'r'|'y'|'a'}
+let alertShowFilter=null;                // {type, cs?} for GPD Show / Show ALL
+let conflictProbeTimer=null;let pollTimer=null,burstUntil=0,vatsimTimer=null;
 let myPosition={callsign:'',label:'',freqMhz:null};
 const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM transceivers feed
 // GI (General Information) — free text synced via hub to tier-1 neighbor centers
@@ -2204,7 +2256,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2420,21 +2472,42 @@ function msgTriHtml(cs){
   // Invisible placeholder keeps Flight ID column width stable.
   return `<span class="msg-tri" aria-hidden="true">\u25b2</span>`;
 }
+function alertBoxHtml(cs){
+  cs=(cs||'').toUpperCase();
+  const e=conflictAlerts.get(cs);
+  const sel=alertSelection&&alertSelection.cs===cs?alertSelection.type:null;
+  if(e&&e.status){
+    const mark=`<span class="abox probe-mark" title="Not probed (${e.status})">${e.status}</span>`;
+    return {r:mark,y:mark,a:mark,brownFid:true};
+  }
+  function one(type, count, muted, tip){
+    const n=count?Math.min(9,count):'';
+    const bright=count?(muted?'muted':'bright'):'';
+    const isSel=sel===type?' alert-sel':'';
+    const cls=count?`abox alert alert-${type} ${bright}${isSel}`:`abox${isSel}`;
+    return `<span class="${cls.trim()}" data-alert="${type}" data-cs="${cs}" title="${tip}">${n}</span>`;
+  }
+  const r=e?e.r:0, y=e?e.y:0, a=e?e.a:0;
+  return {
+    r:one('r',r,e&&e.rMuted, r?`${r} A–A ≤5 NM`:'Red alert — A–A ≤5 NM'),
+    y:one('y',y,e&&e.yMuted, y?`${y} A–A 5–12 NM`:'Yellow alert — A–A 5–12 NM'),
+    a:one('a',a,e&&e.aMuted, a?`${a} airspace ≤3 NM`:'Airspace alert — SAA ≤3 NM'),
+    brownFid:false,
+  };
+}
 function renderRowEdst(a,idx){
   const bk=onFreqCellHtml(a.cs);
-  // R box is reserved (no message button — uplink/downlink lives beside callsign).
-  const rbox=`<span class="abox" title=""></span>`;
-  const ybox=`<span class="abox" title=""></span>`;
-  const abox=`<span class="abox ${handoffPending.has(a.cs)?'ho':''}" title="handoff"></span>`;
+  const alerts=alertBoxHtml(a.cs);
   const conn=connected.has(a.cs);
   const connCue=conn?' conn':'';
   const fidTitle=conn?'on CPDLC \u00b7 handoff':'handoff';
-  const fid=`<span class="efid${connCue}" data-cs="${a.cs}" data-ho="${idx}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid">${a.cs}</span></span>`;
+  const brownFid=alerts.brownFid?' probe-brown':'';
+  const fid=`<span class="efid${connCue}" data-cs="${a.cs}" data-ho="${idx}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid${brownFid}">${a.cs}</span></span>`;
   const tri=msgTriHtml(a.cs);
   const rMark=uplinkMarkClass(a.cs,routePending);
   const rRed=rMark.includes('ul-red')?` data-pend="route" data-cs="${a.cs}"`:'';
   const routeHtml=`<span class="${(rMark||'ul-val').trim()}"${rRed}>${esc(a.route||'')}</span>`;
-  return `<td class="eh-bk">${bk}</td><td class="eh-al">${rbox}</td><td class="eh-al">${ybox}</td><td class="eh-al">${abox}</td>`
+  return `<td class="eh-bk">${bk}</td><td class="eh-al">${alerts.r}</td><td class="eh-al">${alerts.y}</td><td class="eh-al">${alerts.a}</td>`
         +`<td><span class="fid-wrap">${fid}${tri}</span></td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
         +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
@@ -2460,6 +2533,7 @@ function renderBoard(){
   updateMode();updatePositionBar();updateTabTitle();
   annotateFlights();
   pruneHandoffAwait();
+  scheduleConflictProbe();
   const list=displayList();
   const onListConnected=new Set(list.filter(a=>connected.has(a.cs)).map(a=>a.cs));
   if(pollPrimed&&!suppressSounds&&!isMuted()){
@@ -2526,7 +2600,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2536,6 +2610,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='routemenu'&&ev.target.closest('.route-cell'))return;
     if(id==='handoffpop'&&ev.target.closest('.efid'))return;
     if(id==='msgpop'&&ev.target.closest('[data-msg]'))return;
+    if(id==='ackmenu'&&ev.target.closest('[data-alert]'))return;
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
@@ -2663,10 +2738,8 @@ const _btnRefresh=document.getElementById('btnRefresh');if(_btnRefresh)_btnRefre
     va.addEventListener('keydown',e=>{if(e.key==='Enter'){va.blur();go();}});}
   const sa=document.getElementById('showAll');
   if(sa){sa.checked=!!settings.showAll;sa.addEventListener('change',()=>{settings.showAll=sa.checked;persist();renderBoard();});}
-  const saBtn=document.getElementById('btnShowAll');
-  if(saBtn){saBtn.classList.toggle('active',!!settings.showAll);
-    saBtn.addEventListener('click',()=>{settings.showAll=!settings.showAll;persist();
-      saBtn.classList.toggle('active',!!settings.showAll);if(sa)sa.checked=settings.showAll;renderBoard();});}
+  // EDST toolbar Show / Show ALL are conflict-alert GPD commands (wired later),
+  // not the status-strip "SHOW ALL A/C" checkbox.
   const ct=document.getElementById('compactTitle');
   if(ct){ct.checked=!!settings.compactTabTitle;ct.addEventListener('change',()=>{settings.compactTabTitle=ct.checked;persist();updateTabTitle();});}
 })();
@@ -3326,6 +3399,7 @@ makeEdstDraggable(spdmenu);
 makeEdstDraggable(document.getElementById('routemenu'));
 makeEdstDraggable(document.getElementById('handoffpop'));
 makeEdstDraggable(document.getElementById('msgpop'));
+makeEdstDraggable(document.getElementById('ackmenu'));
 makeEdstDraggable(document.getElementById('depmenu'));
 // MCA uses custom drag (no title bar) — see MCA section below.
 makeEdstDraggable(document.getElementById('gimenu'));
@@ -4183,8 +4257,8 @@ async function sendGiMessage(){
 function isMenuClickTarget(el){
   return !!(el.closest('.alt-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
     ||el.closest('.route-cell')||el.closest('.sqk-asg')||el.closest('.abox')
-    ||el.closest('.efid')||el.closest('[data-msg]')||el.closest('[data-logon]')
-    ||el.closest('.vci')||el.closest('.ul-red'));
+    ||el.closest('.efid')||el.closest('[data-msg]')||el.closest('[data-alert]')
+    ||el.closest('[data-logon]')||el.closest('.vci')||el.closest('.ul-red'));
 }
 function syncHoldButton(){
   const btn=document.getElementById('btnHold');
@@ -4411,7 +4485,9 @@ document.getElementById('holdUplink').onclick=async()=>{
   const entry=buildHoldMessage(false);if(!entry||!holdTarget)return;
   const cs=holdTarget.cs;
   close('holdmenu');
-  await sendUplinkEntry(cs,entry);renderBoard();
+  const min=await sendUplinkEntry(cs,entry);
+  if(min!=null)holdActiveCs.add(cs);
+  renderBoard();
 };
 document.getElementById('holdUplinkEfc').onclick=async()=>{
   if(document.getElementById('holdUplinkEfc').classList.contains('disabled'))return;
@@ -4427,6 +4503,129 @@ makeEdstDraggable(holdmenu);
 //============================================================ GPD (Graphical Plan Display)
 const gpdmenu=document.getElementById('gpdmenu');
 let gpdMapApi=null,gpdReady=null,gpdFitOnce=false;
+
+async function ensureConflictProbe(){
+  if(conflictProbeMod)return conflictProbeMod;
+  conflictProbeMod=await import('../../shared/edst-conflict-probe.js');
+  try{await conflictProbeMod.loadSuaData('../../');}catch(_){}
+  return conflictProbeMod;
+}
+function syncShowAlertButtons(){
+  const show=document.getElementById('btnShow');
+  const showAll=document.getElementById('btnShowAll');
+  const on=!!alertSelection;
+  [show,showAll].forEach(btn=>{
+    if(!btn)return;
+    btn.classList.toggle('disabled',!on);
+    btn.disabled=!on;
+    btn.title=on
+      ?(btn.id==='btnShowAll'?'Show ALL '+alertSelection.type.toUpperCase()+' alerts on GPD'
+        :'Show '+alertSelection.cs+' '+alertSelection.type.toUpperCase()+' on GPD')
+      :'Select an alert box first';
+  });
+}
+function selectAlertBox(cs,type){
+  cs=(cs||'').toUpperCase();
+  if(alertSelection&&alertSelection.cs===cs&&alertSelection.type===type)alertSelection=null;
+  else alertSelection={cs,type};
+  syncShowAlertButtons();
+  renderBoard();
+}
+function applyAlertShow(all){
+  if(!alertSelection)return;
+  alertShowFilter=all
+    ?{type:alertSelection.type}
+    :{type:alertSelection.type,cs:alertSelection.cs};
+  openGpdMenu().then(()=>refreshGpdMap(true)).catch(()=>{});
+}
+function clearAlertShow(){
+  alertShowFilter=null;
+  if(gpdMapApi)refreshGpdMap(false);
+}
+async function runConflictProbe(){
+  try{
+    const mod=await ensureConflictProbe();
+    const list=displayList()||[];
+    // Probe against full live set so partners off-freq still count, but only
+    // display-list aircraft get ACL cells.
+    const pool=list.slice();
+    const onList=new Set(list.map(a=>a.cs));
+    (liveFlights||[]).forEach(a=>{
+      if(a&&a.cs&&!onList.has(a.cs)&&a.lat!=null)pool.push(a);
+    });
+    const map=mod.probeConflicts(pool,{
+      assigned,
+      altPending,
+      stopProbe:stopProbeCs,
+      holdActive:holdActiveCs,
+      frozen:frozenCs,
+    });
+    // Keep only display-list entries for board paint (plus status marks).
+    const next=new Map();
+    list.forEach(a=>{
+      const e=map.get(a.cs);
+      if(e)next.set(a.cs,e);
+    });
+    conflictAlerts=next;
+  }catch(err){
+    console.warn('conflict probe failed',err);
+  }
+}
+function scheduleConflictProbe(){
+  if(conflictProbeTimer)return;
+  conflictProbeTimer=setTimeout(async()=>{
+    conflictProbeTimer=null;
+    await runConflictProbe();
+    // Re-paint alert cells without full board recursion — light refresh.
+    const list=displayList();
+    const trs=rows?rows.querySelectorAll('tr'):[];
+    trs.forEach(tr=>{
+      const cs=tr.dataset.cs;
+      if(!cs)return;
+      const a=list.find(x=>x.cs===cs);
+      if(!a)return;
+      const idx=list.indexOf(a);
+      // Replace only R/Y/A cells
+      const boxes=alertBoxHtml(cs);
+      const tds=tr.querySelectorAll('td.eh-al');
+      if(tds[0])tds[0].innerHTML=boxes.r;
+      if(tds[1])tds[1].innerHTML=boxes.y;
+      if(tds[2])tds[2].innerHTML=boxes.a;
+      const acid=tr.querySelector('.acid');
+      if(acid)acid.classList.toggle('probe-brown',!!boxes.brownFid);
+    });
+    if(typeof refreshGpdMap==='function')refreshGpdMap(false);
+  },50);
+}
+function openConflictAckMenu(cs,type,x,y){
+  cs=(cs||'').toUpperCase();
+  const menu=document.getElementById('ackmenu');
+  const list=document.getElementById('ackList');
+  if(!menu||!list)return;
+  document.getElementById('ackTitle').textContent='CONFLICT ACK · '+cs;
+  const e=conflictAlerts.get(cs);
+  const partners=(e&&e.partners&&e.partners[type])||[];
+  list.innerHTML='';
+  const add=(label,fn)=>{
+    const d=document.createElement('div');
+    d.className='ack-item';
+    d.textContent=label;
+    d.onclick=()=>{fn();close('ackmenu');renderBoard();};
+    list.appendChild(d);
+  };
+  add('Acknowledge / clear selection',()=>{alertSelection=null;syncShowAlertButtons();clearAlertShow();});
+  add('Stop probe (S)',()=>{stopProbeCs.add(cs);});
+  add('Resume probe',()=>{stopProbeCs.delete(cs);});
+  if(holdActiveCs.has(cs))add('Clear hold mark (H)',()=>{holdActiveCs.delete(cs);});
+  if(partners.length){
+    const meta=document.createElement('div');
+    meta.className='ack-item';
+    meta.innerHTML='<span class="ack-meta">Partners: '+esc(partners.join(', '))+'</span>';
+    list.appendChild(meta);
+  }
+  placePop(menu,x,y);
+}
+
 function gpdArtccId(){
   return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().replace(/^K(?=Z)/,'');
 }
@@ -4465,7 +4664,9 @@ function refreshGpdMap(refit){
   gpdMapApi.update(displayList()||[],{
     artccId:art,
     selectedCs:gpdSelectedCs(),
-    refit:!!refit
+    refit:!!refit,
+    alertByCs:conflictAlerts,
+    alertShowFilter:alertShowFilter,
   });
   const n=gpdMapApi.getTrafficCount?gpdMapApi.getTrafficCount():0;
   document.getElementById('gpdCount').textContent=String(n);
@@ -4660,12 +4861,18 @@ document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
   });
 });
 
-//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / MSG / row select)
+//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / MSG / ALERT / row select)
 rows.addEventListener('click',e=>{
   const pendAck=e.target.closest('.ul-red[data-pend]');
   if(pendAck){
     e.preventDefault();e.stopPropagation();
     ackColumnPending(pendAck.dataset.cs,pendAck.dataset.pend);
+    return;
+  }
+  const alertBox=e.target.closest('[data-alert]');
+  if(alertBox){
+    e.preventDefault();e.stopPropagation();
+    selectAlertBox(alertBox.dataset.cs,alertBox.dataset.alert);
     return;
   }
   const mtri=e.target.closest('[data-msg]');
@@ -4728,6 +4935,37 @@ rows.addEventListener('click',e=>{
   if(!tr||!rows.contains(tr))return;
   selectAircraftRow(tr.dataset.cs||null);
 });
+// Middle-click alert → GPD Show ALL for that type; right-click → Conflict Ack menu
+rows.addEventListener('auxclick',e=>{
+  if(e.button!==1)return;
+  const alertBox=e.target.closest('[data-alert]');
+  if(!alertBox)return;
+  e.preventDefault();
+  alertSelection={cs:alertBox.dataset.cs,type:alertBox.dataset.alert};
+  syncShowAlertButtons();
+  applyAlertShow(true);
+});
+rows.addEventListener('contextmenu',e=>{
+  const alertBox=e.target.closest('[data-alert]');
+  if(!alertBox)return;
+  e.preventDefault();
+  openConflictAckMenu(alertBox.dataset.cs,alertBox.dataset.alert,e.clientX,e.clientY);
+});
+(function wireShowAlertBtns(){
+  const show=document.getElementById('btnShow');
+  const showAll=document.getElementById('btnShowAll');
+  if(show)show.addEventListener('click',e=>{
+    e.preventDefault();
+    if(!alertSelection)return;
+    applyAlertShow(false);
+  });
+  if(showAll)showAll.addEventListener('click',e=>{
+    e.preventDefault();
+    if(!alertSelection)return;
+    applyAlertShow(true);
+  });
+  syncShowAlertButtons();
+})();
 
 //============================================================ MESSAGE popup (callsign ▲/▼)
 const msgpop=document.getElementById('msgpop');
