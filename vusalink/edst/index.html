@@ -882,6 +882,75 @@ td.eh-bk{text-align:center;min-width:14px}
   color:var(--fg);white-space:pre-wrap;word-break:break-word;font-size:12px;
 }
 
+/* EDST WX REPORT (METARs) */
+#wxmenu.edst-pop{
+  position:absolute;z-index:68;width:min(520px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#wxmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:8px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#wxmenu .edst-pop-hdr .title{flex:1;letter-spacing:.4px}
+#wxmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#wxmenu .edst-pop-hdr .x:hover{background:#333}
+#wxmenu .wx-add{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:6px 8px;background:#1a1a1a;border-bottom:1px solid #444;
+}
+#wxmenu .wx-add label{color:#aaa;font-size:12px}
+#wxmenu .wx-add input{
+  width:72px;background:#000;border:1px solid #777;color:#fff;font:inherit;
+  padding:3px 6px;text-transform:uppercase;letter-spacing:.04em;
+}
+#wxmenu .wx-add input:focus{outline:1px solid #9a9a9a}
+#wxmenu .wx-add .wx-get{
+  border:1px solid #777;background:#2a2a2a;color:#eee;font:inherit;
+  padding:3px 10px;cursor:pointer;
+}
+#wxmenu .wx-add .wx-get:hover{background:#3a3a3a}
+#wxmenu .wx-add .wx-get:disabled{opacity:.45;cursor:default}
+#wxmenu .wx-hint{color:#8a9088;font-size:11px;margin-left:auto}
+#wxmenu .wx-list{
+  max-height:min(480px,62vh);min-height:80px;overflow:auto;padding:4px 0;background:#000;
+}
+#wxmenu .wx-empty{padding:18px 12px;color:#777;text-align:center;font-size:12px}
+#wxmenu .wx-item{
+  padding:8px 10px;border-bottom:1px solid #1a1a1a;cursor:pointer;
+}
+#wxmenu .wx-item:hover{background:#121212}
+#wxmenu .wx-item.sel{background:#1c1c1c;outline:1px solid #777;outline-offset:-1px}
+#wxmenu .wx-item .wx-meta{
+  display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;color:#8a9088;
+}
+#wxmenu .wx-item .wx-meta .icao{color:#fff;font-size:13px;letter-spacing:.04em}
+#wxmenu .wx-item .wx-meta .tag{color:var(--teal)}
+#wxmenu .wx-item .wx-meta .cat{
+  font-size:10px;letter-spacing:.06em;padding:0 4px;border:1px solid #555;color:#ccc;
+}
+#wxmenu .wx-item .wx-meta .cat.vfr{border-color:#2e9c5a;color:#39d24b}
+#wxmenu .wx-item .wx-meta .cat.mvfr{border-color:#3a6ea5;color:#6ab0ff}
+#wxmenu .wx-item .wx-meta .cat.ifr{border-color:#c9a227;color:#dcd63f}
+#wxmenu .wx-item .wx-meta .cat.lifr{border-color:#a33;color:#e0483b}
+#wxmenu .wx-item .wx-meta .err{color:var(--red)}
+#wxmenu .wx-item .wx-text{
+  color:var(--fg);white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.35;
+}
+#wxmenu .wx-item .wx-del-row{
+  display:none;margin-top:6px;padding-top:6px;border-top:1px solid #333;
+}
+#wxmenu .wx-item.sel .wx-del-row{display:flex;align-items:center;gap:8px}
+#wxmenu .wx-item .wx-del{
+  border:1px solid #8a3a3a;background:#3a1a1a;color:#f0a0a0;font:inherit;
+  padding:2px 12px;cursor:pointer;font-size:12px;
+}
+#wxmenu .wx-item .wx-del:hover{background:#5a2a2a;color:#fff}
+#wxmenu .wx-item .wx-del-hint{color:#8a9088;font-size:11px}
+#edstbar .etb-btn.active-wx{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
+
 @media (max-width: 900px){
   #boardwrap{height:calc(100vh - 180px)}
   #edstbar .etb-btn,#edstbar .etb-stat{padding:1px 5px;font-size:11px;min-width:32px}
@@ -900,7 +969,7 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-btn" id="tabDep" title="Departure List">DEP&nbsp;00</span>
     <span class="etb-btn" id="btnGpd" title="Graphical Plan Display">GPD</span>
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
-    <span class="etb-btn" data-stub="WX REPORT">WX<br>REPORT</span>
+    <span class="etb-btn" id="btnWx" title="Weather report — METARs">WX<br>REPORT</span>
     <span class="etb-btn sig" id="btnSig" title="SIGMETs for controlling FIR">SIG</span>
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
@@ -1332,6 +1401,21 @@ td.eh-bk{text-align:center;min-width:14px}
   <div class="sig-list" id="sigList"><div class="sig-empty">No SIGMETs</div></div>
 </div>
 
+<!-- EDST WX REPORT (METARs) -->
+<div id="wxmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="wxTitle">WX REPORT</span>
+    <span class="x" data-close="wxmenu" title="Close">X</span>
+  </div>
+  <div class="wx-add">
+    <label for="wxIcao">AIRPORT</label>
+    <input id="wxIcao" maxlength="4" autocomplete="off" spellcheck="false" placeholder="KJAX">
+    <button type="button" class="wx-get" id="wxGet" title="Fetch METAR">GET</button>
+    <span class="wx-hint" id="wxHint">0 / 10</span>
+  </div>
+  <div class="wx-list" id="wxList"><div class="wx-empty">Enter an airport ICAO, or select an aircraft to load its destination METAR.</div></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="../../shared/edst-sigmets.js"></script>
 <script>
@@ -1376,6 +1460,9 @@ let suppressSounds=false;                 // silence chimes while replaying that
 let listSoundPrimed=false;                // first list snapshot after poll primed: no chime
 const prevDisplayedConnected=new Set();   // connected a/c on controller list last render
 let selectedCs=null;                     // ACL row selection (must be before any renderBoard)
+const wxReports=[];                      // [{icao, text, fltCat, note, error, loading}]
+let wxSelectedIcao=null;                 // ICAO of METAR row showing DELETE prompt
+const WX_MAX=10;
 const msgAlert=new Set();                // M: unread incoming
 const lastPilotMsgMin={};                // cs -> MIN of latest inbound pilot CPDLC (for UM0/UM1 MRN)
 const WILCO_TIMEOUT_MS=120000;           // 2 min without a pilot reply -> red W alarm
@@ -1999,7 +2086,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2278,6 +2365,11 @@ function close(id){
     const btn=document.getElementById('btnGpd');
     if(btn)btn.classList.remove('active-gpd');
   }
+  if(id==='wxmenu'){
+    const btn=document.getElementById('btnWx');
+    if(btn)btn.classList.remove('active-wx');
+    wxSelectedIcao=null;
+  }
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
@@ -2288,7 +2380,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2301,6 +2393,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
+    if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&ev.target.closest('#btnCpdlcHist'))return;
@@ -2313,6 +2406,10 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='depmenu'){
       const btn=document.getElementById('tabDep');
       if(btn)btn.classList.remove('active-dep');
+    }
+    if(id==='wxmenu'){
+      const btn=document.getElementById('btnWx');
+      if(btn)btn.classList.remove('active-wx');
     }
   });
 });
@@ -3085,6 +3182,7 @@ makeEdstDraggable(document.getElementById('depmenu'));
 makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
 makeEdstDraggable(document.getElementById('sigmenu'));
+makeEdstDraggable(document.getElementById('wxmenu'));
 
 //============================================================ ROUTE MENU
 const routemenu=document.getElementById('routemenu');
@@ -3457,6 +3555,208 @@ function openSigMenu(){
   const ref=document.getElementById('sigRefresh');
   if(ref)ref.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();refreshSigmets(true);});
 })();
+
+//============================================================ WX REPORT (METARs)
+const wxmenu=document.getElementById('wxmenu');
+const WX_METAR_URL='https://aviationweather.gov/api/data/metar?format=json&ids=';
+const WX_CORS=[
+  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
+];
+function wxFlightCategory(raw){
+  const m=String(raw||'');
+  let vis=10;
+  if(/\bP?\d+SM\b/.test(m)||/\b10\+?SM\b/.test(m)){
+    const vm=m.match(/\b(\d{1,2})SM\b/);
+    if(vm)vis=parseInt(vm[1],10);
+  }
+  if(/\bM?1\/\dSM\b/.test(m)||/\b\d\/\dSM\b/.test(m))vis=Math.min(vis,0.75);
+  let ceil=99999;
+  const re=/\b(BKN|OVC|VV)(\d{3})\b/g; let mm;
+  while((mm=re.exec(m)))ceil=Math.min(ceil,parseInt(mm[2],10)*100);
+  if(ceil<500||vis<1)return 'LIFR';
+  if(ceil<1000||vis<3)return 'IFR';
+  if(ceil<=3000||vis<=5)return 'MVFR';
+  return 'VFR';
+}
+async function wxFetchJson(url){
+  try{
+    const res=await fetch(url,{method:'GET',mode:'cors',credentials:'omit',cache:'no-store',
+      headers:{Accept:'application/json, text/plain, */*'}});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return res.json();
+  }catch(e){
+    let last=e;
+    for(const prox of WX_CORS){
+      try{
+        const res=await fetch(prox(url),{method:'GET',mode:'cors',credentials:'omit',cache:'no-store'});
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        return res.json();
+      }catch(err){last=err;}
+    }
+    throw last;
+  }
+}
+async function fetchMetarText(icao){
+  icao=normalizeIcao(icao);
+  if(!/^[A-Z]{4}$/.test(icao))throw new Error('Invalid airport ICAO');
+  const data=await wxFetchJson(WX_METAR_URL+encodeURIComponent(icao));
+  const list=Array.isArray(data)?data:(data?[data]:[]);
+  const hit=list.find(o=>String(o.icaoId||'').toUpperCase()===icao)||list[0];
+  const raw=(hit&&(hit.rawOb||hit.raw||hit.rawMetar))||'';
+  if(!String(raw).trim())throw new Error('No METAR for '+icao);
+  return {
+    icao,
+    text:String(raw).trim(),
+    fltCat:(hit&&hit.fltCat)||wxFlightCategory(raw),
+  };
+}
+function syncWxHint(){
+  const el=document.getElementById('wxHint');
+  if(el)el.textContent=wxReports.length+' / '+WX_MAX;
+  const get=document.getElementById('wxGet');
+  if(get)get.disabled=wxReports.length>=WX_MAX;
+}
+function renderWxList(){
+  const list=document.getElementById('wxList');
+  if(!list)return;
+  syncWxHint();
+  if(!wxReports.length){
+    list.innerHTML='<div class="wx-empty">Enter an airport ICAO, or select an aircraft to load its destination METAR.</div>';
+    return;
+  }
+  list.innerHTML=wxReports.map(r=>{
+    const sel=wxSelectedIcao===r.icao?' sel':'';
+    const cat=(r.fltCat||'').toLowerCase();
+    const catHtml=r.fltCat?`<span class="cat ${esc(cat)}">${esc(r.fltCat)}</span>`:'';
+    const note=r.note?`<span class="tag">${esc(r.note)}</span>`:'';
+    let body;
+    if(r.loading)body='<div class="wx-text" style="color:#888">Loading…</div>';
+    else if(r.error)body=`<div class="wx-text"><span class="err">${esc(r.error)}</span></div>`;
+    else body=`<div class="wx-text">${esc(r.text||'')}</div>`;
+    return `<div class="wx-item${sel}" data-wx-icao="${esc(r.icao)}">`
+      +`<div class="wx-meta"><span class="icao">${esc(r.icao)}</span>${catHtml}${note}</div>`
+      +body
+      +`<div class="wx-del-row">`
+      +`<button type="button" class="wx-del" data-wx-del="${esc(r.icao)}">DELETE</button>`
+      +`<span class="wx-del-hint">Remove this METAR from the report</span>`
+      +`</div></div>`;
+  }).join('');
+}
+function upsertWxReport(entry){
+  const icao=normalizeIcao(entry.icao);
+  if(!icao)return;
+  const idx=wxReports.findIndex(r=>r.icao===icao);
+  const row=Object.assign({icao,text:'',fltCat:'',note:'',error:null,loading:false},entry,{icao});
+  if(idx>=0)wxReports[idx]=Object.assign({},wxReports[idx],row);
+  else{
+    if(wxReports.length>=WX_MAX)return false;
+    wxReports.push(row);
+  }
+  renderWxList();
+  return true;
+}
+function removeWxReport(icao){
+  icao=normalizeIcao(icao);
+  const idx=wxReports.findIndex(r=>r.icao===icao);
+  if(idx<0)return;
+  wxReports.splice(idx,1);
+  if(wxSelectedIcao===icao)wxSelectedIcao=null;
+  renderWxList();
+}
+async function addWxMetar(icao,note){
+  icao=normalizeIcao(icao);
+  if(!icao){comingSoon('Enter a 3–4 letter airport code');return;}
+  if(!/^[A-Z]{4}$/.test(icao)){comingSoon('Invalid airport ICAO');return;}
+  const existing=wxReports.find(r=>r.icao===icao);
+  if(!existing&&wxReports.length>=WX_MAX){
+    comingSoon('WX REPORT holds up to '+WX_MAX+' airports');
+    return;
+  }
+  upsertWxReport({icao,note:note||(existing&&existing.note)||'',loading:true,error:null,text:''});
+  try{
+    const met=await fetchMetarText(icao);
+    upsertWxReport({
+      icao:met.icao,
+      text:met.text,
+      fltCat:met.fltCat,
+      note:note||(existing&&existing.note)||'',
+      loading:false,
+      error:null,
+    });
+  }catch(e){
+    upsertWxReport({
+      icao,
+      note:note||(existing&&existing.note)||'',
+      loading:false,
+      error:(e&&e.message)||'METAR fetch failed',
+      text:'',
+    });
+  }
+}
+function openWxMenu(){
+  const btn=document.getElementById('btnWx');
+  if(btn)btn.classList.add('active-wx');
+  const a=selectedAircraft();
+  const title=document.getElementById('wxTitle');
+  if(title)title.textContent=a?('WX REPORT · '+a.cs):'WX REPORT';
+  const input=document.getElementById('wxIcao');
+  if(input)input.value='';
+  wxSelectedIcao=null;
+  // Fresh list each open; selected strip auto-loads destination METAR.
+  wxReports.length=0;
+  renderWxList();
+  const x=Math.max(8,(window.innerWidth-Math.min(520,window.innerWidth*0.94))/2);
+  const y=Math.max(48,window.innerHeight*0.14);
+  placePop(wxmenu,x,y);
+  if(a){
+    const dest=normalizeIcao(a.arr);
+    if(dest)addWxMetar(dest,'DEST '+a.cs);
+    else comingSoon(a.cs+' has no destination airport');
+  }
+  if(input)setTimeout(()=>input.focus(),30);
+}
+function toggleWxMenu(){
+  if(!wxmenu)return;
+  if(wxmenu.classList.contains('hidden'))openWxMenu();
+  else close('wxmenu');
+}
+(function(){
+  const btn=document.getElementById('btnWx');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleWxMenu();});
+  const get=document.getElementById('wxGet');
+  const input=document.getElementById('wxIcao');
+  async function submitWx(){
+    const icao=input?input.value:'';
+    await addWxMetar(icao,'');
+    if(input){input.value='';input.focus();}
+  }
+  if(get)get.addEventListener('click',e=>{e.preventDefault();submitWx();});
+  if(input)input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();submitWx();}
+  });
+  const list=document.getElementById('wxList');
+  if(list)list.addEventListener('click',e=>{
+    const del=e.target.closest('[data-wx-del]');
+    if(del){
+      e.preventDefault();e.stopPropagation();
+      removeWxReport(del.dataset.wxDel);
+      return;
+    }
+    const item=e.target.closest('.wx-item[data-wx-icao]');
+    if(!item)return;
+    e.preventDefault();
+    const icao=item.dataset.wxIcao;
+    wxSelectedIcao=(wxSelectedIcao===icao)?null:icao;
+    renderWxList();
+  });
+})();
+document.querySelectorAll('[data-close="wxmenu"]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const btn=document.getElementById('btnWx');
+    if(btn)btn.classList.remove('active-wx');
+  });
+});
 
 //============================================================ GI (General Information)
 function giMenuOpen(){
