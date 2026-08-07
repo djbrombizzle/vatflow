@@ -96,11 +96,16 @@ a{color:inherit}
 #board{width:100%;border-collapse:collapse;white-space:nowrap;font-family:'EDST','EDSTv2',Consolas,monospace}
 #board thead th{background:#000;color:#cdd3ce;border:0;text-align:left;
   padding:3px 6px;font-weight:normal;letter-spacing:.3px;position:sticky;top:0;z-index:1;cursor:pointer;user-select:none}
-#board thead th.eh-al,#board thead th.eh-bk,#board thead th.eh-pa{text-align:center;cursor:default}
+#board thead th.eh-al,#board thead th.eh-bk,#board thead th.eh-pa{
+  text-align:center;cursor:default;padding:3px 1px;width:16px;min-width:16px;max-width:18px;
+}
 #board thead th.r{color:#e0483b}
 #board thead th.y{color:#dcd63f}
 #board thead th.a{color:#e0913f}
 #board tbody td{border:0;padding:2px 6px;color:#d2d2cd;vertical-align:middle}
+#board tbody td.eh-al,#board tbody td.eh-bk,#board tbody td.eh-pa{
+  padding:2px 1px;width:16px;min-width:16px;max-width:18px;
+}
 #board tbody tr:hover{background:#0c0f0d}
 #board tbody tr.adj td{opacity:.55}
 #board tbody tr.find-hit{outline:1px solid var(--yellow)}
@@ -128,9 +133,9 @@ a{color:inherit}
   0%,49%{opacity:1}
   50%,100%{opacity:0}
 }
-td.eh-bk{text-align:center;min-width:18px}
-.abox{width:14px;height:14px;border:1px solid #c9cfca;display:inline-flex;
-  align-items:center;justify-content:center;font-size:11px;line-height:1;vertical-align:middle}
+td.eh-bk{text-align:center;min-width:14px}
+.abox{width:12px;height:12px;border:1px solid #c9cfca;display:inline-flex;
+  align-items:center;justify-content:center;font-size:10px;line-height:1;vertical-align:middle;margin:0}
 .abox.msg.flash{background:#e0483b;border-color:#e0483b;color:#000;animation:edstflash 1s steps(2,start) infinite}
 .abox.ho{background:#e0913f;border-color:#e0913f}
 @keyframes edstflash{50%{background:#3a0f0c}}
@@ -747,6 +752,65 @@ td.eh-bk{text-align:center;min-width:18px}
 #handoffpop .hobtn.contact{color:var(--amber);border-color:#5a4a22}
 #handoffpop .empty{padding:8px 10px;color:var(--fg-dim)}
 
+/* EDST DEPARTURE LIST */
+#depmenu.edst-pop{
+  position:absolute;z-index:75;width:min(920px,96vw);max-height:min(560px,78vh);
+  display:flex;flex-direction:column;
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#depmenu.hidden{display:none!important}
+#depmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:10px;
+  background:var(--teal);color:var(--teal-ink);padding:3px 8px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;font-weight:bold;letter-spacing:.3px;
+}
+#depmenu .edst-pop-hdr .title{flex:1}
+#depmenu .edst-pop-hdr .seg{font-weight:normal;opacity:.9;margin-left:12px}
+#depmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:var(--teal-ink);margin-left:auto}
+#depmenu .edst-pop-hdr .x:hover{background:rgba(0,0,0,.2)}
+#depmenu .dep-tools{
+  display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+  padding:4px 6px;background:#1a1a1a;border-bottom:1px solid #444;
+}
+#depmenu .dep-tools .et-btn{
+  border:1px solid #8a8a8a;background:#111;color:#ddd;font:inherit;font-size:12px;
+  padding:2px 8px;cursor:pointer;
+}
+#depmenu .dep-tools .et-btn:hover{background:#1a1a1a}
+#depmenu .dep-tools .et-btn.stub{opacity:.45;cursor:default}
+#depmenu .dep-tools .et-field{display:flex;align-items:center;gap:4px;margin-left:auto;color:#aaa;font-size:12px}
+#depmenu .dep-tools .et-field input{
+  width:90px;background:#000;border:1px solid #555;color:#eee;font:inherit;padding:2px 5px;
+}
+#depmenu .dep-scope{
+  padding:2px 8px;background:#111;border-bottom:1px solid #333;color:#8a9088;font-size:11px;
+}
+#depmenu .dep-scope b{color:#d2d2cd;font-weight:normal}
+#depmenu .dep-wrap{flex:1 1 auto;min-height:120px;overflow:auto;background:#000}
+#depmenu .dep-table{width:100%;border-collapse:collapse;white-space:nowrap}
+#depmenu .dep-table thead th{
+  background:#0a0a0a;color:#cdd3ce;border:0;text-align:left;
+  padding:3px 6px;font-weight:normal;letter-spacing:.3px;position:sticky;top:0;z-index:1;
+  border-bottom:1px solid #333;
+}
+#depmenu .dep-table thead th.dep-p{text-align:center;width:18px;color:var(--amber)}
+#depmenu .dep-table thead th.dep-chk{width:16px}
+#depmenu .dep-table tbody td{border:0;padding:2px 6px;color:#d2d2cd;vertical-align:middle;border-bottom:1px solid #1a1a1a}
+#depmenu .dep-table tbody tr:hover{background:#0c0f0d}
+#depmenu .dep-table .dep-p{text-align:center;width:18px;padding:2px 1px}
+#depmenu .dep-table .dep-a{
+  color:var(--amber);font-weight:bold;font-size:12px;letter-spacing:.02em;
+}
+#depmenu .dep-table .dep-n{color:#888;font-size:12px}
+#depmenu .dep-table .dep-time{color:#f0f0ec}
+#depmenu .dep-table .dep-time .star{color:var(--amber)}
+#depmenu .dep-table .dep-fid .cid{color:#8a9088;margin-right:6px}
+#depmenu .dep-table .dep-fid .cs{color:#fff}
+#depmenu .dep-table .dep-empty{padding:24px 12px;color:#777;text-align:center}
+#edstbar .etb-btn.active-dep{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
+
 #addform{display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;border-bottom:1px solid #333;background:#050505}
 #addform input{background:#0a0a0a;border:1px solid #555;color:#eee;font:inherit;padding:3px 6px}
 #addform input.route{flex:1;min-width:160px}
@@ -833,7 +897,7 @@ td.eh-bk{text-align:center;min-width:18px}
     <span class="etb-arrow" data-stub="MORE">&#8595;</span>
     <span class="etb-btn active" data-stub="MORE">MORE</span>
     <span class="etb-btn active" id="tabAcl">ACL&nbsp;08</span>
-    <span class="etb-btn" data-stub="DEP">DEP&nbsp;01</span>
+    <span class="etb-btn" id="tabDep" title="Departure List">DEP&nbsp;00</span>
     <span class="etb-btn" id="btnGpd" title="Graphical Plan Display">GPD</span>
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
     <span class="etb-btn" data-stub="WX REPORT">WX<br>REPORT</span>
@@ -1180,6 +1244,47 @@ td.eh-bk{text-align:center;min-width:18px}
     <span>ARTCC <b id="gpdArtcc">——</b></span>
     <span>TRAFFIC <b id="gpdCount">0</b></span>
     <span style="opacity:.65">Routes from hub fixes / FCA route engine</span>
+  </div>
+</div>
+
+<!-- EDST DEPARTURE LIST -->
+<div id="depmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">Departure List</span>
+    <span class="seg" id="depDestLabel">Destination</span>
+    <span class="seg">Manual</span>
+    <span class="x" data-close="depmenu" title="Close">X</span>
+  </div>
+  <div class="dep-tools">
+    <button type="button" class="et-btn stub" data-stub="Plan Options" title="Coming soon">Plan Options...</button>
+    <button type="button" class="et-btn stub" data-stub="Sort" title="Coming soon">Sort...</button>
+    <button type="button" class="et-btn stub" data-stub="Posting Mode" title="Coming soon">Posting Mode</button>
+    <button type="button" class="et-btn stub" data-stub="FP Msg" title="Coming soon">F P Msg...</button>
+    <div class="et-field">
+      <label for="depFind">ADD/FIND</label>
+      <input id="depFind" autocomplete="off" placeholder="callsign">
+    </div>
+  </div>
+  <div class="dep-scope">ARTCC <b id="depArtcc">——</b> · proposed <b id="depWindow">−30m … +2h</b> · <b id="depCount">0</b> strips</div>
+  <div class="dep-wrap">
+    <table class="dep-table" id="depTable">
+      <thead>
+        <tr>
+          <th class="dep-chk" title=""></th>
+          <th class="dep-p" title="Active on VATSIM">P</th>
+          <th title="Proposal time (Zulu)">Time</th>
+          <th>Flight ID</th>
+          <th title="Expected Departure Clearance Time">EDCT</th>
+          <th>Type</th>
+          <th>Alt.</th>
+          <th>Code</th>
+          <th>Route</th>
+        </tr>
+      </thead>
+      <tbody id="depRows">
+        <tr><td colspan="9" class="dep-empty">Loading…</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -1894,7 +1999,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2165,6 +2270,14 @@ function close(id){
     const btn=document.getElementById('btnSig');
     if(btn)btn.classList.remove('active');
   }
+  if(id==='depmenu'){
+    const btn=document.getElementById('tabDep');
+    if(btn)btn.classList.remove('active-dep');
+  }
+  if(id==='gpdmenu'){
+    const btn=document.getElementById('btnGpd');
+    if(btn)btn.classList.remove('active-gpd');
+  }
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
@@ -2175,7 +2288,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2187,6 +2300,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
+    if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&ev.target.closest('#btnCpdlcHist'))return;
@@ -2195,6 +2309,10 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
       if(btn)btn.classList.remove('active-gpd');
+    }
+    if(id==='depmenu'){
+      const btn=document.getElementById('tabDep');
+      if(btn)btn.classList.remove('active-dep');
     }
   });
 });
@@ -2963,6 +3081,7 @@ makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
 makeEdstDraggable(document.getElementById('routemenu'));
 makeEdstDraggable(document.getElementById('handoffpop'));
+makeEdstDraggable(document.getElementById('depmenu'));
 makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
 makeEdstDraggable(document.getElementById('sigmenu'));
@@ -3888,6 +4007,159 @@ document.querySelectorAll('[data-close="gpdmenu"]').forEach(el=>{
   el.addEventListener('click',()=>{const btn=document.getElementById('btnGpd');if(btn)btn.classList.remove('active-gpd');});
 });
 makeEdstDraggable(gpdmenu,()=>{if(gpdMapApi)gpdMapApi.invalidateSize();});
+
+//============================================================ DEPARTURE LIST
+const depmenu=document.getElementById('depmenu');
+let depMod=null,depReady=null,depItems=[],depFetchTimer=null,depBusy=false,depLastErr=null;
+function depArtccId(){
+  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().replace(/^K(?=Z)/,'');
+}
+function padDepCount(n){
+  n=Math.max(0,Math.min(99,+n||0));
+  return String(n).padStart(2,'0');
+}
+function updateDepTabCount(n){
+  const btn=document.getElementById('tabDep');
+  if(btn)btn.innerHTML='DEP&nbsp;'+padDepCount(n);
+}
+function ensureDepMod(){
+  if(depMod)return Promise.resolve(depMod);
+  if(depReady)return depReady;
+  depReady=(async()=>{
+    const mod=await import('../../shared/edst-dep-list.js');
+    await mod.prepareDepListData('../../');
+    depMod=mod;
+    return mod;
+  })().catch(err=>{
+    depReady=null;
+    console.error('DEP list module failed',err);
+    throw err;
+  });
+  return depReady;
+}
+function fmtDepTime(row){
+  const s=(row.deptime||'').replace(/\D/g,'').padStart(4,'0').slice(0,4);
+  if(s.length===4&&/^\d{4}$/.test(s)){
+    const h=+s.slice(0,2),m=+s.slice(2,4);
+    if(h<=23&&m<=59)return s;
+  }
+  if(row.etdMs!=null){
+    const d=new Date(row.etdMs);
+    return String(d.getUTCHours()).padStart(2,'0')+String(d.getUTCMinutes()).padStart(2,'0');
+  }
+  return '----';
+}
+function renderDepRows(items,filter){
+  const body=document.getElementById('depRows');
+  if(!body)return;
+  const q=(filter||'').trim().toUpperCase();
+  let list=items||[];
+  if(q)list=list.filter(r=>(r.cs||'').includes(q)||(r.dep||'').includes(q)||(r.arr||'').includes(q));
+  if(!list.length){
+    const msg=depLastErr?('DEP list error: '+depLastErr)
+      :(q?'No matching proposed departures':'No proposed departures in window for this ARTCC');
+    body.innerHTML=`<tr><td colspan="9" class="dep-empty">${esc(msg)}</td></tr>`;
+    return;
+  }
+  body.innerHTML=list.map(r=>{
+    const p=r.active
+      ?`<span class="dep-a" title="Active on VATSIM">A</span>`
+      :`<span class="dep-n" title="Proposed (not connected)">N</span>`;
+    const time=fmtDepTime(r);
+    const edct=r.edct||'';
+    const route=esc(r.route||'');
+    return `<tr data-cs="${esc(r.cs)}">`
+      +`<td class="dep-chk"><span class="smbox"></span></td>`
+      +`<td class="dep-p">${p}</td>`
+      +`<td class="dep-time">${time}</td>`
+      +`<td class="dep-fid"><span class="cid">${esc(r.cid||'---')}</span><span class="cs">${esc(r.cs)}</span></td>`
+      +`<td>${esc(edct)}</td>`
+      +`<td>${esc(r.type||'')}</td>`
+      +`<td>${esc(r.alt||'')}</td>`
+      +`<td>${esc(r.squawk||'')}</td>`
+      +`<td>${route}</td>`
+      +`</tr>`;
+  }).join('');
+}
+function syncDepMenuChrome(art,count){
+  const a=document.getElementById('depArtcc');
+  const c=document.getElementById('depCount');
+  const dest=document.getElementById('depDestLabel');
+  if(a)a.textContent=art||'——';
+  if(c)c.textContent=String(count||0);
+  if(dest)dest.textContent=art?('ARTCC '+art):'Destination';
+  updateDepTabCount(count);
+}
+async function refreshDepList(forceRender){
+  if(depBusy)return;
+  const art=depArtccId();
+  if(!art){
+    depItems=[];
+    syncDepMenuChrome('',0);
+    if(forceRender||(depmenu&&!depmenu.classList.contains('hidden'))){
+      depLastErr='Set or verify an ARTCC to load departures.';
+      renderDepRows([]);
+    }
+    return;
+  }
+  depBusy=true;
+  try{
+    const mod=await ensureDepMod();
+    const data=await mod.fetchVatsimData();
+    const built=mod.buildDepList(art,data);
+    depItems=built.items||[];
+    depLastErr=null;
+    syncDepMenuChrome(built.artcc||art,built.count);
+    if(forceRender||(depmenu&&!depmenu.classList.contains('hidden'))){
+      const find=document.getElementById('depFind');
+      renderDepRows(depItems,find?find.value:'');
+    }
+  }catch(err){
+    console.error('DEP list refresh failed',err);
+    depLastErr=(err&&err.message)||String(err);
+    if(forceRender||(depmenu&&!depmenu.classList.contains('hidden')))renderDepRows(depItems);
+  }finally{
+    depBusy=false;
+  }
+}
+function scheduleDepRefresh(){
+  if(depFetchTimer)return;
+  depFetchTimer=setInterval(()=>{refreshDepList(false);},30000);
+}
+function openDepMenu(){
+  const art=depArtccId();
+  if(!art){comingSoon('Set or verify an ARTCC first');return;}
+  const btn=document.getElementById('tabDep');
+  if(btn)btn.classList.add('active-dep');
+  const find=document.getElementById('depFind');
+  if(find)find.value='';
+  syncDepMenuChrome(art,depItems.length);
+  const body=document.getElementById('depRows');
+  if(body&&!depItems.length)body.innerHTML='<tr><td colspan="9" class="dep-empty">Loading…</td></tr>';
+  const x=Math.max(8,(window.innerWidth-Math.min(920,window.innerWidth*0.96))/2);
+  const y=Math.max(40,window.innerHeight*0.12);
+  placePop(depmenu,x,y);
+  refreshDepList(true);
+  scheduleDepRefresh();
+}
+function toggleDepMenu(){
+  if(!depmenu)return;
+  if(depmenu.classList.contains('hidden'))openDepMenu();
+  else close('depmenu');
+}
+(function(){
+  const btn=document.getElementById('tabDep');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();toggleDepMenu();});
+  const find=document.getElementById('depFind');
+  if(find)find.addEventListener('input',()=>renderDepRows(depItems,find.value));
+  setTimeout(()=>{if(depArtccId()){refreshDepList(false);scheduleDepRefresh();}},2500);
+})();
+document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const btn=document.getElementById('tabDep');
+    if(btn)btn.classList.remove('active-dep');
+  });
+});
 
 //============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / row select)
 rows.addEventListener('click',e=>{
