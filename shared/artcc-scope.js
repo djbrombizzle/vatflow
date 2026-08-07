@@ -15,6 +15,11 @@ const polys = new Map();   // ARTCC id -> array of rings [[lat,lon],...] (outer 
 let loaded = false;
 let loading = null;
 
+/** Normalize ARTCC ids: hub/UI often use KZJX; boundary data stores ZJX. */
+export function normArtccId(id) {
+  return ("" + (id || "")).toUpperCase().replace(/^K(?=Z)/, "");
+}
+
 /** Ray-cast a point against one ring of [lon,lat] GeoJSON coordinates. */
 function inRing(lat, lon, ring) {
   let inside = false;
@@ -30,8 +35,9 @@ function inRing(lat, lon, ring) {
 function ingestGeojson(geo) {
   polys.clear();
   for (const f of (geo && geo.features) || []) {
-    const id = ((f.properties && (f.properties.id || f.properties.ID || f.properties.prefix)) || "")
-      .toString().toUpperCase().replace(/^K(?=Z)/, "");
+    const id = normArtccId(
+      (f.properties && (f.properties.id || f.properties.ID || f.properties.prefix)) || "",
+    );
     if (!id || !f.geometry) continue;
     const g = f.geometry;
     const rings = [];
@@ -56,7 +62,7 @@ export function knownArtccs() { return [...polys.keys()].sort(); }
 /** Outer rings for one ARTCC as Leaflet lat/lng pairs, or null if unknown. */
 export function getArtccRings(id) {
   if (!loaded) return null;
-  const rings = polys.get(("" + id).toUpperCase());
+  const rings = polys.get(normArtccId(id));
   if (!rings) return null;
   return rings.map(r => r.map(([lon, lat]) => [lat, lon]));
 }
@@ -85,7 +91,7 @@ export function getArtccBounds(id) {
  */
 export function pointInArtcc(id, lat, lon) {
   if (!loaded || lat == null || lon == null) return null;
-  const rings = polys.get(("" + id).toUpperCase());
+  const rings = polys.get(normArtccId(id));
   if (!rings) return null;
   for (const r of rings) if (inRing(lat, lon, r)) return true;
   return false;

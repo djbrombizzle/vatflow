@@ -4278,7 +4278,7 @@ makeEdstDraggable(holdmenu);
 const gpdmenu=document.getElementById('gpdmenu');
 let gpdMapApi=null,gpdReady=null,gpdFitOnce=false;
 function gpdArtccId(){
-  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase();
+  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().replace(/^K(?=Z)/,'');
 }
 function gpdSelectedCs(){
   return (typeof selectedCs!=='undefined'&&selectedCs)?String(selectedCs).toUpperCase():null;
