@@ -632,6 +632,41 @@ td.eh-bk{text-align:center;min-width:18px}
 #cpdlchist .msg .dir{opacity:.7;margin-right:4px}
 #cpdlchist .msg .meta{opacity:.5;font-size:10px}
 
+/* SIG (SIGMET text for controlling FIR) */
+#sigmenu.edst-pop{
+  position:absolute;z-index:65;width:min(480px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#sigmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:8px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#sigmenu .edst-pop-hdr .title{flex:1;letter-spacing:.4px}
+#sigmenu .edst-pop-hdr .refresh{
+  cursor:pointer;padding:0 6px;color:#ddd;font-size:11px;letter-spacing:.04em;
+}
+#sigmenu .edst-pop-hdr .refresh:hover{background:#333;color:#fff}
+#sigmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#sigmenu .edst-pop-hdr .x:hover{background:#333}
+#sigmenu .sig-scope{
+  padding:3px 8px;background:#2a2a2a;color:#aeb6af;border-bottom:1px solid #444;font-size:11px;
+}
+#sigmenu .sig-list{
+  max-height:min(420px,58vh);min-height:140px;overflow:auto;padding:4px 8px;background:#000;
+}
+#sigmenu .sig-empty{padding:20px 10px;color:#777;text-align:center}
+#sigmenu .sig-item{
+  margin:2px 0;border-bottom:1px solid #1a1a1a;padding:6px 0 8px;line-height:1.35;
+}
+#sigmenu .sig-item .sig-meta{color:#8a9088;font-size:11px;margin-bottom:4px}
+#sigmenu .sig-item .sig-meta b{color:#d8d63f;font-weight:normal}
+#sigmenu .sig-item .sig-text{
+  color:var(--fg);white-space:pre-wrap;word-break:break-word;font-size:12px;
+}
+
 @media (max-width: 900px){
   #boardwrap{height:calc(100vh - 180px)}
   #edstbar .etb-btn,#edstbar .etb-stat{padding:1px 5px;font-size:11px;min-width:32px}
@@ -651,7 +686,7 @@ td.eh-bk{text-align:center;min-width:18px}
     <span class="etb-btn" id="btnGpd" title="Graphical Plan Display">GPD</span>
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
     <span class="etb-btn" data-stub="WX REPORT">WX<br>REPORT</span>
-    <span class="etb-btn sig" data-stub="SIG">SIG</span>
+    <span class="etb-btn sig" id="btnSig" title="SIGMETs for controlling FIR">SIG</span>
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
     <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
@@ -969,7 +1004,19 @@ td.eh-bk{text-align:center;min-width:18px}
   <div class="hist-list" id="cpdlcHistList"><div class="hist-empty">No datalink messages</div></div>
 </div>
 
+<!-- EDST SIG (SIGMETs for controlling FIR) -->
+<div id="sigmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">SIGMET</span>
+    <span class="refresh" id="sigRefresh" title="Refresh">REFRESH</span>
+    <span class="x" data-close="sigmenu" title="Close">X</span>
+  </div>
+  <div class="sig-scope" id="sigScope">FIR —</div>
+  <div class="sig-list" id="sigList"><div class="sig-empty">No SIGMETs</div></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="../../shared/edst-sigmets.js"></script>
 <script>
 //============================================================ state
 const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},
@@ -1586,7 +1633,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1788,6 +1835,10 @@ function close(id){
     const btn=document.getElementById('btnCpdlcHist');
     if(btn)btn.classList.remove('active');
   }
+  if(id==='sigmenu'){
+    const btn=document.getElementById('btnSig');
+    if(btn)btn.classList.remove('active');
+  }
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
@@ -1798,7 +1849,7 @@ function showUplink(id,on){
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -1811,6 +1862,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&ev.target.closest('#btnCpdlcHist'))return;
+    if(id==='sigmenu'&&ev.target.closest('#btnSig'))return;
     close(id);
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
@@ -2578,12 +2630,127 @@ makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
 makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
+makeEdstDraggable(document.getElementById('sigmenu'));
 
 (function(){
   const btn=document.getElementById('btnCpdlcHist');
   if(btn)btn.addEventListener('click',e=>{e.preventDefault();openCpdlcHist();});
   const clr=document.getElementById('cpdlcHistClear');
   if(clr)clr.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();clearCpdlcHist();});
+})();
+
+//============================================================ SIG (SIGMETs for FIR)
+let sigLoading=false;
+let sigCache={artcc:'',entries:[],error:null,fetchedAt:0};
+
+function sigMenuOpen(){
+  const el=document.getElementById('sigmenu');
+  return !!(el&&!el.classList.contains('hidden'));
+}
+function sigArtcc(){
+  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase();
+}
+function sigFmtMeta(entry){
+  const seq=entry.sequence||'—';
+  const haz=(entry.hazard||'').toUpperCase();
+  let valid='';
+  const end=entry.end||entry.validTimeTo;
+  if(end!=null){
+    const d=new Date(typeof end==='number'?(end<1e12?end*1000:end):end);
+    if(!isNaN(d.getTime())){
+      const dd=String(d.getUTCDate()).padStart(2,'0');
+      const hh=String(d.getUTCHours()).padStart(2,'0');
+      const mm=String(d.getUTCMinutes()).padStart(2,'0');
+      valid=' · until '+dd+hh+mm+'Z';
+    }
+  }
+  return seq+(haz?(' · '+haz):'')+valid;
+}
+function renderSigList(){
+  const list=document.getElementById('sigList');
+  const scope=document.getElementById('sigScope');
+  if(!list)return;
+  const art=sigCache.artcc||sigArtcc();
+  const short=art?art.replace(/^K/,''):'—';
+  if(scope){
+    if(sigLoading)scope.textContent='FIR '+short+' — loading…';
+    else if(sigCache.error)scope.textContent='FIR '+short+' — '+sigCache.error;
+    else scope.textContent='FIR '+short+' — text SIGMETs (NWS)';
+  }
+  if(sigLoading&&!(sigCache.entries&&sigCache.entries.length)){
+    list.innerHTML='<div class="sig-empty">Loading SIGMETs…</div>';
+    return;
+  }
+  if(sigCache.error&&!(sigCache.entries&&sigCache.entries.length)){
+    list.innerHTML='<div class="sig-empty">'+esc(sigCache.error)+'</div>';
+    return;
+  }
+  const entries=sigCache.entries||[];
+  if(!entries.length){
+    list.innerHTML='<div class="sig-empty">No active SIGMETs for '+esc(short)+'</div>';
+    return;
+  }
+  list.innerHTML=entries.map(e=>{
+    return '<div class="sig-item">'
+      +'<div class="sig-meta"><b>'+esc(sigFmtMeta(e))+'</b></div>'
+      +'<div class="sig-text">'+esc(e.text||'')+'</div>'
+      +'</div>';
+  }).join('');
+}
+async function refreshSigmets(force){
+  const art=sigArtcc();
+  if(!art){
+    sigCache={artcc:'',entries:[],error:'Set or verify an ARTCC to load SIGMETs.',fetchedAt:Date.now()};
+    renderSigList();
+    return;
+  }
+  if(!window.EdstSigmets||typeof EdstSigmets.fetchSigmetsForArtcc!=='function'){
+    sigCache={artcc:art,entries:[],error:'SIGMET module failed to load.',fetchedAt:Date.now()};
+    renderSigList();
+    return;
+  }
+  // Reuse cache briefly unless forced
+  if(!force&&sigCache.artcc===art&&sigCache.fetchedAt&&(Date.now()-sigCache.fetchedAt)<60e3){
+    renderSigList();
+    return;
+  }
+  sigLoading=true;
+  renderSigList();
+  try{
+    const result=await EdstSigmets.fetchSigmetsForArtcc(art);
+    sigCache={
+      artcc:result.artcc||art,
+      entries:result.entries||[],
+      error:result.error||null,
+      fetchedAt:Date.now(),
+    };
+  }catch(e){
+    sigCache={
+      artcc:art,
+      entries:[],
+      error:(e&&e.message)||'Failed to fetch SIGMETs',
+      fetchedAt:Date.now(),
+    };
+  }
+  sigLoading=false;
+  if(sigMenuOpen())renderSigList();
+}
+function openSigMenu(){
+  const menu=document.getElementById('sigmenu');
+  const btn=document.getElementById('btnSig');
+  if(!menu||!btn)return;
+  if(!menu.classList.contains('hidden')){close('sigmenu');return;}
+  renderSigList();
+  const r=btn.getBoundingClientRect();
+  placePop(menu,r.left,r.bottom+4);
+  btn.classList.add('active');
+  refreshSigmets(false);
+}
+(function(){
+  const btn=document.getElementById('btnSig');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();openSigMenu();});
+  const ref=document.getElementById('sigRefresh');
+  if(ref)ref.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();refreshSigmets(true);});
 })();
 
 //============================================================ GI (General Information)
