@@ -16,9 +16,22 @@ import {
 const ARTCC_STYLE = { color: "#5a9ab8", weight: 1.5, opacity: 0.95, fill: false };
 const ROUTE_FAINT = { color: "#5a7a9a", weight: 1.25, opacity: 0.45, dashArray: "4 6" };
 const ROUTE_SEL = { color: "#8ab4ff", weight: 2.5, opacity: 0.95, dashArray: "6 4" };
+const ROUTE_ALERT_R = { color: "#e0483b", weight: 2.25, opacity: 0.95, dashArray: "6 4" };
+const ROUTE_ALERT_Y = { color: "#dcd63f", weight: 2, opacity: 0.9, dashArray: "6 4" };
+const ROUTE_ALERT_A = { color: "#e0913f", weight: 2, opacity: 0.9, dashArray: "6 4" };
+const ROUTE_ALERT_R_DIM = { color: "#8a3030", weight: 2, opacity: 0.75, dashArray: "4 6" };
+const ROUTE_ALERT_Y_DIM = { color: "#8a8030", weight: 1.75, opacity: 0.7, dashArray: "4 6" };
+const ROUTE_ALERT_A_DIM = { color: "#8a5a28", weight: 1.75, opacity: 0.7, dashArray: "4 6" };
 const AC_COLOR = "#49d3e6";
 const AC_SEL = "#e0a13b";
 
+function routeStyleForAlert(sev, muted, selected) {
+  if (selected && !sev) return ROUTE_SEL;
+  if (sev === "r") return muted ? ROUTE_ALERT_R_DIM : ROUTE_ALERT_R;
+  if (sev === "y") return muted ? ROUTE_ALERT_Y_DIM : ROUTE_ALERT_Y;
+  if (sev === "a") return muted ? ROUTE_ALERT_A_DIM : ROUTE_ALERT_A;
+  return selected ? ROUTE_SEL : ROUTE_FAINT;
+}
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
@@ -142,11 +155,17 @@ function extendBounds(bounds, lat, lon) {
 export async function prepareEdstGpdData(repoRoot = "../../") {
   const root = repoRoot.endsWith("/") ? repoRoot : repoRoot + "/";
   bindAirports(getAirport, hasAirport);
-  await Promise.all([
+  const tasks = [
     fetchArtccBoundaries(root),
     loadNavData(root + "data/nav").catch(() => null),
     loadAirports().catch(() => null),
-  ]);
+  ];
+  // Optional SUA for A-box / GPD — ignore failures
+  try {
+    const probe = await import("./edst-conflict-probe.js");
+    tasks.push(probe.loadSuaData(root).catch(() => 0));
+  } catch (_) { /* ignore */ }
+  await Promise.all(tasks);
 }
 
 /**
@@ -181,6 +200,8 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   let selectedCs = null;
   let lastFitArtcc = "";
   let trafficCount = 0;
+  let alertByCs = null; // Map or object: cs -> {r,y,a,rMuted,yMuted,aMuted,status}
+  let alertShowFilter = null; // {type:'r'|'y'|'a', cs?:string} — Show / Show All
   const onSelect = typeof opts.onSelect === "function" ? opts.onSelect : null;
 
   function drawBoundary(artccId) {
@@ -218,6 +239,37 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     else map.setView([39, -98], 4);
   }
 
+  function alertEntry(cs) {
+    if (!alertByCs) return null;
+    if (typeof alertByCs.get === "function") return alertByCs.get(cs) || null;
+    return alertByCs[cs] || null;
+  }
+
+  function routeSeverity(cs) {
+    const e = alertEntry(cs);
+    if (!e || e.status) return { sev: null, muted: false };
+    if (alertShowFilter) {
+      const t = alertShowFilter.type;
+      const onlyCs = alertShowFilter.cs;
+      if (onlyCs && onlyCs !== cs) return { sev: null, muted: false };
+      if (t === "r" && e.r > 0) return { sev: "r", muted: !!e.rMuted };
+      if (t === "y" && e.y > 0) return { sev: "y", muted: !!e.yMuted };
+      if (t === "a" && e.a > 0) return { sev: "a", muted: !!e.aMuted };
+      // Show All for type still draws others faint; highlight matching
+      if (!onlyCs) {
+        if (t === "r" && e.r > 0) return { sev: "r", muted: !!e.rMuted };
+        if (t === "y" && e.y > 0) return { sev: "y", muted: !!e.yMuted };
+        if (t === "a" && e.a > 0) return { sev: "a", muted: !!e.aMuted };
+        return { sev: null, muted: false };
+      }
+      return { sev: null, muted: false };
+    }
+    if (e.r > 0) return { sev: "r", muted: !!e.rMuted };
+    if (e.y > 0) return { sev: "y", muted: !!e.yMuted };
+    if (e.a > 0) return { sev: "a", muted: !!e.aMuted };
+    return { sev: null, muted: false };
+  }
+
   function renderRoutes(flights, sel) {
     routeLayer.clearLayers();
     for (const f of flights) {
@@ -225,7 +277,8 @@ export function createEdstGpdMap(containerEl, opts = {}) {
       const coords = routePathCoords(f);
       if (coords.length < 2) continue;
       const isSel = sel && cs === sel;
-      L.polyline(coords, isSel ? ROUTE_SEL : ROUTE_FAINT).addTo(routeLayer);
+      const { sev, muted } = routeSeverity(cs);
+      L.polyline(coords, routeStyleForAlert(sev, muted, isSel)).addTo(routeLayer);
     }
   }
 
@@ -289,7 +342,8 @@ export function createEdstGpdMap(containerEl, opts = {}) {
 
   /**
    * @param {object[]} flights liveFlights / board aircraft
-   * @param {{ selectedCs?: string|null, artccId?: string, refit?: boolean }} [options]
+   * @param {{ selectedCs?: string|null, artccId?: string, refit?: boolean,
+   *           alertByCs?: Map|object|null, alertShowFilter?: object|null }} [options]
    */
   function update(flights, options = {}) {
     if (options.artccId) currentArtcc = normArtccId(options.artccId);
@@ -297,6 +351,8 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     if ("selectedCs" in options) {
       selectedCs = options.selectedCs ? String(options.selectedCs).toUpperCase() : null;
     }
+    if ("alertByCs" in options) alertByCs = options.alertByCs || null;
+    if ("alertShowFilter" in options) alertShowFilter = options.alertShowFilter || null;
     render({ refit: !!options.refit });
   }
 
