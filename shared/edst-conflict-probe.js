@@ -5,8 +5,13 @@
  * Y (yellow): A–A 5–12 NM
  * A (orange): within 3 NM of Special Activity Airspace (SUA)
  *
+ * Vertical separation uses assigned altitude when present, otherwise the
+ * filed/cruise altitude (not present altitude).
+ *
  * Muted = conflict only appears when projecting an uncleared altitude change
  * (assigned alt ≠ present alt, and no altitude uplink pending WILCO).
+ *
+ * GPD highlights only the route segment(s) where the conflict occurs.
  *
  * No audio — visual only.
  */
@@ -18,6 +23,7 @@ const VERT_FT = 2000;          // treat as conflict if |Δalt| < this
 const SAMPLE_NM = 8;           // route sample spacing
 const LOOKAHEAD_NM = 120;      // max route look-ahead
 const TIME_STEP_MIN = 0.5;     // synchronized probe time step (minutes)
+const SEG_PAD_MIN = 1.5;       // pad conflict segments along-track (minutes)
 
 function haversineNm(lat1, lon1, lat2, lon2) {
   const R = 3440.065;
@@ -52,7 +58,6 @@ function bearingDeg(lat1, lon1, lat2, lon2) {
 }
 
 function inRing(lat, lon, ring) {
-  // ring: [[lon,lat],...] GeoJSON
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const xi = ring[i][0], yi = ring[i][1];
@@ -64,7 +69,6 @@ function inRing(lat, lon, ring) {
 }
 
 function distToSegmentNm(lat, lon, aLat, aLon, bLat, bLon) {
-  // Approximate local NM projection
   const cos = Math.cos((lat * Math.PI) / 180);
   const ax = (aLon - lon) * 60 * cos, ay = (aLat - lat) * 60;
   const bx = (bLon - lon) * 60 * cos, by = (bLat - lat) * 60;
@@ -96,8 +100,40 @@ function flToFt(fl) {
   return (fl == null ? 0 : +fl) * 100;
 }
 
+/** Parse filed/cruise altitude strings: "350", "FL350", "35000", 350 → FL number. */
+export function parseCruiseFl(v) {
+  if (v == null || v === "") return null;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    if (v >= 1000) return Math.round(v / 100);
+    if (v > 0 && v <= 600) return Math.round(v);
+    return null;
+  }
+  const s = String(v).trim().toUpperCase().replace(/\s+/g, "");
+  if (!s) return null;
+  const fl = s.match(/^FL?(\d{2,3})$/);
+  if (fl) return parseInt(fl[1], 10);
+  const n = parseInt(s.replace(/[^0-9]/g, ""), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n >= 1000) return Math.round(n / 100);
+  if (n <= 600) return n;
+  return null;
+}
+
+/**
+ * Probe altitude for separation: controller assigned → filed/cruise → present.
+ */
+export function resolveProbeFl(ac, opts = {}) {
+  if (opts.assignedFl != null && Number.isFinite(+opts.assignedFl)) return +opts.assignedFl;
+  const filed = parseCruiseFl(ac && (ac.cruise || ac.filedAlt || ac.fpAlt || ac.filed));
+  if (filed != null) return filed;
+  if (ac && ac.alt != null && Number.isFinite(+ac.alt)) return +ac.alt;
+  if (ac && ac.fl != null && Number.isFinite(+ac.fl)) return +ac.fl;
+  return 0;
+}
+
 /**
  * Build time-tagged samples along remaining route.
+ * altFl is the assigned/filed probe altitude (constant along the path).
  * @returns {{lat,lon,tMin,altFl,projected}[]}
  */
 export function buildProbeSamples(ac, opts = {}) {
@@ -107,12 +143,13 @@ export function buildProbeSamples(ac, opts = {}) {
 
   const curFl = ac.alt != null ? +ac.alt : (ac.fl != null ? +ac.fl : 0);
   const assigned = opts.assignedFl != null ? +opts.assignedFl : null;
+  const probeFl = resolveProbeFl(ac, opts);
+  // Muted when controller has assigned a level the aircraft is not yet cleared to.
   const uncleared = !!(assigned != null && Math.abs(assigned - curFl) >= 5 && !opts.altPending);
-  const targetFl = assigned != null ? assigned : curFl;
+  const projected = uncleared && Math.abs(probeFl - curFl) >= 3;
   const gs = Math.max(120, +(ac.gs || 0) || 400); // kt
   const nmPerMin = gs / 60;
 
-  // Collect path points: now → remaining fixes
   const pts = [[lat, lon]];
   const fixes = ac.routeFixes || ac.route_fixes || [];
   if (Array.isArray(fixes)) {
@@ -125,7 +162,6 @@ export function buildProbeSamples(ac, opts = {}) {
       pts.push([la, lo]);
     }
   }
-  // Dead-reckon ahead if no route
   if (pts.length < 2 && ac.hdg != null) {
     pts.push(destPoint(lat, lon, +ac.hdg, Math.min(LOOKAHEAD_NM, 40)));
   }
@@ -133,9 +169,7 @@ export function buildProbeSamples(ac, opts = {}) {
   const samples = [];
   let traveled = 0;
   let tMin = 0;
-  samples.push({
-    lat, lon, tMin: 0, altFl: curFl, projected: false,
-  });
+  samples.push({ lat, lon, tMin: 0, altFl: probeFl, projected });
 
   for (let i = 0; i < pts.length - 1; i++) {
     const [aLat, aLon] = pts[i];
@@ -149,30 +183,13 @@ export function buildProbeSamples(ac, opts = {}) {
       traveled += SAMPLE_NM;
       tMin = traveled / nmPerMin;
       const [sLat, sLon] = destPoint(aLat, aLon, brg, along);
-      // Blend altitude toward assigned over first ~40 NM. Mark projected
-      // (muted) only when the maneuver is uncleared — cleared climbs still
-      // project for vertical math but stay bright if they conflict.
-      let altFl = curFl;
-      let projected = false;
-      if (assigned != null && Math.abs(assigned - curFl) >= 5) {
-        const frac = Math.min(1, traveled / 40);
-        altFl = curFl + (targetFl - curFl) * frac;
-        projected = uncleared && Math.abs(altFl - curFl) >= 3;
-      }
-      samples.push({ lat: sLat, lon: sLon, tMin, altFl, projected });
+      samples.push({ lat: sLat, lon: sLon, tMin, altFl: probeFl, projected });
       if (traveled >= LOOKAHEAD_NM) break;
     }
     traveled += segNm - along;
     tMin = traveled / nmPerMin;
     if (traveled <= LOOKAHEAD_NM) {
-      let altFl = curFl;
-      let projected = false;
-      if (assigned != null && Math.abs(assigned - curFl) >= 5) {
-        const frac = Math.min(1, traveled / 40);
-        altFl = curFl + (targetFl - curFl) * frac;
-        projected = uncleared && Math.abs(altFl - curFl) >= 3;
-      }
-      samples.push({ lat: bLat, lon: bLon, tMin, altFl, projected });
+      samples.push({ lat: bLat, lon: bLon, tMin, altFl: probeFl, projected });
     }
     if (traveled >= LOOKAHEAD_NM) break;
   }
@@ -201,29 +218,83 @@ function sampleAtTime(samples, tMin) {
   return last;
 }
 
-function considerHit(bestRed, bestYel, d, muted) {
-  function better(best, dist, isMuted) {
-    if (!best) return { dist, muted: isMuted };
-    // Prefer bright (non-muted) over muted whenever both exist
-    if (best.muted && !isMuted) return { dist, muted: false };
-    if (!best.muted && isMuted) return best;
-    if (dist < best.dist) return { dist, muted: isMuted };
+/** Collect padded [[lat,lon],...] along samples covering [tStart,tEnd]. */
+export function segmentCoords(samples, tStart, tEnd, padMin = SEG_PAD_MIN) {
+  if (!samples || !samples.length) return [];
+  const t0 = Math.max(0, tStart - padMin);
+  const t1 = tEnd + padMin;
+  const coords = [];
+  const push = (lat, lon) => {
+    if (!coords.length) coords.push([lat, lon]);
+    else {
+      const p = coords[coords.length - 1];
+      if (Math.abs(p[0] - lat) > 1e-7 || Math.abs(p[1] - lon) > 1e-7) coords.push([lat, lon]);
+    }
+  };
+  // Dense-ish samples along the conflict window for a smooth highlight.
+  for (let t = t0; t <= t1 + 1e-9; t += TIME_STEP_MIN) {
+    const s = sampleAtTime(samples, t);
+    if (s) push(s.lat, s.lon);
+  }
+  if (coords.length === 1) {
+    const s2 = sampleAtTime(samples, Math.min(samples[samples.length - 1].tMin, t0 + 1));
+    if (s2) push(s2.lat, s2.lon);
+  }
+  return coords;
+}
+
+function mergeSeg(entry, sev, muted, coords) {
+  if (!coords || coords.length < 2) return;
+  if (!entry.segments) entry.segments = [];
+  // Prefer bright if overlapping same severity already muted
+  const existing = entry.segments.find(s => s.sev === sev
+    && Math.abs(s.coords[0][0] - coords[0][0]) < 0.05
+    && Math.abs(s.coords[0][1] - coords[0][1]) < 0.05);
+  if (existing) {
+    if (existing.muted && !muted) existing.muted = false;
+    if (coords.length > existing.coords.length) existing.coords = coords;
+    return;
+  }
+  entry.segments.push({ sev, muted: !!muted, coords });
+}
+
+function considerHit(bestRed, bestYel, d, muted, t, a, b) {
+  function better(best, dist, isMuted, time, pa, pb) {
+    const hit = {
+      dist, muted: isMuted, tStart: time, tEnd: time,
+      latA: pa.lat, lonA: pa.lon, latB: pb.lat, lonB: pb.lon,
+    };
+    if (!best) return hit;
+    // Prefer bright over muted
+    if (best.muted && !isMuted) return hit;
+    if (!best.muted && isMuted) {
+      // still extend time window if this muted hit is contiguous? skip for best
+      return best;
+    }
+    if (dist < best.dist) {
+      return { ...hit, tStart: Math.min(best.tStart, time), tEnd: Math.max(best.tEnd, time) };
+    }
+    // Same severity band — expand the conflict time window
+    best.tStart = Math.min(best.tStart, time);
+    best.tEnd = Math.max(best.tEnd, time);
     return best;
   }
-  if (d <= RED_NM) return [better(bestRed, d, muted), bestYel];
-  if (d <= YELLOW_NM) return [bestRed, better(bestYel, d, muted)];
+  if (d <= RED_NM) return [better(bestRed, d, muted, t, a, b), bestYel];
+  if (d <= YELLOW_NM) return [bestRed, better(bestYel, d, muted, t, a, b)];
   return [bestRed, bestYel];
 }
 
 /**
  * Pair two aircraft by comparing positions at the same clock times.
- * (Loose time-slack pairing falsely flags parallel tracks when one sample
- * reaches the other's present position minutes later.)
+ * Returns best red/yellow hits with conflict time windows for segment highlight.
  */
 function pairConflicts(sa, sb) {
-  let bestRed = null;   // {dist, muted}
+  let bestRed = null;
   let bestYel = null;
-  if (!sa.length || !sb.length) return { red: null, yellow: null };
+  // All conflict time hits for contiguous segment ranges (per severity)
+  const redTimes = [];
+  const yelTimes = [];
+  if (!sa.length || !sb.length) return { red: null, yellow: null, redTimes, yelTimes };
 
   const tMax = Math.min(sa[sa.length - 1].tMin, sb[sb.length - 1].tMin);
   for (let t = 0; t <= tMax + 1e-9; t += TIME_STEP_MIN) {
@@ -234,21 +305,40 @@ function pairConflicts(sa, sb) {
     if (vert >= VERT_FT) continue;
     const d = haversineNm(a.lat, a.lon, b.lat, b.lon);
     const muted = !!(a.projected || b.projected);
-    [bestRed, bestYel] = considerHit(bestRed, bestYel, d, muted);
+    if (d <= RED_NM) {
+      redTimes.push({ t, muted, a, b, d });
+      [bestRed, bestYel] = considerHit(bestRed, bestYel, d, muted, t, a, b);
+    } else if (d <= YELLOW_NM) {
+      yelTimes.push({ t, muted, a, b, d });
+      [bestRed, bestYel] = considerHit(bestRed, bestYel, d, muted, t, a, b);
+    }
   }
+  return { red: bestRed, yellow: bestYel, redTimes, yelTimes };
+}
 
-  // Current-position check (always bright if conflict now)
-  const vert0 = Math.abs(flToFt(sa[0].altFl) - flToFt(sb[0].altFl));
-  if (vert0 < VERT_FT) {
-    const d0 = haversineNm(sa[0].lat, sa[0].lon, sb[0].lat, sb[0].lon);
-    if (d0 <= RED_NM) bestRed = { dist: d0, muted: false };
-    else if (d0 <= YELLOW_NM && !bestRed) bestYel = { dist: d0, muted: false };
+/** Collapse discrete hit times into [tStart,tEnd] runs (gap ≤ 1 step). */
+function timeRuns(hits) {
+  if (!hits.length) return [];
+  const sorted = hits.slice().sort((x, y) => x.t - y.t);
+  const runs = [];
+  let start = sorted[0].t, end = sorted[0].t, muted = !!sorted[0].muted;
+  for (let i = 1; i < sorted.length; i++) {
+    const h = sorted[i];
+    if (h.t - end <= TIME_STEP_MIN * 1.5) {
+      end = h.t;
+      if (!h.muted) muted = false;
+    } else {
+      runs.push({ tStart: start, tEnd: end, muted });
+      start = end = h.t;
+      muted = !!h.muted;
+    }
   }
-  return { red: bestRed, yellow: bestYel };
+  runs.push({ tStart: start, tEnd: end, muted });
+  return runs;
 }
 
 // ---- SUA cache ----
-let suaPolys = []; // [{rings, floorFt, ceilFt, type, name}]
+let suaPolys = [];
 let suaLoaded = false;
 let suaLoading = null;
 
@@ -278,7 +368,6 @@ function ingestSua(geo) {
 
 export function isSuaReady() { return suaLoaded; }
 
-/** Test/helper: inject SUA polygons (GeoJSON FeatureCollection or features[]). */
 export function setSuaFeatures(geo) {
   return ingestSua(geo && geo.type === "FeatureCollection" ? geo : { features: geo || [] });
 }
@@ -288,7 +377,6 @@ export async function loadSuaData(baseUrl = "") {
   if (suaLoading) return suaLoading;
   const root = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
   suaLoading = (async () => {
-    // Prefer gzip (small); fall back to raw JSON.
     try {
       const r = await fetch(root + "data/sua.geojson.gz");
       if (r.ok && typeof DecompressionStream !== "undefined") {
@@ -307,17 +395,22 @@ export async function loadSuaData(baseUrl = "") {
 }
 
 function countSaaHits(samples) {
-  if (!suaLoaded || !samples.length) return { count: 0, muted: false };
+  if (!suaLoaded || !samples.length) {
+    return { count: 0, muted: false, times: [] };
+  }
   let count = 0;
   let anyMuted = false;
   const seen = new Set();
+  const times = [];
   for (const s of samples) {
     const altFt = flToFt(s.altFl);
+    let hit = false;
     for (let i = 0; i < suaPolys.length; i++) {
       const poly = suaPolys[i];
       if (altFt < poly.floorFt - 100 || altFt > poly.ceilFt + 100) continue;
       const d = distToPolygonNm(s.lat, s.lon, poly.rings);
       if (d <= SAA_NM) {
+        hit = true;
         if (!seen.has(i)) {
           seen.add(i);
           count++;
@@ -325,17 +418,15 @@ function countSaaHits(samples) {
         }
       }
     }
+    if (hit) times.push({ t: s.tMin, muted: !!s.projected });
   }
-  return { count, muted: anyMuted && count > 0 };
+  return { count, muted: anyMuted && count > 0, times };
 }
 
 /**
  * Probe a list of aircraft.
- * @param {object[]} aircraft — board rows with cs, lat, lon, alt, gs, hdg, routeFixes
- * @param {{ assigned?: Record<string,number>, altPending?: Set<string>,
- *           stopProbe?: Set<string>, holdActive?: Set<string>, frozen?: Set<string> }} ctx
- * @returns {Map<string, {r:number,y:number,a:number,rMuted:boolean,yMuted:boolean,aMuted:boolean,
- *                        status:null|'X'|'S'|'H'|'F', partners:{r:string[],y:string[]}}>}
+ * @returns {Map<string, {r,y,a,rMuted,yMuted,aMuted,status,partners,segments}>}
+ *   segments: [{sev:'r'|'y'|'a', muted, coords:[[lat,lon],...]}]
  */
 export function probeConflicts(aircraft, ctx = {}) {
   const assigned = ctx.assigned || {};
@@ -361,6 +452,7 @@ export function probeConflicts(aircraft, ctx = {}) {
       rMuted: false, yMuted: false, aMuted: false,
       status,
       partners: { r: [], y: [] },
+      segments: [],
     });
 
     if (status) continue;
@@ -374,7 +466,8 @@ export function probeConflicts(aircraft, ctx = {}) {
   for (let i = 0; i < keys.length; i++) {
     for (let j = i + 1; j < keys.length; j++) {
       const ca = keys[i], cb = keys[j];
-      const hit = pairConflicts(samplesBy.get(ca), samplesBy.get(cb));
+      const sa = samplesBy.get(ca), sb = samplesBy.get(cb);
+      const hit = pairConflicts(sa, sb);
       if (hit.red) {
         const ea = out.get(ca), eb = out.get(cb);
         ea.r++; eb.r++;
@@ -384,6 +477,10 @@ export function probeConflicts(aircraft, ctx = {}) {
           if (eb.r === 1) eb.rMuted = true;
         } else {
           ea.rMuted = false; eb.rMuted = false;
+        }
+        for (const run of timeRuns(hit.redTimes)) {
+          mergeSeg(ea, "r", run.muted, segmentCoords(sa, run.tStart, run.tEnd));
+          mergeSeg(eb, "r", run.muted, segmentCoords(sb, run.tStart, run.tEnd));
         }
       } else if (hit.yellow) {
         const ea = out.get(ca), eb = out.get(cb);
@@ -395,17 +492,22 @@ export function probeConflicts(aircraft, ctx = {}) {
         } else {
           ea.yMuted = false; eb.yMuted = false;
         }
+        for (const run of timeRuns(hit.yelTimes)) {
+          mergeSeg(ea, "y", run.muted, segmentCoords(sa, run.tStart, run.tEnd));
+          mergeSeg(eb, "y", run.muted, segmentCoords(sb, run.tStart, run.tEnd));
+        }
       }
     }
   }
-
-  // If both bright and muted partners somehow — prefer bright (already handled by overwrite)
 
   for (const [cs, samples] of samplesBy) {
     const saa = countSaaHits(samples);
     const e = out.get(cs);
     e.a = saa.count;
     e.aMuted = !!saa.muted;
+    for (const run of timeRuns(saa.times)) {
+      mergeSeg(e, "a", run.muted, segmentCoords(samples, run.tStart, run.tEnd));
+    }
   }
 
   return out;

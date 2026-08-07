@@ -2333,6 +2333,7 @@ function mapLive(f){
   return {cs:f.callsign,type:f.type||'----',alt:f.fl||0,hs:'/'+(f.gs||''),
     cid:f.cid||'',squawk:f.squawk||'',assignedSquawk:f.assignedSquawk||'',
     hdg:f.hdg||0,gs:f.gs||0,lat:f.lat,lon:f.lon,
+    cruise:f.cruise||f.filedAlt||'',
     route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);

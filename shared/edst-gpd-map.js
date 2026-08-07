@@ -245,29 +245,20 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     return alertByCs[cs] || null;
   }
 
-  function routeSeverity(cs) {
+  /** Conflict segments to overlay (optionally filtered by Show / Show ALL). */
+  function conflictSegments(cs) {
     const e = alertEntry(cs);
-    if (!e || e.status) return { sev: null, muted: false };
+    if (!e || e.status || !Array.isArray(e.segments)) return [];
+    let segs = e.segments;
     if (alertShowFilter) {
       const t = alertShowFilter.type;
       const onlyCs = alertShowFilter.cs;
-      if (onlyCs && onlyCs !== cs) return { sev: null, muted: false };
-      if (t === "r" && e.r > 0) return { sev: "r", muted: !!e.rMuted };
-      if (t === "y" && e.y > 0) return { sev: "y", muted: !!e.yMuted };
-      if (t === "a" && e.a > 0) return { sev: "a", muted: !!e.aMuted };
-      // Show All for type still draws others faint; highlight matching
-      if (!onlyCs) {
-        if (t === "r" && e.r > 0) return { sev: "r", muted: !!e.rMuted };
-        if (t === "y" && e.y > 0) return { sev: "y", muted: !!e.yMuted };
-        if (t === "a" && e.a > 0) return { sev: "a", muted: !!e.aMuted };
-        return { sev: null, muted: false };
-      }
-      return { sev: null, muted: false };
+      if (onlyCs && onlyCs !== cs) return [];
+      segs = segs.filter(s => s.sev === t);
     }
-    if (e.r > 0) return { sev: "r", muted: !!e.rMuted };
-    if (e.y > 0) return { sev: "y", muted: !!e.yMuted };
-    if (e.a > 0) return { sev: "a", muted: !!e.aMuted };
-    return { sev: null, muted: false };
+    // Worst-first draw order so red paints over yellow
+    const rank = { r: 3, y: 2, a: 1 };
+    return segs.slice().sort((a, b) => (rank[a.sev] || 0) - (rank[b.sev] || 0));
   }
 
   function renderRoutes(flights, sel) {
@@ -277,8 +268,12 @@ export function createEdstGpdMap(containerEl, opts = {}) {
       const coords = routePathCoords(f);
       if (coords.length < 2) continue;
       const isSel = sel && cs === sel;
-      const { sev, muted } = routeSeverity(cs);
-      L.polyline(coords, routeStyleForAlert(sev, muted, isSel)).addTo(routeLayer);
+      // Full remaining route stays faint/selected — never paint the whole path alert-colored.
+      L.polyline(coords, isSel ? ROUTE_SEL : ROUTE_FAINT).addTo(routeLayer);
+      for (const seg of conflictSegments(cs)) {
+        if (!seg.coords || seg.coords.length < 2) continue;
+        L.polyline(seg.coords, routeStyleForAlert(seg.sev, !!seg.muted, false)).addTo(routeLayer);
+      }
     }
   }
 
