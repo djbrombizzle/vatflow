@@ -160,11 +160,11 @@ td.eh-bk{text-align:center;min-width:14px}
   opacity:0;pointer-events:none;cursor:default;user-select:none;
   color:transparent;
 }
-.msg-tri.up,.msg-tri.dn{
+.msg-tri.up,.msg-tri.dn,.msg-tri.ho{
   opacity:1;pointer-events:auto;cursor:pointer;
 }
-.msg-tri.up{color:var(--green)}
-.msg-tri.up.timeout{color:var(--red)}
+.msg-tri.up,.msg-tri.ho{color:#fff}
+.msg-tri.up.timeout,.msg-tri.ho.timeout{color:var(--red)}
 .msg-tri.dn{color:var(--teal)}
 .msg-tri.dn.flash{color:var(--red);animation:msgtriflash 1s steps(2,start) infinite}
 @keyframes msgtriflash{50%{opacity:0}}
@@ -2355,16 +2355,24 @@ function onFreqCellHtml(cs){
              :'requesting logon — click to accept';
   return `<span class="${cls}" data-logon="${cs}" title="${title}"></span>`;
 }
-/** Callsign uplink ▲ / downlink ▼ — same glyphs as column sort headers. */
+/** Callsign uplink ▲ / handoff ▶ / downlink ▼ — same glyphs as column sort headers. */
 function msgTriHtml(cs){
   cs=(cs||'').toUpperCase();
-  // Downlink unread takes priority over uplink-pending.
+  const w=wilcoUi[cs];
+  const timeout=!!(w&&w.kind==='timeout');
+  // Downlink unread takes priority.
   if(msgAlert.has(cs)){
     return `<span class="msg-tri dn flash" data-msg="${cs}" title="Downlink message — click to open">\u25bc</span>`;
   }
+  // Handoff pending → right-pointing triangle (clears on WILCO).
+  if(handoffPending.has(cs)){
+    const tip=timeout
+      ?'Handoff timeout — click to view; acknowledge to clear'
+      :'Handoff pending WILCO — click to view';
+    return `<span class="msg-tri ho${timeout?' timeout':''}" data-msg="${cs}" title="${tip}">\u25b6</span>`;
+  }
+  // Other uplink pending → solid white up triangle.
   if(hasUplinkPending(cs)){
-    const w=wilcoUi[cs];
-    const timeout=!!(w&&w.kind==='timeout');
     const tip=timeout
       ?'Uplink timeout — click to view; acknowledge red underline to clear'
       :'Uplink pending WILCO — click to view';
