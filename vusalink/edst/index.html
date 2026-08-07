@@ -597,8 +597,112 @@ td.eh-bk{text-align:center;min-width:18px}
 #queueList .qitem .meta{color:#888}
 .ehs{white-space:nowrap}
 .ehs .spd{color:#dcd63f}
-.route-cell{color:#aeb6af}
+.route-cell{color:#aeb6af;cursor:pointer;max-width:720px;overflow:hidden;text-overflow:ellipsis}
+.route-cell:hover{color:#fff}
 .sqk-asg{color:var(--amber)}
+
+/* Uplink pending underline (green while waiting; red after WILCO timeout) */
+.ul-val{text-decoration:none;text-underline-offset:3px;cursor:inherit}
+.ul-val.ul-green{
+  color:#fff;
+  text-decoration:underline;
+  text-decoration-color:var(--green);
+  text-decoration-thickness:2px;
+}
+.ul-val.ul-red{
+  color:#fff;
+  text-decoration:underline;
+  text-decoration-color:var(--red);
+  text-decoration-thickness:2px;
+  cursor:pointer;
+}
+.ul-val.ul-red:hover{filter:brightness(1.15)}
+
+/* EDST ROUTE MENU */
+#routemenu.edst-pop{
+  position:absolute;z-index:70;width:min(560px,96vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#routemenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:6px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#routemenu .edst-pop-hdr .tri{
+  width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:9px solid #39d24b;flex-shrink:0;
+}
+#routemenu .edst-pop-hdr .title{flex:1;letter-spacing:.3px}
+#routemenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#routemenu .edst-pop-hdr .x:hover{background:#333}
+#routemenu .rt-top{
+  display:flex;flex-wrap:wrap;align-items:stretch;gap:0;border-bottom:1px solid #cfcfcf;background:#4a4a4a;
+}
+#routemenu .rt-top .rt-btn{
+  border:0;border-right:1px solid #cfcfcf;background:#4a4a4a;color:#fff;font:inherit;
+  padding:4px 10px;cursor:pointer;letter-spacing:.04em;
+}
+#routemenu .rt-top .rt-btn:hover{background:#5a5a5a}
+#routemenu .rt-top .rt-btn.amend{background:#6b3a3a}
+#routemenu .rt-top .rt-btn.amend:hover{background:#7a4545}
+#routemenu .rt-top .rt-btn.stub{opacity:.55}
+#routemenu .rt-uplink-wrap{display:flex;align-items:stretch;margin-left:auto;border-left:1px solid #cfcfcf}
+#routemenu .rt-uplink-wrap .rt-btn{border-right:1px solid #cfcfcf}
+#routemenu .rt-uplink-wrap .rt-btn.disabled{opacity:.45;cursor:default}
+#routemenu .rt-chev{
+  border:0;background:#4a4a4a;color:#fff;font:inherit;padding:0 8px;cursor:pointer;border-right:1px solid #cfcfcf;
+}
+#routemenu .rt-chev.open{background:#6b3a3a}
+#routemenu .rt-reasons{display:none;background:#4a4a4a;border-bottom:1px solid #cfcfcf}
+#routemenu .rt-reasons.open{display:block}
+#routemenu .rt-reasons-grid{display:grid;grid-template-columns:repeat(3,1fr)}
+#routemenu .rt-reasons .rt-btn{
+  border:0;border-right:1px solid #cfcfcf;border-bottom:1px solid #cfcfcf;
+  background:#4a4a4a;color:#fff;font:inherit;padding:4px 8px;cursor:pointer;text-align:center;
+}
+#routemenu .rt-reasons .rt-btn:hover{background:#5a5a5a}
+#routemenu .rt-reasons .rt-btn.on{background:#6b3a3a}
+#routemenu .rt-sect{
+  background:#c8c8c8;color:#111;text-align:center;padding:2px 6px;letter-spacing:.4px;
+  border-bottom:1px solid #999;font-size:12px;
+}
+#routemenu .rt-edit-wrap{padding:6px;background:#1a1a1a;border-bottom:1px solid #444}
+#routemenu .rt-edit{
+  width:100%;box-sizing:border-box;min-height:44px;resize:vertical;
+  background:#0a0a0a;border:1px solid #8a8a8a;color:#f0f0ec;font:inherit;padding:4px 6px;
+}
+#routemenu .rt-edit:focus{outline:1px solid #9a9a9a}
+#routemenu .rt-edit-tools{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;align-items:center}
+#routemenu .rt-tool{
+  border:1px solid #2f6b73;background:#15303a;color:#9fe6e0;font:inherit;
+  padding:2px 8px;cursor:pointer;
+}
+#routemenu .rt-tool:hover{background:#1c4048}
+#routemenu .rt-tool.stub{opacity:.4;cursor:default;border-color:#555;background:#222;color:#888}
+#routemenu .rt-tool.frc{margin-left:auto}
+#routemenu .rt-fixlist{
+  max-height:min(220px,36vh);overflow:auto;background:#000;min-height:80px;
+  border-bottom:1px solid #333;padding:4px 0;
+}
+#routemenu .rt-fixlist .rt-preview{
+  padding:2px 10px 6px;color:#aeb6af;border-bottom:1px solid #222;margin-bottom:4px;
+  white-space:pre-wrap;word-break:break-word;
+}
+#routemenu .rt-fixlist .fi{padding:2px 12px;cursor:pointer;color:#f0f0ec}
+#routemenu .rt-fixlist .fi:hover{background:#1c1c1c}
+#routemenu .rt-fixlist .fi.sel{background:#6b3a3a;color:#fff}
+#routemenu .rt-fixlist .seglabel{
+  padding:4px 10px 2px;color:#8a9088;font-size:11px;letter-spacing:.4px;
+}
+#routemenu .rt-apr{
+  display:flex;gap:6px;padding:6px;border-bottom:1px solid #333;background:#111;align-items:center;
+}
+#routemenu .rt-apr .rt-tool.on{outline:1px solid #fff;outline-offset:1px}
+#routemenu .rt-foot{
+  display:flex;justify-content:flex-end;gap:6px;padding:6px;background:#0a0a0a;
+}
 
 #addform{display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;border-bottom:1px solid #333;background:#050505}
 #addform input{background:#0a0a0a;border:1px solid #555;color:#eee;font:inherit;padding:3px 6px}
@@ -853,6 +957,58 @@ td.eh-bk{text-align:center;min-width:18px}
   </div>
 </div>
 
+<!-- EDST ROUTE MENU -->
+<div id="routemenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="tri" aria-hidden="true"></span>
+    <span class="title" id="rtTitle">ROUTE MENU</span>
+    <span class="x" data-close="routemenu" title="Close">X</span>
+  </div>
+  <div class="rt-top">
+    <button type="button" class="rt-btn stub" id="rtTrial" title="Coming soon">TRIAL PLAN</button>
+    <button type="button" class="rt-btn amend" id="rtAmend" title="Remove last queued item">AMEND</button>
+    <div class="rt-uplink-wrap">
+      <button type="button" class="rt-btn disabled" id="rtUplink" title="Uplink route or direct">UPLINK</button>
+      <button type="button" class="rt-chev" id="rtReasonChev" title="Clearance reason options" aria-expanded="false">&#9660;</button>
+      <button type="button" class="rt-btn stub" id="rtCarX" title="Coming soon">CAR X</button>
+      <button type="button" class="rt-btn stub" id="rtRes" title="Coming soon">RES</button>
+      <button type="button" class="rt-btn stub" id="rtHoldBtn" title="Coming soon">HOLD</button>
+      <button type="button" class="rt-btn stub" id="rtData" title="Coming soon">DATA</button>
+    </div>
+  </div>
+  <div class="rt-reasons" id="rtReasonPanel">
+    <div class="rt-reasons-grid">
+      <button type="button" class="rt-btn tgl" id="rtApd" data-reason="PD" title="AT PILOTS DISCRETION">PD</button>
+      <button type="button" class="rt-btn tgl" data-reason="TFC" title="Due to traffic">TFC</button>
+      <button type="button" class="rt-btn tgl" data-reason="IMM" title="Immediately">IMM</button>
+      <button type="button" class="rt-btn tgl" data-reason="RES" title="Restricted airspace">RES</button>
+      <button type="button" class="rt-btn tgl" data-reason="EXP" title="Expedite">EXP</button>
+      <button type="button" class="rt-btn tgl" data-reason="WX" title="Weather">WX</button>
+    </div>
+  </div>
+  <div class="rt-sect">CURRENT RTE EDIT AREA</div>
+  <div class="rt-edit-wrap">
+    <textarea id="rtEdit" class="rt-edit" spellcheck="false" autocomplete="off" rows="2" placeholder="Route (editable)"></textarea>
+    <div class="rt-edit-tools">
+      <button type="button" class="rt-tool stub" title="Coming soon">INCLUDE PAR</button>
+      <button type="button" class="rt-tool stub" title="Coming soon">APPEND *</button>
+      <button type="button" class="rt-tool stub" title="Coming soon">APPEND &#8853;</button>
+      <button type="button" class="rt-tool stub frc" title="Coming soon">FRC</button>
+    </div>
+  </div>
+  <div class="rt-sect">DIRECT-TO-FIX</div>
+  <div class="rt-fixlist" id="rtFixList"></div>
+  <div class="rt-apr">
+    <span style="color:#888;margin-right:4px">APR</span>
+    <button type="button" class="rt-tool on" id="rtAprEligible" title="Eligible approaches">ELIGIBLE</button>
+    <button type="button" class="rt-tool stub" id="rtAprAll" title="Coming soon">ALL</button>
+  </div>
+  <div class="rt-foot">
+    <button type="button" class="rt-tool stub" title="Coming soon">PREVIOUS ROUTE</button>
+    <button type="button" class="rt-tool stub" title="Coming soon">TFM REROUTE MENU</button>
+  </div>
+</div>
+
 <!-- EDST HDG menu -->
 <div id="hdgmenu" class="edst-pop hidden">
   <div class="edst-pop-hdr">
@@ -1071,9 +1227,13 @@ const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting 
 const handoffPending=new Set();          // H: awaiting WILCO
 const handoffMin={};                     // cs -> MIN of CONTACT msg
 const handoffAwaitFreq=new Set();        // handoff WILCO received; drop from list when pilot leaves our freq
-const altMin={}, rtMin={}, sqMin={};     // cs -> MIN of last alt / route / squawk uplink
-const altPending=new Set();              // alt clearance sent, awaiting WILCO (green)
-const routePending=new Set();            // route clearance sent, awaiting WILCO (green)
+const altMin={}, rtMin={}, sqMin={}, hdgMin={}, spdMin={}; // cs -> MIN of last uplink
+const altPending=new Set();              // alt clearance sent, awaiting WILCO
+const routePending=new Set();            // route clearance sent, awaiting WILCO
+const hdgPending=new Set();
+const spdPending=new Set();
+const hdgAssigned={};                    // cs -> heading number or 'PH'
+const spdAssigned={};                    // cs -> knots
 const sqPendingSet=new Set(Object.keys(sqPending||{})); // pending squawk awaiting WILCO
 const messages={};                       // cs -> [{text,time}]
 const seenMsgIds=new Set();
@@ -1119,7 +1279,7 @@ function cpdlcActiveWith(cs){
   // Used so transceiver lag after a handoff can't keep the row gray or drop WILCOs.
   cs=(cs||'').toUpperCase();
   if(!cs)return false;
-  if(wilcoAwait[cs]||handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||sqPendingSet.has(cs)||msgAlert.has(cs))return true;
+  if(wilcoAwait[cs]||handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||hdgPending.has(cs)||spdPending.has(cs)||sqPendingSet.has(cs)||msgAlert.has(cs))return true;
   const w=wilcoUi[cs];
   return !!(w&&(w.kind==='received'||w.kind==='timeout'));
 }
@@ -1366,6 +1526,12 @@ function applyUplinkEffects(cs,min,effects){
   }else if(effects.type==='squawk'){
     if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();}
     sqMin[cs]=min;
+  }else if(effects.type==='hdg'){
+    if(effects.hdg!=null)hdgAssigned[cs]=effects.hdg;
+    hdgMin[cs]=min;hdgPending.add(cs);
+  }else if(effects.type==='spd'){
+    if(effects.spd!=null)spdAssigned[cs]=effects.spd;
+    spdMin[cs]=min;spdPending.add(cs);
   }
 }
 async function sendUplinkEntry(cs,entry){
@@ -1551,13 +1717,17 @@ function clearPendingOnAck(cs,mrn){
   }
   if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];matched=true;}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];matched=true;}
+  if(hdgMin[cs]!=null&&minMatches(hdgMin[cs],mrn)){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];matched=true;}
+  if(spdMin[cs]!=null&&minMatches(spdMin[cs],mrn)){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];matched=true;}
   if(sqMin[cs]!=null&&minMatches(sqMin[cs],mrn)){
     delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();matched=true;
   }
-  if(!matched&&(handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||sqPendingSet.has(cs))){
+  if(!matched&&(handoffPending.has(cs)||altPending.has(cs)||routePending.has(cs)||hdgPending.has(cs)||spdPending.has(cs)||sqPendingSet.has(cs))){
     if(handoffPending.has(cs))ackHandoff(cs);
     if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];}
     if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
+    if(hdgPending.has(cs)){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];}
+    if(spdPending.has(cs)){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];}
     if(sqPendingSet.has(cs)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
   }
 }
@@ -1567,6 +1737,10 @@ function clearPendingOnReject(cs,mrn){
   else if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];delete assigned[cs];persist();}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];}
   else if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
+  if(hdgMin[cs]!=null&&minMatches(hdgMin[cs],mrn)){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];}
+  else if(hdgPending.has(cs)){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];}
+  if(spdMin[cs]!=null&&minMatches(spdMin[cs],mrn)){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];}
+  else if(spdPending.has(cs)){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];}
   if(sqMin[cs]!=null&&minMatches(sqMin[cs],mrn)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
   else if(sqPendingSet.has(cs)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
 }
@@ -1668,7 +1842,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -1771,13 +1945,36 @@ function wilcoBoxHtml(cs){
   return isMuted()?'<span class="wbox solid" title="WILCO received (muted)"></span>'
                        :'<span class="wbox done" title="WILCO received"></span>';
 }
+function round5(n){return Math.round((Number(n)||0)/5)*5;}
+function uplinkMarkClass(cs,pendingSet){
+  cs=(cs||'').toUpperCase();
+  if(!pendingSet||!pendingSet.has(cs))return '';
+  const w=wilcoUi[cs];
+  if(w&&w.kind==='timeout')return ' ul-val ul-red';
+  return ' ul-val ul-green';
+}
+function hasUplinkPending(cs){
+  cs=(cs||'').toUpperCase();
+  return altPending.has(cs)||routePending.has(cs)||hdgPending.has(cs)||spdPending.has(cs)||sqPendingSet.has(cs)||handoffPending.has(cs);
+}
+function ackColumnPending(cs,col){
+  cs=(cs||'').toUpperCase();
+  if(col==='alt'){altPending.delete(cs);delete altMin[cs];}
+  else if(col==='route'){routePending.delete(cs);delete rtMin[cs];}
+  else if(col==='hdg'){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];}
+  else if(col==='spd'){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];}
+  else if(col==='sqk'){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
+  if(!hasUplinkPending(cs)){clearWilcoAwait(cs);ackWilcoUi(cs);}
+  renderBoard();
+}
 function altCellHtml(a){
   const asg=assigned[a.cs];
+  const mark=uplinkMarkClass(a.cs,altPending);
+  const pendAttrs=mark.includes('ul-red')?` data-pend="alt" data-cs="${a.cs}"`:'';
   if(asg!=null){
-    const col=altPending.has(a.cs)?'var(--green)':'#fff';
     const cur=round10(a.alt||0);
     return (cur&&cur!==asg?`<span style="color:var(--fg-dim)">${pad3(cur)}</span> `:'')
-          +`<span style="color:${col}">${pad3(asg)}</span>`;
+          +`<span class="${mark.trim()}"${pendAttrs}>${pad3(asg)}</span>`;
   }
   return pad3(round10(a.alt||0));
 }
@@ -1790,8 +1987,10 @@ function sqkCellHtml(a){
   const cur=normSquawk(a.squawk)||'----';
   const pend=normSquawk(sqPending[a.cs]);
   if(pend){
+    const mark=uplinkMarkClass(a.cs,sqPendingSet);
+    const pendAttrs=mark.includes('ul-red')?` data-pend="sqk" data-cs="${a.cs}"`:'';
     const curBit=(cur!=='----'&&cur!==pend)?`<span style="color:var(--fg-dim)">${cur}</span> `:'';
-    return curBit+`<span style="color:var(--green)">${pend}</span>`;
+    return curBit+`<span class="${mark.trim()}"${pendAttrs}>${pend}</span>`;
   }
   const asg=normSquawk(a.assignedSquawk);
   if(asg&&asg!==cur){
@@ -1800,11 +1999,30 @@ function sqkCellHtml(a){
   return cur;
 }
 function hsCellHtml(a,idx){
-  const h=a.hdg?('H'+pad3(a.hdg)):'---';
-  const s=a.gs?String(a.gs):'---';
-  return `<span class="hdg-cell" data-hdg="${idx}" title="heading">${h}</span>`
-        +`<span class="hssep"> / </span>`
-        +`<span class="spd-cell spd" data-spd="${idx}" title="speed">${s}</span>`;
+  const liveH=a.hdg?round5(a.hdg):null;
+  const liveS=a.gs!=null&&a.gs!==''?round5(a.gs):null;
+  const hAsg=hdgAssigned[a.cs];
+  const sAsg=spdAssigned[a.cs];
+  const hMark=uplinkMarkClass(a.cs,hdgPending);
+  const sMark=uplinkMarkClass(a.cs,spdPending);
+  const hRed=hMark.includes('ul-red')?` data-pend="hdg" data-cs="${a.cs}"`:'';
+  const sRed=sMark.includes('ul-red')?` data-pend="spd" data-cs="${a.cs}"`:'';
+  let hHtml;
+  if(hAsg!=null&&hdgPending.has(a.cs)){
+    const label=hAsg==='PH'?'PH':('H'+pad3(hAsg));
+    const dim=(liveH!=null&&hAsg!=='PH'&&liveH!==hAsg)?`<span style="color:var(--fg-dim)">H${pad3(liveH)}</span> `:'';
+    hHtml=dim+`<span class="hdg-cell${hMark}" data-hdg="${idx}"${hRed} title="heading">${label}</span>`;
+  }else{
+    hHtml=`<span class="hdg-cell" data-hdg="${idx}" title="heading">${liveH!=null?('H'+pad3(liveH)):'---'}</span>`;
+  }
+  let sHtml;
+  if(sAsg!=null&&spdPending.has(a.cs)){
+    const dim=(liveS!=null&&liveS!==sAsg)?`<span style="color:var(--fg-dim)">${liveS}</span> `:'';
+    sHtml=dim+`<span class="spd-cell spd${sMark}" data-spd="${idx}"${sRed} title="speed">${sAsg}</span>`;
+  }else{
+    sHtml=`<span class="spd-cell spd" data-spd="${idx}" title="speed">${liveS!=null?String(liveS):'---'}</span>`;
+  }
+  return hHtml+`<span class="hssep"> / </span>`+sHtml;
 }
 function onFreqCellHtml(cs){
   const conn=connected.has(cs), req=logonReq.has(cs);
@@ -1823,14 +2041,16 @@ function renderRowEdst(a,idx){
   const connCue=conn?' conn':'';
   const fidTitle=conn?'on CPDLC':'';
   const fid=`<span class="efid${connCue}" data-cs="${a.cs}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid">${a.cs}</span></span>`;
-  const rcol=routePending.has(a.cs)?'color:var(--green)':'';
+  const rMark=uplinkMarkClass(a.cs,routePending);
+  const rRed=rMark.includes('ul-red')?` data-pend="route" data-cs="${a.cs}"`:'';
+  const routeHtml=`<span class="${(rMark||'ul-val').trim()}"${rRed}>${esc(a.route||'')}</span>`;
   return `<td class="eh-bk">${bk}</td><td class="eh-al">${rbox}</td><td class="eh-al">${ybox}</td><td class="eh-al">${abox}</td>`
         +`<td>${fid}</td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
         +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
         +`<td class="ecod">${sqkCellHtml(a)}</td>`
         +`<td class="ehs">${hsCellHtml(a,idx)}</td>`
-        +`<td class="route-cell" style="${rcol}">${a.route||''}</td>`;
+        +`<td class="route-cell" data-route="${idx}">${routeHtml}</td>`;
 }
 function updateMode(){
   const badge=document.getElementById('modeBadge'),field=document.getElementById('viewArtccField');
@@ -1896,21 +2116,22 @@ function close(id){
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
-  if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'){
+  if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'||id==='rtUplink'){
     el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;
   }
   el.classList.toggle('hidden',!on);
 }
 document.querySelectorAll('[data-close]').forEach(e=>e.addEventListener('click',()=>close(e.dataset.close)));
 document.addEventListener('pointerdown',ev=>{
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu'].forEach(id=>{
+  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu','cpdlchist','sigmenu','routemenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
     if(id==='altmenu'&&ev.target.closest('.alt-cell'))return;
     if(id==='hdgmenu'&&ev.target.closest('.hdg-cell'))return;
     if(id==='spdmenu'&&ev.target.closest('.spd-cell'))return;
-    if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')))return;
+    if(id==='routemenu'&&ev.target.closest('.route-cell'))return;
+    if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
@@ -2416,7 +2637,10 @@ let hdgTarget=null,hdgCmd=null,hdgMode='NP',hdgSelected=null;
 function norm360(h){h=Math.round(h)%360;if(h<=0)h+=360;return h;}
 function buildHdgMessage(cmd){
   if(!cmd)return null;
-  return {label:'HDG',msg:cmd,effects:null};
+  const effects={type:'hdg'};
+  if(hdgMode==='PH')effects.hdg='PH';
+  else if(hdgSelected!=null)effects.hdg=hdgSelected;
+  return {label:'HDG',msg:cmd,effects};
 }
 function syncHdgModes(){
   document.querySelectorAll('#hdgmenu .hm-mode').forEach(btn=>{
@@ -2515,7 +2739,9 @@ const SPD_REASON_TEXT={
 };
 function buildSpdMessage(cmd){
   if(!cmd)return null;
-  return {label:'SPD',msg:cmd,effects:null};
+  const effects={type:'spd'};
+  if(spdSelected!=null)effects.spd=spdSelected;
+  return {label:'SPD',msg:cmd,effects};
 }
 function spdTail(){return spdToggle==='+'?' OR GREATER':spdToggle==='-'?' OR LESS':'';}
 function spdReasonSuffix(){
@@ -2682,9 +2908,134 @@ makeEdstDraggable(altmenu);
 makeEdstDraggable(xresmenu);
 makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
+makeEdstDraggable(document.getElementById('routemenu'));
 makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
 makeEdstDraggable(document.getElementById('sigmenu'));
+
+//============================================================ ROUTE MENU
+const routemenu=document.getElementById('routemenu');
+let rtTarget=null,fixSelected=null,rtReasonsOpen=false,rtApd=false;
+const rtReasons=new Set();
+const RT_REASON_TEXT={
+  TFC:'DUE TO TRAFFIC',
+  IMM:'IMMEDIATELY',
+  RES:'DUE TO RESTRICTED AIRSPACE',
+  EXP:'EXPEDITE',
+  WX:'DUE TO WEATHER'
+};
+function buildRouteDirectMessage(fix){
+  if(!fix)return null;
+  let msg=`PROCEED DIRECT TO @${fix}@`;
+  if(rtApd)msg+=' AT PILOTS DISCRETION';
+  msg+=rtReasonSuffix();
+  return {label:'DIRECT',msg,effects:{type:'route'}};
+}
+function buildRouteUplinkMessage(target,route){
+  if(!target||!route)return null;
+  const dest=(target.arr||'').toUpperCase();
+  let msg=dest?`CLEARED TO @${dest}@ VIA @${route}@`:`CLEARED ROUTE @${route}@`;
+  if(rtApd)msg+=' AT PILOTS DISCRETION';
+  msg+=rtReasonSuffix();
+  return {label:'ROUTE',msg,effects:{type:'route'}};
+}
+function rtReasonSuffix(){
+  const order=['IMM','EXP','TFC','RES','WX'];
+  const parts=[];
+  order.forEach(k=>{if(rtReasons.has(k)&&RT_REASON_TEXT[k])parts.push(RT_REASON_TEXT[k]);});
+  return parts.length?', '+parts.join(', '):'';
+}
+function syncRtReasons(){
+  document.querySelectorAll('#rtReasonPanel [data-reason]').forEach(btn=>{
+    const key=btn.dataset.reason;
+    if(key==='PD')btn.classList.toggle('on',rtApd);
+    else btn.classList.toggle('on',rtReasons.has(key));
+  });
+}
+function setRtReasonsOpen(on){
+  rtReasonsOpen=!!on;
+  const panel=document.getElementById('rtReasonPanel');
+  const chev=document.getElementById('rtReasonChev');
+  if(panel)panel.classList.toggle('open',rtReasonsOpen);
+  if(chev){chev.classList.toggle('open',rtReasonsOpen);chev.setAttribute('aria-expanded',rtReasonsOpen?'true':'false');}
+}
+function syncRtUplink(){
+  const edit=(document.getElementById('rtEdit')&&document.getElementById('rtEdit').value||'').trim();
+  const ready=!!(rtTarget&&(fixSelected||edit));
+  showUplink('rtUplink',ready);
+}
+function appendRtFixRow(list,fix){
+  const fi=document.createElement('div');fi.className='fi';fi.textContent=fix;
+  fi.onclick=()=>{
+    document.querySelectorAll('#rtFixList .fi').forEach(e=>e.classList.remove('sel'));
+    fi.classList.add('sel');
+    fixSelected=fix;
+    syncRtUplink();
+  };
+  list.appendChild(fi);
+}
+function openRouteMenu(idx,x,y){
+  const a=displayList()[idx];if(!a)return;
+  rtTarget=a;fixSelected=null;rtApd=false;rtReasons.clear();setRtReasonsOpen(false);syncRtReasons();
+  const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
+  let title='ROUTE MENU '+a.cs;
+  if(dep||arr)title+='  '+[dep,arr].filter(Boolean).join(' \u2192 ');
+  document.getElementById('rtTitle').textContent=title;
+  const edit=document.getElementById('rtEdit');
+  if(edit)edit.value=a._routeRaw||a.route||'';
+  const F=document.getElementById('rtFixList');F.innerHTML='';
+  const preview=document.createElement('div');preview.className='rt-preview';
+  preview.textContent='/. '+((a._routeRaw||a.route||'').replace(/^\.?\/?\.?\s*/,''));
+  F.appendChild(preview);
+  const entries=routeFixEntries(a);
+  const hasKind=entries.some(f=>f.kind);
+  if(hasKind){
+    [{label:'SID',kind:'sid'},{label:'ENROUTE',kind:'enroute'},{label:'STAR',kind:'star'}].forEach(g=>{
+      const seg=entries.filter(f=>f.kind===g.kind);
+      if(!seg.length)return;
+      const lbl=document.createElement('div');lbl.className='seglabel';lbl.textContent=g.label;
+      F.appendChild(lbl);
+      seg.forEach(f=>appendRtFixRow(F,f.name));
+    });
+    entries.filter(f=>f.kind&&f.kind!=='sid'&&f.kind!=='enroute'&&f.kind!=='star').forEach(f=>appendRtFixRow(F,f.name));
+  }else entries.forEach(f=>appendRtFixRow(F,f.name));
+  syncRtUplink();
+  placePop(routemenu,x,y);
+}
+document.getElementById('rtEdit').addEventListener('input',syncRtUplink);
+document.getElementById('rtReasonChev').onclick=()=>setRtReasonsOpen(!rtReasonsOpen);
+document.getElementById('rtApd').onclick=()=>{rtApd=!rtApd;syncRtReasons();};
+document.querySelectorAll('#rtReasonPanel [data-reason]').forEach(btn=>{
+  if(btn.dataset.reason==='PD')return;
+  btn.onclick=()=>{
+    const key=btn.dataset.reason;
+    if(rtReasons.has(key))rtReasons.delete(key);else rtReasons.add(key);
+    syncRtReasons();
+  };
+});
+document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarget.cs);};
+document.getElementById('rtUplink').onclick=async()=>{
+  if(document.getElementById('rtUplink').classList.contains('disabled'))return;
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!rtTarget)return;
+  let entry=null;
+  if(fixSelected)entry=buildRouteDirectMessage(fixSelected);
+  else{
+    const rt=(document.getElementById('rtEdit').value||'').trim().toUpperCase().replace(/\s+/g,' ');
+    if(rt)entry=buildRouteUplinkMessage(rtTarget,rt);
+  }
+  if(!entry)return;
+  const cs=rtTarget.cs;
+  close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+['rtTrial','rtCarX','rtRes','rtHoldBtn','rtData','rtAprAll'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('click',()=>comingSoon(el.textContent.trim()));
+});
+document.querySelectorAll('#routemenu .rt-tool.stub').forEach(el=>{
+  el.addEventListener('click',()=>comingSoon(el.textContent.trim()));
+});
 
 (function(){
   const btn=document.getElementById('btnCpdlcHist');
@@ -3034,7 +3385,8 @@ async function sendGiMessage(){
 //============================================================ ACL row selection
 function isMenuClickTarget(el){
   return !!(el.closest('.alt-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
-    ||el.closest('.sqk-asg')||el.closest('.abox')||el.closest('[data-logon]')||el.closest('.vci'));
+    ||el.closest('.route-cell')||el.closest('.sqk-asg')||el.closest('.abox')
+    ||el.closest('[data-logon]')||el.closest('.vci')||el.closest('.ul-red'));
 }
 function syncHoldButton(){
   const btn=document.getElementById('btnHold');
@@ -3246,7 +3598,15 @@ document.getElementById('holdEfcMinus').onclick=()=>{
   let hh=Math.floor(base/100), mm=base%100;mm-=1;if(mm<0){mm=59;hh=(hh+23)%24;}
   document.getElementById('holdEfc').value=pad2(hh)+pad2(mm);syncHoldUplink();
 };
-document.getElementById('holdRouteMenu').onclick=()=>comingSoon('ROUTE MENU');
+document.getElementById('holdRouteMenu').onclick=()=>{
+  const a=selectedAircraft();
+  if(!a){comingSoon('Select an aircraft row first');return;}
+  const idx=displayList().findIndex(x=>x.cs===a.cs);
+  if(idx<0)return;
+  const btn=document.getElementById('holdRouteMenu');
+  const r=(btn||document.body).getBoundingClientRect();
+  openRouteMenu(idx,r.left,r.bottom+4);
+};
 document.getElementById('holdUplink').onclick=async()=>{
   if(document.getElementById('holdUplink').classList.contains('disabled'))return;
   if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
@@ -3265,8 +3625,6 @@ document.getElementById('holdUplinkEfc').onclick=async()=>{
 };
 buildHoldDirs();buildHoldLegs();syncHoldButton();
 makeEdstDraggable(holdmenu);
-
-//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / row select)
 
 //============================================================ GPD (Graphical Plan Display)
 const gpdmenu=document.getElementById('gpdmenu');
@@ -3351,8 +3709,14 @@ document.querySelectorAll('[data-close="gpdmenu"]').forEach(el=>{
 });
 makeEdstDraggable(gpdmenu,()=>{if(gpdMapApi)gpdMapApi.invalidateSize();});
 
-//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / row select)
+//============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / row select)
 rows.addEventListener('click',e=>{
+  const pendAck=e.target.closest('.ul-red[data-pend]');
+  if(pendAck){
+    e.preventDefault();e.stopPropagation();
+    ackColumnPending(pendAck.dataset.cs,pendAck.dataset.pend);
+    return;
+  }
   const lbox=e.target.closest('[data-logon]');
   if(lbox){
     if(!canControl()){comingSoon('Sign in / verify to manage CPDLC logons');return;}
@@ -3370,11 +3734,13 @@ rows.addEventListener('click',e=>{
   const alt=e.target.closest('.alt-cell');
   const hdgc=e.target.closest('.hdg-cell');
   const spdc=e.target.closest('.spd-cell');
-  if(alt||hdgc||spdc){
+  const rtc=e.target.closest('.route-cell');
+  if(alt||hdgc||spdc||rtc){
     if(!canControl()){
       comingSoon(alt?'Sign in / verify to issue altitudes'
         :hdgc?'Sign in / verify to issue headings'
-        :'Sign in / verify to issue speeds');
+        :spdc?'Sign in / verify to issue speeds'
+        :'Sign in / verify to issue routes');
       return;
     }
     if(alt){
@@ -3386,6 +3752,9 @@ rows.addEventListener('click',e=>{
     }else if(spdc){
       const r=spdc.getBoundingClientRect();
       openSpeedMenu(+spdc.dataset.spd,r.left,r.bottom+2);
+    }else if(rtc){
+      const r=rtc.getBoundingClientRect();
+      openRouteMenu(+rtc.dataset.route,r.left,r.bottom+2);
     }
     return;
   }
