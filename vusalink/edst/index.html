@@ -3379,7 +3379,7 @@ function renderSigList(){
   if(scope){
     if(sigLoading)scope.textContent='FIR '+short+' — loading…';
     else if(sigCache.error)scope.textContent='FIR '+short+' — '+sigCache.error;
-    else scope.textContent='FIR '+short+' — text SIGMETs (NWS)';
+    else scope.textContent='FIR '+short+' — convective + FIR SIGMETs';
   }
   if(sigLoading&&!(sigCache.entries&&sigCache.entries.length)){
     list.innerHTML='<div class="sig-empty">Loading SIGMETs…</div>';
@@ -3413,8 +3413,9 @@ async function refreshSigmets(force){
     renderSigList();
     return;
   }
-  // Reuse cache briefly unless forced
-  if(!force&&sigCache.artcc===art&&sigCache.fetchedAt&&(Date.now()-sigCache.fetchedAt)<60e3){
+  // Reuse cache briefly unless forced (always refresh when last result was empty)
+  if(!force&&sigCache.artcc===art&&sigCache.fetchedAt&&(Date.now()-sigCache.fetchedAt)<60e3
+    &&(sigCache.entries||[]).length){
     renderSigList();
     return;
   }
