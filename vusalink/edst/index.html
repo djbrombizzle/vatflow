@@ -1664,7 +1664,7 @@ function canControl(){return configured()||(hubMode()&&verifyOK);}   // CPDLC up
 function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (unsigned-in observers)
 function monitorArtcc(){return (settings.viewArtcc||'').trim().toUpperCase();}
 function airspaceId(){return (hubMode()?hubArtcc:(settings.airspace||settings.station||'')).trim().toUpperCase();}
-const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter','/api/gi':'/hub/gi'};
+const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/hub/send','/api/conn':'/hub/conn','/api/altimeter':'/hub/altimeter','/api/metar':'/hub/metar','/api/gi':'/hub/gi'};
 function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
 async function api(path,extra){
   extra=extra||{};
@@ -1678,7 +1678,7 @@ async function api(path,extra){
     if(path==='/api/poll'){body.sinceGi=extra.sinceGi!=null?extra.sinceGi:giSince;}
     if(path==='/api/send'){body.to=extra.to||'';body.packet=extra.packet||'';}
     if(path==='/api/conn'){body.to=extra.to||'';body.action=extra.action||'';}
-    if(path==='/api/altimeter'){body.icao=extra.icao||'';}
+    if(path==='/api/altimeter'||path==='/api/metar'){body.icao=extra.icao||'';}
     if(path==='/api/gi'){body.text=extra.text||'';}
     url=hubBase()+ep;
   }else{
@@ -3559,9 +3559,11 @@ function openSigMenu(){
 //============================================================ WX REPORT (METARs)
 const wxmenu=document.getElementById('wxmenu');
 const WX_METAR_URL='https://aviationweather.gov/api/data/metar?format=json&ids=';
+// Browser CORS: AWC does not send Access-Control-Allow-Origin. Prefer /hub/metar
+// (unauthenticated, same as /hub/altimeter). These proxies are last-resort only.
 const WX_CORS=[
   u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
-  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
+  u=>'https://proxy.cors.sh/'+u,
 ];
 function wxFlightCategory(raw){
   const m=String(raw||'');
@@ -3579,27 +3581,73 @@ function wxFlightCategory(raw){
   if(ceil<=3000||vis<=5)return 'MVFR';
   return 'VFR';
 }
+function wxDestFromAircraft(a){
+  if(!a)return '';
+  let dest=normalizeIcao(a.arr);
+  if(dest&&/^[A-Z]{4}$/.test(dest))return dest;
+  // Fallback: last 3–4 letter airport-looking token in the composed route string
+  const toks=String(a.route||a._routeRaw||'').toUpperCase().split(/\s+/).filter(Boolean);
+  for(let i=toks.length-1;i>=0;i--){
+    const t=toks[i].replace(/[^A-Z0-9]/g,'');
+    if(/^[A-Z]{3,4}$/.test(t)){
+      dest=normalizeIcao(t);
+      if(/^[A-Z]{4}$/.test(dest))return dest;
+    }
+  }
+  return '';
+}
 async function wxFetchJson(url){
-  try{
-    const res=await fetch(url,{method:'GET',mode:'cors',credentials:'omit',cache:'no-store',
-      headers:{Accept:'application/json, text/plain, */*'}});
+  // Avoid custom headers — they force a CORS preflight that AWC rejects.
+  const tryOne=async(u)=>{
+    const res=await fetch(u,{method:'GET',mode:'cors',credentials:'omit',cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
-    return res.json();
-  }catch(e){
+    const text=await res.text();
+    try{return JSON.parse(text);}
+    catch(_){
+      // raw METAR line(s)
+      const line=(text||'').trim().split(/\n/).map(s=>s.trim()).find(s=>/^METAR\b|^SPECI\b|[A-Z]{4}\s+\d{6}Z/.test(s));
+      if(line)return [{rawOb:line,icaoId:(line.match(/\b([A-Z]{4})\b/)||[])[1]||''}];
+      throw new Error('non-JSON METAR response');
+    }
+  };
+  try{return await tryOne(url);}
+  catch(e){
     let last=e;
     for(const prox of WX_CORS){
-      try{
-        const res=await fetch(prox(url),{method:'GET',mode:'cors',credentials:'omit',cache:'no-store'});
-        if(!res.ok)throw new Error('HTTP '+res.status);
-        return res.json();
-      }catch(err){last=err;}
+      try{return await tryOne(prox(url));}
+      catch(err){last=err;}
     }
     throw last;
   }
 }
+async function fetchMetarViaHub(icao){
+  // Unauthenticated hub endpoint (same pattern as /hub/altimeter). Always use
+  // absolute hub URL so VIEW ONLY / static hosting still works.
+  const res=await fetch(hubBase()+'/hub/metar',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({icao}),
+  });
+  const text=await res.text();
+  let data=null;
+  try{data=text?JSON.parse(text):null;}catch(_){throw new Error('hub returned non-JSON');}
+  if(!data||typeof data!=='object')throw new Error('hub returned empty response');
+  if(!data.ok)throw new Error(data.error||('HTTP '+res.status));
+  if(!data.raw)throw new Error('no metar for '+icao);
+  return {
+    icao:normalizeIcao(data.icao||icao),
+    text:String(data.raw).trim(),
+    fltCat:(data.fltCat||wxFlightCategory(data.raw)||'').toUpperCase(),
+  };
+}
 async function fetchMetarText(icao){
   icao=normalizeIcao(icao);
   if(!/^[A-Z]{4}$/.test(icao))throw new Error('Invalid airport ICAO');
+  try{
+    return await fetchMetarViaHub(icao);
+  }catch(_){
+    // Hub may not have /hub/metar deployed yet — fall back to AWC (+ proxies).
+  }
   const data=await wxFetchJson(WX_METAR_URL+encodeURIComponent(icao));
   const list=Array.isArray(data)?data:(data?[data]:[]);
   const hit=list.find(o=>String(o.icaoId||'').toUpperCase()===icao)||list[0];
@@ -3608,7 +3656,7 @@ async function fetchMetarText(icao){
   return {
     icao,
     text:String(raw).trim(),
-    fltCat:(hit&&hit.fltCat)||wxFlightCategory(raw),
+    fltCat:((hit&&hit.fltCat)||wxFlightCategory(raw)||'').toUpperCase(),
   };
 }
 function syncWxHint(){
@@ -3710,7 +3758,7 @@ function openWxMenu(){
   const y=Math.max(48,window.innerHeight*0.14);
   placePop(wxmenu,x,y);
   if(a){
-    const dest=normalizeIcao(a.arr);
+    const dest=wxDestFromAircraft(a);
     if(dest)addWxMetar(dest,'DEST '+a.cs);
     else comingSoon(a.cs+' has no destination airport');
   }
