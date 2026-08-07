@@ -1062,6 +1062,7 @@ let pollPrimed=false;                     // first poll after (re)connect replay
 let suppressSounds=false;                 // silence chimes while replaying that backlog
 let listSoundPrimed=false;                // first list snapshot after poll primed: no chime
 const prevDisplayedConnected=new Set();   // connected a/c on controller list last render
+let selectedCs=null;                     // ACL row selection (must be before any renderBoard)
 const msgAlert=new Set();                // M: unread incoming
 const lastPilotMsgMin={};                // cs -> MIN of latest inbound pilot CPDLC (for UM0/UM1 MRN)
 const WILCO_TIMEOUT_MS=120000;           // 2 min without a pilot reply -> red W alarm
@@ -1680,17 +1681,27 @@ async function refreshMonitor(force){
   if(!force&&menusOpen())return;
   setVat('busy','VIEW '+art+' \u2026');
   try{
-    const d=await (await fetch(hubBase()+'/hub/monitor',{method:'POST',
+    const res=await fetch(hubBase()+'/hub/monitor',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({airspace:art,since:feedSince})})).json();
+      body:JSON.stringify({airspace:art,since:feedSince})});
+    const text=await res.text();
+    let d=null;
+    try{d=text?JSON.parse(text):null;}
+    catch(_){throw new Error('hub returned non-JSON ('+res.status+')');}
+    if(!d||typeof d!=='object')throw new Error('hub returned empty response');
     if(!d.ok){setVat('err',d.error||'view error');return;}
     liveFlights=(d.flights||[]).map(mapLive);facilities=[];
     connected.clear();(d.connected||[]).forEach(c=>connected.add(c));logonReq.clear();
     renderFeed(d.messages,d.evtId);
     setVat('on',`VIEW ${art} \u00b7 ${connected.size} on KUSA \u00b7 ${liveFlights.length} a/c`);
-    renderBoard();
+    setHoppie(false,'VIEW ONLY \u2014 watching '+art);
+    try{renderBoard();}
+    catch(re){console.warn('renderBoard failed',re);}
     if(hubMode())await probeVerify();
-  }catch(e){setVat('err','hub unreachable');}
+  }catch(e){
+    console.warn('monitor failed',e);
+    setVat('err','hub unreachable');
+  }
 }
 async function refreshVatsim(force){
   if(monitorMode())return refreshMonitor(force);
@@ -3021,7 +3032,6 @@ async function sendGiMessage(){
 })();
 
 //============================================================ ACL row selection
-let selectedCs=null;
 function isMenuClickTarget(el){
   return !!(el.closest('.alt-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
     ||el.closest('.sqk-asg')||el.closest('.abox')||el.closest('[data-logon]')||el.closest('.vci'));
@@ -3291,7 +3301,9 @@ function ensureGpdMap(){
   return gpdReady;
 }
 function refreshGpdMap(refit){
-  const menu=gpdmenu;if(!menu||menu.classList.contains('hidden')||!gpdMapApi)return;
+  // Use getElementById — avoid TDZ on later `const gpdmenu=...` during early renderBoard.
+  const menu=document.getElementById('gpdmenu');
+  if(!menu||menu.classList.contains('hidden')||!gpdMapApi)return;
   const art=gpdArtccId();
   document.getElementById('gpdArtcc').textContent=art||'——';
   gpdMapApi.update(displayList()||[],{
