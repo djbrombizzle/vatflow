@@ -930,8 +930,6 @@ td.eh-bk{text-align:center;min-width:18px}
     <button type="button" class="gi-send" id="giSend">SEND</button>
   </div>
 </div>
-  </div>
-</div>
 
 <div id="queuewrap" class="hidden">
   <div class="lh">
@@ -1564,7 +1562,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gimenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
