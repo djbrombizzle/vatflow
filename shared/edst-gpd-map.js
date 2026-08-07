@@ -3,11 +3,17 @@
  * Reuses FCA route geometry (route-engine + gcLine) and ARTCC boundary scope.
  * Expects global L (Leaflet) on the page.
  */
-import { getArtccBounds, getArtccRings, fetchArtccBoundaries } from "./artcc-scope.js";
+import { getArtccBounds, getArtccRings, fetchArtccBoundaries, normArtccId } from "./artcc-scope.js";
 import { gcLine, getAirport, hasAirport, loadAirports } from "./fca-metering.js";
-import { buildRoutePathLLs, isNavReady, loadNavData, bindAirports } from "./route-engine.js";
+import {
+  buildRoutePathLLs,
+  isNavReady,
+  loadNavData,
+  bindAirports,
+  trimAnchorsAhead,
+} from "./route-engine.js";
 
-const ARTCC_STYLE = { color: "#3a9a9a", weight: 1.5, opacity: 0.9, fill: false };
+const ARTCC_STYLE = { color: "#5a9ab8", weight: 1.5, opacity: 0.95, fill: false };
 const ROUTE_FAINT = { color: "#5a7a9a", weight: 1.25, opacity: 0.45, dashArray: "4 6" };
 const ROUTE_SEL = { color: "#8ab4ff", weight: 2.5, opacity: 0.95, dashArray: "6 4" };
 const AC_COLOR = "#49d3e6";
@@ -27,49 +33,92 @@ function planeIcon(color, hdg, selected) {
   return L.divIcon({ className: "", html: svg, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
 
-/** Hub flight or board aircraft → [[lat,lon], ...] */
-function routeAnchorsFromFlight(f) {
-  const fixes = f.routeFixes || f.route_fixes || null;
-  const pts = [];
-  if (Array.isArray(fixes)) {
-    for (const x of fixes) {
-      const lat = x.lat != null ? +x.lat : (x.latitude != null ? +x.latitude : null);
-      const lon = x.lon != null ? +x.lon : (x.longitude != null ? +x.longitude : null);
-      if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      if (!pts.length || pts[pts.length - 1][0] !== lat || pts[pts.length - 1][1] !== lon) {
-        pts.push([lat, lon]);
-      }
-    }
-  }
+function flightAsPilot(f) {
   const lat = f.lat != null ? +f.lat : null;
   const lon = f.lon != null ? +f.lon : null;
-  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
-    if (!pts.length) pts.push([lat, lon]);
-    else {
-      const first = pts[0];
-      const dLat = first[0] - lat, dLon = first[1] - lon;
-      if (dLat * dLat + dLon * dLon > 1e-8) pts.unshift([lat, lon]);
-    }
-  }
-  return pts;
+  const airborne = lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon);
+  return {
+    callsign: f.cs || f.callsign || "",
+    lat: airborne ? lat : null,
+    lon: airborne ? lon : null,
+    hdg: f.hdg != null ? +f.hdg : null,
+    dep: f.dep || "",
+    arr: f.arr || "",
+    route: f._routeRaw || f.route || "",
+    // Board aircraft with a position are airborne for remaining-route trim.
+    phase: airborne ? "air" : "gnd",
+  };
 }
 
+/** Hub-expanded routeFixes → route-engine anchors (full filed track). */
+function anchorsFromRouteFixes(f) {
+  const fixes = f.routeFixes || f.route_fixes || null;
+  if (!Array.isArray(fixes) || !fixes.length) return [];
+  const anchors = [];
+  for (const x of fixes) {
+    const lat = x.lat != null ? +x.lat : (x.latitude != null ? +x.latitude : null);
+    const lon = x.lon != null ? +x.lon : (x.longitude != null ? +x.longitude : null);
+    if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const name = (x.name || x.fix || x.id || "").toString().toUpperCase();
+    if (anchors.length) {
+      const prev = anchors[anchors.length - 1].ll;
+      if (prev[0] === lat && prev[1] === lon) continue;
+    }
+    anchors.push({ name: name || "FIX", ll: [lat, lon], kind: "fix" });
+  }
+  return anchors;
+}
+
+function pathFromAnchors(anchors) {
+  const path = [];
+  for (const a of anchors || []) {
+    if (!a || !a.ll) continue;
+    if (!path.length) path.push(a.ll.slice());
+    else {
+      const prev = path[path.length - 1];
+      if (prev[0] !== a.ll[0] || prev[1] !== a.ll[1]) path.push(a.ll.slice());
+    }
+  }
+  return path;
+}
+
+/**
+ * Remaining route ahead of the aircraft (FCA builder / route-engine style).
+ * Prefer hub-expanded routeFixes (SID/STAR already resolved) trimmed at NOW;
+ * otherwise parse the filed route via route-engine.
+ */
 function routePathCoords(f) {
-  let path = routeAnchorsFromFlight(f);
+  const p = flightAsPilot(f);
+  const airborne = p.phase === "air";
+  let path = [];
+
+  let hubAnchors = anchorsFromRouteFixes(f);
+  if (hubAnchors.length >= 2) {
+    if (airborne) hubAnchors = trimAnchorsAhead(hubAnchors, p);
+    path = pathFromAnchors(hubAnchors);
+  }
+
   if (path.length < 2 && isNavReady()) {
-    const p = {
-      callsign: f.cs || f.callsign || "",
-      lat: f.lat, lon: f.lon,
-      dep: f.dep, arr: f.arr,
-      route: f._routeRaw || f.route || "",
-      phase: "air",
-    };
     path = buildRoutePathLLs(p, {
       origin: getAirport(p.dep),
       destination: getAirport(p.arr),
-      includeNow: p.lat != null && p.lon != null,
+      includeNow: airborne,
     }) || [];
   }
+
+  if (path.length < 2) {
+    const anchors = [];
+    if (airborne) {
+      anchors.push({ name: "NOW", ll: [p.lat, p.lon], kind: "now" });
+    } else {
+      const dep = getAirport(p.dep);
+      if (dep) anchors.push({ name: p.dep, ll: dep.slice(), kind: "apt" });
+    }
+    const arr = getAirport(p.arr);
+    if (arr) anchors.push({ name: p.arr, ll: arr.slice(), kind: "apt" });
+    path = pathFromAnchors(anchors);
+  }
+
   if (path.length < 2) return [];
   let coords = [];
   for (let i = 0; i < path.length - 1; i++) {
@@ -137,19 +186,21 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   function drawBoundary(artccId) {
     boundaryLayer.clearLayers();
     labelLayer.clearLayers();
-    const rings = getArtccRings(artccId);
+    const id = normArtccId(artccId);
+    if (!id) return;
+    const rings = getArtccRings(id);
     if (!rings) return;
     for (const ring of rings) {
       L.polyline(ring, ARTCC_STYLE).addTo(boundaryLayer);
     }
-    const bounds = getArtccBounds(artccId);
+    const bounds = getArtccBounds(id);
     if (bounds) {
       const c = L.latLngBounds(bounds).getCenter();
       L.marker(c, {
         interactive: false,
         icon: L.divIcon({
           className: "gpd-artcc-label",
-          html: `<span>${escapeHtml(artccId)}</span>`,
+          html: `<span>${escapeHtml(id)}</span>`,
           iconSize: [40, 14],
         }),
       }).addTo(labelLayer);
@@ -158,7 +209,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
 
   function fitToArtcc(artccId, flights) {
     let bounds = null;
-    const artccB = getArtccBounds(artccId);
+    const artccB = getArtccBounds(normArtccId(artccId));
     if (artccB) bounds = L.latLngBounds(artccB);
     for (const f of flights || []) {
       if (f.lat != null && f.lon != null) bounds = extendBounds(bounds, f.lat, f.lon);
@@ -232,7 +283,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   }
 
   function setArtcc(artccId) {
-    currentArtcc = (artccId || "").toUpperCase();
+    currentArtcc = normArtccId(artccId);
     render({ refit: true });
   }
 
@@ -241,7 +292,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
    * @param {{ selectedCs?: string|null, artccId?: string, refit?: boolean }} [options]
    */
   function update(flights, options = {}) {
-    if (options.artccId) currentArtcc = String(options.artccId).toUpperCase();
+    if (options.artccId) currentArtcc = normArtccId(options.artccId);
     lastFlights = Array.isArray(flights) ? flights : [];
     if ("selectedCs" in options) {
       selectedCs = options.selectedCs ? String(options.selectedCs).toUpperCase() : null;
