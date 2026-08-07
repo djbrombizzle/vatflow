@@ -14,14 +14,14 @@ import {
 } from "./route-engine.js";
 
 const ARTCC_STYLE = { color: "#5a9ab8", weight: 1.5, opacity: 0.95, fill: false };
-const ROUTE_FAINT = { color: "#5a7a9a", weight: 1.25, opacity: 0.45, dashArray: "4 6" };
-const ROUTE_SEL = { color: "#8ab4ff", weight: 2.5, opacity: 0.95, dashArray: "6 4" };
-const ROUTE_ALERT_R = { color: "#e0483b", weight: 2.25, opacity: 0.95, dashArray: "6 4" };
-const ROUTE_ALERT_Y = { color: "#dcd63f", weight: 2, opacity: 0.9, dashArray: "6 4" };
-const ROUTE_ALERT_A = { color: "#e0913f", weight: 2, opacity: 0.9, dashArray: "6 4" };
-const ROUTE_ALERT_R_DIM = { color: "#8a3030", weight: 2, opacity: 0.75, dashArray: "4 6" };
-const ROUTE_ALERT_Y_DIM = { color: "#8a8030", weight: 1.75, opacity: 0.7, dashArray: "4 6" };
-const ROUTE_ALERT_A_DIM = { color: "#8a5a28", weight: 1.75, opacity: 0.7, dashArray: "4 6" };
+const ROUTE_FAINT = { color: "#5a7a9a", weight: 1.25, opacity: 0.55 };
+const ROUTE_SEL = { color: "#8ab4ff", weight: 2.5, opacity: 0.95 };
+const ROUTE_ALERT_R = { color: "#e0483b", weight: 2.25, opacity: 0.95 };
+const ROUTE_ALERT_Y = { color: "#dcd63f", weight: 2, opacity: 0.9 };
+const ROUTE_ALERT_A = { color: "#e0913f", weight: 2, opacity: 0.9 };
+const ROUTE_ALERT_R_DIM = { color: "#8a3030", weight: 2, opacity: 0.75 };
+const ROUTE_ALERT_Y_DIM = { color: "#8a8030", weight: 1.75, opacity: 0.7 };
+const ROUTE_ALERT_A_DIM = { color: "#8a5a28", weight: 1.75, opacity: 0.7 };
 const AC_COLOR = "#49d3e6";
 const AC_SEL = "#e0a13b";
 
@@ -179,16 +179,13 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   const map = L.map(containerEl, {
     zoomControl: false,
     worldCopyJump: false,
-    attributionControl: true,
+    attributionControl: false,
   });
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    subdomains: "abcd",
-    maxZoom: 11,
-    minZoom: 3,
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
-  }).addTo(map);
+  // Solid black canvas — no street/basemap tiles (ERAM-style GPD).
+  if (containerEl && containerEl.style) containerEl.style.background = "#000";
+  try { map.getContainer().style.background = "#000"; } catch (_) { /* ignore */ }
 
   const boundaryLayer = L.layerGroup().addTo(map);
   const labelLayer = L.layerGroup().addTo(map);
