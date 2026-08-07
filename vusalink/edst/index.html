@@ -134,10 +134,14 @@ td.eh-bk{text-align:center;min-width:18px}
 .abox.msg.flash{background:#e0483b;border-color:#e0483b;color:#000;animation:edstflash 1s steps(2,start) infinite}
 .abox.ho{background:#e0913f;border-color:#e0913f}
 @keyframes edstflash{50%{background:#3a0f0c}}
-.smbox{width:14px;height:14px;border:1px solid #7d847e;display:inline-block;vertical-align:middle}
-.smbox.fidbox{margin:0 2px}
-.efid{white-space:nowrap}
-.efid .cid{color:#bcc0b8;margin-right:4px}
+.smbox{width:14px;height:14px;border:1px solid #7d847e;display:inline-block;vertical-align:middle;box-sizing:border-box}
+/* Flight ID CPDLC indicator — hollow white square; solid white when logged on */
+.smbox.fidbox{
+  margin:0 5px 0 0;border-color:#fff;background:transparent;flex-shrink:0;
+}
+.efid.conn .smbox.fidbox,
+.smbox.fidbox.on{background:#fff;border-color:#fff}
+.efid{white-space:nowrap;display:inline-flex;align-items:center}
 .efid .acid{color:#f0f0ec}
 .efid.conn .acid{color:#fff}
 .etyp,.ecod{color:#d2d2cd}
@@ -1767,8 +1771,10 @@ function renderRowEdst(a,idx){
   const rbox=`<span class="abox msg ${msgAlert.has(a.cs)?'flash':''}" title="message"></span>`;
   const ybox=`<span class="abox" title=""></span>`;
   const abox=`<span class="abox ${handoffPending.has(a.cs)?'ho':''}" title="handoff"></span>`;
-  const connCue=connected.has(a.cs)?' conn':'';
-  const fid=`<span class="efid${connCue}" data-cs="${a.cs}"><span class="cid">---</span><span class="smbox fidbox"></span> <span class="acid">${a.cs}</span></span>`;
+  const conn=connected.has(a.cs);
+  const connCue=conn?' conn':'';
+  const fidTitle=conn?'on CPDLC':'';
+  const fid=`<span class="efid${connCue}" data-cs="${a.cs}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid">${a.cs}</span></span>`;
   const rcol=routePending.has(a.cs)?'color:var(--green)':'';
   return `<td class="eh-bk">${bk}</td><td class="eh-al">${rbox}</td><td class="eh-al">${ybox}</td><td class="eh-al">${abox}</td>`
         +`<td>${fid}</td><td class="eh-pa"><span class="smbox"></span></td>`
