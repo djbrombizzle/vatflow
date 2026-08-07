@@ -19,7 +19,8 @@
 const RED_NM = 5;
 const YELLOW_NM = 12;
 const SAA_NM = 3;
-const VERT_FT = 2000;          // treat as conflict if |Δalt| < this
+// Same flight level only — normal RVSM (1,000 ft) must not alert.
+const VERT_FT = 100;           // conflict only if |Δalt| < 100 ft (same FL)
 const SAMPLE_NM = 8;           // route sample spacing
 const LOOKAHEAD_NM = 120;      // max route look-ahead
 const TIME_STEP_MIN = 0.5;     // synchronized probe time step (minutes)

@@ -113,6 +113,14 @@ const v2 = {
 const mapV = probeConflicts([v1, v2], { assigned: { V1: 350, V2: 370 } });
 assert(mapV.get("V1").r === 0 && mapV.get("V1").y === 0, "assigned ΔFL20 = no A–A conflict");
 
+// RVSM 1,000 ft (adjacent FLs) must not alert — same altitude only
+const r1 = { cs: "R1", lat: 36.0, lon: -99.0, alt: 350, gs: 450, hdg: 90, routeFixes: [] };
+const r2 = {
+  cs: "R2", lat: 36.0, lon: -99.0 + dLonAt(36, 3), alt: 360, gs: 450, hdg: 270, routeFixes: [],
+};
+const mapR = probeConflicts([r1, r2], {});
+assert(mapR.get("R1").r === 0 && mapR.get("R1").y === 0, "RVSM ΔFL10 = no A–A conflict");
+
 // Muted: uncleared assigned altitude creates the conflict level
 const m1 = {
   cs: "ASA1", lat: 40.0, lon: -110.0, alt: 330, gs: 420, hdg: 90, routeFixes: [],
