@@ -259,8 +259,8 @@
   }
 
   /**
-   * SIGMET body only: first blank-line paragraph of the raw product text.
-   * Drops OUTLOOK / subsequent sections controllers do not need in the SIG list.
+   * Short SIGMET body: first blank-line paragraph of the raw product text.
+   * Used as the collapsed list preview; full raw is kept separately for expand.
    */
   function firstParagraph(raw) {
     var text = String(raw || "")
@@ -276,11 +276,23 @@
     return para;
   }
 
-  function buildTextFromNws(props, awcHit) {
-    if (awcHit && awcHit._rawText) {
-      var para = firstParagraph(awcHit._rawText);
-      if (para) return para;
-    }
+  function normalizeRaw(raw) {
+    return String(raw || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .trim();
+  }
+
+  /** Collapsed preview + full bulletin for expand/collapse. */
+  function textsFromRaw(raw, fallbackShort) {
+    var full = normalizeRaw(raw);
+    var short = firstParagraph(full) || String(fallbackShort || "").trim();
+    if (!short) short = "(no text available)";
+    if (!full) full = short;
+    return { text: short, fullText: full };
+  }
+
+  function buildStubFromNws(props) {
     var fir = props.fir || props.atsu || "";
     var seq = props.sequence || "";
     var hazard = props.hazard || props.phenomenon || "";
@@ -302,6 +314,12 @@
       lines.push("VALID " + fmtZulu(start) + "-" + fmtZulu(end));
     }
     return lines.join("\n");
+  }
+
+  function buildTextFromNws(props, awcHit) {
+    var stub = buildStubFromNws(props);
+    if (awcHit && awcHit._rawText) return textsFromRaw(awcHit._rawText, stub);
+    return { text: stub, fullText: stub };
   }
 
   function fromNwsFeature(feature, airIdx, isigIdx) {
@@ -326,6 +344,7 @@
         (awcHit && awcHit.hazard) ||
         ""
     ).toLowerCase();
+    var texts = buildTextFromNws(props, awcHit);
     return {
       id: String(props.id || (feature && feature.id) || seq || Math.random()),
       fir: String(props.fir || props.atsu || "").toUpperCase(),
@@ -334,7 +353,8 @@
       start: start,
       end: end,
       issueTime: props.issueTime || null,
-      text: buildTextFromNws(props, awcHit),
+      text: texts.text,
+      fullText: texts.fullText,
       source: "nws",
     };
   }
@@ -344,6 +364,7 @@
     var raw = String(
       item.rawAirSigmet || item.rawSigmet || item.raw || ""
     ).trim();
+    var texts = textsFromRaw(raw, "");
     return {
       id: String(item.airSigmetId || seq || Math.random()),
       fir: bareArtcc(artcc),
@@ -352,7 +373,8 @@
       start: item.validTimeFrom != null ? item.validTimeFrom : null,
       end: item.validTimeTo != null ? item.validTimeTo : null,
       issueTime: item.issueTime || item.creationTime || null,
-      text: firstParagraph(raw) || "(no text available)",
+      text: texts.text,
+      fullText: texts.fullText,
       source: "airsigmet",
     };
   }
@@ -363,6 +385,7 @@
       .toUpperCase();
     if (!firMatches(fir, artcc)) return null;
     var raw = String(item.rawSigmet || item.rawOb || "").trim();
+    var texts = textsFromRaw(raw, "");
     return {
       id: String(
         item.isigmetId || item.icaoId || item.seriesId || Math.random()
@@ -373,7 +396,8 @@
       start: item.validTimeFrom || null,
       end: item.validTimeTo || null,
       issueTime: item.issueTime || null,
-      text: firstParagraph(raw) || "(no text available)",
+      text: texts.text,
+      fullText: texts.fullText,
       source: "isigmet",
     };
   }
@@ -473,6 +497,7 @@
     normalizeArtcc: normalizeArtcc,
     fetchSigmetsForArtcc: fetchSigmetsForArtcc,
     firstParagraph: firstParagraph,
+    textsFromRaw: textsFromRaw,
     // test helpers
     _pointInArtcc: pointInArtcc,
     _loadArtccBoundaries: loadArtccBoundaries,

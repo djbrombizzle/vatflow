@@ -1,5 +1,3 @@
-import { createRequire } from 'module';
-import { pathToFileURL } from 'url';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
@@ -42,6 +40,14 @@ const convectiveRaw = [
 }
 
 {
+  const texts = EdstSigmets.textsFromRaw(convectiveRaw);
+  assert(texts.text === EdstSigmets.firstParagraph(convectiveRaw), 'short = first paragraph');
+  assert(texts.fullText.includes('OUTLOOK VALID'), 'full keeps OUTLOOK');
+  assert(texts.fullText.includes('WST ISSUANCES'), 'full keeps outlook narrative');
+  assert(texts.fullText !== texts.text, 'expandable when outlook present');
+}
+
+{
   const intl = [
     'WSCV31 GVAC 070910',
     'GVSC SIGMET 2 VALID 070910/091310 GVAC- ',
@@ -49,9 +55,9 @@ const convectiveRaw = [
     'WI N1326 W02106 - N1431 W02147',
     'TOP ABV FL350 MOV W 17KT NC=',
   ].join('\n');
-  const para = EdstSigmets.firstParagraph(intl);
-  assert(para.includes('EMBD TS'), 'intl first paragraph kept');
-  assert(para.includes('NC='), 'keeps end marker when single paragraph');
+  const texts = EdstSigmets.textsFromRaw(intl);
+  assert(texts.text.includes('EMBD TS'), 'intl short kept');
+  assert(texts.fullText === texts.text, 'single-paragraph not expandable');
 }
 
 {
@@ -61,6 +67,7 @@ const convectiveRaw = [
   );
   assert(entry.text.includes('CONVECTIVE SIGMET 53C'));
   assert(!entry.text.includes('OUTLOOK'));
+  assert(entry.fullText.includes('OUTLOOK VALID'));
 }
 
 {
@@ -68,8 +75,9 @@ const convectiveRaw = [
     { fir: 'KZJX', sequence: '53C', hazard: 'convective' },
     { _rawText: convectiveRaw }
   );
-  assert(built.includes('AREA TS MOV LTL'));
-  assert(!built.includes('OUTLOOK VALID'));
+  assert(built.text.includes('AREA TS MOV LTL'));
+  assert(!built.text.includes('OUTLOOK VALID'));
+  assert(built.fullText.includes('OUTLOOK VALID'));
 }
 
 {
