@@ -1002,6 +1002,10 @@ td.eh-bk{text-align:center;min-width:14px}
 #cpdlchist .hist-list{
   max-height:min(360px,55vh);min-height:160px;overflow:auto;padding:4px 8px;background:#000;
 }
+#cpdlchist .hist-scope{
+  padding:3px 8px;background:#2a2a2a;color:#aeb6af;border-bottom:1px solid #444;font-size:11px;
+}
+#cpdlchist .hist-scope b{color:#d2d2cd;font-weight:normal}
 #cpdlchist .hist-empty{padding:20px 10px;color:#777;text-align:center}
 #cpdlchist .msg{margin:2px 0;color:#9a9;border-bottom:1px solid #1a1a1a;padding:3px 0 4px;line-height:1.35}
 #cpdlchist .msg.in{color:#cde}
@@ -1138,9 +1142,9 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
     <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
-    <span class="etb-btn" id="btnCpdlcHist" title="CPDLC history / datalink log">CPDLC<br>HIST</span>
-    <span class="etb-btn" data-stub="CPDLC MSGOUT">CPDLC<br>MSGOUT</span>
-    <span class="etb-btn" data-stub="CPDLC ALL">CPDLC<br>ALL</span>
+    <span class="etb-btn" id="btnCpdlcHist" title="CPDLC history for the highlighted aircraft">CPDLC<br>HIST</span>
+    <span class="etb-btn" id="btnCpdlcMsgout" title="Controller uplinks for the highlighted aircraft">CPDLC<br>MSGOUT</span>
+    <span class="etb-btn" id="btnCpdlcAll" title="Full datalink log — all uplink and downlink messages">CPDLC<br>ALL</span>
     <span class="etb-btn" data-stub="KEEP ALL">KEEP<br>ALL</span>
     <span class="etb-spacer"></span>
     <span class="etb-stat" id="statStatus">STATUS</span>
@@ -1601,13 +1605,14 @@ td.eh-bk{text-align:center;min-width:14px}
   <div id="queueList"></div>
 </div>
 
-<!-- EDST CPDLC HIST (datalink log) -->
+<!-- EDST CPDLC log (HIST / MSGOUT / ALL) -->
 <div id="cpdlchist" class="edst-pop hidden">
   <div class="edst-pop-hdr">
-    <span class="title">CPDLC HIST</span>
-    <span class="clear" id="cpdlcHistClear" title="Clear log">CLEAR</span>
+    <span class="title" id="cpdlcHistTitle">CPDLC HIST</span>
+    <span class="clear" id="cpdlcHistClear" title="Clear full datalink log">CLEAR</span>
     <span class="x" data-close="cpdlchist" title="Close">X</span>
   </div>
+  <div class="hist-scope" id="cpdlcHistScope"></div>
   <div class="hist-list" id="cpdlcHistList"><div class="hist-empty">No datalink messages</div></div>
 </div>
 
@@ -2639,8 +2644,7 @@ function placePop(el,x,y){
 function close(id){
   const el=document.getElementById(id);if(el)el.classList.add('hidden');
   if(id==='cpdlchist'){
-    const btn=document.getElementById('btnCpdlcHist');
-    if(btn)btn.classList.remove('active');
+    syncCpdlcLogButtons();
   }
   if(id==='sigmenu'){
     const btn=document.getElementById('btnSig');
@@ -2700,7 +2704,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='gimenu')giSelectedId=null;
-    if(id==='cpdlchist'&&ev.target.closest('#btnCpdlcHist'))return;
+    if(id==='cpdlchist'&&(ev.target.closest('#btnCpdlcHist')||ev.target.closest('#btnCpdlcMsgout')||ev.target.closest('#btnCpdlcAll')))return;
     if(id==='sigmenu'&&ev.target.closest('#btnSig'))return;
     if(id==='gpdmapopts'){closeGpdMapOptions();return;}
     close(id);
@@ -2722,6 +2726,8 @@ document.addEventListener('pointerdown',ev=>{
 //============================================================ log + status
 const CPDLC_HIST_KEEP=400;
 const cpdlcHistLog=[];                   // newest first: [{kind,who,text,time}]
+let cpdlcLogMode='all';                  // 'hist' | 'msgout' | 'all'
+let cpdlcLogFilterMod=null;
 function csFromWho(who){
   let w=(who||'').split('\u00b7')[0].trim();            // strip " · co-ctrl" suffix
   if(w.includes('\u2192'))w=w.split('\u2192')[1].trim();  // "FRM → TO" (feed uplink) -> aircraft (TO)
@@ -2736,21 +2742,84 @@ function recordHist(cs,kind,text){
 function histDirLabel(kind){
   return kind==='in'?'\u25c0 IN':kind==='out'?'\u25b6 OUT':kind==='sys'?'\u2713 SYS':'\u26a0 ERR';
 }
+async function ensureCpdlcLogFilter(){
+  if(cpdlcLogFilterMod)return cpdlcLogFilterMod;
+  cpdlcLogFilterMod=await import('../../shared/cpdlc-log-filter.js');
+  return cpdlcLogFilterMod;
+}
+function syncCpdlcLogButtons(){
+  const open=cpdlcHistOpen();
+  const map={hist:'btnCpdlcHist',msgout:'btnCpdlcMsgout',all:'btnCpdlcAll'};
+  Object.keys(map).forEach(mode=>{
+    const btn=document.getElementById(map[mode]);
+    if(btn)btn.classList.toggle('active',open&&cpdlcLogMode===mode);
+  });
+}
+function filterCpdlcLogEntries(mode,selected){
+  if(cpdlcLogFilterMod)return cpdlcLogFilterMod.filterCpdlcLog(cpdlcHistLog,mode,selected);
+  // Fallback if module not loaded yet
+  const m=String(mode||'all').toLowerCase();
+  if(m==='all')return{entries:cpdlcHistLog.slice(),needsSelection:false,cs:''};
+  const cs=String(selected||'').trim().toUpperCase();
+  if(!cs)return{entries:[],needsSelection:true,cs:''};
+  let entries=cpdlcHistLog.filter(e=>csFromWho(e&&e.who)===cs);
+  if(m==='msgout')entries=entries.filter(e=>(e&&e.kind)==='out');
+  return{entries,needsSelection:false,cs};
+}
+function cpdlcLogTitleLocal(mode,cs){
+  if(cpdlcLogFilterMod)return cpdlcLogFilterMod.cpdlcLogTitle(mode,cs);
+  const m=String(mode||'all').toLowerCase();
+  if(m==='hist')return cs?('CPDLC HIST — '+cs):'CPDLC HIST';
+  if(m==='msgout')return cs?('CPDLC MSGOUT — '+cs):'CPDLC MSGOUT';
+  return'CPDLC ALL';
+}
+function cpdlcLogEmptyLocal(mode,needsSelection){
+  if(cpdlcLogFilterMod)return cpdlcLogFilterMod.cpdlcLogEmptyText(mode,needsSelection);
+  const m=String(mode||'all').toLowerCase();
+  if(needsSelection){
+    if(m==='msgout')return'Select an aircraft on the ACL to view MSGOUT';
+    return'Select an aircraft on the ACL to view CPDLC HIST';
+  }
+  if(m==='msgout')return'No uplink messages for this aircraft';
+  if(m==='hist')return'No CPDLC history for this aircraft';
+  return'No datalink messages';
+}
 function renderCpdlcHist(){
   const list=document.getElementById('cpdlcHistList');if(!list)return;
-  if(!cpdlcHistLog.length){
-    list.innerHTML='<div class="hist-empty">No datalink messages</div>';
+  const title=document.getElementById('cpdlcHistTitle');
+  const scope=document.getElementById('cpdlcHistScope');
+  const clearBtn=document.getElementById('cpdlcHistClear');
+  const filtered=filterCpdlcLogEntries(cpdlcLogMode,selectedCs);
+  if(title)title.textContent=cpdlcLogTitleLocal(cpdlcLogMode,filtered.cs||selectedCs);
+  if(clearBtn)clearBtn.style.display=cpdlcLogMode==='all'?'':'none';
+  if(scope){
+    if(cpdlcLogMode==='all'){
+      scope.innerHTML='DATALINK LOG — all uplink and downlink messages';
+    }else if(filtered.needsSelection){
+      scope.innerHTML='No aircraft highlighted — select a row on the ACL';
+    }else if(cpdlcLogMode==='msgout'){
+      scope.innerHTML='Controller uplinks for <b>'+esc(filtered.cs)+'</b>';
+    }else{
+      scope.innerHTML='CPDLC history for <b>'+esc(filtered.cs)+'</b>';
+    }
+  }
+  if(filtered.needsSelection||!filtered.entries.length){
+    list.innerHTML='<div class="hist-empty">'+esc(cpdlcLogEmptyLocal(cpdlcLogMode,filtered.needsSelection))+'</div>';
     return;
   }
-  list.innerHTML=cpdlcHistLog.map(e=>{
+  list.innerHTML=filtered.entries.map(e=>{
+    const who=cpdlcLogMode==='all'
+      ?('<b>'+esc(e.who||'')+'</b> ')
+      :'';
     return '<div class="msg '+esc(e.kind||'')+'">'
-      +'<span class="dir">'+histDirLabel(e.kind)+'</span> <b>'+esc(e.who||'')+'</b> '
+      +'<span class="dir">'+histDirLabel(e.kind)+'</span> '+who
       +'<span class="meta">'+esc(e.time||'')+'</span><br>'
       +esc((e.text||'').replace(/@/g,' '))
       +'</div>';
   }).join('');
 }
 function clearCpdlcHist(){
+  if(cpdlcLogMode!=='all')return; // CLEAR only applies to full datalink log
   cpdlcHistLog.length=0;
   renderCpdlcHist();
 }
@@ -2758,20 +2827,26 @@ function cpdlcHistOpen(){
   const el=document.getElementById('cpdlchist');
   return !!(el&&!el.classList.contains('hidden'));
 }
-function openCpdlcHist(){
+async function openCpdlcLog(mode){
   const menu=document.getElementById('cpdlchist');
-  const btn=document.getElementById('btnCpdlcHist');
-  if(!menu||!btn)return;
-  if(!menu.classList.contains('hidden')){close('cpdlchist');return;}
+  if(!menu)return;
+  const next=String(mode||'all').toLowerCase();
+  const sameOpen=!menu.classList.contains('hidden')&&cpdlcLogMode===next;
+  if(sameOpen){close('cpdlchist');return;}
+  try{await ensureCpdlcLogFilter();}catch(_){}
+  cpdlcLogMode=(next==='hist'||next==='msgout')?next:'all';
   renderCpdlcHist();
-  const r=btn.getBoundingClientRect();
+  const anchorId=cpdlcLogMode==='hist'?'btnCpdlcHist'
+    :(cpdlcLogMode==='msgout'?'btnCpdlcMsgout':'btnCpdlcAll');
+  const btn=document.getElementById(anchorId)||document.getElementById('btnCpdlcHist');
+  const r=(btn||document.body).getBoundingClientRect();
   placePop(menu,Math.max(8,r.right-menu.offsetWidth||420),r.bottom+4);
-  // placePop shows it before width is reliable — reposition after layout
   const w=menu.offsetWidth||420;
   const left=Math.max(0,Math.min(r.right-w,window.innerWidth-w-10));
   menu.style.left=left+'px';
-  btn.classList.add('active');
+  syncCpdlcLogButtons();
 }
+function openCpdlcHist(){return openCpdlcLog('hist');}
 function logMsg(kind,who,text){
   const entry={kind:kind||'sys',who:who||'',text:text||'',time:new Date().toLocaleTimeString()};
   cpdlcHistLog.unshift(entry);
@@ -3615,8 +3690,12 @@ document.querySelectorAll('#routemenu .rt-tool.stub').forEach(el=>{
 });
 
 (function(){
-  const btn=document.getElementById('btnCpdlcHist');
-  if(btn)btn.addEventListener('click',e=>{e.preventDefault();openCpdlcHist();});
+  const hist=document.getElementById('btnCpdlcHist');
+  const msgout=document.getElementById('btnCpdlcMsgout');
+  const all=document.getElementById('btnCpdlcAll');
+  if(hist)hist.addEventListener('click',e=>{e.preventDefault();openCpdlcLog('hist');});
+  if(msgout)msgout.addEventListener('click',e=>{e.preventDefault();openCpdlcLog('msgout');});
+  if(all)all.addEventListener('click',e=>{e.preventDefault();openCpdlcLog('all');});
   const clr=document.getElementById('cpdlcHistClear');
   if(clr)clr.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();clearCpdlcHist();});
 })();
@@ -4357,6 +4436,7 @@ function selectAircraftRow(cs){
   rows.querySelectorAll('tr').forEach(tr=>tr.classList.toggle('selected',!!selectedCs&&tr.dataset.cs===selectedCs));
   syncHoldButton();
   if(typeof refreshGpdMap==='function')refreshGpdMap(false);
+  if(cpdlcHistOpen()&&(cpdlcLogMode==='hist'||cpdlcLogMode==='msgout'))renderCpdlcHist();
   if(!selectedCs)close('holdmenu');
   else if(holdmenu&&!holdmenu.classList.contains('hidden')&&holdTarget&&holdTarget.cs!==selectedCs){
     const a=displayList().find(x=>x.cs===selectedCs);
