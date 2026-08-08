@@ -15,20 +15,21 @@
   var NWS_SIGMETS = "https://api.weather.gov/aviation/sigmets";
   var AWC_AIRSIGMET = "https://aviationweather.gov/api/data/airsigmet?format=json";
   var AWC_ISIGMET = "https://aviationweather.gov/api/data/isigmet?format=json";
+  var DEFAULT_HUB =
+    "https://web-production-3d9fe.up.railway.app";
   var BOUNDARY_URLS = [
     "../../data/artcc-boundaries-high.geojson",
     "../data/artcc-boundaries-high.geojson",
     "/data/artcc-boundaries-high.geojson",
-    "https://cdn.jsdelivr.net/gh/vatsimnetwork/vatspy-data-project@master/Boundaries.geojson",
   ];
+  // Public CORS proxies — avoid allorigins (often 15–20s / 522). Prefer hub.
   var CORS_PROXIES = [
-    function (u) {
-      return "https://api.allorigins.win/raw?url=" + encodeURIComponent(u);
-    },
     function (u) {
       return "https://corsproxy.io/?url=" + encodeURIComponent(u);
     },
   ];
+  var FETCH_TIMEOUT_MS = 6000;
+  var HUB_TIMEOUT_MS = 5000;
 
   /** ARTCC id (ZJX) -> rings of [lon, lat] */
   var artccPolys = null;
@@ -84,36 +85,135 @@
 
   function fetchJson(url, opts) {
     opts = opts || {};
+    var timeoutMs = opts.timeoutMs != null ? opts.timeoutMs : FETCH_TIMEOUT_MS;
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = null;
+    if (ctrl && timeoutMs > 0) {
+      timer = setTimeout(function () {
+        try {
+          ctrl.abort();
+        } catch (_) {}
+      }, timeoutMs);
+    }
     return fetch(url, {
-      method: "GET",
+      method: opts.method || "GET",
       mode: "cors",
       credentials: "omit",
-      cache: "no-store",
+      cache: opts.cache || "no-store",
+      signal: ctrl ? ctrl.signal : undefined,
       headers: Object.assign(
         { Accept: "application/geo+json, application/json, text/plain, */*" },
         opts.headers || {}
       ),
-    }).then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
-      return res.json();
+      body: opts.body,
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
+        return res.json();
+      })
+      .finally(function () {
+        if (timer) clearTimeout(timer);
+      });
+  }
+
+  function hubBase() {
+    try {
+      if (global.settings && global.settings.hubUrl)
+        return String(global.settings.hubUrl).replace(/\/+$/, "");
+    } catch (_) {}
+    return DEFAULT_HUB;
+  }
+
+  /** Hub-cached AWC feed (avoids browser CORS + slow allorigins). */
+  function fetchAwcViaHub(kind) {
+    var path = kind === "isig" ? "/hub/isigmet" : "/hub/airsigmet";
+    return fetchJson(hubBase() + path, {
+      method: "POST",
+      timeoutMs: HUB_TIMEOUT_MS,
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }).then(function (data) {
+      if (!data || data.ok === false)
+        throw new Error((data && data.error) || "hub awc failed");
+      var entries = data.entries;
+      if (!Array.isArray(entries)) throw new Error("hub awc empty");
+      return entries;
     });
   }
 
-  /** Direct fetch, then CORS proxies (for AWC). */
-  function fetchJsonFlexible(url) {
-    return fetchJson(url).catch(function () {
-      var chain = Promise.reject(new Error("direct failed"));
-      CORS_PROXIES.forEach(function (prox) {
-        chain = chain.catch(function () {
-          return fetchJson(prox(url));
-        });
+  /** Race CORS proxy (and optional direct) with short timeouts — never allorigins. */
+  function fetchJsonFlexible(url, opts) {
+    opts = opts || {};
+    var attempts = [];
+    if (opts.viaHub === "air" || opts.viaHub === "isig") {
+      attempts.push(function () {
+        return fetchAwcViaHub(opts.viaHub);
       });
-      return chain;
+    }
+    if (opts.tryDirect !== false) {
+      attempts.push(function () {
+        return fetchJson(url, { timeoutMs: opts.directTimeoutMs || 4000 });
+      });
+    }
+    CORS_PROXIES.forEach(function (prox) {
+      attempts.push(function () {
+        return fetchJson(prox(url), { timeoutMs: opts.proxyTimeoutMs || 5000 });
+      });
+    });
+
+    // Race first success; fall through sequentially only if race rejects all.
+    // Start hub + proxy in parallel when hub is preferred.
+    if (attempts.length === 1) return attempts[0]();
+    return new Promise(function (resolve, reject) {
+      var pending = attempts.length;
+      var lastErr = new Error("all fetches failed");
+      var done = false;
+      attempts.forEach(function (fn) {
+        Promise.resolve()
+          .then(fn)
+          .then(function (data) {
+            if (done) return;
+            done = true;
+            resolve(data);
+          })
+          .catch(function (err) {
+            lastErr = err || lastErr;
+            pending -= 1;
+            if (!done && pending <= 0) reject(lastErr);
+          });
+      });
+    });
+  }
+
+  function withTimeoutFallback(promise, ms, fallback) {
+    return new Promise(function (resolve) {
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (!settled) {
+          settled = true;
+          resolve(fallback);
+        }
+      }, ms);
+      Promise.resolve(promise)
+        .then(function (v) {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            resolve(v);
+          }
+        })
+        .catch(function () {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            resolve(fallback);
+          }
+        });
     });
   }
 
   function nwsStartIso(hoursBack) {
-    var d = new Date(Date.now() - (hoursBack || 18) * 60 * 60 * 1000);
+    var d = new Date(Date.now() - (hoursBack || 6) * 60 * 60 * 1000);
     return d.toISOString();
   }
 
@@ -417,19 +517,30 @@
     }
 
     var nwsUrl =
-      NWS_SIGMETS + "?start=" + encodeURIComponent(nwsStartIso(18));
+      NWS_SIGMETS + "?start=" + encodeURIComponent(nwsStartIso(6));
 
     return Promise.all([
       loadArtccBoundaries(),
-      fetchJson(nwsUrl).catch(function () {
+      fetchJson(nwsUrl, { timeoutMs: 5000 }).catch(function () {
         return { features: [] };
       }),
-      fetchJsonFlexible(AWC_AIRSIGMET).catch(function () {
-        return [];
-      }),
-      fetchJsonFlexible(AWC_ISIGMET).catch(function () {
-        return [];
-      }),
+      // AWC origin can be 10–30s; hub cache / short race, then proceed without it.
+      withTimeoutFallback(
+        fetchJsonFlexible(AWC_AIRSIGMET, {
+          viaHub: "air",
+          tryDirect: false,
+        }),
+        7000,
+        []
+      ),
+      withTimeoutFallback(
+        fetchJsonFlexible(AWC_ISIGMET, {
+          viaHub: "isig",
+          tryDirect: false,
+        }),
+        7000,
+        []
+      ),
     ]).then(function (results) {
       var nws = results[1] || {};
       var airIdx = indexAwcBySeries(results[2]);
