@@ -258,8 +258,29 @@
     return dd + hh + mm + "Z";
   }
 
+  /**
+   * SIGMET body only: first blank-line paragraph of the raw product text.
+   * Drops OUTLOOK / subsequent sections controllers do not need in the SIG list.
+   */
+  function firstParagraph(raw) {
+    var text = String(raw || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .trim();
+    if (!text) return "";
+    // Convective products append OUTLOOK after the SIGMET body
+    var outlookAt = text.search(/\n\s*OUTLOOK\b/i);
+    if (outlookAt >= 0) text = text.slice(0, outlookAt);
+    var parts = text.split(/\n\s*\n/);
+    var para = String(parts[0] || "").trim();
+    return para;
+  }
+
   function buildTextFromNws(props, awcHit) {
-    if (awcHit && awcHit._rawText) return awcHit._rawText;
+    if (awcHit && awcHit._rawText) {
+      var para = firstParagraph(awcHit._rawText);
+      if (para) return para;
+    }
     var fir = props.fir || props.atsu || "";
     var seq = props.sequence || "";
     var hazard = props.hazard || props.phenomenon || "";
@@ -267,7 +288,13 @@
     lines.push(
       String(fir || "SIGMET") + (seq ? " SIGMET " + seq : " SIGMET")
     );
-    if (hazard) lines.push("HAZARD: " + String(hazard).toUpperCase());
+    if (hazard) {
+      var haz = String(hazard)
+        .replace(/^https?:\/\/[^ ]+\//, "")
+        .replace(/_/g, " ")
+        .toUpperCase();
+      lines.push("HAZARD: " + haz);
+    }
     if (props.issueTime) lines.push("ISSUED: " + fmtZulu(props.issueTime));
     var start = props.start || props.validTimeFrom;
     var end = props.end || props.validTimeTo;
@@ -314,6 +341,9 @@
 
   function fromAirsigmet(item, artcc) {
     var seq = String(item.seriesId || "").toUpperCase();
+    var raw = String(
+      item.rawAirSigmet || item.rawSigmet || item.raw || ""
+    ).trim();
     return {
       id: String(item.airSigmetId || seq || Math.random()),
       fir: bareArtcc(artcc),
@@ -322,9 +352,7 @@
       start: item.validTimeFrom != null ? item.validTimeFrom : null,
       end: item.validTimeTo != null ? item.validTimeTo : null,
       issueTime: item.issueTime || item.creationTime || null,
-      text:
-        String(item.rawAirSigmet || item.rawSigmet || item.raw || "").trim() ||
-        "(no text available)",
+      text: firstParagraph(raw) || "(no text available)",
       source: "airsigmet",
     };
   }
@@ -334,6 +362,7 @@
       .trim()
       .toUpperCase();
     if (!firMatches(fir, artcc)) return null;
+    var raw = String(item.rawSigmet || item.rawOb || "").trim();
     return {
       id: String(
         item.isigmetId || item.icaoId || item.seriesId || Math.random()
@@ -344,9 +373,7 @@
       start: item.validTimeFrom || null,
       end: item.validTimeTo || null,
       issueTime: item.issueTime || null,
-      text:
-        String(item.rawSigmet || item.rawOb || "").trim() ||
-        "(no text available)",
+      text: firstParagraph(raw) || "(no text available)",
       source: "isigmet",
     };
   }
@@ -445,9 +472,13 @@
   global.EdstSigmets = {
     normalizeArtcc: normalizeArtcc,
     fetchSigmetsForArtcc: fetchSigmetsForArtcc,
+    firstParagraph: firstParagraph,
     // test helpers
     _pointInArtcc: pointInArtcc,
     _loadArtccBoundaries: loadArtccBoundaries,
     _geometryTouchesArtcc: geometryTouchesArtcc,
+    _fromAirsigmet: fromAirsigmet,
+    _fromIsigmet: fromIsigmet,
+    _buildTextFromNws: buildTextFromNws,
   };
 })(typeof window !== "undefined" ? window : globalThis);
