@@ -1044,11 +1044,21 @@ td.eh-bk{text-align:center;min-width:14px}
 #sigmenu .sig-item{
   margin:2px 0;border-bottom:1px solid #1a1a1a;padding:6px 0 8px;line-height:1.35;
 }
-#sigmenu .sig-item .sig-meta{color:#8a9088;font-size:11px;margin-bottom:4px}
-#sigmenu .sig-item .sig-meta b{color:#d8d63f;font-weight:normal}
+#sigmenu .sig-item .sig-meta{
+  display:flex;align-items:center;gap:6px;color:#8a9088;font-size:11px;margin-bottom:4px;
+}
+#sigmenu .sig-item .sig-meta b{color:#d8d63f;font-weight:normal;flex:1;min-width:0}
+#sigmenu .sig-item .sig-toggle{
+  flex:0 0 auto;width:16px;height:16px;line-height:16px;text-align:center;
+  border:1px solid #555;background:#1a1a1a;color:#d2d2cd;cursor:pointer;
+  font-size:10px;user-select:none;padding:0;
+}
+#sigmenu .sig-item .sig-toggle:hover{background:#2a2a2a;border-color:#888}
+#sigmenu .sig-item .sig-toggle[aria-expanded="true"]{background:#3a3a3a;color:#fff}
 #sigmenu .sig-item .sig-text{
   color:var(--fg);white-space:pre-wrap;word-break:break-word;font-size:12px;
 }
+#sigmenu .sig-item.expanded .sig-text{color:#e8e8e4}
 
 /* EDST WX REPORT (METARs) */
 #wxmenu.edst-pop{
@@ -3829,6 +3839,7 @@ async function sendHandover(cs,fac){
 //============================================================ SIG (SIGMETs for FIR)
 let sigLoading=false;
 let sigCache={artcc:'',entries:[],error:null,fetchedAt:0};
+const sigExpanded=new Set(); // entry ids currently showing full text
 
 function sigMenuOpen(){
   const el=document.getElementById('sigmenu');
@@ -3836,6 +3847,21 @@ function sigMenuOpen(){
 }
 function sigArtcc(){
   return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase();
+}
+function sigEntryId(entry,idx){
+  return String((entry&&(entry.id||entry.sequence))||('sig-'+idx));
+}
+function sigShortText(entry){
+  return String((entry&&entry.text)||'').trim();
+}
+function sigFullText(entry){
+  const full=String((entry&&(entry.fullText||entry.text))||'').trim();
+  return full||sigShortText(entry);
+}
+function sigCanExpand(entry){
+  const short=sigShortText(entry);
+  const full=sigFullText(entry);
+  return !!full&&full!==short;
 }
 function sigFmtMeta(entry){
   const seq=entry.sequence||'—';
@@ -3877,13 +3903,44 @@ function renderSigList(){
     list.innerHTML='<div class="sig-empty">No active SIGMETs for '+esc(short)+'</div>';
     return;
   }
-  list.innerHTML=entries.map(e=>{
-    return '<div class="sig-item">'
-      +'<div class="sig-meta"><b>'+esc(sigFmtMeta(e))+'</b></div>'
-      +'<div class="sig-text">'+esc(e.text||'')+'</div>'
+  // Drop expand state for entries that disappeared after refresh
+  const liveIds=new Set(entries.map((e,i)=>sigEntryId(e,i)));
+  [...sigExpanded].forEach(id=>{if(!liveIds.has(id))sigExpanded.delete(id);});
+  list.innerHTML=entries.map((e,idx)=>{
+    const id=sigEntryId(e,idx);
+    const canExpand=sigCanExpand(e);
+    const open=canExpand&&sigExpanded.has(id);
+    const body=open?sigFullText(e):sigShortText(e);
+    const toggle=canExpand
+      ?('<button type="button" class="sig-toggle" data-sig-toggle="'+esc(id)+'"'
+        +' aria-expanded="'+(open?'true':'false')+'"'
+        +' title="'+(open?'Collapse SIGMET text':'Expand full SIGMET text')+'">'
+        +(open?'▼':'▶')+'</button>')
+      :'<span class="sig-toggle" style="visibility:hidden" aria-hidden="true">▶</span>';
+    return '<div class="sig-item'+(open?' expanded':'')+'" data-sig-id="'+esc(id)+'">'
+      +'<div class="sig-meta">'+toggle+'<b>'+esc(sigFmtMeta(e))+'</b></div>'
+      +'<div class="sig-text">'+esc(body||'')+'</div>'
       +'</div>';
   }).join('');
 }
+function toggleSigExpand(id){
+  id=String(id||'');
+  if(!id)return;
+  if(sigExpanded.has(id))sigExpanded.delete(id);
+  else sigExpanded.add(id);
+  renderSigList();
+}
+(function wireSigExpand(){
+  const list=document.getElementById('sigList');
+  if(!list||list.dataset.sigToggleWired)return;
+  list.dataset.sigToggleWired='1';
+  list.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-sig-toggle]');
+    if(!btn||!list.contains(btn))return;
+    e.preventDefault();e.stopPropagation();
+    toggleSigExpand(btn.getAttribute('data-sig-toggle'));
+  });
+})();
 async function refreshSigmets(force){
   const art=sigArtcc();
   if(!art){
