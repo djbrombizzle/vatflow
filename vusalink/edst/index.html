@@ -582,7 +582,7 @@ td.eh-bk{text-align:center;min-width:14px}
 #gpdmenu .gpd-tip{background:rgba(0,0,0,.85);border:1px solid #555;padding:3px 6px}
 #gpdmenu .gpd-tools{
   flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:3px 6px;
-  background:#1a1a1a;border-bottom:1px solid #444;
+  background:#1a1a1a;border-bottom:1px solid #444;position:relative;z-index:5;
 }
 #gpdmenu .gpd-tools .et-btn{
   border:1px solid #8a8a8a;color:#d6d6d6;background:#000;padding:2px 10px;
@@ -590,20 +590,23 @@ td.eh-bk{text-align:center;min-width:14px}
 }
 #gpdmenu .gpd-tools .et-btn:hover{background:#1a1a1a}
 #gpdmenu .gpd-tools .et-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
-#gpdmapopts.edst-pop{
-  position:absolute;z-index:72;width:220px;
+#gpdmenu .gpd-tools .et-btn.open{background:#3a3a3a;border-color:#aaa}
+/* Map Options: in-window pulldown under the GPD toolbar (not a separate edst-pop) */
+#gpdmapopts{
+  position:absolute;z-index:30;top:calc(100% + 1px);left:6px;width:220px;
   background:#000;border:1px solid #cfcfcf;
   font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
   box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
 }
 #gpdmapopts.hidden{display:none!important}
-#gpdmapopts .edst-pop-hdr{
+#gpdmapopts .gpd-opt-hdr{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
-  cursor:move;user-select:none;
+  user-select:none;
 }
-#gpdmapopts .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
-#gpdmapopts .edst-pop-hdr .x:hover{background:#333}
+#gpdmapopts .gpd-opt-hdr .title{letter-spacing:.4px}
+#gpdmapopts .gpd-opt-hdr .x{cursor:pointer;padding:0 4px}
+#gpdmapopts .gpd-opt-hdr .x:hover{background:#333}
 #gpdmapopts .gpd-opt-body{padding:8px 10px}
 #gpdmapopts .gpd-opt-label{
   font-size:11px;letter-spacing:.06em;color:#aeb6af;margin-bottom:6px;
@@ -1507,7 +1510,23 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="x" data-close="gpdmenu" title="Close">X</span>
   </div>
   <div class="gpd-tools">
-    <button type="button" class="et-btn" id="btnGpdMapOpts" title="Map Options">Map Options...</button>
+    <button type="button" class="et-btn" id="btnGpdMapOpts" title="Map Options" aria-haspopup="true" aria-expanded="false" aria-controls="gpdmapopts">Map Options...</button>
+    <!-- Map Options pulldown (inside GPD window) -->
+    <div id="gpdmapopts" class="hidden" role="menu" aria-label="Map Options">
+      <div class="gpd-opt-hdr">
+        <span class="title">MAP OPTIONS</span>
+        <span class="x" data-close="gpdmapopts" title="Close">X</span>
+      </div>
+      <div class="gpd-opt-body">
+        <div class="gpd-opt-label">SECTOR LINES</div>
+        <div class="gpd-opt-seg" id="gpdSectorSeg" role="group" aria-label="Sector lines">
+          <button type="button" data-gpd-sector="off" class="on">OFF</button>
+          <button type="button" data-gpd-sector="high">HIGH</button>
+          <button type="button" data-gpd-sector="low">LOW</button>
+        </div>
+        <div class="gpd-opt-hint">HIGH / LOW ERAM sector boundaries for the viewing ARTCC.</div>
+      </div>
+    </div>
   </div>
   <div id="gpdMap" role="img" aria-label="Graphical plan display map"></div>
   <div class="gpd-foot">
@@ -1515,23 +1534,6 @@ td.eh-bk{text-align:center;min-width:14px}
     <span>TRAFFIC <b id="gpdCount">0</b></span>
     <span>SECTORS <b id="gpdSectorMode">OFF</b></span>
     <span style="opacity:.65">Routes from hub fixes / FCA route engine</span>
-  </div>
-</div>
-
-<!-- GPD Map Options (sector lines OFF / HIGH / LOW) -->
-<div id="gpdmapopts" class="edst-pop hidden">
-  <div class="edst-pop-hdr">
-    <span class="title">MAP OPTIONS</span>
-    <span class="x" data-close="gpdmapopts" title="Close">X</span>
-  </div>
-  <div class="gpd-opt-body">
-    <div class="gpd-opt-label">SECTOR LINES</div>
-    <div class="gpd-opt-seg" id="gpdSectorSeg" role="group" aria-label="Sector lines">
-      <button type="button" data-gpd-sector="off" class="on">OFF</button>
-      <button type="button" data-gpd-sector="high">HIGH</button>
-      <button type="button" data-gpd-sector="low">LOW</button>
-    </div>
-    <div class="gpd-opt-hint">HIGH / LOW ERAM sector boundaries for the viewing ARTCC.</div>
   </div>
 </div>
 
@@ -2648,13 +2650,19 @@ function close(id){
     const btn=document.getElementById('tabDep');
     if(btn)btn.classList.remove('active-dep');
   }
+  if(id==='gpdmapopts'){
+    // Prefer dedicated closer once defined; sync button open state
+    if(typeof closeGpdMapOptions==='function')closeGpdMapOptions();
+    else{
+      const mo=document.getElementById('btnGpdMapOpts');
+      if(mo){mo.classList.remove('open');mo.setAttribute('aria-expanded','false');}
+    }
+    return;
+  }
   if(id==='gpdmenu'){
     const btn=document.getElementById('btnGpd');
     if(btn)btn.classList.remove('active-gpd');
-    const opts=document.getElementById('gpdmapopts');
-    if(opts)opts.classList.add('hidden');
-    const mo=document.getElementById('btnGpdMapOpts');
-    if(mo)mo.classList.remove('active');
+    if(typeof closeGpdMapOptions==='function')closeGpdMapOptions();
   }
   if(id==='wxmenu'){
     const btn=document.getElementById('btnWx');
@@ -2685,23 +2693,20 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
     if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
-    if(id==='gpdmenu'&&ev.target.closest('#gpdmapopts'))return;
-    if(id==='gpdmenu'&&ev.target.closest('#btnGpdMapOpts'))return;
+    // Map Options is nested in GPD — close pulldown on outside click (incl. map area),
+    // but don't treat the toolbar button as outside.
     if(id==='gpdmapopts'&&ev.target.closest('#btnGpdMapOpts'))return;
-    if(id==='gpdmapopts'&&ev.target.closest('#gpdmenu'))return;
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&ev.target.closest('#btnCpdlcHist'))return;
     if(id==='sigmenu'&&ev.target.closest('#btnSig'))return;
+    if(id==='gpdmapopts'){closeGpdMapOptions();return;}
     close(id);
     if(id==='gpdmenu'){
       const btn=document.getElementById('btnGpd');
       if(btn)btn.classList.remove('active-gpd');
-      close('gpdmapopts');
-      const mo=document.getElementById('btnGpdMapOpts');
-      if(mo)mo.classList.remove('active');
     }
     if(id==='depmenu'){
       const btn=document.getElementById('tabDep');
@@ -4590,7 +4595,14 @@ function syncGpdSectorUi(){
     btn.classList.toggle('on',btn.dataset.gpdSector===gpdSectorMode);
   });
   const mo=document.getElementById('btnGpdMapOpts');
-  if(mo)mo.classList.toggle('active',gpdSectorMode!=='off');
+  const opts=document.getElementById('gpdmapopts');
+  const open=!!(opts&&!opts.classList.contains('hidden'));
+  if(mo){
+    // active = sector lines on; open = pulldown visible
+    mo.classList.toggle('active',gpdSectorMode!=='off');
+    mo.classList.toggle('open',open);
+    mo.setAttribute('aria-expanded',open?'true':'false');
+  }
 }
 function setGpdSectorMode(mode){
   const m=String(mode||'off').toLowerCase();
@@ -4599,17 +4611,24 @@ function setGpdSectorMode(mode){
   if(gpdMapApi&&gpdMapApi.setSectorMode)gpdMapApi.setSectorMode(gpdSectorMode);
   else if(gpdMapApi)refreshGpdMap(false);
 }
+function closeGpdMapOptions(){
+  const menu=document.getElementById('gpdmapopts');
+  if(menu)menu.classList.add('hidden');
+  syncGpdSectorUi();
+}
 function openGpdMapOptions(){
   const menu=document.getElementById('gpdmapopts');
   const btn=document.getElementById('btnGpdMapOpts');
   if(!menu||!btn)return;
   if(!menu.classList.contains('hidden')){
-    close('gpdmapopts');
+    closeGpdMapOptions();
     return;
   }
+  // Anchor under the Map Options button within the GPD toolbar
+  menu.style.left=Math.max(0,btn.offsetLeft)+'px';
+  menu.style.top=''; // CSS top: calc(100% + 1px) on tools bar
+  menu.classList.remove('hidden');
   syncGpdSectorUi();
-  const r=btn.getBoundingClientRect();
-  placePop(menu,r.left,r.bottom+4);
 }
 const _btnGpdMapOpts=document.getElementById('btnGpdMapOpts');
 if(_btnGpdMapOpts)_btnGpdMapOpts.addEventListener('click',e=>{
@@ -4622,7 +4641,6 @@ document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
     setGpdSectorMode(btn.dataset.gpdSector);
   });
 });
-makeEdstDraggable(document.getElementById('gpdmapopts'));
 syncGpdSectorUi();
 
 async function ensureConflictProbe(){
@@ -4818,11 +4836,8 @@ async function openGpdMenu(){
 }
 function closeGpdMenu(){
   close('gpdmenu');
-  close('gpdmapopts');
   const btn=document.getElementById('btnGpd');
   if(btn)btn.classList.remove('active-gpd');
-  const mo=document.getElementById('btnGpdMapOpts');
-  if(mo)mo.classList.remove('active');
 }
 document.getElementById('btnGpd').addEventListener('click',e=>{
   e.preventDefault();e.stopPropagation();
