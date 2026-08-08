@@ -2400,7 +2400,7 @@ function mapLive(f){
     cid:f.cid||'',squawk:f.squawk||'',assignedSquawk:f.assignedSquawk||'',
     hdg:f.hdg||0,gs:f.gs||0,lat:f.lat,lon:f.lon,
     cruise:f.cruise||f.filedAlt||'',
-    route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
+    route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:false};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
   vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?20000:30000);}
