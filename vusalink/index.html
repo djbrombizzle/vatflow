@@ -612,6 +612,8 @@ const WEB_ONLY=true;
 let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,compactTabTitle:false});
 if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
 if(typeof settings.compactTabTitle!=='boolean')settings.compactTabTitle=false;
+// SHOW ALL A/C must be a real boolean — only `true` shows the full sector list.
+settings.showAll=settings.showAll===true;
 function isMuted(){return !(settings.volume>0);}                 // volume 0 (or unset) = muted
 // settings.volume is the gain multiplier: 1.0 = current sound levels (shown as 50%),
 // 2.0 = double (shown as 100%). Slider% = multiplier*50.
@@ -696,7 +698,9 @@ function cpdlcActiveWith(cs){
 function pilotMatchesOurFreq(cs){
   cs=(cs||'').toUpperCase();
   if(cpdlcActiveWith(cs))return true;
-  if(myPosition.freqMhz==null)return true;   // no position freq yet — don't filter anyone out
+  // Unknown controller freq ≠ on-frequency. (Stale onFreq=true used to leak the
+  // full sector list once myFreq arrived without re-annotation.)
+  if(myPosition.freqMhz==null)return false;
   return tunedToOurFreq(cs);
 }
 function shouldDimAdj(a){
@@ -721,7 +725,7 @@ function pruneHandoffAwait(){
   handoffAwaitFreq.forEach(cs=>{if(!pilotMatchesOurFreq(cs))handoffAwaitFreq.delete(cs);});
 }
 function freqFilterActive(){
-  return !monitorMode()&&!settings.showAll&&myPosition.freqMhz!=null&&(hubMode()||configured());
+  return !monitorMode()&&settings.showAll!==true&&myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)&&(hubMode()||configured());
 }
 function annotateFlights(){
   liveFlights.forEach(f=>{f.onFreq=pilotMatchesOurFreq(f.cs);});
@@ -751,14 +755,19 @@ function applyFreqMeta(d){
 }
 function displayList(){
   let list=board().slice();
-  // SHOW ALL off:
-  //  - with a known voice freq → aircraft on this frequency (matches posHint)
-  //  - otherwise → CPDLC/KUSA green list only
-  if(!settings.showAll){
-    if(freqFilterActive())list=list.filter(a=>a.source==='manual'||a.onFreq);
-    else list=list.filter(a=>connected.has(a.cs));
+  // SHOW ALL A/C:
+  //  checked  → entire sector list
+  //  unchecked + known voice freq → on this frequency only (live tune check)
+  //  unchecked + no voice freq → CPDLC/KUSA green list only
+  if(settings.showAll!==true){
+    if(freqFilterActive()){
+      // Re-evaluate tune/CPDLC live — do not trust stale row.onFreq from mapLive.
+      list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
+    }else{
+      list=list.filter(a=>connected.has(a.cs));
+    }
   }
-  list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||pilotMatchesOurFreq(a.cs));
+  list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
   const k=sortState.key;if(!k)return list;
   const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
   if(!acc)return list;
@@ -1277,7 +1286,7 @@ function mapLive(f){
   return {cs:f.callsign,type:f.type||'----',alt:f.fl||0,hs:'/'+(f.gs||''),
     cid:f.cid||'',squawk:f.squawk||'',assignedSquawk:f.assignedSquawk||'',
     hdg:f.hdg||0,gs:f.gs||0,lat:f.lat,lon:f.lon,
-    route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:true};
+    route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:false};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
   vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?20000:30000);}
@@ -2321,8 +2330,8 @@ document.getElementById('btnRefresh').onclick=()=>refreshVatsim(true);
     refreshVatsim(true);scheduleVatsim();};
   va.addEventListener('change',go);
   va.addEventListener('keydown',e=>{if(e.key==='Enter'){va.blur();go();}});
-  const sa=document.getElementById('showAll');sa.checked=!!settings.showAll;
-  sa.addEventListener('change',()=>{settings.showAll=sa.checked;persist();renderBoard();});
+  const sa=document.getElementById('showAll');sa.checked=settings.showAll===true;
+  sa.addEventListener('change',()=>{settings.showAll=sa.checked===true;persist();renderBoard();});
   const ct=document.getElementById('compactTitle');ct.checked=!!settings.compactTabTitle;
   ct.addEventListener('change',()=>{settings.compactTabTitle=ct.checked;persist();updateTabTitle();});
 })();
