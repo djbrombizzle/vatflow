@@ -38,6 +38,14 @@ a{color:inherit}
 #edstbar .etb-btn:hover{background:#1a1a1a}
 #edstbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #edstbar .etb-btn.sig{border-color:#d8d63f;color:#d8d63f}
+#edstbar .etb-btn.sig.flash{
+  animation:sigflash 1s steps(2,start) infinite;
+  background:#4a4a18;border-color:#ebe64a;color:#ebe64a;
+}
+#edstbar .etb-btn.sig.flash:hover{background:#5a5a20}
+@keyframes sigflash{
+  50%{background:#ebe64a;color:#111;border-color:#fff}
+}
 #edstbar .etb-btn.gi-unread{background:#fff;color:#000;border-color:#fff;font-weight:bold}
 #edstbar .etb-stat{cursor:default}
 #edstbar .etb-stat.on{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
@@ -3837,9 +3845,15 @@ async function sendHandover(cs,fac){
 }
 
 //============================================================ SIG (SIGMETs for FIR)
+const SIG_POLL_MS=90e3;                  // background refresh cadence
 let sigLoading=false;
 let sigCache={artcc:'',entries:[],error:null,fetchedAt:0};
-const sigExpanded=new Set(); // entry ids currently showing full text
+const sigExpanded=new Set();             // entry ids currently showing full text
+const sigSeenIds=new Set();              // keys from last successful fetch
+let sigAlert=false;                      // flash SIG button until acknowledged
+let sigPrimed=false;                     // first fetch seeds seen ids (no flash)
+let sigPollTimer=null;
+let sigFetchGen=0;                       // ignore stale overlapping fetches
 
 function sigMenuOpen(){
   const el=document.getElementById('sigmenu');
@@ -3848,8 +3862,16 @@ function sigMenuOpen(){
 function sigArtcc(){
   return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase();
 }
+function sigBareArtcc(id){
+  return String(id||'').toUpperCase().replace(/^K(?=Z)/,'');
+}
 function sigEntryId(entry,idx){
   return String((entry&&(entry.id||entry.sequence))||('sig-'+idx));
+}
+function sigEntryKey(entry,idx){
+  return sigEntryId(entry,idx)+'|'
+    +String((entry&&(entry.start||entry.validTimeFrom))||'')+'|'
+    +String((entry&&(entry.end||entry.validTimeTo))||'');
 }
 function sigShortText(entry){
   return String((entry&&entry.text)||'').trim();
@@ -3862,6 +3884,47 @@ function sigCanExpand(entry){
   const short=sigShortText(entry);
   const full=sigFullText(entry);
   return !!full&&full!==short;
+}
+function syncSigButton(){
+  const btn=document.getElementById('btnSig');
+  if(!btn)return;
+  btn.classList.toggle('flash',!!sigAlert);
+  btn.title=sigAlert
+    ?'New SIGMET issued — click to view'
+    :'SIGMETs for controlling FIR';
+}
+function clearSigAlert(){
+  if(!sigAlert){syncSigButton();return;}
+  sigAlert=false;
+  syncSigButton();
+}
+function noteSigEntries(entries,art){
+  const list=Array.isArray(entries)?entries:[];
+  const keys=list.map((e,i)=>sigEntryKey(e,i));
+  const artBare=sigBareArtcc(art);
+  const prevBare=sigBareArtcc(sigCache.artcc);
+  if(prevBare&&artBare&&prevBare!==artBare){
+    sigPrimed=false;
+    sigSeenIds.clear();
+    clearSigAlert();
+  }
+  if(!sigPrimed){
+    sigSeenIds.clear();
+    keys.forEach(k=>sigSeenIds.add(k));
+    sigPrimed=true;
+    return;
+  }
+  const newcomers=keys.filter(k=>!sigSeenIds.has(k));
+  sigSeenIds.clear();
+  keys.forEach(k=>sigSeenIds.add(k));
+  if(!newcomers.length)return;
+  if(sigMenuOpen()){
+    // Controller already has the list open — refresh is enough
+    clearSigAlert();
+  }else{
+    sigAlert=true;
+    syncSigButton();
+  }
 }
 function sigFmtMeta(entry){
   const seq=entry.sequence||'—';
@@ -3941,50 +4004,75 @@ function toggleSigExpand(id){
     toggleSigExpand(btn.getAttribute('data-sig-toggle'));
   });
 })();
-async function refreshSigmets(force){
+async function refreshSigmets(force,opts){
+  opts=opts||{};
+  const silent=!!opts.silent;
   const art=sigArtcc();
   if(!art){
     sigCache={artcc:'',entries:[],error:'Set or verify an ARTCC to load SIGMETs.',fetchedAt:Date.now()};
-    renderSigList();
+    if(!silent||sigMenuOpen())renderSigList();
     return;
   }
   if(!window.EdstSigmets||typeof EdstSigmets.fetchSigmetsForArtcc!=='function'){
     sigCache={artcc:art,entries:[],error:'SIGMET module failed to load.',fetchedAt:Date.now()};
-    renderSigList();
+    if(!silent||sigMenuOpen())renderSigList();
     return;
   }
-  // Reuse cache briefly unless forced (always refresh when last result was empty)
-  if(!force&&sigCache.artcc===art&&sigCache.fetchedAt&&(Date.now()-sigCache.fetchedAt)<60e3
+  // Reuse cache briefly unless forced / background poll (always refresh when empty)
+  if(!force&&!silent&&sigCache.artcc===art&&sigCache.fetchedAt&&(Date.now()-sigCache.fetchedAt)<60e3
     &&(sigCache.entries||[]).length){
-    renderSigList();
+    if(sigMenuOpen())renderSigList();
     return;
   }
-  sigLoading=true;
-  renderSigList();
+  const showLoading=!silent||!(sigCache.entries&&sigCache.entries.length);
+  if(showLoading){
+    sigLoading=true;
+    if(sigMenuOpen())renderSigList();
+  }
+  const gen=++sigFetchGen;
   try{
     const result=await EdstSigmets.fetchSigmetsForArtcc(art);
+    if(gen!==sigFetchGen)return; // superseded
+    const entries=result.entries||[];
+    noteSigEntries(entries,result.artcc||art);
     sigCache={
       artcc:result.artcc||art,
-      entries:result.entries||[],
+      entries:entries,
       error:result.error||null,
       fetchedAt:Date.now(),
     };
   }catch(e){
+    if(gen!==sigFetchGen)return;
     sigCache={
       artcc:art,
-      entries:[],
+      entries:sigCache.entries||[],
       error:(e&&e.message)||'Failed to fetch SIGMETs',
       fetchedAt:Date.now(),
     };
   }
   sigLoading=false;
   if(sigMenuOpen())renderSigList();
+  syncSigButton();
+}
+function scheduleSigPoll(){
+  if(sigPollTimer)clearTimeout(sigPollTimer);
+  sigPollTimer=setTimeout(async()=>{
+    try{
+      if(sigArtcc())await refreshSigmets(true,{silent:true});
+    }catch(_){}
+    scheduleSigPoll();
+  },SIG_POLL_MS);
+}
+function startSigPolling(){
+  scheduleSigPoll();
+  if(sigArtcc())refreshSigmets(true,{silent:true}).catch(()=>{});
 }
 function openSigMenu(){
   const menu=document.getElementById('sigmenu');
   const btn=document.getElementById('btnSig');
   if(!menu||!btn)return;
   if(!menu.classList.contains('hidden')){close('sigmenu');return;}
+  clearSigAlert();
   renderSigList();
   const r=btn.getBoundingClientRect();
   placePop(menu,r.left,r.bottom+4);
@@ -3996,6 +4084,8 @@ function openSigMenu(){
   if(btn)btn.addEventListener('click',e=>{e.preventDefault();openSigMenu();});
   const ref=document.getElementById('sigRefresh');
   if(ref)ref.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();refreshSigmets(true);});
+  syncSigButton();
+  startSigPolling();
 })();
 
 //============================================================ WX REPORT (METARs)
