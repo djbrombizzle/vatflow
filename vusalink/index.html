@@ -313,6 +313,7 @@
 <div id="toolbar">
   <div class="field" id="viewArtccField"><label>VIEW ARTCC</label><input id="viewArtcc" size="6" autocomplete="off" placeholder="KZJX"></div>
   <label class="chk"><input type="checkbox" id="showAll"> SHOW ALL A/C</label>
+  <label class="chk" title="Only aircraft logged on to CPDLC"><input type="checkbox" id="showCpdlcOnly"> SHOW CPDLC ONLY</label>
   <label class="chk" title="Browser tab shows [n] for CPDLC count on your freq"><input type="checkbox" id="compactTitle"> COMPACT TITLE</label>
   <div class="field"><label>ADD/FIND</label><input id="find" size="12" autocomplete="off" placeholder="callsign"></div>
   <button class="tb-btn" id="btnAdd">+ ADD A/C</button>
@@ -559,6 +560,7 @@
       <h3>Useful tips</h3>
       <ul>
         <li><b>SHOW ALL A/C</b> — show every aircraft in the sector, not only those tuned to your frequency.</li>
+        <li><b>SHOW CPDLC ONLY</b> — show only aircraft logged on to CPDLC (KUSA).</li>
         <li><b>COMPACT TITLE</b> — set the browser tab to <b>[n]</b> (CPDLC aircraft on your frequency) to save tab space. Off uses <b>(n)vUSAlink</b>.</li>
         <li><b>SOUND</b> — adjust alert volume (50% is normal).</li>
         <li><b>REFRESH</b> — reload live VATSIM traffic.</li>
@@ -609,11 +611,28 @@ const DEFAULT_HUB_URL='https://web-production-3d9fe.up.railway.app';   // shared
 // VATSIM CID. The hub URL is built in, so Settings only asks for the CID. (Solo/direct-Hoppie
 // is retired — a browser can't reach Hoppie directly, which is why the hub exists.)
 const WEB_ONLY=true;
-let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,compactTabTitle:false});
+let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,showCpdlcOnly:false,aclFilter:'auto',compactTabTitle:false});
 if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
 if(typeof settings.compactTabTitle!=='boolean')settings.compactTabTitle=false;
-// SHOW ALL A/C must be a real boolean — only `true` shows the full sector list.
+// ACL filter mode: all | cpdlc | freq | auto (classic default)
 settings.showAll=settings.showAll===true;
+settings.showCpdlcOnly=settings.showCpdlcOnly===true;
+if(settings.showAll)settings.aclFilter='all';
+else if(settings.showCpdlcOnly)settings.aclFilter='cpdlc';
+else if(settings.aclFilter!=='all'&&settings.aclFilter!=='cpdlc'&&settings.aclFilter!=='freq')settings.aclFilter='auto';
+function aclFilterMode(){
+  if(settings.aclFilter==='all'||settings.aclFilter==='cpdlc'||settings.aclFilter==='freq'||settings.aclFilter==='auto')return settings.aclFilter;
+  if(settings.showAll===true)return'all';
+  if(settings.showCpdlcOnly===true)return'cpdlc';
+  return'auto';
+}
+function setAclFilterMode(mode){
+  const m=String(mode||'auto').toLowerCase();
+  settings.aclFilter=(m==='all'||m==='cpdlc'||m==='freq')?m:'auto';
+  settings.showAll=settings.aclFilter==='all';
+  settings.showCpdlcOnly=settings.aclFilter==='cpdlc';
+  persist();
+}
 function isMuted(){return !(settings.volume>0);}                 // volume 0 (or unset) = muted
 // settings.volume is the gain multiplier: 1.0 = current sound levels (shown as 50%),
 // 2.0 = double (shown as 100%). Slider% = multiplier*50.
@@ -725,7 +744,7 @@ function pruneHandoffAwait(){
   handoffAwaitFreq.forEach(cs=>{if(!pilotMatchesOurFreq(cs))handoffAwaitFreq.delete(cs);});
 }
 function freqFilterActive(){
-  return !monitorMode()&&settings.showAll!==true&&myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)&&(hubMode()||configured());
+  return !monitorMode()&&aclFilterMode()!=='all'&&myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)&&(hubMode()||configured());
 }
 function annotateFlights(){
   liveFlights.forEach(f=>{f.onFreq=pilotMatchesOurFreq(f.cs);});
@@ -735,6 +754,13 @@ function updatePositionBar(){
   if(myPosition.label&&myPosition.freqMhz!=null&&!monitorMode()&&(hubMode()||configured())){
     document.getElementById('posLabel').textContent=myPosition.label;
     document.getElementById('posFreq').textContent=formatFreqMhz(myPosition.freqMhz);
+    const hint=document.getElementById('posHint');
+    if(hint){
+      const mode=aclFilterMode();
+      hint.textContent=mode==='cpdlc'?'showing CPDLC logged-on aircraft'
+        :(mode==='all'?'showing all aircraft in sector'
+          :'showing aircraft tuned to this frequency');
+    }
     bar.classList.remove('hidden');
   }else bar.classList.add('hidden');
 }
@@ -755,17 +781,20 @@ function applyFreqMeta(d){
 }
 function displayList(){
   let list=board().slice();
-  // SHOW ALL A/C:
-  //  checked  → entire sector list
-  //  unchecked + known voice freq → on this frequency only (live tune check)
-  //  unchecked + no voice freq → CPDLC/KUSA green list only
-  if(settings.showAll!==true){
-    if(freqFilterActive()){
-      // Re-evaluate tune/CPDLC live — do not trust stale row.onFreq from mapLive.
-      list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
-    }else{
-      list=list.filter(a=>connected.has(a.cs));
-    }
+  const mode=aclFilterMode();
+  const freqOn=freqFilterActive();
+  if(mode==='all'){
+    // entire sector list
+  }else if(mode==='cpdlc'){
+    // Classic: CPDLC logged-on only (no freq requirement)
+    list=list.filter(a=>a.source==='manual'||connected.has(a.cs));
+  }else if(mode==='freq'){
+    if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs));
+    else list=list.filter(a=>a.source==='manual'||connected.has(a.cs));
+  }else{
+    // auto — legacy default when neither checkbox is set
+    if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
+    else list=list.filter(a=>a.source==='manual'||connected.has(a.cs));
   }
   list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
   const k=sortState.key;if(!k)return list;
@@ -2330,8 +2359,26 @@ document.getElementById('btnRefresh').onclick=()=>refreshVatsim(true);
     refreshVatsim(true);scheduleVatsim();};
   va.addEventListener('change',go);
   va.addEventListener('keydown',e=>{if(e.key==='Enter'){va.blur();go();}});
-  const sa=document.getElementById('showAll');sa.checked=settings.showAll===true;
-  sa.addEventListener('change',()=>{settings.showAll=sa.checked===true;persist();renderBoard();});
+  const sa=document.getElementById('showAll');sa.checked=aclFilterMode()==='all';
+  const sc=document.getElementById('showCpdlcOnly');if(sc)sc.checked=aclFilterMode()==='cpdlc';
+  function syncClassicFilterChecks(){
+    if(sa)sa.checked=aclFilterMode()==='all';
+    if(sc)sc.checked=aclFilterMode()==='cpdlc';
+  }
+  sa.addEventListener('change',()=>{
+    if(sa.checked)setAclFilterMode('all');
+    else if(sc&&sc.checked)setAclFilterMode('cpdlc');
+    else setAclFilterMode('auto');
+    syncClassicFilterChecks();
+    renderBoard();
+  });
+  if(sc)sc.addEventListener('change',()=>{
+    if(sc.checked)setAclFilterMode('cpdlc');
+    else if(sa.checked)setAclFilterMode('all');
+    else setAclFilterMode('auto');
+    syncClassicFilterChecks();
+    renderBoard();
+  });
   const ct=document.getElementById('compactTitle');ct.checked=!!settings.compactTabTitle;
   ct.addEventListener('change',()=>{settings.compactTabTitle=ct.checked;persist();updateTabTitle();});
 })();
