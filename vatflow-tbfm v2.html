@@ -1436,6 +1436,11 @@ const UI_DRIFT_MS = 30000;
 let pollIntervalMs = FEED_POLL_MS;
 let sortKey = "seq";   // active sort column
 let sortDir = 1;       // 1 asc, -1 desc
+/* Departures / My Dashboard tables — own sort state so they don't collide with meter table */
+let depSortKey = "wheelsUp";
+let depSortDir = 1;
+let myDashSortKey = "wheelsUp";
+let myDashSortDir = 1;
 const filters = {};    // column key -> filter string
 const issuedEdcts = {}; // callsign -> { t, order, pulledUntil } (manual EDCT records)
 const EDCT_FLASH_MS = 60000;  // how long a pulled-up CFR stays highlighted
@@ -2939,6 +2944,96 @@ function sortedFlights(flights) {
     return r !== 0 ? r * sortDir : a.seq - b.seq;
   });
   return out;
+}
+
+/* Departures + My Dashboard column defs / sorting */
+const DEP_COLUMNS = [
+  { key: "callsign", label: "CALLSIGN" },
+  { key: "type", label: "TYPE" },
+  { key: "dest", label: "DEST" },
+  { key: "status", label: "STATUS" },
+  { key: "tmuPgm", label: "TMU PGM", num: true },
+  { key: "sta", label: "STA AT DEST Z", num: true },
+  { key: "delay", label: "DLY MIN", num: true },
+  { key: "fcaPrgm", label: "FCA PRGM" },
+  { key: "readyTime", label: "READY TIME", num: true },
+  { key: "wheelsUp", label: "CALL FOR RELEASE (CFR)", num: true }
+];
+const MYDASH_COLUMNS = [
+  { key: "callsign", label: "CALLSIGN" },
+  { key: "type", label: "TYPE" },
+  { key: "dep", label: "DEP" },
+  { key: "dest", label: "DEST" },
+  { key: "tmuPgm", label: "TMU PGM", num: true },
+  { key: "sta", label: "STA AT DEST Z", num: true },
+  { key: "delay", label: "DLY MIN", num: true },
+  { key: "fcaPrgm", label: "FCA PRGM" },
+  { key: "readyTime", label: "READY TIME", num: true },
+  { key: "wheelsUp", label: "CALL FOR RELEASE (CFR)", num: true }
+];
+
+function depRowSortVal(d, key) {
+  const e = d.entry;
+  switch (key) {
+    case "callsign": return d.callsign || "";
+    case "type": return d.type || "";
+    case "dep": return d.dep || "";
+    case "dest": return d.dest || "";
+    case "status": return d.status || "";
+    case "tmuPgm": {
+      if (d.vfr || d.arrived) return null;
+      if (d.aar != null && isFinite(d.aar)) return +d.aar;
+      if (tmuRates[d.dest]) {
+        const r = getRate(d.dest);
+        return r && r.aar != null && isFinite(r.aar) ? +r.aar : null;
+      }
+      return null;
+    }
+    case "sta": return e && e.sta != null && isFinite(e.sta) ? e.sta : null;
+    case "delay": return e && e.delay != null && isFinite(e.delay) ? e.delay : null;
+    case "fcaPrgm": {
+      const mem = fcaMembership(d.callsign, Date.now());
+      return mem ? String(mem.fca.name || mem.fca.id || "") : "";
+    }
+    case "readyTime": {
+      const rec = issuedEdcts[d.callsign];
+      return rec && rec.ready != null && isFinite(rec.ready) ? rec.ready : null;
+    }
+    case "wheelsUp": return e && e.wheelsUp != null && isFinite(e.wheelsUp) ? e.wheelsUp : null;
+    default: return d[key] == null ? "" : d[key];
+  }
+}
+
+function sortedDepartureRows(deps, columns, key, dir) {
+  const col = columns.find(c => c.key === key) || columns.find(c => c.key === "wheelsUp") || columns[0];
+  const out = deps.slice();
+  out.sort((a, b) => {
+    let va = depRowSortVal(a, col.key);
+    let vb = depRowSortVal(b, col.key);
+    if (col.num) {
+      va = (va == null || !isFinite(va)) ? null : va;
+      vb = (vb == null || !isFinite(vb)) ? null : vb;
+      if (va == null && vb == null) return a.callsign.localeCompare(b.callsign);
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      const r = (va - vb) * dir;
+      return r !== 0 ? r : a.callsign.localeCompare(b.callsign);
+    }
+    va = String(va == null ? "" : va);
+    vb = String(vb == null ? "" : vb);
+    const r = va.localeCompare(vb);
+    return r !== 0 ? r * dir : a.callsign.localeCompare(b.callsign);
+  });
+  return out;
+}
+
+function sortableThHtml(columns, activeKey, activeDir, dataAttr) {
+  return columns.map(c => {
+    const active = c.key === activeKey;
+    const arrow = active ? (activeDir === 1 ? " \u25B4" : " \u25BE") : "";
+    return '<th class="' + (active ? "sorted" : "") + '" ' + dataAttr + '="' + c.key + '">' +
+      c.label + arrow + '</th>';
+  }).join("");
 }
 
 /* ---------- column filtering ---------- */
@@ -5883,11 +5978,6 @@ function renderMyDash() {
       if (e) { d.entry = e; d.aar = getRate(d.dest).aar; }
     }
   }
-  deps.sort((a, b) => {
-    const aw = a.entry && a.entry.wheelsUp != null ? a.entry.wheelsUp : Infinity;
-    const bw = b.entry && b.entry.wheelsUp != null ? b.entry.wheelsUp : Infinity;
-    return aw - bw || a.callsign.localeCompare(b.callsign);
-  });
 
   const metered = deps.filter(d => d.entry && isMetered(d.entry)).length;
   const held = deps.filter(d => d.entry && isMetered(d.entry) && d.entry.edctIssued && !d.entry.releaseNow).length;
@@ -5906,11 +5996,11 @@ function renderMyDash() {
     contentEl.innerHTML = h; return;
   }
 
+  const sorted = sortedDepartureRows(deps, MYDASH_COLUMNS, myDashSortKey, myDashSortDir);
   h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
-    '<th>CALLSIGN</th><th>TYPE</th><th>DEP</th><th>DEST</th><th>TMU PGM</th>' +
-    '<th>STA AT DEST Z</th><th>DLY MIN</th><th>FCA PRGM</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
+    sortableThHtml(MYDASH_COLUMNS, myDashSortKey, myDashSortDir, "data-mydash-sort") +
     '</tr></thead><tbody>';
-  for (const d of deps) {
+  for (const d of sorted) {
     const cells = departureReleaseCells(
       { ...d, arrived: false, status: "GROUND" }, d.entry, now, d.dep, flowCache);
     h += '<tr>' +
@@ -6817,12 +6907,8 @@ function renderDep() {
       if (e) { d.entry = e; d.aar = getRate(d.dest).aar; }
     }
   }
-  /* order: EDCT'd / metered first by wheels-up, then the rest */
-  deps.sort((a, b) => {
-    const aw = a.entry && a.entry.wheelsUp != null ? a.entry.wheelsUp : Infinity;
-    const bw = b.entry && b.entry.wheelsUp != null ? b.entry.wheelsUp : Infinity;
-    return aw - bw || a.callsign.localeCompare(b.callsign);
-  });
+  /* order via active column sort (default: wheels-up ascending) */
+  const sortedDeps = sortedDepartureRows(deps, DEP_COLUMNS, depSortKey, depSortDir);
 
   const metered = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived).length;
   const held = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived && d.entry.edctIssued && !d.entry.releaseNow).length;
@@ -6842,10 +6928,9 @@ function renderDep() {
     h += '<div class="msg">No undeparted traffic filed out of ' + esc(depIcao) + ' right now.</div>';
   } else {
     h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
-      '<th>CALLSIGN</th><th>TYPE</th><th>DEST</th><th>STATUS</th><th>TMU PGM</th>' +
-      '<th>STA AT DEST Z</th><th>DLY MIN</th><th>FCA PRGM</th><th>READY TIME</th><th>CALL FOR RELEASE (CFR)</th>' +
+      sortableThHtml(DEP_COLUMNS, depSortKey, depSortDir, "data-dep-sort") +
       '</tr></thead><tbody>';
-    for (const d of deps) {
+    for (const d of sortedDeps) {
       const cells = departureReleaseCells(d, d.entry, now, depIcao, flowCache);
       h += '<tr>' +
         '<td class="cell-strong">' + esc(d.callsign) + '</td>' +
@@ -7147,6 +7232,22 @@ contentEl.addEventListener("click", e => {
       staffingHist.sortKey = key;
       staffingHist.sortDir = (key === "facility" || key === "type" || key === "artcc" || key === "day" || key === "upcoming") ? 1 : -1;
     }
+    renderContent();
+    return;
+  }
+  const depSort = e.target.closest("th[data-dep-sort]");
+  if (depSort) {
+    const key = depSort.dataset.depSort;
+    if (depSortKey === key) depSortDir = -depSortDir;
+    else { depSortKey = key; depSortDir = 1; }
+    renderContent();
+    return;
+  }
+  const myDashSort = e.target.closest("th[data-mydash-sort]");
+  if (myDashSort) {
+    const key = myDashSort.dataset.mydashSort;
+    if (myDashSortKey === key) myDashSortDir = -myDashSortDir;
+    else { myDashSortKey = key; myDashSortDir = 1; }
     renderContent();
     return;
   }
