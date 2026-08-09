@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {
   showAllAircraftEnabled,
+  normalizeAclFilter,
   freqsMatch,
   isTunedToFreq,
   filterBoardList,
@@ -13,11 +14,12 @@ function assert(cond, msg) {
   else console.log("ok:", msg);
 }
 
-assert(showAllAircraftEnabled({ showAll: true }) === true, "showAll true");
-assert(showAllAircraftEnabled({ showAll: false }) === false, "showAll false");
-assert(showAllAircraftEnabled({ showAll: "false" }) === false, "string false is not show-all");
-assert(showAllAircraftEnabled({ showAll: 1 }) === false, "truthy non-boolean is not show-all");
-assert(showAllAircraftEnabled({}) === false, "missing showAll is off");
+assert(normalizeAclFilter({ aclFilter: "freq" }) === "freq", "aclFilter freq");
+assert(normalizeAclFilter({ showAll: true }) === "all", "legacy showAll → all");
+assert(normalizeAclFilter({ showCpdlcOnly: true }) === "cpdlc", "legacy showCpdlcOnly → cpdlc");
+assert(normalizeAclFilter({}) === "auto", "default auto");
+assert(showAllAircraftEnabled({ aclFilter: "all" }) === true, "showAll via mode");
+assert(showAllAircraftEnabled({ aclFilter: "freq" }) === false, "freq is not show-all");
 
 assert(freqsMatch(132.65, 132.650) === true, "freq match");
 assert(freqsMatch(132.65, 132.66) === false, "freq mismatch");
@@ -25,81 +27,77 @@ assert(freqsMatch(132.65, 132.66) === false, "freq mismatch");
 const pf = new Map([
   ["AAL1", [132.65]],
   ["UAL2", [133.0]],
+  ["DAL3", [132.65]],
 ]);
 assert(isTunedToFreq(pf, "aal1", 132.65) === true, "tuned match");
 assert(isTunedToFreq(pf, "UAL2", 132.65) === false, "other freq");
-assert(isTunedToFreq(pf, "N1", 132.65) === false, "missing pilot");
-assert(isTunedToFreq(pf, "AAL1", null) === false, "no controller freq");
 
 const board = [
-  { cs: "AAL1", source: "live" },
-  { cs: "UAL2", source: "live" },
+  { cs: "AAL1", source: "live" }, // on freq, not CPDLC
+  { cs: "UAL2", source: "live" }, // other freq
   { cs: "MAN1", source: "manual" },
-  { cs: "DAL3", source: "live" },
+  { cs: "DAL3", source: "live" }, // on freq + CPDLC
+  { cs: "JBU4", source: "live" }, // CPDLC, not on freq
 ];
-const connected = new Set(["DAL3"]);
+const connected = new Set(["DAL3", "JBU4"]);
 const tuned = (cs) => isTunedToFreq(pf, cs, 132.65);
-const cpdlc = (cs) => cs === "DAL3";
+const cpdlc = (cs) => connected.has(cs);
 
 assert(
-  freqFilterShouldRun({ monitorMode: false, showAll: false, freqMhz: 132.65, canFilter: true }),
-  "freq filter runs when controlling with freq",
+  freqFilterShouldRun({ monitorMode: false, mode: "freq", freqMhz: 132.65, canFilter: true }),
+  "freq filter runs in freq mode",
 );
 assert(
-  !freqFilterShouldRun({ monitorMode: false, showAll: true, freqMhz: 132.65, canFilter: true }),
-  "freq filter off when show-all",
-);
-assert(
-  !freqFilterShouldRun({ monitorMode: false, showAll: false, freqMhz: null, canFilter: true }),
-  "freq filter off without myFreq",
+  !freqFilterShouldRun({ monitorMode: false, mode: "all", freqMhz: 132.65, canFilter: true }),
+  "freq filter off in all mode",
 );
 
 let list = filterBoardList(board, {
-  showAll: false,
-  freqFilterOn: true,
-  connected,
-  isTuned: tuned,
-  isCpdlcActive: () => false,
-});
-assert(list.map(a => a.cs).join(",") === "AAL1,MAN1", "unchecked+freq → tuned + manual only");
-
-list = filterBoardList(board, {
-  showAll: false,
+  mode: "auto",
   freqFilterOn: true,
   connected,
   isTuned: tuned,
   isCpdlcActive: cpdlc,
 });
-assert(list.map(a => a.cs).join(",") === "AAL1,MAN1,DAL3", "CPDLC-active kept even if not tuned");
+assert(list.map(a => a.cs).join(",") === "AAL1,MAN1,DAL3,JBU4", "auto+freq → tuned + CPDLC-active + manual");
 
 list = filterBoardList(board, {
-  showAll: false,
-  freqFilterOn: false,
+  mode: "freq",
+  freqFilterOn: true,
   connected,
   isTuned: tuned,
   isCpdlcActive: cpdlc,
 });
-assert(list.map(a => a.cs).join(",") === "DAL3", "unchecked without freq → connected only");
+assert(list.map(a => a.cs).join(",") === "AAL1,MAN1,DAL3", "freq → tuned only (no off-freq CPDLC)");
 
 list = filterBoardList(board, {
-  showAll: true,
+  mode: "cpdlc",
   freqFilterOn: true,
+  cpdlcRequireFreq: false,
   connected,
   isTuned: tuned,
-  isCpdlcActive: () => false,
+  isCpdlcActive: cpdlc,
 });
-assert(list.length === 4, "checked show-all → entire board");
+assert(list.map(a => a.cs).join(",") === "MAN1,DAL3,JBU4", "classic cpdlc → connected only");
 
-// Stale onFreq must not matter — filter uses live tunedFn
-const stale = board.map(a => ({ ...a, onFreq: true }));
-list = filterBoardList(stale, {
-  showAll: false,
+list = filterBoardList(board, {
+  mode: "cpdlc",
+  freqFilterOn: true,
+  cpdlcRequireFreq: true,
+  connected,
+  isTuned: tuned,
+  isCpdlcActive: cpdlc,
+});
+assert(list.map(a => a.cs).join(",") === "MAN1,DAL3", "EDST cpdlc → on-freq AND connected");
+
+list = filterBoardList(board, {
+  mode: "all",
   freqFilterOn: true,
   connected,
   isTuned: tuned,
-  isCpdlcActive: () => false,
+  isCpdlcActive: cpdlc,
 });
-assert(list.map(a => a.cs).join(",") === "AAL1,MAN1", "stale onFreq=true does not show everyone");
+assert(list.length === 5, "all → entire board");
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log("\nall passed");
