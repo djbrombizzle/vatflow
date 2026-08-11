@@ -380,14 +380,20 @@
   }
   .demo-strip.air { border-left-color: var(--cyan); }
   .demo-strip.gnd { border-left-color: var(--green); }
-  .demo-strip .num {
+  .demo-strip .seqnum {
     font-size: 13px;
     font-weight: 700;
     color: var(--amber);
     text-align: center;
     line-height: 1.2;
+    width: auto;
+    height: auto;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    display: block;
   }
-  .demo-strip .num .grip {
+  .demo-strip .seqnum .grip {
     display: block;
     font-size: 11px;
     color: #5c6b78;
@@ -535,7 +541,7 @@
 
     <div class="demo-strips" role="img" aria-label="Example FCA sequence strips for ACA503 airborne and EVA585 on the ground">
       <div class="demo-strip air">
-        <div class="num"><span class="grip">⠿</span>1</div>
+        <div class="seqnum"><span class="grip">⠿</span>1</div>
         <div>
           <div class="cs"><span class="ph air">AIR</span> ACA503 <span class="type">BCS3</span></div>
           <div class="info">CYYZ → KORD · FL225 · 349kt · 73nm to line</div>
@@ -547,7 +553,7 @@
         </div>
       </div>
       <div class="demo-strip gnd">
-        <div class="num"><span class="grip">⠿</span>2</div>
+        <div class="seqnum"><span class="grip">⠿</span>2</div>
         <div>
           <div class="cs"><span class="ph gnd">CFR</span> EVA585 <span class="type">B77L</span></div>
           <div class="info">KPIT → KORD · FL320 · depart · 364nm to line · cross 1642Z</div>
