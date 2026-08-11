@@ -370,11 +370,11 @@
       </button>
       <button type="button" class="role-btn" data-role="center" aria-pressed="false">
         <span class="rb-label">Center</span>
-        <span class="rb-sub">ARTCC-wide Release Board — monitor the stream, RDY when coordinating ground, protect airborne.</span>
+        <span class="rb-sub">ARTCC-wide Release Board — monitor the stream, coordinate RDY, protect airborne.</span>
       </button>
       <button type="button" class="role-btn" data-role="apptwr" aria-pressed="false">
         <span class="rb-label">APP / TWR</span>
-        <span class="rb-sub">DEL · GND · TWR · APP — issue Ready Time and RDY for your departures on the board.</span>
+        <span class="rb-sub">DEL · GND · TWR · APP — manage FCA times on Departures / My Dashboard.</span>
       </button>
     </div>
   </section>
@@ -390,7 +390,7 @@
     <div class="callouts">
       <div class="callout warn">
         <strong>Your home tool</strong>
-        <p><b>FCA Builder</b> for create / edit / sequence / enable. <b>Release Board</b> to see how tower and center are issuing RDY. Staff setup walkthrough: <a href="FCA-howto.html" style="color:var(--cyan)">FCA How-To</a>.</p>
+        <p><b>FCA Builder</b> for create / edit / sequence / enable. Watch field RDY on Airport TMU <b>Departures / My Dashboard</b>; use <b>Release Board</b> for the Center-wide picture. Staff setup: <a href="FCA-howto.html" style="color:var(--cyan)">FCA How-To</a>.</p>
       </div>
     </div>
 
@@ -471,8 +471,8 @@
         <div class="num">3</div>
         <div class="body">
           <h4>Monitor RDY from the field</h4>
-          <p>Tower/APP issue RDY on Release Board. You can also RDY from Builder. Cancel returns the aircraft to advisory.</p>
-          <span class="where">Builder · Release Board</span>
+          <p>Tower/APP issue RDY from Airport TMU <b>Departures</b> / <b>My Dashboard</b> (rows with <b>FCA PRGM</b>). Center works the <b>Release Board</b>. You can also RDY from Builder. Cancel returns the aircraft to advisory.</p>
+          <span class="where">Builder · Departures · Release Board</span>
         </div>
       </li>
       <li class="step">
@@ -491,13 +491,13 @@
     <div class="back-roles"><button type="button" data-back>← Choose a different position</button></div>
     <div class="panel-hero">
       <h2 id="center-title">Center — protect the stream</h2>
-      <p>You work the ARTCC-wide Release Board. Airborne crossings are fixed; your job is situational awareness, coordination with tower/APP on RDY, and not inventing delay that the engine cannot apply to air.</p>
+      <p>You work the ARTCC-wide <b>Release Board</b> — the best view for Center. Airborne crossings are fixed; your job is stream awareness, coordinating with tower/APP (who issue from Airport TMU), and not inventing delay the engine cannot apply to air.</p>
     </div>
 
     <div class="callouts">
       <div class="callout warn">
         <strong>Your home tool</strong>
-        <p><b>Release Board</b> — select your ARTCC, load the filter, sign in on position. Programs are built by TMU in FCA Builder; you issue and monitor releases.</p>
+        <p><b>Release Board</b> — select your ARTCC, load the filter, sign in on position. DEL/GND/TWR/APP manage their field on Airport TMU <b>Departures / My Dashboard</b>; same FCA releases sync everywhere. Programs are built by TMU in FCA Builder.</p>
       </div>
     </div>
 
@@ -530,7 +530,7 @@
         <div class="num">3</div>
         <div class="body">
           <h4>Coordinate RDY with the field</h4>
-          <p>Prefer letting DEL/GND/TWR issue RDY for their own departures. If you issue for them, confirm the pilot is actually ready — early RDY steals a gap.</p>
+          <p>Prefer letting DEL/GND/TWR issue from <b>Departures / My Dashboard</b>. If you RDY for them on the Release Board, confirm the pilot is actually ready — early RDY steals a gap.</p>
           <span class="where">RDY · optional HHMMz floor</span>
         </div>
       </li>
@@ -550,7 +550,7 @@
       <li>If TMU is in <b>MANUAL</b>, honor that order; don’t fight it with random RDY timing.</li>
       <li>Optional <b>HHMMz</b> + <b>SET</b> before RDY when the pilot quotes a later wheels-up — never issues before that floor.</li>
       <li>Full control (ARTCC editor) can drag-reorder / return to <b>AUTO</b> — only do that with TMU awareness.</li>
-      <li>One voice with the towers on a stream beats three people issuing the same callsigns.</li>
+      <li>One voice with the towers on a stream beats three people issuing the same callsigns — let the field own Departures / My Dashboard RDY when they can.</li>
     </ul>
   </section>
 
@@ -559,19 +559,19 @@
     <div class="back-roles"><button type="button" data-back>← Choose a different position</button></div>
     <div class="panel-hero">
       <h2 id="apptwr-title">APP / TWR — issue the release</h2>
-      <p>DEL, GND, TWR, and APP: you turn pilot “ready” into a frozen wheels-up (RDY) for FCA-metered departures. You do not need to build the program — you need to manage times for aircraft that show on the board.</p>
+      <p>DEL, GND, TWR, and APP: manage FCA times for your departures on Airport TMU. You do not need to build the program — find rows with <b>FCA PRGM</b> and lock Ready Time / RDY there. Leave the ARTCC-wide <b>Release Board</b> to Center.</p>
     </div>
 
     <div class="callouts">
       <div class="callout warn">
         <strong>Your home tool</strong>
-        <p><b>Release Board</b> filtered to your airport (or ARTCC / PCT). Rows with an FCA program also appear on Airport TMU Departures / My Dashboard when <b>FCA PRGM</b> is set — same release everywhere.</p>
+        <p><b>Airport TMU</b> → <b>Departures</b> (one tower field) or <b>My Dashboard</b> (your personal airport / ARTCC / approach list). When <b>FCA PRGM</b> is set, Ready Time and RDY go to the FCA engine and sync with Builder and Release Board.</p>
       </div>
       <div class="callout">
         <strong>What the times mean</strong>
-        <p><b>Crossing time</b> — when the aircraft is scheduled across the FCA line.<br>
-        <b>RDY / RLSD</b> — frozen wheels-up so they meet that crossing without stealing someone else’s slot.<br>
-        Until you press RDY, the time is only a projection (advisory).</p>
+        <p><b>FCA PRGM</b> — this departure is in an FCA; that program owns the release (not destination AAR).<br>
+        <b>Ready Time</b> — pilot’s earliest wheels-up floor (HHMMz).<br>
+        <b>RDY / RLSD</b> — frozen wheels-up for the FCA crossing. Until you press RDY, the time is only a projection (advisory).</p>
       </div>
     </div>
 
@@ -589,13 +589,22 @@
       <li class="step">
         <div class="num">1</div>
         <div class="body">
-          <h4>Open the board for your field</h4>
-          <p>Release Board → enter your airport or ARTCC → <b>Load</b>. Sign in while online on your DEL/GND/TWR/APP position.</p>
-          <span class="where">Release Board</span>
+          <h4>Open Airport TMU for your field</h4>
+          <p><b>Departures</b> — set your tower ICAO in the header for one field.<br>
+          <b>My Dashboard</b> — add the airports (or ARTCC / approach sectors) you are working so all pending ground departures show in one list.</p>
+          <span class="where">Airport TMU · Departures · My Dashboard</span>
         </div>
       </li>
       <li class="step">
         <div class="num">2</div>
+        <div class="body">
+          <h4>Find FCA rows</h4>
+          <p>Look for <b>FCA PRGM</b> populated. Those rows use FCA metering — Ready Time and RDY there freeze the FCA release.</p>
+          <span class="where">Column · FCA PRGM</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">3</div>
         <div class="body">
           <h4>Ask the pilot</h4>
           <p>When they call ready — or quote a later wheels-up — decide: next open slot, or a floor time.</p>
@@ -603,26 +612,26 @@
         </div>
       </li>
       <li class="step">
-        <div class="num">3</div>
-        <div class="body">
-          <h4>Optional Ready Time floor</h4>
-          <p>Enter <b>HHMMz</b> → <b>SET</b>. The release will never be before that time; spacing may still push later.</p>
-          <span class="where">HHMMz · SET</span>
-        </div>
-      </li>
-      <li class="step">
         <div class="num">4</div>
         <div class="body">
-          <h4>Press RDY</h4>
-          <p>Locks wheels-up (<b>RLSD</b>). One-click RDY without a time uses the ready-now buffer (~3 min). Tell the pilot that time.</p>
-          <span class="where">RDY → RLSD</span>
+          <h4>Optional Ready Time floor</h4>
+          <p>Enter <b>HHMMz</b> in <b>READY TIME</b> → <b>Set</b>. The release will never be before that time; spacing may still push later.</p>
+          <span class="where">READY TIME · HHMMz · Set</span>
         </div>
       </li>
       <li class="step">
         <div class="num">5</div>
         <div class="body">
+          <h4>Press RDY</h4>
+          <p>Use <b>RDY now</b> (or Set after a Ready Time) to lock wheels-up. Tell the pilot that time. One-click RDY without a floor uses the ready-now buffer (~3 min).</p>
+          <span class="where">CALL FOR RELEASE · RDY now</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">6</div>
+        <div class="body">
           <h4>Fix mistakes</h4>
-          <p>Press <b>RLSD ✕</b> / cancel to return to advisory if they aren’t ready or you issued the wrong callsign. Re-RDY when they actually are.</p>
+          <p>Cancel with <b>×</b> to return to advisory if they aren’t ready or you issued the wrong callsign. Re-RDY when they actually are.</p>
           <span class="where">Cancel · re-issue</span>
         </div>
       </li>
@@ -630,22 +639,23 @@
 
     <h3>APP / TWR best practices</h3>
     <ul>
-      <li><b>Don’t RDY before the pilot is ready.</b> Advisory strips don’t hold slots — freezing early steals from someone who can go.</li>
+      <li><b>Work Departures / My Dashboard</b> — not the Release Board. Center owns the ARTCC-wide board.</li>
+      <li><b>Don’t RDY before the pilot is ready.</b> Advisory rows don’t hold slots — freezing early steals from someone who can go.</li>
       <li><b>Issue in taxi / runway order</b> when you can. If TMU is in MANUAL, follow that order.</li>
-      <li><b>Use the HHMMz floor</b> when the pilot says they’ll need 10+ minutes — don’t lock a “now” slot they’ll miss.</li>
-      <li><b>One position owns RDY</b> for a gate/stream when possible (usually GND/TWR). Center can help, but don’t double-issue.</li>
-      <li><b>After cancel,</b> times for others may improve — re-check the board before you brief the next pilot.</li>
-      <li>If the row shows <b>FCA PRGM</b> on Airport TMU, use FCA RDY — that program owns the release, not destination AAR slots.</li>
+      <li><b>Use the Ready Time floor</b> when the pilot says they’ll need 10+ minutes — don’t lock a “now” slot they’ll miss.</li>
+      <li><b>One position owns RDY</b> for a gate/stream when possible (usually GND/TWR). Don’t double-issue with Center.</li>
+      <li><b>After cancel,</b> times for others may improve — re-check the list before you brief the next pilot.</li>
+      <li>Only treat <b>FCA PRGM</b> rows as FCA releases. No program / VFR / ground stop rows follow their own rules.</li>
     </ul>
   </section>
 
   <section class="tools">
     <h3>Tools</h3>
     <ul>
-      <li><b>Release Board</b> — on-position RDY · <a href="artcc-dashboard.html">Open</a></li>
+      <li><b>Airport TMU</b> — Departures / My Dashboard for APP/TWR FCA RDY · <a href="vatflow-tbfm%20v2.html">Open</a></li>
+      <li><b>Release Board</b> — Center ARTCC-wide view · <a href="artcc-dashboard.html">Open</a></li>
       <li><b>FCA Builder</b> — create / scope / sequence / enable · <a href="FCA-builderv02.html">Open</a></li>
       <li><b>FCA How-To</b> — staff path from draw to RDY · <a href="FCA-howto.html">Open</a></li>
-      <li><b>Airport TMU</b> — Departures / My Dashboard show the same FCA releases when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Open</a></li>
     </ul>
   </section>
 </main>
