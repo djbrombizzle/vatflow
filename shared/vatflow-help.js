@@ -10,6 +10,7 @@ export const FCA_HELP = {
     { step: "2", text: "Set owning ARTCC, rate/MIT, and filters" },
     { step: "3", text: "Enable the FCA and use RDY on ground strips" },
     { step: "→", text: 'Full staff flow + how to issue releases: <a href="FCA-howto.html">FCA How-To</a>' },
+    { step: "→", text: 'DEL/GND/TWR noob guide (crossing times, Ready Time, best practices): <a href="tower-rdy-guide.html">Tower RDY guide</a>' },
   ],
   nav: [
     { id: "fca-start", label: "Getting started" },
@@ -71,6 +72,7 @@ export const FCA_HELP = {
         "Press RDY again (<b>RLSD ✕</b>) to cancel and return the aircraft to advisory sequencing.",
         "Signed-in users can RDY; creating/editing the FCA still requires ARTCC editor access.",
         "The same releases appear on the <b>Release Board</b> for tower/center positions.",
+        'Tower-facing walkthrough: <a href="tower-rdy-guide.html">Tower RDY / Ready Time guide</a>.',
       ],
     },
     {
@@ -136,6 +138,7 @@ export const ARTCC_DASHBOARD_HELP = {
     { step: "1", text: "Select your ARTCC from the dropdown" },
     { step: "2", text: "Load a filter (ZDC, DCA, or PCT)" },
     { step: "3", text: "Sign in on position and press RDY" },
+    { step: "→", text: 'DEL/GND/TWR noob guide: <a href="tower-rdy-guide.html">Tower RDY / Ready Time</a>' },
   ],
   nav: [
     { id: "rb-start", label: "Getting started" },
@@ -177,6 +180,7 @@ export const ARTCC_DASHBOARD_HELP = {
         "<b>RDY</b> issues or cancels a CFR release for a ground departure in sequence.",
         "<b>Full control</b> (ARTCC whitelist) adds drag-reorder, PIN, and HIDE for FCA blocks you own.",
         "PIN locks an FCA table’s position on the board; HIDE removes it from view until restored.",
+        'Why one aircraft crosses sooner, Ready Time floors, and tower best practices: <a href="tower-rdy-guide.html">Tower RDY guide</a>.',
       ],
     },
     {
@@ -263,6 +267,7 @@ export const TMU_TOOLS_HELP = {
         "<b>RDY @ (wheels-up earliest)</b> — enter HHMMz for the earliest CFR/wheels-up time; spacing may push later.",
         "One-click <b>RDY</b> / <b>CFR time</b> without a time uses the standard ready-now buffer.",
         "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA Builder and Release Board.",
+        'DEL/GND/TWR walkthrough: <a href="tower-rdy-guide.html">Tower RDY / Ready Time guide</a>.',
       ],
     },
   ],
