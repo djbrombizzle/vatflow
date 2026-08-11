@@ -338,6 +338,174 @@
   }
   .back-roles button:hover { text-decoration: underline; }
 
+  /* FCA strip anatomy figure */
+  .strip-anatomy {
+    margin: 0 0 40px;
+    padding: 28px 0 0;
+    border-top: 1px solid var(--line);
+  }
+  .strip-anatomy > h2 {
+    margin: 0 0 8px;
+    font-family: var(--mono);
+    font-size: clamp(22px, 4vw, 28px);
+    letter-spacing: 0.06em;
+  }
+  .strip-anatomy > .lead {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 42rem;
+  }
+  .demo-strips {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 22px;
+    padding: 14px;
+    background: #0a0e14;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .demo-strip {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: #0f151e;
+    border: 1px solid #2a3848;
+    border-left-width: 3px;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+  }
+  .demo-strip.air { border-left-color: var(--cyan); }
+  .demo-strip.gnd { border-left-color: var(--green); }
+  .demo-strip .num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--amber);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .demo-strip .num .grip {
+    display: block;
+    font-size: 11px;
+    color: #5c6b78;
+    margin-bottom: 1px;
+  }
+  .demo-strip .cs {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text);
+  }
+  .demo-strip .ph {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    vertical-align: 1px;
+    margin-right: 4px;
+  }
+  .demo-strip .ph.air {
+    background: #0e2a30;
+    color: var(--cyan);
+    border: 1px solid #1d4a52;
+  }
+  .demo-strip .ph.gnd {
+    background: #2e2407;
+    color: var(--amber);
+    border: 1px solid #5a4818;
+  }
+  .demo-strip .type { color: #8a97a3; font-weight: 400; }
+  .demo-strip .info {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    line-height: 1.35;
+  }
+  .demo-strip .gap {
+    font-size: 10px;
+    margin-top: 4px;
+    color: var(--cyan);
+    letter-spacing: 0.02em;
+  }
+  .demo-strip .eta { text-align: right; padding-left: 8px; }
+  .demo-strip .eta .big {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .demo-strip .eta .dl {
+    font-size: 11px;
+    margin-top: 2px;
+    color: var(--green);
+  }
+  .anno {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 8px;
+  }
+  .anno-item {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .anno-n {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--amber);
+    background: rgba(232, 168, 56, 0.1);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .anno-body h4 {
+    margin: 0 0 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .anno-body p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .time-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0 8px;
+    font-size: 14px;
+  }
+  .time-table th,
+  .time-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    line-height: 1.4;
+  }
+  .time-table th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--amber);
+    text-transform: uppercase;
+    width: 28%;
+  }
+  .time-table td { color: var(--muted); }
+  .time-table td b { color: var(--text); }
+
   @media (max-width: 720px) {
     .role-grid { grid-template-columns: 1fr; }
     .modes { grid-template-columns: 1fr; }
@@ -356,10 +524,132 @@
   <header class="hero">
     <p class="eyebrow">VATFLOW · FCA programs</p>
     <h1>Issue &amp; manage RDY times</h1>
-    <p>Pick what you are working. Each path covers only what you need for Flow Constrained Area (FCA) releases — not airport arrival-rate programs.</p>
+    <p>Pick what you are working. Each path covers only what you need for Flow Constrained Area (FCA) releases — not airport arrival-rate programs. Start with <a href="#strips" style="color:var(--cyan)">Reading an FCA strip</a> if the times are new to you.</p>
   </header>
 
   <p class="share">Share this page: <code>https://vatflow.io/tower-rdy-guide.html</code></p>
+
+  <section class="strip-anatomy" id="strips" aria-labelledby="strips-title">
+    <h2 id="strips-title">Reading an FCA strip</h2>
+    <p class="lead">Same strip layout in FCA Builder (and similar on Release Board). Example: an airborne aircraft locked to the line, then a ground departure waiting for RDY.</p>
+
+    <div class="demo-strips" role="img" aria-label="Example FCA sequence strips for ACA503 airborne and EVA585 on the ground">
+      <div class="demo-strip air">
+        <div class="num"><span class="grip">⠿</span>1</div>
+        <div>
+          <div class="cs"><span class="ph air">AIR</span> ACA503 <span class="type">BCS3</span></div>
+          <div class="info">CYYZ → KORD · FL225 · 349kt · 73nm to line</div>
+          <div class="gap">→ 73nm to crossing</div>
+        </div>
+        <div class="eta">
+          <div class="big">1545Z</div>
+          <div class="dl">on time</div>
+        </div>
+      </div>
+      <div class="demo-strip gnd">
+        <div class="num"><span class="grip">⠿</span>2</div>
+        <div>
+          <div class="cs"><span class="ph gnd">CFR</span> EVA585 <span class="type">B77L</span></div>
+          <div class="info">KPIT → KORD · FL320 · depart · 364nm to line · cross 1642Z</div>
+          <div class="gap">57.7 min</div>
+        </div>
+        <div class="eta">
+          <div class="big">1550Z</div>
+          <div class="dl">no delay</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="anno">
+      <div class="anno-item">
+        <div class="anno-n">1</div>
+        <div class="anno-body">
+          <h4>Sequence # / drag handle</h4>
+          <p>Order in this FCA. Editors can drag to force MANUAL sequencing. Everyone else treats this as the current planned order.</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">2</div>
+        <div class="anno-body">
+          <h4>Phase badge — AIR / CFR / RLSD</h4>
+          <p><b>AIR</b> = already flying (crossing time is fixed). <b>CFR</b> = ground, advisory only — no slot owned yet. <b>RLSD</b> = you pressed RDY; wheels-up is frozen.</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">3</div>
+        <div class="anno-body">
+          <h4>Callsign &amp; type</h4>
+          <p>Who the strip is. Type is informational only.</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">4</div>
+        <div class="anno-body">
+          <h4>Route · altitude · speed · nm to line</h4>
+          <p>Dep → dest, FL, and groundspeed (or <b>depart</b> if still on the ground). <b>nm to line</b> is distance remaining to the FCA crossing along the filed route.</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">5</div>
+        <div class="anno-body">
+          <h4>cross HHMMZ (ground only)</h4>
+          <p>Scheduled crossing time at the FCA line (CTA). Wheels-up is backed out from this using estimated transit. On AIR strips the big time on the right <b>is</b> the crossing time, so “cross …” is not repeated on the info line.</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">6</div>
+        <div class="anno-body">
+          <h4>Cyan gap line</h4>
+          <p><b>AIR:</b> spacing to the line or behind the previous airborne aircraft (nm).<br>
+          <b>Ground:</b> minutes behind the previous aircraft at the <b>crossing</b> (here EVA585 is ~57.7 min after ACA503’s 1545Z crossing → cross 1642Z).</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">7</div>
+        <div class="anno-body">
+          <h4>Big time (right)</h4>
+          <p><b>AIR → crossing time</b> (ACA503 <b>1545Z</b>).<br>
+          <b>Ground (Builder) → proposed wheels-up</b> (EVA585 <b>1550Z</b>) so they make their cross time. On Release Board this big time stays <b>—</b> until RDY so you do not read an advisory number to the pilot by mistake.</p>
+        </div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-n">8</div>
+        <div class="anno-body">
+          <h4>Status under the big time</h4>
+          <p><b>on time</b> / <b>air +…</b> for airborne. <b>no delay</b> / <b>hold +…</b> / <b>released</b> for ground. Hold means metering is pushing wheels-up later than “ready now.”</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>What the times mean (quick ref)</h3>
+    <table class="time-table">
+      <tbody>
+        <tr>
+          <th>Crossing / CTA</th>
+          <td>When the aircraft is scheduled across the FCA line. Airborne: fixed by ETA. Ground: the slot the release is trying to meet (<b>cross 1642Z</b> on EVA585).</td>
+        </tr>
+        <tr>
+          <th>Wheels-up / RDY</th>
+          <td>When they should roll so transit time hits the crossing. Frozen only after <b>RDY</b>. Until then it is a projection (Builder may show it; Release Board hides it as —).</td>
+        </tr>
+        <tr>
+          <th>Gap (min / nm)</th>
+          <td>Spacing behind the previous aircraft in the sequence — at the line for ground (minutes), or in trail for air (nm).</td>
+        </tr>
+        <tr>
+          <th>nm to line</th>
+          <td>How far they still are from the FCA along the filed route. Not the same as airport distance.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callouts" style="margin-top:20px">
+      <div class="callout warn">
+        <strong>Do not read advisory wheels-up to the pilot</strong>
+        <p>On a <b>CFR</b> (not yet RLSD) strip, the big time in Builder is a proposal. Issue <b>RDY</b> (from Departures / My Dashboard for the field, or Release Board for Center) before you clear a wheels-up time.</p>
+      </div>
+    </div>
+  </section>
 
   <section class="role-pick" id="role-pick" aria-label="Choose your position">
     <p>What are you working?</p>
