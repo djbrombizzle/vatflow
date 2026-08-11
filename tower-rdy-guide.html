@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tower RDY Guide — VATFLOW</title>
+<title>FCA RDY Guide — VATFLOW</title>
 <link rel="stylesheet" href="shared/vatflow-nav.css">
 <style>
   :root {
@@ -35,7 +35,7 @@
     margin: 0 auto;
     padding: calc(var(--vatflow-nav-h) + 36px) 24px 64px;
   }
-  .hero { margin-bottom: 36px; }
+  .hero { margin-bottom: 28px; }
   .hero .eyebrow {
     font-family: var(--mono);
     font-size: 11px;
@@ -54,27 +54,79 @@
   }
   .hero p {
     margin: 0;
-    max-width: 42rem;
+    max-width: 40rem;
     color: var(--muted);
     font-size: 16px;
     line-height: 1.5;
   }
-  .toc {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 14px;
-    margin: 0 0 36px;
-    padding: 14px 16px;
-    border: 1px solid var(--line);
-    background: rgba(14, 19, 25, 0.8);
+  .share {
+    margin: 0 0 28px;
     font-family: var(--mono);
     font-size: 12px;
+    color: var(--muted);
   }
-  .toc a {
-    color: var(--cyan);
-    text-decoration: none;
+  .share code { color: var(--cyan); word-break: break-all; }
+
+  .role-pick {
+    margin: 0 0 36px;
   }
-  .toc a:hover { text-decoration: underline; }
+  .role-pick > p {
+    margin: 0 0 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .role-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    text-align: left;
+    padding: 20px 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    transition: border-color 0.12s, background 0.12s, transform 0.12s;
+  }
+  .role-btn:hover {
+    border-color: var(--amber);
+    background: #121820;
+  }
+  .role-btn:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+  .role-btn.active {
+    border-color: var(--amber);
+    background: rgba(232, 168, 56, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(232, 168, 56, 0.35);
+  }
+  .role-btn .rb-label {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--amber);
+  }
+  .role-btn .rb-sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .role-panel { display: none; }
+  .role-panel.active { display: block; }
+
   .callouts {
     display: grid;
     gap: 12px;
@@ -109,29 +161,26 @@
     line-height: 1.45;
   }
   .callout p + p { margin-top: 8px; }
-  .section-break {
-    margin: 48px 0 28px;
-    padding-top: 36px;
-    border-top: 1px solid var(--line);
+
+  .panel-hero {
+    margin: 0 0 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
   }
-  .section-break:first-of-type {
-    margin-top: 8px;
-    padding-top: 0;
-    border-top: none;
-  }
-  .section-break h2 {
+  .panel-hero h2 {
     margin: 0 0 8px;
     font-family: var(--mono);
     font-size: clamp(22px, 4vw, 28px);
     letter-spacing: 0.06em;
   }
-  .section-break > p.lead {
-    margin: 0 0 20px;
+  .panel-hero p {
+    margin: 0;
     color: var(--muted);
     font-size: 15px;
     line-height: 1.5;
     max-width: 42rem;
   }
+
   h3 {
     margin: 28px 0 10px;
     font-family: var(--mono);
@@ -140,6 +189,7 @@
     text-transform: uppercase;
     color: var(--amber);
   }
+  h3:first-of-type { margin-top: 0; }
   p {
     margin: 0 0 12px;
     color: var(--muted);
@@ -155,57 +205,39 @@
     line-height: 1.5;
   }
   li { margin-bottom: 6px; }
-  .terms {
-    display: grid;
-    gap: 10px;
-    margin: 0 0 8px;
-  }
-  .terms dt {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    color: var(--text);
-    text-transform: uppercase;
-  }
-  .terms dd {
-    margin: 2px 0 0;
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.45;
-  }
+
   .flow {
     display: flex;
     flex-direction: column;
-    gap: 0;
     list-style: none;
-    margin: 0 0 8px;
+    margin: 0 0 16px;
     padding: 0;
   }
   .step {
     display: grid;
-    grid-template-columns: 56px 1fr;
-    gap: 16px;
+    grid-template-columns: 48px 1fr;
+    gap: 14px;
     align-items: start;
     position: relative;
   }
   .step:not(:last-child)::before {
     content: "";
     position: absolute;
-    left: 27px;
-    top: 56px;
-    bottom: -8px;
+    left: 23px;
+    top: 48px;
+    bottom: -4px;
     width: 2px;
     background: linear-gradient(180deg, var(--amber), rgba(232, 168, 56, 0.15));
   }
   .num {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: 2px solid var(--amber);
     background: rgba(232, 168, 56, 0.1);
     color: var(--amber);
     font-family: var(--mono);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -213,11 +245,13 @@
     position: relative;
     z-index: 1;
   }
-  .body { padding: 8px 0 28px; }
-  .body h3 {
+  .body { padding: 6px 0 24px; }
+  .body h4 {
     margin: 0 0 6px;
-    font-size: 15px;
-    letter-spacing: 0.08em;
+    font-family: var(--mono);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--text);
   }
   .body p { margin: 0; }
@@ -229,21 +263,34 @@
     letter-spacing: 0.06em;
     color: var(--cyan);
   }
-  .paths {
+
+  .modes {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin: 16px 0 8px;
+    gap: 14px;
+    margin: 12px 0 20px;
   }
-  .path {
+  .mode {
     border: 1px solid var(--line);
     background: var(--panel);
     padding: 16px 18px;
   }
-  .path h3 { margin-top: 0; }
-  .path ol { margin-bottom: 0; }
+  .mode h4 {
+    margin: 0 0 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .mode p, .mode ul {
+    margin: 0;
+    font-size: 14px;
+  }
+  .mode ul { margin-top: 8px; padding-left: 1.1rem; }
+
   .tools {
-    margin-top: 8px;
+    margin-top: 36px;
     padding-top: 28px;
     border-top: 1px solid var(--line);
   }
@@ -275,22 +322,31 @@
     text-decoration: none;
   }
   .tools a:hover { text-decoration: underline; }
-  .share {
-    margin: 0 0 28px;
+
+  .back-roles {
+    margin: 8px 0 24px;
+  }
+  .back-roles button {
     font-family: var(--mono);
     font-size: 12px;
-    color: var(--muted);
-  }
-  .share code {
+    letter-spacing: 0.06em;
     color: var(--cyan);
-    word-break: break-all;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .back-roles button:hover { text-decoration: underline; }
+
+  @media (max-width: 720px) {
+    .role-grid { grid-template-columns: 1fr; }
+    .modes { grid-template-columns: 1fr; }
   }
   @media (max-width: 560px) {
     .page { padding-left: 16px; padding-right: 16px; }
-    .step { grid-template-columns: 44px 1fr; gap: 12px; }
-    .num { width: 44px; height: 44px; font-size: 15px; }
-    .step:not(:last-child)::before { left: 21px; top: 44px; }
-    .paths { grid-template-columns: 1fr; }
+    .step { grid-template-columns: 40px 1fr; gap: 12px; }
+    .num { width: 40px; height: 40px; font-size: 14px; }
+    .step:not(:last-child)::before { left: 19px; top: 40px; }
   }
 </style>
 </head>
@@ -298,238 +354,343 @@
 <div id="vatflow-nav"></div>
 <main class="page">
   <header class="hero">
-    <p class="eyebrow">VATFLOW · DEL / GND / TWR guide</p>
-    <h1>RDY &amp; Ready Time</h1>
-    <p>How destination and FCA metering decide crossing times, why one airplane gets an earlier slot than another, and how to issue Ready Time or RDY without guessing.</p>
+    <p class="eyebrow">VATFLOW · FCA programs</p>
+    <h1>Issue &amp; manage RDY times</h1>
+    <p>Pick what you are working. Each path covers only what you need for Flow Constrained Area (FCA) releases — not airport arrival-rate programs.</p>
   </header>
 
   <p class="share">Share this page: <code>https://vatflow.io/tower-rdy-guide.html</code></p>
 
-  <nav class="toc" aria-label="On this page">
-    <a href="#why">Why it exists</a>
-    <a href="#terms">Key terms</a>
-    <a href="#airport">Airport TMU times</a>
-    <a href="#fca">FCA crossing times</a>
-    <a href="#how">How to issue</a>
-    <a href="#practices">Best practices</a>
-    <a href="#where">Where to work</a>
-  </nav>
-
-  <div class="callouts">
-    <div class="callout warn">
-      <strong>Two release systems</strong>
-      <p><b>Airport TMU</b> meters arrivals into a destination (AAR / trail / MIT). You issue <b>CFR time</b> and optional <b>Ready Time</b> on Departures / My Dashboard.</p>
-      <p><b>FCA</b> meters aircraft across a line. You issue <b>RDY</b> (with optional HHMMz floor) on the Release Board. When a row shows <b>FCA PRGM</b>, FCA is authoritative — do not treat Airport TMU capacity slots as the release source for that aircraft.</p>
+  <section class="role-pick" id="role-pick" aria-label="Choose your position">
+    <p>What are you working?</p>
+    <div class="role-grid">
+      <button type="button" class="role-btn" data-role="tmu" aria-pressed="false">
+        <span class="rb-label">TMU</span>
+        <span class="rb-sub">Build and run the FCA — auto vs manual sequence, scope, and watching non-VATFLOW traffic.</span>
+      </button>
+      <button type="button" class="role-btn" data-role="center" aria-pressed="false">
+        <span class="rb-label">Center</span>
+        <span class="rb-sub">ARTCC-wide Release Board — monitor the stream, RDY when coordinating ground, protect airborne.</span>
+      </button>
+      <button type="button" class="role-btn" data-role="apptwr" aria-pressed="false">
+        <span class="rb-label">APP / TWR</span>
+        <span class="rb-sub">DEL · GND · TWR · APP — issue Ready Time and RDY for your departures on the board.</span>
+      </button>
     </div>
-    <div class="callout">
-      <strong>Before you start</strong>
-      <p>Sign in with VATSIM. Airport TMU CFR issue needs controller access for that ARTCC. Release Board <b>RDY</b> needs sign-in while you are online on a controller position. Ready Time (HHMMz + Set) can be entered without a control password on Airport TMU rows.</p>
-    </div>
-  </div>
-
-  <section class="section-break" id="why">
-    <h2>Why VATFLOW exists for tower</h2>
-    <p class="lead">Arrival fields and FCA lines have limited capacity. If everyone rolls when ready, airborne traffic absorbs the delay. VATFLOW moves that delay onto the ground as a wheels-up time so you release in an order that protects the stream ahead.</p>
-    <ul>
-      <li>The app watches live VATSIM traffic and the active programs (destination AAR or FCA rate/MIT).</li>
-      <li>It proposes when each departure should roll so it fits the schedule at the dest or crossing.</li>
-      <li>You lock that proposal with <b>CFR time</b> / <b>RDY</b> (and optionally a Ready Time floor from the pilot).</li>
-    </ul>
   </section>
 
-  <section class="section-break" id="terms">
-    <h2>Key terms</h2>
-    <p class="lead">Same ideas, slightly different labels depending on the tool.</p>
-    <dl class="terms">
-      <dt>CFR / EDCT / wheels-up</dt>
-      <dd>The assigned takeoff time. Airport TMU calls the button <b>CFR time</b>. FCA calls it <b>RDY</b> / <b>RLSD</b>.</dd>
-      <dt>STA</dt>
-      <dd>Scheduled time of arrival at the destination (Airport TMU). Driven by ETA plus rate and gate spacing.</dd>
-      <dt>Crossing / CTA</dt>
-      <dd>Scheduled time across the FCA line. Wheels-up is backed out from that crossing using estimated transit time.</dd>
-      <dt>Ready Time</dt>
-      <dd>Pilot-estimated earliest wheels-up (HHMMz). Acts as a <b>floor</b> — the app never issues before it; spacing may still push later.</dd>
-      <dt>AAR / Rate</dt>
-      <dd>Airport Arrival Rate (arrivals per hour) or FCA crossings per hour.</dd>
-      <dt>MIT / trail</dt>
-      <dd>Miles or minutes in trail between successive aircraft (overall or per arrival gate).</dd>
-      <dt>Gate</dt>
-      <dd>Arrival fix or STAR from the filed route — used for same-route spacing at the destination.</dd>
-      <dt>FCA line</dt>
-      <dd>A metering line drawn in FCA Builder. Aircraft join only when their <b>filed route</b> crosses it.</dd>
-    </dl>
-  </section>
+  <!-- ===================== TMU ===================== -->
+  <section class="role-panel" id="panel-tmu" aria-labelledby="tmu-title" hidden>
+    <div class="back-roles"><button type="button" data-back>← Choose a different position</button></div>
+    <div class="panel-hero">
+      <h2 id="tmu-title">TMU — run the FCA</h2>
+      <p>You own the program: draw/enable the line, set scope and rate, choose auto or manual sequencing, and keep the sequence honest when traffic outside your ARTCC is not on VATFLOW.</p>
+    </div>
 
-  <section class="section-break" id="airport">
-    <h2>How Airport TMU times work</h2>
-    <p class="lead">Destination metering builds an arrival schedule, then backs out wheels-up for ground departures.</p>
-
-    <h3>What is fixed vs proposed</h3>
-    <ul>
-      <li><b>Airborne</b> arrivals keep times based on ETA. Ground traffic never delays an airborne aircraft. Spacing uses the AAR interval plus same-gate trail/MIT when applicable.</li>
-      <li><b>Already-issued CFRs</b> keep their locked wheels-up. Their STA is wheels-up + flight time, and that slot is reserved.</li>
-      <li><b>Unissued ground / proposed</b> flights slot into remaining capacity. Proposed wheels-up = STA − flight time. A delay (and a CFR need) appears when that wheels-up is after “now.”</li>
-    </ul>
-
-    <h3>Issuance priority</h3>
-    <p>When you press <b>CFR time</b>, VATFLOW assigns the earliest open wheels-up constrained by:</p>
-    <ul>
-      <li>Airborne arrival slots at the destination</li>
-      <li>Other <b>already-issued</b> CFRs into that field</li>
-      <li>A <b>2-minute</b> release gap against other issued CFRs on the <b>same dep → dest</b> route</li>
-    </ul>
     <div class="callouts">
-      <div class="callout ok">
-        <strong>Unissued peers do not block you</strong>
-        <p>Other BOS→JFK departures sitting unissued do not hold the first slot. Whoever you issue first gets the earliest open time. That is why issuance order matters — and why swap exists when taxi order and issuance order diverge.</p>
+      <div class="callout warn">
+        <strong>Your home tool</strong>
+        <p><b>FCA Builder</b> for create / edit / sequence / enable. <b>Release Board</b> to see how tower and center are issuing RDY. Staff setup walkthrough: <a href="FCA-howto.html" style="color:var(--cyan)">FCA How-To</a>.</p>
       </div>
     </div>
 
-    <h3>Why airplane A is earlier than B</h3>
+    <h3>Auto vs manual sequencing</h3>
+    <p>This is the biggest TMU decision after the line is live. It changes who “owns” order — the ETA engine, or you.</p>
+    <div class="modes">
+      <div class="mode">
+        <h4>AUTO (default)</h4>
+        <p>Airborne by ETA (fixed). Unready ground is <b>advisory only</b> and holds no slot. The first aircraft you RDY claims the earliest open gap.</p>
+        <ul>
+          <li>Use for normal metering.</li>
+          <li>Best when pilots call ready in a sensible order.</li>
+          <li>Leave here unless you need to force a sequence.</li>
+        </ul>
+      </div>
+      <div class="mode">
+        <h4>MANUAL</h4>
+        <p>Drag a strip → <b>manualSeq</b> locks your order. Times chain along <b>your</b> sequence, not the global earliest gap. UI shows <b>✋ MANUAL · ↺ auto</b> (Builder) or <b>AUTO</b> to return.</p>
+        <ul>
+          <li>Use to force taxi / runway / coordination order.</li>
+          <li>Example: keep A before B even if B’s ETA is earlier.</li>
+          <li>Return to auto when the special order is no longer needed.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callouts">
+      <div class="callout">
+        <strong>When to leave it in AUTO</strong>
+        <p>Default for most events. Ready aircraft naturally fill gaps; unready projections do not steal slots. Less babysitting, fewer “why did my time jump?” moments when someone RDYs out of taxi order.</p>
+      </div>
+      <div class="callout warn">
+        <strong>When to go MANUAL</strong>
+        <p>Go manual only when you must enforce an order the ETA engine will not: runway config, gate preference, a specific tower request, or protecting a priority flight. Tell the positions you flipped — they will see different proposed times. Click <b>↺ auto</b> / <b>AUTO</b> when done so the board does not stay stuck in a stale hand order.</p>
+      </div>
+    </div>
+
+    <h3>Scope — who gets metered</h3>
     <ul>
-      <li>You issued A first (A claimed the open slot).</li>
-      <li>A has a shorter enroute / earlier natural ETA into capacity.</li>
-      <li>A has less same-gate conflict than B.</li>
-      <li>A has no Ready Time floor (or an earlier floor) than B.</li>
-      <li>Someone cancelled a CFR and A was pulled earlier into the freed slot (green “pulled” flash).</li>
+      <li><b>ARTCC tag (owning ARTCC)</b> — who may <b>edit</b> the program. Access control only.</li>
+      <li><b>Scope (ARTCCs)</b> — which aircraft are <b>included</b> in metering. Blank = everywhere the route crosses the line. Listed centers = only aircraft inside those FIR boundaries (ground judged at their departure field; air at present position).</li>
     </ul>
-  </section>
+    <div class="callouts">
+      <div class="callout warn">
+        <strong>Why scope matters</strong>
+        <p>A tight scope keeps your sequence about <b>your</b> problem set. A blank or wide scope pulls in distant departures that cross the line on paper — including traffic you cannot see issuing CFRs. Match scope to the centers that should actually participate in the program.</p>
+      </div>
+    </div>
 
-  <section class="section-break" id="fca">
-    <h2>How FCA crossing times work</h2>
-    <p class="lead">Line metering is about when aircraft cross the FCA — not destination AAR. Tower’s job is freezing a ground release when the pilot is actually ready.</p>
-
-    <h3>Who is included</h3>
+    <h3>Traffic outside your airspace (not on VATFLOW)</h3>
+    <p>VATFLOW only knows aircraft that appear in the VATSIM feed <b>and</b> match your FCA filters/scope. Controllers upstream or in an adjacent ARTCC may not be issuing RDY at all.</p>
     <ul>
-      <li>Only aircraft whose <b>filed route</b> crosses the enabled FCA line (filters for dest/origin/fix/FL/scope still apply).</li>
-      <li>Crossing ETAs use a climb/cruise model and winds — <b>not</b> taxi groundspeed. Filed departure time is ignored for the release.</li>
+      <li><b>Airborne is fixed.</b> Jets already flying toward the line keep their ETA. You cannot “delay” them in the tool — conflicts between air are flagged, not rewritten.</li>
+      <li><b>Watch the air picture</b> (vATIS/vNAS/VATSpy/map layers) for aircraft that will cross your line without a VATFLOW release. They still consume spacing in the real world.</li>
+      <li><b>Do not assume every ground strip will RDY.</b> If a neighboring facility is not using the board, their departures may roll when ready and show up as air — your frozen releases can only bump <b>later</b> when air encroaches.</li>
+      <li><b>Coordinate early</b> with adjacent TMU/Center: share the FCA name, scope, and whether you are in AUTO or MANUAL. One shared sequence beats two parallel guesses.</li>
+      <li><b>Rate / MIT honesty:</b> if a large share of the stream is outside VATFLOW, the in-tool sequence understates demand — tighten verbally or widen participation, don’t just stare at green RLSD times.</li>
     </ul>
 
-    <h3>Air vs ground</h3>
-    <ul>
-      <li><b>Airborne</b> crossings are fixed by ETA. The tool does not delay them to invent a clean timeline; conflicts between air are flagged for the controller.</li>
-      <li><b>Ground</b> strips stay <b>advisory</b> until you press <b>RDY</b>. Unready aircraft hold no slot — a ready aircraft can claim what an unready one was only projected into.</li>
-      <li>After RDY, wheels-up = frozen crossing time − transit. Frozen releases move later only if needed (air encroachment or a missed CFR window) — not earlier for convenience.</li>
-    </ul>
-
-    <h3>Why airplane A crosses sooner than B</h3>
-    <ul>
-      <li>A is closer / has an earlier ETA to the line.</li>
-      <li>You pressed <b>RDY</b> on A first, so A froze the open gap.</li>
-      <li>Manual sequence order puts A ahead of B (drag reorder when you have edit control).</li>
-      <li>Rate or MIT spacing ahead of B pushes B later.</li>
-      <li>A’s Ready Time floor is earlier (or absent) compared with B.</li>
-    </ul>
-  </section>
-
-  <section class="section-break" id="how">
-    <h2>How to issue</h2>
-    <p class="lead">Ready Time is the pilot’s “I can’t go before…” floor. CFR time / RDY is you locking the slot.</p>
-
+    <h3>TMU checklist</h3>
     <ol class="flow">
       <li class="step">
         <div class="num">1</div>
         <div class="body">
-          <h3>Ask for ready</h3>
-          <p>When the pilot calls ready (or quotes an estimated wheels-up), decide whether they can go at the next open slot or need a later floor.</p>
-          <span class="where">Pilot · “Ready in 10” / “Ready now”</span>
+          <h4>Create &amp; enable</h4>
+          <p>Draw the line, set owning ARTCC, scope, rate/MIT, filters. Enable when ready. Aircraft join only when the <b>filed route</b> crosses the line.</p>
+          <span class="where">FCA Builder</span>
         </div>
       </li>
       <li class="step">
         <div class="num">2</div>
         <div class="body">
-          <h3>Optional Ready Time floor</h3>
-          <p>Enter <b>HHMMz</b> in the Ready Time field and press <b>Set</b> (Airport TMU) or <b>SET</b> then <b>RDY</b> (Release Board). The release is never before that time; spacing may still push later.</p>
-          <span class="where">Column · READY TIME · HHMMz</span>
+          <h4>Choose AUTO or MANUAL</h4>
+          <p>Leave AUTO unless you need a forced order. If you drag, tell the positions and return to AUTO when the need passes.</p>
+          <span class="where">Sequence panel · ✋ MANUAL · ↺ auto</span>
         </div>
       </li>
       <li class="step">
         <div class="num">3</div>
         <div class="body">
-          <h3>Lock the release</h3>
-          <p><b>Airport TMU:</b> press <b>CFR time</b> (or Set after Ready Time — assigns earliest valid at/after the floor).<br>
-          <b>FCA:</b> press <b>RDY</b>. One-click RDY without a time uses the ready-now buffer.</p>
-          <span class="where">Departures · My Dashboard · Release Board</span>
+          <h4>Monitor RDY from the field</h4>
+          <p>Tower/APP issue RDY on Release Board. You can also RDY from Builder. Cancel returns the aircraft to advisory.</p>
+          <span class="where">Builder · Release Board</span>
         </div>
       </li>
       <li class="step">
         <div class="num">4</div>
         <div class="body">
-          <h3>Read the badge</h3>
-          <p><b>Released</b> — no delay needed; release at will.<br>
-          <b>Release now</b> — wheels-up has arrived.<br>
-          Countdown / green <b>RLSD</b> — issued time is locked. Tell the pilot that wheels-up.</p>
-          <span class="where">CFR cell · strip badge</span>
+          <h4>Watch the outside picture</h4>
+          <p>Scan for non-VATFLOW / out-of-scope traffic that will still cross. Protect airborne; bump frozen releases later only when needed.</p>
+          <span class="where">Map · adjacent facilities</span>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===================== CENTER ===================== -->
+  <section class="role-panel" id="panel-center" aria-labelledby="center-title" hidden>
+    <div class="back-roles"><button type="button" data-back>← Choose a different position</button></div>
+    <div class="panel-hero">
+      <h2 id="center-title">Center — protect the stream</h2>
+      <p>You work the ARTCC-wide Release Board. Airborne crossings are fixed; your job is situational awareness, coordination with tower/APP on RDY, and not inventing delay that the engine cannot apply to air.</p>
+    </div>
+
+    <div class="callouts">
+      <div class="callout warn">
+        <strong>Your home tool</strong>
+        <p><b>Release Board</b> — select your ARTCC, load the filter, sign in on position. Programs are built by TMU in FCA Builder; you issue and monitor releases.</p>
+      </div>
+    </div>
+
+    <h3>Mental model</h3>
+    <ul>
+      <li><b>AIR</b> strips — already flying; ETA to the line is fixed. Spacing problems between air are flags for you, not times the tool rewrites.</li>
+      <li><b>CFR / advisory ground</b> — projected only. They hold <b>no</b> slot until someone presses <b>RDY</b>.</li>
+      <li><b>RLSD</b> — frozen wheels-up. That departure owns a crossing slot. Cancel (<b>RLSD ✕</b>) returns them to advisory.</li>
+    </ul>
+
+    <h3>What you do on position</h3>
+    <ol class="flow">
+      <li class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Load your ARTCC</h4>
+          <p>Open Release Board → pick ARTCC (or airport / PCT) → <b>Load</b>. Only metered FCA departures appear.</p>
+          <span class="where">Release Board</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Sign in on a controller position</h4>
+          <p>RDY unlocks when you are signed in with VATSIM <b>and</b> online on an ATC position. Check Settings if the board stays locked.</p>
+          <span class="where">Sign in · ATC verified</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <h4>Coordinate RDY with the field</h4>
+          <p>Prefer letting DEL/GND/TWR issue RDY for their own departures. If you issue for them, confirm the pilot is actually ready — early RDY steals a gap.</p>
+          <span class="where">RDY · optional HHMMz floor</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <h4>Watch air + non-VATFLOW</h4>
+          <p>Upstream traffic may cross your FCA without ever appearing as a ground strip on this board. Treat airborne ETAs as hard; frozen releases only move later if air encroaches.</p>
+          <span class="where">Sequence · air picture</span>
+        </div>
+      </li>
+    </ol>
+
+    <h3>Center best practices</h3>
+    <ul>
+      <li>Don’t RDY a ground strip “just in case” — advisory projections free the slot for someone who is truly ready.</li>
+      <li>If TMU is in <b>MANUAL</b>, honor that order; don’t fight it with random RDY timing.</li>
+      <li>Optional <b>HHMMz</b> + <b>SET</b> before RDY when the pilot quotes a later wheels-up — never issues before that floor.</li>
+      <li>Full control (ARTCC editor) can drag-reorder / return to <b>AUTO</b> — only do that with TMU awareness.</li>
+      <li>One voice with the towers on a stream beats three people issuing the same callsigns.</li>
+    </ul>
+  </section>
+
+  <!-- ===================== APP / TWR ===================== -->
+  <section class="role-panel" id="panel-apptwr" aria-labelledby="apptwr-title" hidden>
+    <div class="back-roles"><button type="button" data-back>← Choose a different position</button></div>
+    <div class="panel-hero">
+      <h2 id="apptwr-title">APP / TWR — issue the release</h2>
+      <p>DEL, GND, TWR, and APP: you turn pilot “ready” into a frozen wheels-up (RDY) for FCA-metered departures. You do not need to build the program — you need to manage times for aircraft that show on the board.</p>
+    </div>
+
+    <div class="callouts">
+      <div class="callout warn">
+        <strong>Your home tool</strong>
+        <p><b>Release Board</b> filtered to your airport (or ARTCC / PCT). Rows with an FCA program also appear on Airport TMU Departures / My Dashboard when <b>FCA PRGM</b> is set — same release everywhere.</p>
+      </div>
+      <div class="callout">
+        <strong>What the times mean</strong>
+        <p><b>Crossing time</b> — when the aircraft is scheduled across the FCA line.<br>
+        <b>RDY / RLSD</b> — frozen wheels-up so they meet that crossing without stealing someone else’s slot.<br>
+        Until you press RDY, the time is only a projection (advisory).</p>
+      </div>
+    </div>
+
+    <h3>Why one airplane is earlier than another</h3>
+    <ul>
+      <li>Closer / earlier ETA to the FCA line.</li>
+      <li>Someone pressed <b>RDY</b> on them first (they claimed the open gap).</li>
+      <li>TMU put the sequence in <b>MANUAL</b> and dragged them higher.</li>
+      <li>Rate / MIT spacing ahead of the next aircraft.</li>
+      <li>They have an earlier (or no) Ready Time floor.</li>
+    </ul>
+
+    <h3>How to issue</h3>
+    <ol class="flow">
+      <li class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Open the board for your field</h4>
+          <p>Release Board → enter your airport or ARTCC → <b>Load</b>. Sign in while online on your DEL/GND/TWR/APP position.</p>
+          <span class="where">Release Board</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Ask the pilot</h4>
+          <p>When they call ready — or quote a later wheels-up — decide: next open slot, or a floor time.</p>
+          <span class="where">Pilot ready call</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <h4>Optional Ready Time floor</h4>
+          <p>Enter <b>HHMMz</b> → <b>SET</b>. The release will never be before that time; spacing may still push later.</p>
+          <span class="where">HHMMz · SET</span>
+        </div>
+      </li>
+      <li class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <h4>Press RDY</h4>
+          <p>Locks wheels-up (<b>RLSD</b>). One-click RDY without a time uses the ready-now buffer (~3 min). Tell the pilot that time.</p>
+          <span class="where">RDY → RLSD</span>
         </div>
       </li>
       <li class="step">
         <div class="num">5</div>
         <div class="body">
-          <h3>Fix order mistakes</h3>
-          <p>Use <b>Swap with…</b> on Airport TMU when two same-route CFRs need to exchange times (taxi order ≠ issuance order). Cancel with <b>×</b> / <b>RLSD ✕</b> to free a slot — Airport TMU may pull remaining issued times earlier.</p>
-          <span class="where">Issued row · swap · cancel</span>
+          <h4>Fix mistakes</h4>
+          <p>Press <b>RLSD ✕</b> / cancel to return to advisory if they aren’t ready or you issued the wrong callsign. Re-RDY when they actually are.</p>
+          <span class="where">Cancel · re-issue</span>
         </div>
       </li>
     </ol>
 
-    <div class="paths">
-      <div class="path">
-        <h3>Airport TMU path</h3>
-        <ol>
-          <li>Open <b>Airport TMU</b> → <b>Departures</b> or <b>My Dashboard</b></li>
-          <li>Confirm the dest has a TMU program (or note <b>FCA PRGM</b>)</li>
-          <li>Optional: Ready Time <b>HHMMz</b> → <b>Set</b></li>
-          <li>Press <b>CFR time</b> / follow FCA RDY if FCA PRGM is set</li>
-          <li>Swap or cancel if taxi order changes</li>
-        </ol>
-      </div>
-      <div class="path">
-        <h3>Release Board path</h3>
-        <ol>
-          <li>Open <b>Release Board</b></li>
-          <li>Select ARTCC / airport / PCT filter → Load</li>
-          <li>Sign in while online on a controller position</li>
-          <li>Optional HHMMz → <b>SET</b>, then <b>RDY</b> (or RDY now)</li>
-          <li><b>RLSD</b> = issued · press again to cancel</li>
-        </ol>
-      </div>
-    </div>
-  </section>
-
-  <section class="section-break" id="practices">
-    <h2>Best practices</h2>
-    <p class="lead">Small habits that keep the sequence honest for everyone sharing the program.</p>
+    <h3>APP / TWR best practices</h3>
     <ul>
-      <li><b>Don’t RDY / CFR spam before the pilot is ready.</b> Freezing early steals a slot an actually-ready aircraft could use.</li>
-      <li><b>Use Ready Time when the pilot quotes a later taxi or wheels-up.</b> That protects the schedule from an impossible “now” release.</li>
-      <li><b>Issue in taxiway / runway order when you can.</b> If you issued out of order, swap (Airport TMU) instead of cancelling the whole stream.</li>
-      <li><b>One position owns a stream when possible.</b> Multiple people issuing the same dep→dest or FCA without coordination creates thrash.</li>
-      <li><b>Stay on Live sync / the shared room</b> so your issues and cancels show for the next controller.</li>
-      <li><b>Respect special rows:</b> VFR and “NO PROGRAM — RELEASE AT WILL” need no CFR. Ground stops override — hold until the GS ends.</li>
-      <li><b>When FCA PRGM is set,</b> use Release Board / FCA RDY. Airport capacity slots are not the source of truth for that aircraft.</li>
-      <li><b>After a cancel,</b> watch for pulled-up times (earlier green flash) and re-brief the pilot if their wheels-up moved.</li>
+      <li><b>Don’t RDY before the pilot is ready.</b> Advisory strips don’t hold slots — freezing early steals from someone who can go.</li>
+      <li><b>Issue in taxi / runway order</b> when you can. If TMU is in MANUAL, follow that order.</li>
+      <li><b>Use the HHMMz floor</b> when the pilot says they’ll need 10+ minutes — don’t lock a “now” slot they’ll miss.</li>
+      <li><b>One position owns RDY</b> for a gate/stream when possible (usually GND/TWR). Center can help, but don’t double-issue.</li>
+      <li><b>After cancel,</b> times for others may improve — re-check the board before you brief the next pilot.</li>
+      <li>If the row shows <b>FCA PRGM</b> on Airport TMU, use FCA RDY — that program owns the release, not destination AAR slots.</li>
     </ul>
   </section>
 
-  <section class="section-break" id="where">
-    <h2>Where to work</h2>
-    <p class="lead">Pick the page that matches your position. Program setup stays with TMU / FCA staff.</p>
-  </section>
-
   <section class="tools">
-    <h3>Tools &amp; related guides</h3>
+    <h3>Tools</h3>
     <ul>
-      <li><b>Departures</b> — single tower field + CFR / Ready Time · <a href="vatflow-tbfm%20v2.html">Airport TMU</a></li>
-      <li><b>My Dashboard</b> — personal multi-airport departure list · <a href="vatflow-tbfm%20v2.html">Airport TMU</a></li>
-      <li><b>Release Board</b> — on-position FCA RDY · <a href="artcc-dashboard.html">Open</a></li>
-      <li><b>FCA How-To</b> — staff path to create/enable an FCA · <a href="FCA-howto.html">Open</a></li>
-      <li><b>FCA Builder</b> — draw and configure programs (not day-to-day tower RDY) · <a href="FCA-builderv02.html">Open</a></li>
+      <li><b>Release Board</b> — on-position RDY · <a href="artcc-dashboard.html">Open</a></li>
+      <li><b>FCA Builder</b> — create / scope / sequence / enable · <a href="FCA-builderv02.html">Open</a></li>
+      <li><b>FCA How-To</b> — staff path from draw to RDY · <a href="FCA-howto.html">Open</a></li>
+      <li><b>Airport TMU</b> — Departures / My Dashboard show the same FCA releases when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Open</a></li>
     </ul>
   </section>
 </main>
 <script type="module">
   import { mountVatflowNav } from "./shared/vatflow-nav.js";
   mountVatflowNav(document.getElementById("vatflow-nav"), "hub");
+
+  const buttons = [...document.querySelectorAll(".role-btn")];
+  const panels = {
+    tmu: document.getElementById("panel-tmu"),
+    center: document.getElementById("panel-center"),
+    apptwr: document.getElementById("panel-apptwr"),
+  };
+  const pick = document.getElementById("role-pick");
+
+  function showRole(role) {
+    const valid = role && panels[role];
+    buttons.forEach(btn => {
+      const on = valid && btn.dataset.role === role;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    Object.entries(panels).forEach(([key, el]) => {
+      const on = valid && key === role;
+      el.classList.toggle("active", on);
+      el.hidden = !on;
+    });
+    if (valid) {
+      history.replaceState(null, "", "#" + role);
+      panels[role].scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      history.replaceState(null, "", location.pathname + location.search);
+      pick.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => showRole(btn.dataset.role));
+  });
+  document.querySelectorAll("[data-back]").forEach(btn => {
+    btn.addEventListener("click", () => showRole(null));
+  });
+
+  const hash = (location.hash || "").replace(/^#/, "");
+  if (panels[hash]) showRole(hash);
 </script>
 </body>
 </html>
