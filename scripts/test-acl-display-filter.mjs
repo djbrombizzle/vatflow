@@ -91,6 +91,25 @@ list = filterBoardList(board, {
 assert(list.map(a => a.cs).join(",") === "MAN1,DAL3", "EDST cpdlc → on-freq AND connected");
 
 list = filterBoardList(board, {
+  mode: "cpdlc",
+  freqFilterOn: false,
+  cpdlcRequireFreq: true,
+  connected,
+  isTuned: tuned,
+  isCpdlcActive: cpdlc,
+});
+assert(list.map(a => a.cs).join(",") === "MAN1", "EDST cpdlc without controller freq → manual only");
+
+list = filterBoardList(board, {
+  mode: "freq",
+  freqFilterOn: false,
+  connected,
+  isTuned: tuned,
+  isCpdlcActive: cpdlc,
+});
+assert(list.map(a => a.cs).join(",") === "MAN1", "freq without controller freq → manual only");
+
+list = filterBoardList(board, {
   mode: "all",
   freqFilterOn: true,
   connected,
@@ -98,6 +117,26 @@ list = filterBoardList(board, {
   isCpdlcActive: cpdlc,
 });
 assert(list.length === 5, "all → entire board");
+
+// Off-frequency CPDLC must not remain on freq / EDST-cpdlc lists
+list = filterBoardList(board, {
+  mode: "freq",
+  freqFilterOn: true,
+  connected,
+  isTuned: tuned,
+  isCpdlcActive: cpdlc,
+});
+assert(!list.some(a => a.cs === "JBU4"), "freq hides off-frequency CPDLC");
+list = filterBoardList(board, {
+  mode: "cpdlc",
+  freqFilterOn: true,
+  cpdlcRequireFreq: true,
+  connected,
+  isTuned: tuned,
+  isCpdlcActive: cpdlc,
+});
+assert(!list.some(a => a.cs === "JBU4"), "EDST cpdlc hides off-frequency CPDLC");
+assert(!list.some(a => a.cs === "UAL2"), "EDST cpdlc hides off-frequency non-CPDLC");
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log("\nall passed");

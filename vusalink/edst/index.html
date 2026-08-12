@@ -1263,11 +1263,11 @@ td.eh-bk{text-align:center;min-width:14px}
       </label>
       <label class="opt" data-acl-filter="cpdlc">
         <input type="radio" name="aclFilter" value="cpdlc">
-        <span class="lab"><b>SHOW CPDLC ONLY</b><span>On frequency and logged into CPDLC</span></span>
+        <span class="lab"><b>SHOW CPDLC ONLY</b><span>On your voice frequency and logged into CPDLC</span></span>
       </label>
       <label class="opt" data-acl-filter="freq">
         <input type="radio" name="aclFilter" value="freq">
-        <span class="lab"><b>SHOW FREQ A/C</b><span>All aircraft tuned to the controller frequency</span></span>
+        <span class="lab"><b>SHOW FREQ A/C</b><span>Tuned to your voice frequency only (off-freq drops off)</span></span>
       </label>
     </div>
   </div>
@@ -1948,6 +1948,17 @@ function shouldDimAdj(a){
 }
 function countsForController(cs){
   cs=(cs||'').toUpperCase();
+  const mode=aclFilterMode();
+  // Keep CPDLC / FREQ list counts aligned with displayList() — off-frequency
+  // aircraft must not count when those filters are active.
+  if(mode==='all')return true;
+  if(mode==='cpdlc'){
+    if(!connected.has(cs))return false;
+    return freqFilterActive()&&tunedToOurFreq(cs);
+  }
+  if(mode==='freq'){
+    return freqFilterActive()&&tunedToOurFreq(cs);
+  }
   if(handoffAwaitFreq.has(cs)&&!pilotMatchesOurFreq(cs))return false;
   if(freqFilterActive()&&!pilotMatchesOurFreq(cs))return false;
   return true;
@@ -2002,6 +2013,9 @@ function displayList(){
   //  all    → entire FIR/ARTCC sector list
   //  cpdlc  → on controller frequency AND CPDLC logged on
   //  freq   → tuned to controller frequency (default)
+  // Off-frequency aircraft must disappear from cpdlc/freq lists. If we do not
+  // yet know the controller voice frequency, those modes show manual rows only
+  // (do not fall back to "all CPDLC connected").
   const mode=aclFilterMode();
   const freqOn=freqFilterActive();
   if(mode==='all'){
@@ -2010,13 +2024,12 @@ function displayList(){
     list=list.filter(a=>{
       if(a.source==='manual')return true;
       if(!connected.has(a.cs))return false;
-      if(freqOn)return tunedToOurFreq(a.cs);
-      return true;
+      return freqOn&&tunedToOurFreq(a.cs);
     });
   }else{
     // freq (default)
     if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs));
-    else list=list.filter(a=>a.source==='manual'||connected.has(a.cs));
+    else list=list.filter(a=>a.source==='manual');
   }
   list=list.filter(a=>!handoffAwaitFreq.has(a.cs)||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
   const k=sortState.key;if(!k)return list;

@@ -4,9 +4,12 @@
  * Modes:
  *   all    → entire sector / FIR list
  *   cpdlc  → CPDLC logged-on only (EDST may also require on-frequency)
- *   freq   → controller voice frequency match only
+ *   freq   → controller voice frequency match only (no freq known → manual only)
  *   auto   → legacy classic default: on-freq (+ CPDLC-active) when freq known,
  *            else CPDLC connected only
+ *
+ * EDST passes cpdlcRequireFreq:true so CPDLC mode also requires a frequency match
+ * (and shows manual-only when the controller voice frequency is unknown).
  */
 
 export const ACL_FILTER_MODES = ["all", "cpdlc", "freq", "auto"];
@@ -72,15 +75,17 @@ export function filterBoardList(list, opts = {}) {
       if (!a) return false;
       if (a.source === "manual") return true;
       if (!connected.has(a.cs)) return false;
-      if (cpdlcRequireFreq && freqOn) return isTuned(a.cs);
+      // EDST: must also be on controller frequency. Without a known controller
+      // freq, nothing can satisfy "on frequency" — do not fall back to all CPDLC.
+      if (cpdlcRequireFreq) return freqOn && isTuned(a.cs);
       return true;
     });
   } else if (mode === "freq") {
     if (freqOn) {
       out = out.filter((a) => a && (a.source === "manual" || isTuned(a.cs)));
     } else {
-      // No controller freq yet — fall back to CPDLC connected
-      out = out.filter((a) => a && (a.source === "manual" || connected.has(a.cs)));
+      // No controller freq yet — cannot match "on frequency"
+      out = out.filter((a) => a && a.source === "manual");
     }
   } else {
     // auto (classic default)
