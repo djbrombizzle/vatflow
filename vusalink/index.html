@@ -790,7 +790,7 @@ function displayList(){
     list=list.filter(a=>a.source==='manual'||connected.has(a.cs));
   }else if(mode==='freq'){
     if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs));
-    else list=list.filter(a=>a.source==='manual'||connected.has(a.cs));
+    else list=list.filter(a=>a.source==='manual');
   }else{
     // auto — legacy default when neither checkbox is set
     if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs)||cpdlcActiveWith(a.cs));
