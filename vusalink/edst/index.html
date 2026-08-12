@@ -215,7 +215,8 @@ td.eh-bk{text-align:center;min-width:14px}
 .efid .acid{color:#f0f0ec}
 .efid.conn .acid{color:#fff}
 .efid:hover .acid,.efid:active .acid{color:#fff;text-decoration:underline}
-.etyp,.ecod{color:#d2d2cd}
+.etyp{color:#d2d2cd}
+.ecod{color:#d2d2cd}
 
 /* Uplink ▲ / downlink ▼ beside callsign — same glyphs as column sort; invisible until active */
 .fid-wrap{display:inline-flex;align-items:center;gap:0;white-space:nowrap}
@@ -237,6 +238,10 @@ td.eh-bk{text-align:center;min-width:14px}
 
 .alt-cell{color:#d2d2cd;cursor:pointer}
 .alt-cell:hover{color:#fff;text-decoration:underline}
+.sqk-cell{color:#d2d2cd;cursor:pointer;white-space:nowrap}
+.sqk-cell:hover{color:#fff}
+.sqk-asg{color:var(--amber);margin-left:4px;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.sqk-asg:hover{color:#e3c98a}
 
 /* EDST altitude menu (screenshot chrome) */
 #altmenu.edst-pop{
@@ -295,6 +300,43 @@ td.eh-bk{text-align:center;min-width:14px}
 }
 #altmenu .edst-tfc-panel .edst-alt-btn{border-bottom:1px solid #cfcfcf;border-right:1px solid #cfcfcf}
 #altmenu .edst-tfc-panel .edst-alt-btn:nth-child(2n){border-right:0}
+
+/* EDST squawk / Code menu */
+#sqkmenu.edst-pop{
+  position:absolute;z-index:60;min-width:148px;width:148px;
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#sqkmenu .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#sqkmenu .edst-pop-hdr .title{letter-spacing:.5px;font-weight:normal}
+#sqkmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:#fff}
+#sqkmenu .edst-pop-hdr .x:hover{background:#333}
+#sqkmenu .edst-sqk-actions{background:#4a4a4a;border-bottom:1px solid #cfcfcf}
+#sqkmenu .edst-sqk-btn{
+  display:block;width:100%;box-sizing:border-box;text-align:left;
+  background:#4a4a4a;color:#fff;border:0;border-bottom:1px solid #cfcfcf;
+  font:inherit;padding:3px 8px;cursor:pointer;line-height:1.25;
+}
+#sqkmenu .edst-sqk-btn:hover{background:#5a5a5a}
+#sqkmenu .edst-sqk-btn.amend{background:#6b3a3a}
+#sqkmenu .edst-sqk-btn.amend:hover{background:#7a4545}
+#sqkmenu .edst-sqk-btn.uplink{background:#4a4a4a;color:#fff}
+#sqkmenu .edst-sqk-btn.uplink.disabled{opacity:.45;cursor:default}
+#sqkmenu .edst-sqk-btn.fp{
+  display:flex;align-items:center;gap:6px;cursor:text;background:#4a4a4a;color:#c8c8c8;
+}
+#sqkmenu .edst-sqk-btn.fp input{
+  flex:1;min-width:0;background:transparent;border:0;color:#fff;font:inherit;padding:0;outline:none;width:56px;
+  letter-spacing:1px;
+}
+#sqkmenu .edst-sqk-meta{
+  padding:4px 8px;color:#8a9088;font-size:11px;line-height:1.35;border-top:1px solid #222;
+}
 
 /* X RES popup */
 #xresmenu.edst-pop{
@@ -727,7 +769,6 @@ td.eh-bk{text-align:center;min-width:14px}
 .ehs .spd{color:#dcd63f}
 .route-cell{color:#aeb6af;cursor:pointer;max-width:720px;overflow:hidden;text-overflow:ellipsis}
 .route-cell:hover{color:#fff}
-.sqk-asg{color:var(--amber)}
 
 /* Uplink pending underline (green while waiting; red after WILCO timeout) */
 .ul-val{text-decoration:none;text-underline-offset:3px;cursor:inherit}
@@ -1324,6 +1365,23 @@ td.eh-bk{text-align:center;min-width:14px}
     <input id="altAltimInput" autocomplete="off" inputmode="decimal" placeholder="29.83" title="Override destination altimeter">
   </div>
   <div class="altlist" id="altList"></div>
+</div>
+
+<!-- EDST SQUAWK / Code menu -->
+<div id="sqkmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="sqkTitle">CALLSIGN</span>
+    <span class="x" data-close="sqkmenu" title="Close">X</span>
+  </div>
+  <div class="edst-sqk-actions">
+    <button type="button" class="edst-sqk-btn amend" id="sqkAmend" title="Remove last queued item">AMEND</button>
+    <label class="edst-sqk-btn fp" id="sqkFpRow" title="4-digit octal squawk (digits 0–7)">CODE
+      <input id="sqkInput" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="3456">
+    </label>
+    <button type="button" class="edst-sqk-btn uplink" id="sqkUplink">UPLINK</button>
+    <button type="button" class="edst-sqk-btn" id="sqkScratchpad" title="Add to uplink queue">SCRATCHPAD</button>
+  </div>
+  <div class="edst-sqk-meta" id="sqkMeta">Current ---- · Assigned ----</div>
 </div>
 
 <!-- EDST X RES (crossing restriction) menu -->
@@ -2454,7 +2512,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2710,7 +2768,7 @@ function renderRowEdst(a,idx){
         +`<td><span class="fid-wrap">${fid}${tri}</span></td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
         +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
-        +`<td class="ecod">${sqkCellHtml(a)}</td>`
+        +`<td class="ecod sqk-cell" data-sqk="${idx}" title="squawk">${sqkCellHtml(a)}</td>`
         +`<td class="ehs">${hsCellHtml(a,idx)}</td>`
         +`<td class="route-cell" data-route="${idx}">${routeHtml}</td>`;
 }
@@ -2801,7 +2859,7 @@ function close(id){
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
-  if(id==='altUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'||id==='rtUplink'){
+  if(id==='altUplink'||id==='sqkUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'||id==='rtUplink'){
     el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;
   }
   el.classList.toggle('hidden',!on);
@@ -2815,11 +2873,12 @@ document.addEventListener('pointerdown',ev=>{
       closeAclSortMenu();
     }
   }
-  ['altmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].forEach(id=>{
+  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
     if(id==='altmenu'&&ev.target.closest('.alt-cell'))return;
+    if(id==='sqkmenu'&&ev.target.closest('.sqk-cell'))return;
     if(id==='hdgmenu'&&ev.target.closest('.hdg-cell'))return;
     if(id==='spdmenu'&&ev.target.closest('.spd-cell'))return;
     if(id==='routemenu'&&ev.target.closest('.route-cell'))return;
@@ -3301,6 +3360,64 @@ document.getElementById('altXres').onclick=()=>{
   openXresMenu(altTarget,r.right+4,r.top);
 };
 
+//============================================================ SQUAWK / Code menu
+const sqkmenu=document.getElementById('sqkmenu');
+let sqkTarget=null,sqkSelected=null;
+function buildSquawkMessage(code){
+  code=normSquawk(code);if(!code)return null;
+  return {label:'SQK '+code,msg:'SQUAWK @'+code+'@',effects:{type:'squawk',code}};
+}
+function syncSqkMeta(){
+  const meta=document.getElementById('sqkMeta');if(!meta)return;
+  if(!sqkTarget){meta.textContent='Current ---- · Assigned ----';return;}
+  const cur=normSquawk(sqkTarget.squawk)||'----';
+  const asg=normSquawk(sqkTarget.assignedSquawk)||'----';
+  meta.textContent='Current '+cur+' · Assigned '+asg;
+}
+function stageSqk(code){
+  const raw=String(code||'').replace(/[^0-7]/g,'').slice(0,4);
+  const inp=document.getElementById('sqkInput');
+  if(inp)inp.value=raw;
+  sqkSelected=normSquawk(raw);
+  showUplink('sqkUplink',!!sqkSelected);
+}
+function openSqkMenu(idx,x,y){
+  const a=displayList()[idx];if(!a)return;
+  sqkTarget=a;
+  document.getElementById('sqkTitle').textContent=a.cs;
+  const asg=normSquawk(a.assignedSquawk),cur=normSquawk(a.squawk);
+  const pre=asg&&asg!==cur?asg:(cur||asg||'');
+  stageSqk(pre);
+  syncSqkMeta();
+  placePop(sqkmenu,x,y);
+  const inp=document.getElementById('sqkInput');
+  if(inp){inp.focus();inp.select();}
+}
+async function uplinkSquawkCode(cs,code){
+  const entry=buildSquawkMessage(code);if(!entry)return;
+  await sendUplinkEntry(cs,entry);renderBoard();
+}
+document.getElementById('sqkInput').addEventListener('input',()=>{
+  stageSqk(document.getElementById('sqkInput').value);
+});
+document.getElementById('sqkInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&sqkSelected)document.getElementById('sqkUplink').click();
+});
+document.getElementById('sqkUplink').onclick=async()=>{
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!sqkTarget||!sqkSelected)return;
+  const cs=sqkTarget.cs;close('sqkmenu');
+  await uplinkSquawkCode(cs,sqkSelected);
+};
+document.getElementById('sqkScratchpad').onclick=()=>{
+  if(!canControl()){comingSoon('Sign in / verify to queue');return;}
+  if(!sqkTarget||!sqkSelected)return;
+  const entry=buildSquawkMessage(sqkSelected);
+  if(!entry||!queueAdd(sqkTarget.cs,entry))return;
+  close('sqkmenu');
+};
+document.getElementById('sqkAmend').onclick=()=>{if(sqkTarget)queuePopLast(sqkTarget.cs);};
+
 //============================================================ X RES menu
 let xresTarget=null,xresFix=null,xresAlt=null,xresSpd=null,xresSpdBase=310;
 function normSpeed(s){s=String(s||'').replace(/\s/g,'').toUpperCase();return /^\d+$/.test(s)?s+'KT':s;}
@@ -3696,6 +3813,7 @@ function makeEdstDraggable(el,onDragEnd){
   });
 }
 makeEdstDraggable(altmenu);
+makeEdstDraggable(sqkmenu);
 makeEdstDraggable(xresmenu);
 makeEdstDraggable(hdgmenu);
 makeEdstDraggable(spdmenu);
@@ -4703,7 +4821,7 @@ async function sendGiMessage(){
 
 //============================================================ ACL row selection
 function isMenuClickTarget(el){
-  return !!(el.closest('.alt-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
+  return !!(el.closest('.alt-cell')||el.closest('.sqk-cell')||el.closest('.hdg-cell')||el.closest('.spd-cell')
     ||el.closest('.route-cell')||el.closest('.sqk-asg')||el.closest('.abox')
     ||el.closest('.efid')||el.closest('[data-msg]')||el.closest('[data-alert]')
     ||el.closest('[data-logon]')||el.closest('.vci')||el.closest('.ul-red'));
@@ -5404,6 +5522,8 @@ rows.addEventListener('click',e=>{
     return;
   }
   const alt=e.target.closest('.alt-cell');
+  const asg=e.target.closest('[data-sqk-asg]');
+  const sqk=e.target.closest('.sqk-cell');
   const hdgc=e.target.closest('.hdg-cell');
   const spdc=e.target.closest('.spd-cell');
   const rtc=e.target.closest('.route-cell');
@@ -5414,9 +5534,17 @@ rows.addEventListener('click',e=>{
     openHandoff(+fid.dataset.ho,r.left,r.bottom+2);
     return;
   }
-  if(alt||hdgc||spdc||rtc){
+  if(asg){
+    if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+    const cell=asg.closest('.sqk-cell');const idx=cell?+cell.dataset.sqk:NaN;
+    const a=displayList()[idx];if(!a)return;
+    uplinkSquawkCode(a.cs,asg.dataset.sqkAsg);
+    return;
+  }
+  if(alt||sqk||hdgc||spdc||rtc){
     if(!canControl()){
       comingSoon(alt?'Sign in / verify to issue altitudes'
+        :sqk?'Sign in / verify to issue squawks'
         :hdgc?'Sign in / verify to issue headings'
         :spdc?'Sign in / verify to issue speeds'
         :'Sign in / verify to issue routes');
@@ -5425,6 +5553,9 @@ rows.addEventListener('click',e=>{
     if(alt){
       const r=alt.getBoundingClientRect();
       openAltMenu(+alt.dataset.alt,r.left,r.bottom+2);
+    }else if(sqk){
+      const r=sqk.getBoundingClientRect();
+      openSqkMenu(+sqk.dataset.sqk,r.left,r.bottom+2);
     }else if(hdgc){
       const r=hdgc.getBoundingClientRect();
       openHeadingMenu(+hdgc.dataset.hdg,r.left,r.bottom+2);
