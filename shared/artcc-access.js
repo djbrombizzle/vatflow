@@ -37,10 +37,24 @@ export const AIRPORT_ARTCC = {
   TJSJ: "ZUA", TIST: "ZUA",
 };
 
+/** VAT-Spy FIR / callsign-prefix aliases → FAA short ids. */
+const ARTCC_ID_ALIASES = {
+  PAZA: "ZAN",
+  PHZH: "ZHN",
+  TJZS: "ZUA",
+  HCF: "ZHN",
+  ANC: "ZAN",
+};
+
 export function normalizeArtccId(id) {
   const raw = String(id || "").toUpperCase().trim();
   if (raw === "*") return "*";
-  const s = raw.replace(/[^A-Z0-9]/g, "");
+  let s = raw.replace(/[^A-Z0-9]/g, "");
+  if (ARTCC_ID_ALIASES[s]) s = ARTCC_ID_ALIASES[s];
+  else {
+    s = s.replace(/^K(?=Z)/, "");
+    if (ARTCC_ID_ALIASES[s]) s = ARTCC_ID_ALIASES[s];
+  }
   if (US_ARTCC_SET.has(s)) return s;
   return null;
 }

@@ -5263,7 +5263,11 @@ function openConflictAckMenu(cs,type,x,y){
 }
 
 function gpdArtccId(){
-  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().replace(/^K(?=Z)/,'');
+  const ARTCC_ID_ALIASES={PAZA:'ZAN',PHZH:'ZHN',TJZS:'ZUA',HCF:'ZHN',ANC:'ZAN',HNL:'ZHN'};
+  let id=(airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().trim();
+  if(ARTCC_ID_ALIASES[id])return ARTCC_ID_ALIASES[id];
+  id=id.replace(/^K(?=Z)/,'');
+  return ARTCC_ID_ALIASES[id]||id;
 }
 function gpdSelectedCs(){
   return (typeof selectedCs!=='undefined'&&selectedCs)?String(selectedCs).toUpperCase():null;

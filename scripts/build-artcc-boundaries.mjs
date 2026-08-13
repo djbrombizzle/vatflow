@@ -281,6 +281,60 @@ function parseArgs(argv) {
   return out;
 }
 
+/** Map VAT-Spy FIR ids → FAA short ARTCC ids used elsewhere in the repo. */
+const VATSPY_EXTRA_TO_FAA = {
+  PAZA: "ZAN",
+  PHZH: "ZHN",
+  TJZS: "ZUA",
+};
+const VATSPY_BOUNDARIES_URL =
+  "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";
+
+/**
+ * Squawk/NASR CONUS extracts often omit Anchorage / Honolulu / San Juan.
+ * Pull those polygons from VAT-Spy and rewrite ids to ZAN / ZHN / ZUA.
+ */
+async function supplementVatspyExtras(highPath) {
+  const { readFileSync } = await import("node:fs");
+  const high = JSON.parse(readFileSync(highPath, "utf8"));
+  const have = new Set(
+    (high.features || []).map((f) => (f.properties && f.properties.id) || "").filter(Boolean),
+  );
+  const need = Object.values(VATSPY_EXTRA_TO_FAA).filter((id) => US_ARTCC.has(id) && !have.has(id));
+  if (!need.length) {
+    console.log("  VAT-Spy extras — already present");
+    return;
+  }
+  console.log(`Supplementing HIGH from VAT-Spy for ${need.join(", ")}…`);
+  const res = await fetch(VATSPY_BOUNDARIES_URL);
+  if (!res.ok) throw new Error(`VAT-Spy boundaries HTTP ${res.status}`);
+  const vat = await res.json();
+  const byVat = new Map();
+  for (const f of vat.features || []) {
+    const vid = ((f.properties && f.properties.id) || "").toUpperCase();
+    if (VATSPY_EXTRA_TO_FAA[vid]) byVat.set(vid, f);
+  }
+  let added = 0;
+  for (const [vid, faa] of Object.entries(VATSPY_EXTRA_TO_FAA)) {
+    if (!need.includes(faa) || !byVat.has(vid)) continue;
+    const src = byVat.get(vid);
+    high.features.push({
+      type: "Feature",
+      properties: {
+        id: faa,
+        stratum: "HIGH",
+        lowerFt: 18000,
+        upperFt: 60000,
+        source: `vatspy-${vid}`,
+      },
+      geometry: src.geometry,
+    });
+    added++;
+  }
+  writeFileSync(highPath, JSON.stringify(high));
+  console.log(`  artcc-boundaries-high.geojson — +${added} VAT-Spy extras`);
+}
+
 async function main() {
   mkdirSync(DATA_DIR, { recursive: true });
   const args = parseArgs(process.argv);
@@ -310,6 +364,9 @@ async function main() {
   writeFileSync(join(DATA_DIR, "artcc-boundaries-uta.geojson"), JSON.stringify(uta));
   console.log(`  artcc-boundaries-high.geojson — ${high.features.length} features`);
   console.log(`  artcc-boundaries-uta.geojson — ${uta.features.length} features`);
+
+  // Squawk/NASR CONUS sources omit Anchorage/Honolulu/San Juan — fill from VAT-Spy.
+  await supplementVatspyExtras(join(DATA_DIR, "artcc-boundaries-high.geojson"));
 
   console.log("Building US ERAM sectors from PERTI / vIFF CDM…");
   for (const [stratum, url] of Object.entries(PERTI_SECTOR_URLS)) {
