@@ -244,6 +244,15 @@
     return false;
   }
 
+  var ARTCC_ID_ALIASES = {
+    PAZA: "ZAN",
+    PHZH: "ZHN",
+    TJZS: "ZUA",
+    HCF: "ZHN",
+    ANC: "ZAN",
+    HNL: "ZHN",
+  };
+
   function ingestBoundaries(geo) {
     var map = Object.create(null);
     (geo && geo.features ? geo.features : []).forEach(function (f) {
@@ -251,6 +260,7 @@
       var id = String(p.id || p.ID || p.prefix || "")
         .toUpperCase()
         .replace(/^K(?=Z)/, "");
+      if (ARTCC_ID_ALIASES[id]) id = ARTCC_ID_ALIASES[id];
       if (!id || !f.geometry) return;
       // Skip oceanic / non-CONUS FIR blobs when id is not a US ARTCC
       if (!/^Z[A-Z]{2}$/.test(id) && !/^(PAZA|PHZH|TJZS)$/.test(id)) return;

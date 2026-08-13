@@ -15,9 +15,22 @@ const polys = new Map();   // ARTCC id -> array of rings [[lat,lon],...] (outer 
 let loaded = false;
 let loading = null;
 
-/** Normalize ARTCC ids: hub/UI often use KZJX; boundary data stores ZJX. */
+/** VAT-Spy FIR / callsign-prefix aliases → FAA short ids in local boundary data. */
+const ARTCC_ID_ALIASES = {
+  PAZA: "ZAN",
+  PHZH: "ZHN",
+  TJZS: "ZUA",
+  HCF: "ZHN",
+  ANC: "ZAN",
+};
+
+/** Normalize ARTCC ids: hub/UI often use KZJX or PAZA; boundary data stores ZJX/ZAN. */
 export function normArtccId(id) {
-  return ("" + (id || "")).toUpperCase().replace(/^K(?=Z)/, "");
+  let s = ("" + (id || "")).toUpperCase().trim();
+  if (!s) return "";
+  if (ARTCC_ID_ALIASES[s]) return ARTCC_ID_ALIASES[s];
+  s = s.replace(/^K(?=Z)/, "");
+  return ARTCC_ID_ALIASES[s] || s;
 }
 
 /** Ray-cast a point against one ring of [lon,lat] GeoJSON coordinates. */
