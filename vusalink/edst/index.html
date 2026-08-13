@@ -113,6 +113,31 @@ a{color:inherit}
 #statusStrip .chk{display:flex;align-items:center;gap:4px;cursor:pointer}
 #statusStrip .mini-btn{border:1px solid #555;background:#111;color:#ccc;padding:1px 8px;font:inherit;cursor:pointer}
 #statusStrip .mini-btn:hover{background:#1a1a1a}
+#statusStrip .mini-btn.open{background:#3a3a3a;border-color:#aaa;color:#fff}
+#statusStrip .mini-btn.muted{opacity:.65}
+
+/* EDST SOUND volume popup */
+#volpop.edst-pop{
+  position:absolute;z-index:70;min-width:220px;width:240px;
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#volpop .edst-pop-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#volpop .edst-pop-hdr .title{letter-spacing:.5px;font-weight:normal}
+#volpop .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:#fff}
+#volpop .edst-pop-hdr .x:hover{background:#333}
+#volpop .volbody{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;background:#1a1a1a;
+}
+#volpop #volRange{flex:1;cursor:pointer;accent-color:#9a9a9a;height:18px}
+#volpop #volPct{
+  min-width:42px;text-align:right;color:#f0f0ec;font-variant-numeric:tabular-nums;
+}
 
 #verifyBar{background:#5a3a00;color:#ffd98a;border:1px solid #8a6320;border-left:4px solid #e0a13b;
   padding:7px 12px;margin:6px 8px;font-size:13px;line-height:1.5}
@@ -1289,6 +1314,7 @@ td.eh-bk{text-align:center;min-width:14px}
   <span class="field" id="viewArtccField"><label>VIEW ARTCC</label><input id="viewArtcc" size="6" autocomplete="off" placeholder="KZJX"></span>
   <button type="button" class="mini-btn" id="btnAdd">+ ADD A/C</button>
   <button type="button" class="mini-btn" id="btnRefresh">REFRESH</button>
+  <button type="button" class="mini-btn" id="btnSound" title="Alert volume (50% is normal)">SOUND</button>
 </div>
 
 <div id="addform" class="hidden">
@@ -1501,6 +1527,18 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="x" data-close="ackmenu" title="Close">X</span>
   </div>
   <div class="ack-list" id="ackList"></div>
+</div>
+
+<!-- SOUND volume popup -->
+<div id="volpop" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">SOUND VOLUME</span>
+    <span class="x" data-close="volpop" title="Close">X</span>
+  </div>
+  <div class="volbody">
+    <input type="range" id="volRange" min="0" max="100" step="5" value="50" title="50% is normal">
+    <span id="volPct">50%</span>
+  </div>
 </div>
 
 <!-- ERAM Message Composition Area (keyboard /U uplinks) -->
@@ -2525,7 +2563,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2839,6 +2877,7 @@ function placePop(el,x,y){
 }
 function close(id){
   const el=document.getElementById(id);if(el)el.classList.add('hidden');
+  if(id==='volpop'&&typeof syncSoundUi==='function')syncSoundUi();
   if(id==='cpdlchist'){
     syncCpdlcLogButtons();
   }
@@ -2886,7 +2925,7 @@ document.addEventListener('pointerdown',ev=>{
       closeAclSortMenu();
     }
   }
-  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu'].forEach(id=>{
+  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu','volpop'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2907,6 +2946,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
+    if(id==='volpop'&&ev.target.closest('#btnSound'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&(ev.target.closest('#btnCpdlcHist')||ev.target.closest('#btnCpdlcMsgout')||ev.target.closest('#btnCpdlcAll')))return;
     if(id==='sigmenu'&&ev.target.closest('#btnSig'))return;
@@ -3834,6 +3874,7 @@ makeEdstDraggable(document.getElementById('routemenu'));
 makeEdstDraggable(document.getElementById('handoffpop'));
 makeEdstDraggable(document.getElementById('msgpop'));
 makeEdstDraggable(document.getElementById('ackmenu'));
+makeEdstDraggable(document.getElementById('volpop'));
 makeEdstDraggable(document.getElementById('depmenu'));
 // MCA uses custom drag (no title bar) — see MCA section below.
 makeEdstDraggable(document.getElementById('gimenu'));
@@ -5857,6 +5898,56 @@ function soundWilcoTimeout(){if(isMuted()||suppressSounds)return;ensureAudio(); 
 function soundLogonReq(){if(isMuted()||suppressSounds)return;ensureAudio();   // re-logon request: distinct two-tone alert
   beep(988,0.13,0,0.42,'square');beep(740,0.13,0.16,0.42,'square');beep(988,0.16,0.32,0.42,'square');}
 ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,ensureAudio,{once:true}));   // unlock on first interaction
+
+function syncSoundUi(){
+  const btn=document.getElementById('btnSound');
+  const pop=document.getElementById('volpop');
+  const open=!!(pop&&!pop.classList.contains('hidden'));
+  if(btn){
+    btn.classList.toggle('open',open);
+    btn.classList.toggle('muted',isMuted());
+    btn.title=isMuted()?'Sound muted — click to set volume':'Alert volume (50% is normal)';
+  }
+}
+function openVolume(){
+  const btn=document.getElementById('btnSound');
+  const pop=document.getElementById('volpop');
+  const r=document.getElementById('volRange');
+  const pct=document.getElementById('volPct');
+  if(!btn||!pop||!r||!pct)return;
+  const v=Math.round(volScale()*50);   // multiplier 1.0 -> 50%, 2.0 -> 100%
+  r.value=String(v);
+  pct.textContent=v+'%';
+  const b=btn.getBoundingClientRect();
+  placePop(pop,b.left,b.bottom+4);
+  syncSoundUi();
+}
+(function wireSoundMenu(){
+  const btn=document.getElementById('btnSound');
+  const r=document.getElementById('volRange');
+  const pct=document.getElementById('volPct');
+  if(btn)btn.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    const p=document.getElementById('volpop');
+    if(p&&!p.classList.contains('hidden')){close('volpop');syncSoundUi();return;}
+    ensureAudio();openVolume();
+  });
+  if(r){
+    r.addEventListener('input',e=>{
+      const wasMuted=isMuted();
+      settings.volume=(+e.target.value)/50;   // 50% -> 1.0x (current), 100% -> 2.0x (double)
+      if(pct)pct.textContent=(+e.target.value)+'%';
+      syncSoundUi();
+      if(isMuted()!==wasMuted){                                       // mute boundary crossed
+        if(isMuted())Object.keys(msgRepeatTimers).forEach(stopMsgRepeat);
+        else msgAlert.forEach(cs=>startMsgRepeat(cs));
+        renderBoard();                                                // W box: solid (muted) vs done
+      }
+    });
+    r.addEventListener('change',()=>{persist();if(!isMuted()){ensureAudio();soundWilco();}});  // save + preview on release
+  }
+  syncSoundUi();
+})();
 
 //============================================================ EDST UTC clock
 function tickEdstClock(){
