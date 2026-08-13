@@ -17,7 +17,11 @@ import {
   saveHubEridsConfig,
   deleteHubEridsConfig,
   chartfoxUrl,
-  shouldOpenInChartViewer,
+  shouldOpenInViewer,
+  isChartfoxUrl,
+  looksLikePdfUrl,
+  fetchProxiedDocument,
+  isPdfContentType,
 } from "./erids-store.js";
 import {
   initVatflowAuth,
@@ -25,12 +29,17 @@ import {
   canEditArtcc,
   login,
 } from "./vatflow-auth.js";
+import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
 
 const SHORTCUTS_KEY = "vatflow.erids.shortcuts.v1";
 const ARTCC_KEY = "vatflow.erids.artcc.v2";
 const MAX_HISTORY = 40;
 const MAX_METARS = 8;
 const CHART_SECTIONS = new Set(["approaches", "sids", "stars", "runways", "charts"]);
+const DOC_SECTIONS = new Set(["docs", "sops", "sop", "home"]);
 
 const PRIMARY_TABS = [
   { id: "facilities", label: "Facilities" },
@@ -88,6 +97,11 @@ const state = {
   viewerOpen: false,
   viewerUrl: "",
   viewerTitle: "",
+  viewerMode: "web", // web | pdf | chart
+  pdfDoc: null,
+  pdfPage: 1,
+  pdfScale: 1.15,
+  viewerBlobUrl: null,
 };
 
 const el = {
@@ -107,6 +121,17 @@ const el = {
   viewerTitle: document.getElementById("eridsViewerTitle"),
   viewerOpen: document.getElementById("eridsViewerOpen"),
   viewerClose: document.getElementById("eridsViewerClose"),
+  viewerLogin: document.getElementById("eridsViewerLogin"),
+  viewerNote: document.getElementById("eridsViewerNote"),
+  viewerLoading: document.getElementById("eridsViewerLoading"),
+  pdfTools: document.getElementById("eridsViewerPdfTools"),
+  pdfPane: document.getElementById("eridsPdfPane"),
+  pdfCanvas: document.getElementById("eridsPdfCanvas"),
+  pdfPrev: document.getElementById("eridsPdfPrev"),
+  pdfNext: document.getElementById("eridsPdfNext"),
+  pdfPageLabel: document.getElementById("eridsPdfPage"),
+  pdfZoomIn: document.getElementById("eridsPdfZoomIn"),
+  pdfZoomOut: document.getElementById("eridsPdfZoomOut"),
 };
 
 function esc(s) {
@@ -254,23 +279,157 @@ async function loadConfig(artcc) {
   state.configUpdatedAt = null;
 }
 
-function openChartViewer(url, title) {
+function revokeViewerBlob() {
+  if (state.viewerBlobUrl) {
+    try {
+      URL.revokeObjectURL(state.viewerBlobUrl);
+    } catch (_) {}
+    state.viewerBlobUrl = null;
+  }
+}
+
+function setViewerLoading(on) {
+  if (el.viewerLoading) el.viewerLoading.hidden = !on;
+}
+
+function setViewerNote(html) {
+  if (!el.viewerNote) return;
+  el.viewerNote.innerHTML = html || "";
+  el.viewerNote.hidden = !html;
+}
+
+function showWebFrame(url) {
+  if (el.pdfTools) el.pdfTools.hidden = true;
+  if (el.pdfPane) el.pdfPane.hidden = true;
+  if (el.viewerFrame) {
+    el.viewerFrame.hidden = false;
+    el.viewerFrame.src = url;
+  }
+}
+
+async function renderPdfPage() {
+  if (!state.pdfDoc || !el.pdfCanvas) return;
+  const page = await state.pdfDoc.getPage(state.pdfPage);
+  const viewport = page.getViewport({ scale: state.pdfScale });
+  const canvas = el.pdfCanvas;
+  const ctx = canvas.getContext("2d");
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  if (el.pdfPageLabel) {
+    el.pdfPageLabel.textContent = state.pdfPage + " / " + state.pdfDoc.numPages;
+  }
+}
+
+async function showPdfFromData(data) {
+  state.viewerMode = "pdf";
+  if (el.viewerFrame) {
+    el.viewerFrame.hidden = true;
+    el.viewerFrame.src = "about:blank";
+  }
+  if (el.pdfPane) el.pdfPane.hidden = false;
+  if (el.pdfTools) el.pdfTools.hidden = false;
+  state.pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+  state.pdfPage = 1;
+  state.pdfScale = 1.15;
+  await renderPdfPage();
+}
+
+async function openDocViewer(url, title, opts = {}) {
+  const section = opts.section || "";
   state.viewerOpen = true;
   state.viewerUrl = url;
-  state.viewerTitle = title || "Charts";
+  state.viewerTitle = title || "Document";
+  state.pdfDoc = null;
+  revokeViewerBlob();
+
   if (el.viewerTitle) el.viewerTitle.textContent = state.viewerTitle;
   if (el.viewerOpen) {
     el.viewerOpen.href = url;
-    el.viewerOpen.textContent = "Open ChartFox";
+    el.viewerOpen.textContent = "Open Externally";
   }
-  if (el.viewerFrame) el.viewerFrame.src = url;
   if (el.viewer) el.viewer.hidden = false;
+
+  const chartMode = isChartfoxUrl(url) || CHART_SECTIONS.has(section);
+  if (el.viewerLogin) el.viewerLogin.hidden = !chartMode;
+
+  setViewerLoading(true);
+  setViewerNote("");
+
+  // Prefer PDF.js via hub proxy for SOP/docs / explicit PDFs.
+  const preferPdf =
+    looksLikePdfUrl(url) || DOC_SECTIONS.has(section) || section === "sops";
+
+  if (preferPdf && isSignedIn()) {
+    try {
+      const proxied = await fetchProxiedDocument(url);
+      if (isPdfContentType(proxied.contentType) || looksLikePdfUrl(url)) {
+        const ab = await proxied.blob.arrayBuffer();
+        // PDF magic
+        const head = new Uint8Array(ab.slice(0, 5));
+        const isPdfMagic =
+          head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46; // %PDF
+        if (isPdfMagic || isPdfContentType(proxied.contentType)) {
+          setViewerNote("Embedded PDF viewer · use Open Externally for print/download.");
+          await showPdfFromData(new Uint8Array(ab));
+          setViewerLoading(false);
+          return;
+        }
+        // HTML or other — show in iframe via blob if text/html, else original URL
+        if (proxied.contentType.includes("html")) {
+          setViewerNote(
+            "This link is a web page (not a direct PDF). Embedding may be blank if the site blocks iframes — use <b>Open Externally</b>. Prefer a direct <code>.pdf</code> URL in Admin for best results."
+          );
+          showWebFrame(url);
+          setViewerLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("ERIDS doc proxy failed:", err);
+      setViewerNote(
+        "Could not proxy document (" +
+          esc((err && err.message) || "error") +
+          "). Trying direct embed — use <b>Open Externally</b> if blank. Sign-in required for PDF proxy."
+      );
+    }
+  } else if (preferPdf && !isSignedIn()) {
+    setViewerNote(
+      "Sign in with VATSIM for in-page PDF embedding. Trying direct view — use <b>Open Externally</b> if blank."
+    );
+  }
+
+  if (chartMode) {
+    state.viewerMode = "chart";
+    setViewerNote(
+      "Charts open in ChartFox. ChartFox blocks embedding on many browsers — use <b>Open Externally</b> / ChartFox Login if the frame is blank."
+    );
+    if (el.viewerOpen) el.viewerOpen.textContent = "Open ChartFox";
+  } else if (!el.viewerNote || !el.viewerNote.innerHTML) {
+    setViewerNote("Embedded document view. If blank, the site blocks framing — use <b>Open Externally</b>.");
+  }
+
+  showWebFrame(url);
+  setViewerLoading(false);
 }
 
-function closeChartViewer() {
+function closeDocViewer() {
   state.viewerOpen = false;
+  state.pdfDoc = null;
+  revokeViewerBlob();
   if (el.viewerFrame) el.viewerFrame.src = "about:blank";
+  if (el.pdfPane) el.pdfPane.hidden = true;
+  if (el.pdfTools) el.pdfTools.hidden = true;
   if (el.viewer) el.viewer.hidden = true;
+  setViewerLoading(false);
+}
+
+/** @deprecated */
+function openChartViewer(url, title) {
+  return openDocViewer(url, title, { section: "charts" });
+}
+function closeChartViewer() {
+  return closeDocViewer();
 }
 
 function defaultChartUrlForFacility(facId) {
@@ -366,10 +525,10 @@ function linkButton(btn, extra = {}) {
   const id =
     extra.id ||
     "btn:" + state.artcc + ":" + (state.facilityId || "home") + ":" + label;
-  const useViewer = shouldOpenInChartViewer(url, { section });
+  const useViewer = shouldOpenInViewer(url, { section });
   const attrs = url
     ? useViewer
-      ? `href="${esc(url)}" data-chart-viewer="1" data-chart-title="${esc(label)}"`
+      ? `href="${esc(url)}" data-doc-viewer="1" data-doc-section="${esc(section)}" data-doc-title="${esc(label)}"`
       : `href="${esc(url)}" target="_blank" rel="noopener noreferrer"`
     : `href="#" aria-disabled="true"`;
   const cls = "erids-btn" + (extra.lg ? " erids-btn-lg" : "");
@@ -400,12 +559,12 @@ function renderApproaches(fac) {
   if (key === "approaches") {
     if (!data.length) {
       return (
-        `<div class="erids-form-row"><button type="button" class="erids-btn erids-btn-lg" data-chart-viewer="1" data-chart-url="${esc(fox)}" data-chart-title="${esc(fac.label + " Charts")}">Open ChartFox — ${esc(fac.label)}</button></div>` +
+        `<div class="erids-form-row"><button type="button" class="erids-btn erids-btn-lg" data-doc-viewer="1" data-doc-section="charts" data-doc-url="${esc(fox)}" data-doc-title="${esc(fac.label + " Charts")}">Open ChartFox — ${esc(fac.label)}</button></div>` +
         `<div class="erids-empty">No approach plate buttons configured. <span class="erids-badge">${esc(state.configSource)}</span></div>`
       );
     }
     return (
-      `<div class="erids-form-row"><button type="button" class="erids-btn" data-chart-viewer="1" data-chart-url="${esc(fox)}" data-chart-title="${esc(fac.label + " Charts")}">ChartFox — ${esc(fac.id)}</button></div>` +
+      `<div class="erids-form-row"><button type="button" class="erids-btn" data-doc-viewer="1" data-doc-section="charts" data-doc-url="${esc(fox)}" data-doc-title="${esc(fac.label + " Charts")}">ChartFox — ${esc(fac.id)}</button></div>` +
       data
         .map((row) => {
           const buttons = row.buttons || [];
@@ -701,7 +860,7 @@ function renderCharts() {
   html += `<div class="erids-facility-grid">`;
   list.forEach((f) => {
     const url = chartfoxUrl(f.id);
-    html += `<button type="button" class="erids-btn erids-btn-lg" data-chart-viewer="1" data-chart-url="${esc(url)}" data-chart-title="${esc(f.label + " — ChartFox")}">${esc(f.label)}<br><span style="font-size:11px;font-weight:600;opacity:.85">${esc(f.id)}</span></button>`;
+    html += `<button type="button" class="erids-btn erids-btn-lg" data-doc-viewer="1" data-doc-section="charts" data-doc-url="${esc(url)}" data-doc-title="${esc(f.label + " — ChartFox")}">${esc(f.label)}<br><span style="font-size:11px;font-weight:600;opacity:.85">${esc(f.id)}</span></button>`;
   });
   html += `</div>`;
 
@@ -859,7 +1018,7 @@ function renderHelp() {
     `<li><b>Bottom icons</b> are always available — Home, Messages, WX, ATC Docs, Charts, Search, Help.</li>` +
     `<li><b>Back</b> steps one level (facility → home, etc.).</li>` +
     `<li><b>Live data:</b> Messages NOTAMs / SIGMETs and WX METARs refresh from existing VATFLOW weather hubs.</li>` +
-    `<li><b>Charts:</b> Approach plates / SIDs / STARs / Charts open ChartFox (<code>chartfox.org/ICAO</code>) inside ERIDS. ChartFox sets <code>X-Frame-Options: SAMEORIGIN</code>, so if the frame is blank use <b>Open ChartFox</b>. ChartFox uses VATSIM Connect on its own — VATFLOW cannot pass your session token.</li>` +
+    `<li><b>Charts / SOPs:</b> ChartFox and document links open in an ERIDS overlay. PDFs use an embedded PDF viewer (sign in required for proxy). Prefer direct <code>.pdf</code> URLs in Admin for best results — HTML pages that block framing need <b>Open Externally</b>.</li>` +
     `<li><b>Admin:</b> ARTCC editors/staff/admins can tap <b>Admin</b> to edit button labels and URLs; saves to the VATFLOW hub so everyone sees updates.</li>` +
     `<li><b>Shortcuts:</b> tap Define Shortcuts, then a facility or link; Show User Shortcuts lists them.</li>` +
     `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s pack (ZJX ships with demo content).</li>` +
@@ -1097,7 +1256,7 @@ function bindEvents() {
   el.artcc.addEventListener("change", () => onArtccChange(el.artcc.value));
   el.back.addEventListener("click", () => {
     if (state.viewerOpen) {
-      closeChartViewer();
+      closeDocViewer();
       return;
     }
     goBack();
@@ -1134,7 +1293,34 @@ function bindEvents() {
   }
 
   if (el.viewerClose) {
-    el.viewerClose.addEventListener("click", () => closeChartViewer());
+    el.viewerClose.addEventListener("click", () => closeDocViewer());
+  }
+
+  if (el.pdfPrev) {
+    el.pdfPrev.addEventListener("click", async () => {
+      if (!state.pdfDoc || state.pdfPage <= 1) return;
+      state.pdfPage -= 1;
+      await renderPdfPage();
+    });
+  }
+  if (el.pdfNext) {
+    el.pdfNext.addEventListener("click", async () => {
+      if (!state.pdfDoc || state.pdfPage >= state.pdfDoc.numPages) return;
+      state.pdfPage += 1;
+      await renderPdfPage();
+    });
+  }
+  if (el.pdfZoomIn) {
+    el.pdfZoomIn.addEventListener("click", async () => {
+      state.pdfScale = Math.min(3, state.pdfScale + 0.2);
+      await renderPdfPage();
+    });
+  }
+  if (el.pdfZoomOut) {
+    el.pdfZoomOut.addEventListener("click", async () => {
+      state.pdfScale = Math.max(0.5, state.pdfScale - 0.2);
+      await renderPdfPage();
+    });
   }
 
   document.querySelectorAll(".erids-icon-btn").forEach((btn) => {
@@ -1171,25 +1357,37 @@ function bindEvents() {
   });
 
   el.main.addEventListener("click", async (ev) => {
-    const chartBtn = ev.target.closest("[data-chart-viewer]");
-    if (chartBtn) {
+    const docBtn = ev.target.closest("[data-doc-viewer],[data-chart-viewer]");
+    if (docBtn) {
       ev.preventDefault();
-      if (state.defineMode && chartBtn.getAttribute("data-shortcut-id")) {
+      if (state.defineMode && docBtn.getAttribute("data-shortcut-id")) {
         maybeCaptureShortcut({
-          id: chartBtn.getAttribute("data-shortcut-id"),
-          label: chartBtn.getAttribute("data-shortcut-label") || "Chart",
-          url: chartBtn.getAttribute("data-chart-url") || chartBtn.getAttribute("href") || "",
+          id: docBtn.getAttribute("data-shortcut-id"),
+          label: docBtn.getAttribute("data-shortcut-label") || "Doc",
+          url:
+            docBtn.getAttribute("data-doc-url") ||
+            docBtn.getAttribute("data-chart-url") ||
+            docBtn.getAttribute("href") ||
+            "",
           view: "",
           facilityId: state.facilityId,
         });
         return;
       }
       const url =
-        chartBtn.getAttribute("data-chart-url") ||
-        chartBtn.getAttribute("href") ||
+        docBtn.getAttribute("data-doc-url") ||
+        docBtn.getAttribute("data-chart-url") ||
+        docBtn.getAttribute("href") ||
         "";
-      const title = chartBtn.getAttribute("data-chart-title") || chartBtn.textContent || "Charts";
-      if (url) openChartViewer(url, title.trim());
+      const title =
+        docBtn.getAttribute("data-doc-title") ||
+        docBtn.getAttribute("data-chart-title") ||
+        docBtn.textContent ||
+        "Document";
+      const section =
+        docBtn.getAttribute("data-doc-section") ||
+        (docBtn.hasAttribute("data-chart-viewer") ? "charts" : "docs");
+      if (url) openDocViewer(url, title.trim(), { section });
       return;
     }
 

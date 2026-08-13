@@ -96,9 +96,76 @@ export function isChartfoxUrl(url) {
   }
 }
 
-/** Prefer ChartFox for procedure/chart-style links. */
-export function shouldOpenInChartViewer(url, context = {}) {
-  if (isChartfoxUrl(url)) return true;
+export function looksLikePdfUrl(url) {
+  const s = String(url || "").toLowerCase();
+  if (!s) return false;
+  if (/\.pdf($|\?|#)/i.test(s)) return true;
+  if (/\/pdf\//i.test(s)) return true;
+  if (/format=pdf|type=pdf|download=pdf/i.test(s)) return true;
+  return false;
+}
+
+/** Open in ERIDS overlay: charts, SOPs/docs, or explicit PDF links. */
+export function shouldOpenInViewer(url, context = {}) {
+  if (isChartfoxUrl(url) || looksLikePdfUrl(url)) return true;
   const section = String(context.section || "").toLowerCase();
-  return ["approaches", "sids", "stars", "runways", "charts", "chart"].includes(section);
+  return [
+    "approaches",
+    "sids",
+    "stars",
+    "runways",
+    "charts",
+    "chart",
+    "docs",
+    "sops",
+    "sop",
+    "home",
+  ].includes(section);
+}
+
+/** @deprecated use shouldOpenInViewer */
+export function shouldOpenInChartViewer(url, context = {}) {
+  return shouldOpenInViewer(url, context);
+}
+
+/**
+ * Fetch a document through the hub proxy (signed-in). Returns blob + contentType.
+ * @param {string} docUrl
+ * @returns {Promise<{blob:Blob, contentType:string, finalUrl:string|null}>}
+ */
+export async function fetchProxiedDocument(docUrl) {
+  const token = getStoredToken();
+  if (!token) throw new Error("Sign in required to embed documents");
+  const res = await fetch(
+    `${hubBase()}/erids/proxy?url=${encodeURIComponent(docUrl)}`,
+    {
+      method: "GET",
+      mode: "cors",
+      credentials: "omit",
+      headers: { authorization: `Bearer ${token}` },
+    }
+  );
+  if (!res.ok) {
+    let err = "proxy_http_" + res.status;
+    try {
+      const j = await res.clone().json();
+      if (j && j.error) err = j.error;
+    } catch (_) {}
+    throw new Error(err);
+  }
+  const contentType = String(res.headers.get("content-type") || "application/octet-stream")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  const buf = await res.arrayBuffer();
+  return {
+    blob: new Blob([buf], { type: contentType || "application/octet-stream" }),
+    contentType,
+    finalUrl: res.headers.get("x-erids-final-url"),
+  };
+}
+
+export function isPdfContentType(ctype) {
+  const c = String(ctype || "").toLowerCase();
+  return c === "application/pdf" || c === "application/x-pdf" || c.includes("pdf");
 }
