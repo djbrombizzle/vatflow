@@ -14,7 +14,7 @@ import {
 } from "./erids-data.js";
 
 const SHORTCUTS_KEY = "vatflow.erids.shortcuts.v1";
-const ARTCC_KEY = "vatflow.erids.artcc.v1";
+const ARTCC_KEY = "vatflow.erids.artcc.v2";
 const MAX_HISTORY = 40;
 const MAX_METARS = 8;
 
@@ -65,7 +65,7 @@ const ICON_VIEWS = new Set([
  *  loadingLive: boolean,
  * }} */
 const state = {
-  artcc: "ZLC",
+  artcc: "ZJX",
   index: null,
   config: null,
   facilityId: null,
@@ -79,7 +79,7 @@ const state = {
   notams: null,
   sigmets: null,
   searchQ: "",
-  wxIcao: "KSLC",
+  wxIcao: "KJAX",
   loadingLive: false,
 };
 
@@ -243,8 +243,8 @@ function fillArtccSelect() {
   const preferred =
     localStorage.getItem(ARTCC_KEY) ||
     (state.index && state.index.defaultArtcc) ||
-    "ZLC";
-  state.artcc = ARTCC_LIST.includes(preferred) ? preferred : "ZLC";
+    "ZJX";
+  state.artcc = ARTCC_LIST.includes(preferred) ? preferred : "ZJX";
   el.artcc.innerHTML = ARTCC_LIST.map(
     (a) =>
       `<option value="${esc(a)}"${a === state.artcc ? " selected" : ""}>${esc(a)}</option>`
@@ -764,7 +764,7 @@ function renderHelp() {
     `<li><b>Live data:</b> Messages NOTAMs / SIGMETs and WX METARs refresh from existing VATFLOW weather hubs.</li>` +
     `<li><b>Static / demo:</b> Approach plates, SOPs, charts, and TM messages are configured in local JSON (admin editor is Part 2).</li>` +
     `<li><b>Shortcuts:</b> tap Define Shortcuts, then a facility or link; Show User Shortcuts lists them.</li>` +
-    `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s static pack when available (ZLC ships with demo content).</li>` +
+    `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s static pack when available (ZJX ships with demo content).</li>` +
     `</ul>` +
     `<p>Designed for iPad / touch: large buttons, persistent navigation, high-contrast navy / yellow chrome.</p>` +
     `</div>`
@@ -815,7 +815,7 @@ async function onArtccChange(artcc) {
   // default WX ICAO from first facility of new config after load
   await loadConfig(artcc);
   const nextFacs = (state.config && state.config.facilities) || [];
-  state.wxIcao = (nextFacs[0] && nextFacs[0].id) || "KSLC";
+  state.wxIcao = (nextFacs[0] && nextFacs[0].id) || "KJAX";
   void facs;
   render();
   refreshLive();
@@ -1027,7 +1027,7 @@ async function init() {
   try {
     await loadIndex();
   } catch (err) {
-    state.index = { artccs: { ZLC: "zlc.json" }, defaultArtcc: "ZLC" };
+    state.index = { artccs: { ZJX: "zjx.json" }, defaultArtcc: "ZJX" };
     console.warn(err);
   }
   fillArtccSelect();
@@ -1044,7 +1044,7 @@ async function init() {
     console.warn(err);
   }
   const facs = (state.config && state.config.facilities) || [];
-  state.wxIcao = (facs[0] && facs[0].id) || "KSLC";
+  state.wxIcao = (facs[0] && facs[0].id) || "KJAX";
   render();
   refreshLive();
 }
