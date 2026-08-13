@@ -16,9 +16,7 @@ import {
   fetchHubEridsConfig,
   saveHubEridsConfig,
   deleteHubEridsConfig,
-  chartfoxUrl,
   shouldOpenInViewer,
-  isChartfoxUrl,
   looksLikePdfUrl,
   fetchProxiedDocument,
   isPdfContentType,
@@ -124,7 +122,6 @@ const el = {
   viewerTitle: document.getElementById("eridsViewerTitle"),
   viewerOpen: document.getElementById("eridsViewerOpen"),
   viewerClose: document.getElementById("eridsViewerClose"),
-  viewerLogin: document.getElementById("eridsViewerLogin"),
   viewerNote: document.getElementById("eridsViewerNote"),
   viewerLoading: document.getElementById("eridsViewerLoading"),
   pdfTools: document.getElementById("eridsViewerPdfTools"),
@@ -353,9 +350,6 @@ async function openDocViewer(url, title, opts = {}) {
   }
   if (el.viewer) el.viewer.hidden = false;
 
-  const chartMode = isChartfoxUrl(url) || CHART_SECTIONS.has(section);
-  if (el.viewerLogin) el.viewerLogin.hidden = !(isChartfoxUrl(url) && chartMode);
-
   setViewerLoading(true);
   setViewerNote("");
 
@@ -364,7 +358,7 @@ async function openDocViewer(url, title, opts = {}) {
     looksLikePdfUrl(url) ||
     DOC_SECTIONS.has(section) ||
     section === "sops" ||
-    (CHART_SECTIONS.has(section) && !isChartfoxUrl(url));
+    CHART_SECTIONS.has(section);
 
   if (preferPdf && isSignedIn()) {
     try {
@@ -405,13 +399,7 @@ async function openDocViewer(url, title, opts = {}) {
     );
   }
 
-  if (isChartfoxUrl(url)) {
-    state.viewerMode = "chart";
-    setViewerNote(
-      "ChartFox blocks embedding in many browsers — use <b>Open Externally</b> / ChartFox Login. Prefer FAA chart PDFs from the Charts tab."
-    );
-    if (el.viewerOpen) el.viewerOpen.textContent = "Open ChartFox";
-  } else if (!el.viewerNote || !el.viewerNote.innerHTML) {
+  if (!el.viewerNote || !el.viewerNote.innerHTML) {
     setViewerNote("Embedded document view. If blank, the site blocks framing — use <b>Open Externally</b>.");
   }
 
@@ -522,7 +510,7 @@ function renderFaaChartSections(icao, codeList, section) {
     return `<div class="erids-empty">Loading FAA charts…</div>`;
   }
   if (entry.status === "error") {
-    return `<div class="erids-empty">FAA chart index unavailable (${esc(entry.error || "error")}). Try again later or use ChartFox externally.</div>`;
+    return `<div class="erids-empty">FAA chart index unavailable (${esc(entry.error || "error")}). Try again later.</div>`;
   }
   if (!charts.length) {
     return `<div class="erids-empty">No FAA d-TPP charts found for ${esc(normalizeIcao(icao))}.</div>`;
@@ -690,7 +678,6 @@ function renderApproaches(fac) {
   const sub = APPROACH_SUBTABS.find((s) => s.id === state.approachSub) || APPROACH_SUBTABS[0];
   const key = sub.key;
   const data = (fac.tabs && fac.tabs[key]) || [];
-  const fox = chartfoxUrl(fac.id);
 
   const faaTypeByKey = {
     approaches: ["IAP", "APD"],
@@ -700,11 +687,7 @@ function renderApproaches(fac) {
   };
 
   if (faaTypeByKey[key]) {
-    let html =
-      `<div class="erids-form-row">` +
-      `<a class="erids-btn" href="${esc(fox)}" target="_blank" rel="noopener noreferrer">ChartFox (external)</a>` +
-      `</div>`;
-    html += renderFaaChartSections(fac.id, faaTypeByKey[key], key === "approaches" ? "approaches" : key);
+    let html = renderFaaChartSections(fac.id, faaTypeByKey[key], key === "approaches" ? "approaches" : key);
 
     // Optional admin-configured buttons still shown below FAA list
     if (key === "approaches" && data.length) {
@@ -718,7 +701,7 @@ function renderApproaches(fac) {
             `<div class="erids-btn-row">${buttons
               .map((b) =>
                 linkButton(
-                  { label: b.label, url: b.url || fox },
+                  { label: b.label, url: b.url || "" },
                   { section: "approaches", facilityId: fac.id }
                 )
               )
@@ -997,7 +980,7 @@ function renderCharts() {
   let html =
     `<h1 class="erids-view-title">Charts — ${esc(state.artcc)}</h1>` +
     `<div class="erids-crumb">Charts · FAA d-TPP</div>` +
-    `<p class="erids-meta">Official FAA terminal procedure PDFs (airport diagram, approaches, SIDs, STARs). Sign in to embed in-page; ChartFox remains available externally.</p>`;
+    `<p class="erids-meta">Official FAA terminal procedure PDFs (airport diagram, approaches, SIDs, STARs). Sign in to embed in-page.</p>`;
 
   if (!list.length) {
     html += `<div class="erids-empty">No facilities configured.</div>`;
@@ -1014,11 +997,9 @@ function renderCharts() {
   }
 
   const f = fac || list[0];
-  const fox = chartfoxUrl(f.id);
   html +=
     `<div class="erids-form-row">` +
     `<span class="erids-badge">${esc(f.id)}</span>` +
-    `<a class="erids-btn" href="${esc(fox)}" target="_blank" rel="noopener noreferrer">ChartFox (external)</a>` +
     `</div>`;
   html += renderFaaChartSections(f.id, ["APD", "IAP", "DP", "STR", "MIN"], "charts");
 
@@ -1029,7 +1010,7 @@ function renderCharts() {
       `<div class="erids-btn-row">${f.tabs.charts
         .map((b) =>
           linkButton(
-            { label: b.label, url: b.url || fox },
+            { label: b.label, url: b.url || "" },
             { section: "charts", facilityId: f.id }
           )
         )
@@ -1176,7 +1157,7 @@ function renderHelp() {
     `<li><b>Bottom icons</b> are always available — Home, Messages, WX, ATC Docs, Charts, Search, Help.</li>` +
     `<li><b>Back</b> steps one level (facility → home, etc.).</li>` +
     `<li><b>Live data:</b> Messages NOTAMs / SIGMETs and WX METARs refresh from existing VATFLOW weather hubs.</li>` +
-    `<li><b>Charts / SOPs:</b> Charts load official FAA d-TPP PDFs (airport diagram, approaches, SIDs, STARs) in the embedded viewer (sign in required for proxy). ChartFox is still linked as an optional external fallback. Prefer direct <code>.pdf</code> URLs in Admin for SOPs — HTML pages that block framing need <b>Open Externally</b>.</li>` +
+    `<li><b>Charts / SOPs:</b> Charts load official FAA d-TPP PDFs (airport diagram, approaches, SIDs, STARs) in the embedded viewer (sign in required for proxy). Prefer direct <code>.pdf</code> URLs in Admin for SOPs — HTML pages that block framing need <b>Open Externally</b>.</li>` +
     `<li><b>Admin:</b> ARTCC editors/staff/admins can tap <b>Admin</b> to edit button labels and URLs; saves to the VATFLOW hub so everyone sees updates.</li>` +
     `<li><b>Shortcuts:</b> tap Define Shortcuts, then a facility or link; Show User Shortcuts lists them.</li>` +
     `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s pack (ZJX ships with demo content).</li>` +
@@ -1264,8 +1245,7 @@ function renderAdmin() {
     return html;
   }
 
-  const fox = chartfoxUrl(fac.id);
-  html += `<p class="erids-meta">FAA charts auto-load from the digital TPP for ${esc(fac.id)}. Optional ChartFox: <a href="${esc(fox)}" target="_blank" rel="noopener">${esc(fox)}</a>. Custom Admin links below are optional overrides.</p>`;
+  html += `<p class="erids-meta">FAA charts auto-load from the digital TPP for ${esc(fac.id)}. Custom Admin links below are optional overrides.</p>`;
 
   // Approaches by runway
   html += `<div class="erids-admin-section"><div class="erids-section-bar">Approach plates (by runway)</div>`;
@@ -1607,7 +1587,7 @@ function bindEvents() {
       if (!Array.isArray(fac.tabs.approaches)) fac.tabs.approaches = [];
       fac.tabs.approaches.push({
         runway: "??",
-        buttons: [{ label: "ILS", url: chartfoxUrl(fac.id) }],
+        buttons: [{ label: "ILS", url: "" }],
       });
       render();
       return;
@@ -1622,7 +1602,7 @@ function bindEvents() {
       if (!Array.isArray(fac.tabs[addGroup])) fac.tabs[addGroup] = [];
       fac.tabs[addGroup].push({
         group: "New group",
-        buttons: [{ label: "New link", url: chartfoxUrl(fac.id) }],
+        buttons: [{ label: "New link", url: "" }],
       });
       render();
       return;
@@ -1633,10 +1613,9 @@ function bindEvents() {
       ev.preventDefault();
       const resolved = resolveAdminPath(addPath);
       if (!resolved) return;
-      const fac = adminFacility();
       resolved.list.push({
         label: "New link",
-        url: fac ? chartfoxUrl(fac.id) : "",
+        url: "",
       });
       render();
       return;
