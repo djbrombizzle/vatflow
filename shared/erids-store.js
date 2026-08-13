@@ -169,3 +169,30 @@ export function isPdfContentType(ctype) {
   const c = String(ctype || "").toLowerCase();
   return c === "application/pdf" || c === "application/x-pdf" || c.includes("pdf");
 }
+
+/**
+ * FAA digital Terminal Procedures Publication charts for an airport.
+ * @param {string} icao
+ * @param {string} [types] comma-separated chart_code filter e.g. "IAP,APD"
+ * @returns {Promise<{ok:boolean, cycle:string, icao:string, charts:Array<{code:string,name:string,pdf:string,url:string}>}>}
+ */
+export async function fetchFaaCharts(icao, types = "") {
+  const id = String(icao || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  if (!id) throw new Error("icao_required");
+  const qs = new URLSearchParams({ icao: id });
+  if (types) qs.set("type", String(types));
+  const res = await fetch(`${hubBase()}/erids/faa-charts?${qs}`, {
+    method: "GET",
+    mode: "cors",
+    credentials: "omit",
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    throw new Error((data && data.error) || "faa_charts_http_" + res.status);
+  }
+  return data;
+}

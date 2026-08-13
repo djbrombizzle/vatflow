@@ -22,6 +22,7 @@ import {
   looksLikePdfUrl,
   fetchProxiedDocument,
   isPdfContentType,
+  fetchFaaCharts,
 } from "./erids-store.js";
 import {
   initVatflowAuth,
@@ -102,6 +103,8 @@ const state = {
   pdfPage: 1,
   pdfScale: 1.15,
   viewerBlobUrl: null,
+  /** @type {Record<string, {status:string, cycle?:string, charts?:any[], error?:string}>} */
+  faaCharts: {},
 };
 
 const el = {
@@ -351,14 +354,17 @@ async function openDocViewer(url, title, opts = {}) {
   if (el.viewer) el.viewer.hidden = false;
 
   const chartMode = isChartfoxUrl(url) || CHART_SECTIONS.has(section);
-  if (el.viewerLogin) el.viewerLogin.hidden = !chartMode;
+  if (el.viewerLogin) el.viewerLogin.hidden = !(isChartfoxUrl(url) && chartMode);
 
   setViewerLoading(true);
   setViewerNote("");
 
-  // Prefer PDF.js via hub proxy for SOP/docs / explicit PDFs.
+  // Prefer PDF.js via hub proxy for SOP/docs / explicit PDFs / FAA charts.
   const preferPdf =
-    looksLikePdfUrl(url) || DOC_SECTIONS.has(section) || section === "sops";
+    looksLikePdfUrl(url) ||
+    DOC_SECTIONS.has(section) ||
+    section === "sops" ||
+    (CHART_SECTIONS.has(section) && !isChartfoxUrl(url));
 
   if (preferPdf && isSignedIn()) {
     try {
@@ -399,10 +405,10 @@ async function openDocViewer(url, title, opts = {}) {
     );
   }
 
-  if (chartMode) {
+  if (isChartfoxUrl(url)) {
     state.viewerMode = "chart";
     setViewerNote(
-      "Charts open in ChartFox. ChartFox blocks embedding on many browsers — use <b>Open Externally</b> / ChartFox Login if the frame is blank."
+      "ChartFox blocks embedding in many browsers — use <b>Open Externally</b> / ChartFox Login. Prefer FAA chart PDFs from the Charts tab."
     );
     if (el.viewerOpen) el.viewerOpen.textContent = "Open ChartFox";
   } else if (!el.viewerNote || !el.viewerNote.innerHTML) {
@@ -433,7 +439,137 @@ function closeChartViewer() {
 }
 
 function defaultChartUrlForFacility(facId) {
-  return chartfoxUrl(facId || state.facilityId || "KJAX");
+  const id = facId || state.facilityId || "KJAX";
+  const entry = state.faaCharts[normalizeIcao(id)];
+  const charts = (entry && entry.charts) || [];
+  const apd = charts.find((c) => c.code === "APD");
+  if (apd && apd.url) return apd.url;
+  return "";
+}
+
+const FAA_CODE_LABELS = {
+  APD: "Airport Diagram",
+  IAP: "Approaches",
+  DP: "SIDs",
+  STR: "STARs",
+  MIN: "Minimums",
+};
+
+function runwayFromChartName(name) {
+  const m = String(name || "").match(/\bRWY\s+(\d{1,2}[LCR]?)\b/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/**
+ * Ensure FAA d-TPP chart list is loaded for an airport; re-renders when done.
+ * @param {string} icao
+ */
+function ensureFaaCharts(icao) {
+  const id = normalizeIcao(icao);
+  if (!id) return;
+  const cur = state.faaCharts[id];
+  if (cur && (cur.status === "loading" || cur.status === "ok")) return;
+  state.faaCharts[id] = { status: "loading", charts: [] };
+  fetchFaaCharts(id)
+    .then((data) => {
+      state.faaCharts[id] = {
+        status: "ok",
+        cycle: data.cycle,
+        charts: data.charts || [],
+      };
+      render();
+    })
+    .catch((err) => {
+      state.faaCharts[id] = {
+        status: "error",
+        charts: [],
+        error: (err && err.message) || "failed",
+      };
+      render();
+    });
+}
+
+function faaChartsFor(icao, codes) {
+  const id = normalizeIcao(icao);
+  ensureFaaCharts(id);
+  const entry = state.faaCharts[id] || { status: "loading", charts: [] };
+  let charts = entry.charts || [];
+  if (codes && codes.length) {
+    const want = new Set(codes.map((c) => String(c).toUpperCase()));
+    charts = charts.filter((c) => want.has(c.code));
+  }
+  return { id, entry, charts };
+}
+
+function renderFaaChartButtons(charts, section) {
+  if (!charts.length) return "";
+  return (
+    `<div class="erids-btn-row">` +
+    charts
+      .map((c) => {
+        const label = c.name || c.pdf;
+        const title = `${c.code} — ${label}`;
+        return `<button type="button" class="erids-btn" data-doc-viewer="1" data-doc-section="${esc(section)}" data-doc-url="${esc(c.url)}" data-doc-title="${esc(title)}">${esc(label)}</button>`;
+      })
+      .join("") +
+    `</div>`
+  );
+}
+
+function renderFaaChartSections(icao, codeList, section) {
+  const { entry, charts } = faaChartsFor(icao, codeList);
+  if (entry.status === "loading") {
+    return `<div class="erids-empty">Loading FAA charts…</div>`;
+  }
+  if (entry.status === "error") {
+    return `<div class="erids-empty">FAA chart index unavailable (${esc(entry.error || "error")}). Try again later or use ChartFox externally.</div>`;
+  }
+  if (!charts.length) {
+    return `<div class="erids-empty">No FAA d-TPP charts found for ${esc(normalizeIcao(icao))}.</div>`;
+  }
+
+  const byCode = {};
+  charts.forEach((c) => {
+    if (!byCode[c.code]) byCode[c.code] = [];
+    byCode[c.code].push(c);
+  });
+
+  let html = "";
+  if (entry.cycle) {
+    html += `<p class="erids-meta">FAA d-TPP cycle ${esc(entry.cycle)} · embedded PDF (sign in for best results)</p>`;
+  }
+
+  const order = codeList && codeList.length ? codeList : Object.keys(byCode);
+  order.forEach((code) => {
+    const list = byCode[code];
+    if (!list || !list.length) return;
+    const heading = FAA_CODE_LABELS[code] || code;
+    if (code === "IAP") {
+      const byRwy = new Map();
+      list.forEach((c) => {
+        const rwy = runwayFromChartName(c.name) || "Other";
+        if (!byRwy.has(rwy)) byRwy.set(rwy, []);
+        byRwy.get(rwy).push(c);
+      });
+      html += `<div class="erids-section-bar">${esc(heading)}</div>`;
+      [...byRwy.keys()]
+        .sort((a, b) => {
+          if (a === "Other") return 1;
+          if (b === "Other") return -1;
+          return a.localeCompare(b, undefined, { numeric: true });
+        })
+        .forEach((rwy) => {
+          html +=
+            `<div class="erids-runway-block">` +
+            `<span class="erids-runway-label">${esc(rwy === "Other" ? "Other" : "RWY " + rwy)}</span>` +
+            renderFaaChartButtons(byRwy.get(rwy), section) +
+            `</div>`;
+        });
+      return;
+    }
+    html += `<div class="erids-section-bar">${esc(heading)}</div>` + renderFaaChartButtons(list, section);
+  });
+  return html;
 }
 
 async function refreshLive() {
@@ -556,16 +692,24 @@ function renderApproaches(fac) {
   const data = (fac.tabs && fac.tabs[key]) || [];
   const fox = chartfoxUrl(fac.id);
 
-  if (key === "approaches") {
-    if (!data.length) {
-      return (
-        `<div class="erids-form-row"><button type="button" class="erids-btn erids-btn-lg" data-doc-viewer="1" data-doc-section="charts" data-doc-url="${esc(fox)}" data-doc-title="${esc(fac.label + " Charts")}">Open ChartFox — ${esc(fac.label)}</button></div>` +
-        `<div class="erids-empty">No approach plate buttons configured. <span class="erids-badge">${esc(state.configSource)}</span></div>`
-      );
-    }
-    return (
-      `<div class="erids-form-row"><button type="button" class="erids-btn" data-doc-viewer="1" data-doc-section="charts" data-doc-url="${esc(fox)}" data-doc-title="${esc(fac.label + " Charts")}">ChartFox — ${esc(fac.id)}</button></div>` +
-      data
+  const faaTypeByKey = {
+    approaches: ["IAP", "APD"],
+    sids: ["DP"],
+    stars: ["STR"],
+    runways: ["APD", "MIN"],
+  };
+
+  if (faaTypeByKey[key]) {
+    let html =
+      `<div class="erids-form-row">` +
+      `<a class="erids-btn" href="${esc(fox)}" target="_blank" rel="noopener noreferrer">ChartFox (external)</a>` +
+      `</div>`;
+    html += renderFaaChartSections(fac.id, faaTypeByKey[key], key === "approaches" ? "approaches" : key);
+
+    // Optional admin-configured buttons still shown below FAA list
+    if (key === "approaches" && data.length) {
+      html += `<div class="erids-section-bar">Configured plate links</div>`;
+      html += data
         .map((row) => {
           const buttons = row.buttons || [];
           return (
@@ -582,8 +726,11 @@ function renderApproaches(fac) {
             `</div>`
           );
         })
-        .join("")
-    );
+        .join("");
+    } else if (key !== "approaches" && Array.isArray(data) && data.length) {
+      html += `<div class="erids-section-bar">Configured links</div>` + renderButtonGroups(data, key);
+    }
+    return html;
   }
 
   if (Array.isArray(data) && data[0] && data[0].buttons && !data[0].runway) {
@@ -849,30 +996,41 @@ function renderCharts() {
 
   let html =
     `<h1 class="erids-view-title">Charts — ${esc(state.artcc)}</h1>` +
-    `<div class="erids-crumb">Charts · ChartFox</div>` +
-    `<p class="erids-meta">Airport charts open inside ERIDS via ChartFox (<code>chartfox.org/ICAO</code>).</p>`;
+    `<div class="erids-crumb">Charts · FAA d-TPP</div>` +
+    `<p class="erids-meta">Official FAA terminal procedure PDFs (airport diagram, approaches, SIDs, STARs). Sign in to embed in-page; ChartFox remains available externally.</p>`;
 
   if (!list.length) {
     html += `<div class="erids-empty">No facilities configured.</div>`;
     return html;
   }
 
-  html += `<div class="erids-facility-grid">`;
-  list.forEach((f) => {
-    const url = chartfoxUrl(f.id);
-    html += `<button type="button" class="erids-btn erids-btn-lg" data-doc-viewer="1" data-doc-section="charts" data-doc-url="${esc(url)}" data-doc-title="${esc(f.label + " — ChartFox")}">${esc(f.label)}<br><span style="font-size:11px;font-weight:600;opacity:.85">${esc(f.id)}</span></button>`;
-  });
-  html += `</div>`;
+  if (!fac && facilities.length > 1) {
+    html += `<div class="erids-facility-grid">`;
+    facilities.forEach((f) => {
+      html += `<button type="button" class="erids-btn erids-btn-lg" data-goto-facility="${esc(f.id)}" data-goto-view="charts">${esc(f.label)}<br><span style="font-size:11px;font-weight:600;opacity:.85">${esc(f.id)}</span></button>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  const f = fac || list[0];
+  const fox = chartfoxUrl(f.id);
+  html +=
+    `<div class="erids-form-row">` +
+    `<span class="erids-badge">${esc(f.id)}</span>` +
+    `<a class="erids-btn" href="${esc(fox)}" target="_blank" rel="noopener noreferrer">ChartFox (external)</a>` +
+    `</div>`;
+  html += renderFaaChartSections(f.id, ["APD", "IAP", "DP", "STR", "MIN"], "charts");
 
   // Optional custom chart buttons from config
-  if (fac && fac.tabs && fac.tabs.charts && fac.tabs.charts.length) {
+  if (f.tabs && f.tabs.charts && f.tabs.charts.length) {
     html +=
       `<div class="erids-section-bar">Configured chart links</div>` +
-      `<div class="erids-btn-row">${fac.tabs.charts
+      `<div class="erids-btn-row">${f.tabs.charts
         .map((b) =>
           linkButton(
-            { label: b.label, url: b.url || chartfoxUrl(fac.id) },
-            { section: "charts", facilityId: fac.id }
+            { label: b.label, url: b.url || fox },
+            { section: "charts", facilityId: f.id }
           )
         )
         .join("")}</div>`;
@@ -1018,7 +1176,7 @@ function renderHelp() {
     `<li><b>Bottom icons</b> are always available — Home, Messages, WX, ATC Docs, Charts, Search, Help.</li>` +
     `<li><b>Back</b> steps one level (facility → home, etc.).</li>` +
     `<li><b>Live data:</b> Messages NOTAMs / SIGMETs and WX METARs refresh from existing VATFLOW weather hubs.</li>` +
-    `<li><b>Charts / SOPs:</b> ChartFox and document links open in an ERIDS overlay. PDFs use an embedded PDF viewer (sign in required for proxy). Prefer direct <code>.pdf</code> URLs in Admin for best results — HTML pages that block framing need <b>Open Externally</b>.</li>` +
+    `<li><b>Charts / SOPs:</b> Charts load official FAA d-TPP PDFs (airport diagram, approaches, SIDs, STARs) in the embedded viewer (sign in required for proxy). ChartFox is still linked as an optional external fallback. Prefer direct <code>.pdf</code> URLs in Admin for SOPs — HTML pages that block framing need <b>Open Externally</b>.</li>` +
     `<li><b>Admin:</b> ARTCC editors/staff/admins can tap <b>Admin</b> to edit button labels and URLs; saves to the VATFLOW hub so everyone sees updates.</li>` +
     `<li><b>Shortcuts:</b> tap Define Shortcuts, then a facility or link; Show User Shortcuts lists them.</li>` +
     `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s pack (ZJX ships with demo content).</li>` +
@@ -1107,7 +1265,7 @@ function renderAdmin() {
   }
 
   const fox = chartfoxUrl(fac.id);
-  html += `<p class="erids-meta">Default ChartFox URL for ${esc(fac.id)}: <a href="${esc(fox)}" target="_blank" rel="noopener">${esc(fox)}</a></p>`;
+  html += `<p class="erids-meta">FAA charts auto-load from the digital TPP for ${esc(fac.id)}. Optional ChartFox: <a href="${esc(fox)}" target="_blank" rel="noopener">${esc(fox)}</a>. Custom Admin links below are optional overrides.</p>`;
 
   // Approaches by runway
   html += `<div class="erids-admin-section"><div class="erids-section-bar">Approach plates (by runway)</div>`;
@@ -1497,7 +1655,7 @@ function bindEvents() {
     }
 
     const t = ev.target.closest(
-      "[data-open-facility],[data-goto-tab],[data-goto-view],[data-del-metar],[data-shortcut-id],#eridsWxGet,#eridsRefreshLive,#eridsClearShortcuts"
+      "[data-open-facility],[data-goto-facility],[data-goto-tab],[data-goto-view],[data-del-metar],[data-shortcut-id],#eridsWxGet,#eridsRefreshLive,#eridsClearShortcuts"
     );
     if (!t) return;
 
@@ -1543,6 +1701,16 @@ function bindEvents() {
         view: "facility",
         facilityId: openFac,
         primaryTab: "facilities",
+      });
+      return;
+    }
+
+    const gotoFac = t.getAttribute("data-goto-facility");
+    if (gotoFac) {
+      ev.preventDefault();
+      navigate({
+        view: t.getAttribute("data-goto-view") || "charts",
+        facilityId: gotoFac,
       });
       return;
     }
