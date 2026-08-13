@@ -67,15 +67,25 @@
 <div id="eridsViewer" class="erids-viewer" hidden>
   <div class="erids-viewer-bar">
     <button type="button" class="erids-util-btn" id="eridsViewerClose">◀ Close</button>
-    <div class="erids-viewer-title" id="eridsViewerTitle">Charts</div>
-    <a class="erids-util-btn is-accent" id="eridsViewerOpen" href="#" target="_blank" rel="noopener noreferrer">Open ChartFox</a>
-    <a class="erids-util-btn" id="eridsViewerLogin" href="https://chartfox.org/login" target="_blank" rel="noopener noreferrer">ChartFox Login</a>
+    <div class="erids-viewer-title" id="eridsViewerTitle">Document</div>
+    <div class="erids-viewer-pdf-tools" id="eridsViewerPdfTools" hidden>
+      <button type="button" class="erids-util-btn" id="eridsPdfPrev" title="Previous page">◀</button>
+      <span class="erids-viewer-page" id="eridsPdfPage">1 / 1</span>
+      <button type="button" class="erids-util-btn" id="eridsPdfNext" title="Next page">▶</button>
+      <button type="button" class="erids-util-btn" id="eridsPdfZoomOut" title="Zoom out">−</button>
+      <button type="button" class="erids-util-btn" id="eridsPdfZoomIn" title="Zoom in">+</button>
+    </div>
+    <a class="erids-util-btn is-accent" id="eridsViewerOpen" href="#" target="_blank" rel="noopener noreferrer">Open Externally</a>
+    <a class="erids-util-btn" id="eridsViewerLogin" href="https://chartfox.org/login" target="_blank" rel="noopener noreferrer" hidden>ChartFox Login</a>
   </div>
-  <div class="erids-viewer-note" id="eridsViewerNote">
-    Charts open in ChartFox. ChartFox blocks embedding in other sites, so if the frame is blank use <b>Open ChartFox</b>.
-    ChartFox uses VATSIM Connect separately from VATFLOW — sign in once there (same VATSIM account).
+  <div class="erids-viewer-note" id="eridsViewerNote"></div>
+  <div class="erids-viewer-body">
+    <iframe id="eridsViewerFrame" class="erids-viewer-frame" title="Embedded document" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
+    <div id="eridsPdfPane" class="erids-pdf-pane" hidden>
+      <canvas id="eridsPdfCanvas"></canvas>
+    </div>
+    <div id="eridsViewerLoading" class="erids-viewer-loading" hidden>Loading document…</div>
   </div>
-  <iframe id="eridsViewerFrame" class="erids-viewer-frame" title="ChartFox charts" referrerpolicy="no-referrer-when-downgrade"></iframe>
 </div>
 
 <script src="shared/edst-notams.js"></script>
