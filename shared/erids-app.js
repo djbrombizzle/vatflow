@@ -358,22 +358,14 @@ function renderChrome() {
 
 function linkButton(btn, extra = {}) {
   const label = btn.label || "Link";
-  let url = btn.url || "";
   const section = extra.section || "";
-  if ((!url || shouldOpenInChartViewer(url, { section })) && CHART_SECTIONS.has(section)) {
-    if (!url || shouldOpenInChartViewer(url, { section })) {
-      // Prefer ChartFox airport page for procedure/chart sections when URL empty or already ChartFox
-      if (!url) url = defaultChartUrlForFacility(extra.facilityId || state.facilityId);
-    }
+  let url = btn.url || "";
+  if (CHART_SECTIONS.has(section) && !url) {
+    url = defaultChartUrlForFacility(extra.facilityId || state.facilityId);
   }
   const id =
     extra.id ||
-    "btn:" +
-      state.artcc +
-      ":" +
-      (state.facilityId || "home") +
-      ":" +
-      label;
+    "btn:" + state.artcc + ":" + (state.facilityId || "home") + ":" + label;
   const useViewer = shouldOpenInChartViewer(url, { section });
   const attrs = url
     ? useViewer
