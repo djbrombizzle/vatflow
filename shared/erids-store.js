@@ -76,26 +76,6 @@ export async function deleteHubEridsConfig(artcc) {
   return data;
 }
 
-/** ChartFox airport page — plates/SIDs/STARs live here. */
-export function chartfoxUrl(icao) {
-  const id = String(icao || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-  if (!id) return "https://chartfox.org/";
-  const full = id.length === 3 ? "K" + id : id;
-  return "https://chartfox.org/" + full;
-}
-
-export function isChartfoxUrl(url) {
-  try {
-    const u = new URL(url, "https://chartfox.org");
-    return /(^|\.)chartfox\.org$/i.test(u.hostname);
-  } catch {
-    return /chartfox\.org/i.test(String(url || ""));
-  }
-}
-
 export function looksLikePdfUrl(url) {
   const s = String(url || "").toLowerCase();
   if (!s) return false;
@@ -107,7 +87,7 @@ export function looksLikePdfUrl(url) {
 
 /** Open in ERIDS overlay: charts, SOPs/docs, or explicit PDF links. */
 export function shouldOpenInViewer(url, context = {}) {
-  if (isChartfoxUrl(url) || looksLikePdfUrl(url)) return true;
+  if (looksLikePdfUrl(url)) return true;
   const section = String(context.section || "").toLowerCase();
   return [
     "approaches",
