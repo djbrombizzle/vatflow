@@ -262,6 +262,7 @@
         .replace(/^K(?=Z)/, "");
       if (ARTCC_ID_ALIASES[id]) id = ARTCC_ID_ALIASES[id];
       if (!id || !f.geometry) return;
+      if (p.mapHighlightOnly || id.indexOf("-") !== -1) return;
       // Skip oceanic / non-CONUS FIR blobs when id is not a US ARTCC
       if (!/^Z[A-Z]{2}$/.test(id) && !/^(PAZA|PHZH|TJZS)$/.test(id)) return;
       var g = f.geometry;

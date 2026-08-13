@@ -267,6 +267,32 @@ async function fetchMapData() {
   if (!res.ok) throw new Error((data && data.error) || ("hub map HTTP " + res.status));
   return data;
 }
+/** Miami North-only CTR positions (VAT-Spy KZMA-N): MIA_N / MIA_N1..N9 / ZMA_CTR. */
+function isMiaNorthOnlyCallsign(cs) {
+  cs = (cs || "").toUpperCase();
+  return /^MIA_N\d*_CTR$/.test(cs) || cs === "ZMA_CTR";
+}
+/** Any Miami ARTCC CTR/FSS family callsign (MIA / ZMA / ZMO). */
+function isMiaFamilyCallsign(cs) {
+  cs = (cs || "").toUpperCase();
+  if (!(cs.endsWith("_CTR") || cs.endsWith("_FSS"))) return false;
+  return /^(MIA|ZMA|ZMO)_/.test(cs);
+}
+/**
+ * CPDLC Miami highlight scope for LIVE MAP:
+ *  - 'north' — only MIA_N*_CTR (or ZMA_CTR) online → highlight ZMA-N only
+ *  - 'full'  — any other MIA CTR (or ZMO) → full ZMA incl. oceanic to SJU
+ *  - null    — no Miami CPDLC controllers
+ */
+function miaMapScope(controllers) {
+  const mia = [];
+  for (const c of controllers || []) {
+    const cs = (c.callsign || "").toUpperCase();
+    if (isMiaFamilyCallsign(cs)) mia.push(cs);
+  }
+  if (!mia.length) return null;
+  return mia.every(isMiaNorthOnlyCallsign) ? "north" : "full";
+}
 function renderMapSvg(bnd, data, statsEl) {
   const svg = document.getElementById("mapSvg");
   if (!svg) return;
@@ -274,9 +300,20 @@ function renderMapSvg(bnd, data, statsEl) {
   const flights = (data && data.flights) || [];
   const onKusa = flights.filter(f => f.connected).length;
   const myArtcc = ""; // view-only page — no controller highlight
+  const controllers = (data && data.controllers) || [];
+  const miaScope = miaMapScope(controllers);
   const ctrlByArtcc = {};
-  ((data && data.controllers) || []).forEach(c => {
-    if (c.artcc && c.callsign) ctrlByArtcc[normArtccId(c.artcc)] = c.callsign;
+  const miaCallsigns = [];
+  controllers.forEach(c => {
+    if (c.artcc && c.callsign) {
+      const id = normArtccId(c.artcc);
+      ctrlByArtcc[id] = c.callsign;
+      if (isMiaFamilyCallsign(c.callsign)) {
+        miaCallsigns.push(c.callsign);
+        ctrlByArtcc["ZMA"] = c.callsign;
+        ctrlByArtcc["ZMA-N"] = c.callsign;
+      }
+    }
   });
   if (statsEl) {
     const hubNote = data ? "" : " · traffic unavailable";
@@ -285,14 +322,31 @@ function renderMapSvg(bnd, data, statsEl) {
   }
   let html = "";
   Object.keys(bnd).sort().forEach(id => {
+    // ZMA-N is a highlight overlay only — drawn after the full ZMA outline.
+    if (id === "ZMA-N") return;
     let cls = "map-artcc";
-    if (staffed.has(id)) cls += " map-artcc-staffed";
+    let lit = staffed.has(id);
+    if (id === "ZMA") {
+      if (miaScope === "full") lit = true;
+      else if (miaScope === "north") lit = false;
+      else lit = staffed.has("ZMA") || staffed.has("ZMA-OCN");
+    }
+    if (lit) cls += " map-artcc-staffed";
     if (myArtcc && id === myArtcc) cls += " map-artcc-mine";
-    const tip = id + (staffed.has(id) ? (" · CPDLC: " + (ctrlByArtcc[id] || "active")) : "");
+    let tip = id;
+    if (id === "ZMA" && miaCallsigns.length) tip += " · CPDLC: " + miaCallsigns.join(", ");
+    else if (lit) tip += " · CPDLC: " + (ctrlByArtcc[id] || "active");
     mapGeomPaths(bnd[id]).forEach(d => {
       if (d) html += `<path class="${cls}" data-artcc="${id}" d="${d}"><title>${esc(tip)}</title></path>`;
     });
   });
+  // North-only CPDLC: light ZMA-N (domestic) without the oceanic corridor to SJU.
+  if (miaScope === "north" && bnd["ZMA-N"]) {
+    const tip = "ZMA-N · CPDLC: " + (miaCallsigns.join(", ") || ctrlByArtcc["ZMA-N"] || "active");
+    mapGeomPaths(bnd["ZMA-N"]).forEach(d => {
+      if (d) html += `<path class="map-artcc map-artcc-staffed" data-artcc="ZMA-N" d="${d}"><title>${esc(tip)}</title></path>`;
+    });
+  }
   flights.forEach(f => {
     if (f.lat == null || f.lon == null) return;
     const xy = mapProj(f.lon, f.lat);
