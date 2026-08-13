@@ -29,6 +29,7 @@
     <button type="button" class="erids-util-btn is-hot" id="eridsShowShortcuts" title="Show saved shortcuts">Show User Shortcuts</button>
     <button type="button" class="erids-util-btn is-accent" id="eridsContractions" title="ATC contractions search">Contractions Search</button>
     <button type="button" class="erids-util-btn is-accent" id="eridsFacilityQuick" hidden>Facility</button>
+    <button type="button" class="erids-util-btn" id="eridsAdminBtn" hidden title="Edit button links for this ARTCC">Admin</button>
   </div>
 
   <nav class="erids-icons" aria-label="Primary navigation">
@@ -61,6 +62,20 @@
       Help
     </button>
   </nav>
+</div>
+
+<div id="eridsViewer" class="erids-viewer" hidden>
+  <div class="erids-viewer-bar">
+    <button type="button" class="erids-util-btn" id="eridsViewerClose">◀ Close</button>
+    <div class="erids-viewer-title" id="eridsViewerTitle">Charts</div>
+    <a class="erids-util-btn is-accent" id="eridsViewerOpen" href="#" target="_blank" rel="noopener noreferrer">Open ChartFox</a>
+    <a class="erids-util-btn" id="eridsViewerLogin" href="https://chartfox.org/login" target="_blank" rel="noopener noreferrer">ChartFox Login</a>
+  </div>
+  <div class="erids-viewer-note" id="eridsViewerNote">
+    Charts open in ChartFox. ChartFox blocks embedding in other sites, so if the frame is blank use <b>Open ChartFox</b>.
+    ChartFox uses VATSIM Connect separately from VATFLOW — sign in once there (same VATSIM account).
+  </div>
+  <iframe id="eridsViewerFrame" class="erids-viewer-frame" title="ChartFox charts" referrerpolicy="no-referrer-when-downgrade"></iframe>
 </div>
 
 <script src="shared/edst-notams.js"></script>

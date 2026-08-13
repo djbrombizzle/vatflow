@@ -12,11 +12,25 @@ import {
   formatUpdatedStamp,
   normalizeIcao,
 } from "./erids-data.js";
+import {
+  fetchHubEridsConfig,
+  saveHubEridsConfig,
+  deleteHubEridsConfig,
+  chartfoxUrl,
+  shouldOpenInChartViewer,
+} from "./erids-store.js";
+import {
+  initVatflowAuth,
+  isSignedIn,
+  canEditArtcc,
+  login,
+} from "./vatflow-auth.js";
 
 const SHORTCUTS_KEY = "vatflow.erids.shortcuts.v1";
 const ARTCC_KEY = "vatflow.erids.artcc.v2";
 const MAX_HISTORY = 40;
 const MAX_METARS = 8;
+const CHART_SECTIONS = new Set(["approaches", "sids", "stars", "runways", "charts"]);
 
 const PRIMARY_TABS = [
   { id: "facilities", label: "Facilities" },
@@ -44,30 +58,20 @@ const ICON_VIEWS = new Set([
   "help",
   "shortcuts",
   "contractions",
+  "admin",
 ]);
 
-/** @type {{
- *  artcc: string,
- *  index: object|null,
- *  config: object|null,
- *  facilityId: string|null,
- *  primaryTab: string,
- *  approachSub: string,
- *  view: string,
- *  history: object[],
- *  defineMode: boolean,
- *  showShortcuts: boolean,
- *  metars: object[],
- *  notams: object|null,
- *  sigmets: object|null,
- *  searchQ: string,
- *  wxIcao: string,
- *  loadingLive: boolean,
- * }} */
+/** @type {any} */
 const state = {
   artcc: "ZJX",
   index: null,
   config: null,
+  configSource: "static",
+  configUpdatedAt: null,
+  bundledConfig: null,
+  adminFacilityId: null,
+  adminStatus: "",
+  adminStatusKind: "",
   facilityId: null,
   primaryTab: "facilities",
   approachSub: "plates",
@@ -81,6 +85,9 @@ const state = {
   searchQ: "",
   wxIcao: "KJAX",
   loadingLive: false,
+  viewerOpen: false,
+  viewerUrl: "",
+  viewerTitle: "",
 };
 
 const el = {
@@ -94,6 +101,12 @@ const el = {
   showSc: document.getElementById("eridsShowShortcuts"),
   contractions: document.getElementById("eridsContractions"),
   facilityQuick: document.getElementById("eridsFacilityQuick"),
+  adminBtn: document.getElementById("eridsAdminBtn"),
+  viewer: document.getElementById("eridsViewer"),
+  viewerFrame: document.getElementById("eridsViewerFrame"),
+  viewerTitle: document.getElementById("eridsViewerTitle"),
+  viewerOpen: document.getElementById("eridsViewerOpen"),
+  viewerClose: document.getElementById("eridsViewerClose"),
 };
 
 function esc(s) {
@@ -200,11 +213,11 @@ async function loadIndex() {
   state.index = await res.json();
 }
 
-async function loadConfig(artcc) {
+async function loadBundledConfig(artcc) {
   const map = (state.index && state.index.artccs) || {};
   const file = map[artcc];
   if (!file) {
-    state.config = {
+    return {
       artcc,
       label: artcc,
       facilities: [],
@@ -212,11 +225,56 @@ async function loadConfig(artcc) {
       tmMessages: [],
       contractions: [],
     };
-    return;
   }
   const res = await fetch("data/erids/" + file, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to load " + file);
-  state.config = await res.json();
+  return res.json();
+}
+
+async function loadConfig(artcc) {
+  const bundled = await loadBundledConfig(artcc);
+  state.bundledConfig = structuredClone
+    ? structuredClone(bundled)
+    : JSON.parse(JSON.stringify(bundled));
+
+  try {
+    const hub = await fetchHubEridsConfig(artcc);
+    if (hub && hub.ok && hub.config) {
+      state.config = hub.config;
+      state.configSource = "hub";
+      state.configUpdatedAt = hub.updatedAt || null;
+      return;
+    }
+  } catch (err) {
+    console.warn("ERIDS hub config unavailable:", err);
+  }
+
+  state.config = bundled;
+  state.configSource = "static";
+  state.configUpdatedAt = null;
+}
+
+function openChartViewer(url, title) {
+  state.viewerOpen = true;
+  state.viewerUrl = url;
+  state.viewerTitle = title || "Charts";
+  if (el.viewerTitle) el.viewerTitle.textContent = state.viewerTitle;
+  if (el.viewerOpen) {
+    el.viewerOpen.href = url;
+    el.viewerOpen.textContent = "Open ChartFox";
+  }
+  if (el.viewerFrame) el.viewerFrame.src = url;
+  if (el.viewer) el.viewer.hidden = false;
+}
+
+function closeChartViewer() {
+  state.viewerOpen = false;
+  if (el.viewerFrame) el.viewerFrame.src = "about:blank";
+  if (el.viewer) el.viewer.hidden = true;
+}
+
+function defaultChartUrlForFacility(facId) {
+  return chartfoxUrl(facId || state.facilityId || "KJAX");
 }
 
 async function refreshLive() {
@@ -290,36 +348,44 @@ function renderChrome() {
   } else {
     el.facilityQuick.hidden = true;
   }
+
+  if (el.adminBtn) {
+    el.adminBtn.hidden = false;
+    el.adminBtn.textContent = canEditArtcc(state.artcc) ? "Admin" : "Admin";
+    el.adminBtn.classList.toggle("is-active", state.view === "admin");
+  }
 }
 
 function linkButton(btn, extra = {}) {
   const label = btn.label || "Link";
-  const url = btn.url || "";
+  const section = extra.section || "";
+  let url = btn.url || "";
+  if (CHART_SECTIONS.has(section) && !url) {
+    url = defaultChartUrlForFacility(extra.facilityId || state.facilityId);
+  }
   const id =
     extra.id ||
-    "btn:" +
-      state.artcc +
-      ":" +
-      (state.facilityId || "home") +
-      ":" +
-      label;
+    "btn:" + state.artcc + ":" + (state.facilityId || "home") + ":" + label;
+  const useViewer = shouldOpenInChartViewer(url, { section });
   const attrs = url
-    ? `href="${esc(url)}" target="_blank" rel="noopener noreferrer"`
+    ? useViewer
+      ? `href="${esc(url)}" data-chart-viewer="1" data-chart-title="${esc(label)}"`
+      : `href="${esc(url)}" target="_blank" rel="noopener noreferrer"`
     : `href="#" aria-disabled="true"`;
   const cls = "erids-btn" + (extra.lg ? " erids-btn-lg" : "");
   return `<a class="${cls}" data-shortcut-id="${esc(id)}" data-shortcut-label="${esc(label)}" data-shortcut-url="${esc(url)}" data-shortcut-view="${esc(extra.view || "")}" ${attrs}>${esc(label)}</a>`;
 }
 
-function renderButtonGroups(groups) {
+function renderButtonGroups(groups, section = "") {
   if (!groups || !groups.length) {
-    return `<div class="erids-empty">No items configured for this section. <span class="erids-badge">static / demo</span></div>`;
+    return `<div class="erids-empty">No items configured for this section. <span class="erids-badge">${esc(state.configSource)}</span></div>`;
   }
   return groups
     .map((g) => {
       const buttons = g.buttons || [];
       return (
         `<div class="erids-section-bar">${esc(g.group || "Links")}</div>` +
-        `<div class="erids-btn-row">${buttons.map((b) => linkButton(b)).join("") || `<span class="erids-empty">Empty group</span>`}</div>`
+        `<div class="erids-btn-row">${buttons.map((b) => linkButton(b, { section })).join("") || `<span class="erids-empty">Empty group</span>`}</div>`
       );
     })
     .join("");
@@ -329,29 +395,42 @@ function renderApproaches(fac) {
   const sub = APPROACH_SUBTABS.find((s) => s.id === state.approachSub) || APPROACH_SUBTABS[0];
   const key = sub.key;
   const data = (fac.tabs && fac.tabs[key]) || [];
+  const fox = chartfoxUrl(fac.id);
 
   if (key === "approaches") {
     if (!data.length) {
-      return `<div class="erids-empty">No approach plates configured. <span class="erids-badge">static / demo</span></div>`;
+      return (
+        `<div class="erids-form-row"><button type="button" class="erids-btn erids-btn-lg" data-chart-viewer="1" data-chart-url="${esc(fox)}" data-chart-title="${esc(fac.label + " Charts")}">Open ChartFox — ${esc(fac.label)}</button></div>` +
+        `<div class="erids-empty">No approach plate buttons configured. <span class="erids-badge">${esc(state.configSource)}</span></div>`
+      );
     }
-    return data
-      .map((row) => {
-        const buttons = row.buttons || [];
-        return (
-          `<div class="erids-runway-block">` +
-          `<span class="erids-runway-label">${esc(row.runway)}</span>` +
-          `<div class="erids-btn-row">${buttons.map((b) => linkButton(b)).join("")}</div>` +
-          `</div>`
-        );
-      })
-      .join("");
+    return (
+      `<div class="erids-form-row"><button type="button" class="erids-btn" data-chart-viewer="1" data-chart-url="${esc(fox)}" data-chart-title="${esc(fac.label + " Charts")}">ChartFox — ${esc(fac.id)}</button></div>` +
+      data
+        .map((row) => {
+          const buttons = row.buttons || [];
+          return (
+            `<div class="erids-runway-block">` +
+            `<span class="erids-runway-label">${esc(row.runway)}</span>` +
+            `<div class="erids-btn-row">${buttons
+              .map((b) =>
+                linkButton(
+                  { label: b.label, url: b.url || fox },
+                  { section: "approaches", facilityId: fac.id }
+                )
+              )
+              .join("")}</div>` +
+            `</div>`
+          );
+        })
+        .join("")
+    );
   }
 
-  // SIDs / STARs / Runways use group shape
   if (Array.isArray(data) && data[0] && data[0].buttons && !data[0].runway) {
-    return renderButtonGroups(data);
+    return renderButtonGroups(data, key);
   }
-  return renderButtonGroups(data);
+  return renderButtonGroups(data, key);
 }
 
 function renderFacilityTab() {
@@ -378,23 +457,23 @@ function renderFacilityTab() {
   } else if (tab === "approaches") {
     title = `Approach Plate Information (by runway) — ${fac.label}`;
     body =
-      `<span class="erids-badge">static / demo</span>` +
+      `<span class="erids-badge">${esc(state.configSource)}</span>` +
       renderApproaches(fac);
   } else if (tab === "comm") {
     title = `Communications — ${fac.label}`;
     body =
-      `<span class="erids-badge">static / demo</span>` +
-      renderButtonGroups((fac.tabs && fac.tabs.comm) || []);
+      `<span class="erids-badge">${esc(state.configSource)}</span>` +
+      renderButtonGroups((fac.tabs && fac.tabs.comm) || [], "comm");
   } else if (tab === "remarks") {
     title = `Remarks — ${fac.label}`;
     body =
-      `<span class="erids-badge">static / demo</span>` +
-      renderButtonGroups((fac.tabs && fac.tabs.remarks) || []);
+      `<span class="erids-badge">${esc(state.configSource)}</span>` +
+      renderButtonGroups((fac.tabs && fac.tabs.remarks) || [], "remarks");
   } else if (tab === "towerData") {
     title = `Tower Data — ${fac.label}`;
     body =
-      `<span class="erids-badge">static / demo</span>` +
-      renderButtonGroups((fac.tabs && fac.tabs.towerData) || []);
+      `<span class="erids-badge">${esc(state.configSource)}</span>` +
+      renderButtonGroups((fac.tabs && fac.tabs.towerData) || [], "towerData");
   } else if (tab === "facilityNotams") {
     title = `NOTAMs — ${fac.label}`;
     body = renderFacilityNotamsHint(fac);
@@ -451,9 +530,10 @@ function renderHome() {
       grouped[g].push(b);
     });
     html +=
-      `<span class="erids-badge">static / demo</span>` +
+      `<span class="erids-badge">${esc(state.configSource)}</span>` +
       renderButtonGroups(
-        Object.keys(grouped).map((g) => ({ group: g, buttons: grouped[g] }))
+        Object.keys(grouped).map((g) => ({ group: g, buttons: grouped[g] })),
+        "docs"
       );
   }
 
@@ -499,7 +579,7 @@ function renderMessages() {
         .join("")}</ul>`
     : `<div class="erids-empty">0 of 0</div>`;
 
-  html += `<div class="erids-section-bar">TM Messages <span class="erids-badge">static / demo</span></div>`;
+  html += `<div class="erids-section-bar">TM Messages <span class="erids-badge">${esc(state.configSource)}</span></div>`;
   html += tm.length
     ? `<ul class="erids-msg-list">${tm
         .map(
@@ -584,11 +664,11 @@ function renderDocs() {
   let html =
     `<h1 class="erids-view-title">ATC Docs — ${esc(state.artcc)}${fac ? " / " + fac.label : ""}</h1>` +
     `<div class="erids-crumb">ATC Docs</div>` +
-    `<span class="erids-badge">static / demo</span>`;
+    `<span class="erids-badge">${esc(state.configSource)}</span>`;
 
   if (!fac) {
     html += `<p class="erids-meta">Showing center-level links. Open a facility for local SOPs.</p>`;
-    html += renderButtonGroups(centerGroups);
+    html += renderButtonGroups(centerGroups, "docs");
     const allFacSops = ((state.config && state.config.facilities) || []).flatMap(
       (f) =>
         ((f.tabs && f.tabs.sops) || []).map((g) => ({
@@ -596,32 +676,49 @@ function renderDocs() {
           buttons: g.buttons || [],
         }))
     );
-    html += renderButtonGroups(allFacSops);
+    html += renderButtonGroups(allFacSops, "docs");
   } else {
-    html += renderButtonGroups(centerGroups.concat(facGroups));
+    html += renderButtonGroups(centerGroups.concat(facGroups), "docs");
   }
   return html;
 }
 
 function renderCharts() {
   const fac = currentFacility();
-  let groups = [];
-  if (fac && fac.tabs && fac.tabs.charts && fac.tabs.charts.length) {
-    groups.push({
-      group: fac.label + " Charts",
-      buttons: fac.tabs.charts,
-    });
-  } else {
-    groups = ((state.config && state.config.facilities) || [])
-      .filter((f) => f.tabs && f.tabs.charts && f.tabs.charts.length)
-      .map((f) => ({ group: f.label + " Charts", buttons: f.tabs.charts }));
-  }
-  return (
+  const facilities = (state.config && state.config.facilities) || [];
+  const list = fac ? [fac] : facilities;
+
+  let html =
     `<h1 class="erids-view-title">Charts — ${esc(state.artcc)}</h1>` +
-    `<div class="erids-crumb">Charts</div>` +
-    `<span class="erids-badge">static / demo</span>` +
-    renderButtonGroups(groups)
-  );
+    `<div class="erids-crumb">Charts · ChartFox</div>` +
+    `<p class="erids-meta">Airport charts open inside ERIDS via ChartFox (<code>chartfox.org/ICAO</code>).</p>`;
+
+  if (!list.length) {
+    html += `<div class="erids-empty">No facilities configured.</div>`;
+    return html;
+  }
+
+  html += `<div class="erids-facility-grid">`;
+  list.forEach((f) => {
+    const url = chartfoxUrl(f.id);
+    html += `<button type="button" class="erids-btn erids-btn-lg" data-chart-viewer="1" data-chart-url="${esc(url)}" data-chart-title="${esc(f.label + " — ChartFox")}">${esc(f.label)}<br><span style="font-size:11px;font-weight:600;opacity:.85">${esc(f.id)}</span></button>`;
+  });
+  html += `</div>`;
+
+  // Optional custom chart buttons from config
+  if (fac && fac.tabs && fac.tabs.charts && fac.tabs.charts.length) {
+    html +=
+      `<div class="erids-section-bar">Configured chart links</div>` +
+      `<div class="erids-btn-row">${fac.tabs.charts
+        .map((b) =>
+          linkButton(
+            { label: b.label, url: b.url || chartfoxUrl(fac.id) },
+            { section: "charts", facilityId: fac.id }
+          )
+        )
+        .join("")}</div>`;
+  }
+  return html;
 }
 
 function collectSearchIndex() {
@@ -762,13 +859,161 @@ function renderHelp() {
     `<li><b>Bottom icons</b> are always available — Home, Messages, WX, ATC Docs, Charts, Search, Help.</li>` +
     `<li><b>Back</b> steps one level (facility → home, etc.).</li>` +
     `<li><b>Live data:</b> Messages NOTAMs / SIGMETs and WX METARs refresh from existing VATFLOW weather hubs.</li>` +
-    `<li><b>Static / demo:</b> Approach plates, SOPs, charts, and TM messages are configured in local JSON (admin editor is Part 2).</li>` +
+    `<li><b>Charts:</b> Approach plates / SIDs / STARs / Charts open ChartFox (<code>chartfox.org/ICAO</code>) inside ERIDS. ChartFox sets <code>X-Frame-Options: SAMEORIGIN</code>, so if the frame is blank use <b>Open ChartFox</b>. ChartFox uses VATSIM Connect on its own — VATFLOW cannot pass your session token.</li>` +
+    `<li><b>Admin:</b> ARTCC editors/staff/admins can tap <b>Admin</b> to edit button labels and URLs; saves to the VATFLOW hub so everyone sees updates.</li>` +
     `<li><b>Shortcuts:</b> tap Define Shortcuts, then a facility or link; Show User Shortcuts lists them.</li>` +
-    `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s static pack when available (ZJX ships with demo content).</li>` +
+    `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s pack (ZJX ships with demo content).</li>` +
     `</ul>` +
-    `<p>Designed for iPad / touch: large buttons, persistent navigation, high-contrast navy / yellow chrome.</p>` +
     `</div>`
   );
+}
+
+function adminFacility() {
+  const list = (state.config && state.config.facilities) || [];
+  const id = state.adminFacilityId || (list[0] && list[0].id) || null;
+  return list.find((f) => f.id === id) || null;
+}
+
+function renderAdminButtonEditor(path, buttons) {
+  const rows = (buttons || [])
+    .map((b, i) => {
+      return (
+        `<div class="erids-admin-row">` +
+        `<input data-admin-path="${esc(path)}" data-admin-idx="${i}" data-admin-field="label" value="${esc(b.label || "")}" placeholder="Label">` +
+        `<input data-admin-path="${esc(path)}" data-admin-idx="${i}" data-admin-field="url" value="${esc(b.url || "")}" placeholder="https://…">` +
+        `<button type="button" class="erids-btn" data-admin-del="${esc(path)}" data-admin-idx="${i}" style="min-height:40px">Del</button>` +
+        `</div>`
+      );
+    })
+    .join("");
+  return (
+    rows +
+    `<div class="erids-form-row"><button type="button" class="erids-btn" data-admin-add="${esc(path)}">+ Add button</button></div>`
+  );
+}
+
+function renderAdmin() {
+  const canEdit = canEditArtcc(state.artcc);
+  const facs = (state.config && state.config.facilities) || [];
+  if (!state.adminFacilityId && facs[0]) state.adminFacilityId = facs[0].id;
+  const fac = adminFacility();
+
+  let html =
+    `<h1 class="erids-view-title">Admin — ${esc(state.artcc)} links</h1>` +
+    `<div class="erids-crumb">Admin</div>` +
+    `<p class="erids-meta">Source: ${esc(state.configSource)}${state.configUpdatedAt ? " · hub updated " + esc(state.configUpdatedAt) : ""}</p>`;
+
+  if (!isSignedIn()) {
+    html +=
+      `<div class="erids-empty">Sign in with VATSIM to edit ERIDS links.</div>` +
+      `<div class="erids-form-row"><button type="button" class="erids-btn erids-btn-lg" id="eridsAdminLogin">Sign in with VATSIM</button></div>`;
+    return html;
+  }
+
+  if (!canEdit) {
+    html += `<div class="erids-empty">Your account cannot edit ${esc(state.artcc)}. Need editor/staff whitelist for this ARTCC (or global admin).</div>`;
+    return html;
+  }
+
+  html +=
+    `<div class="erids-form-row">` +
+    `<button type="button" class="erids-btn erids-btn-lg" id="eridsAdminSave">Save to hub</button>` +
+    `<button type="button" class="erids-btn" id="eridsAdminReload">Reload</button>` +
+    `<button type="button" class="erids-btn" id="eridsAdminReset">Reset to bundled</button>` +
+    `</div>` +
+    `<div class="erids-admin-status ${esc(state.adminStatusKind)}" id="eridsAdminStatus">${esc(state.adminStatus)}</div>`;
+
+  // Center home buttons
+  html += `<div class="erids-admin-section"><div class="erids-section-bar">Center home buttons</div>`;
+  html += renderAdminButtonEditor("homeButtons", (state.config && state.config.homeButtons) || []);
+  html += `</div>`;
+
+  // Facility picker
+  html +=
+    `<div class="erids-form-row">` +
+    `<label class="erids-artcc-label" for="eridsAdminFac">Facility</label>` +
+    `<select id="eridsAdminFac" class="erids-artcc-select">` +
+    facs
+      .map(
+        (f) =>
+          `<option value="${esc(f.id)}"${f.id === state.adminFacilityId ? " selected" : ""}>${esc(f.label)} (${esc(f.id)})</option>`
+      )
+      .join("") +
+    `</select></div>`;
+
+  if (!fac) {
+    html += `<div class="erids-empty">No facilities in this pack.</div>`;
+    return html;
+  }
+
+  const fox = chartfoxUrl(fac.id);
+  html += `<p class="erids-meta">Default ChartFox URL for ${esc(fac.id)}: <a href="${esc(fox)}" target="_blank" rel="noopener">${esc(fox)}</a></p>`;
+
+  // Approaches by runway
+  html += `<div class="erids-admin-section"><div class="erids-section-bar">Approach plates (by runway)</div>`;
+  const approaches = (fac.tabs && fac.tabs.approaches) || [];
+  approaches.forEach((row, ri) => {
+    html += `<div class="erids-section-bar" style="background:#2a2a4a">RWY ${esc(row.runway)}</div>`;
+    html += renderAdminButtonEditor(`fac.${fac.id}.approaches.${ri}`, row.buttons || []);
+  });
+  html += `<div class="erids-form-row"><button type="button" class="erids-btn" id="eridsAdminAddRwy">+ Add runway row</button></div>`;
+  html += `</div>`;
+
+  // Other grouped tabs
+  ["sids", "stars", "runways", "sops", "comm", "remarks", "towerData"].forEach((key) => {
+    const groups = (fac.tabs && fac.tabs[key]) || [];
+    html += `<div class="erids-admin-section"><div class="erids-section-bar">${esc(key)}</div>`;
+    if (!groups.length) {
+      html += `<div class="erids-empty">No groups. <button type="button" class="erids-btn" data-admin-add-group="${esc(key)}">+ Add group</button></div>`;
+    } else {
+      groups.forEach((g, gi) => {
+        html +=
+          `<div class="erids-form-row"><input data-admin-group-label="${esc(key)}" data-admin-gi="${gi}" value="${esc(g.group || "")}" placeholder="Group label" style="flex:1;min-height:40px;padding:6px 10px;background:#000010;border:2px solid var(--erids-blue-edge);border-radius:4px;color:var(--erids-yellow)"></div>`;
+        html += renderAdminButtonEditor(`fac.${fac.id}.${key}.${gi}`, g.buttons || []);
+      });
+      html += `<div class="erids-form-row"><button type="button" class="erids-btn" data-admin-add-group="${esc(key)}">+ Add group</button></div>`;
+    }
+    html += `</div>`;
+  });
+
+  // Charts list (flat buttons)
+  html += `<div class="erids-admin-section"><div class="erids-section-bar">charts (flat)</div>`;
+  html += renderAdminButtonEditor(`fac.${fac.id}.charts`, (fac.tabs && fac.tabs.charts) || []);
+  html += `</div>`;
+
+  return html;
+}
+
+function resolveAdminPath(path) {
+  if (!state.config) return null;
+  if (path === "homeButtons") {
+    if (!Array.isArray(state.config.homeButtons)) state.config.homeButtons = [];
+    return { list: state.config.homeButtons };
+  }
+  const m = /^fac\.([A-Z0-9]+)\.(approaches|sids|stars|runways|sops|comm|remarks|towerData|charts)(?:\.(\d+))?$/.exec(path);
+  if (!m) return null;
+  const fac = ((state.config.facilities) || []).find((f) => f.id === m[1]);
+  if (!fac) return null;
+  if (!fac.tabs) fac.tabs = {};
+  const key = m[2];
+  if (key === "charts") {
+    if (!Array.isArray(fac.tabs.charts)) fac.tabs.charts = [];
+    return { list: fac.tabs.charts, fac, key };
+  }
+  if (key === "approaches") {
+    if (!Array.isArray(fac.tabs.approaches)) fac.tabs.approaches = [];
+    const idx = Number(m[3]);
+    const row = fac.tabs.approaches[idx];
+    if (!row) return null;
+    if (!Array.isArray(row.buttons)) row.buttons = [];
+    return { list: row.buttons, fac, key, row };
+  }
+  if (!Array.isArray(fac.tabs[key])) fac.tabs[key] = [];
+  const gi = Number(m[3]);
+  const group = fac.tabs[key][gi];
+  if (!group) return null;
+  if (!Array.isArray(group.buttons)) group.buttons = [];
+  return { list: group.buttons, fac, key, group };
 }
 
 function renderMain() {
@@ -793,6 +1038,8 @@ function renderMain() {
       return renderShortcuts();
     case "help":
       return renderHelp();
+    case "admin":
+      return renderAdmin();
     default:
       return renderHome();
   }
@@ -847,7 +1094,13 @@ async function getMetar() {
 
 function bindEvents() {
   el.artcc.addEventListener("change", () => onArtccChange(el.artcc.value));
-  el.back.addEventListener("click", () => goBack());
+  el.back.addEventListener("click", () => {
+    if (state.viewerOpen) {
+      closeChartViewer();
+      return;
+    }
+    goBack();
+  });
 
   el.define.addEventListener("click", () => {
     state.defineMode = !state.defineMode;
@@ -872,6 +1125,16 @@ function bindEvents() {
       approachSub: "plates",
     });
   });
+
+  if (el.adminBtn) {
+    el.adminBtn.addEventListener("click", () => {
+      navigate({ view: "admin" });
+    });
+  }
+
+  if (el.viewerClose) {
+    el.viewerClose.addEventListener("click", () => closeChartViewer());
+  }
 
   document.querySelectorAll(".erids-icon-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -906,7 +1169,134 @@ function bindEvents() {
     });
   });
 
-  el.main.addEventListener("click", (ev) => {
+  el.main.addEventListener("click", async (ev) => {
+    const chartBtn = ev.target.closest("[data-chart-viewer]");
+    if (chartBtn) {
+      ev.preventDefault();
+      if (state.defineMode && chartBtn.getAttribute("data-shortcut-id")) {
+        maybeCaptureShortcut({
+          id: chartBtn.getAttribute("data-shortcut-id"),
+          label: chartBtn.getAttribute("data-shortcut-label") || "Chart",
+          url: chartBtn.getAttribute("data-chart-url") || chartBtn.getAttribute("href") || "",
+          view: "",
+          facilityId: state.facilityId,
+        });
+        return;
+      }
+      const url =
+        chartBtn.getAttribute("data-chart-url") ||
+        chartBtn.getAttribute("href") ||
+        "";
+      const title = chartBtn.getAttribute("data-chart-title") || chartBtn.textContent || "Charts";
+      if (url) openChartViewer(url, title.trim());
+      return;
+    }
+
+    if (ev.target.id === "eridsAdminLogin") {
+      ev.preventDefault();
+      login(location.pathname + location.search + "#admin");
+      return;
+    }
+    if (ev.target.id === "eridsAdminSave") {
+      ev.preventDefault();
+      try {
+        state.adminStatus = "Saving…";
+        state.adminStatusKind = "";
+        render();
+        const result = await saveHubEridsConfig(state.artcc, state.config);
+        state.configSource = "hub";
+        state.configUpdatedAt = result.updatedAt || new Date().toISOString();
+        state.adminStatus = "Saved to hub.";
+        state.adminStatusKind = "ok";
+      } catch (err) {
+        state.adminStatus = (err && err.message) || "Save failed";
+        state.adminStatusKind = "err";
+      }
+      render();
+      return;
+    }
+    if (ev.target.id === "eridsAdminReload") {
+      ev.preventDefault();
+      await loadConfig(state.artcc);
+      state.adminStatus = "Reloaded.";
+      state.adminStatusKind = "ok";
+      render();
+      return;
+    }
+    if (ev.target.id === "eridsAdminReset") {
+      ev.preventDefault();
+      try {
+        await deleteHubEridsConfig(state.artcc);
+      } catch (_) {
+        /* hub may not have a pack yet */
+      }
+      if (state.bundledConfig) {
+        state.config = structuredClone
+          ? structuredClone(state.bundledConfig)
+          : JSON.parse(JSON.stringify(state.bundledConfig));
+      }
+      state.configSource = "static";
+      state.configUpdatedAt = null;
+      state.adminStatus = "Reset to bundled JSON.";
+      state.adminStatusKind = "ok";
+      render();
+      return;
+    }
+    if (ev.target.id === "eridsAdminAddRwy") {
+      ev.preventDefault();
+      const fac = adminFacility();
+      if (!fac) return;
+      if (!fac.tabs) fac.tabs = {};
+      if (!Array.isArray(fac.tabs.approaches)) fac.tabs.approaches = [];
+      fac.tabs.approaches.push({
+        runway: "??",
+        buttons: [{ label: "ILS", url: chartfoxUrl(fac.id) }],
+      });
+      render();
+      return;
+    }
+
+    const addGroup = ev.target.getAttribute && ev.target.getAttribute("data-admin-add-group");
+    if (addGroup) {
+      ev.preventDefault();
+      const fac = adminFacility();
+      if (!fac) return;
+      if (!fac.tabs) fac.tabs = {};
+      if (!Array.isArray(fac.tabs[addGroup])) fac.tabs[addGroup] = [];
+      fac.tabs[addGroup].push({
+        group: "New group",
+        buttons: [{ label: "New link", url: chartfoxUrl(fac.id) }],
+      });
+      render();
+      return;
+    }
+
+    const addPath = ev.target.getAttribute && ev.target.getAttribute("data-admin-add");
+    if (addPath) {
+      ev.preventDefault();
+      const resolved = resolveAdminPath(addPath);
+      if (!resolved) return;
+      const fac = adminFacility();
+      resolved.list.push({
+        label: "New link",
+        url: fac ? chartfoxUrl(fac.id) : "",
+      });
+      render();
+      return;
+    }
+
+    const delPath = ev.target.getAttribute && ev.target.getAttribute("data-admin-del");
+    if (delPath != null && ev.target.hasAttribute("data-admin-idx")) {
+      ev.preventDefault();
+      const resolved = resolveAdminPath(delPath);
+      const idx = Number(ev.target.getAttribute("data-admin-idx"));
+      if (resolved && !isNaN(idx)) {
+        resolved.list.splice(idx, 1);
+        render();
+      }
+      return;
+    }
+
     const t = ev.target.closest(
       "[data-open-facility],[data-goto-tab],[data-goto-view],[data-del-metar],[data-shortcut-id],#eridsWxGet,#eridsRefreshLive,#eridsClearShortcuts"
     );
@@ -985,19 +1375,19 @@ function bindEvents() {
     }
   });
 
-  el.main.addEventListener("keydown", (ev) => {
-    if (ev.key !== "Enter") return;
-    if (ev.target && ev.target.id === "eridsWxIcao") {
-      ev.preventDefault();
-      getMetar();
+  el.main.addEventListener("change", (ev) => {
+    if (ev.target && ev.target.id === "eridsAdminFac") {
+      state.adminFacilityId = ev.target.value;
+      render();
     }
   });
 
   el.main.addEventListener("input", (ev) => {
-    if (ev.target && ev.target.id === "eridsSearchQ") {
-      state.searchQ = ev.target.value;
-      // re-render but keep focus/caret roughly — simple approach
-      const pos = ev.target.selectionStart;
+    const t = ev.target;
+    if (!t) return;
+    if (t.id === "eridsSearchQ") {
+      state.searchQ = t.value;
+      const pos = t.selectionStart;
       render();
       const again = document.getElementById("eridsSearchQ");
       if (again) {
@@ -1006,10 +1396,43 @@ function bindEvents() {
           again.setSelectionRange(pos, pos);
         } catch (_) {}
       }
+      return;
     }
+    if (t.id === "eridsWxIcao") {
+      state.wxIcao = t.value;
+      return;
+    }
+    if (t.hasAttribute("data-admin-field")) {
+      const path = t.getAttribute("data-admin-path");
+      const idx = Number(t.getAttribute("data-admin-idx"));
+      const field = t.getAttribute("data-admin-field");
+      const resolved = resolveAdminPath(path);
+      if (resolved && resolved.list[idx]) {
+        resolved.list[idx][field] = t.value;
+      }
+      return;
+    }
+    if (t.hasAttribute("data-admin-group-label")) {
+      const key = t.getAttribute("data-admin-group-label");
+      const gi = Number(t.getAttribute("data-admin-gi"));
+      const fac = adminFacility();
+      if (fac && fac.tabs && fac.tabs[key] && fac.tabs[key][gi]) {
+        fac.tabs[key][gi].group = t.value;
+      }
+    }
+  });
+
+  el.main.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter") return;
     if (ev.target && ev.target.id === "eridsWxIcao") {
-      state.wxIcao = ev.target.value;
+      ev.preventDefault();
+      getMetar();
     }
+  });
+
+  window.addEventListener("vatflow-auth-changed", () => {
+    if (el.adminBtn) renderChrome();
+    if (state.view === "admin") render();
   });
 }
 
@@ -1024,6 +1447,7 @@ function startClock() {
 async function init() {
   startClock();
   bindEvents();
+  await initVatflowAuth().catch(() => null);
   try {
     await loadIndex();
   } catch (err) {
@@ -1045,7 +1469,8 @@ async function init() {
   }
   const facs = (state.config && state.config.facilities) || [];
   state.wxIcao = (facs[0] && facs[0].id) || "KJAX";
-  render();
+  if (location.hash === "#admin") navigate({ view: "admin", push: false });
+  else render();
   refreshLive();
 }
 
