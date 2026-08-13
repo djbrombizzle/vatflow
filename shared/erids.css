@@ -1,0 +1,596 @@
+/**
+ * FAA ERIDS-style chrome for VATFLOW — dark navy / yellow, large touch targets.
+ * Intentionally distinct from the suite amber dashboard palette.
+ */
+:root {
+  --erids-bg: #000028;
+  --erids-bg-deep: #000018;
+  --erids-panel: #000040;
+  --erids-panel-2: #0a0a48;
+  --erids-line: #3a3a8a;
+  --erids-yellow: #ffd700;
+  --erids-yellow-dim: #c9a800;
+  --erids-white: #f0f0f8;
+  --erids-muted: #9aa0c0;
+  --erids-blue-btn: #1a4a9c;
+  --erids-blue-btn-hi: #2a6ad0;
+  --erids-blue-edge: #4a7ad0;
+  --erids-red: #c62828;
+  --erids-red-hi: #e53935;
+  --erids-section: #4a4a5a;
+  --erids-section-text: #e8e8f0;
+  --erids-active-border: #ffd700;
+  --erids-touch: 56px;
+  --erids-btn-h: 48px;
+  --erids-header-h: 40px;
+  --erids-tabs-h: 44px;
+  --erids-subtabs-h: 40px;
+  --erids-util-h: 52px;
+  --erids-icons-h: 72px;
+  --erids-font: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --erids-mono: "Consolas", "Courier New", monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--erids-bg-deep);
+  color: var(--erids-white);
+  font-family: var(--erids-font);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--erids-yellow);
+}
+
+#eridsApp {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto auto;
+  height: 100%;
+  max-height: 100dvh;
+  background: var(--erids-bg);
+}
+
+/* —— Header —— */
+.erids-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--erids-header-h);
+  padding: 6px 10px;
+  background: linear-gradient(180deg, #0c0c50 0%, #000030 100%);
+  border-bottom: 2px solid var(--erids-line);
+}
+
+.erids-brand {
+  font-family: var(--erids-mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--erids-yellow);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.erids-brand span {
+  color: var(--erids-muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.erids-header-spacer {
+  flex: 1;
+}
+
+.erids-artcc-label {
+  color: var(--erids-yellow);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.erids-artcc-select {
+  min-height: 36px;
+  min-width: 88px;
+  padding: 4px 10px;
+  background: var(--erids-panel);
+  border: 2px solid var(--erids-blue-edge);
+  border-radius: 4px;
+  color: var(--erids-yellow);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.erids-clock {
+  font-family: var(--erids-mono);
+  color: var(--erids-yellow);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  min-width: 11ch;
+  text-align: right;
+}
+
+.erids-escape {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 2px solid var(--erids-line);
+  border-radius: 4px;
+  background: var(--erids-panel);
+  color: var(--erids-muted);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.erids-escape:active,
+.erids-escape:focus-visible {
+  border-color: var(--erids-yellow);
+  color: var(--erids-yellow);
+  outline: none;
+}
+
+/* —— Primary + secondary tabs —— */
+.erids-tabs,
+.erids-subtabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  padding: 4px 6px 0;
+  overflow-x: auto;
+  background: #000022;
+  border-bottom: 2px solid var(--erids-line);
+  -webkit-overflow-scrolling: touch;
+}
+
+.erids-subtabs {
+  background: #000035;
+  min-height: var(--erids-subtabs-h);
+  display: none;
+}
+
+.erids-subtabs.is-visible {
+  display: flex;
+}
+
+.erids-tab,
+.erids-subtab {
+  flex: 0 0 auto;
+  min-height: var(--erids-tabs-h);
+  min-width: 96px;
+  padding: 8px 16px;
+  border: 2px solid #2a2a6a;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #1a1a60 0%, #0a0a40 100%);
+  color: var(--erids-white);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.erids-subtab {
+  min-height: 36px;
+  min-width: 110px;
+  font-size: 12px;
+  background: linear-gradient(180deg, #222268 0%, #101048 100%);
+}
+
+.erids-tab.is-active,
+.erids-subtab.is-active {
+  background: linear-gradient(180deg, #3a5ab0 0%, #1a3a80 100%);
+  border-color: var(--erids-yellow);
+  color: var(--erids-yellow);
+  z-index: 1;
+}
+
+.erids-tab:active,
+.erids-subtab:active {
+  background: var(--erids-blue-btn-hi);
+}
+
+/* —— Main content —— */
+.erids-main {
+  overflow: auto;
+  padding: 12px 14px 16px;
+  background: var(--erids-bg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.erids-view-title {
+  margin: 0 0 12px;
+  color: var(--erids-yellow);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.erids-crumb {
+  margin: -6px 0 12px;
+  color: var(--erids-muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.erids-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--erids-yellow-dim);
+  border-radius: 3px;
+  color: var(--erids-yellow-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+.erids-meta {
+  margin: 0 0 12px;
+  color: var(--erids-muted);
+  font-size: 12px;
+  font-family: var(--erids-mono);
+}
+
+.erids-meta.error {
+  color: #ff8a80;
+}
+
+.erids-section-bar {
+  margin: 14px 0 8px;
+  padding: 8px 12px;
+  background: var(--erids-section);
+  color: var(--erids-section-text);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  border-radius: 2px;
+}
+
+.erids-runway-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--erids-yellow);
+}
+
+.erids-runway-label {
+  display: inline-block;
+  min-width: 52px;
+  margin: 0;
+  color: var(--erids-yellow);
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--erids-mono);
+}
+
+.erids-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.erids-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--erids-btn-h);
+  min-width: 88px;
+  padding: 10px 18px;
+  border: 2px solid var(--erids-blue-edge);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2a5ab8 0%, var(--erids-blue-btn) 55%, #103070 100%);
+  color: var(--erids-white);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 2px 0 #000020;
+  user-select: none;
+}
+
+.erids-btn:active,
+.erids-btn.is-active {
+  border-color: var(--erids-active-border);
+  background: linear-gradient(180deg, #3a7ae0 0%, #2a5ab8 100%);
+  color: var(--erids-yellow);
+}
+
+.erids-btn.is-disabled,
+.erids-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.erids-btn-lg {
+  min-height: 64px;
+  min-width: 120px;
+  font-size: 16px;
+  padding: 12px 20px;
+}
+
+.erids-facility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.erids-msg-block {
+  margin-bottom: 10px;
+}
+
+.erids-msg-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.erids-msg-list li {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--erids-line);
+  font-family: var(--erids-mono);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--erids-white);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.erids-msg-list .ts {
+  color: var(--erids-yellow);
+  margin-right: 8px;
+}
+
+.erids-empty {
+  padding: 16px 8px;
+  color: var(--erids-muted);
+  font-size: 14px;
+}
+
+.erids-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.erids-input {
+  min-height: var(--erids-btn-h);
+  min-width: 140px;
+  padding: 8px 12px;
+  background: #000010;
+  border: 2px solid var(--erids-blue-edge);
+  border-radius: 4px;
+  color: var(--erids-yellow);
+  font-family: var(--erids-mono);
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.erids-input::placeholder {
+  color: var(--erids-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
+.erids-wx-card {
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid var(--erids-line);
+  border-radius: 4px;
+  background: var(--erids-panel);
+}
+
+.erids-wx-card .icao {
+  color: var(--erids-yellow);
+  font-weight: 800;
+  font-family: var(--erids-mono);
+  font-size: 16px;
+  margin-right: 10px;
+}
+
+.erids-wx-card .cat {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.erids-wx-card .cat.VFR { background: #1b5e20; color: #c8e6c9; }
+.erids-wx-card .cat.MVFR { background: #0d47a1; color: #bbdefb; }
+.erids-wx-card .cat.IFR { background: #b71c1c; color: #ffcdd2; }
+.erids-wx-card .cat.LIFR { background: #4a148c; color: #e1bee7; }
+
+.erids-wx-card .raw {
+  margin-top: 8px;
+  font-family: var(--erids-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--erids-white);
+}
+
+.erids-help p {
+  margin: 0 0 12px;
+  line-height: 1.55;
+  color: var(--erids-white);
+  font-size: 14px;
+  max-width: 52rem;
+}
+
+.erids-help ul {
+  margin: 0 0 16px;
+  padding-left: 1.2rem;
+  color: var(--erids-muted);
+  line-height: 1.55;
+}
+
+.erids-shortcut-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* —— Bottom utility + icon bars —— */
+.erids-util {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: stretch;
+  min-height: var(--erids-util-h);
+  padding: 6px 8px;
+  background: #000030;
+  border-top: 2px solid var(--erids-line);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.erids-util-btn {
+  flex: 0 0 auto;
+  min-height: 44px;
+  min-width: 72px;
+  padding: 6px 12px;
+  border: 2px solid #3a3a7a;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2a2a70 0%, #101048 100%);
+  color: var(--erids-white);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.erids-util-btn.is-accent {
+  background: linear-gradient(180deg, #2a5ab8 0%, #1a3a80 100%);
+  border-color: var(--erids-blue-edge);
+}
+
+.erids-util-btn.is-hot {
+  background: linear-gradient(180deg, #e53935 0%, #8b0000 100%);
+  border-color: #ff8a80;
+  color: #fff;
+}
+
+.erids-util-btn:active,
+.erids-util-btn.is-active {
+  border-color: var(--erids-yellow);
+  color: var(--erids-yellow);
+}
+
+.erids-icons {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  min-height: var(--erids-icons-h);
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: #000020;
+  border-top: 2px solid var(--erids-yellow-dim);
+}
+
+.erids-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: var(--erids-touch);
+  padding: 6px 2px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #1a1a50 0%, #080830 100%);
+  color: var(--erids-yellow);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.erids-icon-btn svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--erids-yellow);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.erids-icon-btn.is-active {
+  border-color: var(--erids-active-border);
+  background: #1a2a60;
+  box-shadow: inset 0 0 0 1px var(--erids-yellow);
+}
+
+.erids-icon-btn:active {
+  background: #2a3a80;
+}
+
+/* Define-shortcut mode cue */
+body.erids-define-mode .erids-btn,
+body.erids-define-mode .erids-tab,
+body.erids-define-mode .erids-icon-btn {
+  outline: 2px dashed rgba(255, 215, 0, 0.45);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .erids-brand span {
+    display: none;
+  }
+  .erids-icons {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .erids-icon-btn:nth-child(n + 5) {
+    /* still show all; wrap via denser grid on very small */
+  }
+}
+
+@media (max-width: 520px) {
+  .erids-icons {
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(56px, auto);
+  }
+  .erids-header {
+    flex-wrap: wrap;
+  }
+  .erids-clock {
+    order: 5;
+  }
+}

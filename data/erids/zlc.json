@@ -1,0 +1,310 @@
+{
+  "artcc": "ZLC",
+  "label": "Salt Lake City ARTCC",
+  "homeButtons": [
+    { "label": "ZLC SOP", "url": "https://www.vatstar.com/", "group": "Center" },
+    { "label": "ZLC LOA Index", "url": "https://www.faa.gov/air_traffic/publications/", "group": "Center" },
+    { "label": "Position Relief", "url": "https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/", "group": "Center" }
+  ],
+  "tmMessages": [
+    { "ts": "09/08 1602", "text": "Test \"Call for Release\" TM message." }
+  ],
+  "contractions": [
+    { "abbr": "CFR", "text": "Call For Release" },
+    { "abbr": "MIT", "text": "Miles In Trail" },
+    { "abbr": "GDP", "text": "Ground Delay Program" },
+    { "abbr": "GS", "text": "Ground Stop" },
+    { "abbr": "SWAP", "text": "Severe Weather Avoidance Plan" },
+    { "abbr": "LOA", "text": "Letter of Agreement" },
+    { "abbr": "SOP", "text": "Standard Operating Procedure" },
+    { "abbr": "TMI", "text": "Traffic Management Initiative" },
+    { "abbr": "EDCT", "text": "Expect Departure Clearance Time" },
+    { "abbr": "APREQ", "text": "Approval Request" },
+    { "abbr": "CTR", "text": "Center" },
+    { "abbr": "APP", "text": "Approach Control" },
+    { "abbr": "DEP", "text": "Departure Control" },
+    { "abbr": "RWY", "text": "Runway" },
+    { "abbr": "SID", "text": "Standard Instrument Departure" },
+    { "abbr": "STAR", "text": "Standard Terminal Arrival" },
+    { "abbr": "NOTAM", "text": "Notice to Air Missions" },
+    { "abbr": "METAR", "text": "Aviation Routine Weather Report" },
+    { "abbr": "SIGMET", "text": "Significant Meteorological Information" },
+    { "abbr": "PIREP", "text": "Pilot Report" }
+  ],
+  "facilities": [
+    {
+      "id": "KSLC",
+      "label": "SLC",
+      "name": "Salt Lake City Intl",
+      "tabs": {
+        "approaches": [
+          {
+            "runway": "14",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "16L",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT3", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "16R",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT3", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "VOR/DME", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "17",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "TACAN", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "32",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "VOR/DME", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "34L",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "34R",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "ILS_CAT3", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          }
+        ],
+        "sids": [
+          {
+            "group": "SLC SIDs",
+            "buttons": [
+              { "label": "PECOP", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "RUGGD", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "SEVYR", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "TCH", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          }
+        ],
+        "stars": [
+          {
+            "group": "SLC STARs",
+            "buttons": [
+              { "label": "SPANE", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "DEECE", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "JAGGR", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "LEEHY", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" }
+            ]
+          }
+        ],
+        "runways": [
+          {
+            "group": "Runway Data",
+            "buttons": [
+              { "label": "Airport Diagram", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "Hot Spots", "url": "https://skyvector.com/airport/SLC/Salt-Lake-City-Intl-Airport" },
+              { "label": "Declared Distances", "url": "https://www.airnav.com/airport/KSLC" }
+            ]
+          }
+        ],
+        "sops": [
+          {
+            "group": "Facility Directives",
+            "buttons": [
+              { "label": "SLC ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" },
+              { "label": "SLC TRACON SOP", "url": "https://www.faa.gov/air_traffic/publications/" },
+              { "label": "ZLC / SLC LOA", "url": "https://www.faa.gov/air_traffic/publications/" }
+            ]
+          },
+          {
+            "group": "Checklists",
+            "buttons": [
+              { "label": "Position Relief Briefing", "url": "https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/" },
+              { "label": "Emergency Checklist", "url": "https://www.faa.gov/air_traffic/publications/" }
+            ]
+          }
+        ],
+        "charts": [
+          { "label": "SLC Sectional", "url": "https://skyvector.com/#6/40.79/-111.98" },
+          { "label": "SLC TAC", "url": "https://skyvector.com/#10/40.79/-111.98" },
+          { "label": "Enroute High", "url": "https://skyvector.com/#5/40.79/-111.98" },
+          { "label": "AirNav KSLC", "url": "https://www.airnav.com/airport/KSLC" }
+        ],
+        "comm": [
+          {
+            "group": "Frequencies (demo)",
+            "buttons": [
+              { "label": "SLC ATIS 124.75", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Clearance 118.05", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Ground 121.9", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Tower 118.3", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Approach 124.8", "url": "https://www.airnav.com/airport/KSLC" }
+            ]
+          }
+        ],
+        "remarks": [
+          {
+            "group": "Local Remarks",
+            "buttons": [
+              { "label": "Noise Abatement", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Preferential RWYs", "url": "https://www.airnav.com/airport/KSLC" }
+            ]
+          }
+        ],
+        "towerData": [
+          {
+            "group": "Tower Data",
+            "buttons": [
+              { "label": "Lighting Systems", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Arresting Gear", "url": "https://www.airnav.com/airport/KSLC" },
+              { "label": "Field Elevation 4227", "url": "https://www.airnav.com/airport/KSLC" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "KDEN",
+      "label": "DEN",
+      "name": "Denver Intl (adjacent)",
+      "tabs": {
+        "approaches": [
+          {
+            "runway": "16R",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/DEN/Denver-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/DEN/Denver-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "35L",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/DEN/Denver-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/DEN/Denver-Intl-Airport" }
+            ]
+          }
+        ],
+        "sids": [],
+        "stars": [],
+        "runways": [],
+        "sops": [
+          {
+            "group": "Adjacent Facility",
+            "buttons": [
+              { "label": "ZDV / ZLC LOA", "url": "https://www.faa.gov/air_traffic/publications/" }
+            ]
+          }
+        ],
+        "charts": [
+          { "label": "DEN SkyVector", "url": "https://skyvector.com/airport/DEN/Denver-Intl-Airport" }
+        ],
+        "comm": [],
+        "remarks": [],
+        "towerData": []
+      }
+    },
+    {
+      "id": "KBIL",
+      "label": "BIL",
+      "name": "Billings Logan Intl",
+      "tabs": {
+        "approaches": [
+          {
+            "runway": "10L",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/BIL/Billings-Logan-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/BIL/Billings-Logan-Intl-Airport" }
+            ]
+          },
+          {
+            "runway": "28R",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/BIL/Billings-Logan-Intl-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/BIL/Billings-Logan-Intl-Airport" }
+            ]
+          }
+        ],
+        "sids": [],
+        "stars": [],
+        "runways": [],
+        "sops": [
+          {
+            "group": "Facility Directives",
+            "buttons": [
+              { "label": "BIL ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" }
+            ]
+          }
+        ],
+        "charts": [
+          { "label": "BIL SkyVector", "url": "https://skyvector.com/airport/BIL/Billings-Logan-Intl-Airport" }
+        ],
+        "comm": [],
+        "remarks": [],
+        "towerData": []
+      }
+    },
+    {
+      "id": "KBOI",
+      "label": "BOI",
+      "name": "Boise Air Terminal",
+      "tabs": {
+        "approaches": [
+          {
+            "runway": "10R",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/BOI/Boise-Air-Terminal-Gowen-Fld-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/BOI/Boise-Air-Terminal-Gowen-Fld-Airport" }
+            ]
+          },
+          {
+            "runway": "28L",
+            "buttons": [
+              { "label": "ILS", "url": "https://skyvector.com/airport/BOI/Boise-Air-Terminal-Gowen-Fld-Airport" },
+              { "label": "RNAV", "url": "https://skyvector.com/airport/BOI/Boise-Air-Terminal-Gowen-Fld-Airport" }
+            ]
+          }
+        ],
+        "sids": [],
+        "stars": [],
+        "runways": [],
+        "sops": [
+          {
+            "group": "Facility Directives",
+            "buttons": [
+              { "label": "BOI ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" }
+            ]
+          }
+        ],
+        "charts": [
+          { "label": "BOI SkyVector", "url": "https://skyvector.com/airport/BOI/Boise-Air-Terminal-Gowen-Fld-Airport" }
+        ],
+        "comm": [],
+        "remarks": [],
+        "towerData": []
+      }
+    }
+  ]
+}
