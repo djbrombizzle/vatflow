@@ -2,34 +2,109 @@
   "artcc": "ZJX",
   "label": "Jacksonville ARTCC",
   "homeButtons": [
-    { "label": "ZJX SOP", "url": "https://www.vatusa.net/", "group": "Center" },
-    { "label": "ZJX LOA Index", "url": "https://www.faa.gov/air_traffic/publications/", "group": "Center" },
-    { "label": "Position Relief", "url": "https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/", "group": "Center" }
+    {
+      "label": "ZJX SOP",
+      "url": "https://www.vatusa.net/",
+      "group": "Center"
+    },
+    {
+      "label": "ZJX LOA Index",
+      "url": "https://www.faa.gov/air_traffic/publications/",
+      "group": "Center"
+    },
+    {
+      "label": "Position Relief",
+      "url": "https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/",
+      "group": "Center"
+    }
   ],
   "tmMessages": [
-    { "ts": "09/08 1602", "text": "Test \"Call for Release\" TM message." }
+    {
+      "ts": "09/08 1602",
+      "text": "Test \"Call for Release\" TM message."
+    }
   ],
   "contractions": [
-    { "abbr": "CFR", "text": "Call For Release" },
-    { "abbr": "MIT", "text": "Miles In Trail" },
-    { "abbr": "GDP", "text": "Ground Delay Program" },
-    { "abbr": "GS", "text": "Ground Stop" },
-    { "abbr": "SWAP", "text": "Severe Weather Avoidance Plan" },
-    { "abbr": "LOA", "text": "Letter of Agreement" },
-    { "abbr": "SOP", "text": "Standard Operating Procedure" },
-    { "abbr": "TMI", "text": "Traffic Management Initiative" },
-    { "abbr": "EDCT", "text": "Expect Departure Clearance Time" },
-    { "abbr": "APREQ", "text": "Approval Request" },
-    { "abbr": "CTR", "text": "Center" },
-    { "abbr": "APP", "text": "Approach Control" },
-    { "abbr": "DEP", "text": "Departure Control" },
-    { "abbr": "RWY", "text": "Runway" },
-    { "abbr": "SID", "text": "Standard Instrument Departure" },
-    { "abbr": "STAR", "text": "Standard Terminal Arrival" },
-    { "abbr": "NOTAM", "text": "Notice to Air Missions" },
-    { "abbr": "METAR", "text": "Aviation Routine Weather Report" },
-    { "abbr": "SIGMET", "text": "Significant Meteorological Information" },
-    { "abbr": "PIREP", "text": "Pilot Report" }
+    {
+      "abbr": "CFR",
+      "text": "Call For Release"
+    },
+    {
+      "abbr": "MIT",
+      "text": "Miles In Trail"
+    },
+    {
+      "abbr": "GDP",
+      "text": "Ground Delay Program"
+    },
+    {
+      "abbr": "GS",
+      "text": "Ground Stop"
+    },
+    {
+      "abbr": "SWAP",
+      "text": "Severe Weather Avoidance Plan"
+    },
+    {
+      "abbr": "LOA",
+      "text": "Letter of Agreement"
+    },
+    {
+      "abbr": "SOP",
+      "text": "Standard Operating Procedure"
+    },
+    {
+      "abbr": "TMI",
+      "text": "Traffic Management Initiative"
+    },
+    {
+      "abbr": "EDCT",
+      "text": "Expect Departure Clearance Time"
+    },
+    {
+      "abbr": "APREQ",
+      "text": "Approval Request"
+    },
+    {
+      "abbr": "CTR",
+      "text": "Center"
+    },
+    {
+      "abbr": "APP",
+      "text": "Approach Control"
+    },
+    {
+      "abbr": "DEP",
+      "text": "Departure Control"
+    },
+    {
+      "abbr": "RWY",
+      "text": "Runway"
+    },
+    {
+      "abbr": "SID",
+      "text": "Standard Instrument Departure"
+    },
+    {
+      "abbr": "STAR",
+      "text": "Standard Terminal Arrival"
+    },
+    {
+      "abbr": "NOTAM",
+      "text": "Notice to Air Missions"
+    },
+    {
+      "abbr": "METAR",
+      "text": "Aviation Routine Weather Report"
+    },
+    {
+      "abbr": "SIGMET",
+      "text": "Significant Meteorological Information"
+    },
+    {
+      "abbr": "PIREP",
+      "text": "Pilot Report"
+    }
   ],
   "facilities": [
     {
@@ -41,35 +116,77 @@
           {
             "runway": "8",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           },
           {
             "runway": "14",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "VOR/DME", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "VOR/DME",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           },
           {
             "runway": "26",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "ILS_CAT3", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "ILS_CAT3",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           },
           {
             "runway": "32",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "VOR/DME", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "TACAN", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "VOR/DME",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "TACAN",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           }
         ],
@@ -77,10 +194,22 @@
           {
             "group": "JAX SIDs",
             "buttons": [
-              { "label": "CROSZ", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "EXEST", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "OHLEE", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "SAVAN", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" }
+              {
+                "label": "CROSZ",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "EXEST",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "OHLEE",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "SAVAN",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           }
         ],
@@ -88,10 +217,22 @@
           {
             "group": "JAX STARs",
             "buttons": [
-              { "label": "BITHO", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "BRADO", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "PIGLT", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "WESOT", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" }
+              {
+                "label": "BITHO",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "BRADO",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "PIGLT",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "WESOT",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           }
         ],
@@ -99,9 +240,18 @@
           {
             "group": "Runway Data",
             "buttons": [
-              { "label": "Airport Diagram", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "Hot Spots", "url": "https://skyvector.com/airport/JAX/Jacksonville-Intl-Airport" },
-              { "label": "Declared Distances", "url": "https://www.airnav.com/airport/KJAX" }
+              {
+                "label": "Airport Diagram",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "Hot Spots",
+                "url": "https://chartfox.org/KJAX"
+              },
+              {
+                "label": "Declared Distances",
+                "url": "https://chartfox.org/KJAX"
+              }
             ]
           }
         ],
@@ -109,34 +259,64 @@
           {
             "group": "Facility Directives",
             "buttons": [
-              { "label": "JAX ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" },
-              { "label": "JAX APP SOP", "url": "https://www.faa.gov/air_traffic/publications/" },
-              { "label": "ZJX / JAX LOA", "url": "https://www.faa.gov/air_traffic/publications/" }
+              {
+                "label": "JAX ATCT SOP",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              },
+              {
+                "label": "JAX APP SOP",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              },
+              {
+                "label": "ZJX / JAX LOA",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              }
             ]
           },
           {
             "group": "Checklists",
             "buttons": [
-              { "label": "Position Relief Briefing", "url": "https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/" },
-              { "label": "Emergency Checklist", "url": "https://www.faa.gov/air_traffic/publications/" }
+              {
+                "label": "Position Relief Briefing",
+                "url": "https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/"
+              },
+              {
+                "label": "Emergency Checklist",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              }
             ]
           }
         ],
         "charts": [
-          { "label": "JAX Sectional", "url": "https://skyvector.com/#6/30.49/-81.69" },
-          { "label": "JAX TAC", "url": "https://skyvector.com/#10/30.49/-81.69" },
-          { "label": "Enroute High", "url": "https://skyvector.com/#5/30.49/-81.69" },
-          { "label": "AirNav KJAX", "url": "https://www.airnav.com/airport/KJAX" }
+          {
+            "label": "JAX ChartFox",
+            "url": "https://chartfox.org/KJAX"
+          }
         ],
         "comm": [
           {
             "group": "Frequencies (demo)",
             "buttons": [
-              { "label": "JAX ATIS 125.85", "url": "https://www.airnav.com/airport/KJAX" },
-              { "label": "Clearance 119.0", "url": "https://www.airnav.com/airport/KJAX" },
-              { "label": "Ground 121.9", "url": "https://www.airnav.com/airport/KJAX" },
-              { "label": "Tower 118.3", "url": "https://www.airnav.com/airport/KJAX" },
-              { "label": "Approach 119.0", "url": "https://www.airnav.com/airport/KJAX" }
+              {
+                "label": "JAX ATIS 125.85",
+                "url": "https://www.airnav.com/airport/KJAX"
+              },
+              {
+                "label": "Clearance 119.0",
+                "url": "https://www.airnav.com/airport/KJAX"
+              },
+              {
+                "label": "Ground 121.9",
+                "url": "https://www.airnav.com/airport/KJAX"
+              },
+              {
+                "label": "Tower 118.3",
+                "url": "https://www.airnav.com/airport/KJAX"
+              },
+              {
+                "label": "Approach 119.0",
+                "url": "https://www.airnav.com/airport/KJAX"
+              }
             ]
           }
         ],
@@ -144,8 +324,14 @@
           {
             "group": "Local Remarks",
             "buttons": [
-              { "label": "Noise Abatement", "url": "https://www.airnav.com/airport/KJAX" },
-              { "label": "Preferential RWYs", "url": "https://www.airnav.com/airport/KJAX" }
+              {
+                "label": "Noise Abatement",
+                "url": "https://www.airnav.com/airport/KJAX"
+              },
+              {
+                "label": "Preferential RWYs",
+                "url": "https://www.airnav.com/airport/KJAX"
+              }
             ]
           }
         ],
@@ -153,8 +339,14 @@
           {
             "group": "Tower Data",
             "buttons": [
-              { "label": "Lighting Systems", "url": "https://www.airnav.com/airport/KJAX" },
-              { "label": "Field Elevation 30", "url": "https://www.airnav.com/airport/KJAX" }
+              {
+                "label": "Lighting Systems",
+                "url": "https://www.airnav.com/airport/KJAX"
+              },
+              {
+                "label": "Field Elevation 30",
+                "url": "https://www.airnav.com/airport/KJAX"
+              }
             ]
           }
         ]
@@ -169,64 +361,133 @@
           {
             "runway": "17L",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT3", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT3",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "17R",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "18L",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "18R",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT3", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT3",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "35L",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "35R",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "36L",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "ILS_CAT2", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "ILS_CAT2",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           },
           {
             "runway": "36R",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           }
         ],
@@ -234,9 +495,18 @@
           {
             "group": "MCO SIDs",
             "buttons": [
-              { "label": "DDANY", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "FATBA", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "OVIDO", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "DDANY",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "FATBA",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "OVIDO",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           }
         ],
@@ -244,9 +514,18 @@
           {
             "group": "MCO STARs",
             "buttons": [
-              { "label": "ATLAS", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "GOOFY", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-              { "label": "PRICY", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" }
+              {
+                "label": "ATLAS",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "GOOFY",
+                "url": "https://chartfox.org/KMCO"
+              },
+              {
+                "label": "PRICY",
+                "url": "https://chartfox.org/KMCO"
+              }
             ]
           }
         ],
@@ -255,14 +534,22 @@
           {
             "group": "Facility Directives",
             "buttons": [
-              { "label": "MCO ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" },
-              { "label": "ZJX / MCO LOA", "url": "https://www.faa.gov/air_traffic/publications/" }
+              {
+                "label": "MCO ATCT SOP",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              },
+              {
+                "label": "ZJX / MCO LOA",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              }
             ]
           }
         ],
         "charts": [
-          { "label": "MCO SkyVector", "url": "https://skyvector.com/airport/MCO/Orlando-Intl-Airport" },
-          { "label": "AirNav KMCO", "url": "https://www.airnav.com/airport/KMCO" }
+          {
+            "label": "MCO ChartFox",
+            "url": "https://chartfox.org/KMCO"
+          }
         ],
         "comm": [],
         "remarks": [],
@@ -278,17 +565,35 @@
           {
             "runway": "15",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" },
-              { "label": "TACAN", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KCHS"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KCHS"
+              },
+              {
+                "label": "TACAN",
+                "url": "https://chartfox.org/KCHS"
+              }
             ]
           },
           {
             "runway": "33",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" },
-              { "label": "TACAN", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KCHS"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KCHS"
+              },
+              {
+                "label": "TACAN",
+                "url": "https://chartfox.org/KCHS"
+              }
             ]
           }
         ],
@@ -299,13 +604,22 @@
           {
             "group": "Facility Directives",
             "buttons": [
-              { "label": "CHS ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" },
-              { "label": "ZJX / CHS LOA", "url": "https://www.faa.gov/air_traffic/publications/" }
+              {
+                "label": "CHS ATCT SOP",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              },
+              {
+                "label": "ZJX / CHS LOA",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              }
             ]
           }
         ],
         "charts": [
-          { "label": "CHS SkyVector", "url": "https://skyvector.com/airport/CHS/Charleston-AFB-Intl-Airport" }
+          {
+            "label": "CHS ChartFox",
+            "url": "https://chartfox.org/KCHS"
+          }
         ],
         "comm": [],
         "remarks": [],
@@ -321,15 +635,27 @@
           {
             "runway": "10",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/SAV/Savannah-Hilton-Head-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/SAV/Savannah-Hilton-Head-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KSAV"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KSAV"
+              }
             ]
           },
           {
             "runway": "28",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/SAV/Savannah-Hilton-Head-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/SAV/Savannah-Hilton-Head-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KSAV"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KSAV"
+              }
             ]
           }
         ],
@@ -340,12 +666,18 @@
           {
             "group": "Facility Directives",
             "buttons": [
-              { "label": "SAV ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" }
+              {
+                "label": "SAV ATCT SOP",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              }
             ]
           }
         ],
         "charts": [
-          { "label": "SAV SkyVector", "url": "https://skyvector.com/airport/SAV/Savannah-Hilton-Head-Intl-Airport" }
+          {
+            "label": "SAV ChartFox",
+            "url": "https://chartfox.org/KSAV"
+          }
         ],
         "comm": [],
         "remarks": [],
@@ -361,22 +693,40 @@
           {
             "runway": "18",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KTLH"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KTLH"
+              }
             ]
           },
           {
             "runway": "27",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KTLH"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KTLH"
+              }
             ]
           },
           {
             "runway": "36",
             "buttons": [
-              { "label": "ILS", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" },
-              { "label": "RNAV", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" }
+              {
+                "label": "ILS",
+                "url": "https://chartfox.org/KTLH"
+              },
+              {
+                "label": "RNAV",
+                "url": "https://chartfox.org/KTLH"
+              }
             ]
           }
         ],
@@ -387,12 +737,18 @@
           {
             "group": "Facility Directives",
             "buttons": [
-              { "label": "TLH ATCT SOP", "url": "https://www.faa.gov/air_traffic/publications/" }
+              {
+                "label": "TLH ATCT SOP",
+                "url": "https://www.faa.gov/air_traffic/publications/"
+              }
             ]
           }
         ],
         "charts": [
-          { "label": "TLH SkyVector", "url": "https://skyvector.com/airport/TLH/Tallahassee-Intl-Airport" }
+          {
+            "label": "TLH ChartFox",
+            "url": "https://chartfox.org/KTLH"
+          }
         ],
         "comm": [],
         "remarks": [],
