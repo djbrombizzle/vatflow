@@ -112,149 +112,10 @@
       "label": "JAX",
       "name": "Jacksonville Intl",
       "tabs": {
-        "approaches": [
-          {
-            "runway": "8",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          },
-          {
-            "runway": "14",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "VOR/DME",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          },
-          {
-            "runway": "26",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "ILS_CAT3",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          },
-          {
-            "runway": "32",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "VOR/DME",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "TACAN",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          }
-        ],
-        "sids": [
-          {
-            "group": "JAX SIDs",
-            "buttons": [
-              {
-                "label": "CROSZ",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "EXEST",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "OHLEE",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "SAVAN",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          }
-        ],
-        "stars": [
-          {
-            "group": "JAX STARs",
-            "buttons": [
-              {
-                "label": "BITHO",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "BRADO",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "PIGLT",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "WESOT",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          }
-        ],
-        "runways": [
-          {
-            "group": "Runway Data",
-            "buttons": [
-              {
-                "label": "Airport Diagram",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "Hot Spots",
-                "url": "https://chartfox.org/KJAX"
-              },
-              {
-                "label": "Declared Distances",
-                "url": "https://chartfox.org/KJAX"
-              }
-            ]
-          }
-        ],
+        "approaches": [],
+        "sids": [],
+        "stars": [],
+        "runways": [],
         "sops": [
           {
             "group": "Facility Directives",
@@ -287,12 +148,7 @@
             ]
           }
         ],
-        "charts": [
-          {
-            "label": "JAX ChartFox",
-            "url": "https://chartfox.org/KJAX"
-          }
-        ],
+        "charts": [],
         "comm": [
           {
             "group": "Frequencies (demo)",
@@ -357,178 +213,9 @@
       "label": "MCO",
       "name": "Orlando Intl",
       "tabs": {
-        "approaches": [
-          {
-            "runway": "17L",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT3",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "17R",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "18L",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "18R",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT3",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "35L",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "35R",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "36L",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "ILS_CAT2",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          },
-          {
-            "runway": "36R",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          }
-        ],
-        "sids": [
-          {
-            "group": "MCO SIDs",
-            "buttons": [
-              {
-                "label": "DDANY",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "FATBA",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "OVIDO",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          }
-        ],
-        "stars": [
-          {
-            "group": "MCO STARs",
-            "buttons": [
-              {
-                "label": "ATLAS",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "GOOFY",
-                "url": "https://chartfox.org/KMCO"
-              },
-              {
-                "label": "PRICY",
-                "url": "https://chartfox.org/KMCO"
-              }
-            ]
-          }
-        ],
+        "approaches": [],
+        "sids": [],
+        "stars": [],
         "runways": [],
         "sops": [
           {
@@ -545,12 +232,7 @@
             ]
           }
         ],
-        "charts": [
-          {
-            "label": "MCO ChartFox",
-            "url": "https://chartfox.org/KMCO"
-          }
-        ],
+        "charts": [],
         "comm": [],
         "remarks": [],
         "towerData": []
@@ -561,42 +243,7 @@
       "label": "CHS",
       "name": "Charleston AFB/Intl",
       "tabs": {
-        "approaches": [
-          {
-            "runway": "15",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KCHS"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KCHS"
-              },
-              {
-                "label": "TACAN",
-                "url": "https://chartfox.org/KCHS"
-              }
-            ]
-          },
-          {
-            "runway": "33",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KCHS"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KCHS"
-              },
-              {
-                "label": "TACAN",
-                "url": "https://chartfox.org/KCHS"
-              }
-            ]
-          }
-        ],
+        "approaches": [],
         "sids": [],
         "stars": [],
         "runways": [],
@@ -615,12 +262,7 @@
             ]
           }
         ],
-        "charts": [
-          {
-            "label": "CHS ChartFox",
-            "url": "https://chartfox.org/KCHS"
-          }
-        ],
+        "charts": [],
         "comm": [],
         "remarks": [],
         "towerData": []
@@ -631,34 +273,7 @@
       "label": "SAV",
       "name": "Savannah/Hilton Head Intl",
       "tabs": {
-        "approaches": [
-          {
-            "runway": "10",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KSAV"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KSAV"
-              }
-            ]
-          },
-          {
-            "runway": "28",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KSAV"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KSAV"
-              }
-            ]
-          }
-        ],
+        "approaches": [],
         "sids": [],
         "stars": [],
         "runways": [],
@@ -673,12 +288,7 @@
             ]
           }
         ],
-        "charts": [
-          {
-            "label": "SAV ChartFox",
-            "url": "https://chartfox.org/KSAV"
-          }
-        ],
+        "charts": [],
         "comm": [],
         "remarks": [],
         "towerData": []
@@ -689,47 +299,7 @@
       "label": "TLH",
       "name": "Tallahassee Intl",
       "tabs": {
-        "approaches": [
-          {
-            "runway": "18",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KTLH"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KTLH"
-              }
-            ]
-          },
-          {
-            "runway": "27",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KTLH"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KTLH"
-              }
-            ]
-          },
-          {
-            "runway": "36",
-            "buttons": [
-              {
-                "label": "ILS",
-                "url": "https://chartfox.org/KTLH"
-              },
-              {
-                "label": "RNAV",
-                "url": "https://chartfox.org/KTLH"
-              }
-            ]
-          }
-        ],
+        "approaches": [],
         "sids": [],
         "stars": [],
         "runways": [],
@@ -744,12 +314,7 @@
             ]
           }
         ],
-        "charts": [
-          {
-            "label": "TLH ChartFox",
-            "url": "https://chartfox.org/KTLH"
-          }
-        ],
+        "charts": [],
         "comm": [],
         "remarks": [],
         "towerData": []
