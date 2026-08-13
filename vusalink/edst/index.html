@@ -42,11 +42,11 @@ a{color:inherit}
 #edstbar .etb-btn:hover{background:#1a1a1a}
 #edstbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #edstbar .etb-btn.sig,#edstbar .etb-btn.not{border-color:#d8d63f;color:#d8d63f}
-#edstbar .etb-btn.sig.flash{
+#edstbar .etb-btn.sig.flash,#edstbar .etb-btn.not.flash{
   animation:sigflash 1s steps(2,start) infinite;
   background:#4a4a18;border-color:#ebe64a;color:#ebe64a;
 }
-#edstbar .etb-btn.sig.flash:hover{background:#5a5a20}
+#edstbar .etb-btn.sig.flash:hover,#edstbar .etb-btn.not.flash:hover{background:#5a5a20}
 @keyframes sigflash{
   50%{background:#ebe64a;color:#111;border-color:#fff}
 }
@@ -1228,6 +1228,118 @@ td.eh-bk{text-align:center;min-width:14px}
 }
 #wxmenu .wx-item .wx-del:hover{background:#5a2a2a;color:#fff}
 #wxmenu .wx-item .wx-del-hint{color:#8a9088;font-size:11px}
+
+/* EDST NOTAMS (ARTCC TFRs + airport lookup) */
+#notmenu.edst-pop{
+  position:absolute;z-index:66;width:min(520px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#notmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:6px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#notmenu .edst-pop-hdr .mbtn{
+  cursor:pointer;padding:0 5px;border:1px solid #888;background:#3a3a3a;color:#eee;font-size:11px;
+}
+#notmenu .edst-pop-hdr .mbtn:hover,#notmenu .edst-pop-hdr .mbtn.open{background:#222;border-color:#bbb}
+#notmenu .edst-pop-hdr .title{flex:1;letter-spacing:.4px}
+#notmenu .edst-pop-hdr .hdr-meta{color:#ddd;font-size:11px;opacity:.9}
+#notmenu .edst-pop-hdr .refresh{
+  cursor:pointer;padding:0 6px;color:#ddd;font-size:11px;letter-spacing:.04em;
+}
+#notmenu .edst-pop-hdr .refresh:hover{background:#333;color:#fff}
+#notmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#notmenu .edst-pop-hdr .x:hover{background:#333}
+#notmenu .not-m-menu{
+  position:absolute;z-index:2;top:26px;left:6px;min-width:168px;
+  background:#111;border:1px solid #888;box-shadow:0 6px 16px rgba(0,0,0,.7);
+}
+#notmenu .not-m-menu.hidden{display:none!important}
+#notmenu .not-m-menu button{
+  display:block;width:100%;text-align:left;background:transparent;border:0;
+  color:#eee;padding:6px 10px;font:inherit;font-size:12px;cursor:pointer;
+  border-bottom:1px solid #222;
+}
+#notmenu .not-m-menu button:hover{background:#2a2a2a}
+#notmenu .not-scope{
+  padding:3px 8px;background:#2a2a2a;color:#aeb6af;border-bottom:1px solid #444;font-size:11px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+}
+#notmenu .not-scope .chips{display:flex;flex-wrap:wrap;gap:4px}
+#notmenu .not-chip{
+  display:inline-flex;align-items:center;gap:4px;border:1px solid #666;padding:0 5px;
+  color:#d2d2cd;background:#161616;font-size:11px;line-height:1.5;
+}
+#notmenu .not-chip button{
+  border:0;background:transparent;color:#aaa;cursor:pointer;font:inherit;padding:0 2px;line-height:1;
+}
+#notmenu .not-chip button:hover{color:#fff}
+#notmenu .not-add{
+  display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid #333;background:#0d0d0d;
+}
+#notmenu .not-add label{color:#aaa;font-size:11px}
+#notmenu .not-add input{
+  width:72px;background:#000;border:1px solid #666;color:#eee;padding:2px 6px;font:inherit;text-transform:uppercase;
+}
+#notmenu .not-add input:focus{outline:1px solid #9a9a9a}
+#notmenu .not-add .not-btn{
+  border:1px solid #777;background:#1a1a1a;color:#ddd;padding:2px 8px;font:inherit;font-size:11px;cursor:pointer;
+}
+#notmenu .not-add .not-btn:hover{background:#3a3a3a}
+#notmenu .not-list{
+  max-height:min(420px,56vh);min-height:140px;overflow:auto;padding:4px 8px;background:#000;
+}
+#notmenu .not-empty{padding:18px 10px;color:#777;text-align:center}
+#notmenu .not-warn{padding:4px 8px;color:#d8d63f;font-size:11px;border-bottom:1px solid #333;background:#15150a}
+#notmenu .not-item{
+  margin:2px 0;border-bottom:1px solid #1a1a1a;padding:6px 0 8px;line-height:1.35;position:relative;
+}
+#notmenu .not-item.new .not-meta b{text-decoration:underline;text-underline-offset:2px}
+#notmenu .not-item.suppressed{opacity:.55}
+#notmenu .not-item.hit{outline:1px solid #d8d63f;outline-offset:1px}
+#notmenu .not-item .not-meta{
+  display:flex;align-items:center;gap:6px;color:#8a9088;font-size:11px;margin-bottom:4px;
+}
+#notmenu .not-item .not-meta b{color:#d8d63f;font-weight:normal;flex:1;min-width:0}
+#notmenu .not-item .not-toggle{
+  flex:0 0 auto;width:16px;height:16px;line-height:16px;text-align:center;
+  border:1px solid #555;background:#1a1a1a;color:#d2d2cd;cursor:pointer;
+  font-size:10px;user-select:none;padding:0;
+}
+#notmenu .not-item .not-toggle:hover{background:#2a2a2a;border-color:#888}
+#notmenu .not-item .not-toggle[aria-expanded="true"]{background:#3a3a3a;color:#fff}
+#notmenu .not-item .not-text{
+  color:var(--fg);white-space:pre-wrap;word-break:break-word;font-size:12px;cursor:default;
+}
+#notmenu .not-item.expanded .not-text{color:#e8e8e4}
+#notmenu .not-sep{
+  margin:10px 0 6px;border-top:1px solid #666;color:#888;font-size:10px;letter-spacing:.06em;
+  padding-top:4px;
+}
+#notmenu .not-ctx{
+  position:fixed;z-index:80;min-width:110px;background:#111;border:1px solid #888;
+  box-shadow:0 6px 16px rgba(0,0,0,.75);
+}
+#notmenu .not-ctx.hidden{display:none!important}
+#notmenu .not-ctx button{
+  display:block;width:100%;text-align:left;background:transparent;border:0;color:#eee;
+  padding:6px 10px;font:inherit;font-size:12px;cursor:pointer;border-bottom:1px solid #222;
+}
+#notmenu .not-ctx button:hover{background:#2a2a2a}
+#notmenu .not-sub{
+  position:absolute;z-index:3;top:26px;right:60px;min-width:150px;
+  background:#111;border:1px solid #888;box-shadow:0 6px 16px rgba(0,0,0,.7);
+}
+#notmenu .not-sub.hidden{display:none!important}
+#notmenu .not-sub button{
+  display:block;width:100%;text-align:left;background:transparent;border:0;color:#eee;
+  padding:6px 10px;font:inherit;font-size:12px;cursor:pointer;border-bottom:1px solid #222;
+}
+#notmenu .not-sub button:hover,#notmenu .not-sub button.on{background:#2a2a2a}
+#notmenu .not-sub button.on{color:#d8d63f}
 #edstbar .etb-btn.active-wx{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
 
 @media (max-width: 900px){
@@ -1250,7 +1362,7 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
     <span class="etb-btn" id="btnWx" title="Weather report — METARs">WX<br>REPORT</span>
     <span class="etb-btn sig" id="btnSig" title="SIGMETs for controlling FIR">SIG</span>
-    <span class="etb-btn not" id="btnNot" data-stub="NOT" title="NOTAMs — coming soon">NOT</span>
+    <span class="etb-btn not" id="btnNot" title="NOTAMs for controlling ARTCC">NOT</span>
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
     <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
@@ -1807,8 +1919,42 @@ td.eh-bk{text-align:center;min-width:14px}
   <div class="wx-list" id="wxList"><div class="wx-empty">Enter an airport ICAO, or select an aircraft to load its destination METAR.</div></div>
 </div>
 
+<!-- EDST NOTAMS (ARTCC TFRs + airport lookup) -->
+<div id="notmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <button type="button" class="mbtn" id="notMBtn" title="Menu">M</button>
+    <span class="title">NOTAMS</span>
+    <span class="hdr-meta" id="notHdrMeta">ALL · EFFECTIVE</span>
+    <span class="refresh" id="notRefresh" title="Refresh">REFRESH</span>
+    <span class="x" data-close="notmenu" title="Close">X</span>
+  </div>
+  <div class="not-m-menu hidden" id="notMMenu">
+    <button type="button" data-not-m="filter">FILTER…</button>
+    <button type="button" data-not-m="sort">SORT…</button>
+    <button type="button" data-not-m="suppress" id="notViewSuppressBtn">VIEW SUPPRESS</button>
+  </div>
+  <div class="not-sub hidden" id="notFilterMenu"></div>
+  <div class="not-sub hidden" id="notSortMenu"></div>
+  <div class="not-scope" id="notScope">
+    <span id="notScopeText">FIR — · ARTCC feed</span>
+    <span class="chips" id="notChips"></span>
+  </div>
+  <div class="not-add">
+    <label for="notIcao">ICAO / ID</label>
+    <input id="notIcao" maxlength="16" autocomplete="off" spellcheck="false" placeholder="GSP">
+    <button type="button" class="not-btn" id="notGet" title="Load airport NOTAMs or find ID">GET</button>
+    <button type="button" class="not-btn" id="notDest" title="Load highlighted ACL destination">DEST</button>
+  </div>
+  <div class="not-warn hidden" id="notWarn"></div>
+  <div class="not-list" id="notList"><div class="not-empty">No NOTAMs</div></div>
+  <div class="not-ctx hidden" id="notCtx">
+    <button type="button" id="notCtxAction">SUPPRESS</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="../../shared/edst-sigmets.js"></script>
+<script src="../../shared/edst-notams.js"></script>
 <script>
 //============================================================ state
 const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},
@@ -2577,7 +2723,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','notmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -2922,6 +3068,11 @@ function close(id){
     if(btn)btn.classList.remove('active-wx');
     wxSelectedIcao=null;
   }
+  if(id==='notmenu'){
+    const btn=document.getElementById('btnNot');
+    if(btn)btn.classList.remove('active');
+    if(typeof hideNotMenus==='function')hideNotMenus();
+  }
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
@@ -2939,7 +3090,7 @@ document.addEventListener('pointerdown',ev=>{
       closeAclSortMenu();
     }
   }
-  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','msgpop','ackmenu','volpop'].forEach(id=>{
+  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','notmenu','msgpop','ackmenu','volpop'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -2959,6 +3110,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='gpdmapopts'&&ev.target.closest('#btnGpdMapOpts'))return;
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
+    if(id==='notmenu'&&ev.target.closest('#btnNot'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='volpop'&&ev.target.closest('#btnSound'))return;
     if(id==='gimenu')giSelectedId=null;
@@ -3855,7 +4007,7 @@ function makeEdstDraggable(el,onDragEnd){
   const handle=el&&el.querySelector('.edst-pop-hdr');
   if(!el||!handle)return;
   handle.addEventListener('pointerdown',e=>{
-    if(e.target.closest('.x'))return;
+    if(e.target.closest('.x,.refresh,.mbtn,.not-btn'))return;
     if(e.button!=null&&e.button!==0)return;
     e.preventDefault();
     const r=el.getBoundingClientRect();const ox=e.clientX-r.left,oy=e.clientY-r.top;
@@ -3895,6 +4047,7 @@ makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
 makeEdstDraggable(document.getElementById('sigmenu'));
 makeEdstDraggable(document.getElementById('wxmenu'));
+makeEdstDraggable(document.getElementById('notmenu'));
 
 //============================================================ ROUTE MENU
 const routemenu=document.getElementById('routemenu');
@@ -4662,6 +4815,567 @@ document.querySelectorAll('[data-close="wxmenu"]').forEach(el=>{
     if(btn)btn.classList.remove('active-wx');
   });
 });
+
+//============================================================ NOTAMS (ARTCC TFRs + airport)
+const NOT_POLL_MS=90e3;
+const NOT_AIRPORT_MAX=10;
+let notLoading=false;
+let notCache={artcc:'',entries:[],error:null,warning:null,fetchedAt:0};
+const notAirportPins=[];           // [{icao, entries, warning, note}]
+const notExpanded=new Set();
+const notSuppressed=new Set();
+const notSeenIds=new Set();
+const notNewIds=new Set();
+let notAlert=false;
+let notPrimed=false;
+let notPollTimer=null;
+let notFetchGen=0;
+let notFilter='all';
+let notSort='effective';
+let notViewSuppress=false;
+let notCtxId=null;
+let notFindHits=[];
+
+function notMenuOpen(){
+  const el=document.getElementById('notmenu');
+  return !!(el&&!el.classList.contains('hidden'));
+}
+function notArtcc(){
+  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase();
+}
+function notBareArtcc(id){
+  if(window.EdstNotams&&EdstNotams.bareArtcc)return EdstNotams.bareArtcc(id);
+  return String(id||'').toUpperCase().replace(/^K(?=Z)/,'');
+}
+function notNormIcao(icao){
+  if(window.EdstNotams&&EdstNotams.normalizeIcao)return EdstNotams.normalizeIcao(icao);
+  return normalizeIcao(icao);
+}
+function notEntryId(entry,idx){
+  return String((entry&&(entry.id||entry.notamId))||('not-'+idx));
+}
+function notEntryKey(entry,idx){
+  return notEntryId(entry,idx)+'|'
+    +String((entry&&entry.location)||'')+'|'
+    +String((entry&&(entry.start||entry.end))||'');
+}
+function notShortText(entry){
+  return String((entry&&entry.text)||'').trim();
+}
+function notFullText(entry){
+  const full=String((entry&&(entry.fullText||entry.text))||'').trim();
+  return full||notShortText(entry);
+}
+function notCanExpand(entry){
+  const short=notShortText(entry);
+  const full=notFullText(entry);
+  return !!full&&full!==short;
+}
+function syncNotButton(){
+  const btn=document.getElementById('btnNot');
+  if(!btn)return;
+  btn.classList.toggle('flash',!!notAlert);
+  btn.title=notAlert
+    ?'New NOTAM / TFR — click to view'
+    :'NOTAMs for controlling ARTCC';
+}
+function clearNotAlert(){
+  if(!notAlert){syncNotButton();return;}
+  notAlert=false;
+  syncNotButton();
+}
+function hideNotMenus(){
+  ['notMMenu','notFilterMenu','notSortMenu','notCtx'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.classList.add('hidden');
+  });
+  const m=document.getElementById('notMBtn');
+  if(m)m.classList.remove('open');
+  notCtxId=null;
+}
+function syncNotHdrMeta(){
+  const el=document.getElementById('notHdrMeta');
+  if(!el)return;
+  const fl=(window.EdstNotams&&EdstNotams.filterLabel)?EdstNotams.filterLabel(notFilter):notFilter.toUpperCase();
+  const sl=(window.EdstNotams&&EdstNotams.sortLabel)?EdstNotams.sortLabel(notSort):notSort.toUpperCase();
+  el.textContent=fl+' · '+sl;
+}
+function noteNotEntries(entries,art){
+  const list=Array.isArray(entries)?entries:[];
+  const keys=list.map((e,i)=>notEntryKey(e,i));
+  const artBare=notBareArtcc(art);
+  const prevBare=notBareArtcc(notCache.artcc);
+  if(prevBare&&artBare&&prevBare!==artBare){
+    notPrimed=false;
+    notSeenIds.clear();
+    notNewIds.clear();
+    clearNotAlert();
+  }
+  if(!notPrimed){
+    notSeenIds.clear();
+    keys.forEach(k=>notSeenIds.add(k));
+    notPrimed=true;
+    return;
+  }
+  const newcomers=keys.filter(k=>!notSeenIds.has(k));
+  notSeenIds.clear();
+  keys.forEach(k=>notSeenIds.add(k));
+  newcomers.forEach((k,i)=>{
+    const e=list[keys.indexOf(k)];
+    if(e)notNewIds.add(notEntryId(e,i));
+  });
+  if(!newcomers.length)return;
+  if(notMenuOpen())clearNotAlert();
+  else{notAlert=true;syncNotButton();}
+}
+function notFmtUntil(entry){
+  const end=entry&&entry.end;
+  if(end==null)return '';
+  const d=new Date(typeof end==='number'?(end<1e12?end*1000:end):end);
+  if(isNaN(d.getTime()))return '';
+  const dd=String(d.getUTCDate()).padStart(2,'0');
+  const hh=String(d.getUTCHours()).padStart(2,'0');
+  const mm=String(d.getUTCMinutes()).padStart(2,'0');
+  return ' · until '+dd+hh+mm+'Z';
+}
+function notFmtMeta(entry){
+  const id=entry.id||entry.notamId||'—';
+  const loc=(entry.location||'').toUpperCase();
+  const typ=(entry.type||'').toUpperCase();
+  return id+(loc?(' · '+loc):'')+(typ?(' · '+typ):'')+notFmtUntil(entry);
+}
+function allNotEntries(){
+  const map=new Map();
+  const add=(e,idx)=>{
+    if(!e)return;
+    const id=notEntryId(e,idx);
+    if(!map.has(id))map.set(id,e);
+  };
+  (notCache.entries||[]).forEach((e,i)=>add(e,i));
+  notAirportPins.forEach(pin=>{
+    (pin.entries||[]).forEach((e,i)=>add(e,'a'+pin.icao+'-'+i));
+  });
+  return [...map.values()];
+}
+function visibleNotEntries(){
+  let list=allNotEntries();
+  if(window.EdstNotams&&EdstNotams.filterEntries)
+    list=EdstNotams.filterEntries(list,notFilter,new Date());
+  else list=list.filter(e=>!e.expired);
+  const active=[],sup=[];
+  list.forEach(e=>{
+    const id=notEntryId(e);
+    if(notSuppressed.has(id))sup.push(e);
+    else active.push(e);
+  });
+  const sortFn=(arr)=>window.EdstNotams&&EdstNotams.sortEntries
+    ?EdstNotams.sortEntries(arr,notSort):arr;
+  return {active:sortFn(active),suppressed:sortFn(sup)};
+}
+function renderNotChips(){
+  const el=document.getElementById('notChips');
+  if(!el)return;
+  if(!notAirportPins.length){el.innerHTML='';return;}
+  el.innerHTML=notAirportPins.map(p=>
+    '<span class="not-chip">'+esc(p.icao)
+    +'<button type="button" data-not-chip-x="'+esc(p.icao)+'" title="Remove">×</button></span>'
+  ).join('');
+}
+function renderNotItem(e,idx){
+  const id=notEntryId(e,idx);
+  const canExpand=notCanExpand(e);
+  const open=canExpand&&notExpanded.has(id);
+  const body=open?notFullText(e):notShortText(e);
+  const isNew=notNewIds.has(id);
+  const isHit=notFindHits.indexOf(id)>=0;
+  const isSup=notSuppressed.has(id);
+  const toggle=canExpand
+    ?('<button type="button" class="not-toggle" data-not-toggle="'+esc(id)+'"'
+      +' aria-expanded="'+(open?'true':'false')+'"'
+      +' title="'+(open?'Collapse':'Expand')+'">*</button>')
+    :'<span class="not-toggle" style="visibility:hidden" aria-hidden="true">*</span>';
+  return '<div class="not-item'
+    +(open?' expanded':'')
+    +(isNew?' new':'')
+    +(isSup?' suppressed':'')
+    +(isHit?' hit':'')
+    +'" data-not-id="'+esc(id)+'">'
+    +'<div class="not-meta">'+toggle+'<b>'+esc(notFmtMeta(e))+'</b></div>'
+    +'<div class="not-text">'+esc(body||'')+'</div>'
+    +'</div>';
+}
+function renderNotList(){
+  const list=document.getElementById('notList');
+  const scope=document.getElementById('notScopeText');
+  const warn=document.getElementById('notWarn');
+  if(!list)return;
+  syncNotHdrMeta();
+  renderNotChips();
+  const art=notCache.artcc||notArtcc();
+  const short=art?notBareArtcc(art):'—';
+  const n=allNotEntries().length;
+  if(scope){
+    if(notLoading)scope.textContent='FIR '+short+' · ARTCC feed — loading…';
+    else if(notCache.error)scope.textContent='FIR '+short+' · '+notCache.error;
+    else scope.textContent='FIR '+short+' · ARTCC feed'+(n?(' · '+n):'');
+  }
+  const warnings=[];
+  if(notCache.warning)warnings.push(notCache.warning);
+  notAirportPins.forEach(p=>{if(p.warning)warnings.push(p.icao+': '+p.warning);});
+  if(warn){
+    if(warnings.length){
+      warn.classList.remove('hidden');
+      warn.textContent=warnings.join(' · ');
+    }else{
+      warn.classList.add('hidden');
+      warn.textContent='';
+    }
+  }
+  if(notLoading&&!n){
+    list.innerHTML='<div class="not-empty">Loading NOTAMs…</div>';
+    return;
+  }
+  if(notCache.error&&!n){
+    list.innerHTML='<div class="not-empty">'+esc(notCache.error)+'</div>';
+    return;
+  }
+  const {active,suppressed}=visibleNotEntries();
+  const liveIds=new Set([...active,...suppressed].map((e,i)=>notEntryId(e,i)));
+  [...notExpanded].forEach(id=>{if(!liveIds.has(id))notExpanded.delete(id);});
+  if(!active.length&&!(notViewSuppress&&suppressed.length)){
+    list.innerHTML='<div class="not-empty">No NOTAMs'
+      +(short&&short!=='—'?' for '+esc(short):'')
+      +'. Type an ICAO (e.g. GSP) or use DEST.</div>';
+    return;
+  }
+  let html=active.map((e,i)=>renderNotItem(e,i)).join('');
+  if(notViewSuppress&&suppressed.length){
+    html+='<div class="not-sep">SUPPRESSED</div>'
+      +suppressed.map((e,i)=>renderNotItem(e,'s'+i)).join('');
+  }
+  list.innerHTML=html;
+}
+function toggleNotExpand(id){
+  id=String(id||'');
+  if(!id)return;
+  if(notExpanded.has(id))notExpanded.delete(id);
+  else notExpanded.add(id);
+  notNewIds.delete(id);
+  renderNotList();
+}
+function setNotSuppressed(id,on){
+  id=String(id||'');
+  if(!id)return;
+  if(on)notSuppressed.add(id);
+  else notSuppressed.delete(id);
+  notNewIds.delete(id);
+  hideNotMenus();
+  renderNotList();
+}
+function showNotCtx(id,x,y){
+  const ctx=document.getElementById('notCtx');
+  const btn=document.getElementById('notCtxAction');
+  if(!ctx||!btn)return;
+  notCtxId=id;
+  const suppressed=notSuppressed.has(id);
+  btn.textContent=suppressed?'RESTORE':'SUPPRESS';
+  ctx.classList.remove('hidden');
+  const menu=document.getElementById('notmenu');
+  const mr=menu?menu.getBoundingClientRect():{left:0,top:0,right:window.innerWidth,bottom:window.innerHeight};
+  let left=x, top=y;
+  // Keep inside viewport
+  left=Math.max(8,Math.min(left,window.innerWidth-120));
+  top=Math.max(8,Math.min(top,window.innerHeight-40));
+  ctx.style.left=left+'px';
+  ctx.style.top=top+'px';
+}
+function removeNotAirport(icao){
+  icao=notNormIcao(icao);
+  const idx=notAirportPins.findIndex(p=>p.icao===icao);
+  if(idx<0)return;
+  notAirportPins.splice(idx,1);
+  renderNotList();
+}
+async function addNotAirport(icao,note){
+  icao=notNormIcao(icao);
+  if(!icao||!/^[A-Z]{4}$/.test(icao)){comingSoon('Enter a 3–4 letter airport code');return;}
+  if(!window.EdstNotams||typeof EdstNotams.fetchNotamsForIcao!=='function'){
+    comingSoon('NOTAMs module failed to load');return;
+  }
+  let pin=notAirportPins.find(p=>p.icao===icao);
+  if(!pin&&notAirportPins.length>=NOT_AIRPORT_MAX){
+    comingSoon('NOTAMS holds up to '+NOT_AIRPORT_MAX+' airport lookups');
+    return;
+  }
+  if(!pin){
+    pin={icao,entries:[],warning:null,note:note||''};
+    notAirportPins.push(pin);
+  }else if(note)pin.note=note;
+  renderNotList();
+  try{
+    const result=await EdstNotams.fetchNotamsForIcao(icao,{force:true});
+    pin.entries=result.entries||[];
+    pin.warning=result.warning||null;
+  }catch(e){
+    pin.entries=[];
+    pin.warning=(e&&e.message)||'Airport NOTAM fetch failed';
+  }
+  renderNotList();
+}
+function findNotInList(query){
+  if(!window.EdstNotams||!EdstNotams.findNotamIds)return;
+  const ids=EdstNotams.findNotamIds(allNotEntries(),query);
+  notFindHits=ids;
+  if(ids.length){
+    const first=ids[0];
+    notExpanded.add(first);
+    notNewIds.delete(first);
+  }
+  renderNotList();
+  if(ids.length){
+    const first=ids[0];
+    const el=document.querySelector('#notList .not-item[data-not-id="'+String(first).replace(/"/g,'')+'"]');
+    if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest'});
+  }else comingSoon('No matching NOTAM id in current list');
+}
+async function submitNotInput(){
+  const input=document.getElementById('notIcao');
+  const raw=(input&&input.value)||'';
+  if(!String(raw).trim()){comingSoon('Enter an ICAO or NOTAM id');return;}
+  if(window.EdstNotams&&EdstNotams.looksLikeNotamId&&EdstNotams.looksLikeNotamId(raw)){
+    findNotInList(raw);
+  }else{
+    await addNotAirport(raw,'');
+  }
+  if(input){input.value='';input.focus();}
+}
+async function refreshNotams(force,opts){
+  opts=opts||{};
+  const silent=!!opts.silent;
+  const art=notArtcc();
+  if(!art){
+    notCache={artcc:'',entries:[],error:'Set or verify an ARTCC to load NOTAMs.',warning:null,fetchedAt:Date.now()};
+    if(!silent||notMenuOpen())renderNotList();
+    return;
+  }
+  if(!window.EdstNotams||typeof EdstNotams.fetchNotamsForArtcc!=='function'){
+    notCache={artcc:art,entries:[],error:'NOTAMs module failed to load.',warning:null,fetchedAt:Date.now()};
+    if(!silent||notMenuOpen())renderNotList();
+    return;
+  }
+  if(!force&&!silent&&notCache.artcc===notBareArtcc(art)&&notCache.fetchedAt&&(Date.now()-notCache.fetchedAt)<60e3
+    &&(notCache.entries||[]).length){
+    if(notMenuOpen())renderNotList();
+    return;
+  }
+  const showLoading=!silent||!(notCache.entries&&notCache.entries.length);
+  if(showLoading){
+    notLoading=true;
+    if(notMenuOpen())renderNotList();
+  }
+  const gen=++notFetchGen;
+  try{
+    const result=await EdstNotams.fetchNotamsForArtcc(art,{force:!!force});
+    if(gen!==notFetchGen)return;
+    const entries=result.entries||[];
+    noteNotEntries(entries,result.artcc||art);
+    notCache={
+      artcc:result.artcc||notBareArtcc(art),
+      entries:entries,
+      error:result.error||null,
+      warning:result.warning||null,
+      fetchedAt:Date.now(),
+    };
+  }catch(e){
+    if(gen!==notFetchGen)return;
+    notCache={
+      artcc:notBareArtcc(art),
+      entries:notCache.entries||[],
+      error:(e&&e.message)||'Failed to fetch NOTAMs',
+      warning:null,
+      fetchedAt:Date.now(),
+    };
+  }
+  notLoading=false;
+  if(notMenuOpen())renderNotList();
+  syncNotButton();
+}
+function scheduleNotPoll(){
+  if(notPollTimer)clearTimeout(notPollTimer);
+  notPollTimer=setTimeout(async()=>{
+    try{
+      if(notArtcc())await refreshNotams(true,{silent:true});
+    }catch(_){}
+    scheduleNotPoll();
+  },NOT_POLL_MS);
+}
+function startNotPolling(){
+  scheduleNotPoll();
+  if(notArtcc())refreshNotams(true,{silent:true}).catch(()=>{});
+}
+function buildNotSubMenu(el,items,current,onPick){
+  if(!el)return;
+  el.innerHTML=items.map(it=>{
+    const on=it.id===current?' on':'';
+    return '<button type="button" class="'+on.trim()+'" data-not-pick="'+esc(it.id)+'">'+esc(it.label)+'</button>';
+  }).join('');
+  el.querySelectorAll('[data-not-pick]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.preventDefault();e.stopPropagation();
+      onPick(btn.getAttribute('data-not-pick'));
+    });
+  });
+}
+function openNotFilterMenu(){
+  const el=document.getElementById('notFilterMenu');
+  const sort=document.getElementById('notSortMenu');
+  if(sort)sort.classList.add('hidden');
+  const items=(window.EdstNotams&&EdstNotams.FILTERS)||[
+    {id:'all',label:'ALL'},{id:'tfr',label:'TFR & AIRSPACE'},
+    {id:'navaid',label:'NAVAID'},{id:'airport',label:'AIRPORT'}
+  ];
+  buildNotSubMenu(el,items,notFilter,id=>{
+    notFilter=id;hideNotMenus();renderNotList();
+  });
+  if(el)el.classList.remove('hidden');
+}
+function openNotSortMenu(){
+  const el=document.getElementById('notSortMenu');
+  const filt=document.getElementById('notFilterMenu');
+  if(filt)filt.classList.add('hidden');
+  const items=(window.EdstNotams&&EdstNotams.SORTS)||[
+    {id:'effective',label:'EFFECTIVE'},{id:'expiration',label:'EXPIRATION'},
+    {id:'location',label:'LOCATION'},{id:'id',label:'ID'}
+  ];
+  buildNotSubMenu(el,items,notSort,id=>{
+    notSort=id;hideNotMenus();renderNotList();
+  });
+  if(el)el.classList.remove('hidden');
+}
+function openNotMenu(){
+  const menu=document.getElementById('notmenu');
+  const btn=document.getElementById('btnNot');
+  if(!menu||!btn)return;
+  if(!menu.classList.contains('hidden')){close('notmenu');return;}
+  clearNotAlert();
+  hideNotMenus();
+  renderNotList();
+  const r=btn.getBoundingClientRect();
+  placePop(menu,r.left,r.bottom+4);
+  btn.classList.add('active');
+  refreshNotams(false);
+  // Assistive: load highlighted ACL destination (does not replace ARTCC feed)
+  const a=typeof selectedAircraft==='function'?selectedAircraft():null;
+  if(a){
+    const dest=typeof wxDestFromAircraft==='function'?wxDestFromAircraft(a):notNormIcao(a.arr);
+    if(dest&&!notAirportPins.some(p=>p.icao===dest))
+      addNotAirport(dest,'DEST '+(a.cs||''));
+  }
+  const input=document.getElementById('notIcao');
+  if(input)setTimeout(()=>input.focus(),30);
+}
+(function wireNotams(){
+  const btn=document.getElementById('btnNot');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openNotMenu();});
+  const ref=document.getElementById('notRefresh');
+  if(ref)ref.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    refreshNotams(true);
+    notAirportPins.slice().forEach(p=>addNotAirport(p.icao,p.note||''));
+  });
+  const get=document.getElementById('notGet');
+  const input=document.getElementById('notIcao');
+  if(get)get.addEventListener('click',e=>{e.preventDefault();submitNotInput();});
+  if(input)input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();submitNotInput();}
+  });
+  const dest=document.getElementById('notDest');
+  if(dest)dest.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    const a=typeof selectedAircraft==='function'?selectedAircraft():null;
+    if(!a){comingSoon('Select an aircraft strip first');return;}
+    const d=typeof wxDestFromAircraft==='function'?wxDestFromAircraft(a):notNormIcao(a.arr);
+    if(!d){comingSoon((a.cs||'Aircraft')+' has no destination airport');return;}
+    addNotAirport(d,'DEST '+a.cs);
+  });
+  const mbtn=document.getElementById('notMBtn');
+  const mmenu=document.getElementById('notMMenu');
+  if(mbtn&&mmenu)mbtn.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    const open=mmenu.classList.contains('hidden');
+    hideNotMenus();
+    if(open){
+      mmenu.classList.remove('hidden');
+      mbtn.classList.add('open');
+      const vs=document.getElementById('notViewSuppressBtn');
+      if(vs)vs.textContent=notViewSuppress?'HIDE SUPPRESS':'VIEW SUPPRESS';
+    }
+  });
+  if(mmenu)mmenu.addEventListener('click',e=>{
+    const b=e.target.closest('[data-not-m]');
+    if(!b)return;
+    e.preventDefault();e.stopPropagation();
+    const act=b.getAttribute('data-not-m');
+    if(act==='filter'){mmenu.classList.add('hidden');openNotFilterMenu();}
+    else if(act==='sort'){mmenu.classList.add('hidden');openNotSortMenu();}
+    else if(act==='suppress'){
+      notViewSuppress=!notViewSuppress;
+      hideNotMenus();
+      renderNotList();
+    }
+  });
+  const list=document.getElementById('notList');
+  if(list){
+    list.addEventListener('click',e=>{
+      const chipX=e.target.closest('[data-not-chip-x]');
+      // chips are outside list — handled below
+      const tog=e.target.closest('[data-not-toggle]');
+      if(tog&&list.contains(tog)){
+        e.preventDefault();e.stopPropagation();
+        toggleNotExpand(tog.getAttribute('data-not-toggle'));
+        return;
+      }
+      const item=e.target.closest('.not-item[data-not-id]');
+      if(!item||!list.contains(item))return;
+      if(e.target.closest('.not-toggle'))return;
+      e.preventDefault();
+      const id=item.getAttribute('data-not-id');
+      notNewIds.delete(id);
+      showNotCtx(id,e.clientX,e.clientY);
+      renderNotList();
+    });
+    list.addEventListener('contextmenu',e=>{
+      const item=e.target.closest('.not-item[data-not-id]');
+      if(!item||!list.contains(item))return;
+      e.preventDefault();
+      const id=item.getAttribute('data-not-id');
+      notNewIds.delete(id);
+      showNotCtx(id,e.clientX,e.clientY);
+    });
+  }
+  const chips=document.getElementById('notChips');
+  if(chips)chips.addEventListener('click',e=>{
+    const x=e.target.closest('[data-not-chip-x]');
+    if(!x)return;
+    e.preventDefault();e.stopPropagation();
+    removeNotAirport(x.getAttribute('data-not-chip-x'));
+  });
+  const ctxAct=document.getElementById('notCtxAction');
+  if(ctxAct)ctxAct.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(!notCtxId)return;
+    setNotSuppressed(notCtxId,!notSuppressed.has(notCtxId));
+  });
+  document.querySelectorAll('[data-close="notmenu"]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const b=document.getElementById('btnNot');
+      if(b)b.classList.remove('active');
+      hideNotMenus();
+    });
+  });
+  syncNotButton();
+  startNotPolling();
+})();
 
 //============================================================ GI (General Information)
 function giMenuOpen(){
