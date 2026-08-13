@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>VATFLOW · ERIDS</title>
+<link rel="stylesheet" href="shared/erids.css">
+</head>
+<body>
+<div id="eridsApp">
+  <header class="erids-header">
+    <div class="erids-brand">ERIDS <span>En Route Information Display</span></div>
+    <div class="erids-header-spacer"></div>
+    <label class="erids-artcc-label" for="eridsArtcc">ARTCC</label>
+    <select id="eridsArtcc" class="erids-artcc-select" aria-label="Select ARTCC"></select>
+    <div id="eridsClock" class="erids-clock" aria-live="polite">——:——Z</div>
+    <a class="erids-escape" href="index.html" title="Return to VATFLOW hub">VATFLOW</a>
+  </header>
+
+  <nav id="eridsPrimaryTabs" class="erids-tabs" aria-label="Facility sections"></nav>
+  <nav id="eridsSecondaryTabs" class="erids-subtabs" aria-label="Approach subsections"></nav>
+
+  <main id="eridsMain" class="erids-main" tabindex="-1"></main>
+
+  <div class="erids-util" aria-label="Utility bar">
+    <button type="button" class="erids-util-btn" id="eridsBack" title="Go back">◀ Back</button>
+    <button type="button" class="erids-util-btn" id="eridsDefineShortcuts" title="Tap a destination, then save as shortcut">Define Shortcuts</button>
+    <button type="button" class="erids-util-btn is-hot" id="eridsShowShortcuts" title="Show saved shortcuts">Show User Shortcuts</button>
+    <button type="button" class="erids-util-btn is-accent" id="eridsContractions" title="ATC contractions search">Contractions Search</button>
+    <button type="button" class="erids-util-btn is-accent" id="eridsFacilityQuick" hidden>Facility</button>
+  </div>
+
+  <nav class="erids-icons" aria-label="Primary navigation">
+    <button type="button" class="erids-icon-btn" data-nav="home" id="navHome">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+      Home
+    </button>
+    <button type="button" class="erids-icon-btn" data-nav="messages" id="navMessages">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></svg>
+      Messages
+    </button>
+    <button type="button" class="erids-icon-btn" data-nav="wx" id="navWx">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><path d="M12 8h1a4 4 0 0 1 0 8H7a3.5 3.5 0 0 1 0-7"/></svg>
+      WX
+    </button>
+    <button type="button" class="erids-icon-btn" data-nav="docs" id="navDocs">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7l2 2h7v12H4z"/><path d="M8 12h8M8 16h6"/></svg>
+      ATC Docs
+    </button>
+    <button type="button" class="erids-icon-btn" data-nav="charts" id="navCharts">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5l5 3 6-4 5 3v12l-5-3-6 4-5-3z"/></svg>
+      Charts
+    </button>
+    <button type="button" class="erids-icon-btn" data-nav="search" id="navSearch">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+      Search
+    </button>
+    <button type="button" class="erids-icon-btn" data-nav="help" id="navHelp">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.1.8-1.1 1.8v.5M12 17h.01"/></svg>
+      Help
+    </button>
+  </nav>
+</div>
+
+<script src="shared/edst-notams.js"></script>
+<script src="shared/edst-sigmets.js"></script>
+<script type="module" src="shared/erids-app.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@ import { initVatflowAuth, mountAuthNav } from "./vatflow-auth.js";
 
 /**
  * @param {HTMLElement|null} container
- * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"vusalink"|"cpdlc-map"|"admin"|"hub"} active
+ * @param {"tbfm"|"fca"|"artcc"|"tower"|"runways"|"vusalink"|"cpdlc-map"|"erids"|"admin"|"hub"} active
  * @param {{ base?: string }} [opts] — prefix for hrefs when mounted from a subfolder (e.g. "../")
  */
 export function mountVatflowNav(container, active, opts = {}) {
@@ -16,6 +16,7 @@ export function mountVatflowNav(container, active, opts = {}) {
     { id: "fca", href: "FCA-builderv02.html", label: "FCA Builder" },
     { id: "artcc", href: "artcc-dashboard.html", label: "Release Board" },
     { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
+    { id: "erids", href: "erids.html", label: "ERIDS" },
     { id: "vusalink", href: "vusalink/", label: "vUSAlink" },
     { id: "cpdlc-map", href: "cpdlc-map.html", label: "CPDLC Map" },
     { id: "admin", href: "admin-access.html", label: "Admin Access" },

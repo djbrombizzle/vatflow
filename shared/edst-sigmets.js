@@ -20,6 +20,7 @@
   var BOUNDARY_URLS = [
     "../../data/artcc-boundaries-high.geojson",
     "../data/artcc-boundaries-high.geojson",
+    "data/artcc-boundaries-high.geojson",
     "/data/artcc-boundaries-high.geojson",
   ];
   // Public CORS proxies — avoid allorigins (often 15–20s / 522). Prefer hub.
