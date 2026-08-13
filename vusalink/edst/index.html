@@ -29,15 +29,19 @@ a{color:inherit}
 
 #edstbar{display:block;background:#000;border-bottom:1px solid #333;padding:3px 4px}
 #edstbar .etb-row{display:flex;align-items:stretch;gap:4px;margin-bottom:0;flex-wrap:wrap}
+#edstbar .etb-row.etb-more{margin-top:3px;padding-top:3px;border-top:1px solid #222}
+#edstbar .etb-row.etb-more.hidden{display:none!important}
+#edstbar .etb-more-ph{visibility:hidden;pointer-events:none} /* align under ACL (past MORE) */
 #edstbar .etb-arrow{display:flex;align-items:center;justify-content:center;width:20px;
   border:1px solid #8a8a8a;color:#d0d0d0;font-size:13px;flex-shrink:0;cursor:pointer}
+#edstbar .etb-arrow:hover,#edstbar .etb-arrow.open{background:#1a1a1a;border-color:#aaa;color:#fff}
 #edstbar .etb-btn,#edstbar .etb-stat{display:flex;align-items:center;justify-content:center;
   text-align:center;border:1px solid #8a8a8a;color:#d6d6d6;padding:1px 8px;font-size:12.5px;
   line-height:1.04;white-space:nowrap;min-width:40px;user-select:none}
 #edstbar .etb-btn{cursor:pointer}
 #edstbar .etb-btn:hover{background:#1a1a1a}
 #edstbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
-#edstbar .etb-btn.sig{border-color:#d8d63f;color:#d8d63f}
+#edstbar .etb-btn.sig,#edstbar .etb-btn.not{border-color:#d8d63f;color:#d8d63f}
 #edstbar .etb-btn.sig.flash{
   animation:sigflash 1s steps(2,start) infinite;
   background:#4a4a18;border-color:#ebe64a;color:#ebe64a;
@@ -148,6 +152,7 @@ a{color:inherit}
 #posHint{margin-left:8px;opacity:.75}
 
 #boardwrap{overflow:auto;height:calc(100vh - 148px);padding:0 4px 2rem;-webkit-overflow-scrolling:touch}
+body.more-open #boardwrap{height:calc(100vh - 176px)}
 #board{width:100%;border-collapse:collapse;white-space:nowrap;font-family:'EDST','EDSTv2',Consolas,monospace}
 #board thead th{background:#000;color:#cdd3ce;border:0;text-align:left;
   padding:3px 6px;font-weight:normal;letter-spacing:.3px;position:sticky;top:0;z-index:1;cursor:pointer;user-select:none}
@@ -1236,15 +1241,16 @@ td.eh-bk{text-align:center;min-width:14px}
 <body>
 
 <div id="edstbar">
-  <div class="etb-row">
-    <span class="etb-arrow" data-stub="MORE">&#8595;</span>
-    <span class="etb-btn active" data-stub="MORE">MORE</span>
+  <div class="etb-row" id="etbMain">
+    <span class="etb-arrow" id="btnMoreArrow" title="Show more menu" role="button" tabindex="0" aria-controls="etbMoreRow" aria-expanded="false">&#8595;</span>
+    <span class="etb-btn" id="btnMore" title="Show more menu" role="button" tabindex="0" aria-controls="etbMoreRow" aria-expanded="false">MORE</span>
     <span class="etb-btn active" id="tabAcl">ACL&nbsp;08</span>
     <span class="etb-btn" id="tabDep" title="Departure List">DEP&nbsp;00</span>
     <span class="etb-btn" id="btnGpd" title="Graphical Plan Display">GPD</span>
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
     <span class="etb-btn" id="btnWx" title="Weather report — METARs">WX<br>REPORT</span>
     <span class="etb-btn sig" id="btnSig" title="SIGMETs for controlling FIR">SIG</span>
+    <span class="etb-btn not" id="btnNot" data-stub="NOT" title="NOTAMs — coming soon">NOT</span>
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
     <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
@@ -1259,6 +1265,13 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
     <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
     <span class="etb-stat" data-stub="MSG WAIT">MSG<br>WAIT</span>
+  </div>
+  <div class="etb-row etb-more hidden" id="etbMoreRow" role="toolbar" aria-label="More menu">
+    <span class="etb-arrow etb-more-ph" aria-hidden="true">&#8595;</span>
+    <span class="etb-btn etb-more-ph" aria-hidden="true">MORE</span>
+    <span class="etb-btn" id="btnWind" data-stub="WIND" title="Winds — coming soon">WIND</span>
+    <span class="etb-btn" id="btnAltimSet" data-stub="ALTIM SET" title="Altimeter setting — coming soon">ALTIM<br>SET</span>
+    <span class="etb-btn" id="btnMca" title="Message Composition Area">MCA</span>
   </div>
 </div>
 
@@ -1806,9 +1819,10 @@ const DEFAULT_HUB_URL='https://web-production-3d9fe.up.railway.app';   // shared
 // VATSIM CID. The hub URL is built in, so Settings only asks for the CID. (Solo/direct-Hoppie
 // is retired — a browser can't reach Hoppie directly, which is why the hub exists.)
 const WEB_ONLY=true;
-let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,showCpdlcOnly:false,aclFilter:'freq',compactTabTitle:false});
+let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,showCpdlcOnly:false,aclFilter:'freq',compactTabTitle:false,moreOpen:false});
 if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
 if(typeof settings.compactTabTitle!=='boolean')settings.compactTabTitle=false;
+if(typeof settings.moreOpen!=='boolean')settings.moreOpen=false;
 // ACL list filter: all | cpdlc | freq (EDST Sort menu — exclusive)
 settings.showAll=settings.showAll===true;
 settings.showCpdlcOnly=settings.showCpdlcOnly===true;
@@ -5962,6 +5976,61 @@ function tickEdstClock(){
 }
 tickEdstClock();
 setInterval(tickEdstClock,1000);
+
+//============================================================ MORE menu (second toolbar row)
+function syncMoreMenuUi(){
+  const open=!!settings.moreOpen;
+  const row=document.getElementById('etbMoreRow');
+  const btn=document.getElementById('btnMore');
+  const arrow=document.getElementById('btnMoreArrow');
+  if(row)row.classList.toggle('hidden',!open);
+  document.body.classList.toggle('more-open',open);
+  [btn,arrow].forEach(el=>{
+    if(!el)return;
+    el.classList.toggle('active',open);
+    el.classList.toggle('open',open);
+    el.setAttribute('aria-expanded',open?'true':'false');
+    el.title=open?'Hide more menu':'Show more menu';
+  });
+  if(arrow)arrow.innerHTML=open?'&#8593;':'&#8595;';
+}
+function setMoreMenuOpen(on){
+  settings.moreOpen=!!on;
+  persist();
+  syncMoreMenuUi();
+}
+function toggleMoreMenu(){setMoreMenuOpen(!settings.moreOpen);}
+function focusMcaFromMore(){
+  const el=document.getElementById('mca');
+  const inp=document.getElementById('mcaInput');
+  if(!el||!inp){comingSoon('MCA');return;}
+  el.classList.remove('hidden');
+  el.style.outline='1px solid #cfcfcf';
+  setTimeout(()=>{if(el)el.style.outline='';},900);
+  try{inp.focus();inp.select();}catch(_){}
+}
+(function wireMoreMenu(){
+  const btn=document.getElementById('btnMore');
+  const arrow=document.getElementById('btnMoreArrow');
+  const mcaBtn=document.getElementById('btnMca');
+  function onMore(e){
+    if(e){e.preventDefault();e.stopPropagation();}
+    toggleMoreMenu();
+  }
+  if(btn){
+    btn.addEventListener('click',onMore);
+    btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onMore(e);}});
+  }
+  if(arrow){
+    arrow.addEventListener('click',onMore);
+    arrow.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onMore(e);}});
+  }
+  if(mcaBtn)mcaBtn.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    focusMcaFromMore();
+  });
+  syncMoreMenuUi();
+})();
 
 function comingSoon(label){
   const t=document.getElementById('statusText');
