@@ -20,6 +20,28 @@ export function bindWindAirportLookup(fn) {
 
 export function getWindInfo() { return { ...windInfo }; }
 
+/** Snapshot of stations with coordinates (id -> { lat, lon, levels }). */
+export function getWindStations() {
+  const out = {};
+  for (const id in windStations) {
+    const s = windStations[id];
+    out[id] = { lat: s.lat, lon: s.lon, levels: { ...s.levels } };
+  }
+  return out;
+}
+
+/** Nearest FB station to a lat/lon, or null if none within 600 NM. */
+export function nearestWindStation(lat, lon) {
+  let best = null, bestId = null, bd = 1e9;
+  for (const id in windStations) {
+    const s = windStations[id];
+    const d = gcDist(lat, lon, s.lat, s.lon);
+    if (d < bd) { bd = d; best = s; bestId = id; }
+  }
+  if (!best || bd > 600) return null;
+  return { id: bestId, lat: best.lat, lon: best.lon, levels: best.levels, distNm: bd };
+}
+
 function rad(d) { return d * Math.PI / 180; }
 
 function gcDist(la1, lo1, la2, lo2) {

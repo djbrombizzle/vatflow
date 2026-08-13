@@ -248,7 +248,12 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   let alertByCs = null; // Map or object: cs -> {r,y,a,rMuted,yMuted,aMuted,status}
   let alertShowFilter = null; // {type:'r'|'y'|'a', cs?:string} — Show / Show All
   let sectorMode = "off"; // 'off' | 'high' | 'low'
+  let showRoutes = true;
+  let showAirports = false;
+  let showFixLabels = false;
   const onSelect = typeof opts.onSelect === "function" ? opts.onSelect : null;
+  const airportLayer = L.layerGroup().addTo(map);
+  const fixLabelLayer = L.layerGroup().addTo(map);
 
   function drawSectors(artccId) {
     sectorLayer.clearLayers();
@@ -322,16 +327,80 @@ export function createEdstGpdMap(containerEl, opts = {}) {
 
   function renderRoutes(flights, sel) {
     routeLayer.clearLayers();
+    fixLabelLayer.clearLayers();
+    if (!showRoutes && !showFixLabels) return;
     for (const f of flights) {
       const cs = (f.cs || f.callsign || "").toUpperCase();
       const coords = routePathCoords(f);
       if (coords.length < 2) continue;
       const isSel = sel && cs === sel;
-      // Full remaining route stays faint/selected — never paint the whole path alert-colored.
-      L.polyline(coords, isSel ? ROUTE_SEL : ROUTE_FAINT).addTo(routeLayer);
-      for (const seg of conflictSegments(cs)) {
-        if (!seg.coords || seg.coords.length < 2) continue;
-        L.polyline(seg.coords, routeStyleForAlert(seg.sev, !!seg.muted, false)).addTo(routeLayer);
+      if (showRoutes) {
+        // Full remaining route stays faint/selected — never paint the whole path alert-colored.
+        L.polyline(coords, isSel ? ROUTE_SEL : ROUTE_FAINT).addTo(routeLayer);
+        for (const seg of conflictSegments(cs)) {
+          if (!seg.coords || seg.coords.length < 2) continue;
+          L.polyline(seg.coords, routeStyleForAlert(seg.sev, !!seg.muted, false)).addTo(routeLayer);
+        }
+      }
+      if (showFixLabels && (isSel || !sel)) {
+        let anchors = anchorsFromRouteFixes(f);
+        if (anchors.length < 2 && isNavReady()) {
+          // Fall back: dep/arr only
+          anchors = [];
+          const dep = getAirport(f.dep);
+          const arr = getAirport(f.arr);
+          if (dep) anchors.push({ name: String(f.dep || "DEP").toUpperCase(), ll: dep.slice() });
+          if (arr) anchors.push({ name: String(f.arr || "ARR").toUpperCase(), ll: arr.slice() });
+        }
+        for (const a of anchors) {
+          if (!a || !a.ll || a.ll.length < 2) continue;
+          const name = String(a.name || "").toUpperCase();
+          if (!name || name.length > 8 || name === "NOW") continue;
+          L.marker(a.ll, {
+            interactive: false,
+            icon: L.divIcon({
+              className: "gpd-fix-label",
+              html: `<span>${escapeHtml(name)}</span>`,
+              iconSize: [48, 12],
+              iconAnchor: [24, 6],
+            }),
+          }).addTo(fixLabelLayer);
+        }
+      }
+    }
+  }
+
+  function renderAirports(flights) {
+    airportLayer.clearLayers();
+    if (!showAirports) return;
+    const seen = new Set();
+    for (const f of flights || []) {
+      for (const raw of [f.dep, f.arr]) {
+        const icao = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (!icao || seen.has(icao)) continue;
+        seen.add(icao);
+        let pt = null;
+        try { pt = getAirport(icao); } catch (_) { pt = null; }
+        if (!pt || pt.length < 2) continue;
+        const [lat, lon] = pt;
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+        L.circleMarker([lat, lon], {
+          radius: 3,
+          color: "#9ab",
+          weight: 1,
+          fillColor: "#cde",
+          fillOpacity: 0.85,
+          interactive: false,
+        }).addTo(airportLayer);
+        L.marker([lat, lon], {
+          interactive: false,
+          icon: L.divIcon({
+            className: "gpd-apt-label",
+            html: `<span>${escapeHtml(icao)}</span>`,
+            iconSize: [40, 12],
+            iconAnchor: [20, -2],
+          }),
+        }).addTo(airportLayer);
       }
     }
   }
@@ -388,6 +457,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
       lastFitArtcc = currentArtcc;
     }
     renderRoutes(lastFlights, selectedCs);
+    renderAirports(lastFlights);
     renderTraffic(lastFlights, selectedCs);
   }
 
@@ -410,11 +480,24 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     return sectorMode;
   }
 
+  function setMapOverlays(opts) {
+    opts = opts || {};
+    if ("showRoutes" in opts) showRoutes = !!opts.showRoutes;
+    if ("showAirports" in opts) showAirports = !!opts.showAirports;
+    if ("showFixLabels" in opts) showFixLabels = !!opts.showFixLabels;
+    render({ refit: false });
+  }
+
+  function getMapOverlays() {
+    return { showRoutes, showAirports, showFixLabels, sectorMode };
+  }
+
   /**
    * @param {object[]} flights liveFlights / board aircraft
    * @param {{ selectedCs?: string|null, artccId?: string, refit?: boolean,
    *           alertByCs?: Map|object|null, alertShowFilter?: object|null,
-   *           sectorMode?: string }} [options]
+   *           sectorMode?: string,
+   *           showRoutes?: boolean, showAirports?: boolean, showFixLabels?: boolean }} [options]
    */
   function update(flights, options = {}) {
     if (options.artccId) currentArtcc = normArtccId(options.artccId);
@@ -428,6 +511,9 @@ export function createEdstGpdMap(containerEl, opts = {}) {
       const m = String(options.sectorMode).toLowerCase();
       sectorMode = (m === "high" || m === "low") ? m : "off";
     }
+    if ("showRoutes" in options) showRoutes = !!options.showRoutes;
+    if ("showAirports" in options) showAirports = !!options.showAirports;
+    if ("showFixLabels" in options) showFixLabels = !!options.showFixLabels;
     render({ refit: !!options.refit });
   }
 
@@ -450,6 +536,6 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   invalidateSize();
   return {
     map, setArtcc, update, destroy, invalidateSize, getTrafficCount,
-    setSectorMode, getSectorMode,
+    setSectorMode, getSectorMode, setMapOverlays, getMapOverlays,
   };
 }

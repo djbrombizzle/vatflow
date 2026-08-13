@@ -677,7 +677,7 @@ td.eh-bk{text-align:center;min-width:14px}
 #gpdmenu .leaflet-control-zoom a:hover{background:#2a2a2a}
 #gpdmenu .leaflet-bar{border:1px solid #555!important;box-shadow:0 2px 8px rgba(0,0,0,.6)}
 #gpdmenu .leaflet-control-attribution{display:none!important}
-#gpdmenu .gpd-artcc-label span,#gpdmenu .gpd-tip{
+#gpdmenu .gpd-artcc-label span,#gpdmenu .gpd-apt-label span,#gpdmenu .gpd-fix-label span,#gpdmenu .gpd-tip{
   color:#9fe6e0;font:11px 'EDST','EDSTv2',Consolas,monospace;
   text-shadow:0 0 4px #000,0 0 4px #000;
 }
@@ -724,6 +724,12 @@ td.eh-bk{text-align:center;min-width:14px}
 #gpdmapopts .gpd-opt-hint{
   margin-top:8px;font-size:10px;color:#8a9088;line-height:1.4;
 }
+#gpdmapopts .gpd-opt-toggles{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+#gpdmapopts .gpd-opt-toggles label{
+  display:flex;align-items:center;gap:8px;cursor:pointer;color:#d2d2cd;font-size:12px;
+}
+#gpdmapopts .gpd-opt-toggles input{accent-color:#9a9a9a}
+
 #edstbar .etb-btn.active-gpd{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
 
 /* GI (General Information) popup */
@@ -1229,6 +1235,100 @@ td.eh-bk{text-align:center;min-width:14px}
 #wxmenu .wx-item .wx-del:hover{background:#5a2a2a;color:#fff}
 #wxmenu .wx-item .wx-del-hint{color:#8a9088;font-size:11px}
 
+/* EDST ALTIM SET */
+#altimmenu.edst-pop{
+  position:absolute;z-index:68;width:min(420px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#altimmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:8px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#altimmenu .edst-pop-hdr .title{flex:1;letter-spacing:.4px}
+#altimmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#altimmenu .edst-pop-hdr .x:hover{background:#333}
+#altimmenu .altim-add{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:6px 8px;background:#1a1a1a;border-bottom:1px solid #444;
+}
+#altimmenu .altim-add label{color:#aaa;font-size:12px}
+#altimmenu .altim-add input{
+  width:72px;background:#000;border:1px solid #777;color:#fff;font:inherit;
+  padding:3px 6px;text-transform:uppercase;letter-spacing:.04em;
+}
+#altimmenu .altim-add input:focus{outline:1px solid #9a9a9a}
+#altimmenu .altim-add .altim-get,#altimmenu .altim-add .altim-dest{
+  border:1px solid #777;background:#2a2a2a;color:#eee;font:inherit;
+  padding:3px 10px;cursor:pointer;
+}
+#altimmenu .altim-add .altim-get:hover,#altimmenu .altim-add .altim-dest:hover{background:#3a3a3a}
+#altimmenu .altim-hint{color:#8a9088;font-size:11px;margin-left:auto}
+#altimmenu .altim-list{
+  max-height:min(420px,58vh);min-height:80px;overflow:auto;padding:4px 0;background:#000;
+}
+#altimmenu .altim-empty{padding:18px 12px;color:#777;text-align:center;font-size:12px}
+#altimmenu .altim-item{
+  display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid #1a1a1a;cursor:pointer;
+}
+#altimmenu .altim-item:hover{background:#121212}
+#altimmenu .altim-item.sel{background:#1c1c1c;outline:1px solid #777;outline-offset:-1px}
+#altimmenu .altim-item .icao{color:#fff;letter-spacing:.04em;min-width:48px}
+#altimmenu .altim-item .obs{color:#8a9088;font-size:11px;min-width:52px}
+#altimmenu .altim-item .alt{color:#d8d63f;font-size:14px;letter-spacing:.06em}
+#altimmenu .altim-item .tag{color:var(--teal);font-size:11px}
+#altimmenu .altim-item .err{color:var(--red);font-size:12px}
+#altimmenu .altim-item .altim-del{
+  margin-left:auto;border:1px solid #8a3a3a;background:#3a1a1a;color:#f0a0a0;font:inherit;
+  padding:2px 8px;cursor:pointer;font-size:11px;display:none;
+}
+#altimmenu .altim-item.sel .altim-del{display:inline-block}
+
+/* EDST WIND (winds aloft table) */
+#windmenu.edst-pop{
+  position:absolute;z-index:67;width:min(440px,94vw);
+  background:#000;border:1px solid #cfcfcf;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+}
+#windmenu .edst-pop-hdr{
+  display:flex;align-items:center;gap:8px;
+  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
+  touch-action:none;cursor:move;user-select:none;
+}
+#windmenu .edst-pop-hdr .title{flex:1;letter-spacing:.4px}
+#windmenu .edst-pop-hdr .refresh{cursor:pointer;padding:0 6px;color:#ddd;font-size:11px}
+#windmenu .edst-pop-hdr .refresh:hover{background:#333;color:#fff}
+#windmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#windmenu .edst-pop-hdr .x:hover{background:#333}
+#windmenu .wind-scope{
+  padding:3px 8px;background:#2a2a2a;color:#aeb6af;border-bottom:1px solid #444;font-size:11px;
+}
+#windmenu .wind-body{max-height:min(420px,58vh);overflow:auto;padding:6px 8px}
+#windmenu .wind-empty{padding:18px 10px;color:#777;text-align:center}
+#windmenu table.wind-tbl{width:100%;border-collapse:collapse;font-size:12px}
+#windmenu table.wind-tbl th{
+  text-align:left;color:#8a9088;font-weight:normal;border-bottom:1px solid #333;padding:3px 6px;
+}
+#windmenu table.wind-tbl td{padding:3px 6px;border-bottom:1px solid #1a1a1a;color:#e8e8e4}
+#windmenu table.wind-tbl td.alt{color:#d8d63f}
+
+/* DEP Sort pulldown */
+#depmenu .dep-sort-wrap{position:relative}
+#depSortMenu{
+  position:absolute;z-index:40;top:calc(100% + 2px);left:0;min-width:180px;
+  background:#000;border:1px solid #cfcfcf;box-shadow:0 8px 24px rgba(0,0,0,.85);
+}
+#depSortMenu.hidden{display:none!important}
+#depSortMenu .opt{
+  display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #222;
+  color:#eee;padding:7px 10px;font:inherit;font-size:12px;cursor:pointer;
+}
+#depSortMenu .opt:hover,#depSortMenu .opt.on{background:#2a2a2a}
+#depSortMenu .opt.on{color:#d8d63f}
+
 /* EDST NOTAMS (ARTCC TFRs + airport lookup) */
 #notmenu.edst-pop{
   position:absolute;z-index:66;width:min(520px,94vw);
@@ -1340,7 +1440,14 @@ td.eh-bk{text-align:center;min-width:14px}
 }
 #notmenu .not-sub button:hover,#notmenu .not-sub button.on{background:#2a2a2a}
 #notmenu .not-sub button.on{color:#d8d63f}
-#edstbar .etb-btn.active-wx{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
+#edstbar .etb-btn.active-wx,#edstbar .etb-btn.active-altim,#edstbar .etb-btn.active-wind{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
+#edstbar .etb-stat.msg-wait-alert{
+  background:#4a4a18;border-color:#ebe64a;color:#ebe64a;cursor:pointer;
+  animation:sigflash 1s steps(2,start) infinite;
+}
+#edstbar .etb-stat.msg-wait-alert:hover{background:#5a5a20}
+#edstbar .etb-stat#btnMsgWait{cursor:pointer}
+
 
 @media (max-width: 900px){
   #boardwrap{height:calc(100vh - 180px)}
@@ -1376,13 +1483,13 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-time"><b id="edstClock">----</b><i id="edstSec">--</i></span>
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
     <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
-    <span class="etb-stat" data-stub="MSG WAIT">MSG<br>WAIT</span>
+    <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
   </div>
   <div class="etb-row etb-more hidden" id="etbMoreRow" role="toolbar" aria-label="More menu">
     <span class="etb-arrow etb-more-ph" aria-hidden="true">&#8595;</span>
     <span class="etb-btn etb-more-ph" aria-hidden="true">MORE</span>
-    <span class="etb-btn" id="btnWind" data-stub="WIND" title="Winds — coming soon">WIND</span>
-    <span class="etb-btn" id="btnAltimSet" data-stub="ALTIM SET" title="Altimeter setting — coming soon">ALTIM<br>SET</span>
+    <span class="etb-btn" id="btnWind" title="Winds aloft">WIND</span>
+    <span class="etb-btn" id="btnAltimSet" title="Altimeter settings">ALTIM<br>SET</span>
     <span class="etb-btn" id="btnMca" title="Message Composition Area">MCA</span>
   </div>
 </div>
@@ -1806,6 +1913,12 @@ td.eh-bk{text-align:center;min-width:14px}
           <button type="button" data-gpd-sector="low">LOW</button>
         </div>
         <div class="gpd-opt-hint">HIGH / LOW ERAM sector boundaries for the viewing ARTCC.</div>
+        <div class="gpd-opt-label" style="margin-top:10px">OVERLAYS</div>
+        <div class="gpd-opt-toggles">
+          <label><input type="checkbox" id="gpdShowRoutes" checked> Remaining routes</label>
+          <label><input type="checkbox" id="gpdShowAirports"> Airport labels (dep/arr)</label>
+          <label><input type="checkbox" id="gpdShowFixes"> Fix labels</label>
+        </div>
       </div>
     </div>
   </div>
@@ -1828,7 +1941,15 @@ td.eh-bk{text-align:center;min-width:14px}
   </div>
   <div class="dep-tools">
     <button type="button" class="et-btn stub" data-stub="Plan Options" title="Coming soon">Plan Options...</button>
-    <button type="button" class="et-btn stub" data-stub="Sort" title="Coming soon">Sort...</button>
+    <div class="dep-sort-wrap">
+      <button type="button" class="et-btn" id="btnDepSort" title="Sort departure list" aria-haspopup="true" aria-expanded="false">Sort...</button>
+      <div id="depSortMenu" class="hidden" role="menu">
+        <button type="button" class="opt on" data-dep-sort="time">P-TIME</button>
+        <button type="button" class="opt" data-dep-sort="dest">DEST</button>
+        <button type="button" class="opt" data-dep-sort="dep">DEP</button>
+        <button type="button" class="opt" data-dep-sort="cs">FLIGHT ID</button>
+      </div>
+    </div>
     <button type="button" class="et-btn stub" data-stub="Posting Mode" title="Coming soon">Posting Mode</button>
     <button type="button" class="et-btn stub" data-stub="FP Msg" title="Coming soon">F P Msg...</button>
     <div class="et-field">
@@ -1917,6 +2038,33 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="wx-hint" id="wxHint">0 / 10</span>
   </div>
   <div class="wx-list" id="wxList"><div class="wx-empty">Enter an airport ICAO, or select an aircraft to load its destination METAR.</div></div>
+</div>
+
+<!-- EDST ALTIM SET -->
+<div id="altimmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="altimTitle">ALTIM SET</span>
+    <span class="x" data-close="altimmenu" title="Close">X</span>
+  </div>
+  <div class="altim-add">
+    <label for="altimIcao">AIRPORT</label>
+    <input id="altimIcao" maxlength="4" autocomplete="off" spellcheck="false" placeholder="KJAX">
+    <button type="button" class="altim-get" id="altimGet" title="Fetch altimeter">GET</button>
+    <button type="button" class="altim-dest" id="altimDest" title="Load highlighted ACL destination">DEST</button>
+    <span class="altim-hint" id="altimHint">0 / 10</span>
+  </div>
+  <div class="altim-list" id="altimList"><div class="altim-empty">Enter an airport ICAO, or use DEST from the selected strip.</div></div>
+</div>
+
+<!-- EDST WIND (winds aloft) -->
+<div id="windmenu" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title">WIND</span>
+    <span class="refresh" id="windRefresh" title="Refresh">REFRESH</span>
+    <span class="x" data-close="windmenu" title="Close">X</span>
+  </div>
+  <div class="wind-scope" id="windScope">Winds aloft —</div>
+  <div class="wind-body" id="windBody"><div class="wind-empty">Loading winds…</div></div>
 </div>
 
 <!-- EDST NOTAMS (ARTCC TFRs + airport lookup) -->
@@ -2057,6 +2205,11 @@ let selectedCs=null;                     // ACL row selection (must be before an
 const wxReports=[];                      // [{icao, text, fltCat, note, error, loading}]
 let wxSelectedIcao=null;                 // ICAO of METAR row showing DELETE prompt
 const WX_MAX=10;
+const altimReports=[];                   // [{icao, altimeter, obs, note, error, loading}]
+let altimSelectedIcao=null;
+const ALTIM_MAX=10;
+let windMod=null,windReady=null,windLoading=false,windStationId='';
+let depSortMode='time';
 const msgAlert=new Set();                // M: unread incoming
 const lastPilotMsgMin={};                // cs -> MIN of latest inbound pilot CPDLC (for UM0/UM1 MRN)
 const WILCO_TIMEOUT_MS=120000;           // 2 min without a pilot reply -> red W alarm
@@ -2711,7 +2864,7 @@ function pushMessage(cs,text){
   if(myPosition.freqMhz!=null&&!pilotMatchesOurFreq(cs)){
     logMsg('in',cs,text);return;        // other sector position — log only, no M alert
   }
-  msgAlert.add(cs);logMsg('in',cs,text);soundMessage();startMsgRepeat(cs);renderBoard();
+  msgAlert.add(cs);logMsg('in',cs,text);soundMessage();startMsgRepeat(cs);if(typeof syncMsgWaitButton==='function')syncMsgWaitButton();renderBoard();
 }
 
 //============================================================ VATSIM
@@ -2723,7 +2876,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','notmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -3073,6 +3226,15 @@ function close(id){
     if(btn)btn.classList.remove('active');
     if(typeof hideNotMenus==='function')hideNotMenus();
   }
+  if(id==='altimmenu'){
+    const btn=document.getElementById('btnAltimSet');
+    if(btn)btn.classList.remove('active-altim');
+    altimSelectedIcao=null;
+  }
+  if(id==='windmenu'){
+    const btn=document.getElementById('btnWind');
+    if(btn)btn.classList.remove('active-wind');
+  }
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
@@ -3090,7 +3252,15 @@ document.addEventListener('pointerdown',ev=>{
       closeAclSortMenu();
     }
   }
-  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','notmenu','msgpop','ackmenu','volpop'].forEach(id=>{
+  const depSort=document.getElementById('depSortMenu');
+  if(depSort&&!depSort.classList.contains('hidden')){
+    if(!depSort.contains(ev.target)&&!ev.target.closest('#btnDepSort')&&!ev.target.closest('.dep-sort-wrap')){
+      depSort.classList.add('hidden');
+      const b=document.getElementById('btnDepSort');
+      if(b)b.setAttribute('aria-expanded','false');
+    }
+  }
+  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -3110,6 +3280,8 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='gpdmapopts'&&ev.target.closest('#btnGpdMapOpts'))return;
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
+    if(id==='altimmenu'&&ev.target.closest('#btnAltimSet'))return;
+    if(id==='windmenu'&&ev.target.closest('#btnWind'))return;
     if(id==='notmenu'&&ev.target.closest('#btnNot'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
     if(id==='volpop'&&ev.target.closest('#btnSound'))return;
@@ -4047,6 +4219,8 @@ makeEdstDraggable(document.getElementById('gimenu'));
 makeEdstDraggable(document.getElementById('cpdlchist'));
 makeEdstDraggable(document.getElementById('sigmenu'));
 makeEdstDraggable(document.getElementById('wxmenu'));
+makeEdstDraggable(document.getElementById('altimmenu'));
+makeEdstDraggable(document.getElementById('windmenu'));
 makeEdstDraggable(document.getElementById('notmenu'));
 
 //============================================================ ROUTE MENU
@@ -4813,6 +4987,312 @@ document.querySelectorAll('[data-close="wxmenu"]').forEach(el=>{
   el.addEventListener('click',()=>{
     const btn=document.getElementById('btnWx');
     if(btn)btn.classList.remove('active-wx');
+  });
+});
+
+//============================================================ ALTIM SET
+const altimmenu=document.getElementById('altimmenu');
+function altimObsFromRaw(raw){
+  const m=String(raw||'').match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
+  if(!m)return '';
+  return m[2]+m[3]+'Z';
+}
+function altimFromMetarRaw(raw){
+  const m=String(raw||'').match(/\bA(\d{4})\b/);
+  if(m)return (parseInt(m[1],10)/100).toFixed(2);
+  const q=String(raw||'').match(/\bQ(\d{4})\b/);
+  if(q)return (parseInt(q[1],10)*0.02953).toFixed(2);
+  return '';
+}
+async function fetchAltimRow(icao){
+  icao=normalizeIcao(icao);
+  if(!/^[A-Z]{4}$/.test(icao))throw new Error('Invalid airport ICAO');
+  // Prefer full METAR (obs time + altimeter); fall back to /hub/altimeter
+  try{
+    const met=await fetchMetarText(icao);
+    const alt=altimFromMetarRaw(met.text)||'';
+    if(!alt)throw new Error('no altimeter in metar');
+    return {icao:met.icao||icao, altimeter:alt, obs:altimObsFromRaw(met.text), text:met.text};
+  }catch(_){}
+  const ab=wxFetchAbort(WX_FETCH_TIMEOUT_MS);
+  try{
+    const res=await fetch(hubBase()+'/hub/altimeter',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({icao}),signal:ab.signal,
+    });
+    const text=await res.text();
+    let data=null;
+    try{data=text?JSON.parse(text):null;}catch(_){throw new Error('hub returned non-JSON');}
+    if(!data||!data.ok||!data.altimeter)throw new Error((data&&data.error)||'no altimeter');
+    return {icao:normalizeIcao(data.icao||icao), altimeter:String(data.altimeter), obs:'', text:''};
+  }finally{ab.cancel();}
+}
+function syncAltimHint(){
+  const el=document.getElementById('altimHint');
+  if(el)el.textContent=altimReports.length+' / '+ALTIM_MAX;
+  const get=document.getElementById('altimGet');
+  if(get)get.disabled=altimReports.length>=ALTIM_MAX;
+}
+function renderAltimList(){
+  const list=document.getElementById('altimList');
+  if(!list)return;
+  syncAltimHint();
+  if(!altimReports.length){
+    list.innerHTML='<div class="altim-empty">Enter an airport ICAO, or use DEST from the selected strip.</div>';
+    return;
+  }
+  list.innerHTML=altimReports.map(r=>{
+    const sel=altimSelectedIcao===r.icao?' sel':'';
+    const note=r.note?`<span class="tag">${esc(r.note)}</span>`:'';
+    let mid;
+    if(r.loading)mid='<span class="err" style="color:#888">Loading…</span>';
+    else if(r.error)mid=`<span class="err">${esc(r.error)}</span>`;
+    else mid=`<span class="obs">${esc(r.obs||'----')}</span><span class="alt">${esc(r.altimeter||'—.——')}</span>`;
+    return `<div class="altim-item${sel}" data-altim-icao="${esc(r.icao)}">`
+      +`<span class="icao">${esc(r.icao)}</span>${mid}${note}`
+      +`<button type="button" class="altim-del" data-altim-del="${esc(r.icao)}">DEL</button>`
+      +`</div>`;
+  }).join('');
+}
+function upsertAltimReport(entry){
+  const icao=normalizeIcao(entry.icao);
+  if(!icao)return;
+  const idx=altimReports.findIndex(r=>r.icao===icao);
+  const row=Object.assign({icao,altimeter:'',obs:'',note:'',error:null,loading:false},entry,{icao});
+  if(idx>=0)altimReports[idx]=Object.assign({},altimReports[idx],row);
+  else{
+    if(altimReports.length>=ALTIM_MAX)return false;
+    altimReports.push(row);
+  }
+  // Keep altimeterCache warm for LOCAL TALT
+  if(row.altimeter&&!row.error)altimeterCache[icao]={val:row.altimeter,ts:Date.now()};
+  renderAltimList();
+  return true;
+}
+function removeAltimReport(icao){
+  icao=normalizeIcao(icao);
+  const idx=altimReports.findIndex(r=>r.icao===icao);
+  if(idx<0)return;
+  altimReports.splice(idx,1);
+  if(altimSelectedIcao===icao)altimSelectedIcao=null;
+  renderAltimList();
+}
+async function addAltimSetting(icao,note){
+  icao=normalizeIcao(icao);
+  if(!icao){comingSoon('Enter a 3–4 letter airport code');return;}
+  if(!/^[A-Z]{4}$/.test(icao)){comingSoon('Invalid airport ICAO');return;}
+  const existing=altimReports.find(r=>r.icao===icao);
+  if(!existing&&altimReports.length>=ALTIM_MAX){
+    comingSoon('ALTIM SET holds up to '+ALTIM_MAX+' stations');
+    return;
+  }
+  upsertAltimReport({icao,note:note||(existing&&existing.note)||'',loading:true,error:null,altimeter:'',obs:''});
+  try{
+    const row=await fetchAltimRow(icao);
+    upsertAltimReport({
+      icao:row.icao,altimeter:row.altimeter,obs:row.obs||'',
+      note:note||(existing&&existing.note)||'',loading:false,error:null,
+    });
+  }catch(e){
+    upsertAltimReport({
+      icao,note:note||(existing&&existing.note)||'',
+      loading:false,error:(e&&e.message)||'Altimeter fetch failed',altimeter:'',obs:'',
+    });
+  }
+}
+function openAltimMenu(){
+  const btn=document.getElementById('btnAltimSet');
+  if(btn)btn.classList.add('active-altim');
+  const a=selectedAircraft();
+  const title=document.getElementById('altimTitle');
+  if(title)title.textContent=a?('ALTIM SET · '+a.cs):'ALTIM SET';
+  const input=document.getElementById('altimIcao');
+  if(input)input.value='';
+  altimSelectedIcao=null;
+  altimReports.length=0;
+  renderAltimList();
+  const x=Math.max(8,(window.innerWidth-Math.min(420,window.innerWidth*0.94))/2);
+  const y=Math.max(48,window.innerHeight*0.16);
+  placePop(altimmenu,x,y);
+  if(a){
+    const dest=wxDestFromAircraft(a);
+    if(dest)addAltimSetting(dest,'DEST '+a.cs);
+    else comingSoon(a.cs+' has no destination airport');
+  }
+  if(input)setTimeout(()=>input.focus(),30);
+}
+function toggleAltimMenu(){
+  if(!altimmenu)return;
+  if(altimmenu.classList.contains('hidden'))openAltimMenu();
+  else close('altimmenu');
+}
+(function(){
+  const btn=document.getElementById('btnAltimSet');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleAltimMenu();});
+  const get=document.getElementById('altimGet');
+  const input=document.getElementById('altimIcao');
+  async function submitAltim(){
+    await addAltimSetting(input?input.value:'','');
+    if(input){input.value='';input.focus();}
+  }
+  if(get)get.addEventListener('click',e=>{e.preventDefault();submitAltim();});
+  if(input)input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();submitAltim();}
+  });
+  const dest=document.getElementById('altimDest');
+  if(dest)dest.addEventListener('click',e=>{
+    e.preventDefault();
+    const a=selectedAircraft();
+    if(!a){comingSoon('Select an aircraft strip first');return;}
+    const d=wxDestFromAircraft(a);
+    if(!d){comingSoon(a.cs+' has no destination airport');return;}
+    addAltimSetting(d,'DEST '+a.cs);
+  });
+  const list=document.getElementById('altimList');
+  if(list)list.addEventListener('click',e=>{
+    const del=e.target.closest('[data-altim-del]');
+    if(del){e.preventDefault();e.stopPropagation();removeAltimReport(del.dataset.altimDel);return;}
+    const item=e.target.closest('.altim-item[data-altim-icao]');
+    if(!item)return;
+    e.preventDefault();
+    const icao=item.dataset.altimIcao;
+    altimSelectedIcao=(altimSelectedIcao===icao)?null:icao;
+    renderAltimList();
+  });
+})();
+document.querySelectorAll('[data-close="altimmenu"]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const btn=document.getElementById('btnAltimSet');
+    if(btn)btn.classList.remove('active-altim');
+  });
+});
+
+//============================================================ MSG WAIT (unread CPDLC)
+function syncMsgWaitButton(){
+  const btn=document.getElementById('btnMsgWait');
+  if(!btn)return;
+  const n=msgAlert.size;
+  btn.classList.toggle('msg-wait-alert',n>0);
+  btn.title=n
+    ?(n+' unread CPDLC message'+(n===1?'':'s')+' — click to open')
+    :'No unread CPDLC messages';
+}
+function openMsgWait(){
+  const unread=[...msgAlert];
+  if(unread.length){
+    const cs=unread[0];
+    // Prefer focusing the strip + opening message popup
+    selectedCs=cs;
+    try{renderBoard();}catch(_){}
+    openMessages(cs);
+    return;
+  }
+  // No unread — raise full CPDLC log for situational awareness
+  if(typeof openCpdlcLog==='function')openCpdlcLog('all');
+  else comingSoon('No unread CPDLC messages');
+}
+(function(){
+  const btn=document.getElementById('btnMsgWait');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openMsgWait();});
+  syncMsgWaitButton();
+})();
+
+//============================================================ WIND (winds aloft)
+const windmenu=document.getElementById('windmenu');
+function artccCentroid(){
+  // Approximate from live traffic mean, else CONUS default
+  const arts=(typeof displayList==='function'?displayList():liveFlights||[]).filter(f=>f.lat!=null&&f.lon!=null);
+  if(arts.length){
+    let la=0,lo=0,n=0;
+    arts.forEach(f=>{la+=+f.lat;lo+=+f.lon;n++;});
+    return {lat:la/n,lon:lo/n};
+  }
+  return {lat:30.5,lon:-81.7}; // rough ZJX-ish fallback
+}
+async function ensureWindMod(){
+  if(windMod)return windMod;
+  if(windReady)return windReady;
+  windReady=(async()=>{
+    const mod=await import('../../shared/winds-aloft.js');
+    // Bind airport coords via FCA airport DB used by GPD when available
+    try{
+      const fca=await import('../../shared/fca-metering.js');
+      await fca.loadAirports();
+      mod.bindWindAirportLookup(icao=>fca.getAirport(icao));
+    }catch(_){}
+    windMod=mod;
+    return mod;
+  })().catch(err=>{windReady=null;throw err;});
+  return windReady;
+}
+function renderWindTable(station){
+  const body=document.getElementById('windBody');
+  const scope=document.getElementById('windScope');
+  if(!body)return;
+  if(!station||!station.levels){
+    body.innerHTML='<div class="wind-empty">No winds aloft for this area.</div>';
+    if(scope)scope.textContent='Winds aloft — unavailable';
+    return;
+  }
+  const levels=Object.keys(station.levels).map(Number).sort((a,b)=>a-b);
+  if(scope){
+    const dist=station.distNm!=null?(' · '+Math.round(station.distNm)+' NM'):'';
+    scope.textContent='Station '+station.id+dist+' · FB winds aloft';
+  }
+  body.innerHTML='<table class="wind-tbl"><thead><tr><th>ALT (ft)</th><th>DIR</th><th>SPD</th></tr></thead><tbody>'
+    +levels.map(alt=>{
+      const w=station.levels[alt]||{};
+      const dir=w.dir==null?'—':String(Math.round(w.dir)).padStart(3,'0');
+      const spd=w.spd==null?'—':String(w.spd);
+      return `<tr><td class="alt">${alt}</td><td>${dir}</td><td>${spd}</td></tr>`;
+    }).join('')
+    +'</tbody></table>';
+}
+async function refreshWinds(force){
+  const scope=document.getElementById('windScope');
+  const body=document.getElementById('windBody');
+  if(windLoading)return;
+  windLoading=true;
+  if(scope)scope.textContent='Winds aloft — loading…';
+  if(body&&force)body.innerHTML='<div class="wind-empty">Loading winds…</div>';
+  try{
+    const mod=await ensureWindMod();
+    const info=await mod.fetchWinds();
+    const c=artccCentroid();
+    const st=mod.nearestWindStation(c.lat,c.lon);
+    if(st)windStationId=st.id;
+    renderWindTable(st);
+    if(!st&&scope){
+      scope.textContent='Winds aloft — '+(info&&info.status==='ok'?'no nearby station':'fetch failed');
+    }
+  }catch(e){
+    if(body)body.innerHTML='<div class="wind-empty">'+esc((e&&e.message)||'Wind fetch failed')+'</div>';
+    if(scope)scope.textContent='Winds aloft — error';
+  }
+  windLoading=false;
+}
+function openWindMenu(){
+  const btn=document.getElementById('btnWind');
+  if(btn)btn.classList.add('active-wind');
+  const r=btn?btn.getBoundingClientRect():{left:40,bottom:80};
+  placePop(windmenu,Math.max(8,r.left),Math.max(48,r.bottom+4));
+  refreshWinds(true);
+}
+function toggleWindMenu(){
+  if(!windmenu)return;
+  if(windmenu.classList.contains('hidden'))openWindMenu();
+  else close('windmenu');
+}
+(function(){
+  const btn=document.getElementById('btnWind');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleWindMenu();});
+  const ref=document.getElementById('windRefresh');
+  if(ref)ref.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();refreshWinds(true);});
+})();
+document.querySelectorAll('[data-close="windmenu"]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const btn=document.getElementById('btnWind');
+    if(btn)btn.classList.remove('active-wind');
   });
 });
 
@@ -5853,6 +6333,9 @@ makeEdstDraggable(holdmenu);
 const gpdmenu=document.getElementById('gpdmenu');
 let gpdMapApi=null,gpdReady=null,gpdFitOnce=false;
 let gpdSectorMode='off'; // 'off' | 'high' | 'low'
+let gpdShowRoutes=true;
+let gpdShowAirports=false;
+let gpdShowFixes=false;
 
 function syncGpdSectorUi(){
   const label=document.getElementById('gpdSectorMode');
@@ -5860,15 +6343,31 @@ function syncGpdSectorUi(){
   document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
     btn.classList.toggle('on',btn.dataset.gpdSector===gpdSectorMode);
   });
+  const r=document.getElementById('gpdShowRoutes');
+  const a=document.getElementById('gpdShowAirports');
+  const f=document.getElementById('gpdShowFixes');
+  if(r)r.checked=!!gpdShowRoutes;
+  if(a)a.checked=!!gpdShowAirports;
+  if(f)f.checked=!!gpdShowFixes;
   const mo=document.getElementById('btnGpdMapOpts');
   const opts=document.getElementById('gpdmapopts');
   const open=!!(opts&&!opts.classList.contains('hidden'));
   if(mo){
-    // active = sector lines on; open = pulldown visible
-    mo.classList.toggle('active',gpdSectorMode!=='off');
+    // active = sector lines on OR any overlay beyond defaults; open = pulldown visible
+    const overlayOn=gpdSectorMode!=='off'||gpdShowAirports||gpdShowFixes||!gpdShowRoutes;
+    mo.classList.toggle('active',overlayOn);
     mo.classList.toggle('open',open);
     mo.setAttribute('aria-expanded',open?'true':'false');
   }
+}
+function applyGpdOverlays(){
+  if(gpdMapApi&&gpdMapApi.setMapOverlays){
+    gpdMapApi.setMapOverlays({
+      showRoutes:gpdShowRoutes,
+      showAirports:gpdShowAirports,
+      showFixLabels:gpdShowFixes,
+    });
+  }else if(gpdMapApi)refreshGpdMap(false);
 }
 function setGpdSectorMode(mode){
   const m=String(mode||'off').toLowerCase();
@@ -5905,6 +6404,18 @@ document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
   btn.addEventListener('click',e=>{
     e.preventDefault();e.stopPropagation();
     setGpdSectorMode(btn.dataset.gpdSector);
+  });
+});
+['gpdShowRoutes','gpdShowAirports','gpdShowFixes'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.addEventListener('change',e=>{
+    e.stopPropagation();
+    if(id==='gpdShowRoutes')gpdShowRoutes=!!el.checked;
+    if(id==='gpdShowAirports')gpdShowAirports=!!el.checked;
+    if(id==='gpdShowFixes')gpdShowFixes=!!el.checked;
+    syncGpdSectorUi();
+    applyGpdOverlays();
   });
 });
 syncGpdSectorUi();
@@ -6076,7 +6587,7 @@ function refreshGpdMap(refit){
     refit:!!refit,
     alertByCs:conflictAlerts,
     alertShowFilter:alertShowFilter,
-    sectorMode:gpdSectorMode,
+    sectorMode:gpdSectorMode,showRoutes:gpdShowRoutes,showAirports:gpdShowAirports,showFixLabels:gpdShowFixes,
   });
   const n=gpdMapApi.getTrafficCount?gpdMapApi.getTrafficCount():0;
   document.getElementById('gpdCount').textContent=String(n);
@@ -6133,6 +6644,46 @@ function updateDepTabCount(n){
   const btn=document.getElementById('tabDep');
   if(btn)btn.innerHTML='DEP&nbsp;'+padDepCount(n);
 }
+function syncDepSortUi(){
+  document.querySelectorAll('#depSortMenu [data-dep-sort]').forEach(btn=>{
+    btn.classList.toggle('on',btn.getAttribute('data-dep-sort')===depSortMode);
+  });
+  const b=document.getElementById('btnDepSort');
+  if(b){
+    const labels={time:'P-TIME',dest:'DEST',dep:'DEP',cs:'FLIGHT ID'};
+    b.textContent='Sort… '+(labels[depSortMode]||'P-TIME');
+  }
+}
+function setDepSortMode(mode){
+  depSortMode=['time','dest','dep','cs'].includes(mode)?mode:'time';
+  const menu=document.getElementById('depSortMenu');
+  if(menu)menu.classList.add('hidden');
+  const b=document.getElementById('btnDepSort');
+  if(b)b.setAttribute('aria-expanded','false');
+  syncDepSortUi();
+  const find=document.getElementById('depFind');
+  renderDepRows(depItems,find?find.value:'');
+}
+(function wireDepSort(){
+  const btn=document.getElementById('btnDepSort');
+  const menu=document.getElementById('depSortMenu');
+  if(btn&&menu){
+    btn.addEventListener('click',e=>{
+      e.preventDefault();e.stopPropagation();
+      const open=menu.classList.contains('hidden');
+      menu.classList.toggle('hidden',!open);
+      btn.setAttribute('aria-expanded',open?'true':'false');
+      syncDepSortUi();
+    });
+  }
+  document.querySelectorAll('#depSortMenu [data-dep-sort]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.preventDefault();e.stopPropagation();
+      setDepSortMode(el.getAttribute('data-dep-sort'));
+    });
+  });
+  syncDepSortUi();
+})();
 function ensureDepMod(){
   if(depMod)return Promise.resolve(depMod);
   if(depReady)return depReady;
@@ -6164,7 +6715,25 @@ function renderDepRows(items,filter){
   const body=document.getElementById('depRows');
   if(!body)return;
   const q=(filter||'').trim().toUpperCase();
-  let list=items||[];
+  let list=(items||[]).slice();
+  if(depMod&&typeof depMod.sortDepItems==='function')depMod.sortDepItems(list,depSortMode);
+  else{
+    list.sort((a,b)=>{
+      if(depSortMode==='dest'){
+        const aa=(a.arr||'').toUpperCase(),bb=(b.arr||'').toUpperCase();
+        if(aa!==bb)return aa<bb?-1:1;
+      }else if(depSortMode==='dep'){
+        const aa=(a.dep||'').toUpperCase(),bb=(b.dep||'').toUpperCase();
+        if(aa!==bb)return aa<bb?-1:1;
+      }else if(depSortMode==='cs'){
+        return String(a.cs||'').localeCompare(String(b.cs||''));
+      }else{
+        const at=a.etdMs!=null?a.etdMs:1e15,bt=b.etdMs!=null?b.etdMs:1e15;
+        if(at!==bt)return at-bt;
+      }
+      return String(a.cs||'').localeCompare(String(b.cs||''));
+    });
+  }
   if(q)list=list.filter(r=>(r.cs||'').includes(q)||(r.dep||'').includes(q)||(r.arr||'').includes(q));
   if(!list.length){
     const msg=depLastErr?('DEP list error: '+depLastErr)
@@ -6428,7 +6997,7 @@ function openMessages(cs,x,y){
   cs=(cs||'').toUpperCase();
   if(!cs||!msgpop)return;
   msgPopCs=cs;
-  msgAlert.delete(cs);stopMsgRepeat(cs);renderBoard();
+  msgAlert.delete(cs);stopMsgRepeat(cs);if(typeof syncMsgWaitButton==='function')syncMsgWaitButton();renderBoard();
   document.getElementById('mpTitle').textContent='MESSAGES '+cs;
   const canReply=canControl();
   const free=document.getElementById('mpFreeText');
