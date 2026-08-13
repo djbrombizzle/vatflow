@@ -48,10 +48,11 @@ function inRing(lat, lon, ring) {
 function ingestGeojson(geo) {
   polys.clear();
   for (const f of (geo && geo.features) || []) {
-    const id = normArtccId(
-      (f.properties && (f.properties.id || f.properties.ID || f.properties.prefix)) || "",
-    );
-    if (!id || !f.geometry) continue;
+    const props = f.properties || {};
+    // Skip map-only overlays (e.g. ZMA-N) — not used for scope containment.
+    if (props.mapHighlightOnly) continue;
+    const id = normArtccId(props.id || props.ID || props.prefix || "");
+    if (!id || id.includes("-") || !f.geometry) continue;
     const g = f.geometry;
     const rings = [];
     if (g.type === "Polygon" && g.coordinates.length) rings.push(g.coordinates[0]);
