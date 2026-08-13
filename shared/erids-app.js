@@ -901,7 +901,8 @@ function renderAdmin() {
   let html =
     `<h1 class="erids-view-title">Admin — ${esc(state.artcc)} links</h1>` +
     `<div class="erids-crumb">Admin</div>` +
-    `<p class="erids-meta">Source: ${esc(state.configSource)}${state.configUpdatedAt ? " · hub updated " + esc(state.configUpdatedAt) : ""}</p>`;
+    `<p class="erids-meta">Source: ${esc(state.configSource)}${state.configUpdatedAt ? " · hub updated " + esc(state.configUpdatedAt) : ""}</p>` +
+    `<p class="erids-meta">Saves go to VATFLOW hub (<code>/erids/config</code>). If Save returns 404, merge/deploy <b>vatflow-hub PR #7</b> and set <code>ERIDS_FILE=/data/vatflow-erids.json</code> on Railway.</p>`;
 
   if (!isSignedIn()) {
     html +=

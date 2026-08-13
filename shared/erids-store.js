@@ -43,6 +43,14 @@ export async function saveHubEridsConfig(artcc, config) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) {
+    if (res.status === 404) {
+      throw new Error(
+        "Hub ERIDS API not deployed yet (404). Merge & deploy vatflow-hub PR #7, then retry Save."
+      );
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(data.error || "Not allowed to edit this ARTCC — need editor/staff access.");
+    }
     throw new Error(data.error || "Save failed (" + res.status + ")");
   }
   return data;
