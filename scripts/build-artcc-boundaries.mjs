@@ -291,32 +291,34 @@ const VATSPY_BOUNDARIES_URL =
   "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";
 
 /**
- * Squawk/NASR CONUS extracts often omit Anchorage / Honolulu / San Juan.
- * Pull those polygons from VAT-Spy and rewrite ids to ZAN / ZHN / ZUA.
+ * Squawk/NASR CONUS extracts often omit Anchorage / Honolulu / San Juan, and
+ * Miami HIGH may lack the oceanic corridor to San Juan. Pull / refresh those
+ * polygons from VAT-Spy (KZMA full + KZMA-N overlay).
  */
 async function supplementVatspyExtras(highPath) {
   const { readFileSync } = await import("node:fs");
   const high = JSON.parse(readFileSync(highPath, "utf8"));
-  const have = new Set(
-    (high.features || []).map((f) => (f.properties && f.properties.id) || "").filter(Boolean),
+  const byId = new Map(
+    (high.features || [])
+      .filter((f) => f.properties && f.properties.id)
+      .map((f) => [f.properties.id, f]),
   );
-  const need = Object.values(VATSPY_EXTRA_TO_FAA).filter((id) => US_ARTCC.has(id) && !have.has(id));
-  if (!need.length) {
-    console.log("  VAT-Spy extras — already present");
-    return;
-  }
-  console.log(`Supplementing HIGH from VAT-Spy for ${need.join(", ")}…`);
+
+  console.log("Refreshing ZMA / extras from VAT-Spy…");
   const res = await fetch(VATSPY_BOUNDARIES_URL);
   if (!res.ok) throw new Error(`VAT-Spy boundaries HTTP ${res.status}`);
   const vat = await res.json();
   const byVat = new Map();
   for (const f of vat.features || []) {
     const vid = ((f.properties && f.properties.id) || "").toUpperCase();
-    if (VATSPY_EXTRA_TO_FAA[vid]) byVat.set(vid, f);
+    if (vid) byVat.set(vid, f);
   }
-  let added = 0;
+
+  let changed = 0;
+  // Non-CONUS FAA short ids.
   for (const [vid, faa] of Object.entries(VATSPY_EXTRA_TO_FAA)) {
-    if (!need.includes(faa) || !byVat.has(vid)) continue;
+    if (!US_ARTCC.has(faa) || !byVat.has(vid)) continue;
+    if (byId.has(faa)) continue;
     const src = byVat.get(vid);
     high.features.push({
       type: "Feature",
@@ -329,10 +331,61 @@ async function supplementVatspyExtras(highPath) {
       },
       geometry: src.geometry,
     });
-    added++;
+    byId.set(faa, high.features[high.features.length - 1]);
+    changed++;
   }
+
+  // Always refresh ZMA from full KZMA (includes oceanic corridor toward SJU).
+  if (byVat.has("KZMA")) {
+    const src = byVat.get("KZMA");
+    const feat = {
+      type: "Feature",
+      properties: {
+        id: "ZMA",
+        stratum: "HIGH",
+        lowerFt: 18000,
+        upperFt: 60000,
+        source: "vatspy-KZMA",
+        includesOceanic: true,
+      },
+      geometry: src.geometry,
+    };
+    if (byId.has("ZMA")) {
+      const i = high.features.indexOf(byId.get("ZMA"));
+      high.features[i] = feat;
+    } else {
+      high.features.push(feat);
+    }
+    byId.set("ZMA", feat);
+    changed++;
+  }
+  // ZMA-N overlay for LIVE MAP when only MIA_N*_CTR is on CPDLC.
+  if (byVat.has("KZMA-N")) {
+    const src = byVat.get("KZMA-N");
+    const feat = {
+      type: "Feature",
+      properties: {
+        id: "ZMA-N",
+        stratum: "HIGH",
+        lowerFt: 18000,
+        upperFt: 60000,
+        source: "vatspy-KZMA-N",
+        parent: "ZMA",
+        mapHighlightOnly: true,
+      },
+      geometry: src.geometry,
+    };
+    if (byId.has("ZMA-N")) {
+      const i = high.features.indexOf(byId.get("ZMA-N"));
+      high.features[i] = feat;
+    } else {
+      high.features.push(feat);
+    }
+    changed++;
+  }
+
   writeFileSync(highPath, JSON.stringify(high));
-  console.log(`  artcc-boundaries-high.geojson — +${added} VAT-Spy extras`);
+  console.log(`  artcc-boundaries-high.geojson — VAT-Spy refresh (${changed} updates)`);
 }
 
 async function main() {
