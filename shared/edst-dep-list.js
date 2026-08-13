@@ -174,8 +174,40 @@ export function buildDepList(artcc, vatsim, nowMs = Date.now()) {
   }
 
   const list = [...byCs.values()];
-  list.sort((a, b) => (a.etdMs - b.etdMs) || a.cs.localeCompare(b.cs));
+  sortDepItems(list, "time");
   return { items: list, count: list.length, artcc: art, nowMs };
+}
+
+/**
+ * Sort DEP strips in place.
+ * @param {object[]} items
+ * @param {'time'|'dest'|'dep'|'cs'} mode
+ */
+export function sortDepItems(items, mode) {
+  const m = String(mode || "time").toLowerCase();
+  const list = Array.isArray(items) ? items : [];
+  list.sort((a, b) => {
+    if (m === "dest") {
+      const aa = String(a.arr || "").toUpperCase();
+      const bb = String(b.arr || "").toUpperCase();
+      if (aa !== bb) return aa < bb ? -1 : 1;
+    } else if (m === "dep") {
+      const aa = String(a.dep || "").toUpperCase();
+      const bb = String(b.dep || "").toUpperCase();
+      if (aa !== bb) return aa < bb ? -1 : 1;
+    } else if (m === "cs") {
+      const aa = String(a.cs || "").toUpperCase();
+      const bb = String(b.cs || "").toUpperCase();
+      if (aa !== bb) return aa < bb ? -1 : 1;
+    } else {
+      // time (default) — proposed P-time ascending
+      const at = a.etdMs != null ? a.etdMs : Number.MAX_SAFE_INTEGER;
+      const bt = b.etdMs != null ? b.etdMs : Number.MAX_SAFE_INTEGER;
+      if (at !== bt) return at - bt;
+    }
+    return String(a.cs || "").localeCompare(String(b.cs || ""));
+  });
+  return list;
 }
 
 /** Fetch VATSIM data.json (browser CORS). */
