@@ -936,6 +936,13 @@ td.eh-bk{text-align:center;min-width:14px}
 #handoffpop .holist .app{color:var(--amber)}
 #handoffpop .holist .ho.unicom{border-bottom:1px solid #333}
 #handoffpop .holist .uni{color:var(--green);font-weight:bold}
+#handoffpop .holist .ho.endsvc .uni{color:#e08a8a}
+#handoffpop .holist .ho-opts{
+  display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;
+  padding:6px 10px;border-bottom:1px solid #333;font-size:11px;color:var(--fg-dim);
+}
+#handoffpop .holist .ho-opts label{display:inline-flex;gap:4px;align-items:center;cursor:pointer;user-select:none}
+#handoffpop .holist .ho-opts input{accent-color:var(--teal)}
 #handoffpop .holist .ho-group{
   padding:6px 10px 2px;color:#f0f0ec;font-weight:bold;font-size:12px;
   border-top:1px solid #333;margin-top:2px;letter-spacing:.02em;
@@ -949,6 +956,20 @@ td.eh-bk{text-align:center;min-width:14px}
 #handoffpop .hobtn:hover,#handoffpop .hobtn:active{background:#3a3a3a}
 #handoffpop .hobtn.handover{color:#9fe6e0;border-color:#2f6b73}
 #handoffpop .hobtn.contact{color:var(--amber);border-color:#5a4a22}
+#handoffpop .hobtn.monitor{color:var(--teal);border-color:#2f6b73}
+.rt-direct-opts{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #222}
+.rt-cond-in{width:56px;background:#111;border:1px solid #444;color:#ddd;font:inherit;padding:2px 4px}
+#cpdlcadv.edst-pop{min-width:320px;max-width:420px}
+#cpdlcadv .adv-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px}
+#cpdlcadv .adv-grid .rt-btn{width:100%}
+#cpdlcadv .adv-free{display:flex;gap:6px;padding:0 8px 8px;align-items:center}
+#cpdlcadv .adv-free input{flex:1;background:#111;border:1px solid #444;color:#ddd;font:inherit;padding:4px 6px}
+.xres-time-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:4px 8px;border-bottom:1px solid #222;font-size:11px}
+.xres-time-row input{width:52px;background:#111;border:1px solid #444;color:#ddd;font:inherit;padding:2px 4px}
+.alt-block-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:4px 8px;border-bottom:1px solid #222;font-size:11px}
+.alt-block-row input{width:48px;background:#111;border:1px solid #444;color:#ddd;font:inherit;padding:2px 4px}
+#mpReqType{color:var(--amber);font-size:11px;padding:0 8px 4px}
+
 
 /* EDST per-aircraft MESSAGE popup (callsign uplink/downlink triangle) */
 #msgpop.edst-pop{
@@ -1472,7 +1493,7 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-btn not" id="btnNot" title="NOTAMs for controlling ARTCC">NOT</span>
     <span class="etb-btn" id="btnGi" title="General Information (neighbor centers)">GI</span>
     <span class="etb-btn" data-stub="UA">UA</span>
-    <span class="etb-btn" data-stub="CPDLC ADV">CPDLC<br>ADV</span>
+    <span class="etb-btn" id="btnCpdlcAdv" title="CPDLC advisories / confirms">CPDLC<br>ADV</span>
     <span class="etb-btn" id="btnCpdlcHist" title="CPDLC history for the highlighted aircraft">CPDLC<br>HIST</span>
     <span class="etb-btn" id="btnCpdlcMsgout" title="Controller uplinks for the highlighted aircraft">CPDLC<br>MSGOUT</span>
     <span class="etb-btn" id="btnCpdlcAll" title="Full datalink log — all uplink and downlink messages">CPDLC<br>ALL</span>
@@ -1622,6 +1643,11 @@ td.eh-bk{text-align:center;min-width:14px}
     Altimeter <span id="altAltimIcao"></span>
     <input id="altAltimInput" autocomplete="off" inputmode="decimal" placeholder="29.83" title="Override destination altimeter">
   </div>
+  <div class="alt-block-row" id="altBlockRow">
+    <label style="display:inline-flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" id="altBlockOn" title="UM30–32 block altitude"> BLOCK</label>
+    <span>TO</span>
+    <input id="altBlockTo" maxlength="5" inputmode="numeric" placeholder="FL" title="Block upper/lower level">
+  </div>
   <div class="altlist" id="altList"></div>
 </div>
 
@@ -1648,6 +1674,14 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="tri" aria-hidden="true"></span>
     <span class="title" id="xresTitle">X RES</span>
     <span class="x" data-close="xresmenu" title="Close">X</span>
+  </div>
+  <div class="xres-time-row" id="xresTimeRow">
+    <span>TIME</span>
+    <button type="button" class="xb on" data-xres-tmode="AT" title="UM51 CROSS AT time">AT</button>
+    <button type="button" class="xb" data-xres-tmode="BEFORE" title="UM52 AT OR BEFORE">AT OR BEFORE</button>
+    <button type="button" class="xb" data-xres-tmode="AFTER" title="UM53 AT OR AFTER">AT OR AFTER</button>
+    <input id="xresTime" maxlength="4" inputmode="numeric" placeholder="HHMM" title="Crossing time UTC">
+    <label style="margin-left:8px;display:inline-flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" id="xresAndMaintain" title="UM49 CROSS AT AND MAINTAIN"> AND MAINTAIN</label>
   </div>
   <div class="xres-cols">
     <div class="xres-col">
@@ -1713,6 +1747,18 @@ td.eh-bk{text-align:center;min-width:14px}
     </div>
   </div>
   <div class="rt-sect">DIRECT-TO-FIX</div>
+  <div class="rt-direct-opts" id="rtDirectOpts">
+    <button type="button" class="rt-btn tgl on" data-rt-direct="NOW" title="UM74 PROCEED DIRECT TO">DIRECT</button>
+    <button type="button" class="rt-btn tgl" data-rt-direct="ABLE" title="UM75 WHEN ABLE PROCEED DIRECT TO">WHEN ABLE</button>
+    <button type="button" class="rt-btn tgl" data-rt-direct="ATFIX" title="UM77 AT [fix] PROCEED DIRECT TO">AT FIX</button>
+    <button type="button" class="rt-btn tgl" data-rt-direct="ATALT" title="UM78 AT [altitude] PROCEED DIRECT TO">AT ALT</button>
+    <input id="rtDirectAtFix" class="rt-cond-in" maxlength="10" placeholder="FIX" title="Conditional fix" hidden>
+    <input id="rtDirectAtAlt" class="rt-cond-in" maxlength="5" placeholder="FL" inputmode="numeric" title="Conditional altitude" hidden>
+    <button type="button" class="rt-btn" id="rtWxDev" title="UM82 CLEARED TO DEVIATE">WX DEV</button>
+    <input id="rtWxNm" class="rt-cond-in" maxlength="3" placeholder="NM" inputmode="numeric" title="Deviation distance NM" style="width:40px">
+    <button type="button" class="rt-btn tgl on" data-rt-wxdir="LEFT" title="Left of route">L</button>
+    <button type="button" class="rt-btn tgl" data-rt-wxdir="RIGHT" title="Right of route">R</button>
+  </div>
   <div class="rt-fixlist" id="rtFixList"></div>
   <div class="rt-apr">
     <span style="color:#888;margin-right:4px">APR</span>
@@ -1722,6 +1768,26 @@ td.eh-bk{text-align:center;min-width:14px}
   <div class="rt-foot">
     <button type="button" class="rt-tool stub" title="Coming soon">PREVIOUS ROUTE</button>
     <button type="button" class="rt-tool stub" title="Coming soon">TFM REROUTE MENU</button>
+  </div>
+</div>
+
+<!-- EDST CPDLC ADV (advisories / confirms) -->
+<div id="cpdlcadv" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="advTitle">CPDLC ADV</span>
+    <span class="x" data-close="cpdlcadv" title="Close">X</span>
+  </div>
+  <div class="adv-grid">
+    <button type="button" class="rt-btn" id="advConfirmAlt" title="UM135">CONFIRM ALT</button>
+    <button type="button" class="rt-btn" id="advConfirmSpd" title="UM134">CONFIRM SPD</button>
+    <button type="button" class="rt-btn" id="advConfirmRte" title="UM137">CONFIRM ROUTE</button>
+    <button type="button" class="rt-btn" id="advReportBor" title="UM127">REPORT BACK ON ROUTE</button>
+    <button type="button" class="rt-btn" id="advAltimeter" title="UM153">ALTIMETER</button>
+  </div>
+  <div class="adv-free">
+    <input id="advFreeText" type="text" maxlength="220" autocomplete="off" spellcheck="false"
+      placeholder="Free-text advisory (UM169)…" title="UM169 free text">
+    <button type="button" class="rt-btn" id="advFreeSend">SEND</button>
   </div>
 </div>
 
@@ -1740,9 +1806,11 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="title" id="mpTitle">MESSAGES</span>
     <span class="x" data-close="msgpop" title="Close">X</span>
   </div>
+  <div id="mpReqType" class="hidden"></div>
   <div class="mp-acts" id="mpActs">
     <span class="hobtn unable" id="mpUnable" title="UM0 — reply UNABLE to the pilot request">UNABLE</span>
     <span class="hobtn standby" id="mpStandby" title="UM1 — reply STANDBY to the pilot request">STANDBY</span>
+    <span class="hobtn contact" id="mpAcceptReq" title="Open Alt/Route menu for this request">OPEN MENU</span>
     <div class="mp-free">
       <input id="mpFreeText" type="text" maxlength="220" autocomplete="off" spellcheck="false"
         placeholder="Free-text reply…" title="Custom CPDLC reply to the pilot request">
@@ -1887,6 +1955,7 @@ td.eh-bk{text-align:center;min-width:14px}
   <div class="hold-foot">
     <button type="button" class="hold-foot-btn disabled" id="holdModeSpa" title="Hold SPA — coming soon">HOLD/SPA</button>
     <button type="button" class="hold-foot-btn on" id="holdModeHold">HOLD</button>
+    <button type="button" class="hold-foot-btn" id="holdModePub" title="UM92 HOLD AT AS PUBLISHED">AS PUBLISHED</button>
     <button type="button" class="hold-foot-btn" id="holdModeCancel">CANCEL HOLD</button>
   </div>
 </div>
@@ -2217,6 +2286,7 @@ const wilcoUi={};                        // W: cs -> {kind:'received'|'timeout',
 const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting pilot reply
 const handoffPending=new Set();          // H: awaiting WILCO
 const handoffMin={};                     // cs -> MIN of CONTACT msg
+const handoffEndService=new Set();       // APP/DEP/UNICOM: soft END SERVICE after WILCO
 const handoffAwaitFreq=new Set();        // handoff WILCO received; drop from list when pilot leaves our freq
 const altMin={}, rtMin={}, sqMin={}, hdgMin={}, spdMin={}; // cs -> MIN of last uplink
 const altPending=new Set();              // alt clearance sent, awaiting WILCO
@@ -2738,10 +2808,25 @@ function minMatches(stored,mrn){
 }
 function ackHandoff(cs){
   cs=(cs||'').toUpperCase();
+  const endSvc=handoffEndService.has(cs);
   handoffPending.delete(cs);
   delete handoffMin[cs];
+  handoffEndService.delete(cs);
   handoffAwaitFreq.add(cs);
   logMsg('sys',cs,'handoff acknowledged — awaiting frequency change');
+  if(endSvc)requestSoftEndService(cs);
+}
+async function requestSoftEndService(cs){
+  cs=(cs||'').toUpperCase();
+  if(!cs||!hubMode()||!canControl())return;
+  try{
+    const r=await api('/api/conn',{to:cs,action:'endservice'});
+    if(r&&r.ok){
+      connected.delete(cs);
+      logMsg('sys',cs,'END SERVICE (UM161) — CPDLC services terminated');
+      renderBoard();
+    }else if(r&&r.error)comingSoon(r.error);
+  }catch(e){comingSoon('END SERVICE failed');}
 }
 function clearPendingOnAck(cs,mrn){
   cs=(cs||'').toUpperCase();
@@ -2788,7 +2873,7 @@ function handleIncoming(m){
       const msg=(d.message||'').trim().toUpperCase();
       if(/REQUEST LOGON/.test(msg)){if(!hubMode())autoAcceptLogon(cs,d.min);return;}
       if(/LOG\s?OFF|LOGGED OFF/.test(msg)){       // aircraft left us (e.g. after a handover)
-        connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);delete handoffMin[cs];
+        connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);handoffEndService.delete(cs);delete handoffMin[cs];
         delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();
         clearWilcoAwait(cs);ackWilcoUi(cs);
         logMsg('sys',cs,'logged off CPDLC');renderBoard();return;
@@ -2820,15 +2905,15 @@ function handlePeerUplink(m){
   if(!d){logMsg('out',cs+' \u00b7 co-ctrl',m.packet||'');return;}
   const min=d.min, msg=(d.message||'').toUpperCase().replace(/@/g,'');
   logMsg('out',cs+' \u00b7 co-ctrl',d.message||'');
-  if(/REQUEST LOGON|LOGON ACCEPTED/.test(msg)){renderBoard();return;}
-  // CPDLC SERVICES TERMINATED is a service advisory, not a handoff (contains CONTACT).
-  if(/CPDLC SERVICES TERMINATED/.test(msg)){renderBoard();return;}
+  if(/REQUEST LOGON|LOGON ACCEPTED|ATC COMMS ESTABLISHED|ATC COMMS TERMINATED/.test(msg)){renderBoard();return;}
+  // END SERVICE / CPDLC SERVICES TERMINATED is a service advisory, not a handoff.
+  if(/CPDLC SERVICES TERMINATED|\bEND SERVICE\b/.test(msg)){renderBoard();return;}
   if(wilcoExpectsReply(d.ra))trackWilcoAwait(cs,min);
   if(/HANDOVER/.test(msg)){
     handoffPending.add(cs);
-  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC|MONITOR ADVISORY/.test(msg)){
+  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC|MONITOR ADVISORY|\bMONITOR\b/.test(msg)){
     handoffMin[cs]=min;handoffPending.add(cs);
-  }else if(/CROSS|PROCEED DIRECT|CLEARED/.test(msg)){
+  }else if(/CROSS|PROCEED DIRECT|CLEARED|HOLD AT|EXPECT FURTHER|CLEARED TO DEVIATE/.test(msg)){
     rtMin[cs]=min;routePending.add(cs);
   }else if(/\bSQUAWK\b/.test(msg)){
     const m=msg.match(/\bSQUAWK\s+(\d{4})\b/);
@@ -2885,7 +2970,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','cpdlcadv','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -3269,7 +3354,7 @@ document.addEventListener('pointerdown',ev=>{
       if(b)b.setAttribute('aria-expanded','false');
     }
   }
-  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].forEach(id=>{
+  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','cpdlcadv','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -3610,7 +3695,19 @@ async function buildAltMessage(target,tgt,altimVal,apd,localTalt){
   const cur=target.alt||0;
   let msg;
   const includeAltim=!!localTalt;
-  if(isBelowFl180(tgt)){
+  const blockOn=!!(document.getElementById('altBlockOn')&&document.getElementById('altBlockOn').checked);
+  const blockTo=parseAlt((document.getElementById('altBlockTo')&&document.getElementById('altBlockTo').value)||'');
+  if(blockOn&&blockTo!=null&&blockTo!==tgt){
+    const lo=Math.min(tgt,blockTo),hi=Math.max(tgt,blockTo);
+    const mid=(lo+hi)/2;
+    if(isBelowFl180(lo)&&isBelowFl180(hi)){
+      const verb=mid>cur?'CLIMB AND MAINTAIN BLOCK':mid<cur?'DESCEND AND MAINTAIN BLOCK':'MAINTAIN BLOCK';
+      msg=`${verb} ${formatFeetAlt(lo)} TO ${formatFeetAlt(hi)}`;
+    }else{
+      const verb=mid>cur?'CLIMB TO AND MAINTAIN BLOCK':mid<cur?'DESCEND TO AND MAINTAIN BLOCK':'MAINTAIN BLOCK';
+      msg=`${verb} @${flStr(lo)}@ TO @${flStr(hi)}@`;
+    }
+  }else if(isBelowFl180(tgt)){
     const verb=tgt>cur?'CLIMB AND MAINTAIN':tgt<cur?'DESCEND AND MAINTAIN':'MAINTAIN';
     msg=`${verb} ${formatFeetAlt(tgt)}`;
   }else{
@@ -3675,6 +3772,8 @@ function openAltMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   altTarget=a;altSelected=null;altAltimManual=false;
   setAltApd(false);setAltLocalTalt(false);resetAltReasons();
+  const bon=document.getElementById('altBlockOn');if(bon)bon.checked=false;
+  const bto=document.getElementById('altBlockTo');if(bto)bto.value='';
   document.getElementById('altTitle').textContent=a.cs;
   const fp=assigned[a.cs]!=null?assigned[a.cs]:round10(a.alt||0);
   altFpBase=fp||null;
@@ -3833,15 +3932,31 @@ function crossAltText(s){
   if(p.below180)return formatFeetAlt(p.fl);
   return 'FL'+pad3(p.fl);
 }
+let xresTimeMode='AT'; // AT | BEFORE | AFTER
 async function buildCrossingMessage(target,fix,alt,spd,altimVal){
   if(!target||!fix)return null;
   const altP=alt?parseAltitudeInput(alt):null;
   const A=alt?(altP&&altP.below180?crossAltText(alt):normLevel(alt)):'';
   const S=spd?normSpeed(spd):'';
-  if(!A&&!S)return null;
-  let msg=(A&&S)?`CROSS @${fix}@ AT @${A}@ AT @${S}@`
-           :A?`CROSS @${fix}@ AT @${A}@`
-           :`CROSS @${fix}@ AT @${S}@`;
+  const tRaw=(document.getElementById('xresTime')&&document.getElementById('xresTime').value||'').trim();
+  const tVal=parseHhmm(tRaw);
+  const andMaint=!!(document.getElementById('xresAndMaintain')&&document.getElementById('xresAndMaintain').checked);
+  if(!A&&!S&&tVal==null)return null;
+  let msg;
+  if(tVal!=null&&!A&&!S){
+    const phrase=xresTimeMode==='BEFORE'?'AT OR BEFORE':xresTimeMode==='AFTER'?'AT OR AFTER':'AT';
+    msg=`CROSS @${fix}@ ${phrase} @${pad4hhmm(tVal)}@`;
+  }else if(A&&S){
+    msg=andMaint?`CROSS @${fix}@ AT AND MAINTAIN @${A}@ AT @${S}@`:`CROSS @${fix}@ AT @${A}@ AT @${S}@`;
+  }else if(A){
+    msg=andMaint?`CROSS @${fix}@ AT AND MAINTAIN @${A}@`:`CROSS @${fix}@ AT @${A}@`;
+  }else{
+    msg=`CROSS @${fix}@ AT @${S}@`;
+  }
+  if(tVal!=null&&(A||S)){
+    const phrase=xresTimeMode==='BEFORE'?'AT OR BEFORE':xresTimeMode==='AFTER'?'AT OR AFTER':'AT';
+    msg+=` ${phrase} @${pad4hhmm(tVal)}@`;
+  }
   if(altP&&altP.below180){
     const dest=normalizeIcao(target.arr);
     const altim=altimVal!=null?altimVal:(await fetchDestAltimeter(dest));
@@ -3849,13 +3964,22 @@ async function buildCrossingMessage(target,fix,alt,spd,altimVal){
   }
   return {label:'CROSS',msg,effects:{type:'route'}};
 }
+function syncXresTimeModeUi(){
+  document.querySelectorAll('#xresTimeRow [data-xres-tmode]').forEach(b=>{
+    b.classList.toggle('on',b.dataset.xresTmode===xresTimeMode);
+  });
+}
 function syncXresUplink(){
   const btn=document.getElementById('xresUplink');
-  const ok=!!(xresTarget&&xresFix&&(xresAlt!=null||xresSpd!=null));
+  const tOk=parseHhmm((document.getElementById('xresTime')&&document.getElementById('xresTime').value)||'')!=null;
+  const ok=!!(xresTarget&&xresFix&&(xresAlt!=null||xresSpd!=null||tOk));
   if(btn)btn.classList.toggle('disabled',!ok);
 }
 function openXresMenu(target,x,y){
-  xresTarget=target;xresFix=null;xresAlt=null;xresSpd=null;xresSpdBase=310;
+  xresTarget=target;xresFix=null;xresAlt=null;xresSpd=null;xresSpdBase=310;xresTimeMode='AT';
+  const xt=document.getElementById('xresTime');if(xt)xt.value='';
+  const xm=document.getElementById('xresAndMaintain');if(xm)xm.checked=false;
+  syncXresTimeModeUi();
   document.getElementById('xresTitle').textContent='X RES-'+(target.cs||'');
   // FIX column
   const fixL=document.getElementById('xresFixList');fixL.innerHTML='';
@@ -3926,6 +4050,13 @@ function buildXresSpdList(){
 }
 document.getElementById('xresSpdPlus').onclick=()=>{xresSpdBase=Math.min(400,xresSpdBase+20);buildXresSpdList();};
 document.getElementById('xresSpdMinus').onclick=()=>{xresSpdBase=Math.max(120,xresSpdBase-20);buildXresSpdList();};
+document.querySelectorAll('#xresTimeRow [data-xres-tmode]').forEach(btn=>{
+  btn.addEventListener('click',()=>{xresTimeMode=btn.dataset.xresTmode;syncXresTimeModeUi();syncXresUplink();});
+});
+const xresTimeEl=document.getElementById('xresTime');
+if(xresTimeEl)xresTimeEl.addEventListener('input',syncXresUplink);
+const xresAndEl=document.getElementById('xresAndMaintain');
+if(xresAndEl)xresAndEl.addEventListener('change',syncXresUplink);
 document.getElementById('xresUplink').onclick=async()=>{
   if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
   if(!xresTarget||!xresFix||(xresAlt==null&&xresSpd==null))return;
@@ -4235,6 +4366,8 @@ makeEdstDraggable(document.getElementById('notmenu'));
 //============================================================ ROUTE MENU
 const routemenu=document.getElementById('routemenu');
 let rtTarget=null,fixSelected=null,rtReasonsOpen=false,rtApd=false;
+let rtDirectMode='NOW'; // NOW | ABLE | ATFIX | ATALT
+let rtWxDir='LEFT';
 const rtReasons=new Set();
 const RT_REASON_TEXT={
   TFC:'DUE TO TRAFFIC',
@@ -4243,12 +4376,41 @@ const RT_REASON_TEXT={
   EXP:'EXPEDITE',
   WX:'DUE TO WEATHER'
 };
+function syncRtDirectModeUi(){
+  document.querySelectorAll('#rtDirectOpts [data-rt-direct]').forEach(b=>{
+    b.classList.toggle('on',b.dataset.rtDirect===rtDirectMode);
+  });
+  const af=document.getElementById('rtDirectAtFix');
+  const aa=document.getElementById('rtDirectAtAlt');
+  if(af)af.hidden=rtDirectMode!=='ATFIX';
+  if(aa)aa.hidden=rtDirectMode!=='ATALT';
+  document.querySelectorAll('#rtDirectOpts [data-rt-wxdir]').forEach(b=>{
+    b.classList.toggle('on',b.dataset.rtWxdir===rtWxDir);
+  });
+}
 function buildRouteDirectMessage(fix){
   if(!fix)return null;
-  let msg=`PROCEED DIRECT TO @${fix}@`;
+  let msg;
+  if(rtDirectMode==='ABLE')msg=`WHEN ABLE PROCEED DIRECT TO @${fix}@`;
+  else if(rtDirectMode==='ATFIX'){
+    const at=(document.getElementById('rtDirectAtFix')&&document.getElementById('rtDirectAtFix').value||'').trim().toUpperCase();
+    if(!at)return null;
+    msg=`AT @${at}@ PROCEED DIRECT TO @${fix}@`;
+  }else if(rtDirectMode==='ATALT'){
+    const raw=(document.getElementById('rtDirectAtAlt')&&document.getElementById('rtDirectAtAlt').value||'').trim();
+    const fl=parseAlt(raw);
+    if(fl==null)return null;
+    msg=`AT @${flStr(fl)}@ PROCEED DIRECT TO @${fix}@`;
+  }else msg=`PROCEED DIRECT TO @${fix}@`;
   if(rtApd)msg+=' AT PILOTS DISCRETION';
   msg+=rtReasonSuffix();
   return {label:'DIRECT',msg,effects:{type:'route'}};
+}
+function buildWxDevMessage(){
+  const nm=parseInt((document.getElementById('rtWxNm')&&document.getElementById('rtWxNm').value)||'',10);
+  if(!nm||nm<1||nm>99)return null;
+  const dir=rtWxDir==='RIGHT'?'RIGHT':'LEFT';
+  return {label:'WX DEV',msg:`CLEARED TO DEVIATE UP TO @${nm} NM@ ${dir} OF ROUTE`,effects:{type:'route'}};
 }
 function buildRouteUplinkMessage(target,route){
   if(!target||!route)return null;
@@ -4295,7 +4457,9 @@ function appendRtFixRow(list,fix){
 }
 function openRouteMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
-  rtTarget=a;fixSelected=null;rtApd=false;rtReasons.clear();setRtReasonsOpen(false);syncRtReasons();
+  rtTarget=a;fixSelected=null;rtApd=false;rtDirectMode='NOW';rtWxDir='LEFT';rtReasons.clear();setRtReasonsOpen(false);syncRtReasons();syncRtDirectModeUi();
+  const af=document.getElementById('rtDirectAtFix');if(af)af.value='';
+  const aa=document.getElementById('rtDirectAtAlt');if(aa)aa.value='';
   const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
   let title='ROUTE MENU '+a.cs;
   if(dep||arr)title+='  '+[dep,arr].filter(Boolean).join(' \u2192 ');
@@ -4348,6 +4512,23 @@ document.getElementById('rtUplink').onclick=async()=>{
   close('routemenu');
   await sendUplinkEntry(cs,entry);renderBoard();
 };
+document.querySelectorAll('#rtDirectOpts [data-rt-direct]').forEach(btn=>{
+  btn.addEventListener('click',()=>{rtDirectMode=btn.dataset.rtDirect;syncRtDirectModeUi();syncRtUplink();});
+});
+document.querySelectorAll('#rtDirectOpts [data-rt-wxdir]').forEach(btn=>{
+  btn.addEventListener('click',()=>{rtWxDir=btn.dataset.rtWxdir;syncRtDirectModeUi();});
+});
+['rtDirectAtFix','rtDirectAtAlt','rtWxNm'].forEach(id=>{
+  const el=document.getElementById(id);if(el)el.addEventListener('input',syncRtUplink);
+});
+document.getElementById('rtWxDev').onclick=async()=>{
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!rtTarget)return;
+  const entry=buildWxDevMessage();
+  if(!entry){comingSoon('Enter deviation distance (NM)');return;}
+  const cs=rtTarget.cs;close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
 ['rtTrial','rtCarX','rtRes','rtHoldBtn','rtData','rtAprAll'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('click',()=>comingSoon(el.textContent.trim()));
@@ -4355,6 +4536,7 @@ document.getElementById('rtUplink').onclick=async()=>{
 document.querySelectorAll('#routemenu .rt-tool.stub').forEach(el=>{
   el.addEventListener('click',()=>comingSoon(el.textContent.trim()));
 });
+syncRtDirectModeUi();
 
 (function(){
   const hist=document.getElementById('btnCpdlcHist');
@@ -4411,10 +4593,13 @@ function appendHandoffContactRow(L,a,f,kindClass,withHandover){
   const hoLabel=f.label||f.callsign||f.icao||'';
   const dist=f.dist?(' \u00b7 '+f.dist+'nm'):'';
   const handoverBtn=(withHandover&&f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
+  const monitorBtn=isHandoffCenter(f)?`<span class="hobtn monitor" title="UM120 MONITOR">MONITOR</span>`:'';
   div.innerHTML=`<span class="left"><span class="${kindClass}">${hoLabel}</span>`
     +`<span class="meta"> ${f.freq||''}${dist}</span></span>`
-    +`<span class="acts"><span class="hobtn contact">CONTACT</span>${handoverBtn}</span>`;
-  div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f);
+    +`<span class="acts"><span class="hobtn contact">CONTACT</span>${monitorBtn}${handoverBtn}</span>`;
+  div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f,'CONTACT');
+  const mb=div.querySelector('.monitor');
+  if(mb)mb.onclick=()=>sendHandoff(a.cs,f,'MONITOR');
   const hb=div.querySelector('.handover');
   if(hb)hb.onclick=()=>sendHandover(a.cs,f);
   L.appendChild(div);
@@ -4450,6 +4635,15 @@ function openHandoff(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   document.getElementById('hoTitle').textContent='HANDOFF '+a.cs;
   const L=document.getElementById('hoList');L.innerHTML='';
+  // Options row: optional UM154 concat on CONTACT
+  const opts=document.createElement('div');opts.className='ho-opts';
+  opts.innerHTML=`<label title="UM154 — append to CONTACT uplink"><input type="checkbox" id="hoRadarTerm"> RADAR SERVICES TERMINATED</label>`;
+  L.appendChild(opts);
+  // Manual UM161 END SERVICE
+  const end=document.createElement('div');end.className='ho endsvc';
+  end.innerHTML=`<span class="uni">END SERVICE</span><span class="meta">UM161 \u00b7 terminate CPDLC now</span>`;
+  end.onclick=()=>sendManualEndService(a.cs);
+  L.appendChild(end);
   // UNICOM release -- always available (no further ATC)
   const uni=document.createElement('div');uni.className='ho unicom';
   uni.innerHTML=`<span class="uni">UNICOM</span><span class="meta">122.800 \u00b7 release, no further ATC</span>`;
@@ -4468,18 +4662,35 @@ function openHandoff(idx,x,y){
   appendHandoffApproaches(L,a,approaches);
   placePop(handoffpop,x,y);
 }
+async function sendManualEndService(cs){
+  close('handoffpop');
+  if(!canControl()){comingSoon('Sign in / verify to end service');return;}
+  await requestSoftEndService(cs);
+}
 async function sendUnicom(cs){
   close('handoffpop');
   const min=await sendCpdlc(cs,'WU','MONITOR ADVISORY 122.8');
-  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
+  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);handoffEndService.add(cs);
     logMsg('sys',cs,'released to UNICOM (122.800)');renderBoard();}
 }
-// CONTACT = voice frequency change (pilot WILCOs; H clears on WILCO).
-async function sendHandoff(cs,fac){
+// CONTACT / MONITOR = voice frequency change (pilot WILCOs; H clears on WILCO).
+// APP/DEP CONTACT also schedules soft END SERVICE after WILCO.
+async function sendHandoff(cs,fac,mode){
   close('handoffpop');
-  const min=await sendCpdlc(cs,'WU',`CONTACT @${fac.name}@ @${fac.freq||''}@`);
-  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
-    logMsg('sys',cs,'contact '+fac.callsign+' '+(fac.freq||''));renderBoard();}
+  mode=(mode||'CONTACT').toUpperCase();
+  const radar=!!(document.getElementById('hoRadarTerm')&&document.getElementById('hoRadarTerm').checked);
+  let msg=mode==='MONITOR'
+    ?`MONITOR @${fac.name}@ @${fac.freq||''}@`
+    :`CONTACT @${fac.name}@ @${fac.freq||''}@`;
+  if(mode==='CONTACT'&&radar)msg+=' RADAR SERVICES TERMINATED';
+  const min=await sendCpdlc(cs,'WU',msg);
+  if(min!=null){
+    handoffMin[cs]=min;handoffPending.add(cs);
+    if(isHandoffApproach(fac))handoffEndService.add(cs);
+    else handoffEndService.delete(cs);
+    logMsg('sys',cs,mode.toLowerCase()+' '+fac.callsign+' '+(fac.freq||'')+(radar?' +RADAR TERM':''));
+    renderBoard();
+  }
 }
 // HANDOVER = CPDLC next-data-authority transfer. A capable aircraft logs off us
 // and logs on to the named ICAO; no WILCO is expected, so we clear H when the
@@ -6125,7 +6336,7 @@ function selectedAircraft(){
 
 //============================================================ HOLD DATA menu
 const holdmenu=document.getElementById('holdmenu');
-let holdTarget=null,holdFix=null,holdDir='N',holdTurn='RT',holdLeg='STD',holdMode='HOLD';
+let holdTarget=null,holdFix=null,holdDir='N',holdTurn='RT',holdLeg='STD',holdMode='HOLD'; // HOLD | PUBLISHED | CANCEL
 const HOLD_DIR_HDG={
   N:{out:0,inb:180},NE:{out:45,inb:225},E:{out:90,inb:270},SE:{out:135,inb:315},
   S:{out:180,inb:0},SW:{out:225,inb:45},W:{out:270,inb:90},NW:{out:315,inb:135}
@@ -6186,6 +6397,8 @@ function syncHoldLegButtons(){
 }
 function syncHoldModeButtons(){
   document.getElementById('holdModeHold').classList.toggle('on',holdMode==='HOLD');
+  const pub=document.getElementById('holdModePub');
+  if(pub)pub.classList.toggle('on',holdMode==='PUBLISHED');
   document.getElementById('holdModeCancel').classList.toggle('on',holdMode==='CANCEL');
 }
 function syncHoldUplink(){
@@ -6275,6 +6488,11 @@ function buildHoldMessage(efcOnly){
   }
   if(!holdFix)return null;
   const alt=holdAltText(holdTarget)||flStr(round10(holdTarget.alt||350));
+  if(holdMode==='PUBLISHED'){
+    let msg=`HOLD AT @${holdFix}@ AS PUBLISHED MAINTAIN @${alt}@`;
+    if(efc!=null)msg+=` EXPECT FURTHER CLEARANCE AT @${pad4hhmm(efc)}@`;
+    return {label:'HOLD PUB',msg,effects:{type:'route'}};
+  }
   const inb=pad3(parseInt(document.getElementById('holdInbound').value,10)||0);
   const turns=holdTurn==='LT'?'LEFT':'RIGHT';
   let msg=`HOLD AT @${holdFix}@ MAINTAIN @${alt}@ INBOUND TRACK @${inb}@ ${turns} TURNS ${holdLegPhrase()}`;
@@ -6291,6 +6509,7 @@ document.querySelectorAll('#holdmenu .hold-turn').forEach(b=>{
   b.onclick=()=>{holdTurn=b.dataset.turn;syncHoldTurnButtons();syncHoldUplink();};
 });
 document.getElementById('holdModeHold').onclick=()=>{holdMode='HOLD';syncHoldModeButtons();syncHoldUplink();};
+document.getElementById('holdModePub').onclick=()=>{holdMode='PUBLISHED';syncHoldModeButtons();syncHoldUplink();};
 document.getElementById('holdModeCancel').onclick=()=>{holdMode='CANCEL';syncHoldModeButtons();syncHoldUplink();};
 document.getElementById('holdClearData').onclick=()=>resetHoldForm(true);
 document.getElementById('holdEfcDelete').onclick=()=>{document.getElementById('holdEfc').value='';syncHoldUplink();};
@@ -6995,19 +7214,60 @@ function sendMsgFreeText(){
   const standby=document.getElementById('mpStandby');
   const freeSend=document.getElementById('mpFreeSend');
   const free=document.getElementById('mpFreeText');
+  const accept=document.getElementById('mpAcceptReq');
   if(unable)unable.onclick=()=>sendMsgReply('UNABLE');
   if(standby)standby.onclick=()=>sendMsgReply('STANDBY');
   if(freeSend)freeSend.onclick=()=>sendMsgFreeText();
   if(free)free.addEventListener('keydown',e=>{
     if(e.key==='Enter'){e.preventDefault();sendMsgFreeText();}
   });
+  if(accept)accept.onclick=()=>{
+    const cs=msgPopCs;if(!cs)return;
+    const req=latestPilotRequest(cs);
+    const idx=displayList().findIndex(a=>a.cs===cs);
+    if(idx<0){comingSoon('Aircraft not on ACL');return;}
+    const r=msgpop.getBoundingClientRect();
+    close('msgpop');
+    if(req&&/DIRECT|ROUTE|DEVIAT/.test(req.cls))openRouteMenu(idx,r.left,r.bottom+2);
+    else openAltMenu(idx,r.left,r.bottom+2);
+  };
 })();
+function classifyPilotRequest(text){
+  const t=(text||'').toUpperCase();
+  if(!/\bREQUEST\b/.test(t))return null;
+  if(/REQUEST\s+DIRECT/.test(t))return 'REQUEST DIRECT';
+  if(/REQUEST\s+CLIMB/.test(t))return 'REQUEST CLIMB';
+  if(/REQUEST\s+DESCENT|REQUEST\s+DESCEND/.test(t))return 'REQUEST DESCENT';
+  if(/REQUEST\s+BLOCK/.test(t))return 'REQUEST BLOCK';
+  if(/WEATHER\s+DEVIATION|REQUEST.*DEVIAT/.test(t))return 'REQUEST WEATHER DEVIATION';
+  if(/REQUEST\s+VOICE/.test(t))return 'REQUEST VOICE CONTACT';
+  if(/REQUEST\s+LOGON/.test(t))return null;
+  const m=t.match(/\bREQUEST\b[^.]{0,40}/);
+  return m?m[0].trim():'REQUEST';
+}
+function latestPilotRequest(cs){
+  const arr=messages[cs]||[];
+  for(let i=arr.length-1;i>=0;i--){
+    const m=arr[i];
+    if(m&&m.kind==='in'){
+      const cls=classifyPilotRequest(m.text);
+      if(cls)return {cls,text:m.text};
+    }
+  }
+  return null;
+}
 function openMessages(cs,x,y){
   cs=(cs||'').toUpperCase();
   if(!cs||!msgpop)return;
   msgPopCs=cs;
   msgAlert.delete(cs);stopMsgRepeat(cs);if(typeof syncMsgWaitButton==='function')syncMsgWaitButton();renderBoard();
   document.getElementById('mpTitle').textContent='MESSAGES '+cs;
+  const reqEl=document.getElementById('mpReqType');
+  const req=latestPilotRequest(cs);
+  if(reqEl){
+    if(req){reqEl.textContent=req.cls;reqEl.classList.remove('hidden');reqEl.title=req.text||'';}
+    else{reqEl.textContent='';reqEl.classList.add('hidden');}
+  }
   const canReply=canControl();
   const free=document.getElementById('mpFreeText');
   const freeSend=document.getElementById('mpFreeSend');
@@ -7045,6 +7305,74 @@ function openMessages(cs,x,y){
   else if(msgpop.classList.contains('hidden'))placePop(msgpop,20,80);
   else msgpop.classList.remove('hidden');
 }
+
+//============================================================ CPDLC ADV
+const cpdlcadv=document.getElementById('cpdlcadv');
+let advTarget=null;
+function openCpdlcAdv(a,x,y){
+  if(!a){comingSoon('Select an aircraft row first');return;}
+  advTarget=a;
+  document.getElementById('advTitle').textContent='CPDLC ADV '+a.cs;
+  const free=document.getElementById('advFreeText');if(free)free.value='';
+  placePop(cpdlcadv,x!=null?x:40,y!=null?y:80);
+}
+async function sendAdvUplink(msg,label){
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  if(!advTarget||!msg)return;
+  const cs=advTarget.cs;
+  const min=await sendCpdlc(cs,'WU',msg);
+  if(min!=null){
+    logMsg('out',cs,(label?label+': ':'')+msg);
+    trackWilcoAwait(cs,min);
+    close('cpdlcadv');renderBoard();
+  }
+}
+function advAssignedAltText(a){
+  const fl=assigned[a.cs]!=null?assigned[a.cs]:round10(a.alt||0);
+  return fl?flStr(fl):'';
+}
+document.getElementById('advConfirmAlt').onclick=()=>{
+  if(!advTarget)return;
+  const alt=advAssignedAltText(advTarget);
+  sendAdvUplink(alt?`CONFIRM ASSIGNED ALTITUDE @${alt}@`:'CONFIRM ASSIGNED ALTITUDE','UM135');
+};
+document.getElementById('advConfirmSpd').onclick=()=>{
+  if(!advTarget)return;
+  const spd=spdAssigned[advTarget.cs];
+  sendAdvUplink(spd?`CONFIRM SPEED @${spd}@`:'CONFIRM SPEED','UM134');
+};
+document.getElementById('advConfirmRte').onclick=()=>{
+  if(!advTarget)return;
+  sendAdvUplink('CONFIRM ASSIGNED ROUTE','UM137');
+};
+document.getElementById('advReportBor').onclick=()=>{
+  if(!advTarget)return;
+  sendAdvUplink('REPORT BACK ON ROUTE','UM127');
+};
+document.getElementById('advAltimeter').onclick=async()=>{
+  if(!advTarget)return;
+  if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
+  const dest=normalizeIcao(advTarget.arr);
+  let altim=await fetchDestAltimeter(dest);
+  if(!altim){comingSoon('No altimeter for '+(dest||'destination'));return;}
+  sendAdvUplink(`ALTIMETER @${altim}@`,'UM153');
+};
+document.getElementById('advFreeSend').onclick=()=>{
+  const t=(document.getElementById('advFreeText')&&document.getElementById('advFreeText').value||'').trim();
+  if(!t){comingSoon('Enter advisory text');return;}
+  sendAdvUplink(t.toUpperCase(),'UM169');
+};
+(function wireCpdlcAdvBtn(){
+  const btn=document.getElementById('btnCpdlcAdv');
+  if(!btn)return;
+  btn.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    const a=selectedAircraft();
+    const r=btn.getBoundingClientRect();
+    openCpdlcAdv(a,r.left,r.bottom+4);
+  });
+})();
+makeEdstDraggable(cpdlcadv);
 
 //============================================================ MCA (ERAM Message Composition Area)
 let mcaMod=null,mcaLastCmd='';
