@@ -216,9 +216,14 @@
 }
 
 /* Sticky header variant (TBFM, tower page) */
+.app-header {
+  overflow: visible;
+}
 .app-header .vatflow-app-nav {
   position: relative;
   flex: none;
+  overflow: visible;
+  z-index: 700;
 }
 
 .tower-page .vatflow-app-nav {
