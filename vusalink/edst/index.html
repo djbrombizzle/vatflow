@@ -4676,9 +4676,9 @@ async function sendUnicom(cs){
 // CONTACT / MONITOR = voice frequency change (pilot WILCOs; H clears on WILCO).
 // APP/DEP CONTACT also schedules soft END SERVICE after WILCO.
 async function sendHandoff(cs,fac,mode){
-  close('handoffpop');
   mode=(mode||'CONTACT').toUpperCase();
   const radar=!!(document.getElementById('hoRadarTerm')&&document.getElementById('hoRadarTerm').checked);
+  close('handoffpop');
   let msg=mode==='MONITOR'
     ?`MONITOR @${fac.name}@ @${fac.freq||''}@`
     :`CONTACT @${fac.name}@ @${fac.freq||''}@`;
