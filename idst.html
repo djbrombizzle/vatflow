@@ -196,7 +196,7 @@
   .detail-kv .v { font-size: 13px; color: var(--text); font-weight: 600; }
   .detail-kv .v.big { font-size: 20px; color: #56d364; }
   .detail-kv .v.hold { color: var(--red); }
-  .art-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .art-row { display: flex; gap: 6px; margin-bottom: 10px; align-items: stretch; }
   .art-row input {
     flex: 1; background: #0a0e14; border: 1px solid var(--line-2); border-radius: 4px;
     color: var(--text); font-family: var(--mono); font-size: 13px; padding: 8px;
@@ -204,6 +204,17 @@
   }
   .art-row input:focus { outline: none; border-color: var(--amber); }
   .art-row input.err { border-color: var(--red); }
+  .art-set-btn {
+    font: 700 11px/1 var(--mono); letter-spacing: 0.06em; cursor: pointer;
+    padding: 0 12px; border-radius: 4px; border: 1px solid var(--line-2);
+    background: #161d28; color: var(--muted); white-space: nowrap;
+  }
+  .art-set-btn:hover { color: var(--amber); border-color: var(--amber); }
+  .art-set-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .art-label {
+    display: block; font-size: 9px; letter-spacing: 0.1em; color: var(--muted-2);
+    margin-bottom: 6px; text-transform: uppercase;
+  }
   .rdy-btn {
     width: 100%; font: 700 12px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer;
     padding: 12px; border-radius: 5px; border: 1px solid var(--line-2);
@@ -316,6 +327,8 @@ const state = {
   pilots: [],
   controllers: [],
   selectedCs: null,
+  /** @type {Record<string, string>} draft ART text by callsign — survives live re-renders */
+  artDraft: {},
   countdown: REFRESH_SEC,
   atcVerified: false,
   atcCallsign: null,
@@ -544,6 +557,12 @@ function renderDetail(d) {
     ? `${fmtZulu(d.edctMs - COMPLIANCE_EARLY_MS)}–${fmtZulu(d.edctMs + COMPLIANCE_LATE_MS)}`
     : "—";
   const rdyDisabled = !canReady() ? " disabled" : "";
+  const fca = state.fcas.find(f => f.id === d.fcaId);
+  const rel = fca && fca.releases ? fca.releases[d.callsign] : null;
+  const readyFloorLbl = (rel && rel.readyMs)
+    ? `<div class="detail-kv"><span class="k">ART FLOOR</span><span class="v">${fmtZulu(rel.readyMs)}</span></div>`
+    : "";
+  const draft = state.artDraft[d.callsign] || "";
   body.innerHTML =
     `<div class="detail-acid">${escapeHtml(d.callsign)}</div>` +
     `<div class="detail-route">${escapeHtml(d.dep || "????")} → ${escapeHtml(d.arr || "????")} · ${escapeHtml(d.type || "")}</div>` +
@@ -554,45 +573,105 @@ function renderDetail(d) {
     `<div class="detail-kv"><span class="k">EST HOLD</span><span class="v${hold > 1 && !frozen ? " hold" : ""}">${frozen ? "released" : (hold > 1 ? "+" + hold + "m" : "none")}</span></div>` +
     `<div class="detail-kv"><span class="k">CFR / EDCT</span><span class="v${frozen ? " big" : ""}">${frozen ? fmtZulu(d.edctMs) : "—"}</span></div>` +
     `<div class="detail-kv"><span class="k">WINDOW</span><span class="v">${win}</span></div>` +
+    readyFloorLbl +
     `</div>` +
     (frozen ? "" :
+      `<span class="art-label">Aircraft ready time (wheels-up earliest)</span>` +
       `<div class="art-row">` +
-      `<input id="artInput" type="text" maxlength="5" placeholder="ART HHMMz" autocomplete="off" title="Aircraft Ready Time floor">` +
+      `<input id="artInput" type="text" maxlength="7" placeholder="HHMMz" autocomplete="off" ` +
+      `data-keep="idst-art" value="${escapeHtml(draft)}" title="Earliest wheels-up — release at or after this time">` +
+      `<button type="button" class="art-set-btn" id="artSetBtn"${rdyDisabled}>SET</button>` +
       `</div>`) +
     `<button type="button" class="rdy-btn${frozen ? " on" : ""}" id="rdyBtn"${rdyDisabled}>` +
-    (frozen ? "CANCEL RELEASE (RLSD ✕)" : "RDY — ISSUE CFR") +
+    (frozen ? "CANCEL RELEASE (RLSD ✕)" : "RDY — ISSUE NOW") +
     `</button>` +
-    `<p class="detail-hint">Speak the green CFR time to the pilot after RDY. Advisory hold is not a clearance. Optional ART sets earliest wheels-up.</p>`;
+    `<p class="detail-hint">` +
+    (frozen
+      ? "Cancel returns the flight to Unscheduled. Re-issue with a new ART if needed."
+      : "<b>SET</b> issues a CFR at or after the ART you entered. <b>RDY — ISSUE NOW</b> uses the ready-now buffer (~3 min) unless ART is filled — then ART is the floor. Speak the green CFR time to the pilot.") +
+    `</p>`;
 
+  const artEl = document.getElementById("artInput");
+  if (artEl) {
+    artEl.addEventListener("input", () => {
+      artEl.value = artEl.value.toUpperCase();
+      state.artDraft[d.callsign] = artEl.value;
+    });
+    artEl.addEventListener("keydown", e => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      issueRelease(d, { requireArt: true });
+    });
+  }
+  const setBtn = document.getElementById("artSetBtn");
+  if (setBtn) setBtn.onclick = () => issueRelease(d, { requireArt: true });
   const btn = document.getElementById("rdyBtn");
   if (btn) {
     btn.onclick = () => {
-      if (!canReady()) return;
-      const fca = state.fcas.find(f => f.id === d.fcaId);
-      if (!fca) return;
-      if (isReady(fca, d.callsign)) {
-        clearReady(fca, d.callsign);
-        cloudPush(fca);
-        scheduleRender();
+      if (frozen) {
+        cancelRelease(d);
         return;
       }
-      const artEl = document.getElementById("artInput");
-      let opts = undefined;
-      if (artEl && artEl.value.trim()) {
-        const readyMs = parseZuluHhmm(artEl.value, Date.now());
-        if (!readyMs) {
-          artEl.classList.add("err");
-          setTimeout(() => artEl.classList.remove("err"), 1500);
-          return;
-        }
-        opts = { readyMs };
-      }
-      const rel = markReady(fca, d.callsign, state.pilots, Date.now(), opts);
-      if (!rel) return;
-      cloudPush(fca);
-      scheduleRender();
+      issueRelease(d, { requireArt: false });
     };
   }
+}
+
+function readArtMs(callsign) {
+  const artEl = document.getElementById("artInput");
+  const raw = (artEl && artEl.value.trim()) || (state.artDraft[callsign] || "").trim();
+  if (!raw) return { raw: "", ms: null, err: false };
+  const ms = parseZuluHhmm(raw, Date.now());
+  return { raw, ms, err: !ms };
+}
+
+function cancelRelease(d) {
+  if (!canReady()) return;
+  const fca = state.fcas.find(f => f.id === d.fcaId);
+  if (!fca || !d.callsign) return;
+  clearReady(fca, d.callsign);
+  cloudPush(fca);
+  scheduleRender();
+}
+
+/**
+ * @param {object} d — departure row
+ * @param {{ requireArt?: boolean }} opts — requireArt: SET / Enter path must have a valid ART
+ */
+function issueRelease(d, opts = {}) {
+  if (!canReady()) return;
+  const fca = state.fcas.find(f => f.id === d.fcaId);
+  if (!fca || !d.callsign) return;
+  if (isReady(fca, d.callsign)) {
+    cancelRelease(d);
+    return;
+  }
+
+  const art = readArtMs(d.callsign);
+  const artEl = document.getElementById("artInput");
+  if (opts.requireArt) {
+    if (!art.raw || art.err) {
+      if (artEl) {
+        artEl.classList.add("err");
+        setTimeout(() => artEl.classList.remove("err"), 1500);
+      }
+      return;
+    }
+  } else if (art.raw && art.err) {
+    // RDY with a filled but invalid ART — don't silently fall back to now
+    if (artEl) {
+      artEl.classList.add("err");
+      setTimeout(() => artEl.classList.remove("err"), 1500);
+    }
+    return;
+  }
+
+  const markOpts = (art.ms != null) ? { readyMs: art.ms } : undefined;
+  const rel = markReady(fca, d.callsign, state.pilots, Date.now(), markOpts);
+  if (!rel) return;
+  delete state.artDraft[d.callsign];
+  cloudPush(fca);
+  scheduleRender();
 }
 
 function renderBody() {
