@@ -2781,7 +2781,7 @@ function clearPendingOnReject(cs,mrn){
 function handleIncoming(m){
   const key=m.from+'|'+m.packet;if(seenMsgIds.has(key))return;seenMsgIds.add(key);
   if(m.peer){handlePeerUplink(m);return;}   // a co-controller on our shared position sent this
-  const cs=m.from;
+  const cs=(m.from||'').toUpperCase();
   if(m.type==='cpdlc'){
     const d=parsePacket(m.packet);
     if(d){
@@ -2797,6 +2797,15 @@ function handleIncoming(m){
       if(d.min!=null&&d.min!=='')lastPilotMsgMin[cs]=String(d.min);
       pushMessage(cs,d.message);return;
     }
+  }
+  // Some ACARS clients reply WILCO/ROGER as Hoppie TELEX (not CPDLC). If we are
+  // awaiting a reply for this callsign, treat it as a CPDLC response so handoffs
+  // (esp. UNICOM MONITOR ADVISORY) clear instead of timing out.
+  const telex=(m.packet||'').trim().toUpperCase();
+  if(wilcoAwait[cs]&&(RESP.test(telex)||isPositiveAck(telex))){
+    const awaitMin=wilcoAwait[cs]&&wilcoAwait[cs].min;
+    handleResponse(cs,{min:'',mrn:awaitMin!=null?String(awaitMin):'',ra:'',message:telex},telex);
+    return;
   }
   pushMessage(cs,m.packet);              // telex / unparsed
 }
@@ -2817,7 +2826,7 @@ function handlePeerUplink(m){
   if(wilcoExpectsReply(d.ra))trackWilcoAwait(cs,min);
   if(/HANDOVER/.test(msg)){
     handoffPending.add(cs);
-  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC/.test(msg)){
+  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC|MONITOR ADVISORY/.test(msg)){
     handoffMin[cs]=min;handoffPending.add(cs);
   }else if(/CROSS|PROCEED DIRECT|CLEARED/.test(msg)){
     rtMin[cs]=min;routePending.add(cs);
