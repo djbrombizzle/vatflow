@@ -1215,6 +1215,55 @@ export function isDepartureCandidate(p, depIcao) {
 export function computeTowerDepartures(depIcao, fcas, pilots, _prefiles, opts = {}) {
   const nowMs = Date.now();
   const dep = (depIcao || "").toUpperCase();
+  // Custom matcher (IDST / My Dashboard multi-scope) — depIcao may be "*" / "".
+  if (typeof opts.matchDep === "function") {
+    const matches = p => opts.matchDep(p);
+    const seen = new Set();
+    let total = 0;
+    for (const p of pilots || []) {
+      if (!isDepartureShape(p) || !matches(p)) continue;
+      if (seen.has(p.callsign)) continue;
+      seen.add(p.callsign);
+      total++;
+    }
+    const byCallsign = new Map();
+    const activeFcas = (fcas || []).filter(f => f.enabled && f.points && f.points.length >= 2);
+    for (const fca of activeFcas) {
+      const seq = computeSequence(fca, pilots, [], { includeEdct: true, nowMs });
+      for (let i = 0; i < seq.items.length; i++) {
+        const c = seq.items[i];
+        if (c.phase !== "gnd") continue;
+        if (!isDepartureShape(c.p) || !matches(c.p)) continue;
+        const prev = i > 0 ? seq.items[i - 1] : null;
+        const row = {
+          callsign: c.p.callsign,
+          dep: c.p.dep,
+          arr: c.p.arr,
+          type: c.p.type || "",
+          fpAlt: c.p.fpAlt || 0,
+          gs: c.p.gs || 0,
+          fcaId: fca.id,
+          fcaName: fca.name,
+          fcaColor: fca.color,
+          gapMin: prev ? (c.sched - prev.sched) / 60 : 0,
+          delayMin: c.delay / 60,
+          ctaMs: c.ctaMs,
+          edctMs: c.edctMs,
+          transitSec: c.transitSec,
+          dist: c.dist,
+          globalSeq: i + 1,
+          sched: c.sched,
+          eta: c.eta,
+          ready: !!c.ready,
+          frozen: !!c.frozen,
+        };
+        const old = byCallsign.get(row.callsign);
+        if (!old || row.edctMs > old.edctMs) byCallsign.set(row.callsign, row);
+      }
+    }
+    const departures = [...byCallsign.values()].sort((a, b) => a.edctMs - b.edctMs || a.callsign.localeCompare(b.callsign));
+    return { departures, nowMs, total, metered: departures.length, artccMode: false, pctMode: false, customMatch: true };
+  }
   if (!dep) return { departures: [], nowMs };
   const pctMode = isPctField(dep);
   // ARTCC-wide mode: a Zxx key that isn't an airport shows departures from
