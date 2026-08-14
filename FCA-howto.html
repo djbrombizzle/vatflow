@@ -256,7 +256,7 @@
   </header>
 
   <img class="poster" src="docs/vatflow-fca-howto-flow.png"
-    alt="VATFLOW FCA how-to flowchart: create program through Release Board">
+    alt="VATFLOW FCA how-to flowchart: create program through IDST">
 
   <div class="callouts">
     <div class="callout warn">
@@ -319,7 +319,7 @@
       <div class="num">7</div>
       <div class="body">
         <h2>Issue releases (RDY)</h2>
-        <p>Press <b>RDY</b> on a ground departure to freeze a wheels-up time. Optional HHMMz floor = release at or after that time. Press again (<b>RLSD ✕</b>) to cancel. You can also issue from <b>Release Board</b> or <b>My Dashboard</b> — see below.</p>
+        <p>Press <b>RDY</b> on a ground departure to freeze a wheels-up time. Optional HHMMz floor = release at or after that time. Press again (<b>RLSD ✕</b>) to cancel. Prefer <b>IDST</b> for on-position CFR (tower / APP / center filters). You can also RDY from Builder.</p>
         <span class="where">Same release · every page</span>
       </div>
     </li>
@@ -327,8 +327,8 @@
       <div class="num">8</div>
       <div class="body">
         <h2>On position → pick a release page</h2>
-        <p><b>Release Board</b> for ARTCC-wide metered strips, or <b>My Dashboard</b> (Airport TMU) for your personal airport list. Build/edit programs stays in FCA Builder.</p>
-        <span class="where">Tools · Release Board · My Dashboard</span>
+        <p>Open <b>IDST</b> and set airport / approach / ARTCC filters for what you are working. Build/edit programs stays in FCA Builder. <b>FCA Overview</b> is map-only.</p>
+        <span class="where">Tools · IDST · FCA Overview</span>
       </div>
     </li>
   </ol>
@@ -343,27 +343,27 @@
 
   <section class="section-break" id="releases">
     <h2>Issue releases</h2>
-    <p>Two ways to RDY once an FCA is enabled. Same program, same sequence, same times — everywhere.</p>
+    <p>Issue RDY from <b>IDST</b> once an FCA is enabled. Same program, same sequence, same times — everywhere.</p>
 
     <img class="poster" src="docs/vatflow-fca-releases-flow.png"
-      alt="VATFLOW issue releases flowchart: Release Board and My Dashboard paths, live sync banner">
+      alt="VATFLOW issue releases flowchart: IDST and My Dashboard paths, live sync banner">
 
     <div class="callouts">
       <div class="callout warn">
         <strong>Programs sync across all pages</strong>
-        <p>FCA Builder, Release Board, My Dashboard, and Departures share one live FCA list — order, RDY / RLSD times, and cancels update for everyone in realtime. Create and edit the line in <b>FCA Builder</b>; issue releases from whichever page you are working.</p>
+        <p>FCA Builder, IDST, My Dashboard, and Departures share one live FCA list — order, RDY / RLSD times, and cancels update for everyone in realtime. Create and edit the line in <b>FCA Builder</b>; issue releases from <b>IDST</b>.</p>
       </div>
     </div>
 
     <div class="paths">
       <div class="path">
-        <h3>Release Board</h3>
+        <h3>IDST</h3>
         <ol>
-          <li>Open <b>Release Board</b></li>
-          <li>Select your <b>ARTCC</b> / filter (center, airport, or PCT)</li>
+          <li>Open <b>IDST</b></li>
+          <li>Add <b>airport / approach / ARTCC</b> filters for what you are working</li>
           <li>Sign in while online on a controller position</li>
-          <li>Press <b>RDY</b> on the ground strip</li>
-          <li><b>RLSD</b> = issued wheels-up · press again to cancel</li>
+          <li>Select a flight → press <b>RDY</b> (optional ART HHMMz)</li>
+          <li><b>Released</b> = issued wheels-up · cancel to return to Unscheduled</li>
         </ol>
       </div>
       <div class="path">
@@ -373,7 +373,7 @@
           <li>Add your departure airports / ARTCC filters</li>
           <li>Find rows with <b>FCA PRGM</b> set</li>
           <li>Press <b>RDY</b> / CFR on that row</li>
-          <li>Same release shows on Builder + Release Board</li>
+          <li>Same release shows on Builder + IDST</li>
         </ol>
       </div>
     </div>
@@ -383,7 +383,8 @@
     <h3>Which tool?</h3>
     <ul>
       <li><b>FCA Builder</b> — draw, configure, enable programs · <a href="FCA-builderv02.html">Open</a></li>
-      <li><b>Release Board</b> — on-position RDY for metered departures · <a href="artcc-dashboard.html">Open</a></li>
+      <li><b>IDST</b> — on-position CFR / RDY · <a href="idst.html">Open</a></li>
+      <li><b>FCA Overview</b> — ARTCC map only · <a href="artcc-dashboard.html">Open</a></li>
       <li><b>My Dashboard</b> — personal airport list + RDY when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Airport TMU</a></li>
       <li><b>Airport TMU</b> — destination capacity / CFR · FCA metering wins when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Open</a></li>
     </ul>

@@ -5663,7 +5663,7 @@ function renderHelp() {
     '<div class="helpwrap">' +
     '<div class="helptitle">Airport TMU — Quick reference</div>' +
     '<p class="helpintro">Airport TMU meters destination capacity and issues Call For Release (CFR) times for VATSIM events. ' +
-    'Enroute/line FCAs live in <b>FCA Builder</b>; position RDY is on the <b>Release Board</b>. ' +
+    'Enroute/line FCAs live in <b>FCA Builder</b>; position RDY is on <b>IDST</b>. ' +
     'When an aircraft is in an FCA program, releases delegate to FCA Builder / Supabase. ' +
     'Live traffic comes from the VATSIM feed (refreshes every 30 seconds).</p>' +
     '<div class="help-quickstart">' +
@@ -5725,7 +5725,7 @@ function renderHelp() {
     '<details class="help-acc" open><summary>Which tool do I use?</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li><b>Airport TMU</b> (this page) — destination capacity, CFR, restrictions, ground stops.</li>' +
     '<li><b>FCA Builder</b> — draw line FCAs, meter crossings, manage FCA programs by ARTCC.</li>' +
-    '<li><b>Release Board</b> — ARTCC map + RDY for metered ground departures.</li>' +
+    '<li><b>IDST</b> — Flights to Work CFR / RDY for metered ground departures.</li><li><b>FCA Overview</b> — ARTCC map of active FCAs (no times).</li>' +
     '<li><b>Runway Balancer</b> — arrival runway demand / STAR mapping.</li>' +
     '<li><b>vUSAlink</b> — US center CPDLC (datalink), separate from TMU metering.</li></ul></div></details>' +
 
@@ -5742,7 +5742,7 @@ function renderHelp() {
     '<div class="helpsec" id="help-access">Access &amp; ARTCC staff</div>' +
     '<details class="help-acc" open><summary>Sign-in tiers</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li><b>View only</b> — browse without signing in.</li>' +
-    '<li><b>Signed in</b> — Runway Balancer edit + FCA RDY (with position rules on Release Board).</li>' +
+    '<li><b>Signed in</b> — Runway Balancer edit + FCA RDY (with position rules on IDST).</li>' +
     '<li><b>Editor</b> (whitelisted for an ARTCC) — edit Airport TMU programs and FCAs for that facility only.</li>' +
     '<li><b>Staff</b> — whitelist editors for their ARTCC on Admin Access without a global admin.</li>' +
     '<li><b>Global admin</b> — appoint staff and grant any ARTCC (or <code>*</code> all ARTCCs).</li>' +
@@ -5758,7 +5758,7 @@ function renderHelp() {
     '<div class="helpsec" id="help-terms">Key terms</div>' +
     '<dl class="helpterms">' +
     '<dt>CFR</dt><dd>Call For Release — assigned wheels-up time for a departure (Airport TMU).</dd>' +
-    '<dt>Release / RDY</dt><dd>FCA ground release issued from FCA Builder or Release Board.</dd>' +
+    '<dt>Release / RDY</dt><dd>FCA ground release issued from FCA Builder or IDST.</dd>' +
     '<dt>AAR</dt><dd>Airport Arrival Rate — arrivals per hour the field can accept.</dd>' +
     '<dt>MIT</dt><dd>Miles in Trail — required distance between successive aircraft.</dd>' +
     '<dt>STA</dt><dd>Scheduled Time of Arrival at the destination.</dd>' +

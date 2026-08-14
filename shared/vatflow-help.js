@@ -8,9 +8,9 @@ export const FCA_HELP = {
   quickstart: [
     { step: "1", text: "＋ New FCA — draw the line on the map" },
     { step: "2", text: "Set owning ARTCC, rate/MIT, and filters" },
-    { step: "3", text: "Enable the FCA and use RDY on ground strips" },
+    { step: "3", text: "Enable the FCA — controllers issue times in IDST" },
     { step: "→", text: 'Full staff flow + how to issue releases: <a href="FCA-howto.html">FCA How-To</a>' },
-    { step: "→", text: 'DEL/GND/TWR noob guide (crossing times, Ready Time, best practices): <a href="tower-rdy-guide.html">Tower RDY guide</a>' },
+    { step: "→", text: 'DEL/GND/TWR guide: <a href="tower-rdy-guide.html">Tower RDY guide</a>' },
   ],
   nav: [
     { id: "fca-start", label: "Getting started" },
@@ -58,7 +58,7 @@ export const FCA_HELP = {
         "Connected ground departures get a <b>release</b> (wheels-up time) from FCA spacing.",
         "Ground strips show <b>gap in minutes</b> behind the previous aircraft at the FCA crossing.",
         "<b>⠿ Drag</b> a strip to reorder when you can edit this FCA — times recompute for everyone.",
-        "Reorder on the Release Board syncs here via the shared FCA order.",
+        "Reorder syncs via the shared FCA order (editors only — controllers issue times in <b>IDST</b>).",
         "<b>⧉ Copy</b> sends the sequence as plain text for coordination (Discord, etc.).",
         "Use the AIR / CFR / ALL chips to filter the display without changing the schedule.",
       ],
@@ -71,7 +71,7 @@ export const FCA_HELP = {
         "Optional <b>HHMMz</b> ready-time floor — release is at or after that time.",
         "Press RDY again (<b>RLSD ✕</b>) to cancel and return the aircraft to advisory sequencing.",
         "Signed-in users can RDY; creating/editing the FCA still requires ARTCC editor access.",
-        "The same releases appear on the <b>Release Board</b> for tower/center positions.",
+        "Controllers should issue releases from <b>IDST</b> (tower / APP / center filters).",
         'Tower-facing walkthrough: <a href="tower-rdy-guide.html">Tower RDY / Ready Time guide</a>.',
       ],
     },
@@ -90,9 +90,10 @@ export const FCA_HELP = {
       title: "Which tool do I use?",
       items: [
         "<b>FCA Builder</b> (this page) — draw/meter line FCAs and manage programs.",
-        "<b>Release Board</b> — ARTCC map + RDY for metered ground departures.",
+        "<b>IDST</b> — controller Flights to Work desk for issuing CFR releases.",
+        "<b>FCA Overview</b> — ARTCC map of active FCA programs (no release times).",
         "<b>Airport TMU</b> — destination capacity (AAR, CFR, restrictions, ground stops).",
-        "<b>Runway Balancer</b> — arrival runway demand / STAR mapping.",
+        "<b>Runway Balancer</b> — arrival runway demand / STAR mapping (under Airport TMU).",
         "When Airport TMU shows <b>FCA PRGM</b>, FCA metering is authoritative for that departure.",
       ],
     },
@@ -131,105 +132,126 @@ export const FCA_HELP = {
   footer: "For VATSIM simulation only — not for real-world ATC.",
 };
 
-export const ARTCC_DASHBOARD_HELP = {
-  title: "Release Board — Help",
-  intro: "Position-facing board for active FCA programs in your ARTCC. Issue and cancel releases (RDY) for metered ground departures. Release times are wheels-up from FCA spacing — filed departure time is ignored.",
+export const FCA_OVERVIEW_HELP = {
+  title: "FCA Overview — Help",
+  intro: "Map-only situational awareness for active FCA programs in an ARTCC. No release times are issued here — use IDST for CFR / RDY.",
   quickstart: [
     { step: "1", text: "Select your ARTCC from the dropdown" },
-    { step: "2", text: "Load a filter (ZDC, DCA, or PCT)" },
-    { step: "3", text: "Sign in on position and press RDY" },
-    { step: "→", text: 'DEL/GND/TWR noob guide: <a href="tower-rdy-guide.html">Tower RDY / Ready Time</a>' },
+    { step: "2", text: "Watch active FCA lines and traffic on the map" },
+    { step: "3", text: "Issue releases in IDST" },
+    { step: "→", text: 'Controller guide: <a href="tower-rdy-guide.html">Tower RDY / Ready Time</a>' },
   ],
   nav: [
-    { id: "rb-start", label: "Getting started" },
-    { id: "rb-filter", label: "Filters" },
-    { id: "rb-rdy", label: "RDY" },
-    { id: "rb-strips", label: "Strips" },
-    { id: "rb-access", label: "Access" },
-    { id: "rb-suite", label: "Suite" },
-    { id: "rb-terms", label: "Terms" },
+    { id: "ov-start", label: "Getting started" },
+    { id: "ov-map", label: "Map" },
+    { id: "ov-suite", label: "Suite" },
   ],
   sections: [
     {
-      id: "rb-start",
+      id: "ov-start",
       title: "Getting started",
       open: true,
       items: [
-        "Select your <b>ARTCC</b> from the dropdown — the map zooms to that center and shows scoped FCA programs plus aircraft in those sequences.",
-        "Only <b>metered</b> departures appear — aircraft not in an active FCA program are hidden.",
+        "Select your <b>ARTCC</b> — the map zooms to that center and shows scoped FCA programs.",
         "FCAs load from Supabase realtime (same as FCA Builder) with local cache fallback.",
-        "Build or edit FCA programs in <b>FCA Builder</b> — this board is for releases and sequencing on position.",
+        "Build or edit programs in <b>FCA Builder</b>. Issue CFRs in <b>IDST</b>.",
       ],
     },
     {
-      id: "rb-filter",
-      title: "Release filters",
+      id: "ov-map",
+      title: "Map",
       items: [
-        "Enter an <b>ARTCC</b> code (e.g. ZDC) for center-wide metered departures.",
-        "Enter an <b>airport</b> (e.g. DCA, IAD) for that field only.",
-        "Enter <b>PCT</b> for FCA-metered departures at DCA, IAD, BWI, and RIC.",
-        "Press <b>Load</b> (or Enter) to apply the filter.",
+        "Active FCA lines for the selected ARTCC are drawn on the map.",
+        "Traffic in those sequences appears for situational awareness.",
+        "This page does <b>not</b> show or issue release times.",
       ],
     },
     {
-      id: "rb-rdy",
-      title: "RDY and full control",
-      items: [
-        "<b>Sign in with VATSIM</b> while online on a controller position to unlock <b>RDY</b>.",
-        "Open <b>⚙ Settings</b> to see ATC verification status.",
-        "<b>RDY</b> issues or cancels a CFR release for a ground departure in sequence.",
-        "<b>Full control</b> (ARTCC whitelist) adds drag-reorder, PIN, and HIDE for FCA blocks you own.",
-        "PIN locks an FCA table’s position on the board; HIDE removes it from view until restored.",
-        'Why one aircraft crosses sooner, Ready Time floors, and tower best practices: <a href="tower-rdy-guide.html">Tower RDY guide</a>.',
-      ],
-    },
-    {
-      id: "rb-strips",
-      title: "Reading the strips",
-      items: [
-        "Strips show crossing time, distance to the FCA line, and estimated hold until <b>RDY</b> is pressed.",
-        "After <b>RDY</b>, the strip shows the issued CFR time in green (<b>RLSD</b>).",
-        "Drag the # column to reorder when you have full control for that FCA’s ARTCC.",
-        "Order syncs to FCA Builder via Supabase for everyone.",
-      ],
-    },
-    {
-      id: "rb-access",
-      title: "Access",
-      items: [
-        "<b>View only</b> — not signed in.",
-        "<b>RDY only</b> — signed in + online on a VATSIM controller position.",
-        "<b>Full control</b> — ARTCC editor whitelist for the FCA’s owning facility.",
-        "ARTCC <b>staff</b> can whitelist editors on Admin Access without a global admin.",
-        "No control passwords — use Sign in with VATSIM.",
-      ],
-    },
-    {
-      id: "rb-suite",
+      id: "ov-suite",
       title: "Which tool do I use?",
       items: [
-        "<b>Release Board</b> (this page) — position RDY for active FCAs.",
+        "<b>FCA Overview</b> (this page) — ARTCC map of active FCAs.",
+        "<b>IDST</b> — Flights to Work desk for CFR / RDY.",
         "<b>FCA Builder</b> — draw lines, set rates/MIT, manage programs.",
         "<b>Airport TMU</b> — destination capacity CFRs (not line FCAs).",
-        "If a departure is in an FCA program, use this board (or FCA Builder) for RDY — not Airport TMU capacity slots.",
-      ],
-    },
-    {
-      id: "rb-terms",
-      title: "Key terms",
-      items: [
-        "<b>Release / RDY</b> — issued wheels-up time for a metered ground departure.",
-        "<b>RLSD</b> — release already issued (green).",
-        "<b>FCA</b> — Flow Constrained Area program from FCA Builder.",
-        "<b>PCT</b> — Potomac TRACON cluster filter (DCA, IAD, BWI, RIC).",
-        "<b>Owning ARTCC</b> — which facility’s editors may reorder that FCA block.",
       ],
     },
   ],
   footer: "For VATSIM simulation only — coordinate flow programs in FCA Builder.",
 };
 
-export const TOWER_HELP = ARTCC_DASHBOARD_HELP;
+/** @deprecated alias — Release Board became FCA Overview */
+export const ARTCC_DASHBOARD_HELP = FCA_OVERVIEW_HELP;
+export const TOWER_HELP = FCA_OVERVIEW_HELP;
+
+export const IDST_HELP = {
+  title: "IDST — Help",
+  intro: "Integrated Departure Scheduling Tool — Call For Release desk for FCA-metered ground departures. Set tower / approach / center filters (same as Airport TMU My Dashboard), then issue speakable wheels-up CFR times.",
+  quickstart: [
+    { step: "1", text: "Add airport, approach, and/or ARTCC filters for what you are working" },
+    { step: "2", text: "Select a flight in Unscheduled" },
+    { step: "3", text: "Sign in on position and press RDY (optional ART HHMMz)" },
+    { step: "→", text: 'Guide: <a href="tower-rdy-guide.html">Tower RDY / Ready Time</a>' },
+  ],
+  nav: [
+    { id: "idst-start", label: "Getting started" },
+    { id: "idst-scope", label: "Filters" },
+    { id: "idst-work", label: "Flights to Work" },
+    { id: "idst-rdy", label: "RDY" },
+    { id: "idst-suite", label: "Suite" },
+  ],
+  sections: [
+    {
+      id: "idst-start",
+      title: "Getting started",
+      open: true,
+      items: [
+        "IDST is the controller issuance desk for FCA programs — not the program builder.",
+        "Only <b>FCA-metered</b> ground departures in your filter scope appear.",
+        "APREQ mode on this tool is <b>Call For Release</b> (manual RDY).",
+      ],
+    },
+    {
+      id: "idst-scope",
+      title: "Position filters",
+      items: [
+        "<b>Airport</b> — tower fields (e.g. KDCA).",
+        "<b>Approach</b> — TRACON sector (e.g. A80, N90).",
+        "<b>ARTCC</b> — center-wide airports inside the FIR (e.g. ZDC).",
+        "Filters use the same device storage as Airport TMU <b>My Dashboard</b>.",
+      ],
+    },
+    {
+      id: "idst-work",
+      title: "Flights to Work",
+      items: [
+        "<b>Unscheduled</b> — needs RDY; advisory hold only (not a clearance).",
+        "<b>Released</b> — frozen CFR after RDY (green time is speakable).",
+        "Select a row to open flight detail and issue/cancel.",
+      ],
+    },
+    {
+      id: "idst-rdy",
+      title: "RDY",
+      items: [
+        "Sign in with VATSIM while online on a controller position to unlock RDY.",
+        "Optional <b>ART HHMMz</b> sets the earliest wheels-up floor.",
+        "Cancel with RLSD ✕ to return the flight to Unscheduled.",
+      ],
+    },
+    {
+      id: "idst-suite",
+      title: "Which tool do I use?",
+      items: [
+        "<b>IDST</b> (this page) — issue CFR releases.",
+        "<b>FCA Overview</b> — map only.",
+        "<b>FCA Builder</b> — create/enable programs.",
+        "<b>Airport TMU</b> — destination capacity CFRs when no FCA applies.",
+      ],
+    },
+  ],
+  footer: "For VATSIM simulation only — not for real-world ATC.",
+};
 
 export const TMU_TOOLS_HELP = {
   title: "Airport TMU — Quick reference",
@@ -240,8 +262,9 @@ export const TMU_TOOLS_HELP = {
       open: true,
       items: [
         "<b>Airport TMU</b> — destination capacity: AAR/trail/MIT, ground stops, route sequencing, and dest-based CFR.",
-        "<b>FCA Builder</b> — line-based flow: draw FCAs, filters, line MIT/rate, crossing geometry, and releases via Supabase.",
-        "<b>Release Board</b> — position-facing RDY for active FCA programs.",
+        "<b>FCA Builder</b> — line-based flow: draw FCAs, filters, line MIT/rate, crossing geometry.",
+        "<b>IDST</b> — position-facing CFR / RDY for active FCA programs.",
+        "<b>FCA Overview</b> — ARTCC map of active FCAs (no times).",
         "When <b>FCA PRGM</b> is set on a departure, FCA metering is authoritative — READY/CFR routes to the FCA engine.",
       ],
     },
@@ -256,7 +279,7 @@ export const TMU_TOOLS_HELP = {
     {
       title: "Release priority",
       items: [
-        "<b>1 — FCA program</b> (FCA PRGM column populated): FCA releases via Supabase.",
+        "<b>1 — FCA program</b> (FCA PRGM column populated): FCA releases via Supabase / IDST.",
         "<b>2 — Route sequencing</b> (no FCA): departure release interval and issued-order compression.",
         "<b>3 — Airport capacity</b> (no FCA): destination AAR/trail/MIT.",
       ],
@@ -266,7 +289,7 @@ export const TMU_TOOLS_HELP = {
       items: [
         "<b>RDY @ (wheels-up earliest)</b> — enter HHMMz for the earliest CFR/wheels-up time; spacing may push later.",
         "One-click <b>RDY</b> / <b>CFR time</b> without a time uses the standard ready-now buffer.",
-        "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA Builder and Release Board.",
+        "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA Builder and IDST.",
         'DEL/GND/TWR walkthrough: <a href="tower-rdy-guide.html">Tower RDY / Ready Time guide</a>.',
       ],
     },

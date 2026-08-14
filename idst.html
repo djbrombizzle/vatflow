@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDST — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="shared/vatflow-help.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --line: #1e2834;
+    --line-2: #2a3848;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --muted-2: #5c6b78;
+    --amber: #e8a838;
+    --amber-dim: rgba(232, 168, 56, 0.12);
+    --cyan: #5ba8c9;
+    --green: #4caf7a;
+    --red: #d45c5c;
+    --cfr: #c9a0e8;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  .hidden { display: none !important; }
+  html, body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  body.idst-page { display: flex; flex-direction: column; padding-top: var(--vatflow-nav-h); height: 100vh; overflow: hidden; }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 14px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(10, 14, 20, 0.98), rgba(10, 14, 20, 0.9));
+    flex-shrink: 0;
+  }
+  .brand b { font-family: var(--mono); font-size: 14px; letter-spacing: 0.14em; }
+  .brand .tag {
+    font-family: var(--mono); font-size: 10px; color: var(--cfr);
+    margin-left: 8px; letter-spacing: 0.12em;
+  }
+  .mode-pill {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    padding: 3px 8px; border-radius: 3px;
+    color: var(--cfr); border: 1px solid rgba(201, 160, 232, 0.45);
+    background: rgba(201, 160, 232, 0.1);
+  }
+  .spacer { flex: 1; }
+  .stat { font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .stat b { color: var(--text); font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted-2); }
+  .dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.dead { background: var(--red); }
+  .dot.demo { background: var(--amber); }
+  .btn {
+    font-family: var(--mono); font-size: 11px; color: var(--text); background: #161d28;
+    border: 1px solid var(--line-2); border-radius: 5px; padding: 6px 10px; cursor: pointer;
+  }
+  .btn:hover { background: #1d2733; }
+  .btn.primary { background: var(--amber); color: #1a1205; border-color: var(--amber); font-weight: 700; }
+  .btn.sm { padding: 4px 8px; font-size: 10px; }
+  .btn.danger { color: var(--red); border-color: rgba(212, 92, 92, 0.45); }
+
+  .settings-panel {
+    display: none; padding: 10px 14px; border-bottom: 1px solid var(--line);
+    background: #0a0e14; font-family: var(--mono); font-size: 11px; flex-shrink: 0;
+  }
+  .settings-panel.show { display: block; }
+  #atcStatus { font-size: 10px; color: var(--muted-2); line-height: 1.5; }
+  #atcStatus.ok { color: var(--green); }
+  #atcStatus.err { color: var(--red); }
+  .settings-hint { font-size: 9px; color: var(--muted-2); margin-top: 6px; line-height: 1.5; }
+  #settingsBtn.on { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+
+  .workspace {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    gap: 0;
+  }
+  @media (max-width: 1100px) {
+    .workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; overflow: auto; }
+    body.idst-page { height: auto; overflow: auto; }
+  }
+
+  .scope-panel, .detail-panel {
+    background: var(--panel); border-right: 1px solid var(--line);
+    padding: 12px; overflow: auto; font-family: var(--mono);
+  }
+  .detail-panel { border-right: none; border-left: 1px solid var(--line); }
+  .panel-title {
+    font-size: 10px; letter-spacing: 0.14em; color: var(--amber);
+    margin: 0 0 10px; font-weight: 700; text-transform: uppercase;
+  }
+  .scope-block { margin-bottom: 14px; }
+  .scope-block .lbl {
+    display: block; font-size: 9px; letter-spacing: 0.1em; color: var(--muted);
+    margin-bottom: 6px; text-transform: uppercase;
+  }
+  .scope-add { display: flex; gap: 6px; margin-bottom: 8px; }
+  .scope-add input {
+    flex: 1; min-width: 0; background: #0a0e14; border: 1px solid var(--line-2);
+    border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 6px 8px; text-transform: uppercase;
+  }
+  .scope-add input:focus { outline: none; border-color: var(--amber); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line-2);
+    background: #121820; font-size: 11px; color: var(--text);
+  }
+  .chip--airport { border-left: 3px solid var(--cyan); }
+  .chip--artcc { border-left: 3px solid #9b7ed9; }
+  .chip--approach { border-left: 3px solid var(--green); }
+  .chipx {
+    color: var(--muted-2); cursor: pointer; border: none; background: none;
+    font-size: 12px; padding: 0 2px; font-family: inherit;
+  }
+  .chipx:hover { color: var(--red); }
+  .chip-empty { font-size: 10px; color: var(--muted-2); line-height: 1.4; }
+  .scope-note { font-size: 9px; color: var(--muted-2); line-height: 1.45; margin-top: 10px; }
+
+  .flights-panel {
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+    background: var(--bg);
+  }
+  .flights-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .flights-head h1 {
+    margin: 0; font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em;
+    color: var(--text); font-weight: 700;
+  }
+  .flights-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-left: auto; }
+  .flights-body {
+    flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 20px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start;
+  }
+  @media (max-width: 900px) {
+    .flights-body { grid-template-columns: 1fr; }
+  }
+  .work-col {
+    border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+    min-height: 200px; overflow: hidden; display: flex; flex-direction: column;
+  }
+  .work-col-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+    background: #0a0e14;
+  }
+  .work-col-head .count {
+    margin-left: auto; color: var(--muted); font-weight: 600;
+  }
+  .work-col.unscheduled .work-col-head { color: var(--cfr); }
+  .work-col.released .work-col-head { color: var(--green); }
+  .tablewrap { overflow: auto; flex: 1; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+  th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th {
+    font-size: 9px; letter-spacing: 0.1em; color: var(--muted); background: #0a0e14;
+    position: sticky; top: 0; z-index: 1;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr.flight-row { cursor: pointer; }
+  tr.flight-row:hover { background: #121820; }
+  tr.flight-row.selected { background: rgba(232, 168, 56, 0.1); box-shadow: inset 2px 0 0 var(--amber); }
+  .cell-acid { font-weight: 700; letter-spacing: 0.04em; color: var(--cyan); }
+  .cell-muted { color: var(--muted); }
+  .cell-hold { color: var(--red); }
+  .cell-ok { color: var(--green); }
+  .cell-frozen { color: #56d364; font-weight: 700; }
+  .fca-tag {
+    display: inline-block; padding: 1px 5px; border-radius: 3px;
+    border: 1px solid var(--line-2); font-size: 9px; color: var(--muted);
+  }
+  .msg, .emptystate {
+    font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.6;
+    padding: 28px 16px; text-align: center;
+  }
+  .emptystate h2 { margin: 0 0 8px; font-size: 13px; color: var(--text); letter-spacing: 0.1em; }
+
+  .detail-empty { color: var(--muted-2); font-size: 11px; line-height: 1.5; padding-top: 8px; }
+  .detail-acid {
+    font-size: 18px; font-weight: 700; letter-spacing: 0.06em; margin: 0 0 4px; color: var(--text);
+  }
+  .detail-route { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-bottom: 14px;
+  }
+  .detail-kv .k { display: block; font-size: 9px; letter-spacing: 0.1em; color: var(--muted-2); margin-bottom: 2px; }
+  .detail-kv .v { font-size: 13px; color: var(--text); font-weight: 600; }
+  .detail-kv .v.big { font-size: 20px; color: #56d364; }
+  .detail-kv .v.hold { color: var(--red); }
+  .art-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .art-row input {
+    flex: 1; background: #0a0e14; border: 1px solid var(--line-2); border-radius: 4px;
+    color: var(--text); font-family: var(--mono); font-size: 13px; padding: 8px;
+    text-align: center; text-transform: uppercase;
+  }
+  .art-row input:focus { outline: none; border-color: var(--amber); }
+  .art-row input.err { border-color: var(--red); }
+  .rdy-btn {
+    width: 100%; font: 700 12px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer;
+    padding: 12px; border-radius: 5px; border: 1px solid var(--line-2);
+    background: #161d28; color: var(--muted);
+  }
+  .rdy-btn:hover { color: var(--amber); border-color: var(--amber); }
+  .rdy-btn.on { color: #56d364; border-color: #56d364; background: rgba(86, 211, 100, 0.08); }
+  .rdy-btn.on:hover { color: var(--red); border-color: var(--red); }
+  .rdy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .detail-hint { font-size: 9px; color: var(--muted-2); line-height: 1.45; margin-top: 10px; }
+</style>
+</head>
+<body class="idst-page">
+<div id="vatflowAppNav"></div>
+
+<header class="topbar">
+  <div class="brand"><b>IDST</b><span class="tag">INTEGRATED DEPARTURE SCHEDULING</span></div>
+  <span class="mode-pill" title="Call For Release approval mode">APREQ · CFR</span>
+  <div class="spacer"></div>
+  <button type="button" class="vf-help-btn" id="helpBtn" data-vf-help-btn title="Open help">HELP</button>
+  <button type="button" class="btn sm" id="settingsBtn" title="Controller settings">⚙</button>
+  <span id="authStatusLbl" class="stat">View only</span>
+  <div class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
+  <div class="stat"><span class="dot" id="syncDot"></span><span id="syncTxt">FCAs —</span></div>
+  <div class="stat"><b id="zClock">----Z</b></div>
+  <div class="stat">refresh <b id="refreshIn">--</b>s</div>
+  <button type="button" class="btn sm" id="refreshBtn">↻</button>
+</header>
+
+<div class="settings-panel" id="settingsPanel">
+  <div id="atcStatus">Sign in with VATSIM to use RDY.</div>
+  <div class="settings-hint">RDY requires sign-in and an active controller position on the VATSIM feed. Build programs in FCA Builder. Map awareness: FCA Overview.</div>
+</div>
+
+<div class="workspace">
+  <aside class="scope-panel" id="scopePanel" aria-label="Position filters">
+    <h2 class="panel-title">Working</h2>
+    <div class="scope-block">
+      <span class="lbl">Tower · Airport</span>
+      <div class="scope-add">
+        <input id="addAirport" maxlength="4" placeholder="KDCA" autocomplete="off">
+        <button type="button" class="btn sm" id="btnAddAirport">ADD</button>
+      </div>
+      <div class="chips" id="chipsAirport"></div>
+    </div>
+    <div class="scope-block">
+      <span class="lbl">Approach · TRACON</span>
+      <div class="scope-add">
+        <input id="addApproach" maxlength="5" placeholder="A80" autocomplete="off">
+        <button type="button" class="btn sm" id="btnAddApproach">ADD</button>
+      </div>
+      <div class="chips" id="chipsApproach"></div>
+    </div>
+    <div class="scope-block">
+      <span class="lbl">Center · ARTCC</span>
+      <div class="scope-add">
+        <input id="addArtcc" maxlength="5" placeholder="ZDC" autocomplete="off">
+        <button type="button" class="btn sm" id="btnAddArtcc">ADD</button>
+      </div>
+      <div class="chips" id="chipsArtcc"></div>
+    </div>
+    <p class="scope-note">Filters sync with Airport TMU My Dashboard on this device. Only FCA-metered ground departures in your scope appear in Flights to Work.</p>
+  </aside>
+
+  <section class="flights-panel" aria-label="Flights to Work">
+    <div class="flights-head">
+      <h1>Flights to Work</h1>
+      <div class="flights-stats">
+        <span class="stat">UNSCHED <b id="statUnsched">0</b></span>
+        <span class="stat">RELEASED <b id="statReleased">0</b></span>
+        <span class="stat">METERED <b id="statMetered">0</b></span>
+      </div>
+    </div>
+    <div class="flights-body" id="flightsBody"></div>
+  </section>
+
+  <aside class="detail-panel" id="detailPanel" aria-label="Flight detail">
+    <h2 class="panel-title">Selected flight</h2>
+    <div id="detailBody"><p class="detail-empty">Select a flight to issue or cancel a CFR release.</p></div>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="approach-sector-data.js"></script>
+<script type="module">
+"use strict";
+
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, canFullControl, canUseFcaRdy, isSignedIn, getSession, authStatusLabel } from "./shared/vatflow-auth.js";
+import { mountHelp, IDST_HELP } from "./shared/vatflow-help.js";
+import {
+  loadAirports, getAirport, fmtZulu, fpFields, computeTowerDepartures,
+  markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+} from "./shared/fca-metering.js";
+import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
+import { loadNavData } from "./shared/route-engine.js";
+import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
+import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
+import { parseZuluHhmm } from "./shared/time-parse.js";
+import * as VFRefresh from "./shared/vatflow-refresh.js";
+import * as MyDash from "./shared/mydash-filters.js";
+
+const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
+const LS_FCAS = "fcaBuilder.fcas.v1";
+const REFRESH_SEC = 30;
+
+const state = {
+  fcas: [],
+  pilots: [],
+  controllers: [],
+  selectedCs: null,
+  countdown: REFRESH_SEC,
+  atcVerified: false,
+  atcCallsign: null,
+  cid: null,
+};
+
+let sb = null;
+let liveTimer = null;
+let countdownTimer = null;
+
+function escapeHtml(s) {
+  return ("" + (s || "")).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function canReady() {
+  return canUseFcaRdy() && (canFullControl() || state.atcVerified);
+}
+
+function normalizeFca(f) {
+  if (!f) return null;
+  if (!f.id) f.id = "fca_" + Date.now();
+  if (!Array.isArray(f.points)) f.points = [];
+  if (!Array.isArray(f.order)) f.order = [];
+  if (!f.releases || typeof f.releases !== "object" || Array.isArray(f.releases)) f.releases = {};
+  if (f.enabled == null) f.enabled = true;
+  return f;
+}
+
+function setFeed(kind) {
+  const dot = document.getElementById("feedDot");
+  const txt = document.getElementById("feedTxt");
+  if (!dot || !txt) return;
+  dot.className = "dot " + (kind === "live" ? "live" : kind === "dead" ? "dead" : "demo");
+  txt.textContent = kind === "live" ? "LIVE" : kind === "dead" ? "FEED DOWN" : "…";
+}
+
+function setSyncStatus(kind) {
+  const dot = document.getElementById("syncDot");
+  const txt = document.getElementById("syncTxt");
+  if (!dot || !txt) return;
+  if (kind === "live") { dot.className = "dot live"; txt.textContent = "FCAs LIVE"; }
+  else if (kind === "local") { dot.className = "dot demo"; txt.textContent = "FCAs local"; }
+  else { dot.className = "dot"; txt.textContent = "FCAs —"; }
+}
+
+function syncCidFromAuth() {
+  const s = getSession();
+  if (s && s.cid) state.cid = String(s.cid);
+}
+
+function updateAuthLabels() {
+  const el = document.getElementById("authStatusLbl");
+  if (el) el.textContent = authStatusLabel() + (canReady() ? " · RDY" : "");
+  const st = document.getElementById("atcStatus");
+  if (!st) return;
+  if (!isSignedIn()) {
+    st.className = "";
+    st.textContent = "Sign in with VATSIM to use RDY.";
+    return;
+  }
+  if (state.atcVerified) {
+    st.className = "ok";
+    st.textContent = `RDY · ${state.atcCallsign || "online"}`;
+  } else {
+    st.className = "err";
+    st.textContent = "Signed in — connect on a VATSIM controller position to unlock RDY.";
+  }
+}
+
+function revalidateAtcAuth() {
+  const r = verifyTowerAtc(state.controllers, state.cid || (getSession() && getSession().cid));
+  state.atcVerified = !!r.verified;
+  state.atcCallsign = r.callsign;
+  updateAuthLabels();
+}
+
+function loadLocalFcas() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(LS_FCAS) || "[]");
+    if (Array.isArray(arr) && arr.length) state.fcas = arr.map(normalizeFca).filter(Boolean);
+  } catch (_) {}
+}
+
+function persistLocal() {
+  try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
+}
+
+function cloudPush(fca) {
+  persistLocal();
+  if (!sb || !fca || !canReady()) return;
+  sb.from("fcas").upsert({ id: fca.id, data: fca, updated_at: new Date().toISOString() })
+    .then(({ error }) => { if (error) console.warn("idst push:", error); });
+}
+
+function initSync() {
+  if (!window.supabase) { setSyncStatus("local"); return; }
+  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+  catch (e) { console.warn(e); setSyncStatus("local"); return; }
+  sb.from("fcas").select("*").then(({ data, error }) => {
+    if (!error && data) {
+      state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
+      persistLocal();
+      setSyncStatus("live");
+      scheduleRender();
+    } else setSyncStatus(state.fcas.length ? "local" : "none");
+  });
+  sb.channel("idst-fcas")
+    .on("postgres_changes", { event: "*", schema: "public", table: "fcas" }, () => {
+      sb.from("fcas").select("*").then(({ data }) => {
+        if (!data) return;
+        state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
+        persistLocal();
+        setSyncStatus("live");
+        scheduleRender();
+      });
+    })
+    .subscribe();
+}
+
+function fetchLive() {
+  fetch("https://data.vatsim.net/v3/vatsim-data.json")
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(d => {
+      const pilots = (d.pilots || [])
+        .filter(p => typeof p.latitude === "number" && typeof p.longitude === "number")
+        .map(p => {
+          const f = fpFields(p.flight_plan || {});
+          const gs = p.groundspeed || 0;
+          return {
+            callsign: p.callsign,
+            lat: p.latitude,
+            lon: p.longitude,
+            alt: p.altitude || 0,
+            gs,
+            hdg: p.heading || 0,
+            phase: gs < 50 ? "gnd" : "air",
+            ...f,
+          };
+        });
+      state.pilots = pilots;
+      state.controllers = d.controllers || [];
+      setFeed("live");
+      revalidateAtcAuth();
+      scheduleRender();
+    })
+    .catch(err => { console.warn(err); setFeed("dead"); });
+}
+
+function startFeedLoop() {
+  clearInterval(liveTimer);
+  clearInterval(countdownTimer);
+  state.countdown = REFRESH_SEC;
+  const tick = () => { fetchLive(); state.countdown = REFRESH_SEC; };
+  tick();
+  liveTimer = setInterval(tick, REFRESH_SEC * 1000);
+  countdownTimer = setInterval(() => {
+    state.countdown = Math.max(0, state.countdown - 1);
+    const el = document.getElementById("refreshIn");
+    if (el) el.textContent = state.countdown;
+  }, 1000);
+}
+
+function activeFcas() {
+  return state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
+}
+
+function computeResult() {
+  if (!MyDash.hasFilters()) {
+    return { departures: [], total: 0, metered: 0 };
+  }
+  return computeTowerDepartures("*", activeFcas(), state.pilots, [], {
+    matchDep: p => MyDash.depMatchesFilters(p.dep),
+  });
+}
+
+function renderChips() {
+  const f = MyDash.getFilters();
+  const apt = document.getElementById("chipsAirport");
+  const appr = document.getElementById("chipsApproach");
+  const art = document.getElementById("chipsArtcc");
+  apt.innerHTML = f.airports.length
+    ? f.airports.map(a => `<span class="chip chip--airport">${escapeHtml(a)}<button type="button" class="chipx" data-rm-apt="${escapeHtml(a)}" title="Remove">✕</button></span>`).join("")
+    : `<span class="chip-empty">No airports — tower fields you are working</span>`;
+  appr.innerHTML = f.approachSectors.length
+    ? f.approachSectors.map(a => `<span class="chip chip--approach">${escapeHtml(a)}<button type="button" class="chipx" data-rm-appr="${escapeHtml(a)}" title="Remove">✕</button></span>`).join("")
+    : `<span class="chip-empty">No approach sectors — e.g. A80, N90, PCT</span>`;
+  art.innerHTML = f.artccs.length
+    ? f.artccs.map(a => `<span class="chip chip--artcc">${escapeHtml(a)}<button type="button" class="chipx" data-rm-artcc="${escapeHtml(a)}" title="Remove">✕</button></span>`).join("")
+    : `<span class="chip-empty">No ARTCCs — e.g. ZDC, ZNY</span>`;
+}
+
+function rowHtml(d, selected) {
+  const frozen = !!d.frozen;
+  const hold = Math.round(d.delayMin || 0);
+  const holdCell = frozen
+    ? `<span class="cell-frozen">${fmtZulu(d.edctMs)}</span>`
+    : (hold > 1 ? `<span class="cell-hold">+${hold}m</span>` : `<span class="cell-ok">—</span>`);
+  const fcaStyle = d.fcaColor ? `style="color:${d.fcaColor};border-color:${d.fcaColor}66"` : "";
+  return `<tr class="flight-row${selected ? " selected" : ""}" data-cs="${escapeHtml(d.callsign)}">` +
+    `<td class="cell-acid">${escapeHtml(d.callsign)}</td>` +
+    `<td>${escapeHtml(d.dep || "????")}</td>` +
+    `<td>${escapeHtml(d.arr || "????")}</td>` +
+    `<td class="cell-muted">${escapeHtml(d.type || "")}</td>` +
+    `<td><span class="fca-tag" ${fcaStyle}>${escapeHtml(d.fcaName || d.fcaId || "")}</span></td>` +
+    `<td>${holdCell}</td>` +
+    `</tr>`;
+}
+
+function tableHtml(rows, emptyMsg) {
+  if (!rows.length) return `<div class="msg">${escapeHtml(emptyMsg)}</div>`;
+  return `<div class="tablewrap"><table>` +
+    `<thead><tr><th>ACID</th><th>ORIG</th><th>DEST</th><th>TYPE</th><th>PRGM</th><th>CFR</th></tr></thead>` +
+    `<tbody>${rows.map(d => rowHtml(d, d.callsign === state.selectedCs)).join("")}</tbody>` +
+    `</table></div>`;
+}
+
+function renderDetail(d) {
+  const body = document.getElementById("detailBody");
+  if (!d) {
+    body.innerHTML = `<p class="detail-empty">Select a flight to issue or cancel a CFR release.</p>`;
+    return;
+  }
+  const frozen = !!d.frozen;
+  const hold = Math.round(d.delayMin || 0);
+  const win = frozen
+    ? `${fmtZulu(d.edctMs - COMPLIANCE_EARLY_MS)}–${fmtZulu(d.edctMs + COMPLIANCE_LATE_MS)}`
+    : "—";
+  const rdyDisabled = !canReady() ? " disabled" : "";
+  body.innerHTML =
+    `<div class="detail-acid">${escapeHtml(d.callsign)}</div>` +
+    `<div class="detail-route">${escapeHtml(d.dep || "????")} → ${escapeHtml(d.arr || "????")} · ${escapeHtml(d.type || "")}</div>` +
+    `<div class="detail-grid">` +
+    `<div class="detail-kv"><span class="k">PROGRAM</span><span class="v">${escapeHtml(d.fcaName || d.fcaId || "")}</span></div>` +
+    `<div class="detail-kv"><span class="k">NM TO LINE</span><span class="v">${Math.round(d.dist || 0)}</span></div>` +
+    `<div class="detail-kv"><span class="k">CROSS (CTA)</span><span class="v cell-muted">${fmtZulu(d.ctaMs)}</span></div>` +
+    `<div class="detail-kv"><span class="k">EST HOLD</span><span class="v${hold > 1 && !frozen ? " hold" : ""}">${frozen ? "released" : (hold > 1 ? "+" + hold + "m" : "none")}</span></div>` +
+    `<div class="detail-kv"><span class="k">CFR / EDCT</span><span class="v${frozen ? " big" : ""}">${frozen ? fmtZulu(d.edctMs) : "—"}</span></div>` +
+    `<div class="detail-kv"><span class="k">WINDOW</span><span class="v">${win}</span></div>` +
+    `</div>` +
+    (frozen ? "" :
+      `<div class="art-row">` +
+      `<input id="artInput" type="text" maxlength="5" placeholder="ART HHMMz" autocomplete="off" title="Aircraft Ready Time floor">` +
+      `</div>`) +
+    `<button type="button" class="rdy-btn${frozen ? " on" : ""}" id="rdyBtn"${rdyDisabled}>` +
+    (frozen ? "CANCEL RELEASE (RLSD ✕)" : "RDY — ISSUE CFR") +
+    `</button>` +
+    `<p class="detail-hint">Speak the green CFR time to the pilot after RDY. Advisory hold is not a clearance. Optional ART sets earliest wheels-up.</p>`;
+
+  const btn = document.getElementById("rdyBtn");
+  if (btn) {
+    btn.onclick = () => {
+      if (!canReady()) return;
+      const fca = state.fcas.find(f => f.id === d.fcaId);
+      if (!fca) return;
+      if (isReady(fca, d.callsign)) {
+        clearReady(fca, d.callsign);
+        cloudPush(fca);
+        scheduleRender();
+        return;
+      }
+      const artEl = document.getElementById("artInput");
+      let opts = undefined;
+      if (artEl && artEl.value.trim()) {
+        const readyMs = parseZuluHhmm(artEl.value, Date.now());
+        if (!readyMs) {
+          artEl.classList.add("err");
+          setTimeout(() => artEl.classList.remove("err"), 1500);
+          return;
+        }
+        opts = { readyMs };
+      }
+      const rel = markReady(fca, d.callsign, state.pilots, Date.now(), opts);
+      if (!rel) return;
+      cloudPush(fca);
+      scheduleRender();
+    };
+  }
+}
+
+function renderBody() {
+  renderChips();
+  const body = document.getElementById("flightsBody");
+  if (!MyDash.hasFilters()) {
+    document.getElementById("statUnsched").textContent = "0";
+    document.getElementById("statReleased").textContent = "0";
+    document.getElementById("statMetered").textContent = "0";
+    body.innerHTML =
+      `<div class="emptystate" style="grid-column:1/-1"><h2>SET YOUR SCOPE</h2>` +
+      `<p>Add a tower airport, approach sector, and/or ARTCC — same filters as Airport TMU My Dashboard.</p></div>`;
+    renderDetail(null);
+    return;
+  }
+
+  if (MyDash.getFilters().approachSectors.length && !MyDash.approachDataReady()) {
+    body.innerHTML = `<div class="msg" style="grid-column:1/-1">Approach sector data missing. Keep <b>approach-sector-data.js</b> next to this page.</div>`;
+    return;
+  }
+
+  const active = activeFcas();
+  if (!active.length) {
+    body.innerHTML = `<div class="msg" style="grid-column:1/-1">No active FCA programs. Enable programs in <a href="FCA-builderv02.html" style="color:var(--cyan)">FCA Builder</a>.</div>`;
+    renderDetail(null);
+    return;
+  }
+
+  const result = computeResult();
+  const unscheduled = result.departures.filter(d => !d.frozen);
+  const released = result.departures.filter(d => d.frozen);
+  document.getElementById("statUnsched").textContent = String(unscheduled.length);
+  document.getElementById("statReleased").textContent = String(released.length);
+  document.getElementById("statMetered").textContent = String(result.metered);
+
+  if (state.selectedCs && !result.departures.some(d => d.callsign === state.selectedCs)) {
+    state.selectedCs = null;
+  }
+
+  body.innerHTML =
+    `<div class="work-col unscheduled">` +
+    `<div class="work-col-head">Unscheduled<span class="count">${unscheduled.length}</span></div>` +
+    tableHtml(unscheduled, "No unscheduled metered departures in scope") +
+    `</div>` +
+    `<div class="work-col released">` +
+    `<div class="work-col-head">Released<span class="count">${released.length}</span></div>` +
+    tableHtml(released, "No frozen CFR releases in scope") +
+    `</div>`;
+
+  const selected = result.departures.find(d => d.callsign === state.selectedCs) || null;
+  renderDetail(selected);
+}
+
+function render() {
+  const snap = VFRefresh.captureFocus();
+  try { renderBody(); }
+  finally { VFRefresh.restoreFocus(document, snap); }
+}
+
+function scheduleRender() {
+  if (VFRefresh.deferWhileTyping(render)) return;
+  render();
+}
+
+/* events */
+document.getElementById("flightsBody").addEventListener("click", e => {
+  const tr = e.target.closest("tr.flight-row[data-cs]");
+  if (!tr) return;
+  state.selectedCs = tr.getAttribute("data-cs");
+  scheduleRender();
+});
+
+document.getElementById("scopePanel").addEventListener("click", e => {
+  const t = e.target;
+  if (t.matches("[data-rm-apt]")) { MyDash.removeAirport(t.getAttribute("data-rm-apt")); scheduleRender(); }
+  if (t.matches("[data-rm-appr]")) { MyDash.removeApproach(t.getAttribute("data-rm-appr")); scheduleRender(); }
+  if (t.matches("[data-rm-artcc]")) { MyDash.removeArtcc(t.getAttribute("data-rm-artcc")); scheduleRender(); }
+});
+
+function wireAdd(inputId, btnId, addFn) {
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  const go = () => {
+    if (addFn(input.value)) { input.value = ""; scheduleRender(); }
+    else { input.classList.add("err"); setTimeout(() => input.classList.remove("err"), 1200); }
+  };
+  btn.addEventListener("click", go);
+  input.addEventListener("input", () => { input.value = input.value.toUpperCase(); });
+  input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+}
+wireAdd("addAirport", "btnAddAirport", MyDash.addAirport);
+wireAdd("addApproach", "btnAddApproach", MyDash.addApproach);
+wireAdd("addArtcc", "btnAddArtcc", MyDash.addArtcc);
+
+document.getElementById("settingsBtn").addEventListener("click", () => {
+  const panel = document.getElementById("settingsPanel");
+  const open = panel.classList.toggle("show");
+  document.getElementById("settingsBtn").classList.toggle("on", open);
+});
+document.getElementById("refreshBtn").addEventListener("click", () => {
+  fetchLive();
+  state.countdown = REFRESH_SEC;
+});
+
+/* boot */
+mountVatflowNav(document.getElementById("vatflowAppNav"), "idst");
+mountHelp(document.getElementById("helpBtn"), IDST_HELP);
+
+if (typeof TRACON_PREFIX_MAP !== "undefined" && typeof VATSPY_APPROACH_MAP !== "undefined") {
+  MyDash.setApproachData(TRACON_PREFIX_MAP, VATSPY_APPROACH_MAP);
+}
+MyDash.loadFilters();
+
+window.addEventListener("storage", e => {
+  if (!e.key || [MyDash.LS_AIRPORTS, MyDash.LS_ARTCCS, MyDash.LS_APPROACH].includes(e.key)) {
+    MyDash.loadFilters();
+    scheduleRender();
+  }
+});
+
+await initVatflowAuth();
+syncCidFromAuth();
+updateAuthLabels();
+loadLocalFcas();
+initSync();
+
+loadAirports(() => {
+  bindWindAirportLookup(icao => getAirport(icao));
+  loadNavData().catch(() => {}).finally(() => scheduleRender());
+  fetchWinds().catch(() => {});
+  fetchArtccBoundaries().then(() => scheduleRender()).catch(() => {});
+}).catch(() => scheduleRender());
+
+startFeedLoop();
+
+(function tickClock() {
+  const el = document.getElementById("zClock");
+  if (el) el.textContent = fmtZulu(Date.now());
+  setTimeout(tickClock, 1000 - (Date.now() % 1000));
+})();
+</script>
+<script type="module" src="shared/taxi-monitor-bg.js"></script>
+</body>
+</html>

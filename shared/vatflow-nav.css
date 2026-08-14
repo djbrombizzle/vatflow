@@ -45,7 +45,8 @@
   .vatflow-app-nav .vf-brand .vf-tagline { display: none; }
 }
 
-.vatflow-app-nav a {
+.vatflow-app-nav a,
+.vatflow-app-nav .vf-dd-btn {
   color: #8a97a3;
   text-decoration: none;
   padding: 3px 8px;
@@ -54,19 +55,77 @@
   transition: 0.12s;
   white-space: nowrap;
   flex-shrink: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  background: transparent;
+  cursor: pointer;
 }
 
 .vatflow-app-nav a:hover,
-.vatflow-app-nav a:active {
+.vatflow-app-nav a:active,
+.vatflow-app-nav .vf-dd-btn:hover,
+.vatflow-app-nav .vf-dd-btn:active {
   color: #d4dde6;
   background: #121820;
   border-color: #2a3848;
 }
 
-.vatflow-app-nav a.active {
+.vatflow-app-nav a.active,
+.vatflow-app-nav .vf-dd-btn.active,
+.vatflow-app-nav .vf-dd.active > .vf-dd-btn {
   color: #e8a838;
   background: rgba(232, 168, 56, 0.12);
   border-color: rgba(232, 168, 56, 0.35);
+  font-weight: 700;
+}
+
+.vatflow-app-nav .vf-dd {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.vatflow-app-nav .vf-dd-caret {
+  margin-left: 3px;
+  font-size: 8px;
+  opacity: 0.75;
+}
+
+.vatflow-app-nav .vf-dd-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 148px;
+  padding: 4px;
+  background: #0e1319;
+  border: 1px solid #2a3848;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 800;
+}
+
+.vatflow-app-nav .vf-dd.open .vf-dd-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vatflow-app-nav .vf-dd-menu a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.vatflow-app-nav .vf-dd-menu a:hover,
+.vatflow-app-nav .vf-dd-menu a:active {
+  background: #121820;
+  border-color: transparent;
+}
+
+.vatflow-app-nav .vf-dd-menu a.active {
+  color: #e8a838;
+  background: rgba(232, 168, 56, 0.12);
+  border-color: transparent;
   font-weight: 700;
 }
 
