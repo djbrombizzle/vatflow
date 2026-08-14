@@ -95,38 +95,45 @@ export function mountVatflowNav(container, active, opts = {}) {
   container.appendChild(nav);
 
   // Dropdown open/close — click toggles; outside click / Esc closes.
+  // Do not close on clicks inside an open menu (that cancels <a> navigation
+  // when the menu is display:none'd mid-click).
+  function closeAllDropdowns() {
+    nav.querySelectorAll(".vf-dd.open").forEach(x => {
+      x.classList.remove("open");
+      const b = x.querySelector(".vf-dd-btn");
+      if (b) b.setAttribute("aria-expanded", "false");
+    });
+  }
+
   nav.querySelectorAll(".vf-dd").forEach(dd => {
     const btn = dd.querySelector(".vf-dd-btn");
+    const menu = dd.querySelector(".vf-dd-menu");
     btn.addEventListener("click", e => {
+      e.preventDefault();
       e.stopPropagation();
       const wasOpen = dd.classList.contains("open");
-      nav.querySelectorAll(".vf-dd.open").forEach(x => {
-        x.classList.remove("open");
-        const b = x.querySelector(".vf-dd-btn");
-        if (b) b.setAttribute("aria-expanded", "false");
-      });
+      closeAllDropdowns();
       if (!wasOpen) {
         dd.classList.add("open");
         btn.setAttribute("aria-expanded", "true");
       }
     });
+    if (menu) {
+      menu.addEventListener("click", e => {
+        // Keep the click on menuitem links; only stop bubbling to document.
+        e.stopPropagation();
+      });
+    }
   });
 
-  document.addEventListener("click", () => {
-    nav.querySelectorAll(".vf-dd.open").forEach(x => {
-      x.classList.remove("open");
-      const b = x.querySelector(".vf-dd-btn");
-      if (b) b.setAttribute("aria-expanded", "false");
-    });
+  document.addEventListener("click", e => {
+    if (e.target.closest && e.target.closest(".vatflow-app-nav .vf-dd.open")) return;
+    closeAllDropdowns();
   });
 
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    nav.querySelectorAll(".vf-dd.open").forEach(x => {
-      x.classList.remove("open");
-      const b = x.querySelector(".vf-dd-btn");
-      if (b) b.setAttribute("aria-expanded", "false");
-    });
+    closeAllDropdowns();
   });
 
   initVatflowAuth().then(() => mountAuthNav(nav));
