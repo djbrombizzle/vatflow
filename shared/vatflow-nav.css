@@ -14,14 +14,9 @@
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   font-size: 10px;
   letter-spacing: 0.06em;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.vatflow-app-nav::-webkit-scrollbar {
-  display: none;
+  /* Must stay visible so dropdown menus are not clipped (overflow-y:hidden
+     previously hid every .vf-dd-menu below the 28px bar). */
+  overflow: visible;
 }
 
 .vatflow-app-nav .vf-brand {
@@ -101,7 +96,7 @@
   border: 1px solid #2a3848;
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  z-index: 800;
+  z-index: 1000;
 }
 
 .vatflow-app-nav .vf-dd.open .vf-dd-menu {
