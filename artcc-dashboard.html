@@ -58,6 +58,9 @@
   .btn:hover { background: #1d2733; }
   .btn.sm { padding: 4px 8px; font-size: 10px; }
   .btn.linkish { color: var(--cyan); border-color: rgba(91, 168, 201, 0.35); }
+  .btn.on {
+    color: var(--amber); border-color: var(--amber); background: var(--amber-dim);
+  }
 
   .legend-bar {
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
@@ -75,10 +78,11 @@
 
   .map-section {
     flex: 1; min-height: 0; margin: 12px 16px 16px;
-    display: flex; flex-direction: column;
+    display: flex; flex-direction: row; gap: 12px;
+    position: relative;
   }
   #mapPanel {
-    flex: 1; min-height: 280px;
+    flex: 1; min-width: 0; min-height: 280px;
     border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0a0e14;
   }
   #mapPanel .leaflet-container { background: #0a0e14; font-family: var(--mono); height: 100% !important; }
@@ -89,18 +93,179 @@
   }
   .plane { transform-origin: center; }
   .plane svg { display: block; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.9)); }
+
+  /* ---- strip column ---- */
+  .strip-column {
+    width: 0; flex: none; overflow: hidden; opacity: 0;
+    display: flex; flex-direction: column; min-height: 0;
+    border: 1px solid transparent; border-radius: 8px;
+    background: linear-gradient(180deg, rgba(13, 18, 27, 0.98), rgba(11, 15, 23, 0.96));
+    transition: width 0.2s ease, opacity 0.15s ease, border-color 0.15s ease;
+  }
+  .strip-column.open {
+    width: min(380px, 42vw); opacity: 1;
+    border-color: var(--line);
+  }
+  .strip-column-head {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 10px 12px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .strip-column-head .t {
+    font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  }
+  .strip-column-head .sub {
+    font-family: var(--mono); font-size: 10px; color: var(--muted); width: 100%;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .seqview { display: flex; gap: 4px; }
+  .seqview span {
+    font: 700 9px var(--mono); letter-spacing: 0.06em; padding: 3px 8px;
+    border: 1px solid var(--line-2); border-radius: 3px; color: var(--muted); cursor: pointer;
+  }
+  .seqview span:hover { border-color: var(--amber); color: var(--amber); }
+  .seqview span.on { color: #0b0e07; background: var(--amber); border-color: var(--amber); }
+  .strip-scroll {
+    flex: 1; overflow-y: auto; padding: 8px 10px 24px; min-height: 0;
+  }
+  .strip-scroll::-webkit-scrollbar { width: 8px; }
+  .strip-scroll::-webkit-scrollbar-thumb { background: #22303d; border-radius: 4px; }
+
+  .fca-block {
+    border: 1px solid var(--line-2); border-radius: 8px; margin-bottom: 10px;
+    background: #0c1119; overflow: hidden;
+  }
+  .fca-block-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    cursor: pointer; user-select: none; border-bottom: 1px solid transparent;
+  }
+  .fca-block.open .fca-block-head { border-bottom-color: var(--line); }
+  .fca-block-head .swatch {
+    width: 11px; height: 11px; border-radius: 2px; flex: none; box-shadow: 0 0 7px currentColor;
+  }
+  .fca-block-head .name {
+    font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fca-block-head .meta {
+    font-family: var(--mono); font-size: 9px; color: var(--muted); display: flex; gap: 5px; flex-wrap: wrap;
+  }
+  .fca-block-head .meta span {
+    background: #162030; border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px;
+  }
+  .fca-block-head .meta span.rate { color: var(--amber); border-color: #4a3a18; }
+  .fca-block-head .chev {
+    font-family: var(--mono); font-size: 10px; color: var(--muted-2); width: 14px; text-align: center;
+  }
+  .fca-block-body { display: none; padding: 8px 8px 10px; }
+  .fca-block.open .fca-block-body { display: block; }
+  .fca-block-tools {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .manualchip {
+    font-family: var(--mono); font-size: 9px; color: var(--amber) !important;
+    border: 1px solid #4a3a18; border-radius: 3px; padding: 2px 6px; cursor: pointer;
+  }
+  .manualchip:hover { background: var(--amber-dim); }
+  .seqhint {
+    font-family: var(--mono); font-size: 9px; color: var(--muted-2);
+    letter-spacing: 0.04em; margin: 0 2px 8px;
+  }
+  .strip-empty {
+    font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center;
+    padding: 18px 12px; line-height: 1.5;
+  }
+  .strip-empty b { display: block; color: var(--text); letter-spacing: 0.08em; margin-bottom: 6px; }
+
+  .strip {
+    display: grid; grid-template-columns: 24px 1fr auto auto; gap: 8px; align-items: center;
+    background: #0f151e; border: 1px solid var(--line-2); border-left-width: 3px; border-radius: 6px;
+    padding: 8px 10px; margin-bottom: 7px; font-family: var(--mono); cursor: pointer;
+  }
+  .strip:hover { background: #131b26; }
+  .strip .num { font-size: 13px; font-weight: 700; color: var(--amber); text-align: center; }
+  .strip .cs { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+  .strip .info { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .strip .gap { font-size: 9px; margin-top: 3px; color: var(--cyan); letter-spacing: 0.02em; }
+  .strip .gap.short { color: var(--red); }
+  .strip .eta { text-align: right; }
+  .strip .eta .big { font-size: 14px; font-weight: 700; }
+  .strip .eta .dl { font-size: 10px; margin-top: 2px; }
+  .dl.zero { color: var(--green); } .dl.low { color: var(--amber); } .dl.high { color: var(--red); }
+  .strip .rm {
+    font-size: 13px; color: var(--muted-2); cursor: pointer; padding: 2px 5px; border-radius: 4px; line-height: 1;
+  }
+  .strip .rm:hover { color: var(--red); background: #1a1010; }
+  .strip .rdy {
+    font: 700 9px/1 var(--mono); letter-spacing: 0.5px; color: var(--muted-2); cursor: pointer;
+    padding: 3px 6px; border: 1px solid var(--muted-2); border-radius: 4px; margin-top: 4px; text-align: center; user-select: none;
+  }
+  .strip .rdy:hover { color: var(--amber); border-color: var(--amber); }
+  .strip .rdy.on { color: #56d364; border-color: #56d364; background: #0e1a10; }
+  .strip .rdy.on:hover { color: var(--red); border-color: var(--red); background: #1a1010; }
+  .strip .rdy-time-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    background: #0e1319; border: 1px solid #2a3848; border-radius: 6px; padding: 6px 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55); position: relative; z-index: 2;
+  }
+  .strip .rdy-time-input {
+    font: 600 11px/1 var(--mono); width: 52px; padding: 5px 6px; text-align: center;
+    background: #161e28; border: 1px solid #3a4a5c; border-radius: 4px; color: #e8edf2;
+  }
+  .strip .rdy-time-input::placeholder { color: #5c6b78; }
+  .strip .rdy-time-input:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  .strip .rdy-time-input--err { border-color: var(--red); }
+  .strip .rdy-set-btn {
+    font: 700 8px/1 var(--mono); letter-spacing: 0.4px; cursor: pointer; padding: 4px 6px;
+    background: #161e28; border: 1px solid #3a4a5c; border-radius: 3px; color: var(--muted-2);
+  }
+  .strip .rdy-set-btn:hover { color: var(--amber); border-color: var(--amber); }
+  .strip[draggable=true] { cursor: default; }
+  .strip .num { cursor: grab; }
+  .strip .num .grip { display: block; font-size: 11px; color: var(--muted-2); line-height: 1; margin-bottom: 1px; }
+  .strip.dragging { opacity: 0.4; }
+  .strip.dragover { box-shadow: 0 -2px 0 0 var(--amber); border-top-color: var(--amber); }
+  .ph {
+    font-size: 8px; font-weight: 700; letter-spacing: 0.08em; padding: 1px 4px;
+    border-radius: 3px; vertical-align: 1px; margin-right: 2px;
+  }
+  .ph.air { background: #0e2a30; color: var(--cyan); border: 1px solid #1d4a52; }
+  .ph.gnd { background: #2e2407; color: var(--amber); border: 1px solid #5a4818; }
+  .excl {
+    margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px;
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+  }
+  .excl .row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+  .excl .restore { color: var(--cyan); cursor: pointer; }
+  .excl .restore:hover { text-decoration: underline; }
+
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 800;
+    background: rgba(15, 21, 30, 0.96); border: 1px solid var(--amber); border-radius: 8px;
+    padding: 9px 16px; font-family: var(--mono); font-size: 11px; color: var(--text);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55); display: none; letter-spacing: 0.03em;
+  }
+  .toast.show { display: block; }
+
+  @media (max-width: 960px) {
+    .strip-column.open {
+      position: absolute; right: 0; top: 0; bottom: 0; z-index: 520;
+      width: min(380px, 92vw); box-shadow: -8px 0 28px rgba(0, 0, 0, 0.45);
+    }
+  }
 </style>
 </head>
 <body class="artcc-page">
 <div id="vatflowAppNav"></div>
 
 <header class="topbar">
-  <div class="brand"><b>FCA OVERVIEW</b><span class="tag">MAP</span></div>
+  <div class="brand"><b>FCA OVERVIEW</b><span class="tag">MAP · STRIPS</span></div>
   <div class="artcc-select-wrap">
     <label for="artccSelect">ARTCC</label>
     <select id="artccSelect"></select>
   </div>
+  <button type="button" class="btn sm on" id="stripsToggle" title="Show or hide strip management">STRIPS</button>
   <div class="spacer"></div>
+  <span class="stat" id="authStatusLbl">View only</span>
   <a class="btn sm linkish" href="idst.html" title="Issue CFR releases">Open IDST</a>
   <button type="button" class="vf-help-btn" id="helpBtn" data-vf-help-btn title="Open help page">HELP</button>
   <div class="stat"><span class="dot" id="feedDot"></span><span id="feedTxt">connecting…</span></div>
@@ -113,12 +278,29 @@
 <div class="legend-bar">
   <span class="stat">ACTIVE <b id="fcaCount">0</b></span>
   <div class="fca-pills" id="fcaPills"></div>
-  <span class="hint spacer" style="text-align:right">Map only — issue releases in <a href="idst.html">IDST</a>. Build programs in <a href="FCA-builderv02.html">FCA Builder</a>.</span>
+  <span class="hint spacer" style="text-align:right">Manage strips for the selected ARTCC on the right. Build programs in <a href="FCA-builderv02.html">FCA Builder</a>.</span>
 </div>
 
 <div class="map-section" id="mapSection">
   <div id="mapPanel"></div>
+  <aside class="strip-column open" id="stripColumn" aria-label="FCA strip management">
+    <div class="strip-column-head">
+      <span class="t">STRIPS · <span id="stripArtcc">ZDC</span></span>
+      <button type="button" class="btn sm" id="stripClose" title="Hide strips">›</button>
+      <div class="sub">
+        <span id="stripAuthHint">Sign in to issue RDY</span>
+        <div class="seqview" id="seqView">
+          <span data-sv="all" class="on">SHOW ALL</span>
+          <span data-sv="air">AIR ONLY</span>
+          <span data-sv="cfr">CFR ONLY</span>
+        </div>
+      </div>
+    </div>
+    <div class="strip-scroll" id="stripBody"></div>
+  </aside>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -131,7 +313,12 @@ import { ARTCC_LIST } from "./shared/artcc-constants.js";
 import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, getAirport,
+  computeSequence, markReady, clearReady, isReady,
+  COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
+import { initVatflowAuth, canFullControl, canUseFcaRdy, canEditFca, isSignedIn, authStatusLabel } from "./shared/vatflow-auth.js";
+import { parseZuluHhmm } from "./shared/time-parse.js";
+import * as VFRefresh from "./shared/vatflow-refresh.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
@@ -140,6 +327,9 @@ const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
 const LS_FCAS = "fcaBuilder.fcas.v1";
 const LS_ARTCC = "artccDashboard.artcc";
+const LS_STRIPS_OPEN = "artccDashboard.stripsOpen";
+const LS_SEQ_VIEW = "artccDashboard.seqView";
+const LS_COLLAPSED = "artccDashboard.stripCollapsed";
 const REFRESH_SEC = 30;
 
 const state = {
@@ -148,10 +338,19 @@ const state = {
   pilots: [],
   prefiles: [],
   countdown: REFRESH_SEC,
+  stripsOpen: true,
+  seqView: "all",
+  /** @type {Record<string, boolean>} fcaId → collapsed */
+  collapsed: {},
+  /** @type {Record<string, string>} `${fcaId}|${cs}` → draft ART */
+  artDraft: {},
 };
 
 let sb = null, liveTimer = null, countdownTimer = null;
 let dashboardMap = null;
+let stripDragging = false;
+let toastTimer = null;
+const seqCache = new Map();
 
 const DEMO_AIRPORTS = {
   KATL: [33.64, -84.43], KJFK: [40.64, -73.78], KORD: [41.98, -87.90], KDFW: [32.90, -97.04],
@@ -159,6 +358,14 @@ const DEMO_AIRPORTS = {
   KDCA: [38.85, -77.04], KIAD: [38.94, -77.46], KBWI: [39.18, -76.67], KRIC: [37.51, -77.32],
 };
 seedAirports(DEMO_AIRPORTS);
+
+try {
+  const so = localStorage.getItem(LS_STRIPS_OPEN);
+  if (so === "0") state.stripsOpen = false;
+  else if (so === "1") state.stripsOpen = true;
+  state.seqView = localStorage.getItem(LS_SEQ_VIEW) || "all";
+  state.collapsed = JSON.parse(localStorage.getItem(LS_COLLAPSED) || "{}") || {};
+} catch (_) {}
 
 function escapeHtml(s) {
   return ("" + (s || "")).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -173,6 +380,9 @@ function normalizeFca(f) {
   if (f.enabled == null) f.enabled = true;
   return f;
 }
+
+function canReady() { return canUseFcaRdy(); }
+function canControlFca(f) { return canEditFca(f); }
 
 function setFeed(kind) {
   const dot = document.getElementById("feedDot");
@@ -191,6 +401,29 @@ function setSyncStatus(kind) {
   else { dot.className = "dot"; txt.textContent = "FCAs —"; }
 }
 
+function updateAuthLabels() {
+  const el = document.getElementById("authStatusLbl");
+  if (el) el.textContent = authStatusLabel();
+  const hint = document.getElementById("stripAuthHint");
+  if (!hint) return;
+  if (canReady()) {
+    hint.textContent = canFullControl()
+      ? "RDY + sequence edit (your ARTCC)"
+      : "RDY available · sign in with ARTCC access to reorder";
+  } else {
+    hint.textContent = "Sign in to issue RDY";
+  }
+}
+
+function toast(msg, ms) {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), ms || 2500);
+}
+
 function loadLocalFcas() {
   try {
     const arr = JSON.parse(localStorage.getItem(LS_FCAS) || "[]");
@@ -202,6 +435,15 @@ function persistLocal() {
   try { localStorage.setItem(LS_FCAS, JSON.stringify(state.fcas)); } catch (_) {}
 }
 
+function cloudPush(fca, opts = {}) {
+  persistLocal();
+  const ok = opts.readyOnly ? canReady() : canFullControl();
+  if (!ok || !sb || !fca) return;
+  if (!opts.readyOnly && !canControlFca(fca)) return;
+  sb.from("fcas").upsert({ id: fca.id, data: fca, updated_at: new Date().toISOString() })
+    .then(({ error }) => { if (error) console.warn("overview push:", error); });
+}
+
 function initSync() {
   if (!window.supabase) { setSyncStatus("local"); return; }
   try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
@@ -211,16 +453,19 @@ function initSync() {
       state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
       persistLocal();
       setSyncStatus("live");
+      invalidateSequences();
       render();
     } else setSyncStatus(state.fcas.length ? "local" : "none");
   });
   sb.channel("fca-overview")
     .on("postgres_changes", { event: "*", schema: "public", table: "fcas" }, () => {
+      if (stripDragging) return;
       sb.from("fcas").select("*").then(({ data }) => {
         if (!data) return;
         state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
         persistLocal();
         setSyncStatus("live");
+        invalidateSequences();
         render();
       });
     })
@@ -257,6 +502,7 @@ function fetchLive() {
       state.pilots = pilots;
       state.prefiles = prefiles;
       setFeed("live");
+      invalidateSequences();
       render();
     })
     .catch(err => { console.warn(err); setFeed("dead"); });
@@ -279,13 +525,52 @@ function startFeedLoop() {
 function filterFcasByArtccScope(active, artcc) {
   if (!artcc) return active;
   const id = ("" + artcc).toUpperCase();
-  return active.filter(f => !f.scope || !f.scope.length ||
-    f.scope.map(x => ("" + x).toUpperCase()).includes(id));
+  return active.filter(f => {
+    const owner = (f.artcc || "").toUpperCase();
+    // Owning ARTCC always matches the Overview filter.
+    if (owner === id) return true;
+    // Blank scope = global (show for every ARTCC), else must list this ARTCC.
+    if (!f.scope || !f.scope.length) return true;
+    return f.scope.map(x => ("" + x).toUpperCase()).includes(id);
+  });
 }
 
 function activeFcasForArtcc() {
   const active = state.fcas.filter(f => f.enabled && f.points && f.points.length >= 2);
   return filterFcasByArtccScope(active, state.artcc);
+}
+
+function invalidateSequences() { seqCache.clear(); }
+
+function fmtClock(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  if (m >= 90) return Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0") + "m";
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+function delayColor(sec) { return sec < 30 ? "#56d364" : sec < 300 ? "#f5a623" : "#ff6b6b"; }
+
+function groundWheelsUpMs(c) {
+  if (c.edctMs != null) return c.edctMs;
+  if (c.ctaMs == null) return null;
+  return c.ctaMs - (c.transitSec || 0) * 1000;
+}
+
+function gapMinLabel(gapMin, isLeader) {
+  if (isLeader) return "—";
+  if (gapMin == null || gapMin < 0.05) return "0 min";
+  return gapMin.toFixed(1) + " min";
+}
+
+function getSequence(fca) {
+  let s = seqCache.get(fca.id);
+  if (!s) {
+    s = computeSequence(fca, state.pilots, state.prefiles || [], { includeEdct: true });
+    if (s.releasesChanged && canReady()) cloudPush(fca, { readyOnly: true });
+    seqCache.set(fca.id, s);
+  }
+  return s;
 }
 
 function updateMap({ refit = false } = {}) {
@@ -315,9 +600,379 @@ function renderPills() {
   }).join("");
 }
 
+function applyStripsOpen() {
+  const col = document.getElementById("stripColumn");
+  const btn = document.getElementById("stripsToggle");
+  if (col) col.classList.toggle("open", !!state.stripsOpen);
+  if (btn) {
+    btn.classList.toggle("on", !!state.stripsOpen);
+    btn.textContent = state.stripsOpen ? "STRIPS" : "STRIPS ▸";
+  }
+  try { localStorage.setItem(LS_STRIPS_OPEN, state.stripsOpen ? "1" : "0"); } catch (_) {}
+  if (dashboardMap && dashboardMap.map) {
+    requestAnimationFrame(() => dashboardMap.map.invalidateSize());
+  }
+}
+
+function setStripsOpen(open) {
+  state.stripsOpen = !!open;
+  applyStripsOpen();
+  if (state.stripsOpen) renderStrips();
+}
+
+function saveCollapsed() {
+  try { localStorage.setItem(LS_COLLAPSED, JSON.stringify(state.collapsed)); } catch (_) {}
+}
+
+function issueRdyFromStripInput(fca, cs, input) {
+  if (!canReady() || !fca || !input || !cs) return;
+  const readyMs = parseZuluHhmm(input.value, Date.now());
+  if (!readyMs) {
+    input.classList.add("rdy-time-input--err");
+    setTimeout(() => input.classList.remove("rdy-time-input--err"), 1500);
+    toast("ART must be a valid future Zulu time (HHMMz).", 2800);
+    return;
+  }
+  const rel = markReady(fca, cs, state.pilots, Date.now(), { readyMs });
+  if (rel) toast(cs + " CFR issued — release " + fmtZulu(rel.edctMs), 4000);
+  else toast("Couldn't compute a release for " + cs + ".", 3000);
+  delete state.artDraft[fca.id + "|" + cs];
+  cloudPush(fca, { readyOnly: true });
+  invalidateSequences();
+  render();
+}
+
+function moveSeq(fca, orderCS, from, to) {
+  if (!canControlFca(fca)) return;
+  const arr = orderCS.slice();
+  const [m] = arr.splice(from, 1);
+  arr.splice(to, 0, m);
+  fca.order = arr;
+  fca.manualSeq = true;
+  cloudPush(fca);
+  invalidateSequences();
+  render();
+}
+
+function excludeAircraft(fca, callsign) {
+  if (!canControlFca(fca)) return;
+  fca.excluded = fca.excluded || [];
+  if (!fca.excluded.includes(callsign)) fca.excluded.push(callsign);
+  cloudPush(fca);
+  invalidateSequences();
+  render();
+}
+
+function excludedHtml(fca) {
+  const ex = fca.excluded || [];
+  if (!ex.length) return "";
+  const ctl = canControlFca(fca);
+  const rows = ex.map(cs =>
+    `<div class="row"><span>✕ ${escapeHtml(cs)}</span>` +
+    (ctl ? `<span class="restore" data-restore="${escapeHtml(cs)}">restore</span>` : "") +
+    `</div>`
+  ).join("");
+  return `<div class="excl" data-excl-fca="${escapeHtml(fca.id)}"><div class="row" style="color:var(--muted-2)"><span>REMOVED (${ex.length})</span>` +
+    (ctl ? `<span class="restore" data-restore-all="1">restore all</span>` : "") +
+    `</div>${rows}</div>`;
+}
+
+function wireExcluded(fca, root) {
+  if (!canControlFca(fca) || !root) return;
+  root.querySelectorAll("[data-restore]").forEach(el => el.addEventListener("click", () => {
+    fca.excluded = (fca.excluded || []).filter(c => c !== el.getAttribute("data-restore"));
+    cloudPush(fca);
+    invalidateSequences();
+    render();
+  }));
+  const all = root.querySelector("[data-restore-all]");
+  if (all) all.addEventListener("click", () => {
+    fca.excluded = [];
+    cloudPush(fca);
+    invalidateSequences();
+    render();
+  });
+}
+
+function buildStripList(fca, s) {
+  const list = document.createElement("div");
+  list.className = "stripList";
+  list.dataset.fcaId = fca.id;
+  const orderCS = s.items.map(c => c.p.callsign);
+  const view = state.seqView || "all";
+  const seqCtl = canControlFca(fca);
+  let shown = 0;
+  let dragFrom = null;
+
+  s.items.forEach((c, i) => {
+    if (view === "air" && c.phase !== "air") return;
+    if (view === "cfr" && c.phase !== "gnd") return;
+    shown++;
+    const cls = c.delay < 30 ? "zero" : c.delay < 300 ? "low" : "high";
+    const fl = String(Math.round(((c.phase === "gnd" ? c.p.fpAlt : c.p.alt) || 0) / 100)).padStart(3, "0");
+    let gapHtml, gapShort = false;
+    if (c.phase === "gnd") {
+      const gapMin = i === 0 ? 0 : (c.sched - s.items[i - 1].sched) / 60;
+      gapHtml = gapMinLabel(gapMin, i === 0);
+    } else {
+      const prevAir = s.items.slice(0, i).reverse().find(x => x.phase === "air");
+      if (!prevAir) {
+        gapHtml = `→ ${Math.round(c.dist)}nm to crossing`;
+      } else {
+        const gapNm = c.dist - prevAir.dist;
+        const reqNm = s.mode === "mit" ? (s.mit || 0) : ((s.minit || 0) * (c.spd || 420) / 3600);
+        gapShort = gapNm < reqNm - 0.5;
+        gapHtml = (gapNm >= 0
+          ? `↑ ${Math.round(gapNm)}nm behind ${escapeHtml(prevAir.p.callsign)}`
+          : `↓ ${Math.round(-gapNm)}nm ahead of ${escapeHtml(prevAir.p.callsign)}`)
+          + (reqNm ? ` <span style="color:var(--muted-2)">· need ${Math.round(reqNm)}nm</span>` : "");
+      }
+    }
+    const gapLine = `<div class="gap${gapShort ? " short" : ""}">${gapHtml}</div>`;
+    const strip = document.createElement("div");
+    strip.className = "strip";
+    strip.style.borderLeftColor = delayColor(c.delay);
+    if (seqCtl) strip.setAttribute("draggable", "true");
+    const rmBtn = seqCtl
+      ? `<div class="rm" data-rm="${escapeHtml(c.p.callsign)}" title="Remove from this FCA">✕</div>`
+      : "";
+
+    if (c.phase === "gnd") {
+      const wheelsUp = groundWheelsUpMs(c);
+      const edct = wheelsUp ? fmtZulu(wheelsUp) : "—";
+      const gsLabel = (c.p.gs || 0) >= 20 ? `${Math.round(c.p.gs)}kt` : "depart";
+      const held = c.delay >= 30;
+      const frozen = !!c.frozen;
+      const winTxt = frozen && wheelsUp
+        ? ` · window ${fmtZulu(wheelsUp - COMPLIANCE_EARLY_MS)}–${fmtZulu(wheelsUp + COMPLIANCE_LATE_MS)}`
+        : "";
+      const draftKey = fca.id + "|" + c.p.callsign;
+      const draft = state.artDraft[draftKey] || "";
+      const rdyBtn = canReady()
+        ? `<div class="rdy-time-wrap">` +
+          (frozen ? "" :
+            `<input class="rdy-time-input" placeholder="HHMMz" maxlength="7" autocomplete="off" ` +
+            `data-rdy-time="${escapeHtml(c.p.callsign)}" data-keep="ov-art" value="${escapeHtml(draft)}" ` +
+            `title="RDY @ wheels-up earliest (HHMMz)">` +
+            `<div class="rdy-set-btn" data-rdy-set="${escapeHtml(c.p.callsign)}">SET</div>`) +
+          `<div class="rdy${frozen ? " on" : ""}" data-rdy="${escapeHtml(c.p.callsign)}" ` +
+          `title="${frozen ? "Cancel this CFR release" : "RDY now — issue CFR release"}">${frozen ? "RLSD ✕" : "RDY"}</div>` +
+          `</div>`
+        : (frozen ? `<div class="rdy on" style="cursor:default">RLSD</div>` : "");
+      strip.innerHTML =
+        `<div class="num" title="drag to reorder"><span class="grip">⠿</span>${i + 1}</div>` +
+        `<div><div class="cs"><span class="ph gnd">${frozen ? "RLSD" : "CFR"}</span> ${escapeHtml(c.p.callsign)} ` +
+        `<span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type || "")}</span></div>` +
+        `<div class="info">${escapeHtml(c.p.dep || "????")} → ${escapeHtml(c.p.arr || "????")} · FL${fl} · ${gsLabel} · ` +
+        `${Math.round(c.dist)}nm to line · cross ${fmtZulu(c.ctaMs)}${winTxt}</div>${gapLine}</div>` +
+        `<div class="eta"><div class="big" style="color:${frozen ? "#56d364" : held ? delayColor(c.delay) : "var(--text)"}">${edct}</div>` +
+        `<div class="dl ${cls}">${frozen ? "released" : held ? "hold +" + fmtClock(c.delay) : "no delay"}</div></div>` +
+        `<div style="display:flex;flex-direction:column;align-items:center">${rmBtn}${rdyBtn}</div>`;
+    } else {
+      strip.innerHTML =
+        `<div class="num" title="drag to reorder"><span class="grip">⠿</span>${i + 1}</div>` +
+        `<div><div class="cs"><span class="ph air">AIR</span> ${escapeHtml(c.p.callsign)} ` +
+        `<span style="color:var(--muted);font-weight:400">${escapeHtml(c.p.type || "")}</span></div>` +
+        `<div class="info">${escapeHtml(c.p.dep || "????")} → ${escapeHtml(c.p.arr || "????")} · FL${fl} · ` +
+        `${Math.round(c.p.gs || 0)}kt · ${Math.round(c.dist)}nm to line</div>${gapLine}</div>` +
+        `<div class="eta"><div class="big">${fmtZulu(c.ctaMs)}</div>` +
+        `<div class="dl ${cls}">${c.delay < 30 ? "on time" : "air +" + fmtClock(c.delay)}</div></div>` +
+        `${rmBtn}`;
+    }
+
+    const artInput = strip.querySelector(".rdy-time-input");
+    if (artInput) {
+      artInput.addEventListener("input", () => {
+        artInput.value = artInput.value.toUpperCase();
+        state.artDraft[fca.id + "|" + c.p.callsign] = artInput.value;
+      });
+    }
+
+    const rmEl = strip.querySelector(".rm");
+    if (rmEl) rmEl.addEventListener("click", e => {
+      e.stopPropagation();
+      excludeAircraft(fca, c.p.callsign);
+    });
+    const rdySetEl = strip.querySelector("[data-rdy-set]");
+    if (rdySetEl) rdySetEl.addEventListener("click", e => {
+      e.stopPropagation();
+      const cs = rdySetEl.getAttribute("data-rdy-set");
+      const wrap = rdySetEl.closest(".rdy-time-wrap");
+      const input = wrap && wrap.querySelector(".rdy-time-input");
+      issueRdyFromStripInput(fca, cs, input);
+    });
+    const rdyEl = strip.querySelector("[data-rdy]");
+    if (rdyEl) rdyEl.addEventListener("click", e => {
+      e.stopPropagation();
+      if (!canReady()) return;
+      const cs = c.p.callsign;
+      if (isReady(fca, cs)) {
+        clearReady(fca, cs);
+        toast(cs + " release cancelled — back to advisory.", 2500);
+      } else {
+        const rel = markReady(fca, cs, state.pilots, Date.now());
+        if (rel) toast(cs + " CFR issued — release " + fmtZulu(rel.edctMs), 4000);
+        else toast("Couldn't compute a release for " + cs + ".", 3000);
+      }
+      cloudPush(fca, { readyOnly: true });
+      invalidateSequences();
+      render();
+    });
+
+    strip.addEventListener("click", () => {
+      const o = (c.p.lat != null) ? [c.p.lat, c.p.lon] : getAirport(c.p.dep);
+      if (o && dashboardMap && dashboardMap.map) dashboardMap.map.panTo(o);
+    });
+
+    if (seqCtl) {
+      strip.addEventListener("dragstart", e => {
+        dragFrom = i;
+        stripDragging = true;
+        strip.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        try { e.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
+      });
+      strip.addEventListener("dragend", () => {
+        strip.classList.remove("dragging");
+        list.querySelectorAll(".strip").forEach(x => x.classList.remove("dragover"));
+        stripDragging = false;
+        renderStrips();
+      });
+      strip.addEventListener("dragover", e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        strip.classList.add("dragover");
+      });
+      strip.addEventListener("dragleave", () => strip.classList.remove("dragover"));
+      strip.addEventListener("drop", e => {
+        e.preventDefault();
+        strip.classList.remove("dragover");
+        if (dragFrom != null && dragFrom !== i) moveSeq(fca, orderCS, dragFrom, i);
+      });
+    }
+
+    list.appendChild(strip);
+  });
+
+  if (!shown && s.items.length) {
+    const note = document.createElement("div");
+    note.className = "strip-empty";
+    note.textContent = `${s.items.length} aircraft in the sequence — none match the ${view === "air" ? "AIR ONLY" : "CFR ONLY"} view.`;
+    list.appendChild(note);
+  }
+  return list;
+}
+
+function renderStrips() {
+  if (stripDragging) return;
+  if (VFRefresh.isUserTyping && VFRefresh.isUserTyping()) return;
+  const snap = VFRefresh.captureFocus();
+  try {
+    const body = document.getElementById("stripBody");
+    const artccEl = document.getElementById("stripArtcc");
+    if (artccEl) artccEl.textContent = state.artcc || "—";
+    document.querySelectorAll("#seqView [data-sv]").forEach(ch => {
+      ch.classList.toggle("on", ch.getAttribute("data-sv") === (state.seqView || "all"));
+    });
+
+    const fcas = activeFcasForArtcc();
+    if (!fcas.length) {
+      body.innerHTML =
+        `<div class="strip-empty"><b>NO ACTIVE FCAs</b>No enabled programs for ${escapeHtml(state.artcc)}. ` +
+        `Create or enable them in <a href="FCA-builderv02.html" style="color:var(--cyan)">FCA Builder</a>.</div>`;
+      return;
+    }
+
+    body.innerHTML = "";
+    for (const f of fcas) {
+      const s = getSequence(f);
+      const collapsed = !!state.collapsed[f.id];
+      const block = document.createElement("div");
+      block.className = "fca-block" + (collapsed ? "" : " open");
+      block.dataset.fcaId = f.id;
+
+      const minitTxt = s.minit ? fmtClock(s.minit) : "—";
+      const constraint = f.mode === "mit"
+        ? `${f.mit || "?"} MIT`
+        : (f.rate ? `${f.rate}/hr` : "no rate");
+      const color = f.color || "#e8a838";
+
+      block.innerHTML =
+        `<div class="fca-block-head" data-toggle-fca="${escapeHtml(f.id)}">` +
+        `<span class="swatch" style="color:${color};background:${color}"></span>` +
+        `<span class="name">${escapeHtml(f.name || f.id)}</span>` +
+        `<span class="meta">` +
+        `<span class="rate">${escapeHtml(constraint)}</span>` +
+        `<span>${s.nAir} air · ${s.nGnd} CFR</span>` +
+        (s.manual ? `<span>MANUAL</span>` : "") +
+        `</span>` +
+        `<span class="chev">${collapsed ? "▸" : "▾"}</span>` +
+        `</div>` +
+        `<div class="fca-block-body"></div>`;
+
+      const head = block.querySelector(".fca-block-head");
+      head.addEventListener("click", () => {
+        state.collapsed[f.id] = !state.collapsed[f.id];
+        saveCollapsed();
+        renderStrips();
+      });
+
+      const bbody = block.querySelector(".fca-block-body");
+      if (!collapsed) {
+        const tools = document.createElement("div");
+        tools.className = "fca-block-tools";
+        if (s.manual && canControlFca(f)) {
+          const auto = document.createElement("span");
+          auto.className = "manualchip";
+          auto.textContent = "✋ MANUAL · ↺ auto";
+          auto.title = "Return to automatic sequencing";
+          auto.addEventListener("click", e => {
+            e.stopPropagation();
+            f.order = [];
+            f.manualSeq = false;
+            cloudPush(f);
+            invalidateSequences();
+            render();
+          });
+          tools.appendChild(auto);
+        }
+        tools.insertAdjacentHTML("beforeend",
+          `<span style="font-family:var(--mono);font-size:9px;color:var(--muted)">MINIT ${minitTxt} · demand ${s.demand}/hr</span>`);
+        bbody.appendChild(tools);
+
+        const hint = document.createElement("div");
+        hint.className = "seqhint";
+        hint.textContent = canControlFca(f)
+          ? "⠿ drag a strip to reorder · RDY issues CFR"
+          : (canReady()
+            ? "RDY available · ARTCC editor access needed to reorder"
+            : "View only — sign in with VATSIM to manage");
+        bbody.appendChild(hint);
+
+        if (!s.items.length) {
+          bbody.insertAdjacentHTML("beforeend",
+            `<div class="strip-empty"><b>NO INBOUND TRAFFIC</b>No aircraft on a route that crosses this line match the filters.</div>`);
+        } else {
+          bbody.appendChild(buildStripList(f, s));
+        }
+        const exWrap = document.createElement("div");
+        exWrap.innerHTML = excludedHtml(f);
+        bbody.appendChild(exWrap);
+        wireExcluded(f, exWrap);
+      }
+
+      body.appendChild(block);
+    }
+  } finally {
+    VFRefresh.restoreFocus(document, snap);
+  }
+}
+
 function render() {
+  updateAuthLabels();
   renderPills();
   updateMap();
+  if (state.stripsOpen) renderStrips();
   if (dashboardMap && dashboardMap.map) {
     requestAnimationFrame(() => dashboardMap.map.invalidateSize());
   }
@@ -330,6 +985,7 @@ function activateArtcc(artcc) {
   try { localStorage.setItem(LS_ARTCC, artcc); } catch (_) {}
   const sel = document.getElementById("artccSelect");
   if (sel) sel.value = artcc;
+  invalidateSequences();
   updateMap({ refit: true });
   render();
 }
@@ -352,6 +1008,29 @@ document.getElementById("refreshBtn").addEventListener("click", () => {
   fetchLive();
   state.countdown = REFRESH_SEC;
 });
+document.getElementById("stripsToggle").addEventListener("click", () => setStripsOpen(!state.stripsOpen));
+document.getElementById("stripClose").addEventListener("click", () => setStripsOpen(false));
+document.querySelectorAll("#seqView [data-sv]").forEach(chip => {
+  chip.addEventListener("click", () => {
+    state.seqView = chip.getAttribute("data-sv");
+    try { localStorage.setItem(LS_SEQ_VIEW, state.seqView); } catch (_) {}
+    renderStrips();
+  });
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const input = e.target.closest(".rdy-time-input");
+  if (!input || !input.closest(".stripList")) return;
+  e.preventDefault();
+  const wrap = input.closest(".rdy-time-wrap");
+  const setEl = wrap && wrap.querySelector("[data-rdy-set]");
+  const list = input.closest(".stripList");
+  const fca = state.fcas.find(f => f.id === (list && list.dataset.fcaId));
+  const cs = setEl && setEl.getAttribute("data-rdy-set");
+  if (fca && cs) issueRdyFromStripInput(fca, cs, input);
+});
+
+applyStripsOpen();
 
 loadLocalFcas();
 initSync();
@@ -371,6 +1050,13 @@ try {
   populateArtccSelect();
   activateArtcc(ARTCC_LIST[0] || "ZDC");
 }
+
+await initVatflowAuth();
+updateAuthLabels();
+window.addEventListener("vatflow-auth-changed", () => {
+  updateAuthLabels();
+  renderStrips();
+});
 
 startFeedLoop();
 
