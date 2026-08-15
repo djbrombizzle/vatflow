@@ -337,6 +337,8 @@ export function lineDistToFca(lat, lon, fca) {
 }
 
 export function isCrossingAhead(p, cross) {
+  // Heading vs bearing-to-crossing. Kept for diagnostics / tests — sequence
+  // membership must NOT use this (holds and vectors fail it every outbound leg).
   if (!cross || cross.lat == null || p.lat == null || p.lon == null) return true;
   if (p.phase !== "air" || (p.gs || 0) < AIR_MIN_GS) return true;
   const hdg = p.hdg;
@@ -473,17 +475,15 @@ function findRouteCrossing(p, fca) {
 function validRouteCrossing(p, fca, cross) {
   if (!cross) return false;
   if (p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS) {
-    return isCrossingAhead(p, cross) && !hasPassedFca(p, fca);
+    // Route still crosses ahead — keep in sequence regardless of current heading.
+    // Gating on heading dropped aircraft on hold outbound legs / vectors away
+    // from the line, then re-added them when they turned back inbound.
+    return !hasPassedFca(p, fca);
   }
   return true;
 }
 
 function validAirCrossing(p, fca, cross) {
-  // A climbing departure's initial heading is runway/vector noise — its filed
-  // route already turns it toward the crossing. Gating on heading here made
-  // just-departed aircraft vanish from the sequence (west ops at ATL etc.),
-  // collapsing the delays of everything queued behind them.
-  if (isClimbingDeparture(p)) return !!cross;
   return validRouteCrossing(p, fca, cross);
 }
 
@@ -861,7 +861,8 @@ export function explainFcaExclusion(fca, p) {
   if (cross.dist > cap) {
     return R(false, "beyond-lookahead", `Crossing is ${Math.round(cross.dist)}nm along route — beyond the ${Math.round(cap)}nm lookahead.`, { distNm: cross.dist });
   }
-  if (isAir && !isCrossingAhead(p, cross)) return R(false, "crossing-behind", "Crossing point is behind the aircraft's heading.");
+  // Do not exclude for heading-vs-crossing ("crossing-behind") — holds/vectors
+  // turn away from the line without leaving the program.
   if (isAir && hasPassedFca(p, fca)) return R(false, "passed", "Already through the directional FCA, moving away.");
   return R(true, "included", `Crosses in ${Math.round(cross.dist)}nm.`, { distNm: cross.dist });
 }
