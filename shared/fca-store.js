@@ -3,6 +3,7 @@
  */
 import {
   explainFcaExclusion, computeSequence, getRelease, fpFields, loadAirports,
+  mergeRemoteFca,
 } from "./fca-metering.js";
 import { loadNavData } from "./route-engine.js";
 import { fetchArtccBoundaries } from "./artcc-scope.js";
@@ -91,7 +92,9 @@ function notifyFcasChanged() {
 }
 
 function setFcas(arr) {
-  fcas = (arr || []).map(normalizeFca).filter(Boolean);
+  const remote = (arr || []).map(normalizeFca).filter(Boolean);
+  const localById = new Map(fcas.map(f => [f.id, f]));
+  fcas = remote.map(rf => mergeRemoteFca(localById.get(rf.id), rf) || rf);
   persistLocalFcas();
   notifyFcasChanged();
 }
