@@ -233,6 +233,8 @@
   .strip .info{font-size:10px;color:var(--muted);margin-top:2px}
   .strip .gap{font-size:9px;margin-top:3px;color:var(--cyan);letter-spacing:.02em}
   .strip .gap.short{color:var(--red)}
+  .strip .gap.ok{color:var(--green)}
+  .strip .gap .gap-more{color:inherit;opacity:.85}
   .strip .eta{text-align:right}
   .strip .eta .big{font-size:14px;font-weight:700}
   .strip .eta .dl{font-size:10px;margin-top:2px}
@@ -1642,7 +1644,7 @@ function renderSequence(){
     const cls=c.delay<30?"zero":c.delay<300?"low":"high";
     const fl=String(Math.round(((c.phase==="gnd"?c.p.fpAlt:c.p.alt)||0)/100)).padStart(3,"0");
     // in-trail readout: ground = minutes behind predecessor at crossing; air = nm spacing
-    let gapHtml, gapShort=false;
+    let gapHtml, gapShort=false, gapOk=false;
     if(c.phase==="gnd"){
       const gapMin=i===0?0:(c.sched-s.items[i-1].sched)/60;
       gapHtml=gapMinLabel(gapMin,i===0);
@@ -1653,14 +1655,24 @@ function renderSequence(){
       }else{
         const gapNm=c.dist-prevAir.dist;
         const reqNm=s.mode==="mit" ? (s.mit||0) : ((s.minit||0)*(c.spd||420)/3600);
-        gapShort=gapNm<reqNm-0.5;
-        gapHtml=(gapNm>=0
-          ? `↑ ${Math.round(gapNm)}nm behind ${escapeHtml(prevAir.p.callsign)}`
-          : `↓ ${Math.round(-gapNm)}nm ahead of ${escapeHtml(prevAir.p.callsign)}`)
-          + (reqNm?` <span style="color:var(--muted-2)">· need ${Math.round(reqNm)}nm</span>`:"");
+        if(reqNm>0){
+          const shortfall=reqNm-gapNm;
+          if(shortfall>0.5){
+            gapShort=true;
+            gapHtml=`need ${Math.round(reqNm)}nm`+
+              ` <span class="gap-more">· +${Math.round(shortfall)}nm</span>`;
+          }else{
+            gapOk=true;
+            gapHtml=`need ${Math.round(reqNm)}nm`;
+          }
+        }else{
+          gapHtml=gapNm>=0
+            ? `${Math.round(gapNm)}nm in trail`
+            : `${Math.round(-gapNm)}nm ahead`;
+        }
       }
     }
-    const gapLine=`<div class="gap${gapShort?" short":""}">${gapHtml}</div>`;
+    const gapLine=`<div class="gap${gapShort?" short":""}${gapOk?" ok":""}">${gapHtml}</div>`;
     const strip=document.createElement("div");
     strip.className="strip"; strip.style.borderLeftColor=delayColor(c.delay);
     if(seqCtl) strip.setAttribute("draggable","true");
