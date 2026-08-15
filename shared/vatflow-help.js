@@ -91,7 +91,7 @@ export const FCA_HELP = {
       items: [
         "<b>FCA Builder</b> (this page) — draw/meter line FCAs and manage programs.",
         "<b>IDST</b> — controller Flights to Work desk for issuing CFR releases.",
-        "<b>FCA Overview</b> — ARTCC map of active FCA programs (no release times).",
+        "<b>FCA Overview</b> — ARTCC map + multi-program strips (RDY / sequence).",
         "<b>Airport TMU</b> — destination capacity (AAR, CFR, restrictions, ground stops).",
         "<b>Runway Balancer</b> — arrival runway demand / STAR mapping (under Airport TMU).",
         "When Airport TMU shows <b>FCA PRGM</b>, FCA metering is authoritative for that departure.",
@@ -134,15 +134,16 @@ export const FCA_HELP = {
 
 export const FCA_OVERVIEW_HELP = {
   title: "FCA Overview — Help",
-  intro: "Map-only situational awareness for active FCA programs in an ARTCC. No release times are issued here — use IDST for CFR / RDY.",
+  intro: "ARTCC map of active FCA programs with a strip column to manage sequences and issue CFR / RDY for every program in scope.",
   quickstart: [
     { step: "1", text: "Select your ARTCC from the dropdown" },
-    { step: "2", text: "Watch active FCA lines and traffic on the map" },
-    { step: "3", text: "Issue releases in IDST" },
+    { step: "2", text: "Use STRIPS to show or hide the right-hand sequence column" },
+    { step: "3", text: "Sign in and issue RDY / SET on ground strips (reorder needs ARTCC editor access)" },
     { step: "→", text: 'Controller guide: <a href="tower-rdy-guide.html">Tower RDY / Ready Time</a>' },
   ],
   nav: [
     { id: "ov-start", label: "Getting started" },
+    { id: "ov-strips", label: "Strips" },
     { id: "ov-map", label: "Map" },
     { id: "ov-suite", label: "Suite" },
   ],
@@ -152,9 +153,20 @@ export const FCA_OVERVIEW_HELP = {
       title: "Getting started",
       open: true,
       items: [
-        "Select your <b>ARTCC</b> — the map zooms to that center and shows scoped FCA programs.",
+        "Select your <b>ARTCC</b> — the map zooms to that center and lists scoped / owned FCA programs.",
         "FCAs load from Supabase realtime (same as FCA Builder) with local cache fallback.",
-        "Build or edit programs in <b>FCA Builder</b>. Issue CFRs in <b>IDST</b>.",
+        "Build or edit program geometry in <b>FCA Builder</b>. Issue desk also available in <b>IDST</b>.",
+      ],
+    },
+    {
+      id: "ov-strips",
+      title: "Strip management",
+      items: [
+        "Toggle <b>STRIPS</b> in the top bar to show or hide the right-hand column.",
+        "Each active FCA for the selected ARTCC gets its own strip stack (air + CFR).",
+        "<b>RDY</b> / <b>SET</b> (HHMMz) issue CFR releases when signed in — same engine as IDST / Builder.",
+        "Drag strips to reorder when you have ARTCC editor access for that program’s owning ARTCC.",
+        "Use SHOW ALL / AIR ONLY / CFR ONLY to filter the lists without changing the schedule.",
       ],
     },
     {
@@ -163,14 +175,14 @@ export const FCA_OVERVIEW_HELP = {
       items: [
         "Active FCA lines for the selected ARTCC are drawn on the map.",
         "Traffic in those sequences appears for situational awareness.",
-        "This page does <b>not</b> show or issue release times.",
+        "Click a strip to pan the map to that aircraft (or its departure field).",
       ],
     },
     {
       id: "ov-suite",
       title: "Which tool do I use?",
       items: [
-        "<b>FCA Overview</b> (this page) — ARTCC map of active FCAs.",
+        "<b>FCA Overview</b> (this page) — ARTCC map + multi-program strip management.",
         "<b>IDST</b> — Flights to Work desk for CFR / RDY.",
         "<b>FCA Builder</b> — draw lines, set rates/MIT, manage programs.",
         "<b>Airport TMU</b> — destination capacity CFRs (not line FCAs).",
@@ -244,7 +256,7 @@ export const IDST_HELP = {
       title: "Which tool do I use?",
       items: [
         "<b>IDST</b> (this page) — issue CFR releases.",
-        "<b>FCA Overview</b> — map only.",
+        "<b>FCA Overview</b> — ARTCC map + strips.",
         "<b>FCA Builder</b> — create/enable programs.",
         "<b>Airport TMU</b> — destination capacity CFRs when no FCA applies.",
       ],
@@ -264,7 +276,7 @@ export const TMU_TOOLS_HELP = {
         "<b>Airport TMU</b> — destination capacity: AAR/trail/MIT, ground stops, route sequencing, and dest-based CFR.",
         "<b>FCA Builder</b> — line-based flow: draw FCAs, filters, line MIT/rate, crossing geometry.",
         "<b>IDST</b> — position-facing CFR / RDY for active FCA programs.",
-        "<b>FCA Overview</b> — ARTCC map of active FCAs (no times).",
+        "<b>FCA Overview</b> — ARTCC map + strip management.",
         "When <b>FCA PRGM</b> is set on a departure, FCA metering is authoritative — READY/CFR routes to the FCA engine.",
       ],
     },

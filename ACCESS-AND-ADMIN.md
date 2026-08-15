@@ -73,7 +73,7 @@ Legacy whitelist rows without `role` / `artccs` are treated as **global editors*
 | **Runway Balancer** | Full edit | — |
 | **FCA Builder** | **RDY** / cancel releases | Create/edit/delete FCAs |
 | **IDST** | **RDY** if online on VATSIM ATC | — |
-| **FCA Overview** | View map | — |
+| **FCA Overview** | View map + strips; **RDY** if signed in | Reorder/exclude without ARTCC editor access |
 | **Airport TMU** | View | Set rates, CFRs via Live sync push, restrictions |
 
 ### Editor (whitelisted for ARTCC)
@@ -83,6 +83,7 @@ Everything Basic can do, **plus** only for their ARTCC(s):
 | Tool | Extra |
 |---|---|
 | **FCA Builder** | Create/edit/delete FCAs whose owning `artcc` matches; drag-reorder sequence |
+| **FCA Overview** | Drag-reorder / exclude strips for owned FCAs (same sync as Builder) |
 | **Airport TMU** | Programs / restrictions / ground stops for airports in that ARTCC; Live sync merges scoped pushes |
 
 ### Staff
@@ -105,7 +106,7 @@ Everything an editor for those ARTCC(s) can do, **plus**:
 | **Airport TMU** | Destination capacity — AAR, CFR, restrictions, GS |
 | **FCA Builder** | Draw/meter flow constrained areas |
 | **IDST** | Position-facing CFR / RDY for active FCAs |
-| **FCA Overview** | ARTCC map of active FCAs (no times) |
+| **FCA Overview** | ARTCC map + multi-program strip management |
 | **Runway Balancer** | Arrival runway demand |
 | **vUSAlink** | US CPDLC / datalink |
 
