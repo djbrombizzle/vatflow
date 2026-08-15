@@ -2160,16 +2160,33 @@ function airportInMyDashArtcc(depIcao, artcc) {
   }
   return airportInArtcc(dep, artcc);
 }
+/* Potomac TRACON fields — same list as shared/fca-metering PCT_AIRPORTS.
+   VATSpy maps KDCA→WAS (not in TRACON_PREFIX_MAP["PCT"]), so PCT matching
+   uses this explicit airport set instead of approach LID prefixes alone. */
+const MYDASH_PCT_AIRPORTS = ["KDCA", "KIAD", "KBWI", "KRIC"];
+function myDashPctDepMatch(depIcao) {
+  const dep = (depIcao || "").toUpperCase();
+  return MYDASH_PCT_AIRPORTS.some(a => a === dep || a.slice(1) === dep || ("K" + dep) === a);
+}
 /* is a departure airport assigned to the typed approach/TRACON sector? */
 function airportInApproachSector(depIcao, sector) {
-  if (!traconPrefixMap || !vatspyApproach || !sector) return false;
+  if (!sector) return false;
   const id = normApproachSector(sector);
   const key = depIcao + "|appr:" + id;
   if (key in scopeCache) return scopeCache[key];
+  if (id === "PCT") return (scopeCache[key] = myDashPctDepMatch(depIcao));
+  if (!traconPrefixMap || !vatspyApproach) return false;
   const prefixes = traconPrefixMap[id];
   if (!prefixes || !prefixes.length) return (scopeCache[key] = false);
-  const appr = vatspyApproach[(depIcao || "").toUpperCase()];
-  return (scopeCache[key] = !!(appr && prefixes.includes(appr)));
+  const dep = (depIcao || "").toUpperCase();
+  const appr = vatspyApproach[dep]
+    || (dep.length === 4 && dep[0] === "K" ? vatspyApproach[dep.slice(1)] : null);
+  if (!appr) return (scopeCache[key] = false);
+  if (prefixes.includes(appr)) return (scopeCache[key] = true);
+  // KDCA → WAS while PCT / some maps list DCA
+  if (appr === "WAS" && (prefixes.includes("DCA") || prefixes.includes("PCT") || prefixes.includes("WAS")))
+    return (scopeCache[key] = true);
+  return (scopeCache[key] = false);
 }
 function depMatchesMyDash(depIcao) {
   const dep = (depIcao || "").toUpperCase();
@@ -2177,8 +2194,13 @@ function depMatchesMyDash(depIcao) {
   if (myArtccs.length && firPolys) {
     for (const a of myArtccs) if (airportInMyDashArtcc(dep, a)) return true;
   }
-  if (myApproachSectors.length && traconPrefixMap && vatspyApproach) {
-    for (const s of myApproachSectors) if (airportInApproachSector(dep, s)) return true;
+  if (myApproachSectors.length) {
+    for (const s of myApproachSectors) {
+      const id = normApproachSector(s);
+      if (id === "PCT" || (traconPrefixMap && vatspyApproach)) {
+        if (airportInApproachSector(dep, s)) return true;
+      }
+    }
   }
   return false;
 }
@@ -2265,15 +2287,18 @@ function fmtZ(ms) {
 }
 function parseZuluHhmm(s, now) {
   if (window.VF_Fca && window.VF_Fca.parseZuluHhmm) return window.VF_Fca.parseZuluHhmm(s, now);
-  const m = String(s || "").trim().replace(/z$/i, "").match(/^(\d{2})(\d{2})$/);
-  if (!m) return null;
-  const h = +m[1], min = +m[2];
+  const digits = String(s || "").trim().replace(/\D/g, "");
+  if (digits.length !== 3 && digits.length !== 4) return null;
+  const padded = digits.length === 3 ? "0" + digits : digits;
+  const h = +padded.slice(0, 2), min = +padded.slice(2, 4);
   if (h > 23 || min > 59) return null;
   const d = new Date(now);
   d.setUTCHours(h, min, 0, 0);
-  let ms = d.getTime();
-  if (ms < now - 60000) ms += 86400000;
-  return ms;
+  const ms = d.getTime();
+  if (ms >= now - 60000) return ms;
+  const next = ms + 86400000;
+  if (next - now <= 6 * 3600000) return next; // overnight wrap only
+  return null; // reject past times
 }
 function fmtDelay(ms) {
   const m = Math.round(ms / 60000);
@@ -5935,14 +5960,14 @@ function renderMyDash() {
 
   h += '<div class="tmuform tmuform--border-top">' +
     '<span class="lbl">ADD APPROACH</span>' +
-    '<input id="mydashApproach" data-keep="mydashApproach" maxlength="5" placeholder="A80" autocomplete="off" class="input-narrow--80">' +
+    '<input id="mydashApproach" data-keep="mydashApproach" maxlength="5" placeholder="PCT" autocomplete="off" class="input-narrow--80">' +
     '<button data-mydashapproachadd>ADD</button>' +
     '<span class="form-note">' + myApproachSectors.length + ' / 10 sectors \u00B7 GROUND departures from airports in each TRACON sector (VAT-Spy + SimAware)</span>' +
     '</div>';
 
   h += '<div class="mydashchips">';
   if (!myApproachSectors.length) {
-    h += '<span class="cell-muted">No approach sectors added yet. Example: A80 (ATL APP), I90 (Houston APP), N90.</span>';
+    h += '<span class="cell-muted">No approach sectors added yet. Example: PCT (Potomac), A80 (ATL APP), N90.</span>';
   } else {
     for (const a of myApproachSectors)
       h += '<span class="approachchip">' + esc(a) + '<span class="apchipx" data-appr-rm="' + esc(a) + '" title="Remove">\u2715</span></span>';
@@ -5954,7 +5979,7 @@ function renderMyDash() {
     h += '<div class="msg">Loading ARTCC boundaries\u2026</div>';
     contentEl.innerHTML = h; return;
   }
-  if (myApproachSectors.length && !approachSectorDataReady()) {
+  if (myApproachSectors.some(s => normApproachSector(s) !== "PCT") && !approachSectorDataReady()) {
     h += '<div class="msg cell-alert">Approach sector data is missing. Keep <b>approach-sector-data.js</b> in the same folder as this page.</div>';
     contentEl.innerHTML = h; return;
   }

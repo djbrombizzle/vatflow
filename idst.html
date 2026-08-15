@@ -263,7 +263,7 @@
     <div class="scope-block">
       <span class="lbl">Approach · TRACON</span>
       <div class="scope-add">
-        <input id="addApproach" maxlength="5" placeholder="A80" autocomplete="off">
+        <input id="addApproach" maxlength="5" placeholder="PCT / A80" autocomplete="off">
         <button type="button" class="btn sm" id="btnAddApproach">ADD</button>
       </div>
       <div class="chips" id="chipsApproach"></div>
@@ -313,7 +313,7 @@ import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
-import { parseZuluHhmm } from "./shared/time-parse.js";
+import { parseZuluHhmmDetail } from "./shared/time-parse.js";
 import * as VFRefresh from "./shared/vatflow-refresh.js";
 import * as MyDash from "./shared/mydash-filters.js";
 
@@ -620,9 +620,21 @@ function renderDetail(d) {
 function readArtMs(callsign) {
   const artEl = document.getElementById("artInput");
   const raw = (artEl && artEl.value.trim()) || (state.artDraft[callsign] || "").trim();
-  if (!raw) return { raw: "", ms: null, err: false };
-  const ms = parseZuluHhmm(raw, Date.now());
-  return { raw, ms, err: !ms };
+  if (!raw) return { raw: "", ms: null, err: false, reason: null };
+  const parsed = parseZuluHhmmDetail(raw, Date.now());
+  return { raw, ms: parsed.ms, err: !parsed.ms, reason: parsed.reason };
+}
+
+function flashArtError(art, artEl) {
+  if (!artEl) return;
+  artEl.classList.add("err");
+  setTimeout(() => artEl.classList.remove("err"), 1500);
+  const hint = document.querySelector(".detail-hint");
+  if (hint) {
+    hint.textContent = art.reason === "past"
+      ? "ART cannot be in the past — enter a future Zulu time (HHMMz)."
+      : "Enter a valid future ART as HHMMz (e.g. 1945z).";
+  }
 }
 
 function cancelRelease(d) {
@@ -651,18 +663,12 @@ function issueRelease(d, opts = {}) {
   const artEl = document.getElementById("artInput");
   if (opts.requireArt) {
     if (!art.raw || art.err) {
-      if (artEl) {
-        artEl.classList.add("err");
-        setTimeout(() => artEl.classList.remove("err"), 1500);
-      }
+      flashArtError(art.raw ? art : { reason: "format" }, artEl);
       return;
     }
   } else if (art.raw && art.err) {
-    // RDY with a filled but invalid ART — don't silently fall back to now
-    if (artEl) {
-      artEl.classList.add("err");
-      setTimeout(() => artEl.classList.remove("err"), 1500);
-    }
+    // RDY with a filled but invalid/past ART — don't silently fall back to now
+    flashArtError(art, artEl);
     return;
   }
 
@@ -688,7 +694,7 @@ function renderBody() {
     return;
   }
 
-  if (MyDash.getFilters().approachSectors.length && !MyDash.approachDataReady()) {
+  if (MyDash.approachFiltersNeedSectorData() && !MyDash.approachDataReady()) {
     body.innerHTML = `<div class="msg" style="grid-column:1/-1">Approach sector data missing. Keep <b>approach-sector-data.js</b> next to this page.</div>`;
     return;
   }
