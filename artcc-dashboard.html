@@ -313,7 +313,7 @@ import { ARTCC_LIST } from "./shared/artcc-constants.js";
 import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, getAirport,
-  computeSequence, markReady, clearReady, isReady,
+  computeSequence, markReady, clearReady, isReady, depMatchesArtcc,
   COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
 import { initVatflowAuth, canFullControl, canUseFcaRdy, canEditFca, isSignedIn, authStatusLabel } from "./shared/vatflow-auth.js";
@@ -563,6 +563,31 @@ function gapMinLabel(gapMin, isLeader) {
   return gapMin.toFixed(1) + " min";
 }
 
+/**
+ * Overview strip filter: CFR / ground strips are limited to departures inside
+ * the selected ARTCC (e.g. ZDC hides KMIA/KMCO CFR from ZMA/ZJX). Air strips
+ * stay in the full sequence — they may still be outside the FIR while inbound.
+ */
+function stripInSelectedArtcc(c) {
+  const artcc = state.artcc;
+  if (!artcc || !c || !c.p) return false;
+  if (c.phase === "gnd") return depMatchesArtcc(c.p, artcc);
+  return true;
+}
+
+function artccVisibleItems(s) {
+  return (s.items || []).filter(stripInSelectedArtcc);
+}
+
+function artccStripCounts(s) {
+  let nAir = 0, nGnd = 0;
+  for (const c of artccVisibleItems(s)) {
+    if (c.phase === "gnd") nGnd++;
+    else nAir++;
+  }
+  return { nAir, nGnd };
+}
+
 function getSequence(fca) {
   let s = seqCache.get(fca.id);
   if (!s) {
@@ -705,6 +730,7 @@ function buildStripList(fca, s) {
   let dragFrom = null;
 
   s.items.forEach((c, i) => {
+    if (!stripInSelectedArtcc(c)) return;
     if (view === "air" && c.phase !== "air") return;
     if (view === "cfr" && c.phase !== "gnd") return;
     shown++;
@@ -857,7 +883,12 @@ function buildStripList(fca, s) {
   if (!shown && s.items.length) {
     const note = document.createElement("div");
     note.className = "strip-empty";
-    note.textContent = `${s.items.length} aircraft in the sequence — none match the ${view === "air" ? "AIR ONLY" : "CFR ONLY"} view.`;
+    const inArtcc = artccVisibleItems(s).length;
+    if (!inArtcc) {
+      note.textContent = `${s.items.length} in the full sequence — none are inside ${state.artcc} airspace.`;
+    } else {
+      note.textContent = `${inArtcc} in ${state.artcc} — none match the ${view === "air" ? "AIR ONLY" : "CFR ONLY"} view.`;
+    }
     list.appendChild(note);
   }
   return list;
@@ -895,6 +926,7 @@ function renderStrips() {
       const constraint = f.mode === "mit"
         ? `${f.mit || "?"} MIT`
         : (f.rate ? `${f.rate}/hr` : "no rate");
+      const counts = artccStripCounts(s);
       const color = f.color || "#e8a838";
 
       block.innerHTML =
@@ -903,7 +935,7 @@ function renderStrips() {
         `<span class="name">${escapeHtml(f.name || f.id)}</span>` +
         `<span class="meta">` +
         `<span class="rate">${escapeHtml(constraint)}</span>` +
-        `<span>${s.nAir} air · ${s.nGnd} CFR</span>` +
+        `<span>${counts.nAir} air · ${counts.nGnd} CFR</span>` +
         (s.manual ? `<span>MANUAL</span>` : "") +
         `</span>` +
         `<span class="chev">${collapsed ? "▸" : "▾"}</span>` +
@@ -943,15 +975,20 @@ function renderStrips() {
         const hint = document.createElement("div");
         hint.className = "seqhint";
         hint.textContent = canControlFca(f)
-          ? "⠿ drag a strip to reorder · RDY issues CFR"
+          ? `CFR limited to ${state.artcc} deps · ⠿ drag to reorder · RDY issues CFR`
           : (canReady()
-            ? "RDY available · ARTCC editor access needed to reorder"
-            : "View only — sign in with VATSIM to manage");
+            ? `CFR limited to ${state.artcc} deps · RDY available`
+            : `CFR limited to ${state.artcc} deps · sign in to manage`);
         bbody.appendChild(hint);
 
-        if (!s.items.length) {
+        const visible = artccVisibleItems(s);
+        if (!visible.length) {
           bbody.insertAdjacentHTML("beforeend",
-            `<div class="strip-empty"><b>NO INBOUND TRAFFIC</b>No aircraft on a route that crosses this line match the filters.</div>`);
+            `<div class="strip-empty"><b>NO ${escapeHtml(state.artcc)} TRAFFIC</b>` +
+            (s.items.length
+              ? `${s.items.length} in the full sequence are outside this ARTCC.`
+              : "No aircraft on a route that crosses this line match the filters.") +
+            `</div>`);
         } else {
           bbody.appendChild(buildStripList(f, s));
         }
