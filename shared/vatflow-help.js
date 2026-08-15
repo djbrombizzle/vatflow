@@ -164,6 +164,7 @@ export const FCA_OVERVIEW_HELP = {
       items: [
         "Toggle <b>STRIPS</b> in the top bar to show or hide the right-hand column.",
         "Each active FCA for the selected ARTCC gets its own strip stack (air + CFR).",
+        "<b>CFR strips</b> only include departures inside the selected ARTCC airspace (ZDC hides ZMA/ZJX ground traffic).",
         "<b>RDY</b> / <b>SET</b> (HHMMz) issue CFR releases when signed in — same engine as IDST / Builder.",
         "Drag strips to reorder when you have ARTCC editor access for that program’s owning ARTCC.",
         "Use SHOW ALL / AIR ONLY / CFR ONLY to filter the lists without changing the schedule.",
