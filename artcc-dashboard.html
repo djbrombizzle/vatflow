@@ -321,7 +321,7 @@ import { parseZuluHhmm } from "./shared/time-parse.js";
 import * as VFRefresh from "./shared/vatflow-refresh.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
-import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
+import { fetchArtccBoundaries, isArtccScopeReady } from "./shared/artcc-scope.js";
 
 const SUPABASE_URL = "https://qoaipsfcidpymboojfwa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
@@ -571,8 +571,10 @@ function gapMinLabel(gapMin, isLeader) {
 function stripInSelectedArtcc(c) {
   const artcc = state.artcc;
   if (!artcc || !c || !c.p) return false;
-  if (c.phase === "gnd") return depMatchesArtcc(c.p, artcc);
-  return true;
+  if (c.phase !== "gnd") return true;
+  // Until ARTCC polygons load, keep CFR visible (avoid an empty column on boot).
+  if (!isArtccScopeReady()) return true;
+  return depMatchesArtcc(c.p, artcc);
 }
 
 function artccVisibleItems(s) {
