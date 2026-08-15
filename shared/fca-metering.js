@@ -13,8 +13,8 @@
  *  - "Ready now" releases: markReady() freezes an EDCT/CTA into fca.releases (synced with the FCA
  *    object). Non-ready ground traffic is advisory only and holds no slot, so a ready aircraft
  *    naturally claims any slot an unready one was projected into.
- *  - Frozen releases only move if the pilot misses the CFR window (-2/+1 min) or an airborne
- *    aircraft newly encroaches (bumped later, never earlier).
+ *  - Frozen releases are immutable until the controller cancels or re-issues RDY. Airborne
+ *    encroachment and missed CFR windows may flag a conflict, but never rewrite the times.
  */
 import {
   bindAirports as bindRouteAirports,
@@ -45,7 +45,7 @@ export const DIR_LABEL = { any: "any dir", N: "NB", S: "SB", E: "EB", W: "WB" };
 export const DEFAULT_GROUND_GS = 250;
 /** Minutes from "release issued" to realistic wheels-up. */
 export const READY_BUFFER_SEC = 180;
-/** CFR release window: -2/+1 minutes. Past +1 still on the ground = stale, recompute. */
+/** CFR release window: -2/+1 minutes (compliance display). Times stay frozen after issue. */
 export const COMPLIANCE_EARLY_MS = 2 * 60000;
 export const COMPLIANCE_LATE_MS = 1 * 60000;
 /** Climb profile. */
@@ -55,7 +55,7 @@ export const CLIMB_FPM_LOW = 2000;     // fpm below 10,000 ft
 export const CLIMB_FPM_HIGH = 1500;    // fpm 10,000 ft -> cruise
 /** Groundspeed threshold separating taxi from flight. */
 export const AIR_MIN_GS = 50;
-/** Encroachment tolerance before a frozen release is bumped (sec). */
+/** Separation conflict tolerance vs a frozen release (sec) — flag only, never bump. */
 const FREEZE_TOL_SEC = 30;
 
 const AIRPORTS = new Map();
@@ -756,44 +756,27 @@ export function clearReady(fca, callsign) {
 }
 
 /**
- * Validate/refresh a frozen release for a still-on-ground candidate.
- * - Missed window (now > edct + 5 min): recompute from scratch (stays ready).
- * - Airborne encroachment: bump LATER to the next clear slot (never earlier).
- * Returns true if the release changed.
+ * Inspect a frozen release for a still-on-ground candidate.
+ * Issued EDCT/CTA never move — cancel or re-issue RDY to change them.
+ * Airborne encroachment or a missed compliance window only flags conflict.
+ * Returns true if the release record changed (always false under freeze-on-issue).
  */
 function refreshRelease(fca, c, airTimes, nowMs) {
-  const cs = c.p.callsign;
-  const rel = getRelease(fca, cs);
-  if (!rel) return false;
+  const rel = getRelease(fca, c.p.callsign);
+  if (!rel || rel.ctaMs == null) return false;
   const sep = sepSeconds(fca, c);
-  let changed = false;
-
-  if (nowMs > rel.edctMs + COMPLIANCE_LATE_MS) {
-    // stale — pilot missed the window; re-slot honoring any stored ready floor
-    const fresh = { ...c, eta: readyCrossingFloorSec(c, nowMs, rel.readyMs) };
-    const slot = slotAgainstCommitted(fresh, committedTimes(fca, [], nowMs, cs).concat(airTimes), sep);
-    rel.ctaMs = Math.round(nowMs + slot * 1000);
-    rel.edctMs = Math.round(rel.ctaMs - c.transitSec * 1000);
-    rel.assignedMs = nowMs;
-    changed = true;
-  } else {
-    // encroachment by airborne traffic — bump later only
-    let t = (rel.ctaMs - nowMs) / 1000;
-    const before = t;
-    for (let guard = 0; guard < 1000; guard++) {
-      let moved = false;
-      for (const at of airTimes) {
-        if (Math.abs(t - at) < sep - FREEZE_TOL_SEC) { t = at + sep; moved = true; }
-      }
-      if (!moved) break;
-    }
-    if (t > before + FREEZE_TOL_SEC) {
-      rel.ctaMs = Math.round(nowMs + t * 1000);
-      rel.edctMs = Math.round(rel.ctaMs - c.transitSec * 1000);
-      changed = true;
+  const t = (rel.ctaMs - nowMs) / 1000;
+  if (nowMs > (rel.edctMs || 0) + COMPLIANCE_LATE_MS) {
+    c.conflict = true;
+    return false;
+  }
+  for (const at of airTimes || []) {
+    if (Math.abs(t - at) < sep - FREEZE_TOL_SEC) {
+      c.conflict = true;
+      break;
     }
   }
-  return changed;
+  return false;
 }
 
 /* ============================================================
@@ -910,7 +893,7 @@ function collectGroundFcaCandidates(fca, pilots, nowMs, counters) {
    ============================================================ */
 /**
  * Air = fixed constraints ordered by ETA (conflicts flagged, not "fixed").
- * Ready ground = frozen releases (validated / bumped-later).
+ * Ready ground = frozen releases (immutable after issue).
  * Advisory ground = slotted around everything committed, holds nothing.
  */
 function scheduleAuto(air, gnd, fca, nowMs, out, carryoverTimes) {
@@ -957,47 +940,25 @@ function scheduleAuto(air, gnd, fca, nowMs, out, carryoverTimes) {
 }
 
 /** Manual override: controller-set order, times chained by separation.
- *  Frozen releases are honored inside the manual chain: a released aircraft is
- *  pinned at its release CTA (bumped LATER only if the manual order or a missed
- *  window forces it — a frozen EDCT never moves earlier). */
+ *  Frozen releases are pinned at their issued CTA/EDCT and never rewritten. */
 export function scheduleCandidates(cand, fca, manualOrder, candById, nowMs, out) {
   nowMs = nowMs != null ? nowMs : Date.now();
   const sepFor = c => sepSeconds(fca, c);
   if (manualOrder && manualOrder.length) {
     const ordered = [];
     let prev = -1e9;      // full chain (advisory included) — floors ADVISORY aircraft
-    let prevHard = -1e9;  // air + frozen releases only — floors FROZEN releases
+    let prevHard = -1e9;  // air + frozen releases only — floors FROZEN conflict checks
     for (const cs of manualOrder) {
       const c = candById.get(cs);
       if (!c) continue;
       const sepC = sepFor(c);
       const rel = (c.phase === "gnd" && fca) ? getRelease(fca, cs) : null;
       if (rel && rel.ctaMs != null) {
-        // An issued EDCT is a commitment: only hard constraints (airborne
-        // crossings, earlier releases) or a missed window may bump it later.
-        // A drifting advisory proposal ahead of it never moves it — if the
-        // advisory crowds inside separation, the conflict is flagged instead.
-        let readyFloor = c.eta;
-        if (rel.readyMs != null && isFinite(rel.readyMs)) {
-          readyFloor = Math.max(readyFloor, readyCrossingFloorSec(c, nowMs, rel.readyMs));
-        }
-        const floor = Math.max(readyFloor, prevHard + sepC);
-        let t = (rel.ctaMs - nowMs) / 1000;
-        const stale = nowMs > (rel.edctMs || 0) + COMPLIANCE_LATE_MS;
-        if (stale) {
-          const staleFloor = rel.readyMs != null && isFinite(rel.readyMs)
-            ? readyCrossingFloorSec(c, nowMs, rel.readyMs)
-            : READY_BUFFER_SEC + (c.transitSec || 0);
-          t = Math.max(Math.max(c.eta, staleFloor), prev + sepC);
-        }
-        else if (floor - t > FREEZE_TOL_SEC) t = floor;        // hard constraint forces later: bump, never earlier
-        if (Math.abs(nowMs + t * 1000 - rel.ctaMs) > 1500) {
-          rel.ctaMs = Math.round(nowMs + t * 1000);
-          rel.edctMs = Math.round(rel.ctaMs - ((rel.transitSec || c.transitSec || 0) * 1000));
-          if (out) out.releasesChanged = true;
-        }
-        if (prev + sepC - t > FREEZE_TOL_SEC) {
-          c.conflict = true;                                    // advisory ahead crowds the frozen slot
+        // Issued EDCT is a hard freeze — display the committed times only.
+        const t = (rel.ctaMs - nowMs) / 1000;
+        if (prevHard + sepC - t > FREEZE_TOL_SEC || prev + sepC - t > FREEZE_TOL_SEC
+            || (nowMs > (rel.edctMs || 0) + COMPLIANCE_LATE_MS)) {
+          c.conflict = true;
           if (out) out.conflicts++;
         }
         c.sched = t;

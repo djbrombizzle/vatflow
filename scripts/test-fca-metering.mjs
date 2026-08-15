@@ -240,11 +240,13 @@ markReady(fcaR, "GNDX", [gndX, gndY], fixedNow);
 const relX = getRelease(fcaR, "GNDX");
 assert(relX.ctaMs - yCta0 >= sepSeconds(fcaR, rX) * 1000 - 1500, "second release spaced behind the first");
 
-// compliance: blow the +5 window -> release recomputes later
+// compliance: blow the +1 window -> release times stay frozen (controller cancels/re-issues)
 const stale = yEdct0 + COMPLIANCE_LATE_MS + 60000;
-computeSequence(fcaR, [gndX, gndY], [], { includeEdct: true, nowMs: stale });
+const seqStale = computeSequence(fcaR, [gndX, gndY], [], { includeEdct: true, nowMs: stale });
 const relY3 = getRelease(fcaR, "GNDY");
-assert(relY3.edctMs > yEdct0, "missed +5 window forces a later recomputed EDCT");
+assert(relY3.edctMs === yEdct0, "missed compliance window does not rewrite frozen EDCT");
+const staleY = seqStale.items.find(c => c.p.callsign === "GNDY");
+assert(staleY && staleY.conflict, "missed window flags conflict on the frozen strip");
 
 // departure consumes the release
 const gndYAir = { ...gndY, phase: "air", gs: 180, alt: 2500, lat: 30.55, lon: -81.69, hdg: 0 };
@@ -260,11 +262,12 @@ assert(relFloor && relFloor.readyMs === floorMs, "markReady stores readyMs on re
 assert(relFloor.edctMs >= floorMs - 1000, "EDCT honors wheels-up floor");
 
 /* ============================================================
-   7. Airborne encroachment bumps a frozen release LATER only
+   7. Airborne encroachment flags conflict — frozen release stays put
    ============================================================ */
 const fcaE = { ...FCA_N, id: "e1", releases: {}, excluded: [], order: [] };
 const relE = markReady(fcaE, "GNDX", [gndX], fixedNow);
 const eCta0 = relE.ctaMs;                          // snapshot before mutation
+const eEdct0 = relE.edctMs;
 const ctaSec = (eCta0 - fixedNow) / 1000;
 // pop an overflight whose ETA lands exactly on the frozen CTA
 const encroachDist = (ctaSec / 3600) * 450;
@@ -275,11 +278,11 @@ const intruder = {
 const seqE = computeSequence(fcaE, [gndX, intruder], [], { includeEdct: true, nowMs: fixedNow });
 const relE2 = getRelease(fcaE, "GNDX");
 const air = seqE.items.find(c => c.p.callsign === "POPUP");
+const gndE = seqE.items.find(c => c.p.callsign === "GNDX");
 assert(air.delay < 1, "intruding airborne keeps its ETA");
-assert(relE2.ctaMs > eCta0, "frozen release bumped later, never earlier");
-assert((relE2.ctaMs - fixedNow) / 1000 - air.sched >= sepSeconds(fcaE, seqE.items.find(c => c.p.callsign === "GNDX")) - 31,
-  "bumped release clears the airborne crossing");
-assert(seqE.releasesChanged, "encroachment flagged so pages can cloudPush");
+assert(relE2.ctaMs === eCta0 && relE2.edctMs === eEdct0, "frozen release unchanged when airborne encroaches");
+assert(gndE && gndE.conflict, "encroachment flags conflict on the frozen strip");
+assert(!seqE.releasesChanged, "encroachment does not mutate releases for cloudPush");
 
 /* ============================================================
    8. Deptime honored for unready aircraft
