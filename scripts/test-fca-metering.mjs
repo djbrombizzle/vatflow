@@ -262,6 +262,53 @@ assert(relFloor && relFloor.readyMs === floorMs, "markReady stores readyMs on re
 assert(relFloor.edctMs >= floorMs - 1000, "EDCT honors wheels-up floor");
 
 /* ============================================================
+   6b. Later SET on another departure must not move an earlier freeze
+   ============================================================ */
+seedAirports({ KRIC: [37.5052, -77.3197], KDCA: [38.8512, -77.0402], KJFK: [40.6413, -73.7781] });
+const fcaPair = {
+  id: "pair1", enabled: true, dir: "any", mode: "mit", mit: 20,
+  minFL: 0, maxFL: 999, points: [[39.5, -77.2], [39.5, -74.0]],
+  releases: {}, excluded: [], order: [],
+};
+const ricAc = {
+  callsign: "RIC1", phase: "gnd", lat: 37.5052, lon: -77.3197, gs: 0,
+  dep: "KRIC", arr: "KJFK", fpAlt: 35000, tas: 450, route: "DCT", deptime: "",
+};
+const dcaAc = {
+  callsign: "DCA1", phase: "gnd", lat: 38.8512, lon: -77.0402, gs: 0,
+  dep: "KDCA", arr: "KJFK", fpAlt: 35000, tas: 450, route: "DCT", deptime: "",
+};
+const ricArt = fixedNow + 15 * 60000;   // 2005Z-ish relative to fixedNow 2000Z
+const dcaArt = fixedNow + 25 * 60000;   // 2015Z-ish
+const ricRel = markReady(fcaPair, "RIC1", [ricAc, dcaAc], fixedNow, { readyMs: ricArt });
+assert(ricRel && Math.abs(ricRel.edctMs - ricArt) < 1500, "RIC freeze at requested ART");
+const ricEdctSnap = ricRel.edctMs, ricCtaSnap = ricRel.ctaMs;
+const dcaRel = markReady(fcaPair, "DCA1", [ricAc, dcaAc], fixedNow, { readyMs: dcaArt });
+assert(dcaRel, "DCA markReady succeeds");
+assert(getRelease(fcaPair, "RIC1").edctMs === ricEdctSnap, "RIC EDCT unchanged after DCA SET");
+assert(getRelease(fcaPair, "RIC1").ctaMs === ricCtaSnap, "RIC CTA unchanged after DCA SET");
+assert(dcaRel.edctMs >= dcaArt - 1000, "DCA EDCT at/after requested ART");
+assert(
+  Math.abs(dcaRel.ctaMs - ricCtaSnap) / 1000 >= sepSeconds(fcaPair, { crossSpd: 450 }) - 2
+  || dcaRel.ctaMs >= ricCtaSnap + (sepSeconds(fcaPair, { crossSpd: 450 }) - 2) * 1000
+  || ricCtaSnap >= dcaRel.ctaMs + (sepSeconds(fcaPair, { crossSpd: 450 }) - 2) * 1000,
+  "DCA absorbs spacing vs RIC at the line (sep satisfied either order)"
+);
+// Manual order with DCA ahead of RIC: issuing DCA still must not move RIC
+const fcaManPair = {
+  ...fcaPair, id: "pair2", releases: {}, order: ["DCA1", "RIC1"], manualSeq: true,
+};
+const ricMan = markReady(fcaManPair, "RIC1", [ricAc, dcaAc], fixedNow, { readyMs: ricArt });
+const ricManSnap = ricMan.edctMs;
+const dcaMan = markReady(fcaManPair, "DCA1", [ricAc, dcaAc], fixedNow, { readyMs: dcaArt });
+assert(getRelease(fcaManPair, "RIC1").edctMs === ricManSnap, "manual: RIC EDCT unchanged when DCA SET later");
+assert(
+  Math.abs(dcaMan.ctaMs - getRelease(fcaManPair, "RIC1").ctaMs) / 1000
+    >= sepSeconds(fcaManPair, { crossSpd: 450 }) - 2,
+  "manual: DCA slot clears RIC freeze by sep (new issue absorbs delay)"
+);
+
+/* ============================================================
    7. Airborne encroachment flags conflict — frozen release stays put
    ============================================================ */
 const fcaE = { ...FCA_N, id: "e1", releases: {}, excluded: [], order: [] };

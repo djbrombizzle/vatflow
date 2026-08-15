@@ -713,6 +713,9 @@ function readyCrossingFloorSec(c, nowMs, readyMs) {
  * Mark a ground aircraft ready: compute earliest slot vs airborne + other frozen
  * releases (advisory traffic holds nothing) and freeze it into fca.releases.
  * opts.readyMs — earliest wheels-up / CFR time (Option A floor).
+ *
+ * The newly issued aircraft absorbs any spacing delay. Other frozen releases are
+ * never rewritten here (snapshot-restored even if a nested sequence refresh tries).
  * Returns the release record or null if no crossing.
  */
 export function markReady(fca, callsign, pilots, nowMs, opts) {
@@ -725,25 +728,50 @@ export function markReady(fca, callsign, pilots, nowMs, opts) {
   const sep = sepSeconds(fca, c);
   const floor = readyCrossingFloorSec(c, nowMs, readyMs);
   const cFloor = { ...c, eta: floor };
-  let slot;
+
+  // Snapshot sibling freezes — this issue must not move them.
+  const others = {};
+  for (const [cs, r] of Object.entries(releasesOf(fca))) {
+    if (cs !== callsign && r && r.ctaMs != null) others[cs] = { ...r };
+  }
+
+  // Always clear of airborne + other frozen CTAs; THIS aircraft takes the delay.
+  let slot = slotAgainstCommitted(
+    cFloor,
+    committedTimes(fca, pilots, nowMs, callsign),
+    sep
+  );
+
   if (isManualSeq(fca)) {
-    // Controller has set an explicit order — freeze this aircraft's slot IN that
-    // order rather than greedily jumping it to the earliest global gap.
+    // Also respect the controller's strip order position (without moving freezes).
     const seq = computeSequence(fca, pilots, [], { includeEdct: true, nowMs });
     const item = seq.items.find(x => x.p && x.p.callsign === callsign && x.phase === "gnd");
-    slot = item ? Math.max(item.sched, floor)
-                : slotAgainstCommitted(cFloor, committedTimes(fca, pilots, nowMs, callsign), sep);
-  } else {
-    slot = slotAgainstCommitted(cFloor, committedTimes(fca, pilots, nowMs, callsign), sep);
+    if (item) slot = Math.max(slot, item.sched);
   }
+
   const rel = {
     ctaMs: Math.round(nowMs + slot * 1000),
     edctMs: Math.round(nowMs + (slot - c.transitSec) * 1000),
     transitSec: Math.round(c.transitSec),
     assignedMs: nowMs,
   };
-  if (readyMs != null && isFinite(readyMs)) rel.readyMs = readyMs;
+  if (readyMs != null && isFinite(readyMs)) {
+    rel.readyMs = readyMs;
+    if (rel.edctMs < readyMs) {
+      const bump = readyMs - rel.edctMs;
+      rel.edctMs = readyMs;
+      rel.ctaMs += bump;
+    }
+  }
   releasesOf(fca)[callsign] = rel;
+
+  // Belt-and-suspenders: restore any sibling freeze that a nested refresh mutated.
+  for (const [cs, snap] of Object.entries(others)) {
+    const cur = fca.releases[cs];
+    if (!cur || cur.edctMs !== snap.edctMs || cur.ctaMs !== snap.ctaMs) {
+      fca.releases[cs] = snap;
+    }
+  }
   return rel;
 }
 
@@ -753,6 +781,45 @@ export function clearReady(fca, callsign) {
     return true;
   }
   return false;
+}
+
+/**
+ * Merge release maps so a stale cloud upsert cannot wipe a sibling freeze.
+ * Per callsign, keep the record with the later assignedMs; keep either side's
+ * exclusive entries so concurrent RDY issues union instead of last-write-wins.
+ */
+export function mergeReleaseMaps(a, b) {
+  const out = {};
+  const keys = new Set([
+    ...Object.keys(a && typeof a === "object" ? a : {}),
+    ...Object.keys(b && typeof b === "object" ? b : {}),
+  ]);
+  for (const cs of keys) {
+    const ra = a && a[cs], rb = b && b[cs];
+    if (ra && rb) {
+      out[cs] = ((ra.assignedMs || 0) >= (rb.assignedMs || 0)) ? { ...ra } : { ...rb };
+    } else if (ra) {
+      out[cs] = { ...ra };
+    } else if (rb) {
+      out[cs] = { ...rb };
+    }
+  }
+  return out;
+}
+
+/** Apply remote FCA fields onto a local copy while unioning releases. */
+export function mergeRemoteFca(local, remote) {
+  if (!remote) return local ? normalizeReleaseShape(local) : null;
+  if (!local || local.id !== remote.id) return normalizeReleaseShape(remote);
+  const merged = { ...remote };
+  merged.releases = mergeReleaseMaps(local.releases, remote.releases);
+  return normalizeReleaseShape(merged);
+}
+
+function normalizeReleaseShape(f) {
+  if (!f) return f;
+  if (!f.releases || typeof f.releases !== "object" || Array.isArray(f.releases)) f.releases = {};
+  return f;
 }
 
 /**

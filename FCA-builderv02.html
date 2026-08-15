@@ -483,7 +483,7 @@ import {
   projectCrossing, buildPathLLs, plannedAnchors,
   fcaMatchesAlt, fcaMatchesDest,
   markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
-  explainFcaExclusion,
+  explainFcaExclusion, mergeRemoteFca,
 } from "./shared/fca-metering.js";
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { initVatflowAuth, canFullControl, canUseFcaRdy, canEditFca, canEditArtcc, hasGlobalArtccAccess, getArtccs, authStatusLabel } from "./shared/vatflow-auth.js";
@@ -2330,7 +2330,8 @@ function setSyncStatus(s,extra){
 }
 function upsertLocalFca(fca){
   const i=state.fcas.findIndex(f=>f.id===fca.id);
-  if(i>=0) state.fcas[i]=fca; else state.fcas.push(fca);
+  if(i>=0) state.fcas[i]=mergeRemoteFca(state.fcas[i], fca) || fca;
+  else state.fcas.push(fca);
 }
 function normalizeFca(f){            // fill defaults + sanitize older/remote/imported records
   if(!f.id) f.id=nid();
@@ -2365,7 +2366,9 @@ function initSync(){
 function loadCloud(){
   sb.from("fcas").select("*").then(({data,error})=>{
     if(error){ console.warn("load:",error); setSyncStatus("error"); return; }
-    state.fcas=(data||[]).map(r=>normalizeFca(r.data||{}));
+    const remote=(data||[]).map(r=>normalizeFca(r.data||{}));
+    const localById=new Map(state.fcas.map(f=>[f.id,f]));
+    state.fcas=remote.map(rf=>mergeRemoteFca(localById.get(rf.id), rf) || rf);
     persistLocal();
     setSyncStatus("connected"); renderAll();
   });

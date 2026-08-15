@@ -315,7 +315,7 @@ import { ARTCC_LIST } from "./shared/artcc-constants.js";
 import { createArtccDashboardMap } from "./shared/artcc-dashboard-map.js";
 import {
   loadAirports, seedAirports, fmtZulu, fpFields, getAirport,
-  computeSequence, markReady, clearReady, isReady, depMatchesArtcc,
+  computeSequence, markReady, clearReady, isReady, depMatchesArtcc, mergeRemoteFca,
   COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
 import { initVatflowAuth, canFullControl, canUseFcaRdy, canEditFca, isSignedIn, authStatusLabel } from "./shared/vatflow-auth.js";
@@ -446,29 +446,30 @@ function cloudPush(fca, opts = {}) {
     .then(({ error }) => { if (error) console.warn("overview push:", error); });
 }
 
+function applyRemoteFcas(rows) {
+  const remote = (rows || []).map(r => normalizeFca(r.data || {})).filter(Boolean);
+  const localById = new Map(state.fcas.map(f => [f.id, f]));
+  state.fcas = remote.map(rf => mergeRemoteFca(localById.get(rf.id), rf) || rf);
+  persistLocal();
+  setSyncStatus("live");
+  invalidateSequences();
+  render();
+}
+
 function initSync() {
   if (!window.supabase) { setSyncStatus("local"); return; }
   try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
   catch (e) { console.warn(e); setSyncStatus("local"); return; }
   sb.from("fcas").select("*").then(({ data, error }) => {
-    if (!error && data) {
-      state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
-      persistLocal();
-      setSyncStatus("live");
-      invalidateSequences();
-      render();
-    } else setSyncStatus(state.fcas.length ? "local" : "none");
+    if (!error && data) applyRemoteFcas(data);
+    else setSyncStatus(state.fcas.length ? "local" : "none");
   });
   sb.channel("fca-overview")
     .on("postgres_changes", { event: "*", schema: "public", table: "fcas" }, () => {
       if (stripDragging) return;
       sb.from("fcas").select("*").then(({ data }) => {
         if (!data) return;
-        state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
-        persistLocal();
-        setSyncStatus("live");
-        invalidateSequences();
-        render();
+        applyRemoteFcas(data);
       });
     })
     .subscribe();

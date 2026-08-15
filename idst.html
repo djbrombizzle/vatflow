@@ -307,7 +307,7 @@ import { initVatflowAuth, canFullControl, canUseFcaRdy, isSignedIn, getSession, 
 import { mountHelp, IDST_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, getAirport, fmtZulu, fpFields, computeTowerDepartures,
-  markReady, clearReady, isReady, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+  markReady, clearReady, isReady, mergeRemoteFca, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
 } from "./shared/fca-metering.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -423,26 +423,28 @@ function cloudPush(fca) {
     .then(({ error }) => { if (error) console.warn("idst push:", error); });
 }
 
+function applyRemoteFcas(rows) {
+  const remote = (rows || []).map(r => normalizeFca(r.data || {})).filter(Boolean);
+  const localById = new Map(state.fcas.map(f => [f.id, f]));
+  state.fcas = remote.map(rf => mergeRemoteFca(localById.get(rf.id), rf) || rf);
+  persistLocal();
+  setSyncStatus("live");
+  scheduleRender();
+}
+
 function initSync() {
   if (!window.supabase) { setSyncStatus("local"); return; }
   try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
   catch (e) { console.warn(e); setSyncStatus("local"); return; }
   sb.from("fcas").select("*").then(({ data, error }) => {
-    if (!error && data) {
-      state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
-      persistLocal();
-      setSyncStatus("live");
-      scheduleRender();
-    } else setSyncStatus(state.fcas.length ? "local" : "none");
+    if (!error && data) applyRemoteFcas(data);
+    else setSyncStatus(state.fcas.length ? "local" : "none");
   });
   sb.channel("idst-fcas")
     .on("postgres_changes", { event: "*", schema: "public", table: "fcas" }, () => {
       sb.from("fcas").select("*").then(({ data }) => {
         if (!data) return;
-        state.fcas = data.map(r => normalizeFca(r.data || {})).filter(Boolean);
-        persistLocal();
-        setSyncStatus("live");
-        scheduleRender();
+        applyRemoteFcas(data);
       });
     })
     .subscribe();
