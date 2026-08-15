@@ -6,7 +6,7 @@
  * ARTCC matching uses fca-metering depMatchesArtcc (local ARTCC boundaries).
  * Approach matching uses approach-sector-data.js globals (seed via setApproachData).
  */
-import { depMatchesArtcc, airportCodesMatch, getAirport } from "./fca-metering.js";
+import { depMatchesArtcc, airportCodesMatch, getAirport, isPctField, pctDepartureMatch } from "./fca-metering.js";
 
 export const LS_AIRPORTS = "vatflow_my_airports";
 export const LS_ARTCCS = "vatflow_my_artccs";
@@ -154,14 +154,37 @@ export function approachDataReady() {
   return !!(traconPrefixMap && vatspyApproach);
 }
 
+/** True when any approach filter needs VATSpy/TRACON tables (PCT uses PCT_AIRPORTS). */
+export function approachFiltersNeedSectorData() {
+  return approachSectors.some(s => !isPctField(s));
+}
+
+/**
+ * VATSpy approach LID sometimes differs from TRACON_PREFIX_MAP tokens
+ * (KDCA → WAS while PCT lists DCA).
+ */
+const APPROACH_PREFIX_ALIASES = {
+  WAS: ["DCA", "PCT", "WAS"],
+};
+
 export function airportInApproachSector(depIcao, sector) {
-  if (!traconPrefixMap || !vatspyApproach || !sector) return false;
+  if (!sector) return false;
   const id = normApproachSector(sector);
+  // Potomac TRACON — use the same airport list as Release Board / FCA PCT mode.
+  // VATSpy maps KDCA→WAS, which is not in TRACON_PREFIX_MAP["PCT"], so prefix
+  // matching alone misses DCA departures.
+  if (isPctField(id)) return pctDepartureMatch(depIcao);
+
+  if (!traconPrefixMap || !vatspyApproach) return false;
   const prefixes = traconPrefixMap[id];
   if (!prefixes || !prefixes.length) return false;
   const dep = (depIcao || "").toUpperCase();
-  const appr = vatspyApproach[dep] || (dep.length === 4 && dep[0] === "K" ? vatspyApproach[dep.slice(1)] : null);
-  return !!(appr && prefixes.includes(appr));
+  const appr = vatspyApproach[dep]
+    || (dep.length === 4 && dep[0] === "K" ? vatspyApproach[dep.slice(1)] : null);
+  if (!appr) return false;
+  if (prefixes.includes(appr)) return true;
+  const aliases = APPROACH_PREFIX_ALIASES[appr];
+  return !!(aliases && aliases.some(a => prefixes.includes(a)));
 }
 
 /** ARTCC match with My Dashboard include/exclude overrides, else fca-metering. */
@@ -187,9 +210,12 @@ export function depMatchesFilters(depIcao) {
       if (airportInMyDashArtcc(dep, a)) return true;
     }
   }
-  if (approachSectors.length && approachDataReady()) {
+  if (approachSectors.length) {
     for (const s of approachSectors) {
-      if (airportInApproachSector(dep, s)) return true;
+      // PCT does not need approach-sector-data.js (uses PCT_AIRPORTS).
+      if (isPctField(s) || approachDataReady()) {
+        if (airportInApproachSector(dep, s)) return true;
+      }
     }
   }
   return false;
