@@ -1288,7 +1288,7 @@ const FALLBACK_AIRPORTS = {
   KATL:[33.6367,-84.4281],KBOS:[42.3643,-71.0052],KORD:[41.9786,-87.9048],
   KJFK:[40.6398,-73.7789],KLGA:[40.7772,-73.8726],KEWR:[40.6925,-74.1687],
   KLAX:[33.9425,-118.408],KSFO:[37.619,-122.3749],KDEN:[39.8617,-104.6731],
-  KDFW:[32.8968,-97.038],KIAH:[29.9844,-95.3414],KMIA:[25.7932,-80.2906],
+  KDFW:[32.8968,-97.038],KDAL:[32.8471,-96.8518],KIAH:[29.9844,-95.3414],KMIA:[25.7932,-80.2906],
   KMCO:[28.4294,-81.309],KSEA:[47.449,-122.3093],KPHX:[33.4343,-112.0116],
   KLAS:[36.0801,-115.1522],KCLT:[35.214,-80.9431],KPHL:[39.8719,-75.2411],
   KDCA:[38.8521,-77.0377],KIAD:[38.9445,-77.4558],KBWI:[39.1754,-76.6683],
@@ -1866,7 +1866,9 @@ function routeSpacingMs(rate, spacing) {
   const ri = (rate.mit > 0)
     ? (rate.mit / MIT_NOMINAL_KT) * 3600000
     : (rate.trail || 0) * 60000;
-  return Math.max(spacing, ri);
+  /* integer ms — float (t + spacing) - t can be < spacing at large epoch timestamps,
+     which made the ground slotter loop forever on busy fields (e.g. KDFW). */
+  return Math.round(Math.max(spacing, ri));
 }
 /* normalize a program's per-gate restriction list (array, ≤10, uppercase names) */
 function normGates(g) {
@@ -2754,7 +2756,7 @@ function computeFlow(target) {
      Tier 2 (GROUND/PROPOSED): slotted into whatever capacity remains
        around the fixed airborne STAs; all of their delay is absorbed
        on the ground via EDCT. */
-  const spacing = (3600 / Math.max(rate.aar, 1)) * 1000;   /* runway interval */
+  const spacing = Math.round((3600 / Math.max(rate.aar, 1)) * 1000);   /* runway interval (integer ms) */
   /* same-route in-trail comes from gateSpacingFor(): a matching per-gate rule
      wins, else the program-wide minutes/MIT, never below the AAR interval. */
   const assigned = [];                                /* {t, gate} occupied slots */
@@ -2765,7 +2767,7 @@ function computeFlow(target) {
   let prevSta = -Infinity;
   const lastGateSta = {};
   for (const f of airborneF) {
-    let sta = Math.max(f.eta, prevSta + spacing);
+    let sta = Math.max(Math.round(f.eta), prevSta + spacing);
     if (f.gate !== "\u2014" && lastGateSta[f.gate] != null)
       sta = Math.max(sta, lastGateSta[f.gate] + gateSpacingFor(rate, spacing, f.gate));
     f.sta = sta;
@@ -2787,7 +2789,7 @@ function computeFlow(target) {
     f.edctIssued = true;
     f.wheelsUp = rec.t;
     f.pulled = rec.pulledUntil != null && rec.pulledUntil > now;  /* recently moved earlier */
-    f.sta = f.wheelsUp + f.flightTimeMs;
+    f.sta = Math.round(f.wheelsUp + f.flightTimeMs);
     f.delay = Math.max(0, f.sta - f.eta);
     f.releaseNow = f.wheelsUp <= now + 60000;
     f.needsCfr = true;                /* already issued, so it is in the program */
@@ -2799,14 +2801,21 @@ function computeFlow(target) {
      resulting wheels-up is only a PROPOSAL until the user issues it. A
      flight only NEEDS a CFR if metering pushes its wheels-up past now —
      i.e. the field is at/over capacity or a slot conflict exists. With
-     capacity and no conflict, no delay is needed and it is released. */
+     capacity and no conflict, no delay is needed and it is released.
+     Integer-ms candidates: (t + req) - t === req exactly, so the conflict
+     test cannot stick forever under dense packing. */
   for (const f of groundAuto) {
-    let cand = f.eta, moved = true;
+    let cand = Math.round(f.eta), moved = true;
     while (moved) {
       moved = false;
       for (const s of assigned) {
         const req = (s.gate !== "\u2014" && s.gate === f.gate) ? gateSpacingFor(rate, spacing, f.gate) : spacing;
-        if (Math.abs(cand - s.t) < req) { cand = s.t + req; moved = true; }
+        if (Math.abs(cand - s.t) < req) {
+          const next = s.t + req;
+          if (next <= cand) cand += 1;   /* belt-and-suspenders progress */
+          else cand = next;
+          moved = true;
+        }
       }
     }
     f.sta = cand;
