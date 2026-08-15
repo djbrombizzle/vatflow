@@ -69,6 +69,22 @@ const seq1 = computeSequence(FCA_SB, [pastSouth, approaching], [], { includeEdct
 assert(seq1.items.some(c => c.p.callsign === "TEST02"), "approaching aircraft in sequence");
 assert(!seq1.items.some(c => c.p.callsign === "TEST01"), "past aircraft excluded");
 
+// Hold outbound: heading away from the FCA while still north of the line —
+// must stay sequenced (route still crosses). Old heading gate dropped these.
+const holdOutbound = {
+  callsign: "HOLD1", phase: "air", lat: 27.2, lon: -80.15, hdg: 360, // away from SB line
+  gs: 220, alt: 10000, arr: "KMIA", dep: "KJFK", route: "DCT", tas: 250, fpAlt: 10000,
+};
+assert(!isCrossingAhead(holdOutbound, { lat: 26.5, lon: -80.15 }),
+  "hold outbound heading fails isCrossingAhead diagnostic");
+const holdSeq = computeSequence(FCA_SB, [holdOutbound], [], { includeEdct: false, nowMs: fixedNow });
+assert(holdSeq.items.some(c => c.p.callsign === "HOLD1"),
+  "hold outbound aircraft stays in sequence despite heading away from line");
+const holdInbound = { ...holdOutbound, callsign: "HOLD1", hdg: 180 };
+const holdSeq2 = computeSequence(FCA_SB, [holdInbound], [], { includeEdct: false, nowMs: fixedNow });
+assert(holdSeq2.items.some(c => c.p.callsign === "HOLD1"),
+  "hold inbound aircraft still in sequence");
+
 const bypass = {
   callsign: "BYPASS", phase: "air", lat: 30, lon: -85, hdg: 270, gs: 420,
   alt: 35000, dep: "KATL", arr: "KMSY", route: "DCT", tas: 450, fpAlt: 35000,
