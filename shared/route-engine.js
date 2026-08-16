@@ -303,6 +303,34 @@ export function routeProgressIndex(anchors, lat, lon, hdg) {
   return Math.min(idx, anchors.length - 1);
 }
 
+/**
+ * Remaining hub/EDST routeFixes ({name, lat, lon, kind?}) ahead of the aircraft.
+ * Uses closest-segment progress (same as GPD) — not pairwise “next fix closer”,
+ * which falsely cuts to arrival STAR bends while still hundreds of NM out.
+ */
+export function fixEntriesAheadOfAircraft(entries, lat, lon, hdg) {
+  if (!entries || !entries.length) return entries || [];
+  if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return entries;
+  }
+  const indexed = [];
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const la = e.lat != null ? +e.lat : (e.latitude != null ? +e.latitude : null);
+    const lo = e.lon != null ? +e.lon : (e.longitude != null ? +e.longitude : null);
+    if (la == null || lo == null || !Number.isFinite(la) || !Number.isFinite(lo)) continue;
+    indexed.push({
+      i,
+      anchor: { name: e.name || "", ll: [la, lo], kind: e.kind || "fix" },
+    });
+  }
+  if (indexed.length < 2) return entries;
+  const anchors = indexed.map((x) => x.anchor);
+  const idx = routeProgressIndex(anchors, lat, lon, hdg);
+  const cutoff = indexed[Math.min(idx, indexed.length - 1)].i;
+  return entries.slice(cutoff);
+}
+
 /** Keep only fixes ahead of the aircraft; prepend NOW. */
 export function trimAnchorsAhead(anchors, p) {
   if (p.lat == null || p.lon == null || p.phase === "gnd" || !anchors.length) return anchors;
