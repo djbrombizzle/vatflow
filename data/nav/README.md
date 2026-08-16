@@ -5,10 +5,10 @@ Pre-processed US enroute navigation data for route expansion in FCA Builder and 
 ## Rebuild
 
 ```bash
-node scripts/build-nav-data.mjs --faa-cycle 2026-07-09
+node scripts/build-nav-data.mjs --faa-cycle 2026-08-06
 ```
 
-Uses FAA FIX/NAV/PFR CSV for the requested cycle and @squawk airways/procedures for enroute data (unchanged on 28-day change-notice cycles).
+Uses FAA FIX/NAV/PFR CSV for the requested cycle (AIRAC 2608 effective 6 Aug 2026) and @squawk airways/procedures for enroute SID/STAR/airway geometry (56-day CIFP package).
 
 Fallback (prior @squawk-only snapshot):
 
