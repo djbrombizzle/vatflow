@@ -2469,23 +2469,77 @@ function distNm(lat1,lon1,lat2,lon2){
   const x=Math.sin(dLat/2)**2+Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.min(1,Math.sqrt(x)));
 }
-function fixesAheadOfAircraft(entries,lat,lon){
-  if(!entries.length||lat==null||lon==null||!Number.isFinite(lat)||!Number.isFinite(lon))return entries;
-  let cutoff=0;
-  for(let i=0;i<entries.length-1;i++){
-    const f=entries[i], g=entries[i+1];
-    if(f.lat==null||f.lon==null||g.lat==null||g.lon==null)continue;
-    const da=distNm(lat,lon,f.lat,f.lon);
-    const db=distNm(lat,lon,g.lat,g.lon);
-    if(db<da)cutoff=i+1;   // closer to next fix than this one — this fix is behind us
+/** Local NM offset of (lat,lon) relative to origin (lat0,lon0). */
+function toLocalNm(lat,lon,lat0,lon0){
+  return [(lon-lon0)*60*Math.cos(lat0*Math.PI/180),(lat-lat0)*60];
+}
+function bearingDeg(la1,lo1,la2,lo2){
+  const y=Math.sin((lo2-lo1)*Math.PI/180)*Math.cos(la2*Math.PI/180);
+  const x=Math.cos(la1*Math.PI/180)*Math.sin(la2*Math.PI/180)-
+    Math.sin(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.cos((lo2-lo1)*Math.PI/180);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function angleDiff(a,b){return Math.abs(((a-b)+540)%360-180);}
+/**
+ * First remaining routeFix index via closest-segment progress (matches shared/route-engine).
+ * Pairwise “next fix closer” falsely jumps to STAR bends while still enroute.
+ */
+function routeFixProgressIndex(entries,lat,lon,hdg){
+  const indexed=[];
+  for(let i=0;i<entries.length;i++){
+    const e=entries[i];
+    const la=e.lat!=null?+e.lat:null, lo=e.lon!=null?+e.lon:null;
+    if(la==null||lo==null||!Number.isFinite(la)||!Number.isFinite(lo))continue;
+    indexed.push({i,ll:[la,lo]});
   }
+  if(indexed.length<2)return 0;
+  const PASS_NM=12;
+  let bestLeg=0,bestXt=Infinity,bestAlong=0;
+  for(let i=0;i<indexed.length-1;i++){
+    const a=indexed[i].ll, b=indexed[i+1].ll;
+    const A=toLocalNm(a[0],a[1],lat,lon), B=toLocalNm(b[0],b[1],lat,lon);
+    const abx=B[0]-A[0], aby=B[1]-A[1];
+    const apx=-A[0], apy=-A[1];
+    const len2=abx*abx+aby*aby;
+    let t=len2>0?(apx*abx+apy*aby)/len2:0;
+    t=Math.max(0,Math.min(1,t));
+    const xt=Math.hypot(A[0]+t*abx,A[1]+t*aby);
+    const along=Math.hypot(t*abx,t*aby);
+    if(xt<bestXt){bestXt=xt;bestLeg=i;bestAlong=along;}
+  }
+  const a=indexed[bestLeg].ll, b=indexed[bestLeg+1].ll;
+  const legLen=distNm(a[0],a[1],b[0],b[1]);
+  let idx=bestAlong>=legLen-3?bestLeg+1:bestLeg;
+  if(hdg!=null&&Number.isFinite(hdg)){
+    while(idx<indexed.length-1){
+      const d=distNm(lat,lon,indexed[idx].ll[0],indexed[idx].ll[1]);
+      const brg=bearingDeg(lat,lon,indexed[idx].ll[0],indexed[idx].ll[1]);
+      if(d>5&&angleDiff(hdg,brg)>110)idx++;
+      else break;
+    }
+    if(idx<indexed.length-1){
+      const dFix=distNm(lat,lon,indexed[idx].ll[0],indexed[idx].ll[1]);
+      if(dFix<PASS_NM){
+        const brgNext=bearingDeg(lat,lon,indexed[idx+1].ll[0],indexed[idx+1].ll[1]);
+        if(angleDiff(hdg,brgNext)<95)idx++;
+      }
+    }
+  }
+  idx=Math.min(idx,indexed.length-1);
+  return indexed[idx].i;
+}
+function fixesAheadOfAircraft(entries,lat,lon,hdg){
+  if(!entries.length||lat==null||lon==null||!Number.isFinite(lat)||!Number.isFinite(lon))return entries;
+  if(window.fixEntriesAheadOfAircraft)
+    return window.fixEntriesAheadOfAircraft(entries,lat,lon,hdg);
+  const cutoff=routeFixProgressIndex(entries,lat,lon,hdg);
   return entries.slice(cutoff);
 }
 function routeFixEntries(a){
   let entries;
   if(a&&a.routeFixes&&a.routeFixes.length)entries=a.routeFixes;
   else entries=parseFixes((a&&(a._routeRaw||a.route))||'').map(name=>({name}));
-  return fixesAheadOfAircraft(entries,a.lat,a.lon);
+  return fixesAheadOfAircraft(entries,a.lat,a.lon,a.hdg);
 }
 function routeFixNames(a){return routeFixEntries(a).map(f=>f.name);}
 function parseFixes(route){
@@ -7691,8 +7745,10 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 <script type="module">
 import * as VatflowAuth from "../../shared/vatflow-auth.js";
 import * as VFRefresh from "../../shared/vatflow-refresh.js";
+import { fixEntriesAheadOfAircraft } from "../../shared/route-engine.js";
 window.VFRefresh = VFRefresh;
 window.VatflowAuth = VatflowAuth;
+window.fixEntriesAheadOfAircraft = fixEntriesAheadOfAircraft;
 await VatflowAuth.initVatflowAuth();
 updateAuthChip();
 onOAuthReady();
