@@ -5,11 +5,11 @@
  * Primary source: @squawk/* NASR snapshots (FIX, NAV, AWY, procedures).
  * Optional: local NASR CSV directory via --nasr-dir (FIX.csv, NAV.csv, AWY.csv).
  * Optional: --faa-cycle YYYY-MM-DD downloads FAA FIX/NAV/PFR CSV zips and merges
- *   with @squawk airways/procedures (enroute data unchanged on 28-day change notices).
+ *   with @squawk airways/procedures (enroute CIFP/airways from the prior 56-day package).
  *
  * Usage:
  *   node scripts/build-nav-data.mjs
- *   node scripts/build-nav-data.mjs --faa-cycle 2026-07-09
+ *   node scripts/build-nav-data.mjs --faa-cycle 2026-08-06
  *   node scripts/build-nav-data.mjs --nasr-dir /path/to/CSV
  */
 
@@ -176,6 +176,32 @@ function buildPreferredFromRows(rows) {
     preferred[`${dep}|${arr}`] = route;
   }
   return preferred;
+}
+
+function buildAirwaysFromRows(awyRows, fixes) {
+  const airwayGroups = new Map();
+  for (const r of awyRows) {
+    const des = (r.ROUTE_ID || r.AWY_ID || r.ident || "").toUpperCase();
+    const seq = parseInt(r.SEQUENCE_NBR || r.SEQ || r.seq || "0", 10);
+    const fix = (r.FIX_ID || r.WAYPOINT_ID || "").toUpperCase();
+    const lat = parseFloat(r.LAT_DECIMAL || r.LAT);
+    const lon = parseFloat(r.LONG_DECIMAL || r.LON);
+    if (!des || !isFinite(seq)) continue;
+    if (!airwayGroups.has(des)) airwayGroups.set(des, []);
+    airwayGroups.get(des).push({ seq, fix, lat, lon });
+  }
+  const airways = {};
+  for (const [des, pts] of airwayGroups) {
+    pts.sort((a, b) => a.seq - b.seq);
+    const w = [];
+    for (const p of pts) {
+      if (!isFinite(p.lat) || !isFinite(p.lon) || !inConus(p.lat, p.lon)) continue;
+      w.push([p.fix, roundCoord(p.lat), roundCoord(p.lon)]);
+      if (p.fix) addCandidate(fixes, p.fix, p.lat, p.lon);
+    }
+    if (w.length >= 2) airways[des] = { t: des.charAt(0), w };
+  }
+  return airways;
 }
 
 async function readCsvFromDir(dir, ...names) {
@@ -430,30 +456,7 @@ async function buildFromNasrCsv(dir) {
 
   const fixes = buildFixesFromRows(fixRows);
   const navaids = buildNavaidsFromRows(navRows);
-
-  const airwayGroups = new Map();
-  for (const r of awyRows) {
-    const des = (r.ROUTE_ID || r.AWY_ID || r.ident || "").toUpperCase();
-    const seq = parseInt(r.SEQUENCE_NBR || r.SEQ || r.seq || "0", 10);
-    const fix = (r.FIX_ID || r.WAYPOINT_ID || "").toUpperCase();
-    const lat = parseFloat(r.LAT_DECIMAL || r.LAT);
-    const lon = parseFloat(r.LONG_DECIMAL || r.LON);
-    if (!des || !isFinite(seq)) continue;
-    const key = des;
-    if (!airwayGroups.has(key)) airwayGroups.set(key, []);
-    airwayGroups.get(key).push({ seq, fix, lat, lon });
-  }
-  const airways = {};
-  for (const [des, pts] of airwayGroups) {
-    pts.sort((a, b) => a.seq - b.seq);
-    const w = [];
-    for (const p of pts) {
-      if (!isFinite(p.lat) || !isFinite(p.lon) || !inConus(p.lat, p.lon)) continue;
-      w.push([p.fix, roundCoord(p.lat), roundCoord(p.lon)]);
-      if (p.fix) addCandidate(fixes, p.fix, p.lat, p.lon);
-    }
-    if (w.length >= 2) airways[des] = { t: des.charAt(0), w };
-  }
+  const airways = buildAirwaysFromRows(awyRows, fixes);
 
   const preferred = buildPreferredFromRows(pfrRows);
 
@@ -494,7 +497,7 @@ async function main() {
   const nasrIdx = process.argv.indexOf("--nasr-dir");
   const nasrDir = nasrIdx >= 0 ? process.argv[nasrIdx + 1] : null;
   const cycleIdx = process.argv.indexOf("--faa-cycle");
-  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-07-09";
+  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-08-06";
   const data = nasrDir
     ? await buildFromNasrCsv(nasrDir)
     : cycleIdx >= 0
