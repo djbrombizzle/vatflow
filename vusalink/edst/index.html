@@ -1483,6 +1483,8 @@ td.eh-bk{text-align:center;min-width:14px}
 body.crc-mode #vatflowAppNav        { display: none !important; }
 body.crc-mode #edstbar              { display: none !important; }
 body.crc-mode #edstTools            { display: none !important; }
+/* Sort/filter menu locked in CRC mode — hide the button to prevent confusion */
+body.crc-mode #btnAclSort           { display: none !important; }
 body.crc-mode #aclbar               { display: none !important; }
 body.crc-mode #posBar               { display: none !important; }
 body.crc-mode #verifyBar            { display: none !important; }
@@ -2378,6 +2380,9 @@ function aclFilterMode(){
   return settings.showAll===true?'all':'freq';
 }
 function setAclFilterMode(mode){
+  // In CRC mode the filter is locked to cpdlc — aircraft must be both
+  // CPDLC logged-on AND on controller frequency per VATSIM transceiver data.
+  if(document.body.classList.contains('crc-mode'))mode='cpdlc';
   const m=String(mode||'freq').toLowerCase();
   settings.aclFilter=(m==='all'||m==='cpdlc')?m:'freq';
   settings.showAll=settings.aclFilter==='all';
@@ -2608,6 +2613,24 @@ function applyFreqMeta(d){
 }
 function displayList(){
   let list=board().slice();
+  // CRC mode: strict CPDLC-on-freq only — no manual rows, no fallbacks.
+  // Both conditions must be true simultaneously using live VATSIM transceiver data.
+  if(document.body.classList.contains('crc-mode')){
+    if(!freqFilterActive()){
+      // Freq not yet known — show nothing (do not leak full sector list)
+      return [];
+    }
+    list=list.filter(a=>
+      a.source!=='manual' &&       // live VATSIM aircraft only
+      connected.has(a.cs) &&       // CPDLC logged on via hub
+      tunedToOurFreq(a.cs)         // pilot transceiver matches controller freq (VATSIM API)
+    );
+    const k=sortState.key;if(!k)return list;
+    const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
+    if(!acc)return list;
+    list.sort((x,y)=>{const A=acc(x),B=acc(y);return A<B?-sortState.dir:A>B?sortState.dir:0;});
+    return list;
+  }
   // Sort... list filter (exclusive):
   //  all    → entire FIR/ARTCC sector list
   //  cpdlc  → on controller frequency AND CPDLC logged on
