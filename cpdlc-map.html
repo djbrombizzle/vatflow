@@ -76,6 +76,21 @@
   .map-artcc-mine { stroke: var(--cyan); stroke-width: 1.6; }
   .map-ac { fill: #777; stroke: #999; stroke-width: 0.5; opacity: 0.5; }
   .map-ac-conn { fill: #9ef09f; stroke: #d4ffd5; stroke-width: 0.7; }
+
+  /* ── CRC browser-tab compact mode ─────────────────────────────────── */
+  body.crc-mode #vatflowAppNav      { display: none !important; }
+  body.crc-mode #mapPage            { top: 0 !important; }
+  body.crc-mode .map-hdr .sub      { display: none !important; }
+  body.crc-mode .map-hdr .stats    { font-size: 10px; }
+  body.crc-mode #mapLegend         { padding: 3px 10px; font-size: 10px; gap: 10px; }
+  .crc-map-btns { display: flex; gap: 4px; margin-left: auto; align-items: center; }
+  .crc-map-btn {
+    background: #1a1a1a; border: 1px solid #555; color: #cfcfcf;
+    font-family: inherit; font-size: 11px; padding: 2px 7px;
+    cursor: pointer; line-height: 1.2; white-space: nowrap;
+  }
+  .crc-map-btn:hover { background: #262626; border-color: #888; }
+  .crc-map-btn.active { background: #7d7d7d; color: #0a0a0a; border-color: #9a9a9a; }
 </style>
 </head>
 <body>
@@ -86,6 +101,10 @@
     <span class="title">LIVE MAP</span>
     <span class="sub">vUSAlink CPDLC · view only · no login required · includes ZAN / ZHN (HCF)</span>
     <span class="stats" id="mapStats">loading&hellip;</span>
+    <span class="crc-map-btns">
+      <button class="crc-map-btn" id="btnCrcMode" title="Toggle CRC browser mode (hides nav bar, compacts layout)">CRC</button>
+      <button class="crc-map-btn" id="btnCrcLink" title="Copy CRC direct link to clipboard">&#10697;</button>
+    </span>
   </div>
   <div id="mapLegend">
     <span class="map-leg"><span class="swatch staffed"></span> center using vUSAlink CPDLC</span>
@@ -103,6 +122,47 @@
     </div>
   </div>
 </div>
+
+<!-- CRC browser-tab mode: compact layout -->
+<script>
+(function(){
+  const CRC_KEY='vatflow_crc_mode';
+
+  function isCrc(){return document.body.classList.contains('crc-mode');}
+
+  function setCrcMode(on){
+    document.body.classList.toggle('crc-mode',on);
+    localStorage.setItem(CRC_KEY,on?'1':'0');
+    const u=new URL(location.href);
+    on?u.searchParams.set('crc','1'):u.searchParams.delete('crc');
+    history.replaceState(null,'',u);
+    const btn=document.getElementById('btnCrcMode');
+    if(btn)btn.classList.toggle('active',on);
+  }
+
+  function copyCrcLink(){
+    const u=new URL(location.href);
+    u.searchParams.set('crc','1');
+    navigator.clipboard?.writeText(u.toString()).catch(()=>{});
+    const btn=document.getElementById('btnCrcLink');
+    if(btn){const t=btn.innerHTML;btn.textContent='OK';setTimeout(()=>{btn.innerHTML=t;},1500);}
+  }
+
+  const _param=new URLSearchParams(location.search).has('crc');
+  const _stored=localStorage.getItem(CRC_KEY)==='1';
+  if(_param||_stored)document.body.classList.add('crc-mode');
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const toggleBtn=document.getElementById('btnCrcMode');
+    const linkBtn=document.getElementById('btnCrcLink');
+    if(toggleBtn){
+      toggleBtn.classList.toggle('active',isCrc());
+      toggleBtn.addEventListener('click',()=>setCrcMode(!isCrc()));
+    }
+    if(linkBtn)linkBtn.addEventListener('click',copyCrcLink);
+  });
+})();
+</script>
 
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";

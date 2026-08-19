@@ -1476,6 +1476,21 @@ td.eh-bk{text-align:center;min-width:14px}
   #edstTools .et-btn{padding:2px 6px;font-size:11px}
 }
 
+/* ── CRC browser-tab compact mode ─────────────────────────────────────────
+   Activated by ?crc=1 URL param, the CRC toggle button, or localStorage.
+   Hides vatflow nav, auth/position bars; forces cpdlc-on-freq filter;
+   recalculates board scroll height to use the freed space.              */
+body.crc-mode #vatflowAppNav        { display: none !important; }
+body.crc-mode #aclbar               { display: none !important; }
+body.crc-mode #posBar               { display: none !important; }
+body.crc-mode #verifyBar            { display: none !important; }
+body.crc-mode #boardwrap            { height: calc(100vh - 96px) !important; }
+body.crc-mode.more-open #boardwrap  { height: calc(100vh - 124px) !important; }
+@media (max-width: 900px) {
+  body.crc-mode #boardwrap          { height: calc(100vh - 110px) !important; }
+}
+#btnCrcLink { min-width: 22px !important; padding: 1px 5px !important; }
+
 </style>
 </head>
 <body>
@@ -1505,6 +1520,8 @@ td.eh-bk{text-align:center;min-width:14px}
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
     <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
     <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
+    <span class="etb-btn" id="btnCrcMode" title="Toggle CRC browser mode (hides nav, forces CPDLC on-freq filter)">CRC</span>
+    <span class="etb-btn" id="btnCrcLink" title="Copy CRC direct link to clipboard">&#10697;</span>
   </div>
   <div class="etb-row etb-more hidden" id="etbMoreRow" role="toolbar" aria-label="More menu">
     <span class="etb-arrow etb-more-ph" aria-hidden="true">&#8595;</span>
@@ -2172,6 +2189,66 @@ td.eh-bk{text-align:center;min-width:14px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="../../shared/edst-sigmets.js"></script>
 <script src="../../shared/edst-notams.js"></script>
+<!-- CRC browser-tab mode: compact layout + CPDLC on-freq filter -->
+<script>
+(function(){
+  const CRC_KEY='vatflow_crc_mode';
+  let _prevFilter=null;
+
+  function isCrc(){return document.body.classList.contains('crc-mode');}
+
+  function _applyFilter(on){
+    // setAclFilterMode / aclFilterMode are defined later in the main script block.
+    // We defer via requestAnimationFrame so they are guaranteed to be hoisted.
+    requestAnimationFrame(()=>{
+      if(typeof setAclFilterMode!=='function')return;
+      if(on){
+        _prevFilter=(typeof aclFilterMode==='function')?aclFilterMode():'freq';
+        setAclFilterMode('cpdlc');
+      } else {
+        setAclFilterMode(_prevFilter||'freq');
+        _prevFilter=null;
+      }
+    });
+  }
+
+  function setCrcMode(on){
+    document.body.classList.toggle('crc-mode',on);
+    localStorage.setItem(CRC_KEY,on?'1':'0');
+    const u=new URL(location.href);
+    on?u.searchParams.set('crc','1'):u.searchParams.delete('crc');
+    history.replaceState(null,'',u);
+    const btn=document.getElementById('btnCrcMode');
+    if(btn)btn.classList.toggle('active',on);
+    _applyFilter(on);
+  }
+
+  function copyCrcLink(){
+    const u=new URL(location.href);
+    u.searchParams.set('crc','1');
+    navigator.clipboard?.writeText(u.toString()).catch(()=>{});
+    const btn=document.getElementById('btnCrcLink');
+    if(btn){const t=btn.innerHTML;btn.textContent='OK';setTimeout(()=>{btn.innerHTML=t;},1500);}
+  }
+
+  // Activate on load if URL param or stored pref
+  const _param=new URLSearchParams(location.search).has('crc');
+  const _stored=localStorage.getItem(CRC_KEY)==='1';
+  if(_param||_stored)document.body.classList.add('crc-mode');
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const toggleBtn=document.getElementById('btnCrcMode');
+    const linkBtn=document.getElementById('btnCrcLink');
+    if(toggleBtn){
+      toggleBtn.classList.toggle('active',isCrc());
+      toggleBtn.addEventListener('click',()=>setCrcMode(!isCrc()));
+    }
+    if(linkBtn)linkBtn.addEventListener('click',copyCrcLink);
+    if(isCrc())_applyFilter(true);
+  });
+})();
+</script>
+
 <script>
 //============================================================ state
 const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},
