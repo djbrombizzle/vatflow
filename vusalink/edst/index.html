@@ -8030,9 +8030,25 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 
     if(typeof mcaExecute==='function'){
       mcaExecute().then(()=>{
-        // mcaExecute already sets MCA feedback; also echo briefly in status strip.
-        setIntentStatus('CPDLC sent \u2014 '+( acidInCmd||rawCmd),'ok');
-        setTimeout(()=>setIntentStatus('',''),4000);
+        setIntentStatus('CPDLC sent \u2014 '+(acidInCmd||rawCmd),'ok');
+        // After a successful uplink, return the tab to the clean CRC base URL.
+        // For persistent tabs this brings the controller back to the aircraft list.
+        // For new-tab (.openurl as new tab) mode window.close() dismisses it;
+        // we try close first and fall back to navigating home after 400 ms in
+        // case close() is blocked (persistent tab context).
+        setTimeout(()=>{
+          try{ window.close(); }catch(_){}
+          // If still open after 400 ms, navigate back to clean CRC base URL.
+          setTimeout(()=>{
+            const base=new URL(location.href);
+            base.searchParams.delete('cmd');
+            base.searchParams.delete('acid');
+            base.searchParams.delete('uplink');
+            base.searchParams.set('crc','1');
+            // Only navigate if we're still on the intent URL (close() didn't work).
+            if(location.href!==base.href)location.replace(base.href);
+          },400);
+        },800); // 800 ms gives the MCA feedback a moment to render
       }).catch(err=>{
         console.warn('applyUrlIntent mcaExecute error',err);
         setIntentStatus('SEND FAIL','err');
