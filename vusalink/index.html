@@ -1000,7 +1000,6 @@ async function sendCpdlc(to,ra,message,mrn){
     setHoppie(true,verifyMethod==='vnas'?'vNAS verify to send':'verify position to send');return null;}
   const localMin=minCounter++;persist();
   const packet=buildPacket(localMin,mrn,ra,message);
-  logMsg('out',to,packet);
   let finalMin=localMin;
   try{const res=await api('/api/send',{to,type:'cpdlc',packet});
     if(res&&res.needVerify){applyVerify({ok:false,code:res.verifyCode,method:res.verifyMethod||verifyMethod,vnasMessage:res.error});
@@ -1008,6 +1007,8 @@ async function sendCpdlc(to,ra,message,mrn){
     else if(!res||!res.ok){logMsg('err',to,'send failed: '+((res&&res.error)||'unknown'));return null;}
     else if(res.min!=null)finalMin=res.min;        // hub assigns the authoritative MIN
   }catch(e){logMsg('err',to,'proxy error: '+e.message);return null;}
+  // Log the CPDLC element the pilot receives, not the /data2 packet wrapper.
+  logMsg('out',to,message||'');
   burstUntil=Date.now()+90000;
   if(wilcoExpectsReply(ra))trackWilcoAwait((to||'').toUpperCase(),finalMin);
   return finalMin;
@@ -2409,7 +2410,7 @@ function openHandoff(idx,x,y){
 }
 async function sendUnicom(cs){
   close('handoffpop');
-  const min=await sendCpdlc(cs,'WU','MONITOR ADVISORY 122.8');
+  const min=await sendCpdlc(cs,'WU','MONITOR @UNICOM@ @122.800@');
   if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
     logMsg('sys',cs,'released to UNICOM (122.800)');renderBoard();}
 }

@@ -2857,7 +2857,6 @@ async function sendCpdlc(to,ra,message,mrn){
     setHoppie(true,verifyMethod==='vnas'?'vNAS verify to send':'verify position to send');return null;}
   const localMin=minCounter++;persist();
   const packet=buildPacket(localMin,mrn,ra,message);
-  logMsg('out',to,packet);
   let finalMin=localMin;
   try{const res=await api('/api/send',{to,type:'cpdlc',packet});
     if(res&&res.needVerify){applyVerify({ok:false,code:res.verifyCode,method:res.verifyMethod||verifyMethod,vnasMessage:res.error});
@@ -2865,6 +2864,8 @@ async function sendCpdlc(to,ra,message,mrn){
     else if(!res||!res.ok){logMsg('err',to,'send failed: '+((res&&res.error)||'unknown'));return null;}
     else if(res.min!=null)finalMin=res.min;        // hub assigns the authoritative MIN
   }catch(e){logMsg('err',to,'proxy error: '+e.message);return null;}
+  // Log the CPDLC element the pilot receives, not the /data2 packet wrapper.
+  logMsg('out',to,message||'');
   burstUntil=Date.now()+90000;
   if(wilcoExpectsReply(ra))trackWilcoAwait((to||'').toUpperCase(),finalMin);
   return finalMin;
@@ -3140,7 +3141,7 @@ function handleIncoming(m){
   }
   // Some ACARS clients reply WILCO/ROGER as Hoppie TELEX (not CPDLC). If we are
   // awaiting a reply for this callsign, treat it as a CPDLC response so handoffs
-  // (esp. UNICOM MONITOR ADVISORY) clear instead of timing out.
+  // (esp. UNICOM MONITOR) clear instead of timing out.
   const telex=(m.packet||'').trim().toUpperCase();
   if(wilcoAwait[cs]&&(RESP.test(telex)||isPositiveAck(telex))){
     const awaitMin=wilcoAwait[cs]&&wilcoAwait[cs].min;
@@ -4924,7 +4925,10 @@ async function sendManualEndService(cs){
 }
 async function sendUnicom(cs){
   close('handoffpop');
-  const min=await sendCpdlc(cs,'WU','MONITOR ADVISORY 122.8');
+  // Same UM120 MONITOR shape as other handoffs so avionics decode a frequency
+  // change. Free-text "MONITOR ADVISORY 122.8" is not a standard FANS element
+  // and many clients drop it (controller log still showed a raw /data2 packet).
+  const min=await sendCpdlc(cs,'WU','MONITOR @UNICOM@ @122.800@');
   if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);handoffEndService.add(cs);
     logMsg('sys',cs,'released to UNICOM (122.800)');renderBoard();}
 }
@@ -7577,8 +7581,6 @@ async function sendAdvUplink(msg,label){
   const cs=advTarget.cs;
   const min=await sendCpdlc(cs,'WU',msg);
   if(min!=null){
-    logMsg('out',cs,(label?label+': ':'')+msg);
-    trackWilcoAwait(cs,min);
     close('cpdlcadv');renderBoard();
   }
 }
