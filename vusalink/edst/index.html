@@ -8030,9 +8030,17 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 
     if(typeof mcaExecute==='function'){
       mcaExecute().then(()=>{
-        // mcaExecute already sets MCA feedback; also echo briefly in status strip.
-        setIntentStatus('CPDLC sent \u2014 '+( acidInCmd||rawCmd),'ok');
-        setTimeout(()=>setIntentStatus('',''),4000);
+        setIntentStatus('CPDLC sent \u2014 '+(acidInCmd||rawCmd),'ok');
+        // After a successful uplink, return the persistent tab to the clean
+        // CRC base URL so the aircraft list is ready for the next command.
+        setTimeout(()=>{
+          const base=new URL(location.href);
+          base.searchParams.delete('cmd');
+          base.searchParams.delete('acid');
+          base.searchParams.delete('uplink');
+          base.searchParams.set('crc','1');
+          location.replace(base.href);
+        },1200); // 1.2 s gives MCA feedback time to render before navigating
       }).catch(err=>{
         console.warn('applyUrlIntent mcaExecute error',err);
         setIntentStatus('SEND FAIL','err');
