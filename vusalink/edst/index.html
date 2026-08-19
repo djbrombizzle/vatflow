@@ -1512,6 +1512,12 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 #crcbar a.etb-btn{text-decoration:none;color:#d6d6d6}
 #crcbar .etb-btn:hover{background:#1a1a1a}
 #crcbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
+#crcbar .etb-btn.sig{border-color:#d8d63f;color:#d8d63f}
+#crcbar .etb-btn.sig.flash{
+  animation:sigflash 1s steps(2,start) infinite;
+  background:#4a4a18;border-color:#ebe64a;color:#ebe64a;
+}
+#crcbar .etb-btn.sig.flash:hover{background:#5a5a20}
 #crcbar .etb-btn.gi-unread{background:#fff;color:#000;border-color:#fff;font-weight:bold}
 #crcbar .etb-stat.on{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #crcbar .etb-stat.msg-wait-alert{
@@ -1568,6 +1574,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 <!-- CRC mode minimal bar: CPDLC-only controls, replaces full edstbar -->
 <div id="crcbar">
   <span class="etb-btn" id="crcTabAcl" title="Aircraft list">ACL</span>
+  <span class="etb-btn sig" id="crcBtnSig" title="SIGMETs for controlling FIR">SIG</span>
   <span class="etb-btn" id="crcBtnCpdlcAdv" title="CPDLC advisories / confirms">CPDLC<br>ADV</span>
   <span class="etb-btn" id="crcBtnCpdlcHist" title="CPDLC history for the highlighted aircraft">CPDLC<br>HIST</span>
   <span class="etb-btn" id="crcBtnCpdlcMsgout" title="Controller uplinks for the highlighted aircraft">CPDLC<br>MSGOUT</span>
@@ -2340,6 +2347,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
       crcBtnCpdlcHist:'btnCpdlcHist',
       crcBtnCpdlcMsgout:'btnCpdlcMsgout',
       crcBtnCpdlcAll:'btnCpdlcAll',
+      crcBtnSig:'btnSig',
       crcTabAcl:'tabAcl',
     };
     Object.entries(crcMap).forEach(([crcId,mainId])=>{
@@ -2347,11 +2355,13 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
       const mainBtn=document.getElementById(mainId);
       if(crcBtn&&mainBtn){
         crcBtn.addEventListener('click',()=>mainBtn.click());
+        crcBtn.className=mainBtn.className;
+        crcBtn.title=mainBtn.title;
         // Mirror active/flash state
         new MutationObserver(()=>{
-          // copy all classes except the id-specific ones
           crcBtn.className=mainBtn.className;
-        }).observe(mainBtn,{attributes:true,attributeFilter:['class']});
+          crcBtn.title=mainBtn.title;
+        }).observe(mainBtn,{attributes:true,attributeFilter:['class','title']});
       }
     });
   });
@@ -3681,7 +3691,7 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='volpop'&&ev.target.closest('#btnSound'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&(ev.target.closest('#btnCpdlcHist')||ev.target.closest('#btnCpdlcMsgout')||ev.target.closest('#btnCpdlcAll')))return;
-    if(id==='sigmenu'&&ev.target.closest('#btnSig'))return;
+    if(id==='sigmenu'&&ev.target.closest('#btnSig, #crcBtnSig'))return;
     if(id==='gpdmapopts'){closeGpdMapOptions();return;}
     close(id);
     if(id==='gpdmenu'){
@@ -5065,12 +5075,15 @@ function sigCanExpand(entry){
   return !!full&&full!==short;
 }
 function syncSigButton(){
-  const btn=document.getElementById('btnSig');
-  if(!btn)return;
-  btn.classList.toggle('flash',!!sigAlert);
-  btn.title=sigAlert
+  const title=sigAlert
     ?'New SIGMET issued — click to view'
     :'SIGMETs for controlling FIR';
+  ['btnSig','crcBtnSig'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(!btn)return;
+    btn.classList.toggle('flash',!!sigAlert);
+    btn.title=title;
+  });
 }
 function clearSigAlert(){
   if(!sigAlert){syncSigButton();return;}
@@ -5253,7 +5266,9 @@ function openSigMenu(){
   if(!menu.classList.contains('hidden')){close('sigmenu');return;}
   clearSigAlert();
   renderSigList();
-  const r=btn.getBoundingClientRect();
+  const crcBtn=document.getElementById('crcBtnSig');
+  const anchor=(document.body.classList.contains('crc-mode')&&crcBtn)?crcBtn:btn;
+  const r=anchor.getBoundingClientRect();
   placePop(menu,r.left,r.bottom+4);
   btn.classList.add('active');
   refreshSigmets(false);
