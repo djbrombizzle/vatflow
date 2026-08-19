@@ -116,6 +116,7 @@ a{color:inherit}
 #statusStrip .field input{background:#0a0a0a;border:1px solid #555;color:#eee;font:inherit;padding:1px 5px;width:56px}
 #statusStrip .chk{display:flex;align-items:center;gap:4px;cursor:pointer}
 #statusStrip .mini-btn{border:1px solid #555;background:#111;color:#ccc;padding:1px 8px;font:inherit;cursor:pointer}
+#statusStrip a.mini-btn{text-decoration:none;display:inline-block;color:#ccc}
 #statusStrip .mini-btn:hover{background:#1a1a1a}
 #statusStrip .mini-btn.open{background:#3a3a3a;border-color:#aaa;color:#fff}
 #statusStrip .mini-btn.muted{opacity:.65}
@@ -1508,6 +1509,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   font-family:'EDST','EDSTv2',Consolas,'Cascadia Mono',monospace;
 }
 #crcbar .etb-btn{cursor:pointer}
+#crcbar a.etb-btn{text-decoration:none;color:#d6d6d6}
 #crcbar .etb-btn:hover{background:#1a1a1a}
 #crcbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #crcbar .etb-btn.gi-unread{background:#fff;color:#000;border-color:#fff;font-weight:bold}
@@ -1570,6 +1572,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <span class="etb-btn" id="crcBtnCpdlcHist" title="CPDLC history for the highlighted aircraft">CPDLC<br>HIST</span>
   <span class="etb-btn" id="crcBtnCpdlcMsgout" title="Controller uplinks for the highlighted aircraft">CPDLC<br>MSGOUT</span>
   <span class="etb-btn" id="crcBtnCpdlcAll" title="Full datalink log — all uplink and downlink messages">CPDLC<br>ALL</span>
+  <a class="etb-btn" id="crcBtnMap" href="../../cpdlc-map.html" target="_blank" rel="noopener" title="Open CPDLC Map">MAP</a>
   <span class="etb-spacer"></span>
   <span class="etb-time"><b id="crcClock">----</b><i id="crcSec">--</i></span>
   <span class="etb-stat on" id="crcStatSat">SAT<br>COMM</span>
@@ -1585,6 +1588,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <span class="seg">Automatic</span>
   <span class="right">
     <span id="authChip">SIGN IN</span>
+    <a class="classic-link" href="../../cpdlc-map.html" target="_blank" rel="noopener">CPDLC Map</a>
     <a class="classic-link" href="../">Classic board</a>
   </span>
 </div>
@@ -1631,6 +1635,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <button type="button" class="mini-btn" id="btnAdd">+ ADD A/C</button>
   <button type="button" class="mini-btn" id="btnDelAc" title="Delete the selected manual strip (Delete key or right-click)">DEL A/C</button>
   <button type="button" class="mini-btn" id="btnRefresh">REFRESH</button>
+  <a class="mini-btn" id="btnCpdlcMap" href="../../cpdlc-map.html" target="_blank" rel="noopener" title="Open CPDLC Map">MAP</a>
   <button type="button" class="mini-btn" id="btnSound" title="Alert volume (50% is normal)">SOUND</button>
 </div>
 
