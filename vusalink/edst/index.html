@@ -2899,22 +2899,28 @@ async function probeVerify(){
     if(d&&d.verify)applyVerify(d.verify);
   }catch(e){}
 }
+let lastSendError='';
 async function sendCpdlc(to,ra,message,mrn){
+  lastSendError='';
   if(!configured()&&!hubMode()){
+    lastSendError='NOT AUTH';
     if(WEB_ONLY&&!oauthSignedIn())window.VatflowAuth.login();
     return null;
   }
   if(hubMode()&&!verifyOK){applyVerify({ok:false,code:verifyCode,method:verifyMethod});
-    setHoppie(true,verifyMethod==='vnas'?'vNAS verify to send':'verify position to send');return null;}
+    lastSendError=verifyMethod==='vnas'?'vNAS verify to send':'verify position to send';
+    setHoppie(true,lastSendError);return null;}
   const localMin=minCounter++;persist();
   const packet=buildPacket(localMin,mrn,ra,message);
   let finalMin=localMin;
   try{const res=await api('/api/send',{to,type:'cpdlc',packet});
     if(res&&res.needVerify){applyVerify({ok:false,code:res.verifyCode,method:res.verifyMethod||verifyMethod,vnasMessage:res.error});
-      logMsg('err',to,res.error||('not verified \u2014 '+(res.verifyMethod==='vnas'?'complete vNAS sign-in':'add '+(res.verifyCode||'code')+' to your controller info')));return null;}
-    else if(!res||!res.ok){logMsg('err',to,'send failed: '+((res&&res.error)||'unknown'));return null;}
+      lastSendError=res.error||('not verified \u2014 '+(res.verifyMethod==='vnas'?'complete vNAS sign-in':'add '+(res.verifyCode||'code')+' to your controller info'));
+      logMsg('err',to,lastSendError);return null;}
+    else if(!res||!res.ok){lastSendError=(res&&res.error)||'unknown';
+      logMsg('err',to,'send failed: '+lastSendError);return null;}
     else if(res.min!=null)finalMin=res.min;        // hub assigns the authoritative MIN
-  }catch(e){logMsg('err',to,'proxy error: '+e.message);return null;}
+  }catch(e){lastSendError=e.message||'proxy error';logMsg('err',to,'proxy error: '+lastSendError);return null;}
   // Log the CPDLC element the pilot receives, not the /data2 packet wrapper.
   logMsg('out',to,message||'');
   burstUntil=Date.now()+90000;
@@ -2949,6 +2955,7 @@ async function sendUplinkEntry(cs,entry){
   if(!entry||!entry.msg)return null;
   const min=await sendCpdlc(cs,'WU',entry.msg);
   if(min!=null)applyUplinkEffects(cs,min,entry.effects);
+  else if(lastSendError)flashStatus(lastSendError);
   return min;
 }
 function queueTotalCount(){
@@ -7755,43 +7762,46 @@ async function mcaEnsureMod(){
   mcaMod=await import('../../shared/edst-mca-commands.js');
   return mcaMod;
 }
-async function mcaExecute(){
-  const raw=(mcaInput&&mcaInput.value||'').trim();
-  if(!raw){mcaSetFeedback(['NULL CMD'],'err');return;}
+async function mcaExecute(rawOverride){
+  const raw=(rawOverride!=null?String(rawOverride):(mcaInput&&mcaInput.value||'')).trim();
+  if(!raw){mcaSetFeedback(['NULL CMD'],'err');return {ok:false,error:'NULL CMD'};}
   mcaLastCmd=raw;
+  if(mcaInput&&rawOverride!=null)mcaInput.value=raw;
   const mod=await mcaEnsureMod();
   const parsed=mod.parseMcaCommand(raw,{selectedCs:selectedCs});
   if(!parsed.ok){
     mcaSetFeedback(mod.formatMcaReject(parsed.error, parsed.flid||''),'err');
-    return;
+    return {ok:false,error:parsed.error,flid:parsed.flid};
   }
   if(!canControl()){
     mcaSetFeedback(mod.formatMcaReject('NOT AUTH', parsed.flid),'err');
-    return;
+    return {ok:false,error:'NOT AUTH',flid:parsed.flid};
   }
   const ac=mcaFindAircraft(parsed.flid);
   if(!ac){
     mcaSetFeedback(mod.formatMcaReject('NO TRACK', parsed.flid),'err');
-    return;
+    return {ok:false,error:'NO TRACK',flid:parsed.flid};
   }
   if(!connected.has(parsed.flid)){
     mcaSetFeedback(mod.formatMcaReject('NO CPDLC', parsed.flid),'err');
-    return;
+    return {ok:false,error:'NO CPDLC',flid:parsed.flid};
   }
   const entry=mod.buildMcaUplinkEntry(parsed,{alt:ac.alt});
   if(!entry){
     mcaSetFeedback(mod.formatMcaReject('ILL CMD', parsed.flid),'err');
-    return;
+    return {ok:false,error:'ILL CMD',flid:parsed.flid};
   }
   mcaSetFeedback(['SENDING…', entry.label, parsed.flid],'');
   const min=await sendUplinkEntry(parsed.flid,entry);
   if(min==null){
-    mcaSetFeedback(mod.formatMcaReject('SEND FAIL', parsed.flid),'err');
-    return;
+    const why=(lastSendError||'SEND FAIL').toUpperCase();
+    mcaSetFeedback(mod.formatMcaReject(why, parsed.flid),'err');
+    return {ok:false,error:lastSendError||'SEND FAIL',flid:parsed.flid};
   }
   mcaSetFeedback(mod.formatMcaAccept(parsed,entry),'ok');
   if(mcaInput)mcaInput.value='';
   renderBoard();
+  return {ok:true,flid:parsed.flid,entry};
 }
 function mcaRestorePos(){
   if(!mcaEl)return;
@@ -8068,79 +8078,82 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
     if(el){el.textContent=msg;el.style.color=cls==='err'?'var(--red)':cls==='ok'?'var(--green)':'var(--fg-dim)';}
   }
 
-  // Attempt to execute after VATSIM data is available.
-  // Retries every 500 ms for up to 12 seconds (covers the first poll + network lag).
+  // Attempt after sign-in, vNAS verify, and hub CPDLC state are ready.
+  // Retries every 500 ms for up to 20 seconds (first poll + vNAS lag).
   let attempts=0;
-  const MAX=24; // 24 × 500 ms = 12 s
+  const MAX=40; // 40 × 500 ms = 20 s
+  const cmdUpper=rawCmd.toUpperCase();
+  const acidInCmd=rawAcid||
+    (()=>{const toks=cmdUpper.split(/\s+/);
+          return toks.find(t=>/^[A-Z][A-Z0-9]{1,7}$/.test(t)&&/\d/.test(t)&&!t.startsWith('/'))||'';})();
+
+  function retry(msg){
+    if(attempts<MAX){
+      if(msg)setIntentStatus(msg,'');
+      setTimeout(attempt,500);
+    }else{
+      setIntentStatus((msg||'TIMEOUT')+' \u2014 timed out','err');
+      setTimeout(()=>setIntentStatus('',''),8000);
+    }
+  }
 
   function attempt(){
     attempts++;
 
     // If an acid-only param was given (no cmd), just select the row.
     if(!rawCmd&&rawAcid){
-      const a=displayList().find(x=>x.cs===rawAcid);
+      const a=(typeof displayList==='function'?displayList():[]).find(x=>x.cs===rawAcid)
+        || liveFlights.find(x=>x.cs===rawAcid);
       if(a){
-        if(typeof selectRow==='function')selectRow(rawAcid);
-        else{ selectedCs=rawAcid; renderBoard(); }
+        selectedCs=rawAcid; renderBoard();
         setIntentStatus('Selected '+rawAcid,'ok');
         setTimeout(()=>setIntentStatus('',''),3000);
-      }else if(attempts<MAX){
-        setTimeout(attempt,500);
+      }else{
+        retry('Waiting for '+rawAcid+'\u2026');
       }
       return;
     }
 
-    // cmd was supplied — execute the uplink.
-    // mcaExecute() needs the aircraft to be in displayList() (connected + on-freq).
-    const cmdUpper=rawCmd.toUpperCase();
-
-    // Quick pre-check: extract FLID from command so we can wait for it specifically.
-    // We don't re-import the parser here; just look for the aircraft in liveFlights.
-    const acidInCmd=rawAcid||
-      (()=>{const toks=cmdUpper.split(/\s+/);
-            return toks.find(t=>/^[A-Z][A-Z0-9]{1,7}$/.test(t)&&/\d/.test(t)&&!t.startsWith('/'))||'';})();
+    if(!hubMode()&&!configured()){
+      retry('Waiting for sign-in\u2026');
+      return;
+    }
+    if(hubMode()&&!verifyOK){
+      retry(verifyMethod==='vnas'?'Waiting for vNAS verify\u2026':'Waiting to verify position\u2026');
+      return;
+    }
+    if(!hubConnReady){
+      retry('Waiting for CPDLC session\u2026');
+      return;
+    }
 
     const inList=acidInCmd?liveFlights.some(f=>f.cs===acidInCmd):liveFlights.length>0;
-
     if(!inList){
-      if(attempts<MAX){
-        setIntentStatus('Waiting for '+( acidInCmd||'traffic')+'\u2026','');
-        setTimeout(attempt,500);
-      }else{
-        setIntentStatus('NO TRACK \u2014 '+( acidInCmd||rawCmd),'err');
-        setTimeout(()=>setIntentStatus('',''),5000);
-      }
+      retry('Waiting for '+(acidInCmd||'traffic')+'\u2026');
       return;
     }
 
-    // Inject the command into mcaInput and call mcaExecute() directly.
-    // mcaExecute reads mcaInput.value so we set it first.
-    const inp=document.querySelector('#mca .mca-preview input');
-    if(inp)inp.value=rawCmd;
-    // selectedCs fallback: if FLID is embedded in cmd the parser will find it;
-    // if the controller only sent acid via ?acid=, pre-set selectedCs so the
-    // parser's fallback picks it up.
-    if(rawAcid&&!selectedCs)selectedCs=rawAcid;
+    if(acidInCmd)selectedCs=acidInCmd;
+    else if(rawAcid)selectedCs=rawAcid;
 
-    if(typeof mcaExecute==='function'){
-      mcaExecute().then(()=>{
-        setIntentStatus('CPDLC sent \u2014 '+(acidInCmd||rawCmd),'ok');
-        // After a successful uplink, return the persistent tab to the clean
-        // CRC base URL so the aircraft list is ready for the next command.
-        setTimeout(()=>{
-          const base=new URL(location.href);
-          base.searchParams.delete('cmd');
-          base.searchParams.delete('acid');
-          base.searchParams.delete('uplink');
-          base.searchParams.set('crc','1');
-          location.replace(base.href);
-        },1200); // 1.2 s gives MCA feedback time to render before navigating
-      }).catch(err=>{
-        console.warn('applyUrlIntent mcaExecute error',err);
-        setIntentStatus('SEND FAIL','err');
-        setTimeout(()=>setIntentStatus('',''),5000);
-      });
+    if(typeof mcaExecute!=='function'){
+      setIntentStatus('SEND FAIL','err');
+      return;
     }
+    mcaExecute(rawCmd).then(res=>{
+      if(res&&res.ok){
+        setIntentStatus('CPDLC sent \u2014 '+(res.flid||acidInCmd||rawCmd),'ok');
+        setTimeout(()=>setIntentStatus('',''),4000);
+        return;
+      }
+      const why=(res&&res.error)||'SEND FAIL';
+      setIntentStatus(why+(res&&res.flid?' \u2014 '+res.flid:''),'err');
+      setTimeout(()=>setIntentStatus('',''),8000);
+    }).catch(err=>{
+      console.warn('applyUrlIntent mcaExecute error',err);
+      setIntentStatus('SEND FAIL','err');
+      setTimeout(()=>setIntentStatus('',''),5000);
+    });
   }
 
   // Kick off — small initial delay lets DOMContentLoaded + first render settle.
