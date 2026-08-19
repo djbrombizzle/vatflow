@@ -1615,7 +1615,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <button type="button" class="et-btn" data-stub="Tools">Tools...</button>
   <button type="button" class="et-btn" data-stub="Posting Mode">Posting Mode</button>
   <button type="button" class="et-btn" data-stub="Template">Template...</button>
-  <button type="button" class="et-btn" data-stub="Clean Up">Clean Up</button>
+  <button type="button" class="et-btn" id="btnCleanUp" title="Remove manually added strips that are not on VATSIM">Clean Up</button>
   <div class="et-field">
     <label for="find">ADD/FIND</label>
     <input id="find" autocomplete="off" placeholder="callsign">
@@ -1629,6 +1629,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <span><span class="dot" id="connDot"></span><span id="statusText">CPDLC not configured</span></span>
   <span class="field" id="viewArtccField"><label>VIEW ARTCC</label><input id="viewArtcc" size="6" autocomplete="off" placeholder="KZJX"></span>
   <button type="button" class="mini-btn" id="btnAdd">+ ADD A/C</button>
+  <button type="button" class="mini-btn" id="btnDelAc" title="Delete the selected manual strip (Delete key or right-click)">DEL A/C</button>
   <button type="button" class="mini-btn" id="btnRefresh">REFRESH</button>
   <button type="button" class="mini-btn" id="btnSound" title="Alert volume (50% is normal)">SOUND</button>
 </div>
@@ -2509,6 +2510,43 @@ function demoLive(){return [
 function persist(){LS.set('vedst_settings',settings);LS.set('vedst_min',minCounter);
   LS.set('vedst_manual',manual);LS.set('vedst_assigned',assigned);LS.set('vedst_sq_pending',sqPending);}
 function board(){return manual.concat(liveFlights);}
+function flashStatus(msg){
+  const t=document.getElementById('statusText');
+  if(!t){return;}
+  const prev=t.textContent;
+  t.textContent=msg;
+  setTimeout(()=>{if(t.textContent===msg)t.textContent=prev;},2200);
+}
+function isManualStrip(cs){
+  cs=(cs||'').toUpperCase();
+  return manual.some(a=>(a.cs||'').toUpperCase()===cs);
+}
+function removeManualAircraft(cs){
+  cs=(cs||'').toUpperCase();
+  const before=manual.length;
+  manual=manual.filter(a=>(a.cs||'').toUpperCase()!==cs);
+  if(manual.length===before)return false;
+  if(typeof selectedCs!=='undefined'&&selectedCs===cs)selectedCs=null;
+  persist();
+  renderBoard();
+  flashStatus('Deleted '+cs);
+  return true;
+}
+function cleanupGhostManuals(){
+  const live=new Set((liveFlights||[]).map(a=>(a.cs||'').toUpperCase()).filter(Boolean));
+  const ghosts=manual.filter(a=>!live.has((a.cs||'').toUpperCase()));
+  if(!ghosts.length){
+    flashStatus(manual.length?'Clean Up — no non-existent manual strips':'Clean Up — no manual strips');
+    return 0;
+  }
+  const drop=new Set(ghosts.map(a=>(a.cs||'').toUpperCase()));
+  manual=manual.filter(a=>!drop.has((a.cs||'').toUpperCase()));
+  if(typeof selectedCs!=='undefined'&&selectedCs&&drop.has(selectedCs))selectedCs=null;
+  persist();
+  renderBoard();
+  flashStatus('Clean Up — deleted '+ghosts.length+' manual strip'+(ghosts.length===1?'':'s'));
+  return ghosts.length;
+}
 let sortState={key:null,dir:1};
 function gsOf(a){const m=(a.hs||'').match(/(\d+)/);return m?+m[1]:0;}
 function statusScore(a){return (msgAlert.has(a.cs)?4:0)+(handoffPending.has(a.cs)?2:0)+(connected.has(a.cs)?1:0);}
@@ -3519,6 +3557,7 @@ function renderBoard(){
   list.forEach((a,idx)=>{
     const tr=document.createElement('tr');
     tr.dataset.cs=a.cs;
+    if(a.source==='manual')tr.dataset.src='manual';
     // ADJ = approaching from a neighbor center; dim unless on our freq / CPDLC-active.
     if(shouldDimAdj(a))tr.classList.add('adj');
     if(selectedCs&&selectedCs===a.cs)tr.classList.add('selected');
@@ -3812,12 +3851,28 @@ const _afCancel=document.getElementById('afCancel');if(_afCancel)_afCancel.oncli
 const _afSave=document.getElementById('afSave');if(_afSave)_afSave.onclick=()=>{
   const cs=afv('afCs').toUpperCase();if(!cs)return;
   const rt=afv('afRoute').toUpperCase();
+  manual=manual.filter(a=>(a.cs||'').toUpperCase()!==cs);
   manual.unshift({cs,type:afv('afType').toUpperCase()||'----',alt:parseInt(afv('afAlt'))||350,hs:'/',route:rt,_routeRaw:rt,source:'manual'});
   persist();renderBoard();
   ['afCs','afType','afAlt','afRoute'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('addform').classList.add('hidden');
 };
 function afv(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+const _btnDelAc=document.getElementById('btnDelAc');
+if(_btnDelAc)_btnDelAc.onclick=()=>{
+  if(!selectedCs){flashStatus('Select a manual strip first');return;}
+  if(!removeManualAircraft(selectedCs))flashStatus(selectedCs+' is live VATSIM traffic — cannot delete');
+};
+const _btnCleanUp=document.getElementById('btnCleanUp');
+if(_btnCleanUp)_btnCleanUp.onclick=()=>cleanupGhostManuals();
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Delete'&&e.key!=='Backspace')return;
+  const tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(e.target&&e.target.isContentEditable))return;
+  if(!selectedCs||!isManualStrip(selectedCs))return;
+  e.preventDefault();
+  removeManualAircraft(selectedCs);
+});
 const _btnRefresh=document.getElementById('btnRefresh');if(_btnRefresh)_btnRefresh.onclick=()=>refreshVatsim(true);
 (function(){
   const va=document.getElementById('viewArtcc');
@@ -7427,9 +7482,28 @@ rows.addEventListener('auxclick',e=>{
 });
 rows.addEventListener('contextmenu',e=>{
   const alertBox=e.target.closest('[data-alert]');
-  if(!alertBox)return;
+  if(alertBox){
+    e.preventDefault();
+    openConflictAckMenu(alertBox.dataset.cs,alertBox.dataset.alert,e.clientX,e.clientY);
+    return;
+  }
+  const tr=e.target.closest('tr');
+  if(!tr||!rows.contains(tr))return;
+  const cs=(tr.dataset.cs||'').toUpperCase();
+  if(!isManualStrip(cs))return;
   e.preventDefault();
-  openConflictAckMenu(alertBox.dataset.cs,alertBox.dataset.alert,e.clientX,e.clientY);
+  if(selectedCs!==cs)selectAircraftRow(cs);
+  const menu=document.getElementById('ackmenu');
+  const list=document.getElementById('ackList');
+  if(!menu||!list){removeManualAircraft(cs);return;}
+  document.getElementById('ackTitle').textContent='STRIP · '+cs;
+  list.innerHTML='';
+  const d=document.createElement('div');
+  d.className='ack-item';
+  d.textContent='Delete manual strip';
+  d.onclick=()=>{removeManualAircraft(cs);close('ackmenu');};
+  list.appendChild(d);
+  placePop(menu,e.clientX,e.clientY);
 });
 (function wireShowAlertBtns(){
   const show=document.getElementById('btnShow');
