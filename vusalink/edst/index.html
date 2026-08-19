@@ -1481,15 +1481,44 @@ td.eh-bk{text-align:center;min-width:14px}
    Hides vatflow nav, auth/position bars; forces cpdlc-on-freq filter;
    recalculates board scroll height to use the freed space.              */
 body.crc-mode #vatflowAppNav        { display: none !important; }
+body.crc-mode #edstbar              { display: none !important; }
+body.crc-mode #edstTools            { display: none !important; }
 body.crc-mode #aclbar               { display: none !important; }
 body.crc-mode #posBar               { display: none !important; }
 body.crc-mode #verifyBar            { display: none !important; }
-body.crc-mode #boardwrap            { height: calc(100vh - 96px) !important; }
-body.crc-mode.more-open #boardwrap  { height: calc(100vh - 124px) !important; }
+/* CRC bar replaces the full edstbar — only CPDLC + status + controls */
+#crcbar                             { display: none; }
+body.crc-mode #crcbar               { display: flex !important; }
+body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 @media (max-width: 900px) {
-  body.crc-mode #boardwrap          { height: calc(100vh - 110px) !important; }
+  body.crc-mode #boardwrap          { height: calc(100vh - 66px) !important; }
 }
-#btnCrcLink { min-width: 22px !important; padding: 1px 5px !important; }
+/* CRC bar styles */
+#crcbar{
+  align-items:stretch;gap:4px;padding:3px 4px;
+  background:#000;border-bottom:1px solid #333;flex-wrap:wrap;
+}
+#crcbar .etb-btn,#crcbar .etb-stat{
+  display:flex;align-items:center;justify-content:center;
+  text-align:center;border:1px solid #8a8a8a;color:#d6d6d6;
+  padding:1px 8px;font-size:12.5px;line-height:1.04;
+  white-space:nowrap;min-width:40px;user-select:none;
+  font-family:'EDST','EDSTv2',Consolas,'Cascadia Mono',monospace;
+}
+#crcbar .etb-btn{cursor:pointer}
+#crcbar .etb-btn:hover{background:#1a1a1a}
+#crcbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
+#crcbar .etb-btn.gi-unread{background:#fff;color:#000;border-color:#fff;font-weight:bold}
+#crcbar .etb-stat.on{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
+#crcbar .etb-stat.msg-wait-alert{
+  background:#4a4a18;border-color:#ebe64a;color:#ebe64a;cursor:pointer;
+  animation:sigflash 1s steps(2,start) infinite;
+}
+#crcbar .etb-time{display:flex;align-items:baseline;gap:5px;padding:0 10px;color:#f2f2f2}
+#crcbar .etb-time b{font-weight:normal;font-size:19px;letter-spacing:1px}
+#crcbar .etb-time i{font-style:normal;font-size:12px;color:#cfcfcf}
+#crcbar .etb-spacer{flex:1;min-width:8px}
+#btnCrcLink{min-width:22px !important;padding:1px 5px !important}
 
 </style>
 </head>
@@ -1520,8 +1549,8 @@ body.crc-mode.more-open #boardwrap  { height: calc(100vh - 124px) !important; }
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
     <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
     <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
-    <span class="etb-btn" id="btnCrcMode" title="Toggle CRC browser mode (hides nav, forces CPDLC on-freq filter)">CRC</span>
-    <span class="etb-btn" id="btnCrcLink" title="Copy CRC direct link to clipboard">&#10697;</span>
+    <span class="etb-btn" id="btnCrcModeMain" title="Toggle CRC browser mode (hides nav, forces CPDLC on-freq filter)">CRC</span>
+    <span class="etb-btn" id="btnCrcLinkMain" title="Copy CRC direct link to clipboard">&#10697;</span>
   </div>
   <div class="etb-row etb-more hidden" id="etbMoreRow" role="toolbar" aria-label="More menu">
     <span class="etb-arrow etb-more-ph" aria-hidden="true">&#8595;</span>
@@ -1530,6 +1559,21 @@ body.crc-mode.more-open #boardwrap  { height: calc(100vh - 124px) !important; }
     <span class="etb-btn" id="btnAltimSet" title="Altimeter settings">ALTIM<br>SET</span>
     <span class="etb-btn" id="btnMca" title="Message Composition Area">MCA</span>
   </div>
+</div>
+
+<!-- CRC mode minimal bar: CPDLC-only controls, replaces full edstbar -->
+<div id="crcbar">
+  <span class="etb-btn" id="crcTabAcl" title="Aircraft list">ACL</span>
+  <span class="etb-btn" id="crcBtnCpdlcAdv" title="CPDLC advisories / confirms">CPDLC<br>ADV</span>
+  <span class="etb-btn" id="crcBtnCpdlcHist" title="CPDLC history for the highlighted aircraft">CPDLC<br>HIST</span>
+  <span class="etb-btn" id="crcBtnCpdlcMsgout" title="Controller uplinks for the highlighted aircraft">CPDLC<br>MSGOUT</span>
+  <span class="etb-btn" id="crcBtnCpdlcAll" title="Full datalink log — all uplink and downlink messages">CPDLC<br>ALL</span>
+  <span class="etb-spacer"></span>
+  <span class="etb-time"><b id="crcClock">----</b><i id="crcSec">--</i></span>
+  <span class="etb-stat on" id="crcStatSat">SAT<br>COMM</span>
+  <span class="etb-stat" id="crcBtnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
+  <span class="etb-btn active" id="btnCrcMode" title="Exit CRC mode">CRC</span>
+  <span class="etb-btn" id="btnCrcLink" title="Copy CRC direct link to clipboard">&#10697;</span>
 </div>
 
 <div id="aclbar">
@@ -2212,22 +2256,33 @@ body.crc-mode.more-open #boardwrap  { height: calc(100vh - 124px) !important; }
     });
   }
 
+  function _syncCrcButtons(on){
+    // All CRC toggle buttons (main bar + crc bar)
+    ['btnCrcModeMain','btnCrcMode'].forEach(id=>{
+      const b=document.getElementById(id);
+      if(b)b.classList.toggle('active',on);
+    });
+    // SAT COMM mirror
+    const srcSat=document.getElementById('statSat');
+    const dstSat=document.getElementById('crcStatSat');
+    if(srcSat&&dstSat)dstSat.className=srcSat.className;
+  }
+
   function setCrcMode(on){
     document.body.classList.toggle('crc-mode',on);
     localStorage.setItem(CRC_KEY,on?'1':'0');
     const u=new URL(location.href);
     on?u.searchParams.set('crc','1'):u.searchParams.delete('crc');
     history.replaceState(null,'',u);
-    const btn=document.getElementById('btnCrcMode');
-    if(btn)btn.classList.toggle('active',on);
+    _syncCrcButtons(on);
     _applyFilter(on);
   }
 
-  function copyCrcLink(){
+  function copyCrcLink(btnId){
     const u=new URL(location.href);
     u.searchParams.set('crc','1');
     navigator.clipboard?.writeText(u.toString()).catch(()=>{});
-    const btn=document.getElementById('btnCrcLink');
+    const btn=document.getElementById(btnId||'btnCrcLinkMain');
     if(btn){const t=btn.innerHTML;btn.textContent='OK';setTimeout(()=>{btn.innerHTML=t;},1500);}
   }
 
@@ -2237,14 +2292,60 @@ body.crc-mode.more-open #boardwrap  { height: calc(100vh - 124px) !important; }
   if(_param||_stored)document.body.classList.add('crc-mode');
 
   document.addEventListener('DOMContentLoaded',()=>{
-    const toggleBtn=document.getElementById('btnCrcMode');
-    const linkBtn=document.getElementById('btnCrcLink');
-    if(toggleBtn){
-      toggleBtn.classList.toggle('active',isCrc());
-      toggleBtn.addEventListener('click',()=>setCrcMode(!isCrc()));
-    }
-    if(linkBtn)linkBtn.addEventListener('click',copyCrcLink);
+    // Wire up toggle + link buttons in both bars
+    document.getElementById('btnCrcModeMain')?.addEventListener('click',()=>setCrcMode(!isCrc()));
+    document.getElementById('btnCrcLinkMain')?.addEventListener('click',()=>copyCrcLink('btnCrcLinkMain'));
+    document.getElementById('btnCrcMode')?.addEventListener('click',()=>setCrcMode(!isCrc()));
+    document.getElementById('btnCrcLink')?.addEventListener('click',()=>copyCrcLink('btnCrcLink'));
+
+    _syncCrcButtons(isCrc());
     if(isCrc())_applyFilter(true);
+
+    // Mirror clock from main edstbar to crcbar
+    const mainClock=document.getElementById('edstClock');
+    const mainSec=document.getElementById('edstSec');
+    const crcClock=document.getElementById('crcClock');
+    const crcSec=document.getElementById('crcSec');
+    if(mainClock&&crcClock){
+      new MutationObserver(()=>{crcClock.textContent=mainClock.textContent;})
+        .observe(mainClock,{childList:true,characterData:true,subtree:true});
+    }
+    if(mainSec&&crcSec){
+      new MutationObserver(()=>{crcSec.textContent=mainSec.textContent;})
+        .observe(mainSec,{childList:true,characterData:true,subtree:true});
+    }
+
+    // Mirror MSG WAIT state to crcbar button
+    const mainMsgWait=document.getElementById('btnMsgWait');
+    const crcMsgWait=document.getElementById('crcBtnMsgWait');
+    if(mainMsgWait&&crcMsgWait){
+      // Mirror click
+      crcMsgWait.addEventListener('click',()=>mainMsgWait.click());
+      // Mirror class changes (flash/alert state)
+      new MutationObserver(()=>{crcMsgWait.className=mainMsgWait.className;})
+        .observe(mainMsgWait,{attributes:true,attributeFilter:['class']});
+    }
+
+    // Wire crcbar CPDLC buttons to their main counterparts
+    const crcMap={
+      crcBtnCpdlcAdv:'btnCpdlcAdv',
+      crcBtnCpdlcHist:'btnCpdlcHist',
+      crcBtnCpdlcMsgout:'btnCpdlcMsgout',
+      crcBtnCpdlcAll:'btnCpdlcAll',
+      crcTabAcl:'tabAcl',
+    };
+    Object.entries(crcMap).forEach(([crcId,mainId])=>{
+      const crcBtn=document.getElementById(crcId);
+      const mainBtn=document.getElementById(mainId);
+      if(crcBtn&&mainBtn){
+        crcBtn.addEventListener('click',()=>mainBtn.click());
+        // Mirror active/flash state
+        new MutationObserver(()=>{
+          // copy all classes except the id-specific ones
+          crcBtn.className=mainBtn.className;
+        }).observe(mainBtn,{attributes:true,attributeFilter:['class']});
+      }
+    });
   });
 })();
 </script>
