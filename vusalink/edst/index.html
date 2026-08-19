@@ -7942,6 +7942,108 @@ if(authChip){
   });
 }
 window.addEventListener('vatflow-auth-changed',updateAuthChip);
+
+//============================================================ CRC URL intent
+// Reads ?cmd= and ?acid= placed by a CRC .openurl Alias and executes the
+// CPDLC uplink automatically — no button press required on the browser tab.
+//
+// CRC Alias examples (place in MyAliases.txt or upload via vNAS Data Admin):
+//   .QZ .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U)
+//   .QU .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QU $1 $aircraft /U)
+//   .QS .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS $1 $aircraft /U)
+//
+// Full alias reference: /vusalink/edst/crc-aliases.txt
+(function applyUrlIntent(){
+  const p=new URLSearchParams(location.search);
+  const rawCmd=(p.get('cmd')||'').trim();
+  const rawAcid=(p.get('acid')||'').toUpperCase().trim();
+  if(!rawCmd&&!rawAcid)return;
+
+  // Strip intent params from URL immediately so a manual reload doesn't re-fire.
+  // Keep crc=1 and any other params intact.
+  (function stripIntentParams(){
+    const u=new URL(location.href);
+    u.searchParams.delete('cmd');
+    u.searchParams.delete('acid');
+    history.replaceState(null,'',u);
+  })();
+
+  // Show a brief status toast in the crcbar / statusStrip while we wait.
+  function setIntentStatus(msg,cls){
+    const el=document.getElementById('statusText');
+    if(el){el.textContent=msg;el.style.color=cls==='err'?'var(--red)':cls==='ok'?'var(--green)':'var(--fg-dim)';}
+  }
+
+  // Attempt to execute after VATSIM data is available.
+  // Retries every 500 ms for up to 12 seconds (covers the first poll + network lag).
+  let attempts=0;
+  const MAX=24; // 24 × 500 ms = 12 s
+
+  function attempt(){
+    attempts++;
+
+    // If an acid-only param was given (no cmd), just select the row.
+    if(!rawCmd&&rawAcid){
+      const a=displayList().find(x=>x.cs===rawAcid);
+      if(a){
+        if(typeof selectRow==='function')selectRow(rawAcid);
+        else{ selectedCs=rawAcid; renderBoard(); }
+        setIntentStatus('Selected '+rawAcid,'ok');
+        setTimeout(()=>setIntentStatus('',''),3000);
+      }else if(attempts<MAX){
+        setTimeout(attempt,500);
+      }
+      return;
+    }
+
+    // cmd was supplied — execute the uplink.
+    // mcaExecute() needs the aircraft to be in displayList() (connected + on-freq).
+    const cmdUpper=rawCmd.toUpperCase();
+
+    // Quick pre-check: extract FLID from command so we can wait for it specifically.
+    // We don't re-import the parser here; just look for the aircraft in liveFlights.
+    const acidInCmd=rawAcid||
+      (()=>{const toks=cmdUpper.split(/\s+/);
+            return toks.find(t=>/^[A-Z][A-Z0-9]{1,7}$/.test(t)&&/\d/.test(t)&&!t.startsWith('/'))||'';})();
+
+    const inList=acidInCmd?liveFlights.some(f=>f.cs===acidInCmd):liveFlights.length>0;
+
+    if(!inList){
+      if(attempts<MAX){
+        setIntentStatus('Waiting for '+( acidInCmd||'traffic')+'\u2026','');
+        setTimeout(attempt,500);
+      }else{
+        setIntentStatus('NO TRACK \u2014 '+( acidInCmd||rawCmd),'err');
+        setTimeout(()=>setIntentStatus('',''),5000);
+      }
+      return;
+    }
+
+    // Inject the command into mcaInput and call mcaExecute() directly.
+    // mcaExecute reads mcaInput.value so we set it first.
+    const inp=document.querySelector('#mca .mca-preview input');
+    if(inp)inp.value=rawCmd;
+    // selectedCs fallback: if FLID is embedded in cmd the parser will find it;
+    // if the controller only sent acid via ?acid=, pre-set selectedCs so the
+    // parser's fallback picks it up.
+    if(rawAcid&&!selectedCs)selectedCs=rawAcid;
+
+    if(typeof mcaExecute==='function'){
+      mcaExecute().then(()=>{
+        // mcaExecute already sets MCA feedback; also echo briefly in status strip.
+        setIntentStatus('CPDLC sent \u2014 '+( acidInCmd||rawCmd),'ok');
+        setTimeout(()=>setIntentStatus('',''),4000);
+      }).catch(err=>{
+        console.warn('applyUrlIntent mcaExecute error',err);
+        setIntentStatus('SEND FAIL','err');
+        setTimeout(()=>setIntentStatus('',''),5000);
+      });
+    }
+  }
+
+  // Kick off — small initial delay lets DOMContentLoaded + first render settle.
+  setTimeout(attempt,300);
+})();
 </script>
 <script type="module">
 import * as VatflowAuth from "../../shared/vatflow-auth.js";

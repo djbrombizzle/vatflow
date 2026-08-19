@@ -1,0 +1,247 @@
+; =============================================================================
+; vUSAlink EDST — CRC Alias Definitions
+; Full CPDLC uplink command reference for Facility Engineers
+; =============================================================================
+;
+; HOW TO USE
+; ----------
+; Copy the aliases you want into your MyAliases.txt file located at:
+;   %localappdata%\CRC\Aliases\MyAliases.txt
+;
+; Or upload the full file via vNAS Data Admin → Aliases → Upload.
+;
+; SETUP REQUIRED (one-time per controller profile):
+;   1. Add a CRC browser tab with URL: https://vatflow.net/vusalink/edst/?crc=1
+;   2. Press Ctrl+D on that tab → check "Direct .openurl commands to this tab"
+;   3. Sign into vUSAlink with your VATSIM CID
+;
+; HOW IT WORKS
+; ------------
+; Each alias calls .openurl to navigate the EDST browser tab to a URL
+; containing the CPDLC command as a ?cmd= parameter. The EDST reads the
+; command automatically and fires the CPDLC uplink — no button press needed.
+;
+; The selected aircraft on the ERAM scope is passed via $aircraft.
+; The $1, $2 etc. variables are replaced by the parameters you type.
+; $urlescape() makes the command URL-safe.
+;
+; SYNTAX REMINDER
+; ---------------
+; Select an aircraft on the ERAM scope first, then type the alias + params.
+; Example: select AAL123, type  .QZ 340  → sends CLIMB TO AND MAINTAIN FL340
+;
+; All commands require /U (uplink) — it is embedded in every alias below.
+;
+; =============================================================================
+
+
+; =============================================================================
+; ALTITUDE COMMANDS
+; =============================================================================
+
+; QZ — Assigned altitude (climb or descend)
+; Usage: .QZ <altitude>
+; Examples:
+;   .QZ 340         → CLIMB TO AND MAINTAIN FL340
+;   .QZ 240         → DESCEND TO AND MAINTAIN FL240
+;   .QZ 8000        → CLIMB AND MAINTAIN 8,000ft  (altitudes below FL180 use feet)
+.QZ .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U)
+
+; QZ with EXPEDITE modifier
+; Usage: .QZE <altitude>
+; Example: .QZE 350  → CLIMB TO AND MAINTAIN FL350, EXPEDITE
+.QZE .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U /EXP)
+
+; QZ with AT PILOTS DISCRETION modifier
+; Usage: .QZPD <altitude>
+; Example: .QZPD 280  → CLIMB TO AND MAINTAIN FL280 AT PILOTS DISCRETION
+.QZPD .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U /PD)
+
+; QZ with DUE TO TRAFFIC modifier
+; Usage: .QZTFC <altitude>
+.QZTFC .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U /TFC)
+
+; QZ with DUE TO WEATHER modifier
+; Usage: .QZWX <altitude>
+.QZWX .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U /WX)
+
+; QZ with DUE TO RESTRICTED AIRSPACE modifier
+; Usage: .QZRES <altitude>
+.QZRES .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U /RES)
+
+; QZ IMMEDIATELY (highest urgency)
+; Usage: .QZIMM <altitude>
+.QZIMM .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U /IMM)
+
+; QQ — Interim/temporary altitude
+; Same CPDLC message as QZ; use when you intend a block clearance step.
+; Usage: .QQ <altitude>
+.QQ .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QQ $1 $aircraft /U)
+
+; QQ with EXPEDITE
+.QQE .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QQ $1 $aircraft /U /EXP)
+
+; QQ at pilots discretion
+.QQPD .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QQ $1 $aircraft /U /PD)
+
+
+; =============================================================================
+; DIRECT ROUTING COMMANDS
+; =============================================================================
+
+; QU — Proceed direct to fix
+; Usage: .QU <fix>
+; Example: .QU MERIT  → PROCEED DIRECT TO MERIT
+.QU .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QU $1 $aircraft /U)
+
+; QU at pilots discretion
+; Usage: .QUPD <fix>
+.QUPD .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QU $1 $aircraft /U /PD)
+
+; QU with expedite
+; Usage: .QUE <fix>
+.QUE .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QU $1 $aircraft /U /EXP)
+
+
+; =============================================================================
+; HEADING COMMANDS
+; =============================================================================
+
+; QS — Fly heading (no turn direction specified)
+; Usage: .QS <heading>
+; Example: .QS 270  → FLY HEADING 270
+.QS .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS $1 $aircraft /U)
+
+; QS — Turn LEFT to heading
+; Usage: .QSLT <heading>
+; Example: .QSLT 180  → TURN LEFT HEADING 180
+.QSLT .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS LT $1 $aircraft /U)
+
+; QS — Turn RIGHT to heading
+; Usage: .QSRT <heading>
+; Example: .QSRT 090  → TURN RIGHT HEADING 090
+.QSRT .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS RT $1 $aircraft /U)
+
+; QS — Fly present heading (no parameter needed)
+; Usage: .QSPH
+; Sends: FLY PRESENT HEADING
+.QSPH .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS PH $aircraft /U)
+
+; QS heading with modifiers
+.QSLTEXP .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS LT $1 $aircraft /U /EXP)
+.QSRTEXP .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS RT $1 $aircraft /U /EXP)
+
+
+; =============================================================================
+; SPEED COMMANDS
+; =============================================================================
+
+; QS — Maintain speed in knots
+; Usage: .QSSPD <knots>
+; Example: .QSSPD 280  → MAINTAIN 280KT
+.QSSPD .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS /$1 $aircraft /U)
+
+; Speed with expedite
+; Usage: .QSSPDEXP <knots>
+.QSSPDEXP .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS /$1 $aircraft /U /EXP)
+
+
+; =============================================================================
+; COMBINED ALTITUDE + DIRECT (common en route clearance)
+; =============================================================================
+
+; Climb/descend AND proceed direct in one alias (two separate URL loads — use
+; the altitude alias first, then the direct alias, or combine into one alias
+; using CRC nested alias syntax).
+;
+; Example combined alias: climb to FL360 AND direct CAMRN
+; Usage: .CLBDCT <altitude> <fix>
+; Note: CRC sends two sequential .openurl calls — the second one fires ~2s
+; after the first once the EDST finishes processing the altitude uplink.
+.CLBDCT .QZ $1 | .QU $2
+
+
+; =============================================================================
+; AIRCRAFT SELECT + OPEN CPDLC PANEL (no command — just focuses the tab)
+; =============================================================================
+
+; Navigate EDST tab to a specific aircraft without issuing a command.
+; Usage: .CPDLC   (with aircraft selected on scope)
+; The EDST tab pre-selects that aircraft's row.
+.CPDLC .openurl https://vatflow.net/vusalink/edst/?crc=1&acid=$urlescape($aircraft)
+
+; Open CPDLC MSGOUT panel for the selected aircraft
+.CPDLCUP .openurl https://vatflow.net/vusalink/edst/?crc=1&acid=$urlescape($aircraft)&uplink=1
+
+
+; =============================================================================
+; MODIFIER REFERENCE
+; =============================================================================
+;
+; Modifiers can be combined on any QZ / QQ / QU / QS command:
+;
+;   /U      — required; send as CPDLC uplink (not voice)
+;   /PD     — AT PILOTS DISCRETION
+;   /EXP    — EXPEDITE
+;   /IMM    — IMMEDIATELY
+;   /TFC    — DUE TO TRAFFIC
+;   /WX     — DUE TO WEATHER
+;   /RES    — DUE TO RESTRICTED AIRSPACE
+;
+; Modifiers are order-independent and can be stacked:
+;   QZ 350 AAL123 /U /EXP /TFC
+;   → CLIMB TO AND MAINTAIN FL350, EXPEDITE, DUE TO TRAFFIC
+;
+; To add modifiers interactively, append them in the CRC message window:
+;   .QZ 350 /TFC   (aircraft already selected on scope)
+;   → translates to: QZ 350 AAL123 /U /TFC via the alias
+
+
+; =============================================================================
+; ALTITUDE RANGE / FORMAT REFERENCE
+; =============================================================================
+;
+; Altitudes below FL180 (18000 ft):
+;   Enter as 3-digit hundreds:  .QZ 150  → MAINTAIN 15,000ft
+;   Or as full feet:            .QZ 15000 → same result
+;
+; Altitudes FL180 and above:
+;   Enter as 3-digit FL:        .QZ 350  → MAINTAIN FL350
+;   Or with FL prefix:          .QZ FL350 → same result
+;
+; Headings: 1–360 (use 360, not 000 for north)
+; Speed:    80–400 knots; prefix with / in QS speed form: /280
+
+
+; =============================================================================
+; FULL COMMAND QUICK REFERENCE
+; =============================================================================
+;
+;  Command  | Alias  | Parameters      | CPDLC message sent
+;  ---------+--------+-----------------+-------------------------------------------
+;  Altitude | .QZ    | <alt>           | CLIMB/DESCEND TO AND MAINTAIN FLxxx
+;  Alt + EXP| .QZE   | <alt>           | ... EXPEDITE
+;  Alt + PD | .QZPD  | <alt>           | ... AT PILOTS DISCRETION
+;  Alt + TFC| .QZTFC | <alt>           | ... DUE TO TRAFFIC
+;  Alt + WX | .QZWX  | <alt>           | ... DUE TO WEATHER
+;  Alt + RES| .QZRES | <alt>           | ... DUE TO RESTRICTED AIRSPACE
+;  Alt + IMM| .QZIMM | <alt>           | ... IMMEDIATELY
+;  Interim  | .QQ    | <alt>           | same as QZ (interim step)
+;  Interim+E| .QQE   | <alt>           | ... EXPEDITE
+;  Interim+P| .QQPD  | <alt>           | ... AT PILOTS DISCRETION
+;  Direct   | .QU    | <fix>           | PROCEED DIRECT TO <fix>
+;  Direct+PD| .QUPD  | <fix>           | ... AT PILOTS DISCRETION
+;  Direct+E | .QUE   | <fix>           | ... EXPEDITE
+;  Heading  | .QS    | <hdg>           | FLY HEADING xxx
+;  Hdg Left | .QSLT  | <hdg>           | TURN LEFT HEADING xxx
+;  Hdg Right| .QSRT  | <hdg>           | TURN RIGHT HEADING xxx
+;  Pres Hdg | .QSPH  | (none)          | FLY PRESENT HEADING
+;  Speed    | .QSSPD | <kts>           | MAINTAIN xxxKT
+;  Focus tab| .CPDLC | (none)          | (no uplink — selects aircraft in EDST)
+;  Open MSGOUT .CPDLCUP (none)         | (no uplink — opens uplink panel)
+;
+; =============================================================================
+; END OF FILE
+; Distribute freely to your facility's controllers.
+; Questions: vatflow.net
+; =============================================================================
