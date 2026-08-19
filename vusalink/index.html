@@ -146,6 +146,7 @@
   .holist .ho .meta{color:var(--fg-dim)}
   .holist .ctr{color:var(--cyan)} .holist .app{color:var(--amber)}
   .holist .ho.unicom{border-bottom:1px solid #333} .holist .uni{color:var(--green);font-weight:bold}
+  .holist .ho.endsvc .uni{color:#e08a8a}
   .holist .ho{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .holist .ho .left{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .holist .acts{white-space:nowrap}
@@ -682,6 +683,7 @@ const wilcoUi={};                        // W: cs -> {kind:'received'|'timeout',
 const wilcoAwait={};                     // cs -> {min, sentAt, timer} awaiting pilot reply
 const handoffPending=new Set();          // H: awaiting WILCO
 const handoffMin={};                     // cs -> MIN of CONTACT msg
+const handoffEndService=new Set();       // APP/DEP/UNICOM: soft END SERVICE after WILCO
 const handoffAwaitFreq=new Set();        // handoff WILCO received; drop from list when pilot leaves our freq
 const altMin={}, rtMin={}, sqMin={};     // cs -> MIN of last alt / route / squawk uplink
 const altPending=new Set();              // alt clearance sent, awaiting WILCO (green)
@@ -1225,10 +1227,25 @@ function minMatches(stored,mrn){
 }
 function ackHandoff(cs){
   cs=(cs||'').toUpperCase();
+  const endSvc=handoffEndService.has(cs);
   handoffPending.delete(cs);
   delete handoffMin[cs];
+  handoffEndService.delete(cs);
   handoffAwaitFreq.add(cs);
   logMsg('sys',cs,'handoff acknowledged — awaiting frequency change');
+  if(endSvc)requestSoftEndService(cs);
+}
+async function requestSoftEndService(cs){
+  cs=(cs||'').toUpperCase();
+  if(!cs||!hubMode()||!canControl())return;
+  try{
+    const r=await api('/api/conn',{to:cs,action:'endservice'});
+    if(r&&r.ok){
+      connected.delete(cs);
+      logMsg('sys',cs,'END SERVICE (UM161) — CPDLC services terminated');
+      renderBoard();
+    }else if(r&&r.error)flashStatus(r.error);
+  }catch(e){flashStatus('END SERVICE failed');}
 }
 function clearPendingOnAck(cs,mrn){
   cs=(cs||'').toUpperCase();
@@ -1250,6 +1267,12 @@ function clearPendingOnAck(cs,mrn){
 }
 function clearPendingOnReject(cs,mrn){
   cs=(cs||'').toUpperCase();
+  // UNABLE/NEGATIVE must not run ackHandoff (that would send END SERVICE).
+  if(handoffMin[cs]!=null&&minMatches(handoffMin[cs],mrn)){
+    handoffPending.delete(cs);delete handoffMin[cs];handoffEndService.delete(cs);
+  }else if(handoffPending.has(cs)){
+    handoffPending.delete(cs);delete handoffMin[cs];handoffEndService.delete(cs);
+  }
   if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];delete assigned[cs];persist();}
   else if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];delete assigned[cs];persist();}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];}
@@ -1267,7 +1290,7 @@ function handleIncoming(m){
       const msg=(d.message||'').trim().toUpperCase();
       if(/REQUEST LOGON/.test(msg)){if(!hubMode())autoAcceptLogon(cs,d.min);return;}
       if(/LOG\s?OFF|LOGGED OFF/.test(msg)){       // aircraft left us (e.g. after a handover)
-        connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);delete handoffMin[cs];
+        connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);handoffEndService.delete(cs);delete handoffMin[cs];
         delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();
         clearWilcoAwait(cs);ackWilcoUi(cs);
         logMsg('sys',cs,'logged off CPDLC');renderBoard();return;
@@ -1290,13 +1313,13 @@ function handlePeerUplink(m){
   if(!d){logMsg('out',cs+' \u00b7 co-ctrl',m.packet||'');return;}
   const min=d.min, msg=(d.message||'').toUpperCase().replace(/@/g,'');
   logMsg('out',cs+' \u00b7 co-ctrl',d.message||'');
-  if(/REQUEST LOGON|LOGON ACCEPTED/.test(msg)){renderBoard();return;}
-  // CPDLC SERVICES TERMINATED is a service advisory, not a handoff (contains CONTACT).
-  if(/CPDLC SERVICES TERMINATED/.test(msg)){renderBoard();return;}
+  if(/REQUEST LOGON|LOGON ACCEPTED|ATC COMMS ESTABLISHED|ATC COMMS TERMINATED/.test(msg)){renderBoard();return;}
+  // END SERVICE / CPDLC SERVICES TERMINATED is a service advisory, not a handoff.
+  if(/CPDLC SERVICES TERMINATED|\bEND SERVICE\b/.test(msg)){renderBoard();return;}
   if(wilcoExpectsReply(d.ra))trackWilcoAwait(cs,min);
   if(/HANDOVER/.test(msg)){
     handoffPending.add(cs);
-  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC/.test(msg)){
+  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC|MONITOR ADVISORY|\bMONITOR\b/.test(msg)){
     handoffMin[cs]=min;handoffPending.add(cs);
   }else if(/CROSS|PROCEED DIRECT|CLEARED/.test(msg)){
     rtMin[cs]=min;routePending.add(cs);
@@ -2428,6 +2451,11 @@ function openHandoff(idx,x,y){
   const a=displayList()[idx];
   document.getElementById('hoTitle').textContent='HANDOFF '+a.cs;
   const L=document.getElementById('hoList');L.innerHTML='';
+  // Manual UM161 END SERVICE
+  const end=document.createElement('div');end.className='ho endsvc';
+  end.innerHTML=`<span class="uni">END SERVICE</span><span class="meta">UM161 \u00b7 terminate CPDLC now</span>`;
+  end.onclick=()=>sendManualEndService(a.cs);
+  L.appendChild(end);
   // UNICOM release -- always available (no further ATC)
   const uni=document.createElement('div');uni.className='ho unicom';
   uni.innerHTML=`<span class="uni">UNICOM</span><span class="meta">122.800 \u00b7 release, no further ATC</span>`;
@@ -2446,18 +2474,29 @@ function openHandoff(idx,x,y){
   appendHandoffApproaches(L,a,approaches);
   placePop(handoffpop,x,y);
 }
+async function sendManualEndService(cs){
+  close('handoffpop');
+  if(!canControl()){flashStatus('Sign in / verify to end service');return;}
+  await requestSoftEndService(cs);
+}
 async function sendUnicom(cs){
   close('handoffpop');
   const min=await sendCpdlc(cs,'WU','MONITOR @UNICOM@ @122.800@');
-  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
+  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);handoffEndService.add(cs);
     logMsg('sys',cs,'released to UNICOM (122.800)');renderBoard();}
 }
-// CONTACT = voice frequency change (pilot WILCOs; L clears on WILCO).
+// CONTACT = voice frequency change (pilot WILCOs; H clears on WILCO).
+// APP/DEP CONTACT also schedules soft END SERVICE after WILCO.
 async function sendHandoff(cs,fac){
   close('handoffpop');
   const min=await sendCpdlc(cs,'WU',`CONTACT @${fac.name}@ @${fac.freq||''}@`);
-  if(min!=null){handoffMin[cs]=min;handoffPending.add(cs);
-    logMsg('sys',cs,'contact '+fac.callsign+' '+(fac.freq||''));renderBoard();}
+  if(min!=null){
+    handoffMin[cs]=min;handoffPending.add(cs);
+    if(isHandoffApproach(fac))handoffEndService.add(cs);
+    else handoffEndService.delete(cs);
+    logMsg('sys',cs,'contact '+fac.callsign+' '+(fac.freq||''));
+    renderBoard();
+  }
 }
 // HANDOVER = CPDLC next-data-authority transfer. A capable aircraft logs off us
 // and logs on to the named ICAO; no WILCO is expected, so we clear L when the
