@@ -462,7 +462,7 @@ td.eh-bk{text-align:center;min-width:14px}
   box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
 }
 #hdgmenu.edst-pop{width:168px}
-#spdmenu.edst-pop{width:132px}
+#spdmenu.edst-pop{width:148px}
 #hdgmenu .edst-pop-hdr,#spdmenu .edst-pop-hdr{
   display:flex;justify-content:space-between;align-items:center;
   background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
@@ -525,6 +525,7 @@ td.eh-bk{text-align:center;min-width:14px}
 #spdmenu .sm-mode:last-child{border-right:0}
 #spdmenu .sm-mode:hover{background:#5a5a5a}
 #spdmenu .sm-mode.on{background:#6b3a3a}
+#spdmenu .sm-mode[data-mode="UNIT"]{font-size:11px;letter-spacing:.02em}
 #spdmenu .sm-reasons{display:none;background:#4a4a4a;border-bottom:1px solid #cfcfcf}
 #spdmenu .sm-reasons.open{display:block}
 #spdmenu .sm-reasons .sm-reason-grid{display:grid;grid-template-columns:1fr 1fr}
@@ -542,6 +543,7 @@ td.eh-bk{text-align:center;min-width:14px}
   font:inherit;padding:2px 4px;cursor:pointer;
 }
 #spdmenu .sm-item:hover{background:#1c1c1c}
+#spdmenu .sm-item.cur{color:#9fe6e0}
 #spdmenu .sm-item.on{background:#6b3a3a;color:#fff}
 #spdmenu .sm-scroll{
   position:absolute;top:4px;right:2px;bottom:4px;width:12px;
@@ -1965,7 +1967,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   </div>
   <button type="button" class="sm-xres" id="spdXres" title="Crossing restriction">X RES</button>
   <div class="sm-modes">
-    <button type="button" class="sm-mode" data-mode="KT" title="Knots">KT</button>
+    <button type="button" class="sm-mode on" data-mode="UNIT" id="spdUnitBtn" title="Toggle knots / Mach">KT</button>
     <button type="button" class="sm-mode" data-mode="+" title="Or greater">+</button>
     <button type="button" class="sm-mode" data-mode="-" title="Or less">&minus;</button>
     <button type="button" class="sm-mode" data-mode="NP" title="Exact speed (no +/-)">NP</button>
@@ -4510,6 +4512,7 @@ document.getElementById('hdgDelete').onclick=()=>{close('hdgmenu');hdgTarget=nul
 //============================================================ SPEED menu
 const spdmenu=document.getElementById('spdmenu');
 let spdTarget=null,spdCmd=null,spdToggle='',spdSelected=null,spdTfcOpen=false;
+let spdUnit='KT';                        // 'KT' | 'MACH'
 const spdReasons=new Set();
 const SPD_REASON_TEXT={
   TFC:'DUE TO TRAFFIC',
@@ -4518,10 +4521,38 @@ const SPD_REASON_TEXT={
   EXP:'EXPEDITE',
   WX:'DUE TO WEATHER'
 };
+function spdGsKt(){return spdTarget&&spdTarget.gs!=null&&spdTarget.gs!==''?+spdTarget.gs:0;}
+function spdFl(){return spdTarget&&spdTarget.alt!=null?+spdTarget.alt:0;}
+function spdIsaApi(){return window.EdstSpdIsa||null;}
+function spdApproxMach(){
+  const api=spdIsaApi();
+  const gs=spdGsKt(),fl=spdFl();
+  if(api&&typeof api.gsToMach==='function')return api.gsToMach(gs,fl);
+  if(gs<=0)return 0;
+  return fl>=280?gs/600:gs/660;
+}
+function spdApproxIas(){
+  const api=spdIsaApi();
+  const gs=spdGsKt(),fl=spdFl();
+  if(api&&typeof api.gsToIas==='function')return api.gsToIas(gs,fl);
+  return gs>0?gs:280;
+}
+function spdMachLabel(h){
+  const api=spdIsaApi();
+  if(api&&typeof api.machLabel==='function')return api.machLabel(h/100);
+  return 'M'+('000'+(h|0)).slice(-3);
+}
+function spdMachToken(h){
+  const api=spdIsaApi();
+  if(api&&typeof api.machUplinkToken==='function')return api.machUplinkToken(h/100);
+  return 'MACH .'+('00'+(h|0)).slice(-2);
+}
 function buildSpdMessage(cmd){
   if(!cmd)return null;
   const effects={type:'spd'};
-  if(spdSelected!=null)effects.spd=spdSelected;
+  if(spdSelected!=null){
+    effects.spd=spdUnit==='MACH'?spdMachLabel(spdSelected):spdSelected;
+  }
   return {label:'SPD',msg:cmd,effects};
 }
 function spdTail(){return spdToggle==='+'?' OR GREATER':spdToggle==='-'?' OR LESS':'';}
@@ -4532,10 +4563,15 @@ function spdReasonSuffix(){
   return parts.length?', '+parts.join(', '):'';
 }
 function syncSpdModes(){
+  const unitBtn=document.getElementById('spdUnitBtn');
+  if(unitBtn){
+    unitBtn.textContent=spdUnit==='MACH'?'MACH':'KT';
+    unitBtn.title=spdUnit==='MACH'?'Showing Mach — click for knots':'Showing knots — click for Mach';
+  }
   document.querySelectorAll('#spdmenu .sm-mode').forEach(btn=>{
     const m=btn.dataset.mode;
     let on=false;
-    if(m==='KT')on=true;
+    if(m==='UNIT')on=true;
     else if(m==='NP')on=!spdToggle;
     else if(m==='+'||m==='-')on=spdToggle===m;
     btn.classList.toggle('on',on);
@@ -4566,33 +4602,61 @@ function toggleSpdReason(key){
 function syncSpdUplink(){
   showUplink('spdUplink',!!(spdTarget&&spdCmd));
 }
-function stageSpd(kt){
-  spdSelected=kt;
+function stageSpd(val){
+  spdSelected=val;
   document.querySelectorAll('#spdList .sm-item').forEach(e=>{
-    e.classList.toggle('on',+e.dataset.kt===kt);
+    const v=spdUnit==='MACH'?+e.dataset.mach:+e.dataset.kt;
+    e.classList.toggle('on',v===val);
   });
   document.getElementById('spdRns').classList.remove('on');
-  spdCmd=`MAINTAIN @${kt}KT@${spdTail()}${spdReasonSuffix()}`;
+  if(spdUnit==='MACH'){
+    spdCmd='MAINTAIN @'+spdMachToken(val)+'@'+spdTail()+spdReasonSuffix();
+  }else{
+    spdCmd=`MAINTAIN @${val}KT@${spdTail()}${spdReasonSuffix()}`;
+  }
   syncSpdUplink();
 }
 function buildSpdList(){
   const L=document.getElementById('spdList');L.innerHTML='';
-  const gs=spdTarget&&spdTarget.gs?+spdTarget.gs:280;
-  let start=Math.round(gs/10)*10;
-  start=Math.max(160,Math.min(400,start+40));
-  for(let kt=start;kt>=100;kt-=10){
-    const b=document.createElement('button');
-    b.type='button';b.className='sm-item';b.dataset.kt=String(kt);
-    b.textContent=String(kt)+(spdToggle==='+'?'+':spdToggle==='-'?'-':'');
-    if(spdSelected!=null&&spdSelected===kt)b.classList.add('on');
-    b.onclick=()=>stageSpd(kt);
-    L.appendChild(b);
+  const tail=spdToggle==='+'?'+':spdToggle==='-'?'-':'';
+  if(spdUnit==='MACH'){
+    const cur=Math.round(spdApproxMach()*100);
+    let start=cur>0?Math.min(90,Math.max(70,cur+4)):86;
+    start=Math.max(70,Math.min(90,start));
+    for(let h=start;h>=60;h--){
+      const b=document.createElement('button');
+      b.type='button';b.className='sm-item';b.dataset.mach=String(h);
+      b.textContent=spdMachLabel(h)+tail;
+      if(cur>0&&h===cur)b.classList.add('cur');
+      if(spdSelected!=null&&spdSelected===h)b.classList.add('on');
+      b.onclick=()=>stageSpd(h);
+      L.appendChild(b);
+    }
+  }else{
+    const ias=spdApproxIas()||280;
+    const cur=Math.round(ias/10)*10;
+    let start=Math.max(160,Math.min(400,cur+40));
+    for(let kt=start;kt>=100;kt-=10){
+      const b=document.createElement('button');
+      b.type='button';b.className='sm-item';b.dataset.kt=String(kt);
+      b.textContent=String(kt)+tail;
+      if(cur>=100&&kt===cur)b.classList.add('cur');
+      if(spdSelected!=null&&spdSelected===kt)b.classList.add('on');
+      b.onclick=()=>stageSpd(kt);
+      L.appendChild(b);
+    }
+  }
+  const curEl=L.querySelector('.sm-item.cur')||L.querySelector('.sm-item.on');
+  if(curEl){
+    const top=curEl.offsetTop-L.clientHeight/2+curEl.offsetHeight/2;
+    L.scrollTop=Math.max(0,top);
   }
 }
 function openSpeedMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   close('altmenu');close('hdgmenu');close('xresmenu');
   spdTarget=a;spdCmd=null;spdSelected=null;spdToggle='';spdReasons.clear();
+  spdUnit=(+a.alt||0)>=280?'MACH':'KT';
   setSpdTfcOpen(false);
   document.getElementById('spdTitle').textContent=a.cs;
   document.getElementById('spdRns').classList.remove('on');
@@ -4603,8 +4667,10 @@ function openSpeedMenu(idx,x,y){
 document.querySelectorAll('#spdmenu .sm-mode').forEach(btn=>{
   btn.onclick=()=>{
     const m=btn.dataset.mode;
-    if(m==='KT'){/* always knots */}
-    else if(m==='NP'){spdToggle='';}
+    if(m==='UNIT'){
+      spdUnit=spdUnit==='MACH'?'KT':'MACH';
+      spdSelected=null;spdCmd=null;
+    }else if(m==='NP'){spdToggle='';}
     else if(m==='+'||m==='-'){spdToggle=(spdToggle===m)?'':m;}
     syncSpdModes();
     buildSpdList();
@@ -8183,10 +8249,12 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 <script type="module">
 import * as VatflowAuth from "../../shared/vatflow-auth.js";
 import * as VFRefresh from "../../shared/vatflow-refresh.js";
+import * as EdstSpdIsa from "../../shared/edst-spd-isa.js";
 import { fixEntriesAheadOfAircraft } from "../../shared/route-engine.js";
 window.VFRefresh = VFRefresh;
 window.VatflowAuth = VatflowAuth;
 window.fixEntriesAheadOfAircraft = fixEntriesAheadOfAircraft;
+window.EdstSpdIsa = EdstSpdIsa;
 await VatflowAuth.initVatflowAuth();
 updateAuthChip();
 onOAuthReady();
