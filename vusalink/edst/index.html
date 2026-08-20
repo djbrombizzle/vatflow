@@ -42,6 +42,7 @@ a{color:inherit}
 #edstbar .etb-btn:hover{background:#1a1a1a}
 #edstbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
 #edstbar .etb-btn.sig,#edstbar .etb-btn.not{border-color:#d8d63f;color:#d8d63f}
+#edstbar .etb-btn.sig{min-width:52px}
 #edstbar .etb-btn.sig.flash,#edstbar .etb-btn.not.flash{
   animation:sigflash 1s steps(2,start) infinite;
   background:#4a4a18;border-color:#ebe64a;color:#ebe64a;
@@ -1511,7 +1512,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 #crcbar .etb-btn{cursor:pointer}
 #crcbar .etb-btn:hover{background:#1a1a1a}
 #crcbar .etb-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
-#crcbar .etb-btn.sig{border-color:#d8d63f;color:#d8d63f}
+#crcbar .etb-btn.sig{border-color:#d8d63f;color:#d8d63f;min-width:52px}
 #crcbar .etb-btn.sig.flash{
   animation:sigflash 1s steps(2,start) infinite;
   background:#4a4a18;border-color:#ebe64a;color:#ebe64a;
@@ -5055,6 +5056,7 @@ let sigCache={artcc:'',entries:[],error:null,fetchedAt:0};
 const sigExpanded=new Set();             // entry ids currently showing full text
 const sigSeenIds=new Set();              // keys from last successful fetch
 let sigAlert=false;                      // flash SIG button until acknowledged
+let sigUnreadCount=0;                    // new SIGMETs since last open
 let sigPrimed=false;                     // first fetch seeds seen ids (no flash)
 let sigPollTimer=null;
 let sigFetchGen=0;                       // ignore stale overlapping fetches
@@ -5089,19 +5091,27 @@ function sigCanExpand(entry){
   const full=sigFullText(entry);
   return !!full&&full!==short;
 }
+function sigButtonLabel(){
+  const n=sigUnreadCount|0;
+  return n>0?('SIG['+n+']'):'SIG';
+}
 function syncSigButton(){
-  const title=sigAlert
-    ?'New SIGMET issued — click to view'
+  const n=sigUnreadCount|0;
+  sigAlert=n>0;
+  const title=n>0
+    ?(n+' unread SIGMET'+(n===1?'':'s')+' — click to view')
     :'SIGMETs for controlling FIR';
+  const label=sigButtonLabel();
   ['btnSig','crcBtnSig'].forEach(id=>{
     const btn=document.getElementById(id);
     if(!btn)return;
-    btn.classList.toggle('flash',!!sigAlert);
+    btn.classList.toggle('flash',n>0);
     btn.title=title;
+    btn.textContent=label;
   });
 }
 function clearSigAlert(){
-  if(!sigAlert){syncSigButton();return;}
+  sigUnreadCount=0;
   sigAlert=false;
   syncSigButton();
 }
@@ -5129,7 +5139,7 @@ function noteSigEntries(entries,art){
     // Controller already has the list open — refresh is enough
     clearSigAlert();
   }else{
-    sigAlert=true;
+    sigUnreadCount+=newcomers.length;
     syncSigButton();
   }
 }
