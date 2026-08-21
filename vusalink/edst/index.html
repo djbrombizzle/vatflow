@@ -1482,8 +1482,9 @@ td.eh-bk{text-align:center;min-width:14px}
 
 /* ── CRC browser-tab compact mode ─────────────────────────────────────────
    Activated by ?crc=1 URL param, the CRC toggle button, or localStorage.
-   Hides vatflow nav, auth/position bars; forces cpdlc-on-freq filter;
-   recalculates board scroll height to use the freed space.              */
+   Hides vatflow nav, classic ACL SIGN IN, and position bars. CRC bar has
+   its own VATSIM OAuth button. Forces cpdlc-on-freq filter; recalculates
+   board scroll height to use the freed space.                           */
 body.crc-mode #vatflowAppNav        { display: none !important; }
 body.crc-mode #edstbar              { display: none !important; }
 body.crc-mode #edstTools            { display: none !important; }
@@ -1530,6 +1531,9 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 #crcbar .etb-time b{font-weight:normal;font-size:19px;letter-spacing:1px}
 #crcbar .etb-time i{font-style:normal;font-size:12px;color:#cfcfcf}
 #crcbar .etb-spacer{flex:1;min-width:8px}
+#crcbar #crcAuthChip{min-width:64px;letter-spacing:.04em}
+#crcbar #crcAuthChip:not(.signed){border-color:#2e9c9c;color:#9fe6e0}
+#crcbar #crcAuthChip.signed{background:#1a3a38;border-color:#2e9c9c;color:#9fe6e0}
 #btnCrcLink{min-width:22px !important;padding:1px 5px !important}
 
 </style>
@@ -1582,6 +1586,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <span class="etb-btn" id="crcBtnCpdlcMsgout" title="Controller uplinks for the highlighted aircraft">CPDLC<br>MSGOUT</span>
   <span class="etb-btn" id="crcBtnCpdlcAll" title="Full datalink log — all uplink and downlink messages">CPDLC<br>ALL</span>
   <span class="etb-spacer"></span>
+  <span class="etb-btn" id="crcAuthChip" data-auth-chip="crc" title="Sign in with VATSIM">SIGN IN</span>
   <span class="etb-time"><b id="crcClock">----</b><i id="crcSec">--</i></span>
   <span class="etb-stat on" id="crcStatSat">SAT<br>COMM</span>
   <span class="etb-stat" id="crcBtnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
@@ -1595,7 +1600,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <span class="seg">ACID</span>
   <span class="seg">Automatic</span>
   <span class="right">
-    <span id="authChip">SIGN IN</span>
+    <span id="authChip" data-auth-chip="main">SIGN IN</span>
     <a class="classic-link" href="../../cpdlc-map.html" target="_blank" rel="noopener">CPDLC Map</a>
     <a class="classic-link" href="../">Classic board</a>
   </span>
@@ -8107,30 +8112,33 @@ document.querySelectorAll('[data-stub]').forEach(el=>{
 });
 
 function updateAuthChip(){
-  const chip=document.getElementById('authChip');
-  if(!chip||!window.VatflowAuth)return;
+  if(!window.VatflowAuth)return;
   const s=window.VatflowAuth.getSession&&window.VatflowAuth.getSession();
-  if(s&&s.cid){
-    chip.textContent='CID '+s.cid+(s.name?' · '+s.name:'');
-    chip.classList.add('signed');
-    chip.title='Signed in — click to sign out';
-  }else{
-    chip.textContent='SIGN IN';
-    chip.classList.remove('signed');
-    chip.title='Sign in with VATSIM';
-  }
-}
-const authChip=document.getElementById('authChip');
-if(authChip){
-  authChip.addEventListener('click',()=>{
-    if(!window.VatflowAuth)return;
-    if(window.VatflowAuth.isSignedIn()){
-      if(typeof window.VatflowAuth.logout==='function')window.VatflowAuth.logout();
+  const signed=!!(s&&s.cid);
+  document.querySelectorAll('[data-auth-chip]').forEach(chip=>{
+    if(signed){
+      const compact=chip.dataset.authChip==='crc';
+      chip.textContent='CID '+s.cid+(!compact&&s.name?' · '+s.name:'');
+      chip.classList.add('signed');
+      chip.title='Signed in'+(s.name?' as '+s.name:'')+' — click to sign out';
     }else{
-      window.VatflowAuth.login(location.pathname+location.search+location.hash);
+      chip.textContent='SIGN IN';
+      chip.classList.remove('signed');
+      chip.title='Sign in with VATSIM';
     }
   });
 }
+function onAuthChipClick(){
+  if(!window.VatflowAuth)return;
+  if(window.VatflowAuth.isSignedIn()){
+    if(typeof window.VatflowAuth.logout==='function')window.VatflowAuth.logout();
+  }else{
+    window.VatflowAuth.login(location.pathname+location.search+location.hash);
+  }
+}
+document.querySelectorAll('[data-auth-chip]').forEach(chip=>{
+  chip.addEventListener('click',onAuthChipClick);
+});
 window.addEventListener('vatflow-auth-changed',updateAuthChip);
 
 //============================================================ CRC URL intent
