@@ -2,10 +2,15 @@
  * EDST SIG — SIGMETs for the controller's FIR/ARTCC.
  *
  * Sources:
- *   1. AWC airsigmet (US convective / domestic) — scoped by polygon vs ARTCC boundary
- *      (NWS FIR tags often omit KZJX etc.; convective products are issued by KKCI)
- *   2. NWS Aviation SIGMET GeoJSON — FIR-tagged international / legacy rows
- *   3. AWC isigmet — international SIGMETs filtered by firId
+ *   1. AWC airsigmet (US convective / domestic) — polygon within 150 NM of the
+ *      ARTCC boundary (NWS FIR tags often omit KZJX etc.; convective products
+ *      are issued by KKCI)
+ *   2. AWC isigmet — international SIGMETs for this FIR (firId, raw FIR list,
+ *      or geometry within 150 NM). AWC assigns a single firId even when the
+ *      bulletin covers multiple FIRs (e.g. CHARLIE 3 as KZHU while KZMA is listed).
+ *   3. NWS Aviation SIGMET GeoJSON — FIR-tagged rows, used to fill gaps.
+ *      NWS `start=` is a 6-hour lookback and still returns superseded / previous-
+ *      hour products; those are dropped when AWC's current list is available.
  *
  * AWC blocks browser CORS; public proxies are used as fallback (same pattern as winds-aloft).
  */
@@ -31,10 +36,15 @@
   ];
   var FETCH_TIMEOUT_MS = 6000;
   var HUB_TIMEOUT_MS = 5000;
+  /** Include SIGMETs whose geometry comes this close to the FIR/ARTCC boundary. */
+  var SIGMET_PROXIMITY_NM = 150;
+  var EARTH_NM = 3440.065;
 
   /** ARTCC id (ZJX) -> rings of [lon, lat] */
   var artccPolys = null;
   var artccLoad = null;
+  /** ARTCC id -> {minLat, maxLat, minLon, maxLon} */
+  var artccBBox = Object.create(null);
 
   function normalizeArtcc(raw) {
     var id = String(raw || "")
@@ -56,6 +66,51 @@
     var a = bareArtcc(artcc);
     var f = bareArtcc(fir);
     return !!a && !!f && a === f;
+  }
+
+  /** US convective sequence: 21E, 13C, 4W. Not an ICAO letter series. */
+  function isConvectiveSeq(seq) {
+    return /^\d+[A-Z]$/.test(String(seq || "").trim().toUpperCase());
+  }
+
+  /** ICAO SIGMET series: CHARLIE 3, FOXTROT 3. Same letter, higher number supersedes. */
+  function parseIntlSeries(seq) {
+    var m = String(seq || "")
+      .trim()
+      .toUpperCase()
+      .match(/^([A-Z]+)\s+(\d+)$/);
+    if (!m) return null;
+    return { letter: m[1], num: parseInt(m[2], 10) };
+  }
+
+  /**
+   * Short hazard label for the SIG header.
+   * NWS phenomenon is often a WMO URI (http://codes.wmo.int/.../FRQ_TS).
+   */
+  function normalizeHazard(raw) {
+    var s = String(raw || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s) || /codes\.wmo\.int/i.test(s)) {
+      var path = s.replace(/\/+$/, "");
+      var slash = path.lastIndexOf("/");
+      s = slash >= 0 ? path.slice(slash + 1) : path;
+    }
+    return s.replace(/_/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function dropSupersededIntl(entries) {
+    var best = Object.create(null);
+    (entries || []).forEach(function (e) {
+      var parsed = parseIntlSeries(e && e.sequence);
+      if (!parsed) return;
+      if (best[parsed.letter] == null || parsed.num > best[parsed.letter])
+        best[parsed.letter] = parsed.num;
+    });
+    return (entries || []).filter(function (e) {
+      var parsed = parseIntlSeries(e && e.sequence);
+      if (!parsed) return true;
+      return parsed.num === best[parsed.letter];
+    });
   }
 
   function parseTime(value) {
@@ -279,6 +334,7 @@
       Array.prototype.push.apply(map[id], rings);
     });
     artccPolys = map;
+    artccBBox = Object.create(null);
     return Object.keys(map).length;
   }
 
@@ -305,26 +361,207 @@
     return artccLoad;
   }
 
-  /** True when SIGMET geometry touches the ARTCC (vertex or centroid inside). */
-  function geometryTouchesArtcc(artcc, coords) {
-    if (!coords || !coords.length) return false;
-    var sumLat = 0,
-      sumLon = 0,
-      n = 0;
+  function boundsForArtcc(artcc) {
+    var id = bareArtcc(artcc);
+    if (artccBBox[id]) return artccBBox[id];
+    var rings = artccPolys && artccPolys[id];
+    if (!rings || !rings.length) return null;
+    var minLat = 90,
+      maxLat = -90,
+      minLon = 180,
+      maxLon = -180;
+    for (var r = 0; r < rings.length; r++) {
+      var ring = rings[r];
+      for (var i = 0; i < ring.length; i++) {
+        var lon = ring[i][0],
+          lat = ring[i][1];
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+      }
+    }
+    artccBBox[id] = {
+      minLat: minLat,
+      maxLat: maxLat,
+      minLon: minLon,
+      maxLon: maxLon,
+    };
+    return artccBBox[id];
+  }
+
+  function haversineNm(lat1, lon1, lat2, lon2) {
+    var p1 = (lat1 * Math.PI) / 180;
+    var p2 = (lat2 * Math.PI) / 180;
+    var dphi = p2 - p1;
+    var dl = ((lon2 - lon1) * Math.PI) / 180;
+    var a =
+      Math.sin(dphi / 2) * Math.sin(dphi / 2) +
+      Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    return 2 * EARTH_NM * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+
+  /** Equirectangular point-to-segment distance in NM (good to ~150 NM). */
+  function distPointToSegNm(lat, lon, lat1, lon1, lat2, lon2) {
+    var cos = Math.cos((lat * Math.PI) / 180);
+    var ax = (lon1 - lon) * cos * 60;
+    var ay = (lat1 - lat) * 60;
+    var bx = (lon2 - lon) * cos * 60;
+    var by = (lat2 - lat) * 60;
+    var abx = bx - ax,
+      aby = by - ay;
+    var len2 = abx * abx + aby * aby;
+    if (len2 < 1e-12) return Math.sqrt(ax * ax + ay * ay);
+    var t = Math.max(0, Math.min(1, (-ax * abx - ay * aby) / len2));
+    var px = ax + t * abx;
+    var py = ay + t * aby;
+    return Math.sqrt(px * px + py * py);
+  }
+
+  function distPointToRingsNm(lat, lon, rings) {
+    if (!rings || !rings.length) return Infinity;
+    var best = Infinity;
+    for (var r = 0; r < rings.length; r++) {
+      var ring = rings[r];
+      if (!ring || ring.length < 2) continue;
+      for (var i = 0; i < ring.length - 1; i++) {
+        var d = distPointToSegNm(
+          lat,
+          lon,
+          ring[i][1],
+          ring[i][0],
+          ring[i + 1][1],
+          ring[i + 1][0]
+        );
+        if (d < best) best = d;
+        if (best === 0) return 0;
+      }
+    }
+    return best;
+  }
+
+  function coordsToRing(coords) {
+    var ring = [];
+    if (!coords || !coords.length) return ring;
     for (var i = 0; i < coords.length; i++) {
       var c = coords[i];
       var lat = c.lat != null ? +c.lat : c[1] != null ? +c[1] : null;
       var lon = c.lon != null ? +c.lon : c[0] != null ? +c[0] : null;
       if (lat == null || lon == null || !isFinite(lat) || !isFinite(lon))
         continue;
-      if (pointInArtcc(artcc, lat, lon) === true) return true;
+      ring.push([lon, lat]);
+    }
+    if (
+      ring.length >= 2 &&
+      (ring[0][0] !== ring[ring.length - 1][0] ||
+        ring[0][1] !== ring[ring.length - 1][1])
+    ) {
+      ring.push([ring[0][0], ring[0][1]]);
+    }
+    return ring;
+  }
+
+  function inExpandedBBox(bbox, lat, lon, nm) {
+    if (!bbox) return true;
+    var dlat = (nm || 0) / 60;
+    var clon = Math.max(0.2, Math.abs(Math.cos((lat * Math.PI) / 180)));
+    var dlon = (nm || 0) / (60 * clon);
+    return (
+      lat >= bbox.minLat - dlat &&
+      lat <= bbox.maxLat + dlat &&
+      lon >= bbox.minLon - dlon &&
+      lon <= bbox.maxLon + dlon
+    );
+  }
+
+  function ringBounds(ring) {
+    var minLat = 90,
+      maxLat = -90,
+      minLon = 180,
+      maxLon = -180;
+    for (var i = 0; i < ring.length; i++) {
+      var lon = ring[i][0],
+        lat = ring[i][1];
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    }
+    return {
+      minLat: minLat,
+      maxLat: maxLat,
+      minLon: minLon,
+      maxLon: maxLon,
+    };
+  }
+
+  function bboxesOverlap(a, b, nm) {
+    if (!a || !b) return false;
+    var dlat = (nm || 0) / 60;
+    var midLat = (a.minLat + a.maxLat + b.minLat + b.maxLat) / 4;
+    var clon = Math.max(0.2, Math.abs(Math.cos((midLat * Math.PI) / 180)));
+    var dlon = (nm || 0) / (60 * clon);
+    return (
+      a.minLat - dlat <= b.maxLat &&
+      a.maxLat + dlat >= b.minLat &&
+      a.minLon - dlon <= b.maxLon &&
+      a.maxLon + dlon >= b.minLon
+    );
+  }
+
+  /** True when a point is inside the ARTCC or within `nm` of its boundary. */
+  function pointNearArtcc(artcc, lat, lon, nm) {
+    if (pointInArtcc(artcc, lat, lon) === true) return true;
+    if (!(nm > 0)) return false;
+    var rings = artccPolys && artccPolys[bareArtcc(artcc)];
+    if (!rings || !rings.length) return false;
+    if (!inExpandedBBox(boundsForArtcc(artcc), lat, lon, nm)) return false;
+    return distPointToRingsNm(lat, lon, rings) <= nm;
+  }
+
+  /**
+   * True when SIGMET geometry touches the ARTCC or comes within `nm` NM
+   * of the boundary (vertex or ARTCC vertex vs SIGMET polygon).
+   */
+  function geometryNearArtcc(artcc, coords, nm) {
+    nm = nm == null ? SIGMET_PROXIMITY_NM : nm;
+    var ring = coordsToRing(coords);
+    if (!ring.length) return false;
+    var sumLat = 0,
+      sumLon = 0,
+      n = 0;
+    var i;
+    for (i = 0; i < ring.length; i++) {
+      var lat = ring[i][1],
+        lon = ring[i][0];
+      if (pointNearArtcc(artcc, lat, lon, nm)) return true;
+      // Last point may duplicate the first on a closed ring — still fine to sum
       sumLat += lat;
       sumLon += lon;
       n++;
     }
-    if (n > 0 && pointInArtcc(artcc, sumLat / n, sumLon / n) === true)
-      return true;
+    if (n > 0 && pointNearArtcc(artcc, sumLat / n, sumLon / n, 0)) return true;
+
+    var artccRings = artccPolys && artccPolys[bareArtcc(artcc)];
+    var artBBox = boundsForArtcc(artcc);
+    if (!artccRings || !artccRings.length || ring.length < 4 || !artBBox)
+      return false;
+    var sigBBox = ringBounds(ring);
+    if (!bboxesOverlap(sigBBox, artBBox, nm)) return false;
+    for (var r = 0; r < artccRings.length; r++) {
+      var aRing = artccRings[r];
+      for (i = 0; i < aRing.length; i++) {
+        var alat = aRing[i][1],
+          alon = aRing[i][0];
+        if (inRing(alat, alon, ring)) return true;
+        if (nm > 0 && distPointToRingsNm(alat, alon, [ring]) <= nm) return true;
+      }
+    }
     return false;
+  }
+
+  function geometryTouchesArtcc(artcc, coords) {
+    return geometryNearArtcc(artcc, coords, SIGMET_PROXIMITY_NM);
   }
 
   function coordsFromNwsGeometry(geom) {
@@ -413,11 +650,8 @@
       String(fir || "SIGMET") + (seq ? " SIGMET " + seq : " SIGMET")
     );
     if (hazard) {
-      var haz = String(hazard)
-        .replace(/^https?:\/\/[^ ]+\//, "")
-        .replace(/_/g, " ")
-        .toUpperCase();
-      lines.push("HAZARD: " + haz);
+      var haz = normalizeHazard(hazard);
+      if (haz) lines.push("HAZARD: " + haz.toUpperCase());
     }
     if (props.issueTime) lines.push("ISSUED: " + fmtZulu(props.issueTime));
     var start = props.start || props.validTimeFrom;
@@ -450,12 +684,14 @@
         start = awcHit.validTimeFrom;
       if (end == null && awcHit.validTimeTo != null) end = awcHit.validTimeTo;
     }
-    var hazard = String(
+    var hazard = normalizeHazard(
       props.hazard ||
         props.phenomenon ||
-        (awcHit && awcHit.hazard) ||
+        (awcHit && (awcHit.qualifier
+          ? String(awcHit.qualifier) + " " + String(awcHit.hazard || "")
+          : awcHit.hazard)) ||
         ""
-    ).toLowerCase();
+    );
     var texts = buildTextFromNws(props, awcHit);
     return {
       id: String(props.id || (feature && feature.id) || seq || Math.random()),
@@ -481,7 +717,7 @@
       id: String(item.airSigmetId || seq || Math.random()),
       fir: bareArtcc(artcc),
       sequence: seq,
-      hazard: String(item.hazard || "").toLowerCase(),
+      hazard: normalizeHazard(item.hazard),
       start: item.validTimeFrom != null ? item.validTimeFrom : null,
       end: item.validTimeTo != null ? item.validTimeTo : null,
       issueTime: item.issueTime || item.creationTime || null,
@@ -495,16 +731,19 @@
     var fir = String(item.firId || "")
       .trim()
       .toUpperCase();
-    if (!firMatches(fir, artcc)) return null;
-    var raw = String(item.rawSigmet || item.rawOb || "").trim();
+    var raw = String(item.rawSigmet || item.rawOb || item.raw || "").trim();
     var texts = textsFromRaw(raw, "");
+    var q = String(item.qualifier || "").trim();
+    var haz = normalizeHazard(item.hazard);
+    if (q && haz && haz.indexOf(q.toLowerCase()) < 0)
+      haz = normalizeHazard(q + " " + haz);
     return {
       id: String(
         item.isigmetId || item.icaoId || item.seriesId || Math.random()
       ),
-      fir: fir,
+      fir: fir || bareArtcc(artcc),
       sequence: String(item.seriesId || "").toUpperCase(),
-      hazard: String(item.hazard || "").toLowerCase(),
+      hazard: haz,
       start: item.validTimeFrom || null,
       end: item.validTimeTo || null,
       issueTime: item.issueTime || null,
@@ -512,6 +751,56 @@
       fullText: texts.fullText,
       source: "isigmet",
     };
+  }
+
+  /** FIR ids listed on an international SIGMET (header "KZMA KZHU SIGMET …"). */
+  function firsFromIsigmet(item) {
+    var out = [];
+    function add(s) {
+      var b = bareArtcc(s);
+      if (b && /^Z[A-Z]{2}$/.test(b) && out.indexOf(b) < 0) out.push(b);
+    }
+    add(item && item.firId);
+    var raw = String(
+      (item && (item.rawSigmet || item.rawOb || item.raw)) || ""
+    ).toUpperCase();
+    raw.split(/\n/).forEach(function (line) {
+      if (!/\bSIGMET\b/.test(line)) return;
+      var re = /\b(K?Z[A-Z]{2})\b/g;
+      var m;
+      while ((m = re.exec(line))) add(m[1]);
+    });
+    return out;
+  }
+
+  function isigmetRelevant(item, artcc) {
+    if (!item) return false;
+    var a = bareArtcc(artcc);
+    var firs = firsFromIsigmet(item);
+    for (var i = 0; i < firs.length; i++) {
+      if (firs[i] === a) return true;
+    }
+    return geometryTouchesArtcc(artcc, item.coords || []);
+  }
+
+  /** NWS 6h lookback still lists previous-hour / superseded products. */
+  function nwsIsStaleAgainstAwc(seq, airOk, airIdx, isigOk, isigIdx) {
+    if (!seq) return false;
+    var airLive = airOk && airIdx && airIdx.list && airIdx.list.length;
+    var isigLive = isigOk && isigIdx && isigIdx.list && isigIdx.list.length;
+    if (isConvectiveSeq(seq) && airLive && !airIdx.bySeries[seq]) return true;
+    if (parseIntlSeries(seq) && isigLive && !isigIdx.bySeries[seq]) return true;
+    return false;
+  }
+
+  function wrapAwcList(promise) {
+    return Promise.resolve(promise)
+      .then(function (data) {
+        return { ok: true, list: Array.isArray(data) ? data : [] };
+      })
+      .catch(function () {
+        return { ok: false, list: [] };
+      });
   }
 
   /**
@@ -538,25 +827,33 @@
       }),
       // AWC origin can be 10–30s; hub cache / short race, then proceed without it.
       withTimeoutFallback(
-        fetchJsonFlexible(AWC_AIRSIGMET, {
-          viaHub: "air",
-          tryDirect: false,
-        }),
+        wrapAwcList(
+          fetchJsonFlexible(AWC_AIRSIGMET, {
+            viaHub: "air",
+            tryDirect: false,
+          })
+        ),
         7000,
-        []
+        { ok: false, list: [] }
       ),
       withTimeoutFallback(
-        fetchJsonFlexible(AWC_ISIGMET, {
-          viaHub: "isig",
-          tryDirect: false,
-        }),
+        wrapAwcList(
+          fetchJsonFlexible(AWC_ISIGMET, {
+            viaHub: "isig",
+            tryDirect: false,
+          })
+        ),
         7000,
-        []
+        { ok: false, list: [] }
       ),
     ]).then(function (results) {
       var nws = results[1] || {};
-      var airIdx = indexAwcBySeries(results[2]);
-      var isigIdx = indexAwcBySeries(results[3]);
+      var airPack = results[2] && results[2].list ? results[2] : { ok: false, list: [] };
+      var isigPack = results[3] && results[3].list ? results[3] : { ok: false, list: [] };
+      var airIdx = indexAwcBySeries(airPack.list);
+      var isigIdx = indexAwcBySeries(isigPack.list);
+      var airOk = !!airPack.ok;
+      var isigOk = !!isigPack.ok;
       var now = new Date();
       var seen = Object.create(null);
       var entries = [];
@@ -576,7 +873,7 @@
         entries.push(entry);
       }
 
-      // 1) AWC domestic / convective — geometry vs staffed ARTCC
+      // 1) AWC domestic / convective — within 150 NM of staffed ARTCC
       (Array.isArray(airIdx.list) ? airIdx.list : []).forEach(function (item) {
         if (!item) return;
         var coords = item.coords || [];
@@ -584,10 +881,20 @@
         pushEntry(fromAirsigmet(item, artcc));
       });
 
-      // 2) NWS features — FIR tag match OR geometry touches ARTCC
+      // 2) AWC international — FIR on the bulletin (not just firId) or 150 NM
+      (Array.isArray(isigIdx.list) ? isigIdx.list : []).forEach(function (item) {
+        if (!isigmetRelevant(item, artcc)) return;
+        pushEntry(fromIsigmet(item, artcc));
+      });
+
+      // 3) NWS features — FIR tag or geometry; skip products AWC already replaced
       var nwsFeatures = Array.isArray(nws.features) ? nws.features : [];
       nwsFeatures.forEach(function (f) {
         var props = (f && f.properties) || {};
+        var seq = String(props.sequence || "")
+          .trim()
+          .toUpperCase();
+        if (nwsIsStaleAgainstAwc(seq, airOk, airIdx, isigOk, isigIdx)) return;
         var fir = String(props.fir || "")
           .trim()
           .toUpperCase();
@@ -600,10 +907,7 @@
         pushEntry(fromNwsFeature(f, airIdx, isigIdx));
       });
 
-      // 3) International SIGMETs for this FIR
-      (Array.isArray(isigIdx.list) ? isigIdx.list : []).forEach(function (item) {
-        pushEntry(fromIsigmet(item, artcc));
-      });
+      entries = dropSupersededIntl(entries);
 
       entries.sort(function (a, b) {
         var ae = parseTime(entryEnd(a));
@@ -616,17 +920,34 @@
     });
   }
 
+  function seedArtccPolys(map) {
+    artccPolys = map || Object.create(null);
+    artccBBox = Object.create(null);
+    return artccPolys;
+  }
+
   global.EdstSigmets = {
     normalizeArtcc: normalizeArtcc,
     fetchSigmetsForArtcc: fetchSigmetsForArtcc,
     firstParagraph: firstParagraph,
     textsFromRaw: textsFromRaw,
+    normalizeHazard: normalizeHazard,
     // test helpers
     _pointInArtcc: pointInArtcc,
     _loadArtccBoundaries: loadArtccBoundaries,
     _geometryTouchesArtcc: geometryTouchesArtcc,
+    _geometryNearArtcc: geometryNearArtcc,
     _fromAirsigmet: fromAirsigmet,
     _fromIsigmet: fromIsigmet,
     _buildTextFromNws: buildTextFromNws,
+    _ingestBoundaries: ingestBoundaries,
+    _seedArtccPolys: seedArtccPolys,
+    _isigmetRelevant: isigmetRelevant,
+    _firsFromIsigmet: firsFromIsigmet,
+    _dropSupersededIntl: dropSupersededIntl,
+    _nwsIsStaleAgainstAwc: nwsIsStaleAgainstAwc,
+    _isCurrentlyValid: isCurrentlyValid,
+    _SIGMET_PROXIMITY_NM: SIGMET_PROXIMITY_NM,
+    _haversineNm: haversineNm,
   };
 })(typeof window !== "undefined" ? window : globalThis);

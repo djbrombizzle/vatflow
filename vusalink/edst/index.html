@@ -5216,7 +5216,9 @@ function noteSigEntries(entries,art){
 }
 function sigFmtMeta(entry){
   const seq=entry.sequence||'—';
-  const haz=(entry.hazard||'').toUpperCase();
+  const hazRaw=entry.hazard||'';
+  const haz=(window.EdstSigmets&&typeof EdstSigmets.normalizeHazard==='function'
+    ?EdstSigmets.normalizeHazard(hazRaw):String(hazRaw)).toUpperCase();
   let valid='';
   const end=entry.end||entry.validTimeTo;
   if(end!=null){
