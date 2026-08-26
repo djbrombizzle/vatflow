@@ -3569,10 +3569,16 @@ function updateMode(){
   else if(hubMode()){badge.textContent=verifyOK?'CONTROLLING':'vNAS VERIFY';badge.className=verifyOK?'badge ctrl':'badge view';if(field)field.style.display='none';}
   else{badge.textContent='VIEW ONLY';badge.className='badge view';if(field)field.style.display='';}
 }
+function tabSigMark(){
+  // ⊕︎ (circled plus, text presentation) — unread SIGMETs, same cue as SIG flash
+  const btn=document.getElementById('btnSig');
+  return (btn&&btn.classList.contains('flash'))?'\u2295\uFE0E':'';
+}
 function updateTabTitle(){
   const n=countMyCpdlc();
-  if(settings.compactTabTitle)document.title='['+n+']';
-  else document.title=n?`(${n})vUSAlink EDST`:'vUSAlink EDST';
+  const sig=tabSigMark();
+  if(settings.compactTabTitle)document.title='['+n+sig+']';
+  else document.title=n?('('+n+sig+')vUSAlink EDST'):(sig?sig+' vUSAlink EDST':'vUSAlink EDST');
 }
 function renderBoard(){
   checkWilcoTimeouts();
@@ -5180,6 +5186,7 @@ function syncSigButton(){
     btn.title=title;
     btn.textContent=label;
   });
+  if(typeof updateTabTitle==='function')updateTabTitle();
 }
 function clearSigAlert(){
   sigUnreadCount=0;
