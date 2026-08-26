@@ -200,12 +200,20 @@ assert(
   "current 29E kept"
 );
 assert(
+  !EdstSigmets._nwsIsStaleAgainstAwc("55E", true, airIdx, true, isigIdx),
+  "newer 55E kept even though AWC cache has not listed it yet"
+);
+assert(
   EdstSigmets._nwsIsStaleAgainstAwc("CHARLIE 2", true, airIdx, true, isigIdx),
   "CHARLIE 2 dropped when AWC has CHARLIE 3"
 );
 assert(
   !EdstSigmets._nwsIsStaleAgainstAwc("CHARLIE 3", true, airIdx, true, isigIdx),
   "CHARLIE 3 kept"
+);
+assert(
+  !EdstSigmets._nwsIsStaleAgainstAwc("CHARLIE 4", true, airIdx, true, isigIdx),
+  "newer CHARLIE 4 kept when AWC cache is still on CHARLIE 3"
 );
 assert(
   !EdstSigmets._nwsIsStaleAgainstAwc("13E", false, airIdx, false, isigIdx),
@@ -233,6 +241,28 @@ assert(
   "keep latest ICAO series number; leave convective numbers"
 );
 
+assert(EdstSigmets._isUsFaaSigmet({ sequence: "55E", source: "airsigmet" }), "55E is FAA");
+assert(EdstSigmets._isUsFaaSigmet({ sequence: "54E", source: "nws" }), "NWS 54E is FAA");
+assert(
+  !EdstSigmets._isUsFaaSigmet({ sequence: "CHARLIE 3", source: "isigmet" }),
+  "CHARLIE 3 is international"
+);
+assert(
+  !EdstSigmets._isUsFaaSigmet({ sequence: "INDIA 3", source: "nws" }),
+  "NWS INDIA 3 is international"
+);
+
+const listed = EdstSigmets._sortSigmetEntries([
+  { sequence: "CHARLIE 3", source: "isigmet", end: "2026-08-21T21:00:00Z" },
+  { sequence: "55E", source: "airsigmet", end: "2026-08-21T22:00:00Z" },
+  { sequence: "INDIA 3", source: "isigmet", end: "2026-08-21T20:00:00Z" },
+  { sequence: "54E", source: "nws", end: "2026-08-21T21:30:00Z" },
+]);
+assert(
+  listed.map((e) => e.sequence).join() === "54E,55E,INDIA 3,CHARLIE 3",
+  "FAA convective first, international nearby last"
+);
+
 // validity windows (unix seconds + ISO with offset)
 const now = new Date("2026-08-21T20:10:00Z");
 assert(
@@ -248,6 +278,16 @@ assert(
     now
   ) === true,
   "current convective unix window still valid"
+);
+assert(
+  EdstSigmets._isCurrentlyValid(
+    {
+      start: "2026-08-21T20:25:00Z",
+      end: "2026-08-21T22:25:00Z",
+    },
+    now
+  ) === true,
+  "issued-but-not-yet-valid (inbound) SIGMET is listed"
 );
 
 if (failed) {

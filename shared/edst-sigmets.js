@@ -113,6 +113,34 @@
     });
   }
 
+  /** FAA/US convective & domestic SIGMETs vs ICAO international. */
+  function isUsFaaSigmet(entry) {
+    if (!entry) return false;
+    var src = String(entry.source || "");
+    if (src === "airsigmet") return true;
+    if (src === "isigmet") return false;
+    if (isConvectiveSeq(entry.sequence)) return true;
+    if (parseIntlSeries(entry.sequence)) return false;
+    var haz = String(entry.hazard || "").toLowerCase();
+    return haz.indexOf("convective") >= 0;
+  }
+
+  function sortSigmetEntries(entries) {
+    return (entries || []).slice().sort(function (a, b) {
+      var ra = isUsFaaSigmet(a) ? 0 : 1;
+      var rb = isUsFaaSigmet(b) ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      var ae = parseTime(entryEnd(a));
+      var be = parseTime(entryEnd(b));
+      if (ae && be && ae.getTime() !== be.getTime()) return ae - be;
+      if (ae && !be) return -1;
+      if (!ae && be) return 1;
+      return String((a && a.sequence) || "").localeCompare(
+        String((b && b.sequence) || "")
+      );
+    });
+  }
+
   function parseTime(value) {
     if (value == null || value === "") return null;
     if (typeof value === "number" && isFinite(value)) {
@@ -132,10 +160,11 @@
   }
 
   function isCurrentlyValid(entry, now) {
-    var start = parseTime(entryStart(entry));
     var end = parseTime(entryEnd(entry));
-    if (start && now < start) return false;
     if (end && now > end) return false;
+    // Keep issued products whose valid window has not started yet.
+    // Convective SIGMETs hit AWC ~10–15 min before :55; AWC/NWS show them
+    // as inbound, and hiding them made "new ones never appear."
     return true;
   }
 
@@ -783,13 +812,44 @@
     return geometryTouchesArtcc(artcc, item.coords || []);
   }
 
-  /** NWS 6h lookback still lists previous-hour / superseded products. */
+  /**
+   * NWS 6h lookback still lists previous-hour / superseded products.
+   * Only drop when AWC proves a *newer* same-series product — missing from
+   * AWC used to mean "stale," which also discarded brand-new SIGMETs the
+   * hub cache had not picked up yet (55E while AWC still listed 52–54E).
+   */
   function nwsIsStaleAgainstAwc(seq, airOk, airIdx, isigOk, isigIdx) {
     if (!seq) return false;
-    var airLive = airOk && airIdx && airIdx.list && airIdx.list.length;
-    var isigLive = isigOk && isigIdx && isigIdx.list && isigIdx.list.length;
-    if (isConvectiveSeq(seq) && airLive && !airIdx.bySeries[seq]) return true;
-    if (parseIntlSeries(seq) && isigLive && !isigIdx.bySeries[seq]) return true;
+    seq = String(seq).trim().toUpperCase();
+    var conv = seq.match(/^(\d+)([A-Z])$/);
+    if (conv) {
+      var airLive = airOk && airIdx && airIdx.list && airIdx.list.length;
+      if (!airLive) return false;
+      if (airIdx.bySeries && airIdx.bySeries[seq]) return false;
+      var num = parseInt(conv[1], 10);
+      var letter = conv[2];
+      var max = -1;
+      Object.keys((airIdx && airIdx.bySeries) || {}).forEach(function (s) {
+        var m = String(s).match(/^(\d+)([A-Z])$/);
+        if (m && m[2] === letter) max = Math.max(max, parseInt(m[1], 10));
+      });
+      if (max < 0) return false;
+      if (num > max) return false;
+      if (max >= 90 && num <= 10) return false;
+      return num < max;
+    }
+    var parsed = parseIntlSeries(seq);
+    if (parsed) {
+      var isigLive = isigOk && isigIdx && isigIdx.list && isigIdx.list.length;
+      if (!isigLive) return false;
+      if (isigIdx.bySeries && isigIdx.bySeries[seq]) return false;
+      var best = -1;
+      Object.keys((isigIdx && isigIdx.bySeries) || {}).forEach(function (s) {
+        var p = parseIntlSeries(s);
+        if (p && p.letter === parsed.letter) best = Math.max(best, p.num);
+      });
+      return best >= 0 && parsed.num < best;
+    }
     return false;
   }
 
@@ -907,14 +967,7 @@
         pushEntry(fromNwsFeature(f, airIdx, isigIdx));
       });
 
-      entries = dropSupersededIntl(entries);
-
-      entries.sort(function (a, b) {
-        var ae = parseTime(entryEnd(a));
-        var be = parseTime(entryEnd(b));
-        if (ae && be) return ae - be;
-        return String(a.sequence).localeCompare(String(b.sequence));
-      });
+      entries = sortSigmetEntries(dropSupersededIntl(entries));
 
       return { artcc: bareArtcc(artcc), entries: entries, error: null };
     });
@@ -945,6 +998,8 @@
     _isigmetRelevant: isigmetRelevant,
     _firsFromIsigmet: firsFromIsigmet,
     _dropSupersededIntl: dropSupersededIntl,
+    _sortSigmetEntries: sortSigmetEntries,
+    _isUsFaaSigmet: isUsFaaSigmet,
     _nwsIsStaleAgainstAwc: nwsIsStaleAgainstAwc,
     _isCurrentlyValid: isCurrentlyValid,
     _SIGMET_PROXIMITY_NM: SIGMET_PROXIMITY_NM,
