@@ -200,12 +200,20 @@ assert(
   "current 29E kept"
 );
 assert(
+  !EdstSigmets._nwsIsStaleAgainstAwc("55E", true, airIdx, true, isigIdx),
+  "newer 55E kept even though AWC cache has not listed it yet"
+);
+assert(
   EdstSigmets._nwsIsStaleAgainstAwc("CHARLIE 2", true, airIdx, true, isigIdx),
   "CHARLIE 2 dropped when AWC has CHARLIE 3"
 );
 assert(
   !EdstSigmets._nwsIsStaleAgainstAwc("CHARLIE 3", true, airIdx, true, isigIdx),
   "CHARLIE 3 kept"
+);
+assert(
+  !EdstSigmets._nwsIsStaleAgainstAwc("CHARLIE 4", true, airIdx, true, isigIdx),
+  "newer CHARLIE 4 kept when AWC cache is still on CHARLIE 3"
 );
 assert(
   !EdstSigmets._nwsIsStaleAgainstAwc("13E", false, airIdx, false, isigIdx),
@@ -248,6 +256,16 @@ assert(
     now
   ) === true,
   "current convective unix window still valid"
+);
+assert(
+  EdstSigmets._isCurrentlyValid(
+    {
+      start: "2026-08-21T20:25:00Z",
+      end: "2026-08-21T22:25:00Z",
+    },
+    now
+  ) === true,
+  "issued-but-not-yet-valid (inbound) SIGMET is listed"
 );
 
 if (failed) {
