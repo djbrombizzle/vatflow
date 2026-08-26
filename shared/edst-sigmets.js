@@ -113,6 +113,34 @@
     });
   }
 
+  /** FAA/US convective & domestic SIGMETs vs ICAO international. */
+  function isUsFaaSigmet(entry) {
+    if (!entry) return false;
+    var src = String(entry.source || "");
+    if (src === "airsigmet") return true;
+    if (src === "isigmet") return false;
+    if (isConvectiveSeq(entry.sequence)) return true;
+    if (parseIntlSeries(entry.sequence)) return false;
+    var haz = String(entry.hazard || "").toLowerCase();
+    return haz.indexOf("convective") >= 0;
+  }
+
+  function sortSigmetEntries(entries) {
+    return (entries || []).slice().sort(function (a, b) {
+      var ra = isUsFaaSigmet(a) ? 0 : 1;
+      var rb = isUsFaaSigmet(b) ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      var ae = parseTime(entryEnd(a));
+      var be = parseTime(entryEnd(b));
+      if (ae && be && ae.getTime() !== be.getTime()) return ae - be;
+      if (ae && !be) return -1;
+      if (!ae && be) return 1;
+      return String((a && a.sequence) || "").localeCompare(
+        String((b && b.sequence) || "")
+      );
+    });
+  }
+
   function parseTime(value) {
     if (value == null || value === "") return null;
     if (typeof value === "number" && isFinite(value)) {
@@ -939,14 +967,7 @@
         pushEntry(fromNwsFeature(f, airIdx, isigIdx));
       });
 
-      entries = dropSupersededIntl(entries);
-
-      entries.sort(function (a, b) {
-        var ae = parseTime(entryEnd(a));
-        var be = parseTime(entryEnd(b));
-        if (ae && be) return ae - be;
-        return String(a.sequence).localeCompare(String(b.sequence));
-      });
+      entries = sortSigmetEntries(dropSupersededIntl(entries));
 
       return { artcc: bareArtcc(artcc), entries: entries, error: null };
     });
@@ -977,6 +998,8 @@
     _isigmetRelevant: isigmetRelevant,
     _firsFromIsigmet: firsFromIsigmet,
     _dropSupersededIntl: dropSupersededIntl,
+    _sortSigmetEntries: sortSigmetEntries,
+    _isUsFaaSigmet: isUsFaaSigmet,
     _nwsIsStaleAgainstAwc: nwsIsStaleAgainstAwc,
     _isCurrentlyValid: isCurrentlyValid,
     _SIGMET_PROXIMITY_NM: SIGMET_PROXIMITY_NM,

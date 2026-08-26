@@ -241,6 +241,28 @@ assert(
   "keep latest ICAO series number; leave convective numbers"
 );
 
+assert(EdstSigmets._isUsFaaSigmet({ sequence: "55E", source: "airsigmet" }), "55E is FAA");
+assert(EdstSigmets._isUsFaaSigmet({ sequence: "54E", source: "nws" }), "NWS 54E is FAA");
+assert(
+  !EdstSigmets._isUsFaaSigmet({ sequence: "CHARLIE 3", source: "isigmet" }),
+  "CHARLIE 3 is international"
+);
+assert(
+  !EdstSigmets._isUsFaaSigmet({ sequence: "INDIA 3", source: "nws" }),
+  "NWS INDIA 3 is international"
+);
+
+const listed = EdstSigmets._sortSigmetEntries([
+  { sequence: "CHARLIE 3", source: "isigmet", end: "2026-08-21T21:00:00Z" },
+  { sequence: "55E", source: "airsigmet", end: "2026-08-21T22:00:00Z" },
+  { sequence: "INDIA 3", source: "isigmet", end: "2026-08-21T20:00:00Z" },
+  { sequence: "54E", source: "nws", end: "2026-08-21T21:30:00Z" },
+]);
+assert(
+  listed.map((e) => e.sequence).join() === "54E,55E,INDIA 3,CHARLIE 3",
+  "FAA convective first, international nearby last"
+);
+
 // validity windows (unix seconds + ISO with offset)
 const now = new Date("2026-08-21T20:10:00Z");
 assert(
