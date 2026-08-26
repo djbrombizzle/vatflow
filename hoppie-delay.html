@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hoppie Delay — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #050505;
+    --fg: #cfcfcf;
+    --fg-dim: #6b6b6b;
+    --cyan: #3fb7b0;
+    --green: #79d27a;
+    --amber: #e8a838;
+    --red: #e07070;
+    --line: #333;
+    --panel: #121212;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+
+  #page {
+    position: fixed;
+    top: var(--vatflow-nav-h);
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    background: #0b0b0b;
+  }
+  .hdr {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 8px 14px; background: #161616; border-bottom: 1px solid #444;
+    flex-shrink: 0;
+  }
+  .hdr .title { color: #fff; letter-spacing: 0.4px; font-size: 14px; }
+  .hdr .sub { color: var(--fg-dim); font-size: 11px; }
+  .hdr .fetched { margin-left: auto; color: var(--fg-dim); font-size: 11px; }
+
+  #indicator {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 8px 14px; border-bottom: 1px solid #222; flex-shrink: 0;
+    font-size: 12px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 10px; border: 1px solid #444; background: #151515;
+    letter-spacing: 0.04em;
+  }
+  .pill .lab { color: var(--fg-dim); font-size: 10px; }
+  .pill.ok { border-color: #2d5a32; color: var(--green); }
+  .pill.warn { border-color: #6a5420; color: var(--amber); }
+  .pill.bad { border-color: #6a2a2a; color: var(--red); }
+  .pill.err { border-color: #6a2a2a; color: var(--red); }
+
+  .note {
+    padding: 6px 14px; font-size: 11px; color: var(--fg-dim); line-height: 1.45;
+    border-bottom: 1px solid #222; flex-shrink: 0;
+  }
+
+  .cards {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    padding: 10px 14px; flex-shrink: 0;
+  }
+  @media (max-width: 820px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); padding: 10px 12px;
+  }
+  .card h2 {
+    margin: 0 0 8px; font-size: 11px; letter-spacing: 0.1em; color: var(--amber);
+    font-weight: 600; text-transform: uppercase;
+  }
+  .card .hint { color: var(--fg-dim); font-size: 10px; margin: -4px 0 8px; }
+  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .metric .k { color: var(--fg-dim); font-size: 10px; }
+  .metric .v { font-size: 16px; color: #fff; margin-top: 2px; }
+  .metric .v.ok { color: var(--green); }
+  .metric .v.warn { color: var(--amber); }
+  .metric .v.bad { color: var(--red); }
+
+  .toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 6px 14px; border-top: 1px solid #222; flex-shrink: 0; font-size: 11px;
+  }
+  .seg { display: flex; border: 1px solid #444; }
+  .seg button, .filter-btn {
+    background: #1a1a1a; border: 0; border-right: 1px solid #444;
+    color: var(--fg); font-family: inherit; font-size: 11px;
+    padding: 4px 9px; cursor: pointer; line-height: 1.2;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.active, .filter-btn.active { background: #7d7d7d; color: #0a0a0a; }
+  .filter-btn { border: 1px solid #444; }
+  .toolbar input {
+    background: #111; border: 1px solid #444; color: var(--fg);
+    font-family: inherit; font-size: 11px; padding: 4px 8px; width: 140px;
+  }
+  .toolbar .count { margin-left: auto; color: var(--fg-dim); }
+
+  .tables {
+    flex: 1; min-height: 0; overflow: auto; padding: 0 14px 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th {
+    text-align: left; color: var(--fg-dim); font-weight: 600;
+    padding: 6px 8px; border-bottom: 1px solid #333; position: sticky; top: 0;
+    background: #0b0b0b; letter-spacing: 0.06em; font-size: 10px;
+  }
+  td { padding: 5px 8px; border-bottom: 1px solid #1c1c1c; vertical-align: top; }
+  tr:hover td { background: #141414; }
+  .lag { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lag.ok { color: var(--green); }
+  .lag.warn { color: var(--amber); }
+  .lag.bad { color: var(--red); }
+  .lag.pending { color: var(--cyan); }
+  .lag.unrelayed { color: var(--fg-dim); }
+  .dir-up { color: var(--amber); }
+  .dir-dn { color: var(--cyan); }
+  .msg { color: #9aa; word-break: break-word; max-width: 520px; }
+  h3 {
+    margin: 16px 0 6px; font-size: 11px; letter-spacing: 0.1em;
+    color: var(--fg-dim); font-weight: 600; text-transform: uppercase;
+  }
+  .empty { color: var(--fg-dim); padding: 16px 8px; }
+  a.src { color: var(--cyan); }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div id="page">
+  <div class="hdr">
+    <span class="title">HOPPIE DELAY</span>
+    <span class="sub">KUSA public log · Received vs Relayed · view only · no login</span>
+    <span class="fetched" id="fetched">loading&hellip;</span>
+  </div>
+  <div id="indicator">
+    <span class="pill" id="upPill"><span class="lab">UPLINK</span> —</span>
+    <span class="pill" id="dnPill"><span class="lab">DOWNLINK</span> —</span>
+  </div>
+  <div class="note">
+    Hoppie is store-and-forward. <b>Received</b> is when the server accepted the message;
+    <b>Relayed</b> is when the destination polled and picked it up (blank = still queued).
+    Timestamps are 1-minute resolution, so the hub’s 8–18s poll usually shows as 0.
+    Uplink lag is the aircraft client’s poll; downlink lag is the KUSA hub poll.
+    <a class="src" id="srcLink" href="https://www.hoppie.nl/acars/system/callsign.html?network=VATSIM&amp;callsign=KUSA" target="_blank" rel="noopener">Hoppie KUSA log</a>
+  </div>
+  <div class="cards">
+    <div class="card">
+      <h2>From KUSA · ATC → pilot</h2>
+      <div class="hint" id="upHint">last 15 minutes</div>
+      <div class="metrics" id="upMetrics"></div>
+    </div>
+    <div class="card">
+      <h2>To KUSA · pilot → ATC</h2>
+      <div class="hint" id="dnHint">last 15 minutes</div>
+      <div class="metrics" id="dnMetrics"></div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <span class="seg" id="winSeg">
+      <button type="button" data-win="m15" class="active">15 min</button>
+      <button type="button" data-win="m60">60 min</button>
+      <button type="button" data-win="all">24 h</button>
+    </span>
+    <button type="button" class="filter-btn active" data-filter="all">All</button>
+    <button type="button" class="filter-btn" data-filter="from_kusa">From KUSA</button>
+    <button type="button" class="filter-btn" data-filter="to_kusa">To KUSA</button>
+    <button type="button" class="filter-btn" data-filter="pending">Pending</button>
+    <button type="button" class="filter-btn" data-filter="lag2">≥2 min</button>
+    <input id="csFilter" type="search" placeholder="callsign" autocomplete="off" spellcheck="false">
+    <span class="count" id="rowCount"></span>
+  </div>
+  <div class="tables">
+    <table>
+      <thead>
+        <tr>
+          <th>Lag</th>
+          <th>Dir</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Type</th>
+          <th>Received</th>
+          <th>Relayed</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody id="msgBody"></tbody>
+    </table>
+    <h3>Reply interval · KUSA uplink MIN → aircraft MRN (includes pilot reaction)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Interval</th>
+          <th>Callsign</th>
+          <th>Uplink Rx</th>
+          <th>Reply Rx</th>
+          <th>Uplink</th>
+          <th>Reply</th>
+        </tr>
+      </thead>
+      <tbody id="replyBody"></tbody>
+    </table>
+  </div>
+</div>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+mountVatflowNav(document.getElementById("vatflowAppNav"), "hoppie-delay");
+</script>
+<script>
+const DEFAULT_HUB_URL = "https://web-production-3d9fe.up.railway.app";
+function hubBase() {
+  const q = new URLSearchParams(location.search).get("hub");
+  return (q || DEFAULT_HUB_URL).replace(/\/+$/, "");
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+let data = null;
+let win = "m15";
+let filter = "all";
+const WIN_LABEL = { m15: "last 15 minutes", m60: "last 60 minutes", all: "last 24 hours (full page)" };
+
+function lagClass(m) {
+  if (m.pending) return "pending";
+  if (m.unrelayed) return "unrelayed";
+  if (m.lagMin == null) return "";
+  if (m.lagMin >= 2) return "bad";
+  if (m.lagMin >= 1) return "warn";
+  return "ok";
+}
+function lagText(m) {
+  if (m.pending) return "pending";
+  if (m.unrelayed) return "unrelayed";
+  if (m.lagMin == null) return "—";
+  return m.lagMin + "m";
+}
+function healthClass(st) {
+  if (!st) return "";
+  if ((st.pending || 0) >= 3 || (st.avgLagMin || 0) >= 2 || (st.lagGe2 || 0) >= 2) return "bad";
+  if ((st.pending || 0) > 0 || (st.avgLagMin || 0) >= 1 || (st.lagGe1 || 0) > 0) return "warn";
+  return "ok";
+}
+function fmtAvg(st) {
+  if (!st || st.avgLagMin == null) return "—";
+  return st.avgLagMin + "m";
+}
+function inWindow(m) {
+  if (win === "all") return true;
+  const sec = win === "m15" ? 15 * 60 : 60 * 60;
+  if (m.receivedTs == null || !data) return false;
+  return m.receivedTs >= (data.fetchedAt - sec);
+}
+function metricHtml(st) {
+  st = st || {};
+  const avgCls = st.avgLagMin == null ? "" : st.avgLagMin >= 2 ? "bad" : st.avgLagMin >= 1 ? "warn" : "ok";
+  return (
+    '<div class="metric"><div class="k">Relayed</div><div class="v">' + (st.relayed || 0) +
+      '<span style="color:var(--fg-dim);font-size:11px"> / ' + (st.count || 0) + '</span></div></div>' +
+    '<div class="metric"><div class="k">Avg lag</div><div class="v ' + avgCls + '">' + fmtAvg(st) + '</div></div>' +
+    '<div class="metric"><div class="k">Max</div><div class="v">' + (st.maxLagMin == null ? "—" : st.maxLagMin + "m") + '</div></div>' +
+    '<div class="metric"><div class="k">≥1m / ≥2m</div><div class="v">' + (st.lagGe1 || 0) + " / " + (st.lagGe2 || 0) + '</div></div>' +
+    '<div class="metric"><div class="k">Pending</div><div class="v ' + ((st.pending || 0) ? "warn" : "") + '">' + (st.pending || 0) + '</div></div>' +
+    '<div class="metric"><div class="k">Never fetched</div><div class="v">' + (st.unrelayed || 0) + '</div></div>'
+  );
+}
+function renderCards() {
+  if (!data || !data.stats) return;
+  const up = data.stats.fromKusa[win] || {};
+  const dn = data.stats.toKusa[win] || {};
+  document.getElementById("upHint").textContent = WIN_LABEL[win];
+  document.getElementById("dnHint").textContent = WIN_LABEL[win];
+  document.getElementById("upMetrics").innerHTML = metricHtml(up);
+  document.getElementById("dnMetrics").innerHTML = metricHtml(dn);
+
+  const upPill = document.getElementById("upPill");
+  const dnPill = document.getElementById("dnPill");
+  upPill.className = "pill " + healthClass(up);
+  dnPill.className = "pill " + healthClass(dn);
+  upPill.innerHTML = '<span class="lab">UPLINK</span> avg ' + fmtAvg(up) +
+    " · " + (up.pending || 0) + " pending · max " + (up.maxLagMin == null ? "—" : up.maxLagMin + "m");
+  dnPill.innerHTML = '<span class="lab">DOWNLINK</span> avg ' + fmtAvg(dn) +
+    " · " + (dn.pending || 0) + " pending · max " + (dn.maxLagMin == null ? "—" : dn.maxLagMin + "m");
+}
+function renderTable() {
+  const q = (document.getElementById("csFilter").value || "").trim().toUpperCase();
+  const rows = [];
+  for (const m of (data && data.messages) || []) {
+    if (!inWindow(m)) continue;
+    if (filter === "from_kusa" && m.dir !== "from_kusa") continue;
+    if (filter === "to_kusa" && m.dir !== "to_kusa") continue;
+    if (filter === "pending" && !m.pending) continue;
+    if (filter === "lag2" && !(m.lagMin >= 2)) continue;
+    if (q && m.from !== q && m.to !== q) continue;
+    const dir = m.dir === "from_kusa"
+      ? '<span class="dir-up">FROM</span>'
+      : m.dir === "to_kusa" ? '<span class="dir-dn">TO</span>' : esc(m.dir);
+    rows.push(
+      "<tr>" +
+        '<td class="lag ' + lagClass(m) + '">' + esc(lagText(m)) + "</td>" +
+        "<td>" + dir + "</td>" +
+        "<td>" + esc(m.from) + "</td>" +
+        "<td>" + esc(m.to) + "</td>" +
+        "<td>" + esc(m.type) + "</td>" +
+        "<td>" + esc(m.received) + "</td>" +
+        "<td>" + esc(m.relayed || "—") + "</td>" +
+        '<td class="msg">' + esc(m.message) + "</td>" +
+      "</tr>"
+    );
+  }
+  document.getElementById("msgBody").innerHTML = rows.length
+    ? rows.join("")
+    : '<tr><td class="empty" colspan="8">No messages in this view.</td></tr>';
+  document.getElementById("rowCount").textContent = rows.length + " rows";
+
+  const replies = [];
+  for (const p of (data && data.replies) || []) {
+    if (q && p.callsign !== q) continue;
+    const cls = p.intervalMin == null ? "" : p.intervalMin >= 2 ? "bad" : p.intervalMin >= 1 ? "warn" : "ok";
+    replies.push(
+      "<tr>" +
+        '<td class="lag ' + cls + '">' + (p.intervalMin == null ? "—" : p.intervalMin + "m") + "</td>" +
+        "<td>" + esc(p.callsign) + "</td>" +
+        "<td>" + esc(p.uplinkReceived) + "</td>" +
+        "<td>" + esc(p.downlinkReceived) + "</td>" +
+        '<td class="msg">' + esc(p.uplinkMsg) + "</td>" +
+        '<td class="msg">' + esc(p.downlinkMsg) + "</td>" +
+      "</tr>"
+    );
+  }
+  document.getElementById("replyBody").innerHTML = replies.length
+    ? replies.join("")
+    : '<tr><td class="empty" colspan="6">No MIN/MRN pairs in the current log.</td></tr>';
+}
+function render() {
+  renderCards();
+  renderTable();
+}
+function ago(ts) {
+  if (!ts) return "";
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  if (s < 60) return s + "s ago";
+  return Math.round(s / 60) + "m ago";
+}
+async function refresh() {
+  const fetchedEl = document.getElementById("fetched");
+  try {
+    const res = await fetch(hubBase() + "/hub/hoppie-delay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    let body;
+    try { body = await res.json(); } catch (e) { throw new Error("hub response invalid"); }
+    if (!res.ok || !body.ok) throw new Error((body && body.error) || ("HTTP " + res.status));
+    data = body;
+    fetchedEl.textContent = "fetched " + ago(body.fetchedAt) + " · " + (body.messages || []).length + " msgs";
+    if (body.source) document.getElementById("srcLink").href = body.source;
+    render();
+  } catch (e) {
+    fetchedEl.textContent = "hub error";
+    const upPill = document.getElementById("upPill");
+    upPill.className = "pill err";
+    upPill.innerHTML = '<span class="lab">ERROR</span> ' + esc(e.message || e);
+  }
+}
+
+document.getElementById("winSeg").addEventListener("click", ev => {
+  const btn = ev.target.closest("button[data-win]");
+  if (!btn) return;
+  win = btn.getAttribute("data-win");
+  document.querySelectorAll("#winSeg button").forEach(b => b.classList.toggle("active", b === btn));
+  render();
+});
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    filter = btn.getAttribute("data-filter");
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    renderTable();
+  });
+});
+document.getElementById("csFilter").addEventListener("input", renderTable);
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

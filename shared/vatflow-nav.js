@@ -40,6 +40,7 @@ const NAV_ITEMS = [
     children: [
       { id: "vusalink", href: "vusalink/", label: "vUSAlink" },
       { id: "cpdlc-map", href: "cpdlc-map.html", label: "CPDLC Map" },
+      { id: "hoppie-delay", href: "hoppie-delay.html", label: "Hoppie Delay" },
     ],
   },
   { id: "admin", href: "admin-access.html", label: "Admin Access" },
