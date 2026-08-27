@@ -67,7 +67,7 @@ function isFixToken(tok) {
 
 /**
  * @param {string} raw
- * @param {{ selectedCs?: string|null }} [opts]
+ * @param {{ selectedCs?: string|null, requireU?: boolean }} [opts]
  * @returns {{ ok: true, verb: string, flid: string, uplink: boolean, mods: Set<string>, payload: object }
  *          |{ ok: false, error: string }}
  */
@@ -123,7 +123,8 @@ export function parseMcaCommand(raw, opts = {}) {
   if (!flid && opts.selectedCs) flid = String(opts.selectedCs).toUpperCase();
   if (!flid) return { ok: false, error: "NO FLID" };
 
-  if (!uplink) {
+  const requireU = opts.requireU !== false;
+  if (!uplink && requireU) {
     return { ok: false, error: "REQUIRE /U", flid, verb };
   }
 
