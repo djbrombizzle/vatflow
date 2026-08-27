@@ -1176,6 +1176,15 @@ td.eh-bk{text-align:center;min-width:14px}
 #sigmenu .sig-item{
   margin:2px 0;border-bottom:1px solid #1a1a1a;padding:6px 0 8px;line-height:1.35;
 }
+#sigmenu .sig-item.new{
+  background:#1c1a08;border-left:3px solid #d8d63f;padding-left:8px;cursor:pointer;
+}
+#sigmenu .sig-item.new .sig-meta b{color:#fff;font-weight:bold}
+#sigmenu .sig-item.new .sig-text{color:#fff}
+#sigmenu .sig-item .sig-new-tag{
+  flex:0 0 auto;font-size:10px;letter-spacing:.06em;color:#000;background:#d8d63f;
+  padding:0 5px;line-height:1.4;margin-left:4px;
+}
 #sigmenu .sig-item .sig-meta{
   display:flex;align-items:center;gap:6px;color:#8a9088;font-size:11px;margin-bottom:4px;
 }
@@ -5132,8 +5141,9 @@ let sigLoading=false;
 let sigCache={artcc:'',entries:[],error:null,fetchedAt:0};
 const sigExpanded=new Set();             // entry ids currently showing full text
 const sigSeenIds=new Set();              // keys from last successful fetch
-let sigAlert=false;                      // flash SIG button until acknowledged
-let sigUnreadCount=0;                    // new SIGMETs since last open
+const sigNewIds=new Set();               // keys not yet clicked in the SIG menu
+let sigAlert=false;                      // flash SIG button until each new one is clicked
+let sigUnreadCount=0;                    // new SIGMETs not yet acknowledged
 let sigPrimed=false;                     // first fetch seeds seen ids (no flash)
 let sigPollTimer=null;
 let sigFetchGen=0;                       // ignore stale overlapping fetches
@@ -5176,7 +5186,7 @@ function syncSigButton(){
   const n=sigUnreadCount|0;
   sigAlert=n>0;
   const title=n>0
-    ?(n+' unread SIGMET'+(n===1?'':'s')+' — click to view')
+    ?(n+' unread SIGMET'+(n===1?'':'s')+' — open SIG and click each to acknowledge')
     :'SIGMETs for controlling FIR';
   const label=sigButtonLabel();
   ['btnSig','crcBtnSig'].forEach(id=>{
@@ -5189,9 +5199,21 @@ function syncSigButton(){
   if(typeof updateTabTitle==='function')updateTabTitle();
 }
 function clearSigAlert(){
+  sigNewIds.clear();
   sigUnreadCount=0;
   sigAlert=false;
   syncSigButton();
+}
+function syncSigUnreadFromNew(){
+  sigUnreadCount=sigNewIds.size;
+  syncSigButton();
+}
+function ackSigNew(key){
+  key=String(key||'');
+  if(!key||!sigNewIds.has(key))return false;
+  sigNewIds.delete(key);
+  syncSigUnreadFromNew();
+  return true;
 }
 function noteSigEntries(entries,art){
   const list=Array.isArray(entries)?entries:[];
@@ -5209,17 +5231,12 @@ function noteSigEntries(entries,art){
     sigPrimed=true;
     return;
   }
-  const newcomers=keys.filter(k=>!sigSeenIds.has(k));
+  const prevSeen=new Set(sigSeenIds);
   sigSeenIds.clear();
   keys.forEach(k=>sigSeenIds.add(k));
-  if(!newcomers.length)return;
-  if(sigMenuOpen()){
-    // Controller already has the list open — refresh is enough
-    clearSigAlert();
-  }else{
-    sigUnreadCount+=newcomers.length;
-    syncSigButton();
-  }
+  keys.forEach(k=>{if(!prevSeen.has(k))sigNewIds.add(k);});
+  [...sigNewIds].forEach(k=>{if(!sigSeenIds.has(k))sigNewIds.delete(k);});
+  syncSigUnreadFromNew();
 }
 function sigFmtMeta(entry){
   const seq=entry.sequence||'—';
@@ -5231,10 +5248,9 @@ function sigFmtMeta(entry){
   if(end!=null){
     const d=new Date(typeof end==='number'?(end<1e12?end*1000:end):end);
     if(!isNaN(d.getTime())){
-      const dd=String(d.getUTCDate()).padStart(2,'0');
       const hh=String(d.getUTCHours()).padStart(2,'0');
       const mm=String(d.getUTCMinutes()).padStart(2,'0');
-      valid=' · until '+dd+hh+mm+'Z';
+      valid=' · until '+hh+mm+'z';
     }
   }
   return seq+(haz?(' · '+haz):'')+valid;
@@ -5263,13 +5279,15 @@ function renderSigList(){
     list.innerHTML='<div class="sig-empty">No active SIGMETs for '+esc(short)+'</div>';
     return;
   }
-  // Drop expand state for entries that disappeared after refresh
+  // Drop expand/new state for entries that disappeared after refresh
   const liveIds=new Set(entries.map((e,i)=>sigEntryId(e,i)));
   [...sigExpanded].forEach(id=>{if(!liveIds.has(id))sigExpanded.delete(id);});
   list.innerHTML=entries.map((e,idx)=>{
     const id=sigEntryId(e,idx);
+    const key=sigEntryKey(e,idx);
     const canExpand=sigCanExpand(e);
     const open=canExpand&&sigExpanded.has(id);
+    const isNew=sigNewIds.has(key);
     const body=open?sigFullText(e):sigShortText(e);
     const toggle=canExpand
       ?('<button type="button" class="sig-toggle" data-sig-toggle="'+esc(id)+'"'
@@ -5277,8 +5295,11 @@ function renderSigList(){
         +' title="'+(open?'Collapse SIGMET text':'Expand full SIGMET text')+'">'
         +(open?'▼':'▶')+'</button>')
       :'<span class="sig-toggle" style="visibility:hidden" aria-hidden="true">▶</span>';
-    return '<div class="sig-item'+(open?' expanded':'')+'" data-sig-id="'+esc(id)+'">'
-      +'<div class="sig-meta">'+toggle+'<b>'+esc(sigFmtMeta(e))+'</b></div>'
+    const newTag=isNew?'<span class="sig-new-tag">NEW</span>':'';
+    return '<div class="sig-item'+(open?' expanded':'')+(isNew?' new':'')+'"'
+      +' data-sig-id="'+esc(id)+'" data-sig-key="'+esc(key)+'"'
+      +(isNew?' title="Click to acknowledge this SIGMET"':'')+'>'
+      +'<div class="sig-meta">'+toggle+'<b>'+esc(sigFmtMeta(e))+'</b>'+newTag+'</div>'
       +'<div class="sig-text">'+esc(body||'')+'</div>'
       +'</div>';
   }).join('');
@@ -5295,10 +5316,18 @@ function toggleSigExpand(id){
   if(!list||list.dataset.sigToggleWired)return;
   list.dataset.sigToggleWired='1';
   list.addEventListener('click',e=>{
+    const item=e.target.closest('.sig-item[data-sig-key]');
+    const acked=!!(item&&list.contains(item)&&ackSigNew(item.getAttribute('data-sig-key')));
     const btn=e.target.closest('[data-sig-toggle]');
-    if(!btn||!list.contains(btn))return;
-    e.preventDefault();e.stopPropagation();
-    toggleSigExpand(btn.getAttribute('data-sig-toggle'));
+    if(btn&&list.contains(btn)){
+      e.preventDefault();e.stopPropagation();
+      toggleSigExpand(btn.getAttribute('data-sig-toggle'));
+      return;
+    }
+    if(acked){
+      e.preventDefault();
+      renderSigList();
+    }
   });
 })();
 async function refreshSigmets(force,opts){
@@ -5369,7 +5398,6 @@ function openSigMenu(){
   const btn=document.getElementById('btnSig');
   if(!menu||!btn)return;
   if(!menu.classList.contains('hidden')){close('sigmenu');return;}
-  clearSigAlert();
   renderSigList();
   const crcBtn=document.getElementById('crcBtnSig');
   const anchor=(document.body.classList.contains('crc-mode')&&crcBtn)?crcBtn:btn;
