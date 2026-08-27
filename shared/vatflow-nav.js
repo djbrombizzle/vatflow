@@ -39,6 +39,7 @@ const NAV_ITEMS = [
     label: "Datalink",
     children: [
       { id: "vusalink", href: "vusalink/", label: "vUSAlink" },
+      { id: "eram-trainer", href: "eram-trainer.html", label: "ERAM Trainer" },
       { id: "cpdlc-map", href: "cpdlc-map.html", label: "CPDLC Map" },
       { id: "hoppie-delay", href: "hoppie-delay.html", label: "Hoppie Delay" },
     ],

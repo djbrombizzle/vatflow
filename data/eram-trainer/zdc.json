@@ -1,0 +1,378 @@
+{
+  "artcc": "ZDC",
+  "label": "Washington Center",
+  "version": 1,
+  "meta": {
+    "author": "VATFLOW",
+    "description": "Default ZDC ERAM Trainer pack — climb, descend, direct, heading, and speed drills."
+  },
+  "fixes": ["BAL", "TIMMY", "GANDY", "MERIT", "LURAY", "RBV", "FILPZ", "SCOOB", "TRSTN", "HYPER"],
+  "aircraft": [
+    {
+      "cs": "AAL482",
+      "type": "B738",
+      "alt": 280,
+      "hdg": 270,
+      "gs": 420,
+      "dep": "KDCA",
+      "arr": "KORD",
+      "route": "KDCA BAL TIMMY Q75 BDF"
+    },
+    {
+      "cs": "UAL1045",
+      "type": "B739",
+      "alt": 350,
+      "hdg": 90,
+      "gs": 445,
+      "dep": "KIAD",
+      "arr": "KATL",
+      "route": "KIAD RBV HYPER J48 CHS"
+    },
+    {
+      "cs": "DAL2210",
+      "type": "B752",
+      "alt": 330,
+      "hdg": 315,
+      "gs": 430,
+      "dep": "KBWI",
+      "arr": "KDFW",
+      "route": "KBWI GANDY LURAY Q86 BNA"
+    },
+    {
+      "cs": "SWA3391",
+      "type": "B737",
+      "alt": 240,
+      "hdg": 180,
+      "gs": 410,
+      "dep": "KRDU",
+      "arr": "KBWI",
+      "route": "KRDU FILPZ SCOOB BAL"
+    },
+    {
+      "cs": "JBU819",
+      "type": "A320",
+      "alt": 310,
+      "hdg": 45,
+      "gs": 425,
+      "dep": "KDCA",
+      "arr": "KBOS",
+      "route": "KDCA BAL TRSTN J174 HTO"
+    },
+    {
+      "cs": "FFT412",
+      "type": "A321",
+      "alt": 370,
+      "hdg": 200,
+      "gs": 450,
+      "dep": "KIAD",
+      "arr": "KLAX",
+      "route": "KIAD MERIT LURAY Q86 STL"
+    },
+    {
+      "cs": "NKS718",
+      "type": "A319",
+      "alt": 290,
+      "hdg": 120,
+      "gs": 415,
+      "dep": "KBWI",
+      "arr": "KMIA",
+      "route": "KBWI GANDY RBV J48 CHS"
+    },
+    {
+      "cs": "RPA3456",
+      "type": "E170",
+      "alt": 220,
+      "hdg": 330,
+      "gs": 380,
+      "dep": "KDCA",
+      "arr": "KCMH",
+      "route": "KDCA TIMMY RBV"
+    },
+    {
+      "cs": "ASH6123",
+      "type": "CRJ7",
+      "alt": 260,
+      "hdg": 95,
+      "gs": 390,
+      "dep": "KIAD",
+      "arr": "KRDU",
+      "route": "KIAD FILPZ SCOOB"
+    },
+    {
+      "cs": "PDT5982",
+      "type": "E145",
+      "alt": 300,
+      "hdg": 250,
+      "gs": 400,
+      "dep": "KRIC",
+      "arr": "KCLT",
+      "route": "KRIC MERIT GANDY"
+    },
+    {
+      "cs": "FDX1804",
+      "type": "B763",
+      "alt": 340,
+      "hdg": 70,
+      "gs": 460,
+      "dep": "KIAD",
+      "arr": "KMEM",
+      "route": "KIAD BAL LURAY Q86"
+    },
+    {
+      "cs": "UPS1122",
+      "type": "B748",
+      "alt": 360,
+      "hdg": 285,
+      "gs": 455,
+      "dep": "KDCA",
+      "arr": "KSDF",
+      "route": "KDCA TIMMY RBV"
+    },
+    {
+      "cs": "ENY3844",
+      "type": "E175",
+      "alt": 270,
+      "hdg": 160,
+      "gs": 405,
+      "dep": "KBWI",
+      "arr": "KORD",
+      "route": "KBWI BAL TIMMY Q75"
+    },
+    {
+      "cs": "AAY2291",
+      "type": "A320",
+      "alt": 320,
+      "hdg": 15,
+      "gs": 435,
+      "dep": "KORF",
+      "arr": "KMCO",
+      "route": "KORF SCOOB RBV J48"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "qz-climb-basic",
+      "type": "alt",
+      "instruction": "Climb AAL482 to FL340.",
+      "aircraft": "AAL482",
+      "expect": { "verb": "QZ", "alt": 340 },
+      "hint": "Assigned altitude: QZ <fl> <callsign> /U"
+    },
+    {
+      "id": "qz-climb-tfc",
+      "type": "alt",
+      "instruction": "Climb UAL1045 to FL370 due to traffic.",
+      "aircraft": "UAL1045",
+      "expect": { "verb": "QZ", "alt": 370, "mods": ["TFC"] },
+      "hint": "Add /TFC after /U for due to traffic."
+    },
+    {
+      "id": "qz-descend-pd",
+      "type": "alt",
+      "instruction": "Descend DAL2210 to FL280 at pilots discretion.",
+      "aircraft": "DAL2210",
+      "expect": { "verb": "QZ", "alt": 280, "mods": ["PD"] },
+      "hint": "Use /PD for at pilots discretion."
+    },
+    {
+      "id": "qz-climb-exp",
+      "type": "alt",
+      "instruction": "Climb SWA3391 to FL300. Expedite.",
+      "aircraft": "SWA3391",
+      "expect": { "verb": "QZ", "alt": 300, "mods": ["EXP"] },
+      "hint": "Add /EXP for expedite."
+    },
+    {
+      "id": "qz-descend-wx",
+      "type": "alt",
+      "instruction": "Descend JBU819 to FL240 due to weather.",
+      "aircraft": "JBU819",
+      "expect": { "verb": "QZ", "alt": 240, "mods": ["WX"] },
+      "hint": "Use /WX for due to weather."
+    },
+    {
+      "id": "qz-climb-res",
+      "type": "alt",
+      "instruction": "Climb FFT412 to FL390 due to restricted airspace.",
+      "aircraft": "FFT412",
+      "expect": { "verb": "QZ", "alt": 390, "mods": ["RES"] },
+      "hint": "Use /RES for restricted airspace."
+    },
+    {
+      "id": "qz-climb-imm",
+      "type": "alt",
+      "instruction": "Climb NKS718 to FL330 immediately.",
+      "aircraft": "NKS718",
+      "expect": { "verb": "QZ", "alt": 330, "mods": ["IMM"] },
+      "hint": "Use /IMM for immediately."
+    },
+    {
+      "id": "qz-climb-exp-tfc",
+      "type": "alt",
+      "instruction": "Climb RPA3456 to FL310. Expedite due to traffic.",
+      "aircraft": "RPA3456",
+      "expect": { "verb": "QZ", "alt": 310, "mods": ["EXP", "TFC"] },
+      "hint": "Modifiers stack: /EXP /TFC (order does not matter)."
+    },
+    {
+      "id": "qq-interim",
+      "type": "alt",
+      "instruction": "Issue interim altitude FL250 for ASH6123.",
+      "aircraft": "ASH6123",
+      "expect": { "verb": "QQ", "alt": 250 },
+      "hint": "QQ is interim/temporary altitude — same CPDLC as QZ."
+    },
+    {
+      "id": "qq-interim-exp",
+      "type": "alt",
+      "instruction": "Interim FL290 for PDT5982. Expedite.",
+      "aircraft": "PDT5982",
+      "expect": { "verb": "QQ", "alt": 290, "mods": ["EXP"] },
+      "hint": "QQ with /EXP for expedited interim step."
+    },
+    {
+      "id": "qq-interim-pd",
+      "type": "alt",
+      "instruction": "Interim FL320 for FDX1804 at pilots discretion.",
+      "aircraft": "FDX1804",
+      "expect": { "verb": "QQ", "alt": 320, "mods": ["PD"] },
+      "hint": "QQ with /PD for discretion on interim altitude."
+    },
+    {
+      "id": "qu-direct",
+      "type": "direct",
+      "instruction": "Direct UPS1122 to TIMMY.",
+      "aircraft": "UPS1122",
+      "expect": { "verb": "QU", "fix": "TIMMY" },
+      "hint": "QU <fix> <callsign> /U"
+    },
+    {
+      "id": "qu-direct-pd",
+      "type": "direct",
+      "instruction": "Proceed direct MERIT for ENY3844 at pilots discretion.",
+      "aircraft": "ENY3844",
+      "expect": { "verb": "QU", "fix": "MERIT", "mods": ["PD"] },
+      "hint": "Direct with /PD modifier."
+    },
+    {
+      "id": "qu-direct-exp",
+      "type": "direct",
+      "instruction": "Direct AAY2291 to GANDY. Expedite.",
+      "aircraft": "AAY2291",
+      "expect": { "verb": "QU", "fix": "GANDY", "mods": ["EXP"] },
+      "hint": "Direct with /EXP modifier."
+    },
+    {
+      "id": "qu-direct-bal",
+      "type": "direct",
+      "instruction": "Direct AAL482 to BAL.",
+      "aircraft": "AAL482",
+      "expect": { "verb": "QU", "fix": "BAL" },
+      "hint": "First fix in QU command is the direct target."
+    },
+    {
+      "id": "qs-heading",
+      "type": "hdg",
+      "instruction": "Fly heading 270 for UAL1045.",
+      "aircraft": "UAL1045",
+      "expect": { "verb": "QS", "hdg": 270, "mode": "NP" },
+      "hint": "QS <heading> <callsign> /U — use 360 for north, not 000."
+    },
+    {
+      "id": "qs-heading-lt",
+      "type": "hdg",
+      "instruction": "Turn left heading 180 for DAL2210.",
+      "aircraft": "DAL2210",
+      "expect": { "verb": "QS", "hdg": 180, "mode": "LT" },
+      "hint": "QS LT <heading> for turn left."
+    },
+    {
+      "id": "qs-heading-rt",
+      "type": "hdg",
+      "instruction": "Turn right heading 090 for SWA3391.",
+      "aircraft": "SWA3391",
+      "expect": { "verb": "QS", "hdg": 90, "mode": "RH" },
+      "hint": "QS RT <heading> for turn right."
+    },
+    {
+      "id": "qs-present",
+      "type": "hdg",
+      "instruction": "Fly present heading for JBU819.",
+      "aircraft": "JBU819",
+      "expect": { "verb": "QS", "mode": "PH" },
+      "hint": "QS PH <callsign> /U — no heading parameter."
+    },
+    {
+      "id": "qs-heading-exp",
+      "type": "hdg",
+      "instruction": "Turn left heading 330 for FFT412. Expedite.",
+      "aircraft": "FFT412",
+      "expect": { "verb": "QS", "hdg": 330, "mode": "LT", "mods": ["EXP"] },
+      "hint": "Heading commands accept /EXP like altitude commands."
+    },
+    {
+      "id": "qs-speed",
+      "type": "spd",
+      "instruction": "Maintain 280 knots for NKS718.",
+      "aircraft": "NKS718",
+      "expect": { "verb": "QS", "kt": 280 },
+      "hint": "Speed: QS /280 <callsign> /U"
+    },
+    {
+      "id": "qs-speed-exp",
+      "type": "spd",
+      "instruction": "Maintain 300 knots for RPA3456. Expedite.",
+      "aircraft": "RPA3456",
+      "expect": { "verb": "QS", "kt": 300, "mods": ["EXP"] },
+      "hint": "Speed with /EXP modifier."
+    },
+    {
+      "id": "qz-descend-basic",
+      "type": "alt",
+      "instruction": "Descend ASH6123 to FL220.",
+      "aircraft": "ASH6123",
+      "expect": { "verb": "QZ", "alt": 220 },
+      "hint": "QZ works for both climb and descend."
+    },
+    {
+      "id": "qu-direct-luray",
+      "type": "direct",
+      "instruction": "Direct PDT5982 to LURAY.",
+      "aircraft": "PDT5982",
+      "expect": { "verb": "QU", "fix": "LURAY" },
+      "hint": "Fix names are 3–5 characters, uppercase."
+    },
+    {
+      "id": "qs-heading-360",
+      "type": "hdg",
+      "instruction": "Fly heading 360 for FDX1804.",
+      "aircraft": "FDX1804",
+      "expect": { "verb": "QS", "hdg": 360, "mode": "NP" },
+      "hint": "North is heading 360."
+    },
+    {
+      "id": "qz-climb-low",
+      "type": "alt",
+      "instruction": "Climb ENY3844 and maintain 12,000 feet.",
+      "aircraft": "ENY3844",
+      "expect": { "verb": "QZ", "alt": 120 },
+      "hint": "Below FL180 use 3-digit hundreds: 120 = 12,000 ft."
+    },
+    {
+      "id": "qu-direct-rbv",
+      "type": "direct",
+      "instruction": "Proceed direct RBV for UPS1122.",
+      "aircraft": "UPS1122",
+      "expect": { "verb": "QU", "fix": "RBV" },
+      "hint": "QU sends PROCEED DIRECT TO <fix>."
+    },
+    {
+      "id": "qs-speed-250",
+      "type": "spd",
+      "instruction": "Reduce to 250 knots for AAY2291.",
+      "aircraft": "AAY2291",
+      "expect": { "verb": "QS", "kt": 250 },
+      "hint": "Speed range 80–400 knots."
+    }
+  ]
+}

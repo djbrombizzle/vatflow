@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERAM Trainer — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --line: #1e2834;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --amber: #e8a838;
+    --cyan: #5ba8c9;
+    --green: #4caf7a;
+    --red: #e05c5c;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%;
+    background: radial-gradient(ellipse 90% 40% at 50% -5%, rgba(232,168,56,.07), transparent 50%), var(--bg);
+    color: var(--text); font-family: var(--ui);
+  }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  .page {
+    max-width: 1200px; margin: 0 auto;
+    padding: calc(var(--vatflow-nav-h) + 20px) 16px 48px;
+  }
+  .hero { margin-bottom: 20px; }
+  .hero .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    color: var(--amber); text-transform: uppercase; margin: 0 0 8px;
+  }
+  .hero h1 {
+    margin: 0 0 8px; font-family: var(--mono); font-size: clamp(24px, 4vw, 34px);
+    letter-spacing: .08em;
+  }
+  .hero p { margin: 0; color: var(--muted); font-size: 14px; max-width: 42rem; line-height: 1.5; }
+
+  .setup {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+    padding: 16px; margin-bottom: 20px;
+  }
+  .setup h2 {
+    margin: 0 0 12px; font-family: var(--mono); font-size: 12px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+  }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px;
+    background: #0a0f14; color: var(--text); font-family: var(--mono); font-size: 11px;
+    letter-spacing: .06em; cursor: pointer;
+  }
+  .tab.active { border-color: var(--amber); background: rgba(232,168,56,.1); color: var(--amber); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  label.field input, label.field select {
+    padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: #0a0f14; color: var(--text); font-family: var(--mono); font-size: 13px;
+  }
+  .dropzone {
+    border: 2px dashed var(--line); border-radius: 8px; padding: 28px 16px;
+    text-align: center; color: var(--muted); font-size: 13px; cursor: pointer;
+    transition: border-color .12s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--amber); color: var(--text); }
+  .dropzone input { display: none; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+  .btn {
+    padding: 10px 16px; border-radius: 6px; border: 1px solid var(--line);
+    background: #121820; color: var(--text); font-family: var(--mono);
+    font-size: 12px; letter-spacing: .06em; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--amber); }
+  .btn.primary { background: rgba(232,168,56,.15); border-color: var(--amber); color: var(--amber); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .session { display: none; }
+  .session.active { display: block; }
+  .session-bar {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    margin-bottom: 16px; padding: 10px 14px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--panel);
+  }
+  .stat { font-family: var(--mono); font-size: 12px; }
+  .stat b { color: var(--amber); margin-right: 4px; }
+
+  .layout {
+    display: grid; grid-template-columns: 220px 1fr 240px; gap: 14px;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+    overflow: hidden;
+  }
+  .panel-h {
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .acl-list { max-height: 420px; overflow-y: auto; }
+  .strip {
+    padding: 8px 10px; border-bottom: 1px solid #151b22; font-family: var(--mono);
+    font-size: 11px; cursor: default;
+  }
+  .strip.active { background: rgba(232,168,56,.12); border-left: 3px solid var(--amber); }
+  .strip .cs { color: var(--amber); font-weight: 700; }
+  .strip .meta { color: var(--muted); margin-top: 2px; }
+
+  .drill-main { padding: 16px; }
+  .instruction {
+    font-size: 16px; line-height: 1.5; margin-bottom: 16px; padding: 14px;
+    border-radius: 8px; background: #0a0f14; border: 1px solid var(--line);
+  }
+  .hint {
+    font-size: 12px; color: var(--cyan); margin-bottom: 12px; display: none;
+  }
+  .hint.show { display: block; }
+
+  .mca-wrap {
+    border: 1px solid #2a3544; border-radius: 6px; background: #06080c;
+    padding: 8px 10px;
+  }
+  .mca-label {
+    font-family: var(--mono); font-size: 10px; color: var(--amber);
+    letter-spacing: .12em; margin-bottom: 6px;
+  }
+  .mca-input {
+    width: 100%; border: none; background: transparent; color: #f0e6d0;
+    font-family: var(--mono); font-size: 15px; letter-spacing: .04em;
+    outline: none;
+  }
+
+  .feedback {
+    margin-top: 14px; padding: 12px; border-radius: 6px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.6; display: none;
+  }
+  .feedback.accept { display: block; background: rgba(76,175,122,.12); border: 1px solid var(--green); color: var(--green); }
+  .feedback.reject { display: block; background: rgba(224,92,92,.1); border: 1px solid var(--red); color: var(--red); }
+  .cpdlc-msg { margin-top: 8px; font-size: 12px; color: var(--muted); }
+
+  .ref { padding: 10px 12px; font-size: 11px; line-height: 1.55; color: var(--muted); max-height: 420px; overflow-y: auto; }
+  .ref table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10px; }
+  .ref th, .ref td { text-align: left; padding: 4px 2px; border-bottom: 1px solid #151b22; vertical-align: top; }
+  .ref code { color: var(--cyan); }
+
+  .summary {
+    display: none; text-align: center; padding: 40px 20px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+  }
+  .summary.active { display: block; }
+  .summary h2 { font-family: var(--mono); color: var(--amber); }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div class="page">
+  <div class="hero">
+    <p class="eyebrow">Practice · CRC / ERAM</p>
+    <h1>ERAM Trainer</h1>
+    <p>Type MCA commands quickly — QZ, QQ, QU, QS with /U uplink modifiers. Use bundled ZDC traffic, import custom JSON, generate a fleet, or snapshot live VATSIM.</p>
+  </div>
+
+  <section class="setup" id="setupPanel">
+    <h2>Session setup</h2>
+    <div class="tabs" id="sourceTabs">
+      <button type="button" class="tab active" data-source="bundled">Bundled ZDC</button>
+      <button type="button" class="tab" data-source="custom">Custom JSON</button>
+      <button type="button" class="tab" data-source="generate">Generate</button>
+      <button type="button" class="tab" data-source="snapshot">Live snapshot</button>
+    </div>
+
+    <div class="tab-panel active" data-panel="bundled">
+      <p class="status">Default Washington Center pack with pre-authored scenarios.</p>
+    </div>
+
+    <div class="tab-panel" data-panel="custom">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".json,application/json">
+        Drop a trainer JSON pack here or click to browse
+      </div>
+      <p class="status" id="customStatus">Same schema as bundled packs — aircraft + scenarios arrays.</p>
+    </div>
+
+    <div class="tab-panel" data-panel="generate">
+      <div class="grid-2">
+        <label class="field">Aircraft count<input type="number" id="genCount" min="1" max="60" value="12"></label>
+        <label class="field">ARTCC<input type="text" id="genArtcc" maxlength="4" value="ZDC"></label>
+        <label class="field">Departure airports<input type="text" id="genDep" placeholder="KDCA KIAD KBWI (blank = all in ARTCC)"></label>
+        <label class="field">Arrival airports<input type="text" id="genArr" placeholder="optional"></label>
+        <label class="field">Alt min (FL)<input type="number" id="genAltMin" value="180"></label>
+        <label class="field">Alt max (FL)<input type="number" id="genAltMax" value="400"></label>
+        <label class="field">Enroute %<input type="number" id="genEnroute" min="0" max="100" value="70"></label>
+        <label class="field">Scenario count<input type="number" id="genScenarios" min="1" max="100" value="25"></label>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="snapshot">
+      <p class="status">Fetch VATSIM traffic, filter by ARTCC/airports below, and freeze a snapshot for this session.</p>
+      <div class="grid-2" style="margin-top:12px">
+        <label class="field">ARTCC<input type="text" id="snapArtcc" maxlength="4" value="ZDC"></label>
+        <label class="field">Max aircraft<input type="number" id="snapCount" min="1" max="60" value="12"></label>
+        <label class="field">Departure filter<input type="text" id="snapDep" placeholder="optional ICAOs"></label>
+        <label class="field">Arrival filter<input type="text" id="snapArr" placeholder="optional ICAOs"></label>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:14px">
+      <label class="field">Mode
+        <select id="modeSelect">
+          <option value="tutorial">Tutorial (ordered, hints)</option>
+          <option value="practice" selected>Practice</option>
+          <option value="speed">Speed drill</option>
+        </select>
+      </label>
+      <label class="field">Scenario mix
+        <select id="mixSelect" multiple size="4" style="min-height:88px">
+          <option value="alt" selected>Altitude (QZ/QQ)</option>
+          <option value="direct" selected>Direct (QU)</option>
+          <option value="hdg" selected>Heading (QS)</option>
+          <option value="spd" selected>Speed (QS /)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="row">
+      <button type="button" class="btn primary" id="btnStart">Start session</button>
+      <button type="button" class="btn" id="btnLoadLast">Load last custom pack</button>
+      <button type="button" class="btn" id="btnExport" disabled>Export current pack</button>
+      <span class="status" id="setupStatus"></span>
+    </div>
+  </section>
+
+  <section class="session" id="sessionPanel">
+    <div class="session-bar">
+      <span class="stat"><b>MODE</b><span id="statMode">—</span></span>
+      <span class="stat"><b>SCORE</b><span id="statScore">0</span></span>
+      <span class="stat"><b>STREAK</b><span id="statStreak">0</span></span>
+      <span class="stat"><b>TIME</b><span id="statTime">0:00</span></span>
+      <span class="stat"><b>PROGRESS</b><span id="statProgress">0/0</span></span>
+      <button type="button" class="btn" id="btnHint">Hint</button>
+      <button type="button" class="btn" id="btnEnd">End session</button>
+    </div>
+
+    <div class="layout" id="drillLayout">
+      <div class="panel">
+        <div class="panel-h">ACL · Traffic</div>
+        <div class="acl-list" id="aclList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="drill-main">
+          <div class="instruction" id="instruction">—</div>
+          <div class="hint" id="hintBox"></div>
+          <div class="mca-wrap">
+            <div class="mca-label">MCA · ERAM /U</div>
+            <input class="mca-input" id="mcaInput" type="text" maxlength="220" autocomplete="off" spellcheck="false" placeholder="QZ 340 AAL123 /U">
+          </div>
+          <div class="feedback" id="feedback"></div>
+          <div class="cpdlc-msg" id="cpdlcMsg"></div>
+          <div class="row" style="margin-top:12px">
+            <button type="button" class="btn primary" id="btnSubmit">Send (Enter)</button>
+            <button type="button" class="btn" id="btnSkip">Skip</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h">CRC reference</div>
+        <div class="ref">
+          <table>
+            <tr><th>Command</th><th>Syntax</th></tr>
+            <tr><td>Altitude</td><td><code>QZ 340 AAL123 /U</code></td></tr>
+            <tr><td>Interim</td><td><code>QQ 250 AAL123 /U</code></td></tr>
+            <tr><td>Direct</td><td><code>QU MERIT AAL123 /U</code></td></tr>
+            <tr><td>Heading</td><td><code>QS 270 AAL123 /U</code></td></tr>
+            <tr><td>Turn L/R</td><td><code>QS LT 180 … /U</code></td></tr>
+            <tr><td>Present hdg</td><td><code>QS PH AAL123 /U</code></td></tr>
+            <tr><td>Speed</td><td><code>QS /280 AAL123 /U</code></td></tr>
+          </table>
+          <p style="margin-top:10px"><b>Modifiers</b> (after /U): <code>/PD</code> <code>/EXP</code> <code>/IMM</code> <code>/TFC</code> <code>/WX</code> <code>/RES</code></p>
+          <p>Below FL180: 3-digit hundreds (<code>120</code> = 12,000 ft). FL180+: <code>340</code> = FL340.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary" id="summaryPanel">
+      <h2>Session complete</h2>
+      <p class="stat" style="font-size:16px;margin:16px 0"><b>FINAL SCORE</b> <span id="finalScore">0</span></p>
+      <p class="status" id="finalStats"></p>
+      <button type="button" class="btn primary" id="btnRestart">New session</button>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import {
+  DEFAULT_SETTINGS,
+  loadDefaultPack,
+  importPackFile,
+  exportPack,
+  generateFleet,
+  generateScenarios,
+  snapshotVatsim,
+  gradeCommand,
+  scoreRound,
+  aircraftMap,
+  preparePack,
+  persistLastPack,
+  loadLastPack,
+} from "./shared/eram-trainer.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "eram-trainer");
+
+const $ = id => document.getElementById(id);
+
+let source = "bundled";
+let customPack = null;
+let currentPack = null;
+let scenarios = [];
+let acMap = new Map();
+let idx = 0;
+let score = 0;
+let streak = 0;
+let mode = "practice";
+let roundStart = 0;
+let attempts = 0;
+let hintUsed = false;
+let timerId = null;
+let sessionStart = 0;
+let completed = 0;
+let totalPoints = 0;
+
+function parseList(str) {
+  return String(str || "").toUpperCase().split(/[\s,]+/).filter(Boolean);
+}
+
+function getMix() {
+  const sel = $("mixSelect");
+  return [...sel.selectedOptions].map(o => o.value);
+}
+
+function readSettings() {
+  return {
+    ...DEFAULT_SETTINGS,
+    aircraftCount: +$("genCount").value || 12,
+    artcc: ($("genArtcc").value || "ZDC").toUpperCase(),
+    depAirports: parseList($("genDep").value),
+    arrAirports: parseList($("genArr").value),
+    altMin: +$("genAltMin").value || 180,
+    altMax: +$("genAltMax").value || 400,
+    phaseEnroute: +$("genEnroute").value || 70,
+    scenarioCount: +$("genScenarios").value || 25,
+    scenarioMix: getMix(),
+  };
+}
+
+function readSnapshotSettings() {
+  return {
+    ...DEFAULT_SETTINGS,
+    artcc: ($("snapArtcc").value || "ZDC").toUpperCase(),
+    aircraftCount: +$("snapCount").value || 12,
+    depAirports: parseList($("snapDep").value),
+    arrAirports: parseList($("snapArr").value),
+    scenarioCount: +$("genScenarios").value || 25,
+    scenarioMix: getMix(),
+  };
+}
+
+// Source tabs
+$("sourceTabs").addEventListener("click", e => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  source = tab.dataset.source;
+  $("sourceTabs").querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+  document.querySelectorAll(".tab-panel").forEach(p => {
+    p.classList.toggle("active", p.dataset.panel === source);
+  });
+});
+
+// Custom JSON
+const dropzone = $("dropzone");
+const fileInput = $("fileInput");
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("drag"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+dropzone.addEventListener("drop", async e => {
+  e.preventDefault();
+  dropzone.classList.remove("drag");
+  const file = e.dataTransfer.files[0];
+  if (file) await handleFile(file);
+});
+fileInput.addEventListener("change", async () => {
+  if (fileInput.files[0]) await handleFile(fileInput.files[0]);
+});
+
+async function handleFile(file) {
+  const res = await importPackFile(file);
+  if (!res.ok) {
+    $("customStatus").textContent = res.errors.join(" ");
+    return;
+  }
+  customPack = res.pack;
+  $("customStatus").textContent = `Loaded ${customPack.label || customPack.artcc} — ${customPack.aircraft.length} aircraft, ${(customPack.scenarios || []).length} scenarios`;
+  $("btnExport").disabled = false;
+}
+
+$("btnLoadLast").addEventListener("click", () => {
+  const p = loadLastPack();
+  if (!p) {
+    $("setupStatus").textContent = "No saved custom pack in browser storage.";
+    return;
+  }
+  customPack = p;
+  source = "custom";
+  $("sourceTabs").querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.source === "custom"));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.dataset.panel === "custom"));
+  $("customStatus").textContent = `Restored ${p.label || p.artcc}`;
+  $("btnExport").disabled = false;
+});
+
+$("btnExport").addEventListener("click", () => {
+  if (currentPack) exportPack(currentPack);
+});
+
+async function resolvePack() {
+  mode = $("modeSelect").value;
+  const settings = readSettings();
+
+  if (source === "bundled") {
+    return loadDefaultPack("");
+  }
+  if (source === "custom") {
+    if (!customPack) throw new Error("Import a custom JSON pack first.");
+    return customPack;
+  }
+  if (source === "generate") {
+    const pack = generateFleet(settings);
+    pack.scenarios = generateScenarios(pack, settings);
+    return pack;
+  }
+  if (source === "snapshot") {
+    const snap = await snapshotVatsim(readSnapshotSettings(), { baseUrl: "" });
+    if (!snap.ok) throw new Error(snap.error);
+    return snap.pack;
+  }
+  throw new Error("Unknown source");
+}
+
+function renderAcl() {
+  const list = $("aclList");
+  const cur = scenarios[idx];
+  const curCs = cur ? (cur.aircraft || "").toUpperCase() : "";
+  list.innerHTML = (currentPack.aircraft || []).map(ac => {
+    const active = (ac.cs || "").toUpperCase() === curCs;
+    return `<div class="strip${active ? " active" : ""}">
+      <div class="cs">${ac.cs}</div>
+      <div class="meta">${ac.type || "—"} · FL${String(ac.alt || 0).padStart(3, "0")} · ${ac.dep || ""}→${ac.arr || ""}</div>
+    </div>`;
+  }).join("");
+}
+
+function showScenario() {
+  const sc = scenarios[idx];
+  if (!sc) return endSession();
+  $("instruction").textContent = sc.instruction;
+  $("hintBox").textContent = sc.hint || "";
+  $("hintBox").classList.toggle("show", mode === "tutorial");
+  $("feedback").className = "feedback";
+  $("feedback").textContent = "";
+  $("cpdlcMsg").textContent = "";
+  $("mcaInput").value = "";
+  $("mcaInput").focus();
+  roundStart = Date.now();
+  attempts = 0;
+  hintUsed = mode === "tutorial";
+  renderAcl();
+  $("statProgress").textContent = `${idx + 1}/${scenarios.length}`;
+}
+
+function updateTimer() {
+  const sec = Math.floor((Date.now() - sessionStart) / 1000);
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, "0");
+  $("statTime").textContent = `${m}:${s}`;
+}
+
+function submitCommand() {
+  const sc = scenarios[idx];
+  if (!sc) return;
+  attempts++;
+  const result = gradeCommand($("mcaInput").value, sc, acMap);
+  const fb = $("feedback");
+  if (result.ok) {
+    fb.className = "feedback accept";
+    fb.innerHTML = result.feedback.map(l => `<div>${l}</div>`).join("");
+    if (result.entry) $("cpdlcMsg").textContent = "CPDLC: " + result.entry.msg.replace(/@/g, "");
+    const round = scoreRound({
+      elapsedMs: Date.now() - roundStart,
+      attempts,
+      hintUsed,
+      streak,
+    });
+    score += round.points;
+    totalPoints += round.points;
+    streak++;
+    completed++;
+    $("statScore").textContent = String(score);
+    $("statStreak").textContent = String(streak);
+    setTimeout(() => { idx++; showScenario(); }, mode === "speed" ? 600 : 900);
+  } else {
+    fb.className = "feedback reject";
+    fb.innerHTML = result.feedback.map(l => `<div>${l}</div>`).join("");
+    streak = 0;
+    $("statStreak").textContent = "0";
+    if (attempts >= 3) {
+      setTimeout(() => { idx++; showScenario(); }, 1200);
+    }
+  }
+}
+
+function endSession() {
+  clearInterval(timerId);
+  $("drillLayout").style.display = "none";
+  $("summaryPanel").classList.add("active");
+  $("finalScore").textContent = String(score);
+  $("finalStats").textContent = `Completed ${completed} of ${scenarios.length} scenarios · ${totalPoints} total points`;
+}
+
+async function startSession() {
+  $("setupStatus").textContent = "Loading…";
+  $("btnStart").disabled = true;
+  try {
+    let pack = await resolvePack();
+  const settings = readSettings();
+    pack = preparePack(pack, settings, mode);
+    currentPack = pack;
+    if (source === "custom") persistLastPack(pack);
+    scenarios = pack.scenarios || [];
+    acMap = aircraftMap(pack);
+    idx = 0;
+    score = 0;
+    streak = 0;
+    completed = 0;
+    totalPoints = 0;
+    sessionStart = Date.now();
+    timerId = setInterval(updateTimer, 1000);
+
+    $("setupPanel").style.display = "none";
+    $("sessionPanel").classList.add("active");
+    $("summaryPanel").classList.remove("active");
+    $("drillLayout").style.display = "";
+    $("statMode").textContent = mode.toUpperCase();
+    $("statScore").textContent = "0";
+    $("statStreak").textContent = "0";
+    $("btnExport").disabled = false;
+    showScenario();
+    $("setupStatus").textContent = "";
+  } catch (err) {
+    $("setupStatus").textContent = err.message || String(err);
+  } finally {
+    $("btnStart").disabled = false;
+  }
+}
+
+$("btnStart").addEventListener("click", startSession);
+$("btnSubmit").addEventListener("click", submitCommand);
+$("mcaInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); submitCommand(); }
+  if (e.key === "Escape") { $("mcaInput").value = ""; }
+});
+$("btnHint").addEventListener("click", () => {
+  hintUsed = true;
+  $("hintBox").classList.add("show");
+});
+$("btnSkip").addEventListener("click", () => { streak = 0; idx++; showScenario(); });
+$("btnEnd").addEventListener("click", endSession);
+$("btnRestart").addEventListener("click", () => {
+  $("sessionPanel").classList.remove("active");
+  $("setupPanel").style.display = "";
+  clearInterval(timerId);
+});
+
+// URL pack param
+const packUrl = new URLSearchParams(location.search).get("pack");
+if (packUrl) {
+  fetch(packUrl).then(r => r.json()).then(json => {
+    customPack = json;
+    source = "custom";
+    $("customStatus").textContent = `Loaded from URL: ${packUrl}`;
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
