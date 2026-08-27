@@ -251,6 +251,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   let showRoutes = true;
   let showAirports = false;
   let showFixLabels = false;
+  let showTraffic = true;
   const onSelect = typeof opts.onSelect === "function" ? opts.onSelect : null;
   const airportLayer = L.layerGroup().addTo(map);
   const fixLabelLayer = L.layerGroup().addTo(map);
@@ -408,6 +409,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
   function renderTraffic(flights, sel) {
     trafficLayer.clearLayers();
     trafficCount = 0;
+    if (!showTraffic) return;
     let b;
     try { b = map.getBounds().pad(0.25); } catch (_) { return; }
 
@@ -485,11 +487,12 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     if ("showRoutes" in opts) showRoutes = !!opts.showRoutes;
     if ("showAirports" in opts) showAirports = !!opts.showAirports;
     if ("showFixLabels" in opts) showFixLabels = !!opts.showFixLabels;
+    if ("showTraffic" in opts) showTraffic = !!opts.showTraffic;
     render({ refit: false });
   }
 
   function getMapOverlays() {
-    return { showRoutes, showAirports, showFixLabels, sectorMode };
+    return { showRoutes, showAirports, showFixLabels, sectorMode, showTraffic };
   }
 
   /**
@@ -497,7 +500,8 @@ export function createEdstGpdMap(containerEl, opts = {}) {
    * @param {{ selectedCs?: string|null, artccId?: string, refit?: boolean,
    *           alertByCs?: Map|object|null, alertShowFilter?: object|null,
    *           sectorMode?: string,
-   *           showRoutes?: boolean, showAirports?: boolean, showFixLabels?: boolean }} [options]
+   *           showRoutes?: boolean, showAirports?: boolean, showFixLabels?: boolean,
+   *           showTraffic?: boolean }} [options]
    */
   function update(flights, options = {}) {
     if (options.artccId) currentArtcc = normArtccId(options.artccId);
@@ -514,6 +518,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     if ("showRoutes" in options) showRoutes = !!options.showRoutes;
     if ("showAirports" in options) showAirports = !!options.showAirports;
     if ("showFixLabels" in options) showFixLabels = !!options.showFixLabels;
+    if ("showTraffic" in options) showTraffic = !!options.showTraffic;
     render({ refit: !!options.refit });
   }
 

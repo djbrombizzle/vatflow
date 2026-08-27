@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ERAM Trainer — VATFLOW</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
 <style>
   :root {
@@ -28,7 +29,7 @@
   }
   #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
   .page {
-    max-width: 1200px; margin: 0 auto;
+    max-width: 1400px; margin: 0 auto;
     padding: calc(var(--vatflow-nav-h) + 20px) 16px 48px;
   }
   .hero { margin-bottom: 20px; }
@@ -163,6 +164,55 @@
   }
   .summary.active { display: block; }
   .summary h2 { font-family: var(--mono); color: var(--amber); }
+
+  .map-panel {
+    border: 1px solid var(--line); border-radius: 8px; background: #000;
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .map-panel .panel-h { background: var(--panel); }
+  #eramMap {
+    height: min(52vh, 520px); min-height: 320px; width: 100%;
+    background: #000;
+  }
+  #eramMap .leaflet-container { background: #000; font-family: var(--mono); }
+  #eramMap .leaflet-control-zoom a {
+    background: #1a1a1a; color: #ccc; border-color: #555;
+  }
+
+  /* ERAM Full Data Block (FDB) — CRC Fig. 27–28 */
+  .eram-fdb-marker { background: transparent !important; border: none !important; }
+  .eram-fdb {
+    font-family: var(--mono); font-size: 11px; line-height: 1.22;
+    color: #7cff7c; background: rgba(0, 8, 0, 0.92);
+    border: 1px solid #3a6a3a; padding: 2px 4px 3px;
+    min-width: 88px; white-space: nowrap; user-select: none;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  }
+  .eram-fdb.selected {
+    color: #ffe08a; border-color: var(--amber);
+    box-shadow: 0 0 10px rgba(232, 168, 56, 0.35);
+  }
+  .eram-fdb .fdb-portal {
+    border-bottom: 1px solid #2a4a2a; padding-bottom: 1px; margin-bottom: 1px;
+    min-height: 10px;
+  }
+  .eram-fdb .fdb-vci { color: #7cff7c; font-size: 9px; }
+  .eram-fdb .fdb-vci.off { color: #4a6a4a; }
+  .eram-fdb .fld-a { color: #b8ffb8; font-weight: 700; letter-spacing: .04em; }
+  .eram-fdb .fld-b { color: #7cff7c; }
+  .eram-fdb .fld-c { color: #6ab86a; margin-left: 2px; }
+  .eram-fdb .fld-d { color: #6a9a6a; margin-right: 6px; }
+  .eram-fdb .fld-e { color: #7cff7c; }
+  .eram-fdb .fld-f { color: #9ae09a; }
+  .eram-fdb .fdb-hsf { color: #c8e8c8; margin-left: 2px; }
+  .eram-fdb .fdb-l4.dim .fld-f { color: #4a6a4a; font-size: 10px; }
+  .eram-track-icon { background: transparent !important; border: none !important; }
+
+  .fdb-legend {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    padding: 6px 12px; border-top: 1px solid var(--line); background: var(--panel);
+  }
+  .fdb-legend span { margin-right: 14px; }
 </style>
 </head>
 <body>
@@ -171,7 +221,7 @@
   <div class="hero">
     <p class="eyebrow">Practice · CRC / ERAM</p>
     <h1>ERAM Trainer</h1>
-    <p>Type MCA commands quickly — QZ, QQ, QU, QS with /U uplink modifiers. Use bundled ZDC traffic, import custom JSON, generate a fleet, or snapshot live VATSIM.</p>
+    <p>Type MCA commands — QZ, QQ, QU, QS — and watch aircraft on the ERAM scope map with full data blocks. Bundled ZDC traffic, custom JSON, generated fleets, or VATSIM snapshots.</p>
   </div>
 
   <section class="setup" id="setupPanel">
@@ -255,6 +305,19 @@
       <button type="button" class="btn" id="btnEnd">End session</button>
     </div>
 
+    <div class="map-panel" id="mapPanel" style="display:none">
+      <div class="panel-h">ERAM Scope · Full Data Blocks (FDB)</div>
+      <div id="eramMap"></div>
+      <div class="fdb-legend">
+        <span><b style="color:#7cff7c">A</b> ACID</span>
+        <span><b style="color:#7cff7c">B</b> Assigned alt (↑↓C/T)</span>
+        <span><b style="color:#7cff7c">D</b> CID · <b>E</b> Dest+GS</span>
+        <span><b style="color:#9ae09a">F</b> Hdg/Spd/Direct</span>
+        <span>◆ VCI</span>
+        <span>— leader + velocity vector</span>
+      </div>
+    </div>
+
     <div class="layout" id="drillLayout">
       <div class="panel">
         <div class="panel-h">ACL · Traffic</div>
@@ -266,8 +329,8 @@
           <div class="instruction" id="instruction">—</div>
           <div class="hint" id="hintBox"></div>
           <div class="mca-wrap">
-            <div class="mca-label">MCA · ERAM /U</div>
-            <input class="mca-input" id="mcaInput" type="text" maxlength="220" autocomplete="off" spellcheck="false" placeholder="QZ 340 AAL123 /U">
+            <div class="mca-label">MCA · ERAM</div>
+            <input class="mca-input" id="mcaInput" type="text" maxlength="220" autocomplete="off" spellcheck="false" placeholder="QZ 340 AAL123">
           </div>
           <div class="feedback" id="feedback"></div>
           <div class="cpdlc-msg" id="cpdlcMsg"></div>
@@ -281,17 +344,18 @@
       <div class="panel">
         <div class="panel-h">CRC reference</div>
         <div class="ref">
+          <p style="margin-top:10px"><b>FDB fields</b> (CRC Fig. 28): A=ACID, B=assigned alt, C=reported, D=CID, E=dest+GS, F=HSF</p>
           <table>
             <tr><th>Command</th><th>Syntax</th></tr>
-            <tr><td>Altitude</td><td><code>QZ 340 AAL123 /U</code></td></tr>
-            <tr><td>Interim</td><td><code>QQ 250 AAL123 /U</code></td></tr>
-            <tr><td>Direct</td><td><code>QU MERIT AAL123 /U</code></td></tr>
-            <tr><td>Heading</td><td><code>QS 270 AAL123 /U</code></td></tr>
-            <tr><td>Turn L/R</td><td><code>QS LT 180 … /U</code></td></tr>
-            <tr><td>Present hdg</td><td><code>QS PH AAL123 /U</code></td></tr>
-            <tr><td>Speed</td><td><code>QS /280 AAL123 /U</code></td></tr>
+            <tr><td>Altitude</td><td><code>QZ 340 AAL123</code></td></tr>
+            <tr><td>Interim</td><td><code>QQ 250 AAL123</code></td></tr>
+            <tr><td>Direct</td><td><code>QU MERIT AAL123</code></td></tr>
+            <tr><td>Heading</td><td><code>QS 270 AAL123</code></td></tr>
+            <tr><td>Turn L/R</td><td><code>QS LT 180 AAL123</code></td></tr>
+            <tr><td>Present hdg</td><td><code>QS PH AAL123</code></td></tr>
+            <tr><td>Speed</td><td><code>QS /280 AAL123</code></td></tr>
           </table>
-          <p style="margin-top:10px"><b>Modifiers</b> (after /U): <code>/PD</code> <code>/EXP</code> <code>/IMM</code> <code>/TFC</code> <code>/WX</code> <code>/RES</code></p>
+          <p style="margin-top:10px"><b>Modifiers</b>: <code>/PD</code> <code>/EXP</code> <code>/IMM</code> <code>/TFC</code> <code>/WX</code> <code>/RES</code></p>
           <p>Below FL180: 3-digit hundreds (<code>120</code> = 12,000 ft). FL180+: <code>340</code> = FL340.</p>
         </div>
       </div>
@@ -306,6 +370,7 @@
   </section>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
@@ -323,6 +388,8 @@ import {
   persistLastPack,
   loadLastPack,
 } from "./shared/eram-trainer.js";
+import { initSimAircraft, applyCommandToAircraft, tickSimulation } from "./shared/eram-trainer-sim.js";
+import { createEramTrainerMap } from "./shared/eram-trainer-map.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "eram-trainer");
 
@@ -344,6 +411,9 @@ let timerId = null;
 let sessionStart = 0;
 let completed = 0;
 let totalPoints = 0;
+let eramMap = null;
+let simRaf = null;
+let lastSimTs = 0;
 
 function parseList(str) {
   return String(str || "").toUpperCase().split(/[\s,]+/).filter(Boolean);
@@ -461,6 +531,35 @@ async function resolvePack() {
   throw new Error("Unknown source");
 }
 
+function currentScenarioCs() {
+  const sc = scenarios[idx];
+  return sc ? (sc.aircraft || "").toUpperCase() : null;
+}
+
+function refreshMap() {
+  if (!eramMap || !currentPack) return;
+  eramMap.update(currentPack.aircraft, { selectedCs: currentScenarioCs() });
+}
+
+function startSimLoop() {
+  lastSimTs = performance.now();
+  const step = ts => {
+    const dt = Math.min(100, ts - lastSimTs);
+    lastSimTs = ts;
+    if (currentPack && currentPack.aircraft) {
+      tickSimulation(currentPack.aircraft, dt);
+      refreshMap();
+    }
+    simRaf = requestAnimationFrame(step);
+  };
+  simRaf = requestAnimationFrame(step);
+}
+
+function stopSimLoop() {
+  if (simRaf) cancelAnimationFrame(simRaf);
+  simRaf = null;
+}
+
 function renderAcl() {
   const list = $("aclList");
   const cur = scenarios[idx];
@@ -489,6 +588,7 @@ function showScenario() {
   attempts = 0;
   hintUsed = mode === "tutorial";
   renderAcl();
+  refreshMap();
   $("statProgress").textContent = `${idx + 1}/${scenarios.length}`;
 }
 
@@ -509,6 +609,9 @@ function submitCommand() {
     fb.className = "feedback accept";
     fb.innerHTML = result.feedback.map(l => `<div>${l}</div>`).join("");
     if (result.entry) $("cpdlcMsg").textContent = "CPDLC: " + result.entry.msg.replace(/@/g, "");
+    const ac = acMap.get((sc.aircraft || "").toUpperCase());
+    if (ac && result.parsed) applyCommandToAircraft(ac, result.parsed);
+    refreshMap();
     const round = scoreRound({
       elapsedMs: Date.now() - roundStart,
       attempts,
@@ -535,6 +638,8 @@ function submitCommand() {
 
 function endSession() {
   clearInterval(timerId);
+  stopSimLoop();
+  $("mapPanel").style.display = "none";
   $("drillLayout").style.display = "none";
   $("summaryPanel").classList.add("active");
   $("finalScore").textContent = String(score);
@@ -549,6 +654,7 @@ async function startSession() {
   const settings = readSettings();
     pack = preparePack(pack, settings, mode);
     currentPack = pack;
+    await initSimAircraft(currentPack.aircraft, { baseUrl: "" });
     if (source === "custom") persistLastPack(pack);
     scenarios = pack.scenarios || [];
     acMap = aircraftMap(pack);
@@ -564,6 +670,20 @@ async function startSession() {
     $("sessionPanel").classList.add("active");
     $("summaryPanel").classList.remove("active");
     $("drillLayout").style.display = "";
+    $("mapPanel").style.display = "";
+
+    if (!eramMap) {
+      eramMap = await createEramTrainerMap($("eramMap"), {
+        onSelect(cs) {
+          const sc = scenarios[idx];
+          if (sc && (sc.aircraft || "").toUpperCase() === cs) return;
+        },
+      });
+    }
+    eramMap.setArtcc(pack.artcc || "ZDC");
+    eramMap.update(currentPack.aircraft, { selectedCs: currentScenarioCs(), refit: true });
+    eramMap.invalidateSize();
+    startSimLoop();
     $("statMode").textContent = mode.toUpperCase();
     $("statScore").textContent = "0";
     $("statStreak").textContent = "0";
@@ -592,7 +712,9 @@ $("btnEnd").addEventListener("click", endSession);
 $("btnRestart").addEventListener("click", () => {
   $("sessionPanel").classList.remove("active");
   $("setupPanel").style.display = "";
+  $("mapPanel").style.display = "none";
   clearInterval(timerId);
+  stopSimLoop();
 });
 
 // URL pack param

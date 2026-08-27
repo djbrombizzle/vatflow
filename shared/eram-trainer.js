@@ -287,7 +287,7 @@ export function generateScenarios(pack, settings = DEFAULT_SETTINGS) {
         instruction,
         aircraft: ac.cs,
         expect: { verb: "QU", fix, ...(mods.length ? { mods } : {}) },
-        hint: "QU <fix> <callsign> /U",
+        hint: "QU <fix> <callsign>",
       });
     } else if (type === "hdg") {
       const roll = Math.random();
@@ -298,7 +298,7 @@ export function generateScenarios(pack, settings = DEFAULT_SETTINGS) {
           instruction: `Fly present heading for ${ac.cs}.`,
           aircraft: ac.cs,
           expect: { verb: "QS", mode: "PH" },
-          hint: "QS PH <callsign> /U",
+          hint: "QS PH <callsign>",
         });
       } else {
         const hdg = randInt(1, 36) * 10 || 360;
@@ -328,7 +328,7 @@ export function generateScenarios(pack, settings = DEFAULT_SETTINGS) {
         instruction: `Maintain ${kt} knots for ${ac.cs}.${mods.includes("EXP") ? " Expedite." : ""}`,
         aircraft: ac.cs,
         expect: { verb: "QS", kt, ...(mods.length ? { mods } : {}) },
-        hint: "QS /280 <callsign> /U",
+        hint: "QS /280 <callsign>",
       });
     }
   }
@@ -431,7 +431,7 @@ export function gradeCommand(input, scenario, aircraftByCs) {
     ? aircraftByCs.get(csKey)
     : aircraftByCs[csKey];
   const selectedCs = ac ? ac.cs : scenario.aircraft;
-  const parsed = parseMcaCommand(input, { selectedCs });
+  const parsed = parseMcaCommand(input, { selectedCs, requireU: false });
   const expect = scenario.expect || {};
 
   if (!parsed.ok) {

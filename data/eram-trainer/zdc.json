@@ -156,7 +156,7 @@
       "instruction": "Climb AAL482 to FL340.",
       "aircraft": "AAL482",
       "expect": { "verb": "QZ", "alt": 340 },
-      "hint": "Assigned altitude: QZ <fl> <callsign> /U"
+      "hint": "Assigned altitude: QZ <fl> <callsign>"
     },
     {
       "id": "qz-climb-tfc",
@@ -164,7 +164,7 @@
       "instruction": "Climb UAL1045 to FL370 due to traffic.",
       "aircraft": "UAL1045",
       "expect": { "verb": "QZ", "alt": 370, "mods": ["TFC"] },
-      "hint": "Add /TFC after /U for due to traffic."
+      "hint": "Add /TFC for due to traffic."
     },
     {
       "id": "qz-descend-pd",
@@ -244,7 +244,7 @@
       "instruction": "Direct UPS1122 to TIMMY.",
       "aircraft": "UPS1122",
       "expect": { "verb": "QU", "fix": "TIMMY" },
-      "hint": "QU <fix> <callsign> /U"
+      "hint": "QU <fix> <callsign>"
     },
     {
       "id": "qu-direct-pd",
@@ -276,7 +276,7 @@
       "instruction": "Fly heading 270 for UAL1045.",
       "aircraft": "UAL1045",
       "expect": { "verb": "QS", "hdg": 270, "mode": "NP" },
-      "hint": "QS <heading> <callsign> /U — use 360 for north, not 000."
+      "hint": "QS <heading> <callsign> — use 360 for north, not 000."
     },
     {
       "id": "qs-heading-lt",
@@ -300,7 +300,7 @@
       "instruction": "Fly present heading for JBU819.",
       "aircraft": "JBU819",
       "expect": { "verb": "QS", "mode": "PH" },
-      "hint": "QS PH <callsign> /U — no heading parameter."
+      "hint": "QS PH <callsign> — no heading parameter."
     },
     {
       "id": "qs-heading-exp",
@@ -316,7 +316,7 @@
       "instruction": "Maintain 280 knots for NKS718.",
       "aircraft": "NKS718",
       "expect": { "verb": "QS", "kt": 280 },
-      "hint": "Speed: QS /280 <callsign> /U"
+      "hint": "Speed: QS /280 <callsign>"
     },
     {
       "id": "qs-speed-exp",
