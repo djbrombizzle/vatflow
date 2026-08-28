@@ -68,6 +68,18 @@ export function formatFieldC(ac) {
   return String(Math.round(ac.alt || 0)).padStart(3, "0");
 }
 
+/** Field D — computer identification (3 digits). */
+export function formatFieldD(ac) {
+  const raw = String(ac.cid || "---").replace(/\D/g, "");
+  const n = raw ? parseInt(raw.slice(-3), 10) : 0;
+  return String(Number.isFinite(n) ? n : 0).padStart(3, "0");
+}
+
+/** Groundspeed for FDB line 3 (3 digits). */
+export function formatGs(ac) {
+  return String(Math.round(ac.gs || 0)).padStart(3, "0");
+}
+
 /** Field E — destination ID char + groundspeed. */
 export function formatFieldE(ac) {
   const d = destChar(ac.arr);

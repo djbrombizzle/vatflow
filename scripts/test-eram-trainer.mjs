@@ -30,7 +30,7 @@ const samplePack = {
     id: "t1",
     instruction: "Climb",
     aircraft: "AAL123",
-    expect: { verb: "QZ", alt: 340, mods: ["TFC"] },
+    expect: { verb: "QZ", alt: 340 },
   }],
   fixes: ["BAL", "TIMMY"],
 };
@@ -53,11 +53,11 @@ const scenarios = generateScenarios(fleet, { scenarioCount: 10, scenarioMix: ["a
 assert(scenarios.length === 10, "generateScenarios count");
 
 const byCs = aircraftMap(samplePack);
-const g1 = gradeCommand("QZ 340 AAL123 /TFC", samplePack.scenarios[0], byCs);
-assert(g1.ok, "grade QZ with TFC");
+const g1 = gradeCommand("QZ 340 AAL123", samplePack.scenarios[0], byCs);
+assert(g1.ok, "grade QZ altitude");
 
-const g2 = gradeCommand("QZ 340 AAL123", samplePack.scenarios[0], byCs);
-assert(!g2.ok && g2.reason === "WRONG MODS", "grade rejects missing TFC");
+const g1b = gradeCommand("QZ 340 AAL123 /TFC", samplePack.scenarios[0], byCs);
+assert(g1b.ok, "grade ignores optional modifiers");
 
 const hdgSc = {
   instruction: "hdg",
