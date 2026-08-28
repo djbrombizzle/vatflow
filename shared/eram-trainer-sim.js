@@ -80,11 +80,82 @@ export function formatGs(ac) {
   return String(Math.round(ac.gs || 0)).padStart(3, "0");
 }
 
-/** Field E — destination ID char + groundspeed. */
+/** Field E — destination ID char + groundspeed, or emergency/status codes. */
 export function formatFieldE(ac) {
+  const sq = String(ac.squawk || "").replace(/\D/g, "");
+  if (sq === "7500") return "HIJK";
+  if (sq === "7600") return "RDOF";
+  if (sq === "7700") return "EMRG";
+  if (sq === "7400") return "LLNK";
+  if (sq === "7777") return "AFIO";
+  if (sq === "1276") return "ADIZ";
+  if (ac.coast) return "CST";
+  if (ac.frozen) return "FRZN";
   const d = destChar(ac.arr);
   const gs = Math.round(ac.gs || 0);
-  return `${d}${gs}`;
+  return `${d}${String(gs).padStart(3, "0").slice(-3)}`;
+}
+
+/** Parsed Field B for FDB line 2 rendering. */
+export function parseFieldB(ac) {
+  const s = formatFieldB(ac);
+  if (/^\d{3}C$/.test(s)) {
+    return { assigned: s.slice(0, 3), suffix: "C", reported: "", level: true };
+  }
+  const m = s.match(/^(\d{3})(.)(.*)$/);
+  if (m) {
+    return {
+      assigned: m[1],
+      suffix: m[2],
+      reported: m[3],
+      level: m[2] === "C",
+    };
+  }
+  return { assigned: s.trim(), suffix: "", reported: "", level: false };
+}
+
+/** Line 4 — destination airport or HSF (heading/speed/direct). */
+export function formatLine4(ac) {
+  if (ac.showHsf && hasHsf(ac)) return formatFieldF(ac);
+  return String(ac.arr || "").toUpperCase();
+}
+
+/** Full FDB display state per CRC Figs 27–29. */
+export function formatFdbState(ac) {
+  const fieldB = parseFieldB(ac);
+  const line0 = ac.pointOut ? String(ac.pointOut).toUpperCase().slice(0, 1) : "";
+  const line1 = String(ac.cs || "").toUpperCase() + (ac.satcomm ? "*" : "");
+  const line3d = formatFieldD(ac);
+  const line3e = formatFieldE(ac);
+  const line4 = formatLine4(ac);
+  const vci = ac.vci !== false;
+  const notYourControl = !!ac.notYourControl;
+  const showFence = !!(line0 || vci || notYourControl);
+  const hsf = hasHsf(ac);
+  return {
+    line0,
+    line1,
+    fieldB,
+    line3d,
+    line3e,
+    line3: formatLine3(ac),
+    line4,
+    vci,
+    notYourControl,
+    showFence,
+    hsf,
+    nonRvsm: !!ac.nonRvsm,
+    showHsf: !!ac.showHsf,
+  };
+}
+
+/** FDB line 3 — Field D (CID) + Field E or groundspeed. */
+export function formatLine3(ac) {
+  const d = formatFieldD(ac);
+  const e = formatFieldE(ac);
+  if (/^[A-Z]{3,4}$/.test(e) && !/^\D\d{2,3}$/.test(e)) return `${d} ${e}`;
+  if (/^H\d{3}$/.test(e) || e === "HUNK" || /^[OK]\d{3}$/.test(e) || e === "OUNK") return `${d} ${e}`;
+  return `${d} ${formatGs(ac)}`;
 }
 
 /** Field F — heading / speed / direct fix per CRC line 4. */
@@ -120,8 +191,8 @@ export async function initSimAircraft(aircraft, opts = {}) {
       placeAlongRoute(ac, i / Math.max(1, list.length));
     }
     ac.assignedAlt = ac.assignedAlt != null ? ac.assignedAlt : ac.alt;
-    ac.assignedHdg = ac.assignedHdg != null ? ac.assignedHdg : ac.hdg;
-    ac.assignedSpd = ac.assignedSpd != null ? ac.assignedSpd : ac.gs;
+    ac.assignedHdg = ac.assignedHdg ?? null;
+    ac.assignedSpd = ac.assignedSpd ?? null;
     ac.interimAlt = ac.interimAlt ?? null;
     ac.directFix = ac.directFix || null;
     ac.directLat = ac.directLat ?? null;
@@ -134,6 +205,11 @@ export async function initSimAircraft(aircraft, opts = {}) {
     ac.fdbPos = ac.fdbPos || "NE";
     ac.leaderLen = ac.leaderLen ?? 2;
     ac.vecMin = ac.vecMin ?? 4;
+    ac.showHsf = ac.showHsf ?? false;
+    ac.pointOut = ac.pointOut || "";
+    ac.notYourControl = ac.notYourControl ?? false;
+    ac.nonRvsm = ac.nonRvsm ?? false;
+    ac.satcomm = ac.satcomm ?? false;
     i++;
   }
   return list;
@@ -187,19 +263,10 @@ export function applyCommandToAircraft(ac, parsed) {
     }
   }
 
-  if (verb === "QU" && p.fix) {
-    ac.directFix = p.fix;
-    const fc = fixCoord(p.fix);
-    if (fc) {
-      ac.directLat = fc.lat;
-      ac.directLon = fc.lon;
-      ac.assignedHdg = Math.round(bearing(ac.lat, ac.lon, fc.lat, fc.lon));
-    }
-  }
-
   if (verb === "QS") {
     if (p.type === "spd") {
       ac.assignedSpd = p.kt;
+      ac.showHsf = true;
     } else if (p.type === "hdg") {
       if (p.mode === "PH") {
         ac.assignedHdg = Math.round(ac.hdg || 0) || 360;
@@ -207,6 +274,18 @@ export function applyCommandToAircraft(ac, parsed) {
         ac.assignedHdg = p.hdg;
       }
       ac.directFix = null;
+      ac.showHsf = true;
+    }
+  }
+
+  if (verb === "QU" && p.fix) {
+    ac.directFix = p.fix;
+    ac.showHsf = true;
+    const fc = fixCoord(p.fix);
+    if (fc) {
+      ac.directLat = fc.lat;
+      ac.directLon = fc.lon;
+      ac.assignedHdg = Math.round(bearing(ac.lat, ac.lon, fc.lat, fc.lon));
     }
   }
   return ac;

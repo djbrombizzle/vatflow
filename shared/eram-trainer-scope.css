@@ -386,17 +386,17 @@ body.scope-active { overflow: hidden; }
 }
 .summary-box .btn:hover { border-color: var(--eram-amber); color: var(--eram-amber); }
 
-/* FDB on map (from eram-trainer-map) */
+/* FDB on map (from eram-trainer-map) — CRC Figs 27–29 */
 .eram-fdb-marker { background: transparent !important; border: none !important; }
 .eram-fdb {
   font-family: var(--eram-mono);
   font-size: 11px;
-  line-height: 1.18;
+  line-height: 1.2;
   color: #ffd800;
   font-variant-numeric: slashed-zero;
   background: transparent;
   padding: 0;
-  min-width: 72px;
+  min-width: 76px;
   white-space: nowrap;
   user-select: none;
   letter-spacing: 0.02em;
@@ -405,41 +405,86 @@ body.scope-active { overflow: hidden; }
   color: #fff6a8;
   text-shadow: 0 0 6px rgba(255, 216, 0, 0.45);
 }
-.eram-fdb .fdb-fence {
+.eram-fdb .fdb-l0 {
   text-align: center;
-  padding-left: 11px;
-  min-height: 1.05em;
+  padding-left: 13px;
+  min-height: 1em;
   line-height: 1;
+  color: #ffd800;
 }
-.eram-fdb .fdb-row {
+.eram-fdb .fdb-l0.empty { visibility: hidden; }
+.eram-fdb .fdb-grid {
   display: flex;
   align-items: stretch;
 }
-.eram-fdb .fdb-vci-col {
-  width: 10px;
+.eram-fdb .fdb-col0 {
+  width: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 1px 0;
+}
+.eram-fdb .fdb-col0-top,
+.eram-fdb .fdb-col0-bot {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  min-height: 11px;
 }
 .eram-fdb .fdb-vci {
   display: block;
+  cursor: pointer;
 }
-.eram-fdb .fdb-bracket {
+.eram-fdb .fdb-nyc {
+  color: #ffd800;
+  font-size: 10px;
+  line-height: 1;
+}
+.eram-fdb .fdb-nyc.empty { visibility: hidden; }
+.eram-fdb .fdb-portal {
+  padding: 1px 5px 2px 4px;
+  flex: 1;
+}
+.eram-fdb.has-fence .fdb-portal {
   border-top: 1px solid #fff;
   border-left: 1px solid #fff;
-  padding: 1px 5px 1px 4px;
 }
 .eram-fdb .fdb-l1,
 .eram-fdb .fdb-l2,
-.eram-fdb .fdb-l3 {
+.eram-fdb .fdb-l3,
+.eram-fdb .fdb-l4 {
   font-weight: 400;
 }
-.eram-fdb .fdb-l3 .fld-d {
-  margin-right: 0.35em;
+.eram-fdb .fdb-l2 {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
-.eram-fdb .fdb-dest {
-  padding-left: 14px;
+.eram-fdb .fld-b-sfx {
+  display: inline-block;
+  border: 1px solid #fff;
+  padding: 0 1px;
+  margin: 0 0 0 1px;
+  line-height: 1;
+  min-width: 0.85em;
+  text-align: center;
+}
+.eram-fdb .fld-b-sfx.fld-b-rvsm {
+  border-color: #ff6b8a;
+  box-shadow: 0 0 0 1px #ff6b8a;
+}
+.eram-fdb .fdb-hsf {
+  color: #ffd800;
+  margin-left: 2px;
+  cursor: pointer;
+  font-size: 10px;
+}
+.eram-fdb .fdb-l4 {
+  color: #fff;
   margin-top: 1px;
+}
+.eram-fdb .fdb-l4.hsf {
+  color: #ffd800;
 }
 .eram-track-icon { background: transparent !important; border: none !important; }
