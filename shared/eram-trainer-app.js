@@ -1,5 +1,5 @@
 /**
- * ERAM Trainer application — scope UI + drill logic.
+ * ERAM Trainer — interactive MCA command quiz
  */
 import { mountVatflowNav } from "./vatflow-nav.js";
 import {
@@ -17,20 +17,8 @@ import {
   persistLastPack,
   loadLastPack,
 } from "./eram-trainer.js";
-import { initSimAircraft, applyCommandToAircraft, tickSimulation } from "./eram-trainer-sim.js";
-import { createEramTrainerMap } from "./eram-trainer-map.js";
-import {
-  initEramScopeUi,
-  startZuluClock,
-  setMcaFeedback,
-  setResponseArea,
-  renderBeaconList,
-  updateMasterToolbar,
-  hideFloatingViews,
-} from "./eram-trainer-scope.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "eram-trainer");
-initEramScopeUi(document);
 
 const $ = id => document.getElementById(id);
 
@@ -46,14 +34,37 @@ let mode = "practice";
 let roundStart = 0;
 let attempts = 0;
 let hintUsed = false;
-let sessionStart = 0;
 let completed = 0;
 let totalPoints = 0;
-let eramMap = null;
-let simRaf = null;
-let lastSimTs = 0;
-let zuluTimer = null;
-let vecMin = 0;
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function setMcaFeedback(el, lines, type) {
+  if (!el) return;
+  if (!lines || !lines.length) {
+    el.innerHTML = "";
+    return;
+  }
+  const mark = type === "ok"
+    ? '<span class="mca-mark ok">✓ </span>'
+    : type === "err"
+      ? '<span class="mca-mark err">✗ </span>'
+      : "";
+  const body = lines.filter(Boolean).map((ln, i) => {
+    if (i === 0) return mark + escapeHtml(ln);
+    return escapeHtml(ln);
+  }).join("<br>");
+  el.innerHTML = body;
+}
+
+function setCpdlcOut(text, type) {
+  const el = $("cpdlcOut");
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "cpdlc-out" + (type ? ` ${type}` : "");
+}
 
 function parseList(str) {
   return String(str || "").toUpperCase().split(/[\s,]+/).filter(Boolean);
@@ -87,6 +98,12 @@ function readSnapshotSettings() {
     scenarioCount: +$("genScenarios").value || 25,
     scenarioMix: getMix(),
   };
+}
+
+function showPanel(name) {
+  $("setupPanel").classList.toggle("hidden", name !== "setup");
+  $("quizPanel").classList.toggle("hidden", name !== "quiz");
+  $("summaryPanel").classList.toggle("hidden", name !== "summary");
 }
 
 $("sourceTabs").addEventListener("click", e => {
@@ -159,56 +176,18 @@ async function resolvePack() {
   throw new Error("Unknown source");
 }
 
-function currentScenarioCs() {
-  const sc = scenarios[idx];
-  return sc ? (sc.aircraft || "").toUpperCase() : null;
-}
-
-function refreshMap() {
-  if (!eramMap || !currentPack) return;
-  for (const ac of currentPack.aircraft || []) {
-    ac.vecMin = vecMin;
-  }
-  eramMap.update(currentPack.aircraft, { selectedCs: currentScenarioCs() });
-  renderBeaconList($("beaconList"), currentPack.aircraft, currentScenarioCs());
-}
-
-function startSimLoop() {
-  lastSimTs = performance.now();
-  const step = ts => {
-    const dt = Math.min(100, ts - lastSimTs);
-    lastSimTs = ts;
-    if (currentPack && currentPack.aircraft) {
-      tickSimulation(currentPack.aircraft, dt);
-      refreshMap();
-    }
-    simRaf = requestAnimationFrame(step);
-  };
-  simRaf = requestAnimationFrame(step);
-}
-
-function stopSimLoop() {
-  if (simRaf) cancelAnimationFrame(simRaf);
-  simRaf = null;
-}
-
 function showScenario() {
   const sc = scenarios[idx];
   if (!sc) return endSession();
 
   $("instruction").textContent = sc.instruction;
+  $("targetCs").textContent = sc.aircraft || "—";
   const hintEl = $("hintBox");
   hintEl.textContent = sc.hint || "";
   hintEl.classList.toggle("show", mode === "tutorial" || hintUsed);
 
   setMcaFeedback($("mcaFeedback"), null);
-  setResponseArea($("raBody"), {
-    instruction: sc.instruction,
-    hint: (mode === "tutorial" || hintUsed) ? sc.hint : "",
-    extra: `Target: ${sc.aircraft} · Type command in MCA Preview Area`,
-  });
-
-  const ac = acMap.get((sc.aircraft || "").toUpperCase());
+  setCpdlcOut("");
   $("mcaInput").value = "";
   $("mcaInput").placeholder = " ";
   $("mcaInput").focus();
@@ -217,7 +196,6 @@ function showScenario() {
   attempts = 0;
   hintUsed = mode === "tutorial";
   $("statProgress").textContent = `${idx + 1}/${scenarios.length}`;
-  refreshMap();
 }
 
 function submitCommand() {
@@ -230,14 +208,7 @@ function submitCommand() {
   if (result.ok) {
     setMcaFeedback($("mcaFeedback"), result.feedback, "ok");
     const cpdlc = result.entry ? result.entry.msg.replace(/@/g, "") : "";
-    setResponseArea($("raBody"), {
-      instruction: sc.instruction,
-      cpdlc,
-      extra: "ACCEPT — command applied to target",
-    });
-    const ac = acMap.get((sc.aircraft || "").toUpperCase());
-    if (ac && result.parsed) applyCommandToAircraft(ac, result.parsed);
-    refreshMap();
+    setCpdlcOut(cpdlc ? `CPDLC: ${cpdlc}` : "ACCEPT", "accept");
 
     const round = scoreRound({ elapsedMs: Date.now() - roundStart, attempts, hintUsed, streak });
     score += round.points;
@@ -249,10 +220,7 @@ function submitCommand() {
     setTimeout(() => { idx++; showScenario(); }, mode === "speed" ? 700 : 1000);
   } else {
     setMcaFeedback($("mcaFeedback"), result.feedback, "err");
-    setResponseArea($("raBody"), {
-      instruction: sc.instruction,
-      extra: `REJECT — ${result.reason || "retry"}`,
-    });
+    setCpdlcOut(`REJECT — ${result.reason || "retry"}`, "reject");
     streak = 0;
     $("statStreak").textContent = "0";
     if (attempts >= 3) {
@@ -261,28 +229,10 @@ function submitCommand() {
   }
 }
 
-function enterScope() {
-  document.body.classList.add("scope-active");
-  $("setupOverlay").style.display = "none";
-  $("eramScope").classList.add("active");
-  if (zuluTimer) clearInterval(zuluTimer);
-  zuluTimer = startZuluClock($("zuluTime"));
-}
-
-function exitScope() {
-  document.body.classList.remove("scope-active");
-  $("eramScope").classList.remove("active");
-  $("setupOverlay").style.display = "";
-  if (zuluTimer) clearInterval(zuluTimer);
-  zuluTimer = null;
-  stopSimLoop();
-}
-
 function endSession() {
-  stopSimLoop();
-  $("summaryOverlay").classList.add("active");
   $("finalScore").textContent = String(score);
-  $("finalStats").textContent = `Completed ${completed} of ${scenarios.length} · ${totalPoints} pts`;
+  $("finalStats").textContent = `Completed ${completed} of ${scenarios.length} · ${totalPoints} points`;
+  showPanel("summary");
 }
 
 async function startSession() {
@@ -293,7 +243,6 @@ async function startSession() {
     const settings = readSettings();
     pack = preparePack(pack, settings, mode);
     currentPack = pack;
-    await initSimAircraft(currentPack.aircraft, { baseUrl: "" });
     if (source === "custom") persistLastPack(pack);
 
     scenarios = pack.scenarios || [];
@@ -303,31 +252,13 @@ async function startSession() {
     streak = 0;
     completed = 0;
     totalPoints = 0;
-    sessionStart = Date.now();
 
-    $("scopeTag").textContent = `${pack.artcc || "ZDC"} · TRAINER`;
-    updateMasterToolbar({ artcc: pack.artcc || "ZDC", vecMin });
     $("statMode").textContent = mode.toUpperCase();
     $("statScore").textContent = "0";
     $("statStreak").textContent = "0";
     $("btnExport").disabled = false;
 
-    enterScope();
-
-    if (!eramMap) {
-      eramMap = await createEramTrainerMap($("eramMap"), {
-        onSelect(cs) {
-          const sc = scenarios[idx];
-          if (sc && (sc.aircraft || "").toUpperCase() === cs) {
-            $("mcaInput").focus();
-          }
-        },
-      });
-    }
-    eramMap.setArtcc(pack.artcc || "ZDC");
-    eramMap.update(currentPack.aircraft, { selectedCs: currentScenarioCs(), refit: true });
-    setTimeout(() => eramMap.invalidateSize(), 100);
-    startSimLoop();
+    showPanel("quiz");
     showScenario();
     $("setupStatus").textContent = "";
   } catch (err) {
@@ -343,47 +274,23 @@ $("mcaInput").addEventListener("keydown", e => {
   if (e.key === "Escape") {
     $("mcaInput").value = "";
     setMcaFeedback($("mcaFeedback"), null);
+    setCpdlcOut("");
   }
 });
 
-$("tbHint").addEventListener("click", () => {
+$("btnHint").addEventListener("click", () => {
   hintUsed = true;
   const sc = scenarios[idx];
   if (sc) {
     $("hintBox").textContent = sc.hint || "";
     $("hintBox").classList.add("show");
-    setResponseArea($("raBody"), {
-      instruction: sc.instruction,
-      hint: sc.hint,
-    });
   }
 });
-$("tbSkip").addEventListener("click", () => { streak = 0; idx++; showScenario(); });
-$("tbEnd").addEventListener("click", endSession);
-$("btnRestart").addEventListener("click", () => {
-  $("summaryOverlay").classList.remove("active");
-  exitScope();
-});
 
-$("tbViews").addEventListener("click", () => {
-  $("beaconView").classList.toggle("hidden");
-});
-$("tbChecklists").addEventListener("click", () => {
-  $("trainerChecklist").classList.toggle("hidden");
-});
-$("tbCommandMenus").addEventListener("click", () => {
-  $("commandMenu").classList.toggle("hidden");
-});
-$("tbDeleteTearoff").addEventListener("click", () => {
-  hideFloatingViews();
-});
-$("tbVector").addEventListener("click", () => {
-  const opts = [0, 1, 2, 4, 8];
-  const i = opts.indexOf(vecMin);
-  vecMin = opts[(i + 1) % opts.length];
-  updateMasterToolbar({ artcc: currentPack?.artcc || "ZDC", vecMin });
-  refreshMap();
-});
+$("btnSkip").addEventListener("click", () => { streak = 0; idx++; showScenario(); });
+$("btnEnd").addEventListener("click", endSession);
+$("btnSetup").addEventListener("click", () => showPanel("setup"));
+$("btnRestart").addEventListener("click", () => showPanel("setup"));
 
 const packUrl = new URLSearchParams(location.search).get("pack");
 if (packUrl) {

@@ -4,51 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ERAM Trainer — VATFLOW</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
-<link rel="stylesheet" href="shared/eram-trainer-scope.css">
-<style>
-  /* Setup-only styles (overlay before scope) */
-  .setup-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .setup-tab {
-    padding: 8px 14px; border: 1px solid #444; background: #111; color: #ccc;
-    font-family: Consolas, monospace; font-size: 11px; cursor: pointer;
-  }
-  .setup-tab.active { border-color: #e8a838; color: #e8a838; }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #8a97a3; }
-  label.field input, label.field select {
-    padding: 8px; border: 1px solid #444; background: #0a0f14; color: #ddd;
-    font-family: Consolas, monospace;
-  }
-  .dropzone {
-    border: 2px dashed #444; padding: 24px; text-align: center; color: #8a97a3;
-    cursor: pointer; margin-bottom: 8px;
-  }
-  .dropzone input { display: none; }
-  .setup-btn {
-    padding: 10px 18px; border: 1px solid #cfcfcf; background: #1a1a1a;
-    color: #eee; font-family: Consolas, monospace; cursor: pointer; margin-right: 8px;
-  }
-  .setup-btn.primary { border-color: #e8a838; color: #e8a838; }
-  .setup-status { font-size: 12px; color: #8a97a3; margin-top: 12px; }
-</style>
+<link rel="stylesheet" href="shared/eram-trainer.css">
 </head>
 <body>
 <div id="vatflowAppNav"></div>
 
-<!-- Pre-session setup -->
-<div id="setupOverlay">
-  <div class="setup-inner">
-    <p style="color:#e8a838;font-family:Consolas,monospace;font-size:11px;letter-spacing:.15em">CRC ERAM TRAINER</p>
-    <h1>ERAM Trainer</h1>
-    <p style="color:#8a97a3;line-height:1.5;max-width:40rem">
-      Practice ERAM MCA commands on a full situation display with FDB data blocks.
-      Reference: <a href="https://docs.virtualnas.net/crc/eram/" style="color:#5ba8c9" target="_blank" rel="noopener">CRC ERAM documentation</a>
-    </p>
+<div class="trainer-wrap">
+  <p class="scenario-label" style="margin:0;color:#e8a838">CRC ERAM TRAINER</p>
+  <h1>ERAM Command Quiz</h1>
+  <p class="trainer-tagline">
+    Practice typing MCA commands for altitude, direct, heading, and speed clearances.
+    Reference: <a href="https://docs.virtualnas.net/crc/eram/" style="color:#5ba8c9" target="_blank" rel="noopener">CRC ERAM documentation</a>
+  </p>
 
+  <!-- Setup -->
+  <section id="setupPanel" class="panel">
     <div class="setup-tabs" id="sourceTabs">
       <button type="button" class="setup-tab active" data-source="bundled">Bundled ZDC</button>
       <button type="button" class="setup-tab" data-source="custom">Custom JSON</button>
@@ -57,11 +28,11 @@
     </div>
 
     <div class="tab-panel active" data-panel="bundled">
-      <p class="setup-status">Default Washington Center pack with pre-authored scenarios.</p>
+      <p class="status">Default Washington Center pack with pre-authored scenarios.</p>
     </div>
     <div class="tab-panel" data-panel="custom">
       <div class="dropzone" id="dropzone">Drop trainer JSON or click to browse<input type="file" id="fileInput" accept=".json"></div>
-      <p class="setup-status" id="customStatus">Same schema as bundled packs.</p>
+      <p class="status" id="customStatus">Same schema as bundled packs.</p>
     </div>
     <div class="tab-panel" data-panel="generate">
       <div class="grid-2">
@@ -101,113 +72,58 @@
       </label>
     </div>
 
-    <div style="margin-top:20px">
-      <button type="button" class="setup-btn primary" id="btnStart">Enter ERAM scope</button>
-      <button type="button" class="setup-btn" id="btnLoadLast">Load last JSON</button>
-      <button type="button" class="setup-btn" id="btnExport" disabled>Export pack</button>
-      <p class="setup-status" id="setupStatus"></p>
+    <div style="margin-top:16px">
+      <button type="button" class="btn primary" id="btnStart">Start quiz</button>
+      <button type="button" class="btn" id="btnLoadLast">Load last JSON</button>
+      <button type="button" class="btn" id="btnExport" disabled>Export pack</button>
+      <p class="status" id="setupStatus"></p>
     </div>
-  </div>
-</div>
+  </section>
 
-<!-- Full ERAM scope (CRC Fig. 1) -->
-<div id="eramScope">
-  <div id="situationDisplay"><div id="eramMap"></div></div>
-
-  <!-- Time View — Fig. 6 -->
-  <div id="timeView" class="eram-view" title="Time View — drag to reposition">
-    <span class="zulu" id="zuluTime">0000 00</span>
-    <span class="trainer-tag" id="scopeTag">ZDC · TRAINER</span>
-  </div>
-
-  <!-- Check List View (trainer objectives) — Fig. 10 -->
-  <div id="trainerChecklist" class="eram-view eram-pop">
-    <div class="eram-pop-hdr">
-      <span class="title">TRAINER CHECK LIST</span>
-      <span class="m" title="Menu">M</span>
-      <span class="x" data-close="trainerChecklist" title="Suppress">-</span>
+  <!-- Quiz session -->
+  <section id="quizPanel" class="panel hidden">
+    <div class="quiz-hdr">
+      <span>MODE <b id="statMode">—</b></span>
+      <span>SCORE <b id="statScore">0</b></span>
+      <span>STREAK <b id="statStreak">0</b></span>
+      <span>PROGRESS <b id="statProgress">0/0</b></span>
     </div>
-    <div class="eram-pop-body">
-      <div id="instruction">—</div>
-      <div class="hint" id="hintBox"></div>
-      <div class="trainer-stats">
-        <span>MODE <b id="statMode">—</b></span>
-        <span>SCORE <b id="statScore">0</b></span>
-        <span>STREAK <b id="statStreak">0</b></span>
-        <span>PROG <b id="statProgress">0/0</b></span>
+
+    <p class="scenario-label">INSTRUCTION</p>
+    <p id="instruction">—</p>
+    <p class="target-line">Target aircraft: <b id="targetCs">—</b></p>
+    <p id="hintBox" class="hint"></p>
+
+    <div id="mca" title="Message Composition Area">
+      <div class="mca-label">MESSAGE COMPOSITION AREA</div>
+      <div class="mca-preview">
+        <input id="mcaInput" type="text" maxlength="220" autocomplete="off" spellcheck="false"
+          placeholder=" " title="Type MCA command and press Enter">
       </div>
+      <div class="mca-feedback" id="mcaFeedback"></div>
     </div>
-  </div>
 
-  <!-- Response Area — Fig. 4 -->
-  <div id="responseArea" class="eram-view">
-    <div class="ra-drag">RESPONSE AREA</div>
-    <div class="ra-body" id="raBody"><span style="color:#8a9088">QF and command output appear here</span></div>
-  </div>
+    <p id="cpdlcOut" class="cpdlc-out"></p>
 
-  <!-- Beacon Code View — Fig. 8 -->
-  <div id="beaconView" class="eram-view eram-pop">
-    <div class="eram-pop-hdr">
-      <span class="title">BEACON CODE</span>
-      <span class="x" data-close="beaconView" title="Suppress">-</span>
+    <div class="quiz-actions">
+      <button type="button" class="btn ghost" id="btnHint">Hint</button>
+      <button type="button" class="btn ghost" id="btnSkip">Skip</button>
+      <button type="button" class="btn ghost" id="btnEnd">End session</button>
+      <button type="button" class="btn ghost" id="btnSetup">Change setup</button>
     </div>
-    <div class="eram-pop-body bc-list" id="beaconList"></div>
-  </div>
+  </section>
 
-  <!-- Message Composition Area — Fig. 2 -->
-  <div id="mca" class="eram-view" title="Message Composition Area">
-    <div class="mca-label">MESSAGE COMPOSITION AREA</div>
-    <div class="mca-preview">
-      <input id="mcaInput" type="text" maxlength="220" autocomplete="off" spellcheck="false"
-        placeholder=" " title="Preview Area — Enter to execute (CRC MCA)">
+  <!-- Summary -->
+  <section id="summaryPanel" class="panel hidden">
+    <div class="summary-box">
+      <h2>SESSION COMPLETE</h2>
+      <p class="summary-score" id="finalScore">0</p>
+      <p class="status" id="finalStats"></p>
+      <button type="button" class="btn primary" id="btnRestart">New quiz</button>
     </div>
-    <div class="mca-feedback" id="mcaFeedback"></div>
-  </div>
-
-  <!-- Master Toolbar — Fig. 43 -->
-  <nav id="masterToolbar" class="eram-master-toolbar" aria-label="Master Toolbar">
-    <button type="button" class="mtb-btn mtb-navy" id="tbDraw" title="Draw"><span class="mtb-accent"></span><span class="mtb-label">DRAW</span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbAtcTools" title="ATC Tools"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>ATC</span><span>TOOLS</span></span></button>
-    <button type="button" class="mtb-btn mtb-black" id="tbRange" title="Display range"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>RANGE</span><span class="mtb-val" id="tbRangeVal">120</span></span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbCursor" title="Cursor"><span class="mtb-accent"></span><span class="mtb-label">CURSOR</span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbBright" title="Brightness"><span class="mtb-accent"></span><span class="mtb-label">BRIGHT</span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbFont" title="Font"><span class="mtb-accent"></span><span class="mtb-label">FONT</span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbDbFields" title="Data block fields"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>DB</span><span>FIELDS</span></span></button>
-    <button type="button" class="mtb-btn mtb-green" id="tbVector" title="Velocity vector length"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>VECTOR</span><span class="mtb-val" id="tbVectorVal">0</span></span></button>
-
-    <button type="button" class="mtb-btn mtb-navy" id="tbViews" title="Views toolbar"><span class="mtb-accent"></span><span class="mtb-label">VIEWS</span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbChecklists" title="Check lists"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>CHECK</span><span>LISTS</span></span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbCommandMenus" title="Command menus"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>COMMAND</span><span>MENUS</span></span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbArtccMap" title="ARTCC map"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span id="tbArtccId">ZDC</span><span>MAP</span></span></button>
-    <button type="button" class="mtb-btn mtb-black" id="tbAltLim" title="Altitude limit"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>ALT LIM</span><span class="mtb-val">XXXXXX</span></span></button>
-    <button type="button" class="mtb-btn mtb-navy" id="tbRadarFilter" title="Radar filter"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>RADAR</span><span>FILTER</span></span></button>
-    <button type="button" class="mtb-btn mtb-black" id="tbPreset" title="Preset"><span class="mtb-accent"></span><span class="mtb-label">PREFSET</span></button>
-    <button type="button" class="mtb-btn mtb-teal" id="tbDeleteTearoff" title="Delete tearoff"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>DELETE</span><span>TEAROFF</span></span></button>
-  </nav>
-
-  <div id="commandMenu" class="eram-view eram-pop hidden">
-    <div class="eram-pop-hdr">
-      <span class="title">COMMAND MENUS</span>
-      <span class="x" data-close="commandMenu" title="Close">-</span>
-    </div>
-    <div class="eram-pop-body cmd-menu-body">
-      <button type="button" class="cmd-menu-btn" id="tbHint">HINT</button>
-      <button type="button" class="cmd-menu-btn" id="tbSkip">SKIP</button>
-      <button type="button" class="cmd-menu-btn danger" id="tbEnd">END SESSION</button>
-    </div>
-  </div>
+  </section>
 </div>
 
-<div id="summaryOverlay">
-  <div class="summary-box">
-    <h2>SESSION COMPLETE</h2>
-    <p>FINAL SCORE <b id="finalScore" style="color:#e8a838;font-size:24px">0</b></p>
-    <p id="finalStats" style="color:#8a9088;font-size:13px"></p>
-    <button type="button" class="btn" id="btnRestart">Return to setup</button>
-  </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script type="module" src="shared/eram-trainer-app.js"></script>
 </body>
 </html>
