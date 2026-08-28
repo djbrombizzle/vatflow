@@ -274,9 +274,17 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
   return null;
 }
 
-export function formatMcaAccept(parsed, entry) {
-  const lines = ["ACCEPT", parsed.verb + (entry && entry.label ? " " + entry.label : ""), parsed.flid];
-  return lines;
+export function formatMcaAccept(parsed, entry, opts = {}) {
+  const flid = String(parsed.flid || "").toUpperCase();
+  let cid = opts.cid;
+  if (cid != null && cid !== "") {
+    const digits = String(cid).replace(/\D/g, "").slice(-3);
+    cid = digits ? digits.padStart(3, "0") : "";
+  } else {
+    cid = "";
+  }
+  const trackId = cid ? `${flid}/${cid}` : flid;
+  return ["ACCEPT", "TRACK", trackId];
 }
 
 export function formatMcaReject(error, detail) {
