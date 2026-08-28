@@ -25,6 +25,8 @@ import {
   setMcaFeedback,
   setResponseArea,
   renderBeaconList,
+  updateMasterToolbar,
+  hideFloatingViews,
 } from "./eram-trainer-scope.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "eram-trainer");
@@ -51,7 +53,7 @@ let eramMap = null;
 let simRaf = null;
 let lastSimTs = 0;
 let zuluTimer = null;
-let vecMin = 4;
+let vecMin = 0;
 
 function parseList(str) {
   return String(str || "").toUpperCase().split(/[\s,]+/).filter(Boolean);
@@ -304,6 +306,7 @@ async function startSession() {
     sessionStart = Date.now();
 
     $("scopeTag").textContent = `${pack.artcc || "ZDC"} · TRAINER`;
+    updateMasterToolbar({ artcc: pack.artcc || "ZDC", vecMin });
     $("statMode").textContent = mode.toUpperCase();
     $("statScore").textContent = "0";
     $("statStreak").textContent = "0";
@@ -365,11 +368,20 @@ $("btnRestart").addEventListener("click", () => {
 $("tbViews").addEventListener("click", () => {
   $("beaconView").classList.toggle("hidden");
 });
+$("tbChecklists").addEventListener("click", () => {
+  $("trainerChecklist").classList.toggle("hidden");
+});
+$("tbCommandMenus").addEventListener("click", () => {
+  $("commandMenu").classList.toggle("hidden");
+});
+$("tbDeleteTearoff").addEventListener("click", () => {
+  hideFloatingViews();
+});
 $("tbVector").addEventListener("click", () => {
   const opts = [0, 1, 2, 4, 8];
   const i = opts.indexOf(vecMin);
   vecMin = opts[(i + 1) % opts.length];
-  $("tbVector").textContent = vecMin ? `VEC ${vecMin}` : "VEC 0";
+  updateMasterToolbar({ artcc: currentPack?.artcc || "ZDC", vecMin });
   refreshMap();
 });
 
