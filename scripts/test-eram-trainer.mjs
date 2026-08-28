@@ -12,7 +12,7 @@ import {
   normalizeCommand,
   airportsForArtcc,
 } from "../shared/eram-trainer.js";
-import { formatFieldB, formatFieldD, formatGs, applyCommandToAircraft } from "../shared/eram-trainer-sim.js";
+import { formatFieldB, formatFieldD, formatGs, formatLine3, formatFieldE, parseFieldB, formatFdbState, applyCommandToAircraft } from "../shared/eram-trainer-sim.js";
 import { formatMcaAccept, parseMcaCommand } from "../shared/edst-mca-commands.js";
 
 let failed = 0;
@@ -120,6 +120,14 @@ const accept = formatMcaAccept(
   { cid: "675" },
 );
 assert(accept[0] === "ACCEPT" && accept[1] === "TRACK" && accept[2] === "AAL452/675", "formatMcaAccept ERAM layout");
+
+const acFld = { cs: "DAL1067", alt: 325, assignedAlt: 340, climbing: true, arr: "KBOS", gs: 399, cid: "845" };
+const b = parseFieldB(acFld);
+assert(b.assigned === "340" && b.suffix === "↑" && b.reported === "325", "parseFieldB climb arrow");
+assert(formatLine3(acFld) === "845 399", "formatLine3 CID + GS");
+assert(formatFieldE({ ...acFld, squawk: "7700" }) === "EMRG", "formatFieldE emergency");
+const fdb = formatFdbState({ ...acFld, vci: true });
+assert(fdb.showFence && fdb.vci && fdb.line4 === "KBOS", "formatFdbState layout");
 
 if (failed) {
   console.error(`\n${failed} failed`);
