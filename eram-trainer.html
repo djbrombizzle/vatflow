@@ -165,16 +165,37 @@
   </div>
 
   <!-- Master Toolbar — Fig. 43 -->
-  <nav id="masterToolbar" aria-label="Master Toolbar">
-    <button type="button" class="eram-tb-btn" id="tbViews" title="Views Toolbar">VIEWS</button>
-    <button type="button" class="eram-tb-btn" id="tbVector" title="Velocity vector length">VEC 4</button>
-    <button type="button" class="eram-tb-btn" id="tbRange" title="Display range">RNG</button>
-    <div class="eram-tb-sep"></div>
-    <button type="button" class="eram-tb-btn" id="tbHint" title="Show hint">HINT</button>
-    <button type="button" class="eram-tb-btn" id="tbSkip" title="Skip scenario">SKIP</button>
-    <div class="eram-tb-sep"></div>
-    <button type="button" class="eram-tb-btn danger" id="tbEnd" title="End session">END</button>
+  <nav id="masterToolbar" class="eram-master-toolbar" aria-label="Master Toolbar">
+    <button type="button" class="mtb-btn mtb-navy" id="tbDraw" title="Draw"><span class="mtb-accent"></span><span class="mtb-label">DRAW</span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbAtcTools" title="ATC Tools"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>ATC</span><span>TOOLS</span></span></button>
+    <button type="button" class="mtb-btn mtb-black" id="tbRange" title="Display range"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>RANGE</span><span class="mtb-val" id="tbRangeVal">120</span></span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbCursor" title="Cursor"><span class="mtb-accent"></span><span class="mtb-label">CURSOR</span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbBright" title="Brightness"><span class="mtb-accent"></span><span class="mtb-label">BRIGHT</span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbFont" title="Font"><span class="mtb-accent"></span><span class="mtb-label">FONT</span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbDbFields" title="Data block fields"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>DB</span><span>FIELDS</span></span></button>
+    <button type="button" class="mtb-btn mtb-green" id="tbVector" title="Velocity vector length"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>VECTOR</span><span class="mtb-val" id="tbVectorVal">0</span></span></button>
+
+    <button type="button" class="mtb-btn mtb-navy" id="tbViews" title="Views toolbar"><span class="mtb-accent"></span><span class="mtb-label">VIEWS</span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbChecklists" title="Check lists"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>CHECK</span><span>LISTS</span></span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbCommandMenus" title="Command menus"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>COMMAND</span><span>MENUS</span></span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbArtccMap" title="ARTCC map"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span id="tbArtccId">ZDC</span><span>MAP</span></span></button>
+    <button type="button" class="mtb-btn mtb-black" id="tbAltLim" title="Altitude limit"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>ALT LIM</span><span class="mtb-val">XXXXXX</span></span></button>
+    <button type="button" class="mtb-btn mtb-navy" id="tbRadarFilter" title="Radar filter"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>RADAR</span><span>FILTER</span></span></button>
+    <button type="button" class="mtb-btn mtb-black" id="tbPreset" title="Preset"><span class="mtb-accent"></span><span class="mtb-label">PREFSET</span></button>
+    <button type="button" class="mtb-btn mtb-teal" id="tbDeleteTearoff" title="Delete tearoff"><span class="mtb-accent"></span><span class="mtb-label mtb-stack"><span>DELETE</span><span>TEAROFF</span></span></button>
   </nav>
+
+  <div id="commandMenu" class="eram-view eram-pop hidden">
+    <div class="eram-pop-hdr">
+      <span class="title">COMMAND MENUS</span>
+      <span class="x" data-close="commandMenu" title="Close">-</span>
+    </div>
+    <div class="eram-pop-body cmd-menu-body">
+      <button type="button" class="cmd-menu-btn" id="tbHint">HINT</button>
+      <button type="button" class="cmd-menu-btn" id="tbSkip">SKIP</button>
+      <button type="button" class="cmd-menu-btn danger" id="tbEnd">END SESSION</button>
+    </div>
+  </div>
 </div>
 
 <div id="summaryOverlay">

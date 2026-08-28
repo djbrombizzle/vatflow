@@ -127,6 +127,22 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+export function updateMasterToolbar(opts = {}) {
+  const artcc = String(opts.artcc || "ZDC").toUpperCase();
+  const vecMin = opts.vecMin != null ? opts.vecMin : 0;
+  const artccEl = document.getElementById("tbArtccId");
+  const vecEl = document.getElementById("tbVectorVal");
+  if (artccEl) artccEl.textContent = artcc;
+  if (vecEl) vecEl.textContent = String(vecMin);
+}
+
+export function hideFloatingViews(root = document) {
+  ["trainerChecklist", "beaconView", "responseArea", "commandMenu"].forEach(id => {
+    const el = root.getElementById(id);
+    if (el) el.classList.add("hidden");
+  });
+}
+
 export function initEramScopeUi(root = document) {
   makeDraggable(root.getElementById("mca"), ".mca-preview");
   makeDraggable(root.getElementById("mca"), ".mca-feedback");

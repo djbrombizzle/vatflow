@@ -173,7 +173,7 @@ body.scope-active { overflow: hidden; }
 
 /* Response Area — Fig. 4 */
 #responseArea {
-  right: 52px;
+  right: calc(58px * 8 + 8px);
   top: 48px;
   width: min(380px, 36vw);
   min-width: 260px;
@@ -262,7 +262,7 @@ body.scope-active { overflow: hidden; }
 .trainer-stats b { color: var(--eram-text); font-weight: normal; }
 
 #beaconView {
-  right: 52px;
+  right: calc(58px * 8 + 8px);
   bottom: 12px;
   width: 140px;
 }
@@ -272,38 +272,89 @@ body.scope-active { overflow: hidden; }
 }
 #beaconView .bc-list .active { color: var(--eram-amber); }
 
-/* Master Toolbar — Fig. 43 (vertical strip) */
-#masterToolbar {
+/* Master Toolbar — Fig. 43 (2×8 grid) */
+.eram-master-toolbar {
   position: absolute;
   right: 0;
   top: 0;
-  bottom: 0;
-  width: 44px;
   z-index: 130;
-  background: var(--eram-toolbar-bg);
-  border-left: 1px solid #555;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 4px 2px;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: repeat(8, 58px);
+  grid-template-rows: repeat(2, 38px);
+  background: #333;
+  border-left: 1px solid #404040;
+  font-family: var(--eram-mono);
+  font-size: 11px;
+  font-variant-numeric: slashed-zero;
+  user-select: none;
 }
-.eram-tb-btn {
-  border: 1px solid #666;
-  background: var(--eram-toolbar-btn);
-  color: #ddd;
+.mtb-btn {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #404040;
+  background: #00007b;
+  color: #fff;
   font: inherit;
-  font-size: 9px;
-  padding: 6px 2px;
+  text-transform: uppercase;
   cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+}
+.mtb-btn:hover { filter: brightness(1.15); }
+.mtb-btn.on { outline: 1px solid #ffd800; outline-offset: -2px; }
+.mtb-accent {
+  flex: 0 0 5px;
+  background: #808000;
+}
+.mtb-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 3px;
+  line-height: 1.05;
   text-align: center;
-  line-height: 1.2;
   letter-spacing: 0.02em;
 }
-.eram-tb-btn:hover { background: #333; color: #fff; }
-.eram-tb-btn.on { background: #3a4a3a; border-color: var(--eram-green); color: var(--eram-green); }
-.eram-tb-btn.danger { border-color: #8a4040; color: #e08a8a; }
-.eram-tb-sep { height: 1px; background: #444; margin: 4px 0; }
+.mtb-label.mtb-stack {
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+.mtb-val { font-variant-numeric: slashed-zero; }
+.mtb-navy { background: #00007b; color: #fff; }
+.mtb-black { background: #000; color: #fff; }
+.mtb-green { background: #008000; color: #000; }
+.mtb-green .mtb-label { color: #000; }
+.mtb-teal { background: #008080; color: #fff; }
+
+#commandMenu {
+  right: calc(58px * 8 + 8px);
+  top: 78px;
+  width: 180px;
+}
+.cmd-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px !important;
+}
+.cmd-menu-btn {
+  border: 1px solid #666;
+  background: #111;
+  color: #ddd;
+  font: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  letter-spacing: 0.06em;
+}
+.cmd-menu-btn:hover { background: #222; color: #fff; }
+.cmd-menu-btn.danger { border-color: #8a4040; color: #e08a8a; }
 
 /* Session summary overlay */
 #summaryOverlay {
