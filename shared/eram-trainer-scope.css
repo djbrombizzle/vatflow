@@ -1,0 +1,342 @@
+/**
+ * ERAM Trainer scope chrome — styled per CRC ERAM documentation
+ * https://docs.virtualnas.net/crc/eram/
+ */
+:root {
+  --eram-bg: #000;
+  --eram-border: #cfcfcf;
+  --eram-text: #f0f0ec;
+  --eram-dim: #8a9088;
+  --eram-green: #7cff7c;
+  --eram-amber: #e8c878;
+  --eram-teal-hdr: #5a9a9a;
+  --eram-teal-ink: #000;
+  --eram-toolbar-bg: #1a1a1a;
+  --eram-toolbar-btn: #2a2a2a;
+  --eram-mono: Consolas, "Liberation Mono", "Courier New", monospace;
+  --vatflow-nav-h: 28px;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--eram-bg);
+  color: var(--eram-text);
+  font-family: var(--eram-mono);
+  overflow: hidden;
+}
+
+body.scope-active #vatflowAppNav { display: none; }
+body.scope-active { overflow: hidden; }
+
+/* ---- Setup overlay (pre-scope) ---- */
+#setupOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: rgba(0, 0, 0, 0.92);
+  overflow: auto;
+  padding: calc(var(--vatflow-nav-h) + 16px) 16px 48px;
+}
+#setupOverlay .setup-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  color: #d4dde6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+#setupOverlay h1 {
+  font-family: var(--eram-mono);
+  color: var(--eram-amber);
+  letter-spacing: 0.1em;
+}
+
+/* ---- Full ERAM scope ---- */
+#eramScope {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--eram-bg);
+  display: none;
+}
+#eramScope.active { display: block; }
+
+#situationDisplay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+#eramMap {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+#eramMap .leaflet-container { background: #000; font-family: var(--eram-mono); }
+#eramMap .leaflet-control-zoom { display: none; }
+
+/* ---- Floatable ERAM views ---- */
+.eram-view {
+  position: absolute;
+  z-index: 120;
+  background: #000;
+  border: 1px solid var(--eram-border);
+  color: var(--eram-text);
+  font-family: var(--eram-mono);
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
+  user-select: none;
+}
+.eram-view.hidden { display: none !important; }
+
+/* Time View — Fig. 6 */
+#timeView {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  cursor: move;
+}
+#timeView .zulu { color: var(--eram-text); font-weight: bold; }
+#timeView .trainer-tag {
+  font-size: 10px;
+  color: var(--eram-dim);
+  margin-left: 12px;
+  letter-spacing: 0.06em;
+}
+
+/* MCA — Fig. 2: Preview Area + Feedback Area */
+#mca {
+  left: 12px;
+  bottom: 12px;
+  width: min(440px, 42vw);
+  min-width: 280px;
+}
+#mca .mca-preview {
+  border-bottom: 1px solid #555;
+  padding: 4px 8px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  cursor: move;
+  touch-action: none;
+}
+#mca .mca-preview input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  font: inherit;
+  caret-color: #fff;
+  padding: 0;
+  text-transform: uppercase;
+  cursor: text;
+}
+#mca .mca-preview input::placeholder { color: #555; text-transform: none; }
+#mca .mca-feedback {
+  padding: 6px 8px;
+  min-height: 56px;
+  max-height: 140px;
+  overflow: auto;
+  cursor: move;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+#mca .mca-feedback .ok { color: var(--eram-green); }
+#mca .mca-feedback .err { color: #e08a8a; }
+#mca .mca-feedback .dim { color: var(--eram-dim); }
+#mca .mca-label {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  font-size: 10px;
+  color: var(--eram-dim);
+  pointer-events: none;
+}
+
+/* Response Area — Fig. 4 */
+#responseArea {
+  right: 52px;
+  top: 48px;
+  width: min(380px, 36vw);
+  min-width: 260px;
+  max-height: min(280px, 35vh);
+  display: flex;
+  flex-direction: column;
+}
+#responseArea .ra-drag {
+  padding: 3px 8px;
+  background: var(--eram-toolbar-bg);
+  border-bottom: 1px solid #555;
+  font-size: 11px;
+  color: var(--eram-dim);
+  cursor: move;
+  letter-spacing: 0.08em;
+}
+#responseArea .ra-body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  min-height: 80px;
+}
+#responseArea .ra-body .instr {
+  color: var(--eram-amber);
+  margin-bottom: 8px;
+}
+#responseArea .ra-body .cpdlc { color: var(--eram-dim); font-size: 12px; }
+
+/* ERAM pop-up views (Check List, Beacon Code) */
+.eram-pop {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+.eram-pop-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--eram-teal-hdr);
+  color: var(--eram-teal-ink);
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--eram-border);
+  font-weight: bold;
+  font-size: 12px;
+  cursor: move;
+  letter-spacing: 0.04em;
+}
+.eram-pop-hdr .title { flex: 1; }
+.eram-pop-hdr .x, .eram-pop-hdr .m {
+  cursor: pointer;
+  padding: 0 4px;
+}
+.eram-pop-hdr .x:hover { background: rgba(0, 0, 0, 0.2); }
+.eram-pop-body {
+  background: #000;
+  padding: 6px 8px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#trainerChecklist {
+  left: 12px;
+  top: 48px;
+  width: min(320px, 30vw);
+}
+#trainerChecklist .hint {
+  color: #8ab4d4;
+  margin-top: 6px;
+  display: none;
+}
+#trainerChecklist .hint.show { display: block; }
+.trainer-stats {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #333;
+  font-size: 11px;
+  color: var(--eram-dim);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.trainer-stats b { color: var(--eram-text); font-weight: normal; }
+
+#beaconView {
+  right: 52px;
+  bottom: 12px;
+  width: 140px;
+}
+#beaconView .bc-list {
+  font-size: 12px;
+  line-height: 1.5;
+}
+#beaconView .bc-list .active { color: var(--eram-amber); }
+
+/* Master Toolbar — Fig. 43 (vertical strip) */
+#masterToolbar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  z-index: 130;
+  background: var(--eram-toolbar-bg);
+  border-left: 1px solid #555;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 4px 2px;
+  gap: 2px;
+}
+.eram-tb-btn {
+  border: 1px solid #666;
+  background: var(--eram-toolbar-btn);
+  color: #ddd;
+  font: inherit;
+  font-size: 9px;
+  padding: 6px 2px;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+.eram-tb-btn:hover { background: #333; color: #fff; }
+.eram-tb-btn.on { background: #3a4a3a; border-color: var(--eram-green); color: var(--eram-green); }
+.eram-tb-btn.danger { border-color: #8a4040; color: #e08a8a; }
+.eram-tb-sep { height: 1px; background: #444; margin: 4px 0; }
+
+/* Session summary overlay */
+#summaryOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#summaryOverlay.active { display: flex; }
+.summary-box {
+  border: 1px solid var(--eram-border);
+  background: #000;
+  padding: 32px 40px;
+  text-align: center;
+  max-width: 420px;
+}
+.summary-box h2 { color: var(--eram-amber); letter-spacing: 0.1em; }
+.summary-box .btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  border: 1px solid var(--eram-border);
+  background: #1a1a1a;
+  color: var(--eram-text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.summary-box .btn:hover { border-color: var(--eram-amber); color: var(--eram-amber); }
+
+/* FDB on map (from eram-trainer-map) */
+.eram-fdb-marker { background: transparent !important; border: none !important; }
+.eram-fdb {
+  font-family: var(--eram-mono);
+  font-size: 11px;
+  line-height: 1.22;
+  color: var(--eram-green);
+  background: rgba(0, 8, 0, 0.92);
+  border: 1px solid #3a6a3a;
+  padding: 2px 4px 3px;
+  min-width: 88px;
+  white-space: nowrap;
+  user-select: none;
+}
+.eram-fdb.selected {
+  color: #ffe08a;
+  border-color: var(--eram-amber);
+}
+.eram-fdb .fld-a { color: #b8ffb8; font-weight: 700; }
+.eram-track-icon { background: transparent !important; border: none !important; }
