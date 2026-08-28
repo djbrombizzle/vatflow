@@ -207,9 +207,8 @@ function showScenario() {
   });
 
   const ac = acMap.get((sc.aircraft || "").toUpperCase());
-  const ph = ac ? `QZ 340 ${ac.cs}` : "QZ 340 AAL123";
   $("mcaInput").value = "";
-  $("mcaInput").placeholder = ph.replace(/QZ 340 [A-Z0-9]+/, "QZ ___ " + (sc.aircraft || "ACID"));
+  $("mcaInput").placeholder = " ";
   $("mcaInput").focus();
 
   roundStart = Date.now();

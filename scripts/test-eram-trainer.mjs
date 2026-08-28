@@ -12,8 +12,8 @@ import {
   normalizeCommand,
   airportsForArtcc,
 } from "../shared/eram-trainer.js";
-import { formatFieldB, applyCommandToAircraft } from "../shared/eram-trainer-sim.js";
-import { parseMcaCommand } from "../shared/edst-mca-commands.js";
+import { formatFieldB, formatFieldD, formatGs, applyCommandToAircraft } from "../shared/eram-trainer-sim.js";
+import { formatMcaAccept, parseMcaCommand } from "../shared/edst-mca-commands.js";
 
 let failed = 0;
 function assert(cond, msg) {
@@ -113,6 +113,13 @@ const pAlt = parseMcaCommand("QZ 340 AAL1", { requireU: false });
 applyCommandToAircraft(acSim, pAlt);
 assert(acSim.assignedAlt === 340 && acSim.climbing, "apply altitude command");
 assert(formatFieldB(acSim).includes("↑"), "field B shows climb arrow");
+
+const accept = formatMcaAccept(
+  { flid: "AAL452" },
+  { label: "ALT" },
+  { cid: "675" },
+);
+assert(accept[0] === "ACCEPT" && accept[1] === "TRACK" && accept[2] === "AAL452/675", "formatMcaAccept ERAM layout");
 
 if (failed) {
   console.error(`\n${failed} failed`);

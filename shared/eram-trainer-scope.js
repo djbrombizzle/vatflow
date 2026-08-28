@@ -79,11 +79,19 @@ export function startZuluClock(el, extraEl) {
 export function setMcaFeedback(el, lines, type) {
   if (!el) return;
   if (!lines || !lines.length) {
-    el.innerHTML = '<span class="dim">Enter command in Preview Area — press Enter to execute</span>';
+    el.innerHTML = "";
     return;
   }
-  const cls = type === "ok" ? "ok" : type === "err" ? "err" : "dim";
-  el.innerHTML = lines.map(l => `<div class="${cls}">${escapeHtml(l)}</div>`).join("");
+  const mark = type === "ok"
+    ? '<span class="mca-mark ok">✓ </span>'
+    : type === "err"
+      ? '<span class="mca-mark err">✗ </span>'
+      : "";
+  const body = lines.filter(Boolean).map((ln, i) => {
+    if (i === 0) return mark + escapeHtml(ln);
+    return escapeHtml(ln);
+  }).join("<br>");
+  el.innerHTML = body;
 }
 
 export function setResponseArea(el, { instruction, hint, cpdlc, extra }) {

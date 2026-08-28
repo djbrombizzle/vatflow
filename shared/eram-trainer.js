@@ -511,7 +511,7 @@ export function gradeCommand(input, scenario, aircraftByCs) {
     ok: true,
     parsed,
     entry,
-    feedback: formatMcaAccept(parsed, entry),
+    feedback: formatMcaAccept(parsed, entry, { cid: ac?.cid }),
     reason: null,
   };
 }
