@@ -159,62 +159,6 @@
       "hint": "Assigned altitude: QZ <fl> <callsign>"
     },
     {
-      "id": "qz-climb-tfc",
-      "type": "alt",
-      "instruction": "Climb UAL1045 to FL370 due to traffic.",
-      "aircraft": "UAL1045",
-      "expect": { "verb": "QZ", "alt": 370, "mods": ["TFC"] },
-      "hint": "Add /TFC for due to traffic."
-    },
-    {
-      "id": "qz-descend-pd",
-      "type": "alt",
-      "instruction": "Descend DAL2210 to FL280 at pilots discretion.",
-      "aircraft": "DAL2210",
-      "expect": { "verb": "QZ", "alt": 280, "mods": ["PD"] },
-      "hint": "Use /PD for at pilots discretion."
-    },
-    {
-      "id": "qz-climb-exp",
-      "type": "alt",
-      "instruction": "Climb SWA3391 to FL300. Expedite.",
-      "aircraft": "SWA3391",
-      "expect": { "verb": "QZ", "alt": 300, "mods": ["EXP"] },
-      "hint": "Add /EXP for expedite."
-    },
-    {
-      "id": "qz-descend-wx",
-      "type": "alt",
-      "instruction": "Descend JBU819 to FL240 due to weather.",
-      "aircraft": "JBU819",
-      "expect": { "verb": "QZ", "alt": 240, "mods": ["WX"] },
-      "hint": "Use /WX for due to weather."
-    },
-    {
-      "id": "qz-climb-res",
-      "type": "alt",
-      "instruction": "Climb FFT412 to FL390 due to restricted airspace.",
-      "aircraft": "FFT412",
-      "expect": { "verb": "QZ", "alt": 390, "mods": ["RES"] },
-      "hint": "Use /RES for restricted airspace."
-    },
-    {
-      "id": "qz-climb-imm",
-      "type": "alt",
-      "instruction": "Climb NKS718 to FL330 immediately.",
-      "aircraft": "NKS718",
-      "expect": { "verb": "QZ", "alt": 330, "mods": ["IMM"] },
-      "hint": "Use /IMM for immediately."
-    },
-    {
-      "id": "qz-climb-exp-tfc",
-      "type": "alt",
-      "instruction": "Climb RPA3456 to FL310. Expedite due to traffic.",
-      "aircraft": "RPA3456",
-      "expect": { "verb": "QZ", "alt": 310, "mods": ["EXP", "TFC"] },
-      "hint": "Modifiers stack: /EXP /TFC (order does not matter)."
-    },
-    {
       "id": "qq-interim",
       "type": "alt",
       "instruction": "Issue interim altitude FL250 for ASH6123.",
@@ -223,44 +167,12 @@
       "hint": "QQ is interim/temporary altitude — same CPDLC as QZ."
     },
     {
-      "id": "qq-interim-exp",
-      "type": "alt",
-      "instruction": "Interim FL290 for PDT5982. Expedite.",
-      "aircraft": "PDT5982",
-      "expect": { "verb": "QQ", "alt": 290, "mods": ["EXP"] },
-      "hint": "QQ with /EXP for expedited interim step."
-    },
-    {
-      "id": "qq-interim-pd",
-      "type": "alt",
-      "instruction": "Interim FL320 for FDX1804 at pilots discretion.",
-      "aircraft": "FDX1804",
-      "expect": { "verb": "QQ", "alt": 320, "mods": ["PD"] },
-      "hint": "QQ with /PD for discretion on interim altitude."
-    },
-    {
       "id": "qu-direct",
       "type": "direct",
       "instruction": "Direct UPS1122 to TIMMY.",
       "aircraft": "UPS1122",
       "expect": { "verb": "QU", "fix": "TIMMY" },
       "hint": "QU <fix> <callsign>"
-    },
-    {
-      "id": "qu-direct-pd",
-      "type": "direct",
-      "instruction": "Proceed direct MERIT for ENY3844 at pilots discretion.",
-      "aircraft": "ENY3844",
-      "expect": { "verb": "QU", "fix": "MERIT", "mods": ["PD"] },
-      "hint": "Direct with /PD modifier."
-    },
-    {
-      "id": "qu-direct-exp",
-      "type": "direct",
-      "instruction": "Direct AAY2291 to GANDY. Expedite.",
-      "aircraft": "AAY2291",
-      "expect": { "verb": "QU", "fix": "GANDY", "mods": ["EXP"] },
-      "hint": "Direct with /EXP modifier."
     },
     {
       "id": "qu-direct-bal",
@@ -303,28 +215,12 @@
       "hint": "QS PH <callsign> — no heading parameter."
     },
     {
-      "id": "qs-heading-exp",
-      "type": "hdg",
-      "instruction": "Turn left heading 330 for FFT412. Expedite.",
-      "aircraft": "FFT412",
-      "expect": { "verb": "QS", "hdg": 330, "mode": "LT", "mods": ["EXP"] },
-      "hint": "Heading commands accept /EXP like altitude commands."
-    },
-    {
       "id": "qs-speed",
       "type": "spd",
       "instruction": "Maintain 280 knots for NKS718.",
       "aircraft": "NKS718",
       "expect": { "verb": "QS", "kt": 280 },
       "hint": "Speed: QS /280 <callsign>"
-    },
-    {
-      "id": "qs-speed-exp",
-      "type": "spd",
-      "instruction": "Maintain 300 knots for RPA3456. Expedite.",
-      "aircraft": "RPA3456",
-      "expect": { "verb": "QS", "kt": 300, "mods": ["EXP"] },
-      "hint": "Speed with /EXP modifier."
     },
     {
       "id": "qz-descend-basic",
@@ -373,6 +269,30 @@
       "aircraft": "AAY2291",
       "expect": { "verb": "QS", "kt": 250 },
       "hint": "Speed range 80–400 knots."
+    },
+    {
+      "id": "qz-climb-ual",
+      "type": "alt",
+      "instruction": "Climb UAL1045 to FL370.",
+      "aircraft": "UAL1045",
+      "expect": { "verb": "QZ", "alt": 370 },
+      "hint": "Assigned altitude: QZ <fl> <callsign>"
+    },
+    {
+      "id": "qz-descend-dal",
+      "type": "alt",
+      "instruction": "Descend DAL2210 to FL280.",
+      "aircraft": "DAL2210",
+      "expect": { "verb": "QZ", "alt": 280 },
+      "hint": "QZ works for both climb and descend."
+    },
+    {
+      "id": "qz-climb-swa",
+      "type": "alt",
+      "instruction": "Climb SWA3391 to FL300.",
+      "aircraft": "SWA3391",
+      "expect": { "verb": "QZ", "alt": 300 },
+      "hint": "Assigned altitude: QZ <fl> <callsign>"
     }
   ]
 }

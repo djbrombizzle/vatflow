@@ -325,18 +325,55 @@ body.scope-active { overflow: hidden; }
 .eram-fdb {
   font-family: var(--eram-mono);
   font-size: 11px;
-  line-height: 1.22;
-  color: var(--eram-green);
-  background: rgba(0, 8, 0, 0.92);
-  border: 1px solid #3a6a3a;
-  padding: 2px 4px 3px;
-  min-width: 88px;
+  line-height: 1.18;
+  color: #ffd800;
+  font-variant-numeric: slashed-zero;
+  background: transparent;
+  padding: 0;
+  min-width: 72px;
   white-space: nowrap;
   user-select: none;
+  letter-spacing: 0.02em;
 }
 .eram-fdb.selected {
-  color: #ffe08a;
-  border-color: var(--eram-amber);
+  color: #fff6a8;
+  text-shadow: 0 0 6px rgba(255, 216, 0, 0.45);
 }
-.eram-fdb .fld-a { color: #b8ffb8; font-weight: 700; }
+.eram-fdb .fdb-fence {
+  text-align: center;
+  padding-left: 11px;
+  min-height: 1.05em;
+  line-height: 1;
+}
+.eram-fdb .fdb-row {
+  display: flex;
+  align-items: stretch;
+}
+.eram-fdb .fdb-vci-col {
+  width: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.eram-fdb .fdb-vci {
+  display: block;
+}
+.eram-fdb .fdb-bracket {
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  padding: 1px 5px 1px 4px;
+}
+.eram-fdb .fdb-l1,
+.eram-fdb .fdb-l2,
+.eram-fdb .fdb-l3 {
+  font-weight: 400;
+}
+.eram-fdb .fdb-l3 .fld-d {
+  margin-right: 0.35em;
+}
+.eram-fdb .fdb-dest {
+  padding-left: 14px;
+  margin-top: 1px;
+}
 .eram-track-icon { background: transparent !important; border: none !important; }

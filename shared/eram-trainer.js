@@ -55,14 +55,6 @@ function normalizeCommand(str) {
   return String(str || "").toUpperCase().replace(/\s+/g, " ").trim();
 }
 
-function modSetEqual(a, b) {
-  const sa = new Set(a || []);
-  const sb = new Set(b || []);
-  if (sa.size !== sb.size) return false;
-  for (const k of sa) if (!sb.has(k)) return false;
-  return true;
-}
-
 /**
  * @param {unknown} json
  * @returns {{ ok: true, pack: object } | { ok: false, errors: string[] }}
@@ -227,18 +219,11 @@ function pickScenarioType(mix) {
   return rand(types);
 }
 
-function altInstruction(verb, ac, targetFl, mods = []) {
+function altInstruction(verb, ac, targetFl) {
+  if (verb === "QQ") return `Issue interim altitude FL${targetFl} for ${ac.cs}.`;
   const cur = ac.alt || 300;
   const action = targetFl > cur ? "Climb" : targetFl < cur ? "Descend" : "Maintain altitude for";
-  let text = `${action} ${ac.cs} to ${targetFl >= 180 ? "FL" + targetFl : (targetFl * 100).toLocaleString("en-US") + " feet"}.`;
-  if (mods.includes("PD")) text = text.replace(".", " at pilots discretion.");
-  if (mods.includes("EXP")) text += " Expedite.";
-  if (mods.includes("TFC")) text = text.replace(".", " due to traffic.");
-  if (mods.includes("WX")) text = text.replace(".", " due to weather.");
-  if (mods.includes("RES")) text = text.replace(".", " due to restricted airspace.");
-  if (mods.includes("IMM")) text = text.replace(".", " immediately.");
-  if (verb === "QQ") text = `Issue interim altitude FL${targetFl} for ${ac.cs}.` + (mods.includes("EXP") ? " Expedite." : mods.includes("PD") ? " At pilots discretion." : "");
-  return text;
+  return `${action} ${ac.cs} to ${targetFl >= 180 ? "FL" + targetFl : (targetFl * 100).toLocaleString("en-US") + " feet"}.`;
 }
 
 /**
@@ -264,29 +249,23 @@ export function generateScenarios(pack, settings = DEFAULT_SETTINGS) {
       const delta = randInt(2, 8) * 10;
       let target = (ac.alt || 300) + (Math.random() < 0.5 ? delta : -delta);
       target = Math.max(+s.altMin || 180, Math.min(+s.altMax || 400, target));
-      const mods = [];
-      if (Math.random() < 0.25) mods.push(rand(["TFC", "EXP", "PD", "WX"]));
       scenarios.push({
         id,
         type: "alt",
-        instruction: altInstruction(verb, ac, target, mods),
+        instruction: altInstruction(verb, ac, target),
         aircraft: ac.cs,
-        expect: { verb, alt: target, ...(mods.length ? { mods } : {}) },
+        expect: { verb, alt: target },
         hint: verb === "QQ" ? "QQ for interim altitude." : "QZ for assigned altitude.",
       });
     } else if (type === "direct") {
       const routeFixes = fixesFromRoute(ac.route, fixes);
       const fix = routeFixes.length ? rand(routeFixes) : rand(fixes);
-      const mods = Math.random() < 0.2 ? [rand(["PD", "EXP"])] : [];
-      let instruction = `Direct ${ac.cs} to ${fix}.`;
-      if (mods.includes("PD")) instruction = `Proceed direct ${fix} for ${ac.cs} at pilots discretion.`;
-      if (mods.includes("EXP")) instruction += " Expedite.";
       scenarios.push({
         id,
         type: "direct",
-        instruction,
+        instruction: `Direct ${ac.cs} to ${fix}.`,
         aircraft: ac.cs,
-        expect: { verb: "QU", fix, ...(mods.length ? { mods } : {}) },
+        expect: { verb: "QU", fix },
         hint: "QU <fix> <callsign>",
       });
     } else if (type === "hdg") {
@@ -303,31 +282,28 @@ export function generateScenarios(pack, settings = DEFAULT_SETTINGS) {
       } else {
         const hdg = randInt(1, 36) * 10 || 360;
         const mode = roll < 0.45 ? "LT" : roll < 0.75 ? "RH" : "NP";
-        const mods = Math.random() < 0.15 ? ["EXP"] : [];
-        let instruction = mode === "LT"
+        const instruction = mode === "LT"
           ? `Turn left heading ${hdg} for ${ac.cs}.`
           : mode === "RH"
             ? `Turn right heading ${hdg} for ${ac.cs}.`
             : `Fly heading ${hdg} for ${ac.cs}.`;
-        if (mods.includes("EXP")) instruction += " Expedite.";
         scenarios.push({
           id,
           type: "hdg",
           instruction,
           aircraft: ac.cs,
-          expect: { verb: "QS", hdg, mode, ...(mods.length ? { mods } : {}) },
+          expect: { verb: "QS", hdg, mode },
           hint: mode === "LT" ? "QS LT <hdg>" : mode === "RH" ? "QS RT <hdg>" : "QS <hdg>",
         });
       }
     } else if (type === "spd") {
       const kt = randInt(24, 32) * 10;
-      const mods = Math.random() < 0.2 ? ["EXP"] : [];
       scenarios.push({
         id,
         type: "spd",
-        instruction: `Maintain ${kt} knots for ${ac.cs}.${mods.includes("EXP") ? " Expedite." : ""}`,
+        instruction: `Maintain ${kt} knots for ${ac.cs}.`,
         aircraft: ac.cs,
-        expect: { verb: "QS", kt, ...(mods.length ? { mods } : {}) },
+        expect: { verb: "QS", kt },
         hint: "QS /280 <callsign>",
       });
     }
@@ -516,18 +492,6 @@ export function gradeCommand(input, scenario, aircraftByCs) {
         reason: "WRONG HDG MODE",
       };
     }
-  }
-
-  const expectMods = expect.mods || [];
-  const gotMods = [...(parsed.mods || new Set())].filter(m => m !== "U");
-  if (!modSetEqual(gotMods, expectMods)) {
-    return {
-      ok: false,
-      parsed,
-      entry: null,
-      feedback: formatMcaReject("ILL CMD", `Modifiers expected: ${expectMods.join(" ") || "none"}`),
-      reason: "WRONG MODS",
-    };
   }
 
   const flidOk = !parsed.flid
