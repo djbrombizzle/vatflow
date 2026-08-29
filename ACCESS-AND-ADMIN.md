@@ -74,7 +74,7 @@ Legacy whitelist rows without `role` / `artccs` are treated as **global editors*
 | **FCA Builder** | **RDY** / cancel releases | Create/edit/delete FCAs |
 | **IDST** | **RDY** if online on VATSIM ATC | — |
 | **FCA Overview** | View map + strips; **RDY** if signed in | Reorder/exclude without ARTCC editor access |
-| **Airport TMU** | View | Set rates, CFRs via Live sync push, restrictions |
+| **Airport TMU** | View | Set rates, restrictions |
 
 ### Editor (whitelisted for ARTCC)
 
@@ -103,7 +103,7 @@ Everything an editor for those ARTCC(s) can do, **plus**:
 
 | Tool | Purpose |
 |---|---|
-| **Airport TMU** | Destination capacity — AAR, CFR, restrictions, GS |
+| **Airport TMU** | Destination capacity tools — AAR, MIT, restrictions, GS, recommended delay (info only) |
 | **FCA Builder** | Draw/meter flow constrained areas |
 | **IDST** | Position-facing CFR / RDY for active FCAs |
 | **FCA Overview** | ARTCC map + multi-program strip management |

@@ -276,6 +276,12 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
 .viewonly--inline { padding: 0; border: none; background: none; font-size: 11px; }
 
 .lockcfr { color: var(--text-dim); font-size: 12px; font-family: var(--font-data); }
+.recwu { color: var(--text-dim); font-size: 12px; font-family: var(--font-data); }
+.recwu .cfr-sub { color: var(--text-muted); font-weight: 400; font-size: 10px; }
+.recwu-note {
+  display: block; font-size: 9px; color: var(--text-muted);
+  letter-spacing: 0.03em; margin-top: 1px;
+}
 
 /* ---------- CFR badges ---------- */
 .cfr-badge {
@@ -338,6 +344,7 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
 }
 .fca-rlsd-badge { color: var(--ok); font-size: 9px; margin-left: 4px; font-weight: 600; }
 .fca-cfr-badge { color: var(--accent-text); font-weight: 600; }
+.fca-cfr-badge .cfr-sub { color: var(--text-muted); font-weight: 400; font-size: 10px; margin-left: 4px; }
 .ready-badge { color: var(--text-muted); font-size: 10.5px; font-family: var(--font-data); }
 
 /* ---------- chips ---------- */
@@ -1201,7 +1208,7 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
       </svg>
       <div class="brand-text">
         <span class="brand">VATFLOW</span>
-        <span class="brandsub">Call For Release &middot; VATSIM</span>
+        <span class="brandsub">Airport TMU &middot; tools &amp; monitoring</span>
       </div>
     </div>
     <div class="header-tools">
@@ -1443,74 +1450,21 @@ let depSortDir = 1;
 let myDashSortKey = "wheelsUp";
 let myDashSortDir = 1;
 const filters = {};    // column key -> filter string
-const issuedEdcts = {}; // callsign -> { t, order, pulledUntil } (manual EDCT records)
+const issuedEdcts = {}; // callsign -> { t, order, pulledUntil } (legacy dest-CFR records; display is info-only)
 const EDCT_FLASH_MS = 60000;  // how long a pulled-up CFR stays highlighted
-const CFR_THRESHOLD = 60000;  // wheels-up within this of now = no delay needed -> RELEASED
-/* read-only CFR cell shown when the viewer is not an authenticated controller */
-function cfrReleasedHtml() {
-  return '<span class="cfr-badge cfr-badge--released"><span class="status-dot ok"></span> Released</span>';
-}
-function cfrNowHtml(callsign, dep, dest) {
-  const swap = dep && dest ? cfrSwapSelect(callsign, dep, dest) : '';
-  return swap +
-    '<span class="cfr-badge cfr-badge--now"><span class="status-dot warn pulse"></span> Release now</span>' +
-    '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
-}
-function cfrCountdownHtml(wheelsUp, now, pulled, callsign, dep, dest) {
-  const swap = dep && dest ? cfrSwapSelect(callsign, dep, dest) : '';
-  const tmin = Math.max(0, Math.round((wheelsUp - now) / 60000));
-  if (pulled) {
-    return swap +
-      '<span class="cfr-badge cfr-badge--pulled">\u25BC ' + fmtZ(wheelsUp) + 'Z' +
-      '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
-      '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
-  }
-  return swap +
-    '<span class="cfr-badge cfr-badge--countdown">' + fmtZ(wheelsUp) + 'Z' +
-    '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
-    '<button class="btn-icon edctcxl" data-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button>';
-}
-function cfrSwapSelect(callsign, dep, dest) {
-  if (!canControl()) return '';
-  const list = routeIssuedRecs(dep, dest);
-  const me = list.find(x => x.cs === callsign);
-  if (list.length < 2 || !me) return '';
-  /* only offer swaps that keep both flights at/after their own pilot-reported ready floors */
-  const others = list.filter(x =>
-    x.cs !== callsign &&
-    !(me.r.ready && x.r.t < me.r.ready) &&
-    !(x.r.ready && me.r.t < x.r.ready));
-  if (!others.length) return '';
-  let opts = '<option value="">Swap with\u2026</option>';
-  for (const x of others) {
-    opts += '<option value="' + esc(x.cs) + '">' + esc(x.cs) + ' \u00B7 ' + fmtZ(x.r.t) + 'Z</option>';
-  }
-  return '<select class="cfr-swap-select" data-cfr-swap-select data-cfr-cs="' + esc(callsign) +
-    '" data-cfr-dep="' + esc(dep) + '" data-cfr-dest="' + esc(dest) + '" title="Swap release time with another flight on this route">' +
-    opts + '</select>';
-}
+const CFR_THRESHOLD = 60000;  // wheels-up within this of now = no delay needed
 function depDestRouteKey(dep, dest) {
   return (dep || "").toUpperCase() + "|" + (dest || "").toUpperCase();
 }
-function cfrIssueHtml(callsign, dep, dest, wheelsUp) {
-  return '<button class="edctbtn" data-issue="' + esc(callsign) +
-    '" data-issue-dep="' + esc(dep) + '" data-issue-dest="' + esc(dest) +
-    '">CFR time</button>' +
-    '<span class="cfr-sugg">avail ' + fmtZ(wheelsUp) + 'Z</span>';
-}
-function cfrIssueOrReleased(callsign, dep, dest, now) {
-  const wu = earliestEdct(callsign, dep, dest);
+function recWuInfoHtml(wu, now) {
   if (wu == null) return '<span class="cell-muted">\u2014</span>';
-  if (wu <= now + CFR_THRESHOLD) return cfrReleasedHtml();
-  return cfrIssueHtml(callsign, dep, dest, wu);
-}
-function readyTimeInputHtml(callsign, depField, dest) {
-  return '<span class="readywrap">' +
-    '<input class="ready-input" data-keep="ready-' + esc(callsign) + '" data-ready-cs="' + esc(callsign) +
-    '" data-ready-dep="' + esc(depField) + '" data-ready-dest="' + esc(dest) +
-    '" placeholder="HHMMz" maxlength="5" autocomplete="off">' +
-    '<button type="button" class="ready-btn" data-ready-submit data-ready-cs="' + esc(callsign) +
-    '" data-ready-dep="' + esc(depField) + '" data-ready-dest="' + esc(dest) + '">Set</button></span>';
+  if (wu <= now + CFR_THRESHOLD) {
+    return '<span class="cfr-badge cfr-badge--released" title="Recommended \u2014 informational only">' +
+      '<span class="status-dot ok"></span> No delay</span>';
+  }
+  const tmin = Math.max(0, Math.round((wu - now) / 60000));
+  return '<span class="recwu" title="Recommended wheels-up \u2014 informational only. Issue times from an active FCA in IDST.">' +
+    'rec ' + fmtZ(wu) + 'Z<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>';
 }
 function readyTimeDisplayHtml(readyMs) {
   return '<span class="ready-badge">ready ' + fmtZ(readyMs) + 'Z</span>';
@@ -1520,17 +1474,6 @@ function delayClass(ms) {
 }
 function delayColor(ms) {
   return ms > 15 * 60000 ? "#d45c5c" : ms > 5 * 60000 ? "#d4923a" : "#4caf7a";
-}
-function lockedCfrHtml(e, now, suggestedWu) {
-  if (!e.edctIssued) {
-    const wu = suggestedWu != null ? suggestedWu : e.wheelsUp;
-    if (wu == null || wu <= now + CFR_THRESHOLD) return cfrReleasedHtml();
-    return '<span class="lockcfr">CFR ~' + fmtZ(wu) + 'Z</span>';
-  }
-  if (e.releaseNow) return '<span class="cfr-badge cfr-badge--now"><span class="status-dot warn pulse"></span> Due</span>';
-  const tmin = Math.max(0, Math.round((e.wheelsUp - now) / 60000));
-  return '<span class="cfr-badge cfr-badge--countdown">' + fmtZ(e.wheelsUp) + 'Z' +
-    '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>';
 }
 let lastWireSeen = "";  // JSON of last synced state, to ignore Firebase echoes
 let ladderScrollPos = null;  // preserved scroll position; null = scroll to NOW
@@ -1614,11 +1557,9 @@ function meterMapPopupHtml(f, gateColors, trailInfo) {
   return h + '</div>';
 }
 function meterGroundCfrLabel(f, now) {
-  if (f.edctIssued && f.wheelsUp != null) return fmtZ(f.wheelsUp) + "Z";
-  if (f.wheelsUp != null && f.needsCfr) return "~" + fmtZ(f.wheelsUp) + "Z";
-  if (f.wheelsUp != null && f.wheelsUp > now + 60000) return "~" + fmtZ(f.wheelsUp) + "Z";
-  if (f.wheelsUp != null) return fmtZ(f.wheelsUp) + "Z";
-  return "\u2014";
+  if (f.wheelsUp == null) return "\u2014";
+  if (f.wheelsUp <= now + CFR_THRESHOLD) return "no delay";
+  return "rec " + fmtZ(f.wheelsUp) + "Z";
 }
 function meterGroundDepTooltip(flights, now) {
   const rows = flights.slice().sort((a, b) => {
@@ -1627,7 +1568,7 @@ function meterGroundDepTooltip(flights, now) {
     return wa - wb || a.callsign.localeCompare(b.callsign);
   });
   return rows.map(f =>
-    '<b>' + esc(f.callsign) + '</b>  CFR ' + esc(meterGroundCfrLabel(f, now))
+    '<b>' + esc(f.callsign) + '</b>  rec WU ' + esc(meterGroundCfrLabel(f, now))
   ).join("<br>");
 }
 function meterDepGroundIcon(dep, count) {
@@ -2955,8 +2896,8 @@ const COLUMNS = [
   { key:"sta",      label:"STA Z",            num:true },
   { key:"delay",    label:"DLY MIN",          num:true },
   { key:"fcaPrgm",  label:"FCA PRGM" },
-  { key:"readyTime", label:"READY TIME" },
-  { key:"wheelsUp", label:"CALL FOR RELEASE (CFR)", num:true }
+  { key:"readyTime", label:"RDY FLOOR" },
+  { key:"wheelsUp", label:"REC WU (INFO)", num:true }
 ];
 
 function sortedFlights(flights) {
@@ -2991,8 +2932,8 @@ const DEP_COLUMNS = [
   { key: "sta", label: "STA AT DEST Z", num: true },
   { key: "delay", label: "DLY MIN", num: true },
   { key: "fcaPrgm", label: "FCA PRGM" },
-  { key: "readyTime", label: "READY TIME", num: true },
-  { key: "wheelsUp", label: "CALL FOR RELEASE (CFR)", num: true }
+  { key: "readyTime", label: "RDY FLOOR", num: true },
+  { key: "wheelsUp", label: "REC WU (INFO)", num: true }
 ];
 const MYDASH_COLUMNS = [
   { key: "callsign", label: "CALLSIGN" },
@@ -3003,8 +2944,8 @@ const MYDASH_COLUMNS = [
   { key: "sta", label: "STA AT DEST Z", num: true },
   { key: "delay", label: "DLY MIN", num: true },
   { key: "fcaPrgm", label: "FCA PRGM" },
-  { key: "readyTime", label: "READY TIME", num: true },
-  { key: "wheelsUp", label: "CALL FOR RELEASE (CFR)", num: true }
+  { key: "readyTime", label: "RDY FLOOR", num: true },
+  { key: "wheelsUp", label: "REC WU (INFO)", num: true }
 ];
 
 function depRowSortVal(d, key) {
@@ -3089,8 +3030,8 @@ function cellText(f, key) {
                           : f.vfr ? "VFR"
                           : f.flightTimeMs == null ? "AIRBORNE"
                           : f.status === "PROPOSED" ? "PENDING"
-                          : f.edctIssued ? fmtZ(f.wheelsUp)
-                          : f.needsCfr ? "CFR" : "RELEASED";
+                          : f.wheelsUp != null ? fmtZ(f.wheelsUp)
+                          : "";
     default:         return String(f[key] == null ? "" : f[key]);
   }
 }
@@ -3102,7 +3043,7 @@ function numVal(f, key) {
     case "delay":    return f.delay / 60000;
     case "eta":      return +fmtZ(f.eta);
     case "sta":      return +fmtZ(f.sta);
-    case "wheelsUp": return f.edctIssued && f.wheelsUp != null ? +fmtZ(f.wheelsUp) : null;
+    case "wheelsUp": return f.wheelsUp != null ? +fmtZ(f.wheelsUp) : null;
     default:         return null;
   }
 }
@@ -5627,16 +5568,16 @@ function renderHome() {
       if (!flow) {
         delayTxt = "awaiting data feed"; cls = "muted";
       } else {
-        const issued = flow.flights.filter(f => f.status === "GROUND" && f.edctIssued);
-        if (!issued.length) {
-          delayTxt = "0 delays";
+        const gnd = flow.flights.filter(f => f.status === "GROUND" && isMetered(f) && !f.vfr && !f.excluded);
+        if (!gnd.length) {
+          delayTxt = "no recommended delay";
         } else {
           const avgMin = Math.round(
-            issued.reduce((s, f) => s + Math.max(0, f.wheelsUp - now), 0) / issued.length / 60000);
+            gnd.reduce((s, f) => s + Math.max(0, f.delay || 0), 0) / gnd.length / 60000);
           if (avgMin <= 0) {
-            delayTxt = "CFRs issued, releasing now";
+            delayTxt = "no recommended delay";
           } else {
-            delayTxt = "average delay of " + avgMin + (avgMin === 1 ? " minute" : " minutes");
+            delayTxt = "avg recommended delay " + avgMin + (avgMin === 1 ? " minute" : " minutes");
             cls = avgMin >= 15 ? "hi" : "warn";
           }
         }
@@ -5693,24 +5634,22 @@ function renderHome() {
 
 /* ---------- HELP view: quick reference ---------- */
 function renderHelp() {
-  const relMin = DEP_RELEASE_INT / 60000;
   contentEl.innerHTML =
     '<div class="helpwrap">' +
     '<div class="helptitle">Airport TMU — Quick reference</div>' +
-    '<p class="helpintro">Airport TMU meters destination capacity and issues Call For Release (CFR) times for VATSIM events. ' +
-    'Enroute/line FCAs live in <b>FCA Builder</b>; position RDY is on <b>IDST</b>. ' +
-    'When an aircraft is in an FCA program, releases delegate to FCA Builder / Supabase. ' +
+    '<p class="helpintro">Airport TMU is a <b>tools and monitoring</b> page: destination AAR, trail/MIT, restrictions, ground stops, and recommended delay. ' +
+    'It does <b>not</b> issue a release time. Issue CFR / RDY only from an <b>active FCA</b> in <b>IDST</b> (or FCA Builder / Overview). ' +
     'Live traffic comes from the VATSIM feed (refreshes every 30 seconds).</p>' +
     '<div class="help-quickstart">' +
-    '<span><b>1.</b> Set AAR on TMU</span>' +
-    '<span><b>2.</b> Watch arrivals on Apt Dashboard</span>' +
-    '<span><b>3.</b> Issue CFR times on Departures</span>' +
+    '<span><b>1.</b> Set AAR / MIT on TMU (info)</span>' +
+    '<span><b>2.</b> Watch demand &amp; rec delay</span>' +
+    '<span><b>3.</b> Issue times from an active FCA in IDST</span>' +
     '</div>' +
     '<div class="help-layout">' +
     '<nav class="help-nav">' +
     '<a href="#help-pages">Pages</a>' +
     '<a href="#help-tools">Suite</a>' +
-    '<a href="#help-cfr">CFR</a>' +
+    '<a href="#help-cfr">Releases</a>' +
     '<a href="#help-access">Access</a>' +
     '<a href="#help-sync">Sync</a>' +
     '<a href="#help-terms">Terms</a>' +
@@ -5719,19 +5658,19 @@ function renderHelp() {
 
     '<div class="helpsec" id="help-pages">Pages</div>' +
     '<details class="help-acc" open><summary>Home</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>National overview of every active flow program and its average delay.</li>' +
+    '<li>National overview of every active flow program and its average <b>recommended</b> delay (informational).</li>' +
     '<li><b>Departure taxi times</b> — per-airport averages from the Taxi Monitor, with trend and volume context.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Apt Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Enter an arrival airport and press <b>Load</b> for a large at-a-glance summary: inbound counts, Demand/AAR (60 min), and aircraft per gate.</li>' +
     '<li>Use sub-tabs for detail: <b>Traffic map</b>, <b>Aircraft list</b>, <b>Arrival ladder</b>, and <b>Demand vs AAR</b> (15-minute bins).</li>' +
-    '<li>Rates are set on the TMU tab — this page is for viewing and issuing CFRs.</li>' +
-    '<li><b>Ready Time</b> — anyone can enter pilot-estimated wheels-up (HHMMz); sign-in not required for the field itself.</li>' +
+    '<li>Rates are set on the TMU tab. Delay and rec wheels-up on this page are <b>informational only</b> \u2014 this page does not issue a time.</li>' +
     '<li>On Aircraft list, sort any column by clicking its header; click again to reverse.</li></ul></div></details>' +
     '<details class="help-acc"><summary>My Dashboard</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>Add up to 20 departure airports. Shows one combined list of pending ground departures.</li>' +
+    '<li>Add up to 20 departure airports (plus ARTCC / approach filters). Shows one combined list of pending ground departures.</li>' +
+    '<li>Monitor TMU programs, recommended delay, and FCA membership. Issue times in <b>IDST</b> (same filters).</li>' +
     '<li>Your airport list is saved on this device only.</li></ul></div></details>' +
     '<details class="help-acc"><summary>TMU</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>Set flow programs: <b>AAR</b>, <b>route trail</b>, and optional <b>MIT</b>.</li>' +
+    '<li>Set flow programs: <b>AAR</b>, <b>route trail</b>, and optional <b>MIT</b> \u2014 for monitoring and recommended delay only.</li>' +
     '<li>Scoped editors may only create/edit programs for airports in their ARTCC.</li>' +
     '<li><b>Rate Calculator</b> sub-tab recommends an AAR from staffing inputs.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Restrictions</summary><div class="help-acc-body"><ul class="helplist">' +
@@ -5739,11 +5678,11 @@ function renderHelp() {
     '<li><b>Ground stops</b> hold ground departures into a named airport.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Departures</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Set your tower field in the header. Shows ground and prefiled departures only.</li>' +
-    '<li>CFR controls appear for destinations with a TMU program, or when <b>FCA PRGM</b> is set.</li>' +
-    '<li><b>FCA PRGM</b> — READY/CFR delegates to FCA metering (not Firebase).</li></ul></div></details>' +
+    '<li>Recommended wheels-up / delay is informational. <b>FCA PRGM</b> shows if an FCA owns the flight.</li>' +
+    '<li>Issued FCA times (if already released) display as read-only. Press <b>RDY</b> in IDST.</li></ul></div></details>' +
     '<details class="help-acc"><summary>Taxi Monitor / Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li><b>Taxi Monitor</b> — controllers add up to 5 monitored airports; tracks ground departures.</li>' +
-    '<li><b>Pilot</b> — enter your VATSIM CID for your flight, delays, and suggested wheels-up.</li></ul></div></details>' +
+    '<li><b>Pilot</b> — enter your VATSIM CID for your flight, delays, and suggested wheels-up (info only).</li></ul></div></details>' +
     '<details class="help-acc"><summary>ATC Staffing</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li>Recommends where ATC should log on for <b>Center</b>, <b>Approach</b>, and <b>Tower</b>.</li>' +
     '<li>Uses airborne traffic, rolling / about-to-depart ground traffic, and proposed flight plans from the VATSIM feed.</li>' +
@@ -5758,20 +5697,19 @@ function renderHelp() {
 
     '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
     '<details class="help-acc" open><summary>Which tool do I use?</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li><b>Airport TMU</b> (this page) — destination capacity, CFR, restrictions, ground stops.</li>' +
+    '<li><b>Airport TMU</b> (this page) — destination capacity tools: AAR, MIT, restrictions, ground stops, recommended delay (info only).</li>' +
     '<li><b>FCA Builder</b> — draw line FCAs, meter crossings, manage FCA programs by ARTCC.</li>' +
-    '<li><b>IDST</b> — Flights to Work CFR / RDY for metered ground departures.</li><li><b>FCA Overview</b> — ARTCC map + strip management for active FCAs.</li>' +
+    '<li><b>IDST</b> — Flights to Work CFR / RDY for <b>active FCA</b> ground departures.</li>' +
+    '<li><b>FCA Overview</b> — ARTCC map + strip management for active FCAs.</li>' +
     '<li><b>Runway Balancer</b> — arrival runway demand / STAR mapping.</li>' +
     '<li><b>vUSAlink</b> — US center CPDLC (datalink), separate from TMU metering.</li></ul></div></details>' +
 
-    '<div class="helpsec" id="help-cfr">Call For Release</div>' +
-    '<details class="help-acc" open><summary>CFR workflow</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li>CFR is <b>manual</b>. Press <b>CFR time</b> to lock the earliest available wheels-up for that departure route and reserve the slot.</li>' +
-    '<li><b>Ready Time</b> — enter HHMMz and press <b>Set</b>. The app assigns the closest valid release <b>at or after</b> that time.</li>' +
-    '<li><b>Released</b> — no delay needed; release at will. <b>Release now</b> — wheels-up time has arrived.</li>' +
-    '<li>Cancel an issued CFR to pull remaining CFRs into the freed slot.</li>' +
-    '<li>A <b>' + relMin + '-minute</b> gap applies between issued CFRs off the same departure field.</li>' +
-    '<li>Tower noob guide (crossing times, why one aircraft is earlier, RDY vs Ready Time): ' +
+    '<div class="helpsec" id="help-cfr">Releases</div>' +
+    '<details class="help-acc" open><summary>Where times are issued</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>Airport TMU <b>does not issue</b> a CFR or RDY time. AAR / MIT programs feed recommended delay and rec wheels-up for monitoring.</li>' +
+    '<li>Issue a release only from an <b>active FCA</b>: <b>IDST</b> (on position), <b>FCA Builder</b>, or <b>FCA Overview</b>.</li>' +
+    '<li>When <b>FCA PRGM</b> is set, that program owns the release. This page shows membership and any already-issued FCA time as read-only.</li>' +
+    '<li>Tower guide: ' +
     '<a href="tower-rdy-guide.html" target="_blank" rel="noopener">Tower RDY / Ready Time guide</a>.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-access">Access &amp; ARTCC staff</div>' +
@@ -5785,20 +5723,20 @@ function renderHelp() {
 
     '<div class="helpsec" id="help-sync">Sync</div>' +
     '<details class="help-acc"><summary>Multi-controller sync</summary><div class="help-acc-body"><ul class="helplist">' +
-    '<li><b>Connect</b> — join a named room to share programs, CFRs, and restrictions.</li>' +
+    '<li><b>Connect</b> — join a named room to share programs, restrictions, and ground stops.</li>' +
     '<li><b>Live sync</b> — join the global shared session (button formerly labeled Hub).</li>' +
     '<li>Scoped editors’ Live sync pushes are merged so they cannot overwrite another ARTCC’s airport programs.</li>' +
     '<li><span class="status-dot live"></span> <b>Live</b> — connected and syncing.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-terms">Key terms</div>' +
     '<dl class="helpterms">' +
-    '<dt>CFR</dt><dd>Call For Release — assigned wheels-up time for a departure (Airport TMU).</dd>' +
-    '<dt>Release / RDY</dt><dd>FCA ground release issued from FCA Builder or IDST.</dd>' +
+    '<dt>CFR / RDY</dt><dd>Issued wheels-up time from an <b>active FCA</b> (IDST / Builder / Overview) \u2014 not from this page.</dd>' +
+    '<dt>Rec WU / rec delay</dt><dd>Recommended wheels-up or delay from destination AAR/MIT \u2014 informational only.</dd>' +
     '<dt>AAR</dt><dd>Airport Arrival Rate — arrivals per hour the field can accept.</dd>' +
     '<dt>MIT</dt><dd>Miles in Trail — required distance between successive aircraft.</dd>' +
     '<dt>STA</dt><dd>Scheduled Time of Arrival at the destination.</dd>' +
     '<dt>Gate</dt><dd>Arrival fix or STAR from the filed route.</dd>' +
-    '<dt>TMU</dt><dd>Traffic Management Unit — sets rates and restrictions.</dd>' +
+    '<dt>TMU</dt><dd>Traffic Management Unit — sets rates and restrictions for monitoring.</dd>' +
     '</dl>' +
 
     '<p class="helpintro helpintro--footer">For simulation on VATSIM only — not for real-world ATC or flight planning.</p>' +
@@ -6017,13 +5955,13 @@ function renderMyDash() {
   }
 
   const metered = deps.filter(d => d.entry && isMetered(d.entry)).length;
-  const held = deps.filter(d => d.entry && isMetered(d.entry) && d.entry.edctIssued && !d.entry.releaseNow).length;
+  const held = deps.filter(d => d.entry && isMetered(d.entry) && d.entry.needsCfr).length;
 
   h += '<div class="strip">' +
     '<span class="field">MY DEPARTURES</span>' +
     stat("PENDING", deps.length) +
     stat("TO METERED FIELDS", metered, "stat-warn") +
-    stat("HOLDING ON CFR", held, "stat-alert") +
+    stat("REC DELAY", held, "stat-alert") +
     '</div>';
 
   if (!deps.length) {
@@ -6058,8 +5996,8 @@ function renderMyDash() {
    A view-only dashboard keyed by a single VATSIM CID. It finds the pilot's
    live flight (or prefile) in the feed, shows the filed flight plan, and — if
    the destination is being metered — the flow delay and a SUGGESTED WHEELS-UP
-   time. The suggestion comes straight from the metering engine, so it is
-   available even when no departure controller is online to issue a CFR. */
+   time. Suggestions are informational only. Issued release times come from an
+   active FCA (IDST / Builder / Overview), not from destination AAR programs. */
 function pilotDetail(label, value, colorClass) {
   return '<div class="pilot-detail"><span class="k">' + label + '</span>' +
     '<span class="v' + (colorClass ? ' ' + colorClass : '') + '">' + value + '</span></div>';
@@ -6196,9 +6134,11 @@ function renderPilot() {
       pilotDetail("DELAY", fmtDelay(e.delay), delayClass(e.delay).replace("cell-", "")) +
       '</div>');
   } else {
-    /* GROUND / PROPOSED into a metered field */
-    const issued = issuedEdcts[callsign] != null;
-    let wu = issued ? issuedEdcts[callsign].t : null;
+    /* GROUND / PROPOSED into a metered field — dest times are informational;
+       an issued FCA release (if any) is the only assigned wheels-up. */
+    const mem = fcaMembership(callsign, now);
+    const fcaIssued = mem && mem.release && mem.release.edctMs;
+    let wu = fcaIssued ? mem.release.edctMs : null;
     if (wu == null) {
       const ewu = earliestEdct(callsign, dep, dest);
       wu = ewu != null ? ewu : e.wheelsUp;
@@ -6206,16 +6146,10 @@ function renderPilot() {
     const hold = wu != null ? Math.max(0, wu - now) : 0;
     const needsDelay = wu != null && wu > now + CFR_THRESHOLD;
 
-    if (!needsDelay) {
-      body = panel("Suggested release",
-        '<span class="pilot-hero ok"><span class="status-dot ok"></span> No delay \u2014 depart at will</span>' +
-        '<div class="pilot-sub">' + esc(dest) +
-        ' has capacity for you right now (program ' + getRate(dest).aar + '/hr).</div>', "ok");
-    } else {
+    if (fcaIssued) {
       const tmin = Math.round(hold / 60000);
-      const label = issued ? "Assigned call for release" : "Suggested wheels-up";
-      body = panel(label,
-        '<div class="calcresult ' + (issued ? "warn" : "none") + ' pilot-wu">' +
+      body = panel("FCA release",
+        '<div class="calcresult warn pilot-wu">' +
         fmtZ(wu) + 'Z' +
         '<span class="cfr-sub pilot-wu-sub"> (T\u2212' + tmin + 'm)</span></div>' +
         '<div class="pilot-card pilot-card--flat-mt">' +
@@ -6223,12 +6157,31 @@ function renderPilot() {
         pilotDetail("GROUND DELAY", fmtDelay(hold), delayClass(hold).replace("cell-", "")) +
         pilotDetail("SCHED. ARRIVAL", fmtZ(e.sta) + "Z") +
         '</div>' +
+        '<div class="pilot-sub">Issued from an active FCA. Plan to be wheels-up at the time above.</div>', "warn");
+    } else if (!needsDelay) {
+      body = panel("Recommended delay",
+        '<span class="pilot-hero ok"><span class="status-dot ok"></span> No delay \u2014 dest capacity available</span>' +
+        '<div class="pilot-sub">' + esc(dest) +
+        ' has capacity for you right now (program ' + getRate(dest).aar + '/hr). ' +
+        (mem ? 'This flight is in an FCA \u2014 issue RDY in IDST if a release is required.' :
+          'This is informational only \u2014 Airport TMU does not issue a time.') +
+        '</div>', "ok");
+    } else {
+      const tmin = Math.round(hold / 60000);
+      body = panel("Recommended wheels-up (info)",
+        '<div class="calcresult none pilot-wu">' +
+        fmtZ(wu) + 'Z' +
+        '<span class="cfr-sub pilot-wu-sub"> (T\u2212' + tmin + 'm)</span></div>' +
+        '<div class="pilot-card pilot-card--flat-mt">' +
+        pilotDetail("PROGRAM", getRate(dest).aar + "/hr") +
+        pilotDetail("REC DELAY", fmtDelay(hold), delayClass(hold).replace("cell-", "")) +
+        pilotDetail("SCHED. ARRIVAL", fmtZ(e.sta) + "Z") +
+        '</div>' +
         '<div class="pilot-sub">' +
-        (issued
-          ? 'A controller has issued this CFR. Plan to be wheels-up at the time above.'
-          : 'No controller has issued a release. This is the system\u2019s suggested wheels-up time \u2014 ' +
-            'use it to self-meter if no departure controller is online. It may change as traffic updates.') +
-        '</div>', issued ? "warn" : "");
+        (mem
+          ? 'Destination delay is informational. Issue the release from the active FCA in IDST.'
+          : 'Informational only \u2014 Airport TMU does not issue a CFR. It may change as traffic updates.') +
+        '</div>');
     }
   }
 
@@ -6362,7 +6315,8 @@ function renderTMUPrograms() {
     '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;"><input type="checkbox" id="tmuExclLight" data-keep="tmuExclLight"> Excl wake L</label>' +
     '<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#c9d6df;cursor:pointer;"><input type="checkbox" id="tmuJetsOnly" data-keep="tmuJetsOnly"> Jets/turbines only</label>' +
     '<span class="lbl">EXCL TYPES</span><input id="tmuExclTypes" data-keep="tmuExclTypes" placeholder="C172,PA28" style="width:130px;font-size:12px;">' +
-    '<span class="form-note">Programs apply everywhere: METER view, CFR times, and the DEPARTURES view. ' +
+    '<span class="form-note">Programs are for monitoring and recommended delay only \u2014 they do not issue a release time. ' +
+    'Issue CFR / RDY from an <b>active FCA</b> in IDST (or FCA Builder / Overview). ' +
     'ROUTE TRAIL is minutes-in-trail; type a value in MIT (nm) to override it with miles-in-trail (converted at ~' + MIT_NOMINAL_KT + ' kt). Leave MIT blank for AUTO/minutes.</span>' +
     '</div>';
   } else {
@@ -6372,8 +6326,8 @@ function renderTMUPrograms() {
   const codes = Object.keys(tmuRates).sort();
   if (!codes.length) {
     h += '<div class="emptystate"><h2>No TMU programs active</h2>' +
-      '<p>Set an arrival rate for any airport above. Tower controllers on the DEPARTURES tab will see ' +
-      'CFR times for traffic bound to programmed fields.<br>Metering an airport on the METER tab also creates a program for it.</p></div>';
+      '<p>Set an arrival rate for any airport above. Dashboards show demand vs AAR and <b>recommended</b> delay for informational purposes only.<br>' +
+      'Issue release times from an <b>active FCA</b> in IDST. Metering an airport on the Apt Dashboard tab also creates a program for it.</p></div>';
   } else {
     h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
       '<th>AIRPORT</th><th>AAR</th><th>ROUTE TRAIL / MIT</th><th>INBOUND</th><th>AIRBORNE</th>' +
@@ -6464,7 +6418,7 @@ function renderTMUPrograms() {
         if (exclTypesStr) parts.push("types " + exclTypesStr);
         h += parts.length ? esc(parts.join(" \u00B7 ")) : '<span class="cell-dim">none</span>';
       }
-      h += '<span style="color:#3a4750;font-size:10px;margin-left:10px;">Excluded traffic still shows on the dashboard but does not consume AAR slots or receive CFRs.</span>' +
+      h += '<span style="color:#3a4750;font-size:10px;margin-left:10px;">Excluded traffic still shows on the dashboard but does not consume AAR slots or recommended delay.</span>' +
         '</td></tr>';
     }
     h += '</tbody></table></div>';
@@ -6732,13 +6686,7 @@ function fcaReadyTimeCell(callsign, mem, status, opts) {
   if (opts.arrived || opts.vfr || opts.gs || status !== "GROUND") return dim;
   const rel = mem.release;
   if (rel && rel.readyMs) return readyTimeDisplayHtml(rel.readyMs);
-  if (rel) return dim;
-  if (!canFcaRelease()) return dim;
-  return '<span class="readywrap">' +
-    '<input class="ready-input" data-fca-ready="1" data-ready-cs="' + esc(callsign) +
-    '" placeholder="HHMMz" maxlength="5" autocomplete="off" title="RDY @ wheels-up earliest">' +
-    '<button type="button" class="ready-btn" data-fca-ready-submit data-ready-cs="' + esc(callsign) +
-    '">Set</button></span>';
+  return dim;
 }
 function fcaCfrCell(callsign, mem, now, status, opts) {
   if (opts.arrived) return '<span class="cell-muted">Arrived</span>';
@@ -6750,20 +6698,17 @@ function fcaCfrCell(callsign, mem, now, status, opts) {
   if (status === "PROPOSED") return '<span class="cell-info">Pending \u2014 not connected</span>';
   const rel = mem.release;
   if (rel) {
-    if (!canFcaRelease()) {
-      return '<span class="fca-cfr-badge">' + fmtFcaZ(rel.edctMs) + 'Z</span>';
-    }
     const tmin = Math.max(0, Math.round((rel.edctMs - now) / 60000));
-    return '<span class="cfr-badge cfr-badge--countdown">' + fmtFcaZ(rel.edctMs) + 'Z' +
-      '<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span>' +
-      '<button class="btn-icon edctcxl" data-fca-cxl="' + esc(callsign) + '" aria-label="Cancel CFR">\u00D7</button></span>';
+    return '<span class="fca-cfr-badge" title="Issued from an active FCA (IDST / Builder / Overview)">' +
+      fmtFcaZ(rel.edctMs) + 'Z<span class="cfr-sub"> (T\u2212' + tmin + 'm)</span></span>' +
+      '<span class="recwu-note">FCA issued</span>';
   }
-  if (!canFcaRelease()) return '<span class="cell-dim">FCA metered</span>';
-  return '<button type="button" class="cfrbtn" data-fca-rdy="' + esc(callsign) + '">RDY now</button>';
+  return '<span class="cell-dim" title="Issue this release from IDST while the FCA is active">FCA \u2014 issue in IDST</span>';
 }
 function fcaDepartureReleaseCells(d, mem, now, depField, flowCache) {
   const dim = '<span class="cell-dim">\u2014</span>';
-  const opts = { arrived: d.arrived, vfr: d.vfr, gs: d.gs, callsign: d.callsign, now };
+  const gs = (!d.arrived && !d.vfr) ? groundStopFor(depField, d.dest) : null;
+  const opts = { arrived: d.arrived, vfr: d.vfr, gs, callsign: d.callsign, now };
   let pgm = dim, sta = "\u2014", dly = "\u2014";
   if (!d.arrived && !d.vfr && d.entry && tmuRates[d.dest]) {
     pgm = d.aar ? d.aar + "/hr" : esc(String(getRate(d.dest).aar)) + "/hr";
@@ -6786,7 +6731,6 @@ function readyTimeCell(callsign, dep, dest, e, status, opts) {
   if (!isReadyTimeEligible(e, status, dest, opts)) return dim;
   const rec = issuedEdcts[callsign];
   if (rec && rec.ready) return readyTimeDisplayHtml(rec.ready);
-  if (!e.edctIssued) return readyTimeInputHtml(callsign, dep, dest);
   return dim;
 }
 function cfrCell(callsign, dep, dest, e, now, status, opts) {
@@ -6801,18 +6745,13 @@ function cfrCell(callsign, dep, dest, e, now, status, opts) {
     return '<span class="gsflag"><span class="status-dot alert pulse"></span> GS \u2013 ' +
       esc(fmtUntil(opts.gs.until)) + '</span>';
   }
-  if (!tmuRates[dest]) return '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
+  if (!tmuRates[dest]) return '<span class="cell-dim">NO PROGRAM</span>';
   if (!e) return '<span class="cell-muted">\u2014</span>';
-  if (!canControl()) {
-    const avail = earliestEdct(callsign, dep, dest);
-    return lockedCfrHtml(e, now, avail != null ? avail : e.wheelsUp);
-  }
-  if (!e.edctIssued) return cfrIssueOrReleased(callsign, dep, dest, now);
-  if (e.releaseNow) return cfrNowHtml(callsign, dep, dest);
-  return cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign, dep, dest);
+  const wu = earliestEdct(callsign, dep, dest);
+  return recWuInfoHtml(wu != null ? wu : e.wheelsUp, now);
 }
 
-/* shared Ready Time + CFR cells for Departures and My Dashboard rows */
+/* shared Ready Time + rec WU cells for Departures and My Dashboard rows */
 function departureReleaseCells(d, e, now, depField, flowCache) {
   const mem = fcaMembership(d.callsign, now);
   if (mem) return fcaDepartureReleaseCells(d, mem, now, depField, flowCache);
@@ -6825,8 +6764,9 @@ function departureReleaseCells(d, e, now, depField, flowCache) {
   const dim = '<span class="cell-dim">\u2014</span>';
   let pgm, sta = "\u2014", dly = "\u2014";
   const gs = (!arrived && !vfr) ? groundStopFor(depField, dest) : null;
-  const opts = { arrived, vfr, gs };
+  const opts = { arrived, vfr, gs, now, callsign };
   const ready = readyTimeCell(callsign, depField, dest, e, status, opts);
+  const cfr = cfrCell(callsign, depField, dest, e, now, status, opts);
 
   if (arrived) {
     pgm = dim;
@@ -6849,31 +6789,6 @@ function departureReleaseCells(d, e, now, depField, flowCache) {
     dly = fmtDelay(e.delay);
   }
 
-  let cfr;
-  if (arrived) {
-    cfr = '<span class="cell-muted">Arrived</span>';
-  } else if (vfr) {
-    cfr = '<span class="vfrtag">VFR \u2014 NO CFR</span>';
-  } else if (e && e.excluded) {
-    cfr = '<span class="excludedtag">EXCLUDED \u2014 NO CFR</span>';
-  } else if (gs) {
-    cfr = '<span class="gsflag">GS \u2013 ' + esc(fmtUntil(gs.until)) + '</span>';
-  } else if (!tmuRates[dest]) {
-    cfr = '<span class="cell-dim">NO PROGRAM \u2014 RELEASE AT WILL</span>';
-  } else if (!e) {
-    cfr = '<span class="cell-muted">\u2014</span>';
-  } else if (!canControl() && status !== "PROPOSED") {
-    const avail = earliestEdct(callsign, depField, dest);
-    cfr = lockedCfrHtml(e, now, avail != null ? avail : e.wheelsUp);
-  } else if (status === "PROPOSED") {
-    cfr = '<span class="cell-info">Pending \u2014 NOT CONNECTED</span>';
-  } else if (!e.edctIssued) {
-    cfr = cfrIssueOrReleased(callsign, depField, dest, now);
-  } else if (e.releaseNow) {
-    cfr = cfrNowHtml(callsign, depField, dest);
-  } else {
-    cfr = cfrCountdownHtml(e.wheelsUp, now, e.pulled, callsign, depField, dest);
-  }
   return { pgm, sta, dly, fcaPrgm: fcaPrgmCell(callsign, now), ready, cfr };
 }
 
@@ -6882,7 +6797,7 @@ function renderDep() {
     contentEl.innerHTML =
       '<div class="emptystate">' +
       '<h2>Departures</h2>' +
-      '<p>Enter the airport you are working departures from. You\u2019ll see every departure off your field, with CFR times for destinations that have a TMU program.</p>' +
+      '<p>Enter the airport you are working departures from. You\u2019ll see every departure off your field, with recommended delay for destinations that have a TMU program (informational). Issue times from an active FCA in IDST.</p>' +
       '<div class="emptystate-actions">' +
       '<input id="splashDep" list="event-fields" placeholder="ICAO (e.g. KLAX)" maxlength="4" autocomplete="off" class="field-input field-input--wide">' +
       '<button type="button" class="btn-primary" id="splashDepBtn">Set</button>' +
@@ -6948,14 +6863,14 @@ function renderDep() {
   const sortedDeps = sortedDepartureRows(deps, DEP_COLUMNS, depSortKey, depSortDir);
 
   const metered = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived).length;
-  const held = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived && d.entry.edctIssued && !d.entry.releaseNow).length;
+  const held = deps.filter(d => d.entry && isMetered(d.entry) && !d.arrived && d.entry.needsCfr).length;
   const arrCnt = deps.filter(d => d.arrived).length;
 
   let h = '<div class="strip">' +
     '<span class="field">' + esc(depIcao) + ' DEPARTURES</span>' +
     stat("TOTAL", deps.length) +
     stat("TO METERED FIELDS", metered, "stat-warn") +
-    stat("HOLDING ON CFR", held, "stat-alert") +
+    stat("REC DELAY", held, "stat-alert") +
     (arrCnt ? stat("ARRIVED", arrCnt, "stat-muted") : "") +
     '<span style="font-size:11px;color:#56676f;">Destinations with a TMU program: ' +
     (Object.keys(tmuRates).length ? Object.keys(tmuRates).sort().map(esc).join(", ") : "none \u2014 set them on the TMU tab") +
@@ -7592,73 +7507,6 @@ contentEl.addEventListener("click", e => {
     saveMyApproachSectors(); scopeCache = {}; renderContent();
     return;
   }
-  const issueBtn = e.target.closest("[data-issue]");
-  if (issueBtn) {
-    if (!canControl()) return;
-    const cs = issueBtn.dataset.issue;
-    const dep = issueBtn.dataset.issueDep;
-    const dest = issueBtn.dataset.issueDest;
-    if (!cs || !dep || !dest) return;
-    const mem = fcaMembership(cs, Date.now());
-    if (mem) {
-      if (!canFcaRelease()) return;
-      const rel = window.VF_Fca.markReady(mem.fca, cs, meterPilots(), Date.now());
-      if (!rel) return;
-      window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
-      renderContent();
-      return;
-    }
-    const wu = earliestEdct(cs, dep, dest);
-    if (wu == null) return;
-    issuedEdcts[cs] = { t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null };
-    pushSync();
-    renderContent();
-    return;
-  }
-  const fcaRdyBtn = e.target.closest("[data-fca-rdy]");
-  if (fcaRdyBtn) {
-    if (!canFcaRelease()) return;
-    const cs = fcaRdyBtn.dataset.fcaRdy;
-    const mem = fcaMembership(cs, Date.now());
-    if (!mem) return;
-    const rel = window.VF_Fca.markReady(mem.fca, cs, meterPilots(), Date.now());
-    if (!rel) return;
-    window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
-    renderContent();
-    return;
-  }
-  const readyBtn = e.target.closest("[data-ready-submit],[data-fca-ready-submit]");
-  if (readyBtn) {
-    const cs = readyBtn.dataset.readyCs;
-    const wrap = readyBtn.closest(".readywrap");
-    const input = wrap && wrap.querySelector(".ready-input");
-    if (!input || !cs) return;
-    const floor = parseZuluHhmm(input.value, Date.now());
-    if (!floor) {
-      input.classList.add("ready-input--err");
-      setTimeout(() => input.classList.remove("ready-input--err"), 1500);
-      return;
-    }
-    const mem = fcaMembership(cs, Date.now());
-    if (mem) {
-      if (!canFcaRelease()) return;
-      const rel = window.VF_Fca.markReady(mem.fca, cs, meterPilots(), Date.now(), { readyMs: floor });
-      if (!rel) return;
-      window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
-      renderContent();
-      return;
-    }
-    const dep = readyBtn.dataset.readyDep;
-    const dest = readyBtn.dataset.readyDest;
-    const wu = earliestEdctAfter(cs, dep, dest, floor);
-    if (wu == null) return;
-    issuedEdcts[cs] = {
-      t: Math.max(wu, Date.now()), order: Date.now(), pulledUntil: null, ready: floor
-    };
-    pushSyncEdcts();
-    renderContent();
-    return;
-  }
   const tmuAct = e.target.closest("[data-tmuview],[data-tmurm]");
   if (tmuAct) {
     if (tmuAct.dataset.tmuview) {
@@ -7672,24 +7520,6 @@ contentEl.addEventListener("click", e => {
       pushSync();
       renderContent();
     }
-    return;
-  }
-  const cxl = e.target.closest("[data-cxl],[data-fca-cxl]");
-  if (cxl) {
-    const cs = cxl.dataset.cxl || cxl.dataset.fcaCxl;
-    const mem = cs ? fcaMembership(cs, Date.now()) : null;
-    if (mem && mem.release) {
-      if (!canFcaRelease()) return;
-      window.VF_Fca.clearReady(mem.fca, cs);
-      window.VF_Fca.cloudPushFca(mem.fca, { readyOnly: true });
-      renderContent();
-      return;
-    }
-    if (!canControl()) return;
-    delete issuedEdcts[cs];
-    compressEdcts();      /* pull remaining issued EDCTs up into the freed slot */
-    pushSync();
-    renderContent();
     return;
   }
   if (e.target.closest("[data-clearfilters]")) {
@@ -7877,19 +7707,6 @@ contentEl.addEventListener("change", e => {
     }
   }
   pushSync();
-});
-
-contentEl.addEventListener("change", e => {
-  if (!e.target.matches("[data-cfr-swap-select]") || !e.target.value) return;
-  if (!canControl()) return;
-  const sel = e.target;
-  const ok = swapRouteCfr(sel.dataset.cfrCs, sel.value, sel.dataset.cfrDep, sel.dataset.cfrDest);
-  if (!ok) {
-    /* swap no longer valid (e.g. peer CFR cancelled by another controller) */
-    sel.value = "";
-    sel.classList.add("cfr-swap-select--err");
-    setTimeout(() => sel.classList.remove("cfr-swap-select--err"), 1500);
-  }
 });
 
 /* ground-stop popup is outside the content area, so it gets its own dismiss handler */

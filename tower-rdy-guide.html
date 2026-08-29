@@ -653,7 +653,7 @@
     <div class="callouts" style="margin-top:20px">
       <div class="callout warn">
         <strong>Do not read advisory wheels-up to the pilot</strong>
-        <p>On a <b>CFR</b> (not yet RLSD) strip, the big time in Builder is a proposal. Issue <b>RDY</b> from <b>IDST</b> (or Departures / My Dashboard) before you clear a wheels-up time.</p>
+        <p>On a <b>CFR</b> (not yet RLSD) strip, the big time in Builder is a proposal. Issue <b>RDY</b> from <b>IDST</b> (or FCA Overview / Builder) before you clear a wheels-up time. Airport TMU does not issue a time.</p>
       </div>
     </div>
   </section>
@@ -769,7 +769,7 @@
         <div class="body">
           <h4>Monitor RDY from the field</h4>
           <p>Tower/APP/Center issue RDY from <b>IDST</b> with the matching filters. You can also RDY from Builder. Cancel returns the aircraft to advisory.</p>
-          <span class="where">Builder · IDST · Departures</span>
+          <span class="where">Builder · IDST · FCA Overview</span>
         </div>
       </li>
       <li class="step">
@@ -827,7 +827,7 @@
         <div class="num">3</div>
         <div class="body">
           <h4>Coordinate RDY with the field</h4>
-          <p>Prefer letting DEL/GND/TWR issue from <b>Departures / My Dashboard</b>. If you RDY for them on the IDST, confirm the pilot is actually ready — early RDY steals a gap.</p>
+          <p>Prefer letting DEL/GND/TWR issue from <b>IDST</b> with their airport / approach filters. If you RDY for them on a center-wide IDST, confirm the pilot is actually ready — early RDY steals a gap.</p>
           <span class="where">RDY · optional HHMMz floor</span>
         </div>
       </li>
@@ -847,7 +847,7 @@
       <li>If TMU is in <b>MANUAL</b>, honor that order; don’t fight it with random RDY timing.</li>
       <li>Optional <b>HHMMz</b> + <b>SET</b> before RDY when the pilot quotes a later wheels-up — never issues before that floor.</li>
       <li>Full control (ARTCC editor) can drag-reorder / return to <b>AUTO</b> — only do that with TMU awareness.</li>
-      <li>One voice with the towers on a stream beats three people issuing the same callsigns — let the field own Departures / My Dashboard RDY when they can.</li>
+      <li>One voice with the towers on a stream beats three people issuing the same callsigns — let the field own IDST RDY (airport / approach filters) when they can.</li>
     </ul>
   </section>
 
@@ -856,13 +856,13 @@
     <div class="back-roles"><button type="button" data-back>← Choose a different position</button></div>
     <div class="panel-hero">
       <h2 id="apptwr-title">APP / TWR — issue the release</h2>
-      <p>DEL, GND, TWR, and APP: manage FCA times for your departures on Airport TMU. You do not need to build the program — find rows with <b>FCA PRGM</b> and lock Ready Time / RDY there. Leave the ARTCC-wide <b>IDST</b> to Center.</p>
+      <p>DEL, GND, TWR, and APP: issue FCA times for your departures in <b>IDST</b> with airport / approach filters. You do not need to build the program. Airport TMU is tools and monitoring only (AAR, MIT, recommended delay) — it does not issue a time.</p>
     </div>
 
     <div class="callouts">
       <div class="callout warn">
         <strong>Your home tool</strong>
-        <p><b>Airport TMU</b> → <b>Departures</b> (one tower field) or <b>My Dashboard</b> (your personal airport / ARTCC / approach list). When <b>FCA PRGM</b> is set, Ready Time and RDY go to the FCA engine and sync with Builder and IDST.</p>
+        <p><b>IDST</b> — add the airports, approach sectors, and/or ARTCC you are working (same filters as Airport TMU My Dashboard). Only FCA-metered ground departures in your scope appear. Sign in on position, then RDY. Airport TMU remains for AAR/MIT monitoring.</p>
       </div>
       <div class="callout">
         <strong>What the times mean</strong>
@@ -886,18 +886,17 @@
       <li class="step">
         <div class="num">1</div>
         <div class="body">
-          <h4>Open Airport TMU for your field</h4>
-          <p><b>Departures</b> — set your tower ICAO in the header for one field.<br>
-          <b>My Dashboard</b> — add the airports (or ARTCC / approach sectors) you are working so all pending ground departures show in one list.</p>
-          <span class="where">Airport TMU · Departures · My Dashboard</span>
+          <h4>Open IDST for your field</h4>
+          <p>Add the tower airports, approach sectors, and/or ARTCC you are working. Filters match Airport TMU <b>My Dashboard</b> on this device, but RDY lives here — not on Airport TMU.</p>
+          <span class="where">IDST · Working filters</span>
         </div>
       </li>
       <li class="step">
         <div class="num">2</div>
         <div class="body">
-          <h4>Find FCA rows</h4>
-          <p>Look for <b>FCA PRGM</b> populated. Those rows use FCA metering — Ready Time and RDY there freeze the FCA release.</p>
-          <span class="where">Column · FCA PRGM</span>
+          <h4>Confirm the flight is FCA-metered</h4>
+          <p>Flights to Work only lists ground departures in an <b>active FCA</b>. If a flight is missing, it is not in a live FCA — Airport TMU dest AAR delay is informational only and is not a release.</p>
+          <span class="where">IDST · Unscheduled</span>
         </div>
       </li>
       <li class="step">
@@ -911,24 +910,24 @@
       <li class="step">
         <div class="num">4</div>
         <div class="body">
-          <h4>Optional Ready Time floor</h4>
-          <p>Enter <b>HHMMz</b> in <b>READY TIME</b> → <b>Set</b>. The release will never be before that time; spacing may still push later.</p>
-          <span class="where">READY TIME · HHMMz · Set</span>
+          <h4>Optional ART floor</h4>
+          <p>Enter <b>HHMMz</b> as ART. The release will never be before that time; spacing may still push later.</p>
+          <span class="where">IDST · ART HHMMz</span>
         </div>
       </li>
       <li class="step">
         <div class="num">5</div>
         <div class="body">
           <h4>Press RDY</h4>
-          <p>Use <b>RDY now</b> (or Set after a Ready Time) to lock wheels-up. Tell the pilot that time. One-click RDY without a floor uses the ready-now buffer (~3 min).</p>
-          <span class="where">CALL FOR RELEASE · RDY now</span>
+          <p>Use <b>RDY — ISSUE NOW</b> (or SET after ART) to lock wheels-up. Tell the pilot that time. One-click RDY without a floor uses the ready-now buffer (~3 min).</p>
+          <span class="where">IDST · RDY</span>
         </div>
       </li>
       <li class="step">
         <div class="num">6</div>
         <div class="body">
           <h4>Fix mistakes</h4>
-          <p>Cancel with <b>×</b> to return to advisory if they aren’t ready or you issued the wrong callsign. Re-RDY when they actually are.</p>
+          <p>Cancel with <b>RLSD ✕</b> to return to Unscheduled if they aren’t ready or you issued the wrong callsign. Re-RDY when they actually are.</p>
           <span class="where">Cancel · re-issue</span>
         </div>
       </li>
@@ -936,7 +935,7 @@
 
     <h3>APP / TWR best practices</h3>
     <ul>
-      <li><b>Work IDST</b> with your airport / approach filters (or Departures / My Dashboard). Center can use ARTCC-wide filters.</li>
+      <li><b>Work IDST</b> with your airport / approach filters. Center can use ARTCC-wide filters. Airport TMU is monitoring only.</li>
       <li><b>Don’t RDY before the pilot is ready.</b> Advisory rows don’t hold slots — freezing early steals from someone who can go.</li>
       <li><b>Issue in taxi / runway order</b> when you can. If TMU is in MANUAL, follow that order.</li>
       <li><b>Use the Ready Time floor</b> when the pilot says they’ll need 10+ minutes — don’t lock a “now” slot they’ll miss.</li>
@@ -949,7 +948,7 @@
   <section class="tools">
     <h3>Tools</h3>
     <ul>
-      <li><b>Airport TMU</b> — Departures / My Dashboard for APP/TWR FCA RDY · <a href="vatflow-tbfm%20v2.html">Open</a></li>
+      <li><b>Airport TMU</b> — AAR / MIT / recommended delay (info only; does not issue a time) · <a href="vatflow-tbfm%20v2.html">Open</a></li>
       <li><b>IDST</b> — Flights to Work CFR / RDY · <a href="idst.html">Open</a></li>
       <li><b>FCA Overview</b> — ARTCC map · <a href="artcc-dashboard.html">Open</a></li>
       <li><b>FCA Builder</b> — create / scope / sequence / enable · <a href="FCA-builderv02.html">Open</a></li>

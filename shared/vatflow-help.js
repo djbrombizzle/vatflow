@@ -92,9 +92,9 @@ export const FCA_HELP = {
         "<b>FCA Builder</b> (this page) — draw/meter line FCAs and manage programs.",
         "<b>IDST</b> — controller Flights to Work desk for issuing CFR releases.",
         "<b>FCA Overview</b> — ARTCC map + multi-program strips (RDY / sequence).",
-        "<b>Airport TMU</b> — destination capacity (AAR, CFR, restrictions, ground stops).",
+        "<b>Airport TMU</b> — destination capacity tools (AAR, MIT, restrictions, ground stops, recommended delay). Does not issue times.",
         "<b>Runway Balancer</b> — arrival runway demand / STAR mapping (under Airport TMU).",
-        "When Airport TMU shows <b>FCA PRGM</b>, FCA metering is authoritative for that departure.",
+        "When Airport TMU shows <b>FCA PRGM</b>, that FCA owns the flight — issue RDY in IDST, not Airport TMU.",
       ],
     },
     {
@@ -122,7 +122,7 @@ export const FCA_HELP = {
       items: [
         "<b>FCA</b> — Flow Constrained Area: a line that meters crossing traffic.",
         "<b>Release / RDY</b> — issued wheels-up time for a ground departure in an FCA sequence.",
-        "<b>CFR</b> — Call For Release (Airport TMU destination metering; same idea as an FCA release).",
+        "<b>CFR</b> — Call For Release: issued wheels-up from an active FCA (same idea as RDY).",
         "<b>MIT</b> — Miles in Trail between successive crossings.",
         "<b>Rate</b> — aircraft per hour across the FCA line.",
         "<b>Owning ARTCC</b> — facility tag that controls who may edit the FCA.",
@@ -186,7 +186,7 @@ export const FCA_OVERVIEW_HELP = {
         "<b>FCA Overview</b> (this page) — ARTCC map + multi-program strip management.",
         "<b>IDST</b> — Flights to Work desk for CFR / RDY.",
         "<b>FCA Builder</b> — draw lines, set rates/MIT, manage programs.",
-        "<b>Airport TMU</b> — destination capacity CFRs (not line FCAs).",
+        "<b>Airport TMU</b> — destination capacity tools and recommended delay (info only; not line FCAs).",
       ],
     },
   ],
@@ -259,7 +259,7 @@ export const IDST_HELP = {
         "<b>IDST</b> (this page) — issue CFR releases.",
         "<b>FCA Overview</b> — ARTCC map + strips.",
         "<b>FCA Builder</b> — create/enable programs.",
-        "<b>Airport TMU</b> — destination capacity CFRs when no FCA applies.",
+        "<b>Airport TMU</b> — destination AAR/MIT monitoring and recommended delay (does not issue times).",
       ],
     },
   ],
@@ -268,17 +268,17 @@ export const IDST_HELP = {
 
 export const TMU_TOOLS_HELP = {
   title: "Airport TMU — Quick reference",
-  intro: "Airport capacity TMU: destination AAR programs, ground stops, restrictions, and CFR issuance. Enroute/line FCAs are built in FCA Builder — this page surfaces FCA status and delegates releases when applicable.",
+  intro: "Airport capacity tools and monitoring: destination AAR programs, ground stops, restrictions, and recommended delay. This page does not issue a release time. Issue CFR / RDY only from an active FCA in IDST (or FCA Builder / Overview).",
   sections: [
     {
       title: "Airport TMU vs FCA Builder",
       open: true,
       items: [
-        "<b>Airport TMU</b> — destination capacity: AAR/trail/MIT, ground stops, route sequencing, and dest-based CFR.",
+        "<b>Airport TMU</b> — destination capacity: AAR/trail/MIT, ground stops, and recommended delay (informational only).",
         "<b>FCA Builder</b> — line-based flow: draw FCAs, filters, line MIT/rate, crossing geometry.",
         "<b>IDST</b> — position-facing CFR / RDY for active FCA programs.",
         "<b>FCA Overview</b> — ARTCC map + strip management.",
-        "When <b>FCA PRGM</b> is set on a departure, FCA metering is authoritative — READY/CFR routes to the FCA engine.",
+        "When <b>FCA PRGM</b> is set on a departure, that FCA owns the release — issue it in IDST, not here.",
       ],
     },
     {
@@ -290,19 +290,11 @@ export const TMU_TOOLS_HELP = {
       ],
     },
     {
-      title: "Release priority",
+      title: "What this page does not do",
       items: [
-        "<b>1 — FCA program</b> (FCA PRGM column populated): FCA releases via Supabase / IDST.",
-        "<b>2 — Route sequencing</b> (no FCA): departure release interval and issued-order compression.",
-        "<b>3 — Airport capacity</b> (no FCA): destination AAR/trail/MIT.",
-      ],
-    },
-    {
-      title: "Ready time & CFR",
-      items: [
-        "<b>RDY @ (wheels-up earliest)</b> — enter HHMMz for the earliest CFR/wheels-up time; spacing may push later.",
-        "One-click <b>RDY</b> / <b>CFR time</b> without a time uses the standard ready-now buffer.",
-        "On FCA-metered aircraft, ready time is stored on the FCA release and syncs across FCA Builder and IDST.",
+        "Airport TMU does <b>not</b> issue a CFR, EDCT, or RDY time.",
+        "AAR / MIT programs drive <b>recommended</b> delay and rec wheels-up for monitoring only.",
+        "Issue a frozen release only from an <b>active FCA</b> in IDST, FCA Builder, or FCA Overview.",
         'DEL/GND/TWR walkthrough: <a href="tower-rdy-guide.html">Tower RDY / Ready Time guide</a>.',
       ],
     },

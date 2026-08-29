@@ -347,12 +347,12 @@
     <p>Issue RDY from <b>IDST</b> once an FCA is enabled. Same program, same sequence, same times — everywhere.</p>
 
     <img class="poster" src="docs/vatflow-fca-releases-flow.png"
-      alt="VATFLOW issue releases flowchart: IDST and My Dashboard paths, live sync banner">
+      alt="VATFLOW issue releases flowchart: IDST and FCA Overview paths, live sync banner">
 
     <div class="callouts">
       <div class="callout warn">
         <strong>Programs sync across all pages</strong>
-        <p>FCA Builder, IDST, My Dashboard, and Departures share one live FCA list — order, RDY / RLSD times, and cancels update for everyone in realtime. Create and edit the line in <b>FCA Builder</b>; issue releases from <b>IDST</b>.</p>
+        <p>FCA Builder, IDST, and FCA Overview share one live FCA list — order, RDY / RLSD times, and cancels update for everyone in realtime. Create and edit the line in <b>FCA Builder</b>; issue releases from <b>IDST</b>. Airport TMU does not issue a time.</p>
       </div>
     </div>
 
@@ -368,12 +368,12 @@
         </ol>
       </div>
       <div class="path">
-        <h3>My Dashboard</h3>
+        <h3>FCA Overview</h3>
         <ol>
-          <li>Open <b>Airport TMU</b> → <b>My Dashboard</b></li>
-          <li>Add your departure airports / ARTCC filters</li>
-          <li>Find rows with <b>FCA PRGM</b> set</li>
-          <li>Press <b>RDY</b> / CFR on that row</li>
+          <li>Open <b>FCA Overview</b></li>
+          <li>Select the ARTCC that owns the program</li>
+          <li>Find the ground strip in that FCA’s stack</li>
+          <li>Press <b>RDY</b> / <b>SET</b> (HHMMz) when signed in</li>
           <li>Same release shows on Builder + IDST</li>
         </ol>
       </div>
@@ -386,8 +386,7 @@
       <li><b>FCA Builder</b> — draw, configure, enable programs · <a href="FCA-builderv02.html">Open</a></li>
       <li><b>IDST</b> — on-position CFR / RDY · <a href="idst.html">Open</a></li>
       <li><b>FCA Overview</b> — ARTCC map + strips · <a href="artcc-dashboard.html">Open</a></li>
-      <li><b>My Dashboard</b> — personal airport list + RDY when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Airport TMU</a></li>
-      <li><b>Airport TMU</b> — destination capacity / CFR · FCA metering wins when <b>FCA PRGM</b> is set · <a href="vatflow-tbfm%20v2.html">Open</a></li>
+      <li><b>Airport TMU</b> — destination AAR / MIT / recommended delay (info only; does not issue a time) · <a href="vatflow-tbfm%20v2.html">Open</a></li>
     </ul>
   </section>
 </main>
