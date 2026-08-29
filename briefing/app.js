@@ -19,6 +19,7 @@
     depRunway: null,
     arrRunway: null,
     showInapplicable: false,
+    showInactive: false,
     notamFilter: 'relevant'
   };
 
@@ -162,6 +163,40 @@
       skip: list.filter(function (n) { return !appliesToUs(n); })
     };
   }
+  var TIME_LABEL = {
+    expired: 'no longer in effect',
+    future: 'not yet in effect',
+    'outside-daily': 'outside its daily window'
+  };
+
+  // Split by whether a NOTAM is in force at the briefing's reference time.
+  // Anything whose validity did not parse cleanly counts as active, so an
+  // unreadable window never hides a NOTAM.
+  function partitionTime(list, refMs) {
+    var active = [], inactive = [];
+    list.forEach(function (n) {
+      var s = P.notamStatus(n, refMs);
+      if (s === 'active' || s === 'unknown') { n._timeStatus = null; active.push(n); }
+      else { n._timeStatus = s; inactive.push(n); }
+    });
+    return { active: active, inactive: inactive };
+  }
+
+  function timeBanner(part, refZ, what) {
+    if (!part.inactive.length) return null;
+    return el('div', { class: 'banner good' }, [
+      el('b', { text: part.inactive.length + ' NOTAM(s) hidden — ' }),
+      'not in effect at ' + (refZ ? refZ + 'Z' : 'the briefed time') + ' (' + what + ').',
+      el('div', {}, [
+        el('button', {
+          type: 'button', class: 'noprint',
+          text: state.showInactive ? 'Hide them' : 'Show them anyway',
+          onclick: function () { state.showInactive = !state.showInactive; render(); }
+        })
+      ])
+    ]);
+  }
+
   function forRunway(list, rwy) {
     if (!rwy) return list.filter(function (n) { return !n.runway; });
     return list.filter(function (n) { return n.runway === rwy; });
@@ -254,7 +289,8 @@
           el('span', { class: 'notam-val', text: n.validity }),
           n.runway ? el('span', { class: 'tag rwy', text: 'RWY ' + n.runway }) : null,
           n.category ? el('span', { class: 'tag', text: n.category }) : null,
-          n.closed ? el('span', { class: 'tag closed', text: 'closed' }) : null
+          n.closed ? el('span', { class: 'tag closed', text: 'closed' }) : null,
+          n._timeStatus ? el('span', { class: 'tag stale', text: TIME_LABEL[n._timeStatus] || n._timeStatus }) : null
         ]),
         el('div', { class: 'notam-body', text: n.text })
       ]));
@@ -441,12 +477,15 @@
     /* --- T: taxi / terrain / transition --- */
     var tbody = [];
     var originN = splitApplicable(notamsFor(M, M.origin.icao));
-    var taxiN = originN.apply.filter(function (n) { return n.mentionsTaxiway || (n.category === 'AIRPORT' && !n.runway); });
+    var taxiAll = originN.apply.filter(function (n) { return n.mentionsTaxiway || (n.category === 'AIRPORT' && !n.runway); });
+    var taxiPart = partitionTime(taxiAll, M.derived.refDepMs);
+    var taxiN = taxiPart.active;
     tbody.push(el('div', { class: 'stat-row' }, [
       stat('Field elev', fmtNum(M.origin.elevation) + ' ft'),
       stat('Gate', txt(M.gate)),
-      stat('Applicable', String(taxiN.length)),
-      stat('Not for 717', String(originN.skip.length), originN.skip.length ? 'hi' : '')
+      stat('In effect', String(taxiN.length), 'hi'),
+      stat('Not in effect', String(taxiPart.inactive.length)),
+      stat('Not for 717', String(originN.skip.length))
     ]));
 
     if (originN.skip.length) {
@@ -465,7 +504,13 @@
     }
 
     tbody.push(sec('Taxi & airport NOTAMs — ' + txt(M.origin.iata)));
+    var depBanner = timeBanner(taxiPart, M.derived.refDepZ, 'evaluated at wheels-up');
+    if (depBanner) tbody.push(depBanner);
     tbody.push(notamList(taxiN));
+    if (state.showInactive && taxiPart.inactive.length) {
+      tbody.push(sec('Not in effect at ' + txt(M.derived.refDepZ) + 'Z'));
+      tbody.push(notamList(taxiPart.inactive));
+    }
 
     var cityPairDep = (M.remarks.cityPair || []).filter(function (r) {
       return /CLEARANCE|STARTUP|WHEELS UP|TAXI|GATE/i.test(r.text);
@@ -566,24 +611,47 @@
 
     /* --- N: NOTAMs --- */
     var nbody = [];
-    var rwyN = state.arrRunway ? destN.apply.filter(function (n) { return n.runway === state.arrRunway; }) : [];
-    var genN = destN.apply.filter(function (n) { return !n.runway; });
+    var refArr = M.derived.refArrMs, refArrZ = M.derived.refArrZ;
+    var rwyPart = partitionTime(
+      state.arrRunway ? destN.apply.filter(function (n) { return n.runway === state.arrRunway; }) : [], refArr);
+    var genPart = partitionTime(destN.apply.filter(function (n) { return !n.runway; }), refArr);
+    var inactiveTotal = rwyPart.inactive.length + genPart.inactive.length;
 
     nbody.push(el('div', { class: 'stat-row' }, [
       stat('Total ' + txt(M.dest.iata), String(destN.apply.length)),
-      stat('For RWY ' + (state.arrRunway || '—'), state.arrRunway ? String(rwyN.length) : '—', 'hi'),
-      stat('Airport-wide', String(genN.length)),
+      stat('For RWY ' + (state.arrRunway || '—'), state.arrRunway ? String(rwyPart.active.length) : '—', 'hi'),
+      stat('Airport-wide', String(genPart.active.length)),
+      stat('Not in effect', String(inactiveTotal)),
       stat('Not for 717', String(destN.skip.length))
     ]));
 
+    if (inactiveTotal) {
+      nbody.push(el('div', { class: 'banner good' }, [
+        el('b', { text: inactiveTotal + ' NOTAM(s) hidden — ' }),
+        'not in effect at ' + (refArrZ ? refArrZ + 'Z' : 'the briefed time') + ' (evaluated at touchdown).',
+        el('div', {}, [
+          el('button', {
+            type: 'button', class: 'noprint',
+            text: state.showInactive ? 'Hide them' : 'Show them anyway',
+            onclick: function () { state.showInactive = !state.showInactive; render(); }
+          })
+        ])
+      ]));
+    }
+
     if (state.arrRunway) {
       nbody.push(sec('NOTAMs for runway ' + state.arrRunway));
-      nbody.push(notamList(rwyN, { empty: 'No NOTAMs published for runway ' + state.arrRunway + '.' }));
+      nbody.push(notamList(rwyPart.active, { empty: 'No NOTAMs in effect for runway ' + state.arrRunway + ' at ' + txt(refArrZ) + 'Z.' }));
     } else {
       nbody.push(el('p', { class: 'muted small', text: 'Pick a landing runway above to filter the runway and approach NOTAMs.' }));
     }
     nbody.push(sec('Airport-wide NOTAMs'));
-    nbody.push(notamList(genN));
+    nbody.push(notamList(genPart.active));
+
+    if (state.showInactive && inactiveTotal) {
+      nbody.push(sec('Not in effect at ' + txt(refArrZ) + 'Z'));
+      nbody.push(notamList(rwyPart.inactive.concat(genPart.inactive)));
+    }
 
     if (M.notams.enrouteNone) {
       nbody.push(el('div', { class: 'banner good', text: 'No enroute/waypoint NOTAMs on this release.' }));
@@ -624,7 +692,9 @@
     });
 
     var apprN = state.arrRunway
-      ? destN.apply.filter(function (n) { return n.runway === state.arrRunway && /APPROACH/i.test(n.category || ''); })
+      ? partitionTime(destN.apply.filter(function (n) {
+          return n.runway === state.arrRunway && /APPROACH/i.test(n.category || '');
+        }), M.derived.refArrMs).active
       : [];
     if (apprN.length) {
       abody.push(sec('Approach procedure NOTAMs — RWY ' + state.arrRunway));

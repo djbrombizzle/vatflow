@@ -42,15 +42,28 @@
   ];
 
   var FOOTER_RE = /^\s*prepared by .* Page \d+ of \d+\s*$/i;
+  // "prepared by iCrew Mobile at Tue Aug 18 11:24:13 EDT 2026 Page 1 of 37"
+  // — the only place the release prints a four-digit year.
+  var PREPARED_RE = /prepared by .* at \w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\w+)\s+(\d{4})/i;
 
   // Each page opens with its section title (Helvetica header) and a running
   // "Flight NNNN, AAA to BBB, DDMMM" line. Split on those rather than on
   // geometry: the header text is stable across releases.
   function splitSections(pages) {
-    var out = {}, order = [], current = null;
+    var out = {}, order = [], current = null, prepared = null;
     SECTIONS.forEach(function (s) { out[s] = []; });
 
     pages.forEach(function (page) {
+      if (!prepared) {
+        var pm = PREPARED_RE.exec(page);
+        if (pm) {
+          prepared = {
+            month: pm[1].toUpperCase(), day: num(pm[2]),
+            hour: num(pm[3]), minute: num(pm[4]),
+            zone: pm[6], year: num(pm[7])
+          };
+        }
+      }
       var lines = page.split('\n');
       var head = null, bodyStart = 0;
 
@@ -73,6 +86,7 @@
     var joined = {};
     Object.keys(out).forEach(function (k) { joined[k] = out[k].join('\n'); });
     joined.__order = order;
+    joined.__prepared = prepared;
     return joined;
   }
 
@@ -454,6 +468,64 @@
     n.mentionsRunway = /\bRWY\b/i.test(n.text);
     n.mentionsTaxiway = /\bTWY\b/i.test(n.text);
     n.closed = /\bCLSD\b/i.test(n.text);
+    n.window = parseValidity(n.validity, n.text);
+  }
+
+  /* ---------- NOTAM validity windows ------------------------------------- */
+
+  var MONTHS = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+
+  // "14AUG260330" -> epoch ms (UTC). Time part is optional.
+  function stampToMs(ddmmmyy, hhmm) {
+    var m = /^(\d{2})([A-Z]{3})(\d{2})$/.exec(ddmmmyy);
+    if (!m || !(m[2] in MONTHS)) return null;
+    var hh = 0, mi = 0;
+    if (hhmm) { hh = num(hhmm.slice(0, 2)); mi = num(hhmm.slice(2, 4)); }
+    return Date.UTC(2000 + num(m[3]), MONTHS[m[2]], num(m[1]), hh, mi);
+  }
+
+  // Validity as printed on the release, e.g.
+  //   "14AUG260330-04SEP260930Z"   start and end
+  //   "10JUL261341Z-UFN"           start, until further notice
+  // A "DLY 0330-0930" line in the body narrows it to a daily UTC window.
+  function parseValidity(validity, text) {
+    var out = { parsed: false, startMs: null, endMs: null, ufn: false, daily: null, raw: validity || null };
+    if (!validity) return out;
+
+    var v = String(validity).trim();
+    var ufn = /-UFN$/i.test(v);
+    out.ufn = ufn;
+
+    var re = /^(\d{2}[A-Z]{3}\d{2})(\d{4})?Z?(?:-(?:(\d{2}[A-Z]{3}\d{2})(\d{4})?Z?|UFN))?$/i;
+    var m = re.exec(v);
+    if (!m) return out;
+
+    out.startMs = stampToMs(m[1], m[2]);
+    if (m[3]) out.endMs = stampToMs(m[3], m[4]);
+    out.parsed = out.startMs !== null && (out.endMs !== null || ufn);
+
+    if (text) {
+      var d = /\bDLY\s+(\d{4})-(\d{4})\b/.exec(text);
+      if (d) out.daily = { fromZ: d[1], toZ: d[2] };
+    }
+    return out;
+  }
+
+  // Status of a NOTAM at one instant. Anything not confidently parsed stays
+  // "unknown" so the UI shows it rather than hiding it.
+  function notamStatus(n, refMs) {
+    var w = n && n.window;
+    if (!w || !w.parsed || refMs === null || refMs === undefined) return 'unknown';
+    if (w.startMs !== null && refMs < w.startMs) return 'future';
+    if (w.endMs !== null && refMs > w.endMs) return 'expired';
+    if (w.daily) {
+      var t = new Date(refMs);
+      var hhmm = t.getUTCHours() * 100 + t.getUTCMinutes();
+      var from = num(w.daily.fromZ), to = num(w.daily.toZ);
+      var inside = from <= to ? (hhmm >= from && hhmm <= to) : (hhmm >= from || hhmm <= to);
+      if (!inside) return 'outside-daily';
+    }
+    return 'active';
   }
 
   /* ---------- discrepancy report ------------------------------------------ */
@@ -875,6 +947,21 @@
     D.latestOriginMetar = latest(M.wx.originMetars);
     D.latestDestMetar = latest(M.wx.destMetars);
 
+    // Instants the NOTAM windows are judged against: wheels-up for the
+    // departure brief, wheels-down for the arrival brief.
+    var dep = zuluInstant(M, M.times.plannedOffZ || M.times.plannedOutZ, M.times.plannedOffL || M.times.plannedOutL);
+    D.refDepMs = dep;
+    D.refDepZ = M.times.plannedOffZ || M.times.plannedOutZ || null;
+    var arrZ = M.times.plannedOnZ || M.times.plannedInZ;
+    D.refArrZ = arrZ || null;
+    if (dep !== null && arrZ) {
+      // Arrival is the same UTC day as departure unless the clock wrapped.
+      var depHM = hhmmToMin(D.refDepZ), arrHM = hhmmToMin(arrZ);
+      D.refArrMs = dep - depHM * 60000 + arrHM * 60000 + (arrHM < depHM ? 86400000 : 0);
+    } else {
+      D.refArrMs = null;
+    }
+
     // Only the TPS advisories that could touch this flight's levels.
     D.relevantTps = (M.wx.tpsOutlooks || []).filter(function (o) {
       if (!o.altitudes || M.cruiseFL === null) return true;
@@ -896,6 +983,25 @@
   function latest(list) {
     if (!list || !list.length) return null;
     return list[list.length - 1];
+  }
+  function hhmmToMin(t) {
+    if (!t) return null;
+    return num(t.slice(0, 2)) * 60 + num(t.slice(2, 4));
+  }
+
+  // Turn a printed Zulu clock time into an instant, using the release's own
+  // preparation date as the calendar day. When the local time printed beside it
+  // is later in the day than the Zulu time, Zulu has already rolled over.
+  function zuluInstant(M, zTime, lTime) {
+    var p = M.preparedAt;
+    if (!p || !zTime || !(p.month in MONTHS)) return null;
+    var base = Date.UTC(p.year, MONTHS[p.month], p.day);
+    var zMin = hhmmToMin(zTime);
+    if (zMin === null) return null;
+    var rollover = 0;
+    var lMin = hhmmToMin(lTime);
+    if (lMin !== null && zMin < lMin) rollover = 86400000;
+    return base + zMin * 60000 + rollover;
   }
   function diffZ(a, b) {
     var am = num(a.slice(0, 2)) * 60 + num(a.slice(2));
@@ -964,6 +1070,7 @@
         fieldConditions: [], tpsOutlooks: [], pireps: []
       },
       crew: [], rotations: [], dutyLimits: [], cabinBriefing: {},
+      preparedAt: null,
       derived: {},
       warnings: []
     };
@@ -1002,6 +1109,8 @@
     catch (e) { M.warnings.push('briefing guide: ' + e.message); }
     try { parseRouteLink(opts.routeLink, M); }
     catch (e) { /* non-fatal */ }
+
+    M.preparedAt = S.__prepared || null;
 
     derive(M);
     crossCheck(M);
@@ -1053,6 +1162,8 @@
     parseRelease: parseRelease,
     decodeMetar: decodeMetar,
     windComponents: windComponents,
+    notamStatus: notamStatus,
+    parseValidity: parseValidity,
     runwayHeading: runwayHeading,
     fmtDur: fmtDur,
     compass: compass,

@@ -68,6 +68,10 @@ if (process.argv.includes('--json')) {
   console.log(`cruise/ete   FL${M.cruiseFL}  ${M.derived.eteText}  ${M.distanceNM} nm`);
   console.log(`fuel         block ${M.fuel.block}  min t/o ${M.fuel.minTakeoff}`);
   console.log(`runways      dep ${M.derived.originRunways.join(',')}   arr ${M.derived.destRunways.join(',')}`);
+  const iso = (ms) => ms === null || ms === undefined ? 'n/a' : new Date(ms).toISOString().replace('.000Z', 'Z');
+  const unparsed = M.notams.stations.reduce((n, s) => n + s.notams.filter(x => !x.window.parsed).length, 0);
+  console.log(`reference    dep ${M.derived.refDepZ}Z ${iso(M.derived.refDepMs)}   arr ${M.derived.refArrZ}Z ${iso(M.derived.refArrMs)}`);
+  console.log(`notam windows ${notams - unparsed}/${notams} parsed`);
   console.log(`counts       notams ${notams}  mel ${M.mel.length}  discrepancies ${M.discrepancies.length}  howgozit ${M.howgozit.length}  crew ${M.crew.length}`);
   console.log(`wx           origin ${M.wx.originMetars.length} metar / dest ${M.wx.destMetars.length} metar, ${M.wx.destTaf.length} taf`);
   console.log(`warnings     ${M.warnings.length ? M.warnings.join(' | ') : 'none'}`);
