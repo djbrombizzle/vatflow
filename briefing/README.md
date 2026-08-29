@@ -51,6 +51,24 @@ The release is a fixed-width teletype OFP rendered into a PDF in Courier, so:
 Supported profile: `icrew-mobile`. To add another carrier's format, write a new
 section splitter + field extractors and detect it the way `parseRelease` does.
 
+## NOTAM filtering
+
+Three independent filters cut the NOTAM list down to what matters:
+
+- **Runway** — the release scopes NOTAMs station → runway → category, so
+  picking the landing runway shows only that runway's entries.
+- **Wingspan** — entries restricted to spans above the 717's cannot apply.
+- **Time window** — validity is parsed (`14AUG260330-04SEP260930Z`,
+  `10JUL261341Z-UFN`), including a `DLY HHMM-HHMM` daily window from the body,
+  and judged at wheels-up for the departure brief and touchdown for the
+  arrival brief. The reference instants come from the release's own
+  preparation date (the only place a four-digit year is printed) plus the
+  planned OFF/ON times.
+
+Each filter hides entries behind a banner with a count and a "show them anyway"
+button — nothing is silently dropped. A validity string that does not parse
+cleanly counts as in force, so an unreadable window can never hide a NOTAM.
+
 ## Aircraft assumption
 
 Built for the **B717-200 only**. `WINGSPAN_FT` in `app.js` (93 ft) is what lets

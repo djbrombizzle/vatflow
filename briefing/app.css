@@ -185,6 +185,7 @@ ul.plain li:last-child { border-bottom: 0; }
 }
 .tag.rwy { color: var(--blue); border-color: var(--blue); }
 .tag.closed { color: var(--red); border-color: var(--red); }
+.tag.stale { color: var(--dim); border-color: var(--dim); }
 
 .filterbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filterbar button { min-height: 34px; font-size: 11px; padding: 0 10px; }

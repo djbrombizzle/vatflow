@@ -199,6 +199,7 @@ ul.plain li:last-child { border-bottom: 0; }
 }
 .tag.rwy { color: var(--blue); border-color: var(--blue); }
 .tag.closed { color: var(--red); border-color: var(--red); }
+.tag.stale { color: var(--dim); border-color: var(--dim); }
 
 .filterbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filterbar button { min-height: 34px; font-size: 11px; padding: 0 10px; }
@@ -415,15 +416,28 @@ self.addEventListener('fetch', function (e) {
   ];
 
   var FOOTER_RE = /^\s*prepared by .* Page \d+ of \d+\s*$/i;
+  // "prepared by iCrew Mobile at Tue Aug 18 11:24:13 EDT 2026 Page 1 of 37"
+  // — the only place the release prints a four-digit year.
+  var PREPARED_RE = /prepared by .* at \w{3}\s+(\w{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\w+)\s+(\d{4})/i;
 
   // Each page opens with its section title (Helvetica header) and a running
   // "Flight NNNN, AAA to BBB, DDMMM" line. Split on those rather than on
   // geometry: the header text is stable across releases.
   function splitSections(pages) {
-    var out = {}, order = [], current = null;
+    var out = {}, order = [], current = null, prepared = null;
     SECTIONS.forEach(function (s) { out[s] = []; });
 
     pages.forEach(function (page) {
+      if (!prepared) {
+        var pm = PREPARED_RE.exec(page);
+        if (pm) {
+          prepared = {
+            month: pm[1].toUpperCase(), day: num(pm[2]),
+            hour: num(pm[3]), minute: num(pm[4]),
+            zone: pm[6], year: num(pm[7])
+          };
+        }
+      }
       var lines = page.split('\n');
       var head = null, bodyStart = 0;
 
@@ -446,6 +460,7 @@ self.addEventListener('fetch', function (e) {
     var joined = {};
     Object.keys(out).forEach(function (k) { joined[k] = out[k].join('\n'); });
     joined.__order = order;
+    joined.__prepared = prepared;
     return joined;
   }
 
@@ -827,6 +842,64 @@ self.addEventListener('fetch', function (e) {
     n.mentionsRunway = /\bRWY\b/i.test(n.text);
     n.mentionsTaxiway = /\bTWY\b/i.test(n.text);
     n.closed = /\bCLSD\b/i.test(n.text);
+    n.window = parseValidity(n.validity, n.text);
+  }
+
+  /* ---------- NOTAM validity windows ------------------------------------- */
+
+  var MONTHS = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+
+  // "14AUG260330" -> epoch ms (UTC). Time part is optional.
+  function stampToMs(ddmmmyy, hhmm) {
+    var m = /^(\d{2})([A-Z]{3})(\d{2})$/.exec(ddmmmyy);
+    if (!m || !(m[2] in MONTHS)) return null;
+    var hh = 0, mi = 0;
+    if (hhmm) { hh = num(hhmm.slice(0, 2)); mi = num(hhmm.slice(2, 4)); }
+    return Date.UTC(2000 + num(m[3]), MONTHS[m[2]], num(m[1]), hh, mi);
+  }
+
+  // Validity as printed on the release, e.g.
+  //   "14AUG260330-04SEP260930Z"   start and end
+  //   "10JUL261341Z-UFN"           start, until further notice
+  // A "DLY 0330-0930" line in the body narrows it to a daily UTC window.
+  function parseValidity(validity, text) {
+    var out = { parsed: false, startMs: null, endMs: null, ufn: false, daily: null, raw: validity || null };
+    if (!validity) return out;
+
+    var v = String(validity).trim();
+    var ufn = /-UFN$/i.test(v);
+    out.ufn = ufn;
+
+    var re = /^(\d{2}[A-Z]{3}\d{2})(\d{4})?Z?(?:-(?:(\d{2}[A-Z]{3}\d{2})(\d{4})?Z?|UFN))?$/i;
+    var m = re.exec(v);
+    if (!m) return out;
+
+    out.startMs = stampToMs(m[1], m[2]);
+    if (m[3]) out.endMs = stampToMs(m[3], m[4]);
+    out.parsed = out.startMs !== null && (out.endMs !== null || ufn);
+
+    if (text) {
+      var d = /\bDLY\s+(\d{4})-(\d{4})\b/.exec(text);
+      if (d) out.daily = { fromZ: d[1], toZ: d[2] };
+    }
+    return out;
+  }
+
+  // Status of a NOTAM at one instant. Anything not confidently parsed stays
+  // "unknown" so the UI shows it rather than hiding it.
+  function notamStatus(n, refMs) {
+    var w = n && n.window;
+    if (!w || !w.parsed || refMs === null || refMs === undefined) return 'unknown';
+    if (w.startMs !== null && refMs < w.startMs) return 'future';
+    if (w.endMs !== null && refMs > w.endMs) return 'expired';
+    if (w.daily) {
+      var t = new Date(refMs);
+      var hhmm = t.getUTCHours() * 100 + t.getUTCMinutes();
+      var from = num(w.daily.fromZ), to = num(w.daily.toZ);
+      var inside = from <= to ? (hhmm >= from && hhmm <= to) : (hhmm >= from || hhmm <= to);
+      if (!inside) return 'outside-daily';
+    }
+    return 'active';
   }
 
   /* ---------- discrepancy report ------------------------------------------ */
@@ -1248,6 +1321,21 @@ self.addEventListener('fetch', function (e) {
     D.latestOriginMetar = latest(M.wx.originMetars);
     D.latestDestMetar = latest(M.wx.destMetars);
 
+    // Instants the NOTAM windows are judged against: wheels-up for the
+    // departure brief, wheels-down for the arrival brief.
+    var dep = zuluInstant(M, M.times.plannedOffZ || M.times.plannedOutZ, M.times.plannedOffL || M.times.plannedOutL);
+    D.refDepMs = dep;
+    D.refDepZ = M.times.plannedOffZ || M.times.plannedOutZ || null;
+    var arrZ = M.times.plannedOnZ || M.times.plannedInZ;
+    D.refArrZ = arrZ || null;
+    if (dep !== null && arrZ) {
+      // Arrival is the same UTC day as departure unless the clock wrapped.
+      var depHM = hhmmToMin(D.refDepZ), arrHM = hhmmToMin(arrZ);
+      D.refArrMs = dep - depHM * 60000 + arrHM * 60000 + (arrHM < depHM ? 86400000 : 0);
+    } else {
+      D.refArrMs = null;
+    }
+
     // Only the TPS advisories that could touch this flight's levels.
     D.relevantTps = (M.wx.tpsOutlooks || []).filter(function (o) {
       if (!o.altitudes || M.cruiseFL === null) return true;
@@ -1269,6 +1357,25 @@ self.addEventListener('fetch', function (e) {
   function latest(list) {
     if (!list || !list.length) return null;
     return list[list.length - 1];
+  }
+  function hhmmToMin(t) {
+    if (!t) return null;
+    return num(t.slice(0, 2)) * 60 + num(t.slice(2, 4));
+  }
+
+  // Turn a printed Zulu clock time into an instant, using the release's own
+  // preparation date as the calendar day. When the local time printed beside it
+  // is later in the day than the Zulu time, Zulu has already rolled over.
+  function zuluInstant(M, zTime, lTime) {
+    var p = M.preparedAt;
+    if (!p || !zTime || !(p.month in MONTHS)) return null;
+    var base = Date.UTC(p.year, MONTHS[p.month], p.day);
+    var zMin = hhmmToMin(zTime);
+    if (zMin === null) return null;
+    var rollover = 0;
+    var lMin = hhmmToMin(lTime);
+    if (lMin !== null && zMin < lMin) rollover = 86400000;
+    return base + zMin * 60000 + rollover;
   }
   function diffZ(a, b) {
     var am = num(a.slice(0, 2)) * 60 + num(a.slice(2));
@@ -1337,6 +1444,7 @@ self.addEventListener('fetch', function (e) {
         fieldConditions: [], tpsOutlooks: [], pireps: []
       },
       crew: [], rotations: [], dutyLimits: [], cabinBriefing: {},
+      preparedAt: null,
       derived: {},
       warnings: []
     };
@@ -1375,6 +1483,8 @@ self.addEventListener('fetch', function (e) {
     catch (e) { M.warnings.push('briefing guide: ' + e.message); }
     try { parseRouteLink(opts.routeLink, M); }
     catch (e) { /* non-fatal */ }
+
+    M.preparedAt = S.__prepared || null;
 
     derive(M);
     crossCheck(M);
@@ -1426,6 +1536,8 @@ self.addEventListener('fetch', function (e) {
     parseRelease: parseRelease,
     decodeMetar: decodeMetar,
     windComponents: windComponents,
+    notamStatus: notamStatus,
+    parseValidity: parseValidity,
     runwayHeading: runwayHeading,
     fmtDur: fmtDur,
     compass: compass,
@@ -1457,6 +1569,7 @@ self.addEventListener('fetch', function (e) {
     depRunway: null,
     arrRunway: null,
     showInapplicable: false,
+    showInactive: false,
     notamFilter: 'relevant'
   };
 
@@ -1600,6 +1713,40 @@ self.addEventListener('fetch', function (e) {
       skip: list.filter(function (n) { return !appliesToUs(n); })
     };
   }
+  var TIME_LABEL = {
+    expired: 'no longer in effect',
+    future: 'not yet in effect',
+    'outside-daily': 'outside its daily window'
+  };
+
+  // Split by whether a NOTAM is in force at the briefing's reference time.
+  // Anything whose validity did not parse cleanly counts as active, so an
+  // unreadable window never hides a NOTAM.
+  function partitionTime(list, refMs) {
+    var active = [], inactive = [];
+    list.forEach(function (n) {
+      var s = P.notamStatus(n, refMs);
+      if (s === 'active' || s === 'unknown') { n._timeStatus = null; active.push(n); }
+      else { n._timeStatus = s; inactive.push(n); }
+    });
+    return { active: active, inactive: inactive };
+  }
+
+  function timeBanner(part, refZ, what) {
+    if (!part.inactive.length) return null;
+    return el('div', { class: 'banner good' }, [
+      el('b', { text: part.inactive.length + ' NOTAM(s) hidden — ' }),
+      'not in effect at ' + (refZ ? refZ + 'Z' : 'the briefed time') + ' (' + what + ').',
+      el('div', {}, [
+        el('button', {
+          type: 'button', class: 'noprint',
+          text: state.showInactive ? 'Hide them' : 'Show them anyway',
+          onclick: function () { state.showInactive = !state.showInactive; render(); }
+        })
+      ])
+    ]);
+  }
+
   function forRunway(list, rwy) {
     if (!rwy) return list.filter(function (n) { return !n.runway; });
     return list.filter(function (n) { return n.runway === rwy; });
@@ -1692,7 +1839,8 @@ self.addEventListener('fetch', function (e) {
           el('span', { class: 'notam-val', text: n.validity }),
           n.runway ? el('span', { class: 'tag rwy', text: 'RWY ' + n.runway }) : null,
           n.category ? el('span', { class: 'tag', text: n.category }) : null,
-          n.closed ? el('span', { class: 'tag closed', text: 'closed' }) : null
+          n.closed ? el('span', { class: 'tag closed', text: 'closed' }) : null,
+          n._timeStatus ? el('span', { class: 'tag stale', text: TIME_LABEL[n._timeStatus] || n._timeStatus }) : null
         ]),
         el('div', { class: 'notam-body', text: n.text })
       ]));
@@ -1879,12 +2027,15 @@ self.addEventListener('fetch', function (e) {
     /* --- T: taxi / terrain / transition --- */
     var tbody = [];
     var originN = splitApplicable(notamsFor(M, M.origin.icao));
-    var taxiN = originN.apply.filter(function (n) { return n.mentionsTaxiway || (n.category === 'AIRPORT' && !n.runway); });
+    var taxiAll = originN.apply.filter(function (n) { return n.mentionsTaxiway || (n.category === 'AIRPORT' && !n.runway); });
+    var taxiPart = partitionTime(taxiAll, M.derived.refDepMs);
+    var taxiN = taxiPart.active;
     tbody.push(el('div', { class: 'stat-row' }, [
       stat('Field elev', fmtNum(M.origin.elevation) + ' ft'),
       stat('Gate', txt(M.gate)),
-      stat('Applicable', String(taxiN.length)),
-      stat('Not for 717', String(originN.skip.length), originN.skip.length ? 'hi' : '')
+      stat('In effect', String(taxiN.length), 'hi'),
+      stat('Not in effect', String(taxiPart.inactive.length)),
+      stat('Not for 717', String(originN.skip.length))
     ]));
 
     if (originN.skip.length) {
@@ -1903,7 +2054,13 @@ self.addEventListener('fetch', function (e) {
     }
 
     tbody.push(sec('Taxi & airport NOTAMs — ' + txt(M.origin.iata)));
+    var depBanner = timeBanner(taxiPart, M.derived.refDepZ, 'evaluated at wheels-up');
+    if (depBanner) tbody.push(depBanner);
     tbody.push(notamList(taxiN));
+    if (state.showInactive && taxiPart.inactive.length) {
+      tbody.push(sec('Not in effect at ' + txt(M.derived.refDepZ) + 'Z'));
+      tbody.push(notamList(taxiPart.inactive));
+    }
 
     var cityPairDep = (M.remarks.cityPair || []).filter(function (r) {
       return /CLEARANCE|STARTUP|WHEELS UP|TAXI|GATE/i.test(r.text);
@@ -2004,24 +2161,47 @@ self.addEventListener('fetch', function (e) {
 
     /* --- N: NOTAMs --- */
     var nbody = [];
-    var rwyN = state.arrRunway ? destN.apply.filter(function (n) { return n.runway === state.arrRunway; }) : [];
-    var genN = destN.apply.filter(function (n) { return !n.runway; });
+    var refArr = M.derived.refArrMs, refArrZ = M.derived.refArrZ;
+    var rwyPart = partitionTime(
+      state.arrRunway ? destN.apply.filter(function (n) { return n.runway === state.arrRunway; }) : [], refArr);
+    var genPart = partitionTime(destN.apply.filter(function (n) { return !n.runway; }), refArr);
+    var inactiveTotal = rwyPart.inactive.length + genPart.inactive.length;
 
     nbody.push(el('div', { class: 'stat-row' }, [
       stat('Total ' + txt(M.dest.iata), String(destN.apply.length)),
-      stat('For RWY ' + (state.arrRunway || '—'), state.arrRunway ? String(rwyN.length) : '—', 'hi'),
-      stat('Airport-wide', String(genN.length)),
+      stat('For RWY ' + (state.arrRunway || '—'), state.arrRunway ? String(rwyPart.active.length) : '—', 'hi'),
+      stat('Airport-wide', String(genPart.active.length)),
+      stat('Not in effect', String(inactiveTotal)),
       stat('Not for 717', String(destN.skip.length))
     ]));
 
+    if (inactiveTotal) {
+      nbody.push(el('div', { class: 'banner good' }, [
+        el('b', { text: inactiveTotal + ' NOTAM(s) hidden — ' }),
+        'not in effect at ' + (refArrZ ? refArrZ + 'Z' : 'the briefed time') + ' (evaluated at touchdown).',
+        el('div', {}, [
+          el('button', {
+            type: 'button', class: 'noprint',
+            text: state.showInactive ? 'Hide them' : 'Show them anyway',
+            onclick: function () { state.showInactive = !state.showInactive; render(); }
+          })
+        ])
+      ]));
+    }
+
     if (state.arrRunway) {
       nbody.push(sec('NOTAMs for runway ' + state.arrRunway));
-      nbody.push(notamList(rwyN, { empty: 'No NOTAMs published for runway ' + state.arrRunway + '.' }));
+      nbody.push(notamList(rwyPart.active, { empty: 'No NOTAMs in effect for runway ' + state.arrRunway + ' at ' + txt(refArrZ) + 'Z.' }));
     } else {
       nbody.push(el('p', { class: 'muted small', text: 'Pick a landing runway above to filter the runway and approach NOTAMs.' }));
     }
     nbody.push(sec('Airport-wide NOTAMs'));
-    nbody.push(notamList(genN));
+    nbody.push(notamList(genPart.active));
+
+    if (state.showInactive && inactiveTotal) {
+      nbody.push(sec('Not in effect at ' + txt(refArrZ) + 'Z'));
+      nbody.push(notamList(rwyPart.inactive.concat(genPart.inactive)));
+    }
 
     if (M.notams.enrouteNone) {
       nbody.push(el('div', { class: 'banner good', text: 'No enroute/waypoint NOTAMs on this release.' }));
@@ -2062,7 +2242,9 @@ self.addEventListener('fetch', function (e) {
     });
 
     var apprN = state.arrRunway
-      ? destN.apply.filter(function (n) { return n.runway === state.arrRunway && /APPROACH/i.test(n.category || ''); })
+      ? partitionTime(destN.apply.filter(function (n) {
+          return n.runway === state.arrRunway && /APPROACH/i.test(n.category || '');
+        }), M.derived.refArrMs).active
       : [];
     if (apprN.length) {
       abody.push(sec('Approach procedure NOTAMs — RWY ' + state.arrRunway));
