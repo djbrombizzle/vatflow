@@ -200,6 +200,15 @@ textarea, input[type="text"], select {
   min-height: var(--tap);
 }
 textarea { resize: vertical; min-height: 72px; }
+.fieldgrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 4px 14px;
+}
+.fieldgrid .field .fieldlabel { margin-top: 8px; }
+.card.sub { background: var(--panel-2); margin: 12px 0; }
+.card.sub > summary { padding: 10px 12px; }
+.card.sub .card-body { padding: 0 12px 12px; }
+
 label.fieldlabel {
   display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin: 12px 0 4px;
