@@ -2,7 +2,7 @@
 
 **Call For Release (CFR) / Time-Based Flow Management for VATSIM.**
 
-VATFLOW is a single-file web app that helps virtual air traffic controllers manage arrival demand and issue departure release times during VATSIM events. It pulls live traffic from the VATSIM data feed, meters arrivals against an airport rate, and gives ground/departure controllers a clear "release at this time" value for each flight.
+VATFLOW is a single-file web app that helps virtual air traffic controllers monitor arrival demand during VATSIM events. It pulls live traffic from the VATSIM data feed and meters arrivals against an airport rate so you can see recommended delay. **Issue a frozen release time only from an active FCA** (IDST, FCA Builder, or FCA Overview) — Airport TMU is tools and monitoring only.
 
 Everything runs in one HTML file. No build step, no server, no install. 
 
@@ -20,10 +20,11 @@ Download or test via this link here https://vatflow.io/vatflow-tbfm%20v2.html (a
 
 - Reads **live VATSIM traffic** every 30 seconds.
 - Meters arrivals to a field against its **Airport Arrival Rate (AAR)**.
-- Calculates and lets you issue **Call For Release (CFR) times** for departures.
+- Shows **recommended delay** and suggested wheels-up from AAR / MIT (informational only).
 - Applies **miles-in-trail (MIT)** and **minutes-in-trail** restrictions, including per-gate.
 - Adjusts enroute estimates using **winds aloft** from the Aviation Weather Center.
-- Syncs programs, releases, and restrictions across **multiple controllers**.
+- Syncs programs and restrictions across **multiple controllers**.
+- **Call For Release (CFR) / RDY** is issued from an **active FCA** in IDST (or FCA Builder / Overview), not from Airport TMU.
 
 ---
 
@@ -33,10 +34,10 @@ Download or test via this link here https://vatflow.io/vatflow-tbfm%20v2.html (a
 | --- | --- |
 | **Home** | vNAS overview — flow program delays and departure taxi time averages from the Taxi Monitor. |
 | **Apt Dashboard** | Full arrival picture for one airport: flight table, demand vs. AAR, and a live arrival ladder. |
-| **My Dashboard** | Your personal set of up to 20 departure fields, shown as one combined list of pending departures with CFR controls. |
-| **TMU** | Set rate programs (AAR, trail/MIT, per-gate restrictions) for any airport. |
+| **My Dashboard** | Your personal set of up to 20 departure fields, shown as one combined list of pending departures (monitoring / recommended delay). |
+| **TMU** | Set rate programs (AAR, trail/MIT, per-gate restrictions) for any airport — informational / monitoring. |
 | **Restrictions** | Shared free-form restriction entries (requesting, providing, restriction, start/stop). |
-| **Departures** | Single tower field view with CFR controls. |
+| **Departures** | Single tower field view with recommended delay (info only). |
 | **Taxi Monitor** | Monitor up to 5 departure fields at once; taxi times sync live via Firebase for all visitors. View-only — adding/removing fields is TMU (controller password) access only. |
 
 ---
@@ -51,7 +52,7 @@ On the **TMU** page, enter an airport and set its **AAR** (arrivals per hour). O
 - **MIT** — miles-in-trail (overrides minutes when set).
 - **Gate restrictions** — up to 10 per program, each with its own spacing (e.g. `JJEDI4` at 20 MIT, `OZZZI2` at 10 MIT).
 
-Programs apply everywhere: the dashboards, CFR times, and the departures view.
+Programs apply everywhere as **monitoring**: the dashboards, recommended delay, and the departures view. They do not issue a release time.
 
 ### 2. Watch the arrivals (Apt Dashboard)
 
@@ -59,13 +60,13 @@ Enter the airport code to view its arrival flow. The table is sortable and filte
 
 > Rates are set only on the TMU page. The Apt Dashboard is for viewing.
 
-### 3. Issue releases (My Dashboard / Departures)
+### 3. Issue releases (IDST — active FCA only)
 
-For any pending ground departure into a metered field, click **CFR TIME** to lock in the earliest available wheels-up time for that departure route. Unissued peers on the same route (e.g. other BOS→JFK departures) do not block you — whichever flight you issue first gets the first open slot.
+Airport TMU does **not** issue a time. For any pending ground departure in an **active FCA**, open **IDST**, set the same tower / approach / center filters as My Dashboard, and press **RDY** to lock a speakable wheels-up. Optional ART **HHMMz** is the earliest floor.
 
-Alternatively, ask the pilot for their estimated wheels-up time, enter it as **HHMMz** in the **Ready Time** column on **Departures**, **My Dashboard**, or **Apt Dashboard**, and press **Set** — no control password required. VATFLOW assigns the closest valid release at or after that time (never before).
+Use **FCA Builder** or **FCA Overview** for the same RDY engine. Destination AAR / MIT on Airport TMU remains recommended delay for informational purposes only.
 
-After CFRs are issued, use the **Swap with…** menu on an issued CFR row to exchange release times with another flight on the same route — useful when taxiway order does not match issuance order.
+See the [Tower RDY guide](tower-rdy-guide.html) and [FCA How-To](FCA-howto.html).
 
 ### 4. Monitor taxi times (Taxi Monitor)
 
@@ -82,7 +83,7 @@ VATFLOW can share state live across positions using Firebase Realtime Database.
 1. Enter the same **room name** (e.g. the event name) on each controller's app.
 2. Click **Connect**.
 
-Shared across the room: rate programs, issued CFR times, and restriction entries. Your personal **My Dashboard** airport list stays local to your device.
+Shared across the room: rate programs and restriction entries. Your personal **My Dashboard** airport list stays local to this device.
 
 Status indicator:
 
@@ -111,7 +112,7 @@ Enroute time estimates for not-yet-airborne flights are refined using winds-alof
 
 | Term | Meaning |
 | --- | --- |
-| **CFR** | Call For Release — a controller-assigned wheels-up time for a departure. |
+| **CFR** | Call For Release — a controller-assigned wheels-up time issued from an **active FCA**. |
 | **AAR** | Airport Arrival Rate — how many arrivals per hour a field can accept. |
 | **MIT** | Miles in Trail — required distance between successive aircraft. |
 | **TMU** | Traffic Management Unit — sets the rates and restrictions. |
