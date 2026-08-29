@@ -76,6 +76,31 @@ Each filter hides entries behind a banner with a count and a "show them anyway"
 button — nothing is silently dropped. A validity string that does not parse
 cleanly counts as in force, so an unreadable window can never hide a NOTAM.
 
+## NATS coverage
+
+The arrival tab follows the company NATS briefing items:
+
+- **N** — destination NOTAMs (runway/time filtered), flight plan remarks from
+  the release, plus entry for ATIS advisories and chart change notices.
+- **A** — destination METAR/TAF and wind components, arrival speed/altitude
+  restrictions, and a full **approach plate briefing**: designated approach,
+  Jeppesen chart number and date, navaid and frequency, inbound course, initial
+  approach and FAP/FAF altitudes, baro altitude at the marker, minima,
+  altimeter bugs, approach notes, configuration plan, automation level and the
+  missed approach plan. A second block covers 10-9A runway information —
+  lighting, usable landing distance, surface condition (auto-filled from the
+  release's field conditions) and non-standard width.
+- **T** — transition level, terrain, and a taxi plan covering runway exit
+  point, hot spots, hold short points, runway crossings and abnormalities, with
+  an automatic SMGCS prompt when destination visibility is low.
+- **S** — engine out procedures and company pages.
+
+The plate briefing is collapsed by default and **opens automatically when the
+destination is not reporting VFR**, matching the rule that a full plate
+briefing is required in actual IMC or night VMC. Entry-field placeholders
+describe what to enter and never show a plausible value, so a blank field can
+never be misread as briefed data.
+
 ## Aircraft assumption
 
 Built for the **B717-200 only**. `WINGSPAN_FT` in `app.js` (93 ft) is what lets

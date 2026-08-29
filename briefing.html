@@ -214,6 +214,15 @@ textarea, input[type="text"], select {
   min-height: var(--tap);
 }
 textarea { resize: vertical; min-height: 72px; }
+.fieldgrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 4px 14px;
+}
+.fieldgrid .field .fieldlabel { margin-top: 8px; }
+.card.sub { background: var(--panel-2); margin: 12px 0; }
+.card.sub > summary { padding: 10px 12px; }
+.card.sub .card-body { padding: 0 12px 12px; }
+
 label.fieldlabel {
   display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin: 12px 0 4px;
@@ -1936,6 +1945,28 @@ self.addEventListener('fetch', function (e) {
 
   function sec(title) { return el('h3', { class: 'sec', text: title }); }
 
+  // Short single-line entry for plate figures (altitudes, courses, minima).
+  function textField(key, label, placeholder) {
+    var i = el('input', {
+      type: 'text', placeholder: placeholder || '',
+      oninput: function () { setNote(key, i.value); }
+    });
+    i.value = noteVal(key);
+    return el('div', { class: 'field' }, [
+      el('label', { class: 'fieldlabel', text: label }), i
+    ]);
+  }
+  function fieldGrid(fields) {
+    var g = el('div', { class: 'fieldgrid' });
+    fields.forEach(function (f) { g.appendChild(textField(f[0], f[1], f[2])); });
+    return g;
+  }
+  function subcard(title, sub, nodes, open) {
+    var d = card(null, title, sub, nodes, open);
+    d.className = 'card sub';
+    return d;
+  }
+
   function notesField(key, label, placeholder) {
     var ta = el('textarea', {
       placeholder: placeholder || '',
@@ -2347,7 +2378,19 @@ self.addEventListener('fetch', function (e) {
     if (M.notams.enrouteNone) {
       nbody.push(el('div', { class: 'banner good', text: 'No enroute/waypoint NOTAMs on this release.' }));
     }
-    cards.appendChild(card('N', 'NOTAMs', 'destination · alternate · enroute', nbody, true));
+
+    if (M.remarks.dispatcher && M.remarks.dispatcher.length) {
+      nbody.push(sec('Flight plan remarks'));
+      var fpr = el('ul', { class: 'plain' });
+      M.remarks.dispatcher.forEach(function (r) {
+        fpr.appendChild(el('li', { class: 'small' }, [el('span', { class: 'mono amber', text: r.seq + '  ' }), r.text]));
+      });
+      nbody.push(fpr);
+    }
+    nbody.push(sec('Not on the release — brief from the aircraft'));
+    nbody.push(notesField('arr.atis', 'ATIS advisories', 'Code, approach in use, runways, braking action, remarks…'));
+    nbody.push(notesField('arr.chartchg', 'Chart change notices', 'Revisions affecting the arrival, approach or airport diagram'));
+    cards.appendChild(card('N', 'NOTAMs', 'NOTAMs · ATIS · flight plan remarks · chart changes', nbody, true));
 
     /* --- A: arrival / approach / automation --- */
     var abody = [];
@@ -2391,8 +2434,59 @@ self.addEventListener('fetch', function (e) {
       abody.push(sec('Approach procedure NOTAMs — RWY ' + state.arrRunway));
       abody.push(notamList(apprN));
     }
-    abody.push(notesField('arr.automation', 'Approach type · automation plan · missed approach'));
-    cards.appendChild(card('A', 'Arrival / Approach / Automation', 'STAR · approach · automation', abody));
+    abody.push(sec('Arrival'));
+    abody.push(notesField('arr.speedalt', 'Arrival airspeed and altitude restrictions', 'STAR crossing restrictions, speed control…'));
+
+    // The full plate briefing is required in actual IMC or night VMC, so open
+    // it by default whenever the destination is not reporting VFR.
+    var destCat = destMetar && destMetar.decoded ? destMetar.decoded.flightCategory : null;
+    var plateOpen = destCat !== null && destCat !== 'VFR';
+
+    abody.push(subcard('Approach plate briefing',
+      'designated approach · minima · missed approach' + (plateOpen ? '  ·  opened: destination is ' + destCat : ''), [
+      fieldGrid([
+        ['arr.appr.type', 'Designated approach', 'from the plate'],
+        ['arr.appr.runway', 'Runway', state.arrRunway ? 'selected: ' + state.arrRunway : 'from the plate'],
+        ['arr.appr.chart', 'Jeppesen chart number', 'from the plate'],
+        ['arr.appr.chartdate', 'Chart date', 'from the plate'],
+        ['arr.appr.navaid', 'Navaid / frequency', 'ident and freq'],
+        ['arr.appr.ident', 'Runway identification', 'from the plate'],
+        ['arr.appr.course', 'Inbound course', 'degrees'],
+        ['arr.appr.iaa', 'Initial approach altitude', 'feet'],
+        ['arr.appr.faf', 'FAP / FAF altitude', 'feet'],
+        ['arr.appr.marker', 'Baro altitude at marker', 'feet, as required'],
+        ['arr.appr.minima', 'Minima (DA/MDA/DDA/DH/AH)', 'type and value'],
+        ['arr.appr.bugs', 'Altimeter bugs (radio / baro)', 'radio / baro']
+      ]),
+      sec('Notes & restrictions pertaining to the approach'),
+      notesField('arr.appr.notes', 'Approach notes / restrictions', 'Inop components, cold temp corrections, NA notes from the NOTAMs above…'),
+      sec('Configuration & automation'),
+      notesField('arr.appr.config', 'Configuration plan', 'Flap setting, speed, autobrake…'),
+      notesField('arr.automation', 'Type of approach and level of automation', 'Autoland / flight director / raw data, who flies, autopilot disconnect…'),
+      sec('Missed approach plan'),
+      notesField('arr.appr.missed', 'Go-around procedure, callouts, execution of the maneuver',
+        'Climb to…, turn…, hold at…  ·  callouts  ·  who does what')
+    ], plateOpen));
+
+    abody.push(subcard('Runway information (10-9A)', 'lighting · landing distance · surface · width', [
+      (function () {
+        var fc = state.arrRunway ? fieldCond(M, M.dest.iata, state.arrRunway) : null;
+        if (!fc) return el('p', { class: 'muted small', text: 'Select a landing runway to show its reported surface condition.' });
+        var bad = /WET|SNOW|ICE|SLUSH|WATER/i.test(fc.condition);
+        return el('div', { class: 'banner' + (bad ? ' bad' : ' good') }, [
+          el('b', { class: 'mono', text: 'RWY ' + fc.runway + ': ' + fc.condition }),
+          el('span', { class: 'mono small', text: '  coverage ' + fc.coverage + (fc.rcc ? '  ·  RCC ' + fc.rcc : '') })
+        ]);
+      })(),
+      fieldGrid([
+        ['arr.rwy.lighting', 'Approach and runway lighting', 'approach lights, HIRL, centerline'],
+        ['arr.rwy.lda', 'Usable landing distance', 'feet'],
+        ['arr.rwy.width', 'Non-standard runway width', 'if other than 150 ft']
+      ]),
+      notesField('arr.rwy.stopping', 'Runway conditions affecting stopping distance', 'Ungrooved, contaminated, RCC below 5, standing water…')
+    ]));
+
+    cards.appendChild(card('A', 'Arrival / Approach chart / Automation', 'STAR · plate briefing · runway info · automation', abody));
 
     /* --- T: transition level / terrain / taxi --- */
     var tbody = [];
@@ -2416,8 +2510,29 @@ self.addEventListener('fetch', function (e) {
     tbody.push(el('div', { class: 'banner' }, [
       'Transition level 18,000 ft unless the airport pages say otherwise — this release does not publish one.'
     ]));
-    tbody.push(notesField('arr.taxi', 'Expected taxi route · hot spots · terrain'));
-    cards.appendChild(card('T', 'Transition / Terrain / Taxi', 'transition level · terrain · taxi in', tbody));
+
+    // SMGCS review is triggered by visibility below RVR 1200 (about 1/4 SM).
+    var dv = destMetar && destMetar.decoded ? destMetar.decoded.visibility : null;
+    if (dv && !dv.plus && dv.sm <= 1) {
+      tbody.push(el('div', { class: 'banner bad' }, [
+        el('b', { text: 'Low visibility at destination (' + dv.sm + ' SM) — ' }),
+        'if below RVR 1200, review the SMGCS low-visibility taxi routes chart.'
+      ]));
+    }
+
+    tbody.push(notesField('arr.terrain', 'Terrain considerations', 'If applicable'));
+    tbody.push(sec('Taxi plan'));
+    tbody.push(el('p', { class: 'small muted', text: 'The airport diagram (10-9) is the primary reference — the moving map does not carry every note or restriction. Where they disagree, the diagram or NOTAMs take precedence.' }));
+    tbody.push(fieldGrid([
+      ['arr.taxi.exit', 'Anticipated runway exit point', 'taxiway'],
+      ['arr.taxi.hotspots', 'Hot spots', ''],
+      ['arr.taxi.holdshort', 'Hold short points', ''],
+      ['arr.taxi.crossings', 'Anticipated runway crossings', ''],
+      ['arr.taxi.gate', 'Expected gate / ramp', M.gate ? 'release shows ' + M.gate : 'gate']
+    ]));
+    tbody.push(notesField('arr.taxi.abnormal', 'Abnormalities (NOTAMs, construction, 10-8 page)', 'Closures and construction affecting the taxi in'));
+    tbody.push(notesField('arr.taxi', 'Expected taxi route', 'Runway exit to gate'));
+    cards.appendChild(card('T', 'Transition level / Terrain / Taxi plan', 'transition level · terrain · taxi in', tbody));
 
     /* --- S: company pages --- */
     var sbody = [];
@@ -2440,7 +2555,9 @@ self.addEventListener('fetch', function (e) {
       });
       sbody.push(cpl);
     }
-    sbody.push(notesField('arr.s', 'Company pages · specific information'));
+    sbody.push(sec('Brief from the company pages'));
+    sbody.push(notesField('arr.engineout', 'Engine out procedures', 'Refer to Company Pages'));
+    sbody.push(notesField('arr.s', 'Other specific company information'));
     cards.appendChild(card('S', 'Specific company information', 'company pages', sbody));
 
     /* --- runway change re-brief --- */
