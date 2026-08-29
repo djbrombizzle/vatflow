@@ -65,6 +65,13 @@ Three independent filters cut the NOTAM list down to what matters:
   preparation date (the only place a four-digit year is printed) plus the
   planned OFF/ON times.
 
+The briefing time itself is adjustable: a bar on the departure and arrival tabs
+steps the whole brief by a delay (+15 through +3h) or takes a typed actual
+wheels-up time, and re-evaluates every window against it. Flight time is held
+constant, so touchdown moves with it, and the passenger tab's announced arrival
+follows. If a shifted takeoff runs past the duty LATT from the flight plan
+addendum, the bar says so.
+
 Each filter hides entries behind a banner with a count and a "show them anyway"
 button — nothing is silently dropped. A validity string that does not parse
 cleanly counts as in force, so an unreadable window can never hide a NOTAM.
