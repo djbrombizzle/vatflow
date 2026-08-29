@@ -20,6 +20,7 @@
     arrRunway: null,
     showInapplicable: false,
     showInactive: false,
+    timeShiftMin: 0,
     notamFilter: 'relevant'
   };
 
@@ -163,6 +164,123 @@
       skip: list.filter(function (n) { return !appliesToUs(n); })
     };
   }
+  /* ---------- briefing time (planned, or shifted for a delay) ---------- */
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function msToZ(ms) {
+    if (ms === null || ms === undefined) return null;
+    var d = new Date(ms);
+    return pad2(d.getUTCHours()) + pad2(d.getUTCMinutes());
+  }
+  function hhmmMin(t) {
+    if (!t) return 0;
+    return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2, 4), 10);
+  }
+  function shiftText(min) {
+    if (!min) return null;
+    var s = min < 0 ? '-' : '+';
+    var a = Math.abs(min);
+    return s + Math.floor(a / 60) + ':' + pad2(a % 60);
+  }
+
+  // Everything time-sensitive is judged against these two instants. Shifting
+  // moves both by the same amount: a delay does not change the flight time.
+  function effRefs(M) {
+    var shift = (state.timeShiftMin || 0) * 60000;
+    var d = M.derived;
+    var dep = d.refDepMs === null || d.refDepMs === undefined ? null : d.refDepMs + shift;
+    var arr = d.refArrMs === null || d.refArrMs === undefined ? null : d.refArrMs + shift;
+    return {
+      depMs: dep, arrMs: arr,
+      depZ: msToZ(dep) || d.refDepZ,
+      arrZ: msToZ(arr) || d.refArrZ,
+      shiftMin: state.timeShiftMin || 0
+    };
+  }
+
+  function setShift(min) {
+    state.timeShiftMin = min;
+    setNote('time.shift', String(min));
+    render();
+  }
+
+  // Duty limit from the flight plan addendum, on the release's own calendar.
+  function lattMs(M, which) {
+    var l = which === 'ext' ? M.times.latestTakeoffExtended : M.times.latestTakeoff;
+    var p = M.preparedAt;
+    if (!l || !p) return null;
+    var MONTHS = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+    if (!(p.month in MONTHS)) return null;
+    return Date.UTC(p.year, MONTHS[p.month], parseInt(l.day, 10),
+      parseInt(l.timeZ.slice(0, 2), 10), parseInt(l.timeZ.slice(2, 4), 10));
+  }
+
+  function timeBar(M) {
+    var eff = effRefs(M);
+    var planned = M.derived.refDepZ;
+    var bar = el('div', { class: 'timebar noprint' });
+
+    bar.appendChild(el('div', { class: 'timebar-head' }, [
+      el('span', { class: 'fieldlabel', text: 'Briefing for' }),
+      el('span', { class: 'timebar-now' }, [
+        el('b', { text: txt(eff.depZ) + 'Z' }),
+        el('span', { class: 'dim', text: ' wheels-up  ·  ' }),
+        el('b', { text: txt(eff.arrZ) + 'Z' }),
+        el('span', { class: 'dim', text: ' touchdown' }),
+        eff.shiftMin
+          ? el('span', { class: 'amber', text: '   ' + shiftText(eff.shiftMin) + ' vs planned ' + txt(planned) + 'Z' })
+          : el('span', { class: 'dim', text: '   as planned' })
+      ])
+    ]));
+
+    var quick = el('div', { class: 'filterbar' });
+    [['Planned', 0], ['+15', 15], ['+30', 30], ['+1h', 60], ['+2h', 120], ['+3h', 180]].forEach(function (o) {
+      quick.appendChild(el('button', {
+        type: 'button',
+        'aria-pressed': String(eff.shiftMin === o[1]),
+        text: o[0],
+        onclick: function () { setShift(o[1]); }
+      }));
+    });
+
+    // Type an actual wheels-up time instead of stepping.
+    var input = el('input', {
+      type: 'text', inputmode: 'numeric', maxlength: '4',
+      placeholder: 'HHMM Z',
+      'aria-label': 'Actual wheels-up time, Zulu'
+    });
+    input.value = '';
+    var apply = el('button', {
+      type: 'button', class: 'primary', text: 'Set',
+      onclick: function () {
+        var v = (input.value || '').replace(/\D/g, '');
+        if (v.length !== 4 || !planned) return;
+        var target = parseInt(v.slice(0, 2), 10) * 60 + parseInt(v.slice(2), 10);
+        var base = parseInt(planned.slice(0, 2), 10) * 60 + parseInt(planned.slice(2), 10);
+        var diff = target - base;
+        if (diff < -720) diff += 1440;   // typed a time after midnight Z
+        if (diff > 720) diff -= 1440;
+        setShift(diff);
+      }
+    });
+    quick.appendChild(el('span', { class: 'timebar-input' }, [input, apply]));
+    bar.appendChild(quick);
+
+    // A shifted takeoff can run past the duty limit — say so where it is set.
+    var latt = lattMs(M, 'plain'), lattX = lattMs(M, 'ext');
+    if (eff.depMs !== null && latt !== null && eff.depMs > latt) {
+      var pastExt = lattX !== null && eff.depMs > lattX;
+      bar.appendChild(el('div', { class: 'banner bad' }, [
+        el('b', { text: 'Past the latest allowable takeoff time — ' }),
+        'duty LATT is ' + M.times.latestTakeoff.day + '/' + M.times.latestTakeoff.timeZ + 'Z' +
+        (M.times.latestTakeoffExtended
+          ? ', ' + M.times.latestTakeoffExtended.day + '/' + M.times.latestTakeoffExtended.timeZ + 'Z with extension'
+          : '') + '.' + (pastExt ? ' This is past the extension too.' : '')
+      ]));
+    }
+    return bar;
+  }
+
   var TIME_LABEL = {
     expired: 'no longer in effect',
     future: 'not yet in effect',
@@ -334,6 +452,8 @@
 
   function renderDeparture(M) {
     var wrap = el('div', {});
+    var eff = effRefs(M);
+    wrap.appendChild(timeBar(M));
 
     wrap.appendChild(el('div', { class: 'threat noprint' }, [
       el('h2', { text: 'Highest threats to the departure & mitigation' }),
@@ -478,7 +598,7 @@
     var tbody = [];
     var originN = splitApplicable(notamsFor(M, M.origin.icao));
     var taxiAll = originN.apply.filter(function (n) { return n.mentionsTaxiway || (n.category === 'AIRPORT' && !n.runway); });
-    var taxiPart = partitionTime(taxiAll, M.derived.refDepMs);
+    var taxiPart = partitionTime(taxiAll, eff.depMs);
     var taxiN = taxiPart.active;
     tbody.push(el('div', { class: 'stat-row' }, [
       stat('Field elev', fmtNum(M.origin.elevation) + ' ft'),
@@ -504,11 +624,11 @@
     }
 
     tbody.push(sec('Taxi & airport NOTAMs — ' + txt(M.origin.iata)));
-    var depBanner = timeBanner(taxiPart, M.derived.refDepZ, 'evaluated at wheels-up');
+    var depBanner = timeBanner(taxiPart, eff.depZ, 'evaluated at wheels-up');
     if (depBanner) tbody.push(depBanner);
     tbody.push(notamList(taxiN));
     if (state.showInactive && taxiPart.inactive.length) {
-      tbody.push(sec('Not in effect at ' + txt(M.derived.refDepZ) + 'Z'));
+      tbody.push(sec('Not in effect at ' + txt(eff.depZ) + 'Z'));
       tbody.push(notamList(taxiPart.inactive));
     }
 
@@ -583,6 +703,8 @@
 
   function renderArrival(M) {
     var wrap = el('div', {});
+    var eff = effRefs(M);
+    wrap.appendChild(timeBar(M));
 
     wrap.appendChild(el('div', { class: 'threat noprint' }, [
       el('h2', { text: 'Highest threats to the approach & mitigation' }),
@@ -611,7 +733,7 @@
 
     /* --- N: NOTAMs --- */
     var nbody = [];
-    var refArr = M.derived.refArrMs, refArrZ = M.derived.refArrZ;
+    var refArr = eff.arrMs, refArrZ = eff.arrZ;
     var rwyPart = partitionTime(
       state.arrRunway ? destN.apply.filter(function (n) { return n.runway === state.arrRunway; }) : [], refArr);
     var genPart = partitionTime(destN.apply.filter(function (n) { return !n.runway; }), refArr);
@@ -694,7 +816,7 @@
     var apprN = state.arrRunway
       ? partitionTime(destN.apply.filter(function (n) {
           return n.runway === state.arrRunway && /APPROACH/i.test(n.category || '');
-        }), M.derived.refArrMs).active
+        }), eff.arrMs).active
       : [];
     if (apprN.length) {
       abody.push(sec('Approach procedure NOTAMs — RWY ' + state.arrRunway));
@@ -793,15 +915,35 @@
       stat('Cruise', M.cruiseFL ? 'FL' + M.cruiseFL : '—')
     ]));
 
+    // If the brief has been shifted for a delay, the announced arrival moves too.
+    var eff = effRefs(M);
+    var inLocal = M.times.plannedInL;
+    if (eff.shiftMin && inLocal) {
+      var base = parseInt(inLocal.slice(0, 2), 10) * 60 + parseInt(inLocal.slice(2), 10);
+      var m2 = ((base + eff.shiftMin) % 1440 + 1440) % 1440;
+      inLocal = pad2(Math.floor(m2 / 60)) + pad2(m2 % 60);
+    }
+    var inZ = eff.shiftMin && M.times.plannedInZ
+      ? msToZ(M.derived.refArrMs === null ? null : M.derived.refArrMs + eff.shiftMin * 60000 +
+          (hhmmMin(M.times.plannedInZ) - hhmmMin(M.derived.refArrZ)) * 60000)
+      : M.times.plannedInZ;
+
     wrap.appendChild(el('div', { class: 'card' }, [
       el('div', { class: 'card-body' }, [
         sec('Arrival'),
         el('p', { class: 'lead' }, [
-          'Planned into ', el('b', { text: txt(M.dest.name, txt(M.dest.iata)) }),
-          ' at ', el('b', { class: 'mono', text: txt(M.times.plannedInL) + ' local' }),
-          M.times.plannedInZ ? ' (' + M.times.plannedInZ + 'Z)' : '',
+          eff.shiftMin ? 'Now estimating into ' : 'Planned into ',
+          el('b', { text: txt(M.dest.name, txt(M.dest.iata)) }),
+          ' at ', el('b', { class: 'mono', text: txt(inLocal) + ' local' }),
+          inZ ? ' (' + inZ + 'Z)' : '',
           '.'
         ]),
+        eff.shiftMin
+          ? el('div', { class: 'banner' }, [
+              el('b', { text: shiftText(eff.shiftMin) + ' on the release — ' }),
+              'planned in was ' + txt(M.times.plannedInL) + ' local (' + txt(M.times.plannedInZ) + 'Z).'
+            ])
+          : null,
         M.times.tzDiffHrs !== undefined && M.times.tzDiffHrs !== null
           ? el('p', { class: 'small muted', text: 'Time zone difference: ' + (M.times.tzDiffHrs === 0 ? 'none' : (M.times.tzDiffHrs > 0 ? '+' : '') + M.times.tzDiffHrs + ' hr') })
           : null,
@@ -1082,6 +1224,7 @@
       state.notes = all[state.flightKey] || {};
       state.depRunway = state.notes['dep.runway'] || null;
       state.arrRunway = state.notes['arr.runway'] || null;
+      state.timeShiftMin = parseInt(state.notes['time.shift'] || '0', 10) || 0;
       state.tab = 'dep';
       setStatus(M.profile === 'icrew-mobile' ? 'PARSED ' + Math.round(M.confidence * 100) + '%' : 'UNKNOWN FORMAT',
         M.profile === 'icrew-mobile' && M.confidence > 0.7 ? 'ok' : 'warn');

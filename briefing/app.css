@@ -213,6 +213,25 @@ label.fieldlabel {
 .checkitem input { width: 22px; height: 22px; flex: 0 0 auto; margin-top: 1px; accent-color: var(--amber); }
 .checkitem.done span { color: var(--dim); text-decoration: line-through; }
 
+/* ---------- briefing time bar ---------- */
+
+.timebar {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 14px 12px; margin-bottom: 12px;
+}
+.timebar-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.timebar-head .fieldlabel { margin: 0; }
+.timebar-now { font-family: var(--mono); font-size: 14px; }
+.timebar-now b { color: var(--amber); }
+.timebar .filterbar { margin-top: 8px; margin-bottom: 0; align-items: center; }
+.timebar-input { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+.timebar-input input { width: 92px; min-height: 34px; padding: 0 8px; text-align: center; }
+.timebar-input button { min-height: 34px; }
+@media (max-width: 700px) {
+  .timebar-input { margin-left: 0; width: 100%; }
+  .timebar-input input { flex: 1 1 auto; width: auto; }
+}
+
 /* ---------- threat banner ---------- */
 
 .threat {
