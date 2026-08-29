@@ -1,0 +1,58 @@
+# Flight release briefing tool
+
+`briefing.html` at the repo root is the deliverable: **one self-contained file**
+(~1.6 MB) with pdf.js inlined. It runs two ways from the same file:
+
+- **iPad** — open the hosted URL once with wifi, then Add to Home Screen. A
+  service worker caches the page, so it opens with no network.
+- **PC** — open the file directly (`file://`). No server, no sibling assets.
+
+A release PDF is parsed entirely on device. Nothing is uploaded.
+
+## Build
+
+`briefing.html` is generated — edit the sources here, never the built file:
+
+```
+node scripts/build-briefing.mjs
+```
+
+| Source | Purpose |
+| --- | --- |
+| `shell.html` | page skeleton with `{{TOKEN}}` slots |
+| `app.css` | styles (night + day palettes, iPad-first) |
+| `parse.js` | release parser — DOM-free, so it can be tested in Node |
+| `app.js` | extraction, storage and rendering |
+| `sw.js` | service worker, registered from an inlined blob |
+| `vendor/` | pdf.js 3.11.174 legacy UMD build (`pdf.min.js` + worker) |
+
+## Testing a release
+
+```
+node scripts/test-briefing.mjs path/to/release.pdf         # summary
+node scripts/test-briefing.mjs path/to/release.pdf --json  # full model
+```
+
+Exits non-zero if the parser records warnings.
+
+## How the parsing works
+
+The release is a fixed-width teletype OFP rendered into a PDF in Courier, so:
+
+1. **pdf.js emits a run of spaces as one item** whose *width* encodes the run
+   length. Lines are rebuilt on a 6.0 pt/char grid, which restores the original
+   column alignment the table parsers depend on.
+2. The text carries NBSP padding and SOFT HYPHEN in place of `-`. pdf.js
+   normalizes most of it; `normalizeText()` does it again defensively.
+3. Pages are split into sections by their printed section header, not geometry.
+4. The FD Pro deep link on the last page repeats origin/dest/route/registration
+   and is used to cross-check the text parse; disagreements become warnings.
+
+Supported profile: `icrew-mobile`. To add another carrier's format, write a new
+section splitter + field extractors and detect it the way `parseRelease` does.
+
+## Aircraft assumption
+
+Built for the **B717-200 only**. `WINGSPAN_FT` in `app.js` (93 ft) is what lets
+the tool hide wingspan-restricted NOTAMs that cannot apply. Change it before
+using this on another type.

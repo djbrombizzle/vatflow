@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="night">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Briefing">
+<meta name="theme-color" content="#080b10">
+<title>Flight Release Briefing</title>
+<link rel="apple-touch-icon" href="{{ICON}}">
+<link rel="icon" href="{{ICON}}">
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr-row">
+    <span class="brand">VATFLOW</span>
+    <span id="ident"></span>
+    <span class="spacer"></span>
+    <span class="chip" id="status">NO RELEASE</span>
+    <span class="chip" id="offline">…</span>
+    <button type="button" id="mode" class="icon" title="Day / night">&#9788;</button>
+    <button type="button" id="load" class="icon" title="Load release PDF">PDF</button>
+  </div>
+  <nav class="tabs" id="tabbar" style="display:none">
+    <button type="button" data-tab="dep" aria-selected="true">DEPARTURE<small>WARTS</small></button>
+    <button type="button" data-tab="arr" aria-selected="false">ARRIVAL<small>NATS</small></button>
+    <button type="button" data-tab="pax" aria-selected="false">PASSENGER<small>cabin &amp; PA</small></button>
+    <button type="button" data-tab="flt" aria-selected="false">FLIGHT<small>plan &amp; fuel</small></button>
+    <button type="button" data-tab="raw" aria-selected="false">RAW<small>source text</small></button>
+  </nav>
+</header>
+
+<main id="main"></main>
+<input type="file" id="file" accept="application/pdf,.pdf" style="display:none">
+
+<script id="pdfjs-worker-src" type="text/plain">{{PDFJS_WORKER}}</script>
+<script id="sw-src" type="text/plain">{{SW}}</script>
+<script>{{PDFJS}}</script>
+<script>{{PARSE}}</script>
+<script>{{APP}}</script>
+</body>
+</html>
