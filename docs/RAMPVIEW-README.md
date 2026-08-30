@@ -36,14 +36,29 @@ carries its own ramp id rather than inheriting one from its concourse.
 | Ramp 8 | 128.975 | F west |
 | Ramp 9 | 131.875 | F east |
 
+## Two surfaces, switchable
+
+A field can carry two independent surfaces, and the **Surface** selector in the
+menu bar switches between them at any time:
+
+| | Strength | Weakness |
+| --- | --- | --- |
+| **Schematic** (default) | Exact gate labels, face-level ramp ownership, hold spots | Taxiway layout is idealised |
+| **OpenStreetMap** | Real taxiway and apron geometry | Gate coverage varies; ramp ownership inferred from the concourse |
+
+**Fetch OSM** pulls the OSM surface and switches to it; it is cached in the
+browser under its own key, so the schematic is never overwritten and switching
+back is instant and offline. If a fetch fails — Overpass rate-limits repeat
+queries, and mirrors go down — the surface you already have stays exactly as it
+was and the error goes to the status bar.
+
 ## Getting a surface for another airport
 
-The page looks for geometry in this order:
+For a field with no committed build, the page looks for geometry in this order:
 
 1. `data/ramp/<ICAO>.json` — committed by the build. Nothing to do.
-2. The browser's IndexedDB cache from a previous fetch on this machine.
-3. Nothing — it offers **Fetch surface**, which queries Overpass live and caches
-   the result locally.
+2. The browser's IndexedDB cache from a previous OSM fetch on this machine.
+3. Nothing — it offers **Fetch from OpenStreetMap**.
 
 To commit a field so nobody has to fetch it:
 
