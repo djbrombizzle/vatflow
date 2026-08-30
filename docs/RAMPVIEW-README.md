@@ -36,21 +36,49 @@ carries its own ramp id rather than inheriting one from its concourse.
 | Ramp 8 | 128.975 | F west |
 | Ramp 9 | 131.875 | F east |
 
-## Two surfaces, switchable
+## Two surfaces — real geometry by default
 
 A field can carry two independent surfaces, and the **Surface** selector in the
 menu bar switches between them at any time:
 
 | | Strength | Weakness |
 | --- | --- | --- |
-| **Schematic** (default) | Exact gate labels, face-level ramp ownership, hold spots | Taxiway layout is idealised |
-| **OpenStreetMap** | Real taxiway and apron geometry | Gate coverage varies; ramp ownership inferred from the concourse |
+| **OpenStreetMap** (preferred) | Real taxiway and apron geometry — the airport as it actually looks | Gate coverage varies; ramp ownership inferred from the concourse |
+| **Schematic** | Exact gate labels, face-level ramp ownership, hold spots | Taxiway layout is idealised |
 
-**Fetch OSM** pulls the OSM surface and switches to it; it is cached in the
-browser under its own key, so the schematic is never overwritten and switching
-back is instant and offline. If a fetch fails — Overpass rate-limits repeat
-queries, and mirrors go down — the surface you already have stays exactly as it
-was and the error goes to the status bar.
+**RampView prefers the OSM surface and fetches it for you.** On the first visit
+to a field it loads the schematic immediately so the page is usable, pulls the
+OSM surface in the background, and switches to it when it lands. It is cached in
+the browser from then on, so every later visit opens on the real geometry with
+no wait. Nothing is overwritten — the schematic stays one click away.
+
+If a fetch fails — Overpass rate-limits repeat queries, and mirrors go down —
+the surface you already have stays exactly as it was and the error goes to the
+status bar.
+
+### Ship it so nobody fetches at all
+
+The fetch is only needed until someone commits the result. With the OSM surface
+showing, hit **Export**: it downloads `KATL.osm.json`. Drop that in
+`data/ramp/` and every visitor loads the real geometry instantly, offline, with
+no Overpass call:
+
+```sh
+mv ~/Downloads/KATL.osm.json data/ramp/KATL.osm.json
+git add data/ramp/KATL.osm.json && git commit -m "Commit the KATL OSM surface"
+```
+
+`data/ramp/<ICAO>.osm.json` is checked before the browser cache, so a committed
+surface wins everywhere.
+
+### Stand boxes
+
+Stands are drawn as boxes sized by the aircraft code they take, but real stands
+are packed tighter than that — a nose-in row sits 25–35 m apart while a code-C
+box is 42 m long, and a widebody gate is wider than the gate pitch. Every box is
+scaled to the gap it actually has, so neighbours never overlap while a bigger
+gate still draws bigger where there is room. A stand OSM maps with no heading
+gets a square rather than a long box pointed the wrong way.
 
 ## Getting a surface for another airport
 
@@ -176,6 +204,7 @@ node scripts/test-ramp-osm.mjs      # OSM extraction + the committed overrides
 node scripts/test-ramp-katl.mjs     # the generated ATL surface, end to end
 node scripts/test-ramp-ground.mjs   # ramp entry: which ramp, which spot, which frequency
 node scripts/test-ramp-sid.mjs      # SID parsing and the north/south side map
+node scripts/test-ramp-boxes.mjs    # stand boxes fit their gaps and never overlap
 ```
 
 ## Not built yet

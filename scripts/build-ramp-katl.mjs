@@ -19,7 +19,7 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { synthStandPoly } from "../shared/ramp-airport.js";
+import { synthStandPoly, fitStandBoxes } from "../shared/ramp-airport.js";
 import { FIELDS } from "../shared/ramp-app-fields.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -200,6 +200,10 @@ for (const [code, def] of Object.entries(CONCOURSES)) {
     });
   }
 }
+
+// Widebody gates are wider than the gate pitch, so nominal boxes overlap their
+// neighbours. Fit every box to the gap it actually has.
+fitStandBoxes(stands);
 
 /** Concourse buildings, drawn as terminal polygons. */
 const buildings = Object.entries(CONCOURSES).map(([code, def]) => {

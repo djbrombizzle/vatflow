@@ -7,7 +7,7 @@
  * something actually invalidates it.
  */
 
-import { makeProjection, applyOverrides, stampRamps, coverage } from "./ramp-airport.js";
+import { makeProjection, applyOverrides, stampRamps, coverage, fitStandBoxes } from "./ramp-airport.js";
 import { parseOverpass, fetchOverpass } from "./ramp-osm.js";
 import { TrafficStore, POLL_MS, etaMs } from "./ramp-traffic.js";
 import { StandOccupancy } from "./ramp-stands.js";
@@ -89,17 +89,21 @@ export async function loadAirport(icao, opts = {}) {
   const want = opts.source || null;
 
   const schematic = want === SOURCE_OSM ? null : await fetchJson(`data/ramp/${icao}.json`);
-  const osm = want === SOURCE_SCHEMATIC ? null : await cacheGet(osmKey(icao));
+  // A committed OSM surface means nobody has to fetch anything: export one from
+  // the page and drop it in as <ICAO>.osm.json.
+  const osm = want === SOURCE_SCHEMATIC
+    ? null
+    : (await fetchJson(`data/ramp/${icao}.osm.json`)) || (await cacheGet(osmKey(icao)));
 
   let model = null;
   let origin = null;
   if (want === SOURCE_OSM && osm) { model = osm; origin = SOURCE_OSM; }
   else if (want === SOURCE_SCHEMATIC && schematic) { model = schematic; origin = SOURCE_SCHEMATIC; }
   else if (!want) {
-    // No preference: the schematic is the better default — its gate labels and
-    // ramp ownership are exact where OSM's are inferred.
-    if (schematic) { model = schematic; origin = SOURCE_SCHEMATIC; }
-    else if (osm) { model = osm; origin = SOURCE_OSM; }
+    // No preference: real geometry wins. The schematic is the fallback that
+    // keeps the page usable before the first fetch and when Overpass is down.
+    if (osm) { model = osm; origin = SOURCE_OSM; }
+    else if (schematic) { model = schematic; origin = SOURCE_SCHEMATIC; }
   }
 
   if (!model) return { model: null, overrides, origin: null, field, hasOsm: !!osm, hasSchematic: !!schematic };
@@ -112,9 +116,10 @@ export async function loadAirport(icao, opts = {}) {
   };
 }
 
-/** Is a cached OSM surface available for this field? */
+/** Is an OSM surface available for this field, committed or cached? */
 export async function hasOsmSurface(icao) {
-  return !!(await cacheGet(osmKey(icao)));
+  if (await cacheGet(osmKey(icao))) return true;
+  return !!(await fetchJson(`data/ramp/${icao}.osm.json`));
 }
 
 /** Fetch the surface live from Overpass, then cache it. */
@@ -129,6 +134,9 @@ export async function fetchAirportFromOsm(icao, overrides, onStatus) {
 
 function finalise(model, overrides) {
   const merged = applyOverrides(stampRamps(model), overrides);
+  // Fit on load, not only at build time: a surface cached before this existed
+  // would otherwise keep drawing its overlapping nominal boxes forever.
+  fitStandBoxes(merged.stands);
   merged.coverage = coverage(merged);
   return merged;
 }
@@ -189,6 +197,12 @@ export class RampApp {
     this.origin = origin;
     this.source = origin;
     this.startLoops();
+    if (this.autoFetchOsm !== false && origin === SOURCE_SCHEMATIC && !hasOsm) {
+      // First visit to this field: pull the real geometry in the background and
+      // switch to it when it lands. The schematic keeps the page working in the
+      // meantime, and a failure is silent — there is a working surface already.
+      this.backgroundFetch();
+    }
     return !!model;
   }
 
@@ -208,6 +222,19 @@ export class RampApp {
     this.hasOsm = true;
     this.onStatus(`OpenStreetMap surface — ${model.stands.length} stands, ${model.taxiways.length} taxiways.`);
     return model;
+  }
+
+  /** One quiet attempt at the real geometry, without blocking the page. */
+  async backgroundFetch() {
+    if (this._bgFetch) return;
+    this._bgFetch = true;
+    this.onStatus("Fetching OpenStreetMap surface in the background…");
+    try {
+      await this.fetchSurface();
+      if (this.onSurfaceChange) this.onSurfaceChange();
+    } catch (err) {
+      this.onStatus("Showing the schematic — OpenStreetMap fetch failed (" + err.message + ").");
+    }
   }
 
   /** Switch between the committed schematic and the cached OSM surface. */
