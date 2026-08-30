@@ -6,6 +6,7 @@
 <title>VATFLOW — Airport TMU</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
 
 <script type="module">
@@ -1277,6 +1278,9 @@ details.help-acc[open] summary { border-bottom: 1px solid var(--border); }
 <div id="gsPopup" class="hidden"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
 <script src="approach-sector-data.js"></script>
 <script>
 "use strict";
@@ -1693,11 +1697,8 @@ function ensureMeterMap(flow) {
   if (!el || !flow.arrPt || typeof L === "undefined") return;
   if (meterMap && meterMapAirport !== icao) destroyMeterMap();
   if (!meterMap) {
-    meterMap = L.map(el, { zoomControl: true, attributionControl: true });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd", maxZoom: 11, minZoom: 3,
-      attribution: "\u00a9 OpenStreetMap, \u00a9 CARTO \u00b7 traffic: VATSIM \u00b7 boundaries: VATSpy"
-    }).addTo(meterMap);
+    meterMap = L.map(el, { zoomControl: true, attributionControl: true, minZoom: 3, maxZoom: 11 });
+    window.addVatflowBasemap(meterMap, " \u00b7 traffic: VATSIM \u00b7 boundaries: VATSpy");
     meterMapArtccLayer = L.layerGroup().addTo(meterMap);
     meterMapTraffic = L.layerGroup().addTo(meterMap);
     meterMapAirport = icao;

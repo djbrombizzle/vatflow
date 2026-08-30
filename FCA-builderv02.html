@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>FCA Builder — VATSIM Flow Control</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="shared/vatflow-nav.css">
 <link rel="stylesheet" href="shared/vatflow-help.css">
 <style>
@@ -471,6 +472,9 @@
 <div class="sector-ac-panel" id="sectorPopup"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 "use strict";
@@ -550,14 +554,11 @@ const nid = () => (window.crypto && crypto.randomUUID) ? "fca_"+crypto.randomUUI
 /* ============================================================
    MAP
    ============================================================ */
-const map = L.map("map",{ zoomControl:false, worldCopyJump:false, attributionControl:true })
+const map = L.map("map",{ zoomControl:false, worldCopyJump:false, attributionControl:true, minZoom:3, maxZoom:11 })
   .fitBounds(US_BOUNDS);
 L.control.zoom({position:"bottomright"}).addTo(map);
 
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
-  subdomains:"abcd", maxZoom:11, minZoom:3,
-  attribution:'© OpenStreetMap, © CARTO · traffic: VATSIM · boundaries: FAA NASR / ERAM'
-}).addTo(map);
+window.addVatflowBasemap(map, " · traffic: VATSIM · boundaries: FAA NASR / ERAM");
 
 const artccLayer  = L.layerGroup().addTo(map);
 const sectorLayer = L.layerGroup();
