@@ -74,15 +74,12 @@ export function createArtccDashboardMap(containerEl) {
     zoomControl: false,
     worldCopyJump: false,
     attributionControl: true,
+    minZoom: 3,
+    maxZoom: 11,
   });
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    subdomains: "abcd",
-    maxZoom: 11,
-    minZoom: 3,
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
-  }).addTo(map);
+  window.addVatflowBasemap(map);
 
   const boundaryLayer = L.layerGroup().addTo(map);
   const labelLayer = L.layerGroup().addTo(map);
