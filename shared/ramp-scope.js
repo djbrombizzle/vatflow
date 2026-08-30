@@ -8,6 +8,7 @@
  */
 
 import { modelBounds, pointInPoly } from "./ramp-airport.js";
+import { gateTag } from "./ramp-app-pure.mjs";
 
 const COLORS = {
   bg: "#05070a",
@@ -17,6 +18,9 @@ const COLORS = {
   taxiLabel: "#6d7d8b",
   runway: "#59636e",
   runwayEdge: "#828c96",
+  runwayCentre: "#c3ccd4",
+  runwayLabel: "#aeb9c3",
+  apronLabel: "#5c6d7a",
   free: "#2f9e5b",
   occupied: "#c8382c",
   timer: "#c98a1b",
@@ -245,8 +249,9 @@ export class RampScope {
       this._drawPolys(this.model.buildings, COLORS.building);
       if (this.layers.areas) this._drawAreas();
       if (this.layers.taxiways) this._drawLines(this.model.taxiways, COLORS.taxiway, 23);
-      this._drawLines(this.model.runways, COLORS.runway, 45, COLORS.runwayEdge);
+      this._drawRunways();
       if (this.layers.taxiLabels && this.scale > 0.25) this._drawTaxiLabels();
+      this._drawApronLabels();
       this._drawBuildingLabels();
       if (this.layers.stands) this._drawStands();
       if (this.layers.spots) this._drawSpots();
@@ -333,7 +338,9 @@ export class RampScope {
    * frequency belongs on the chart: it is the first thing a controller checks.
    */
   _drawAreaLabels() {
-    if (this.scale < 0.12) return;
+    // Ramp and concourse names only earn their space once the terminal fills
+    // the view; at whole-field zoom they turn the complex into a smudge.
+    if (this.scale < 0.3) return;
     const ctx = this.ctx;
     ctx.textAlign = "center";
     ctx.font = "600 12px ui-monospace, Menlo, monospace";
@@ -357,7 +364,7 @@ export class RampScope {
 
   /** Concourse names, set along the building like the chart. */
   _drawBuildingLabels() {
-    if (this.scale < 0.14) return;
+    if (this.scale < 0.3) return;
     const ctx = this.ctx;
     ctx.textAlign = "center";
     ctx.font = "600 11px ui-monospace, Menlo, monospace";
@@ -387,6 +394,80 @@ export class RampScope {
       ctx.strokeRect(px - 11, py - 7, 22, 14);
       ctx.fillStyle = COLORS.spot;
       ctx.fillText(sp.id, px, py + 3);
+    }
+  }
+
+  /**
+   * Runways as a surface rather than a line: filled, with a dashed centreline
+   * and the designator at each threshold, so the whole-field view reads as an
+   * airport instead of a stack of grey bars.
+   */
+  _drawRunways() {
+    const ctx = this.ctx;
+    for (const r of this.model.runways || []) {
+      const line = r.line;
+      if (!line || line.length < 2) continue;
+      const [ax, ay] = line[0];
+      const [bx, by] = line[line.length - 1];
+      const len = Math.hypot(bx - ax, by - ay);
+      if (!len) continue;
+      const ux = (bx - ax) / len;
+      const uy = (by - ay) / len;
+      const half = (r.width || 45) / 2;
+      const nx = -uy * half;
+      const ny = ux * half;
+      const quad = [
+        [ax + nx, ay + ny], [bx + nx, by + ny],
+        [bx - nx, by - ny], [ax - nx, ay - ny],
+      ];
+      ctx.beginPath();
+      quad.forEach((p, i) => {
+        const [px, py] = this.toScreen(p[0], p[1]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.closePath();
+      ctx.fillStyle = COLORS.runway;
+      ctx.fill();
+      ctx.strokeStyle = COLORS.runwayEdge;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      const [sx, sy] = this.toScreen(ax, ay);
+      const [ex, ey] = this.toScreen(bx, by);
+      ctx.strokeStyle = COLORS.runwayCentre;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([9, 9]);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (this.scale > 0.035 && r.ends) {
+        ctx.fillStyle = COLORS.runwayLabel;
+        ctx.font = "600 10px ui-monospace, Menlo, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(r.ends[0], sx + 5, sy - 6);
+        ctx.textAlign = "right";
+        ctx.fillText(r.ends[1], ex - 5, ey - 6);
+      }
+    }
+  }
+
+  /** Apron names — cargo, maintenance, GA — at whole-field zoom. */
+  _drawApronLabels() {
+    if (this.scale < 0.03 || this.scale > 0.45) return;
+    const ctx = this.ctx;
+    ctx.textAlign = "center";
+    ctx.font = "9px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = COLORS.apronLabel;
+    for (const a of this.model.aprons || []) {
+      if (!a.label || !a.poly || a.poly.length < 3) continue;
+      let cx = 0;
+      let cy = 0;
+      for (const p of a.poly) { cx += p[0]; cy += p[1]; }
+      const [px, py] = this.toScreen(cx / a.poly.length, cy / a.poly.length);
+      ctx.fillText(a.label, px, py);
     }
   }
 
@@ -575,9 +656,14 @@ export class RampScope {
     const gate = occStand || (a && a.standId);
     if (gate) {
       const st = this.model && this.model.stands.find(s => s.id === gate);
-      const ramp = st && st.ramp ? st.ramp + "/" : "";
-      const q = !occStand && a && a.confidence !== "high" ? " ?" : "";
-      lines.push(ramp + gate + q);
+      const text = gateTag({
+        phase: t.phase,
+        observed: !!occStand,
+        gate,
+        ramp: st ? st.ramp : null,
+        confidence: a ? a.confidence : null,
+      });
+      if (text) lines.push(text);
     } else if (a && a.source === "unassigned") {
       lines.push("UNASSIGNED");
     }

@@ -112,3 +112,39 @@ for (const s of M.stands) perRamp[s.ramp] = (perRamp[s.ramp] || 0) + 1;
 for (const r of M.ramps) assert(perRamp[r.id] > 0, r.id + " owns at least one stand");
 
 console.log(`ramp-katl: ${passed} assertions passed · ${M.stands.length} stands across ${M.ramps.length} ramps`);
+
+/* the ramp prefix is an inbound-only decoration */
+const { gateTag } = await import("../shared/ramp-app-pure.mjs");
+const t = (phase, observed, confidence) =>
+  gateTag({ phase, observed, gate: "C30", ramp: "R3", confidence });
+assert(t("INBOUND", false, "low") === "R3/C30 ?", "an inbound shows its ramp and that the stand is predicted");
+assert(t("TAXI_IN", false, "high") === "R3/C30", "a landed arrival still shows its ramp");
+assert(t("IN_BLOCK", true) === "C30", "a parked aircraft shows the gate alone");
+assert(t("TAXI_OUT", true) === "C30", "a departure shows the gate alone");
+assert(t("PUSHBACK", true) === "C30", "no ramp prefix once off the stand");
+assert(gateTag({ phase: "INBOUND", observed: false, gate: null, ramp: "R3" }) === null, "no gate, no line");
+assert(gateTag({ phase: "INBOUND", observed: false, gate: "C30", ramp: null, confidence: "high" }) === "C30",
+  "a stand with no ramp still shows its gate");
+
+/* an unlisted airline gets a random open gate rather than nothing */
+const unknown = {};
+for (let i = 0; i < 120; i++) {
+  const r = assignStand({ callsign: "GLO" + (100 + i), sizeCode: "C" }, M.stands, ctx());
+  assert(r.standId, "an unlisted airline is always given a gate");
+  assert(r.source === "rule-any", "and it comes from the unlisted-carrier draw");
+  unknown[r.standId[0]] = true;
+}
+assert(Object.keys(unknown).length >= 5, "the unlisted draw spreads across the field (" + Object.keys(unknown).join("") + ")");
+const solo = assignStand({ callsign: "GLO101", sizeCode: "C" }, M.stands, ctx());
+const solo2 = assignStand({ callsign: "GLO101", sizeCode: "C" }, M.stands, ctx());
+assert(solo.standId === solo2.standId, "an unlisted airline's gate is still stable for that flight");
+
+/* the whole field is drawn, not just the terminal */
+assert(M.runways.length === 5, "all five ATL runways are in the model");
+assert(M.runways.every(r => r.ends && r.ends.length === 2), "every runway names both thresholds");
+assert(M.runways.some(r => r.id === "10/28") && M.runways.some(r => r.id === "08L/26R"), "north and south runways present");
+assert(M.taxiways.length > 25, "the field taxiway system is present (" + M.taxiways.length + ")");
+assert(M.aprons.some(a => a.label === "NORTH CARGO") && M.aprons.some(a => a.label === "GA / FBO"),
+  "cargo and GA aprons are labelled");
+
+console.log(`ramp-katl extras: ${passed} assertions passed in total`);

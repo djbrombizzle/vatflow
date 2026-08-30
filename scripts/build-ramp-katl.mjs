@@ -108,6 +108,51 @@ function sizeFor(concourse, id) {
   return "C";
 }
 
+/* ------------------------------------------------------------ the field --- */
+
+/**
+ * The five parallel runways, two north of the terminal complex and three south.
+ * Lengths are the published ones; positions are schematic but keep the real
+ * spacing, stagger and the eastward offset of 10/28.
+ */
+const RUNWAYS = [
+  { id: "08L/26R", cy: 1750,  x0: -2350, len: 2743, ends: ["08L", "26R"] },
+  { id: "08R/26L", cy: 1080,  x0: -2500, len: 3048, ends: ["08R", "26L"] },
+  { id: "09L/27R", cy: -1150, x0: -2750, len: 3776, ends: ["09L", "27R"] },
+  { id: "09R/27L", cy: -1720, x0: -2350, len: 2743, ends: ["09R", "27L"] },
+  { id: "10/28",   cy: -2500, x0: -1500, len: 2743, ends: ["10", "28"] },
+].map(r => ({
+  id: r.id,
+  ends: r.ends,
+  width: 46,
+  line: [[r.x0, r.cy], [r.x0 + r.len, r.cy]],
+}));
+
+/** Parallel and connecting taxiways around the field. */
+const FIELD_TAXIWAYS = [
+  { ref: "N", line: [[-2400, 1560], [2400, 1560]], width: 30 },
+  { ref: "M", line: [[-2450, 1330], [2450, 1330]], width: 30 },
+  { ref: "D", line: [[-2500, 830], [2450, 830]], width: 30 },
+  { ref: "S", line: [[-2700, -900], [2700, -900]], width: 30 },
+  { ref: "R", line: [[-2700, -1400], [2700, -1400]], width: 30 },
+  { ref: "V", line: [[-2300, -2000], [2300, -2000]], width: 30 },
+  { ref: "W", line: [[-1450, -2280], [1250, -2280]], width: 30 },
+];
+// Cross-field connectors between the terminal complex and each runway pair.
+for (const x of [-2200, -1700, -1150, -600, 0, 600, 1150]) {
+  FIELD_TAXIWAYS.push({ ref: "", line: [[x, 1560], [x, 640]], width: 26 });
+  FIELD_TAXIWAYS.push({ ref: "", line: [[x, -640], [x, -1400]], width: 26 });
+}
+
+/** Cargo, maintenance and general aviation aprons around the perimeter. */
+const FIELD_APRONS = [
+  { poly: [[-2500, 1500], [-1750, 1500], [-1750, 900], [-2500, 900]], label: "NORTH CARGO" },
+  { poly: [[1250, 1450], [2100, 1450], [2100, 800], [1250, 800]], label: "MAINTENANCE" },
+  { poly: [[-2600, -950], [-1800, -950], [-1800, -1350], [-2600, -1350]], label: "SOUTH CARGO" },
+  { poly: [[900, -950], [1900, -950], [1900, -1350], [900, -1350]], label: "SOUTH CARGO EAST" },
+  { poly: [[-1500, -2050], [-800, -2050], [-800, -2400], [-1500, -2400]], label: "GA / FBO" },
+];
+
 /* ----------------------------------------------------------------- build --- */
 
 const stands = [];
@@ -164,9 +209,10 @@ const buildings = Object.entries(CONCOURSES).map(([code, def]) => {
 });
 
 /** Apron fill under the whole complex. */
-const aprons = [{
-  poly: [[-1700, 640], [700, 640], [700, -640], [-1700, -640]],
-}];
+const aprons = [
+  { poly: [[-1700, 640], [700, 640], [700, -640], [-1700, -640]], label: "TERMINAL RAMP" },
+  ...FIELD_APRONS,
+];
 
 /** Taxiways E and F north of the complex, L to the south, plus the alley lanes. */
 const taxiways = [
@@ -185,7 +231,7 @@ for (const r of RAMPS) {
     alleyLanes.push({ ref: side, line: [[mid + dx, 520], [mid + dx, -580]], width: 23 });
   }
 }
-taxiways.push(...alleyLanes);
+taxiways.push(...alleyLanes, ...FIELD_TAXIWAYS);
 
 /** Ramp areas — one polygon per alley, for the ramp label and the my-ramp dim. */
 const areas = RAMPS.filter(r => r.alley[0] && r.alley[1]).map(r => {
@@ -235,12 +281,7 @@ const model = {
   builtAt: new Date().toISOString(),
   source: "schematic",
   attribution: "Schematic layout generated from the published ATL ramp chart — not survey accurate",
-  runways: [
-    { id: "08L/26R", line: [[-2600, 1500], [2600, 1500]], width: 45 },
-    { id: "09L/27R", line: [[-2600, 900], [2600, 900]], width: 45 },
-    { id: "10/28",   line: [[-2600, -1250], [2600, -1250]], width: 45 },
-    { id: "09R/27L", line: [[-2600, -900], [2600, -900]], width: 45 },
-  ],
+  runways: RUNWAYS,
   taxiways,
   aprons,
   buildings,
@@ -266,7 +307,8 @@ model.coverage = {
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(join(OUT_DIR, "KATL.json"), JSON.stringify(model));
 
-console.log(`KATL schematic: ${stands.length} stands, ${taxiways.length} taxiways, ${spots.length} hold spots`);
+console.log(`KATL schematic: ${stands.length} stands, ${taxiways.length} taxiways, ` +
+  `${model.runways.length} runways, ${spots.length} hold spots`);
 for (const r of RAMPS) {
   const n = stands.filter(s => s.ramp === r.id).length;
   console.log(`  ${r.id.padEnd(3)} ${r.label.padEnd(8)} ${String(r.freq).padEnd(8)} ${n} stands`);

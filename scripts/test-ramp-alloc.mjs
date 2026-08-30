@@ -108,3 +108,37 @@ const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
 assert(Math.abs(mean - 0.5) < 0.05, "PRNG is roughly uniform");
 
 console.log(`ramp-alloc: ${passed} assertions passed`);
+
+/* an airline with no block at all: a random open gate, not UNASSIGNED */
+const NO_WILDCARD = { DAL: BLOCKS.DAL, SWA: BLOCKS.SWA, AAL: BLOCKS.AAL, FDX: BLOCKS.FDX };
+const openCtx = () => ({ ...baseCtx(), operatorBlocks: NO_WILDCARD });
+const spread = new Set();
+for (let i = 0; i < 120; i++) {
+  const r = assignStand({ callsign: "GLO" + (100 + i), sizeCode: "C" }, stands(), openCtx());
+  assert(r.standId, "an unmapped airline still gets a gate");
+  assert(r.source === "rule-any", "from the unlisted-carrier draw");
+  spread.add(r.standId[0]);
+}
+assert(spread.size >= 2, "the unlisted draw is not pinned to one concourse");
+
+/* but a mapped airline is still held to its block even when it is full */
+const fullT = openCtx();
+fullT.occupancy = new Set(stands().filter(s => s.concourse === "T").map(s => s.id));
+for (let i = 0; i < 30; i++) {
+  const r = assignStand({ callsign: "AAL" + (200 + i), sizeCode: "C" }, stands(), fullT);
+  assert(!r.standId || r.standId.startsWith("T"), "a mapped airline never spills into another block");
+}
+
+/* an authored wildcard still wins over the unlisted-carrier draw */
+const withWildcard = baseCtx();
+const wild = assignStand({ callsign: "GLO500", sizeCode: "C" }, stands(), withWildcard);
+assert(wild.standId.startsWith("T") && wild.source === "rule", "an authored wildcard block is honoured");
+
+/* stands tagged for one airline are not handed to another */
+const tagged = stands().map(s => (s.id === "C5" ? { ...s, operators: ["SWA"] } : s));
+for (let i = 0; i < 60; i++) {
+  const r = assignStand({ callsign: "GLO" + (700 + i), sizeCode: "C" }, tagged, openCtx());
+  assert(r.standId !== "C5", "an unlisted carrier does not take a stand tagged for someone else");
+}
+
+console.log(`ramp-alloc unlisted-carrier rules: ${passed} assertions passed in total`);

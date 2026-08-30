@@ -50,7 +50,15 @@ because a guess that looks like a fact is the failure mode that makes a ramp dis
 | **T2** | **Controller-assigned** — typed on the scope, synced to the room | High | Solid outline, tag suffix `·A`, hover shows assigning CID | Any unlocked controller |
 | **T3** | **Learned prior** — weights the draw toward stands this operator/type actually uses here | Medium | Hatched fill, tag suffix `·?` | Controller assignment supersedes |
 | **T4** | **Rule-based** — seeded random draw from the airline's open, compatible stands | Medium‑low | Hatched fill, tag suffix `·?` | Controller assignment supersedes |
-| **T5** | **Unresolved** — no affinity data, no free compatible stand | — | Tag reads `UNASSIGNED`, flight lands in an "unassigned" bucket on the arrival manager | Controller must assign |
+| **T5** | **Unresolved** — a *mapped* airline whose block is full | — | Tag reads `UNASSIGNED`, flight lands in an "unassigned" bucket on the arrival manager | Controller must assign |
+
+**v1 rule for airlines nobody has mapped:** an operator with no block entry draws a
+random open, size-compatible gate anywhere on the field rather than falling to T5. For a
+first version a plausible gate beats an empty one, the ramp still follows from wherever the
+draw lands, and the draw is seeded as usual so the gate is stable for that flight. Airlines
+that *do* have a block keep the strict behaviour — their traffic never wanders into someone
+else's concourse, and a full block still ends at `UNASSIGNED`. Stands explicitly tagged for
+an airline are never handed to another one, mapped or not.
 
 Two rules keep this honest:
 
@@ -247,9 +255,10 @@ per airport and never per stand.
 
 **Where the ramp number shows up:**
 
-- **Inbound data tag** — `DAL1438  R1/T12`. Ramp first: it answers "is this mine?" before the reader
-  gets to the gate. Stand boxes keep the real gate id (`T12`) on the stand itself, because that's what
-  the pilot reads off the signage and hears on frequency.
+- **Inbound data tag only** — `DAL1438  R1/T12`. Ramp first: it answers "is this mine?" before the
+  reader gets to the gate. The prefix is dropped the moment the aircraft is on the stand or taxiing
+  out: `whose aircraft is this` is a live question while it is still inbound, and once it is parked the
+  bare gate id is what gets read back on frequency. Stand boxes and the spot list show the gate alone.
 - **Arrival manager** — a Ramp column, and the list is filterable to one ramp.
 - **My ramp** — a controller selects the ramp they're working; their stands and aircraft render at
   full brightness and everything else dims. This is the single feature that makes a multi-ramp field
