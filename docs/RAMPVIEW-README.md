@@ -85,7 +85,7 @@ gets a square rather than a long box pointed the wrong way.
 | Field | Surface | Notes |
 | --- | --- | --- |
 | **KATL** | Committed schematic + OSM | Ramp areas, frequencies and hold spots from the published ATL ramp chart |
-| **KIAD** | OSM only | Override data ships; geometry is fetched. Ramp areas and frequencies are **placeholders** |
+| **KIAD** | Committed schematic + OSM | Ramp areas, frequencies and taxilane grouping from the published IAD ramp chart |
 
 Other fields in `shared/ramp-app-fields.mjs` (KDFW, KCLT, KDTW, KMSP, KSLC, KLAX,
 KSEA, KJFK, KBOS) have a reference point and will load an OSM surface, but no
@@ -94,23 +94,32 @@ arrival draws a random open gate.
 
 ### KIAD
 
-Dulles ships override data only: concourses A, B, C, D and Z, and the airline
-blocks — United and United Express on the C/D midfield, American, Delta,
-Southwest, Frontier, JetBlue, Alaska and Spirit on B, Air France / KLM / Etihad /
-Virgin Atlantic / Lufthansa on A, British Airways / Emirates / Qatar / Ethiopian
-on D. Gate numbering comes from OpenStreetMap rather than from a guess, so the
-page fetches the surface on first visit and caches it.
+```sh
+node scripts/build-ramp-kiad.mjs
+```
 
-Two things are deliberately not filled in:
+148 gates: the Main Terminal Z gates, the B/A and D/C midfield concourses with
+gates on both faces, and the R Ramp hardstands. Three ramp control areas, taken
+from the chart:
 
-- **Ramp areas and frequencies are placeholders.** IAD aprons are worked by MWAA
-  Ramp Tower and the split between positions is not something to invent. The
-  three areas (A/B, C/D, Z) are a starting shape; correct them in
-  `data/ramp/overrides/KIAD.json`.
-- **`sidSides` is empty.** Set IAD SIDs from the SID Sides panel, which lists
-  them as they appear in live traffic.
+| Ramp | Freq | Taxilanes | Owns |
+| --- | --- | --- | --- |
+| North Area Ramp | 119.12 | A & B | Main Terminal Z gates, north face of B and A |
+| Midfield Area Ramp | 129.55 | C & D | South face of B and A, north face of D and C |
+| South Area Ramp | 130.55 | E & F | South face of D and C, the R Ramp hardstands |
 
-Concourse E opens in 2026 and is not modelled.
+Ownership runs down the **taxilane**, the same pattern as ATL: `B79` on the north
+face answers to the North ramp while `B78`, directly across the building, answers
+to the Midfield ramp.
+
+The R Ramp stands are marked `remote` and are never drawn for an ordinary
+arrival — assign one by hand when the gates are full. The commuter gates
+(`A1A`–`A6E`) are sized for regional aircraft.
+
+Still open at IAD: the airline blocks are from public terminal guides and are
+unverified; the chart names no numbered exit spots, so `spots` is empty and a
+departure shows its side (`PENCL2 N`) rather than a spot; `sidSides` is empty for
+a controller to fill in; and Concourse E, opening in 2026, is not modelled.
 
 ## Getting a surface for another airport
 
@@ -238,6 +247,7 @@ node scripts/test-ramp-ground.mjs   # ramp entry: which ramp, which spot, which 
 node scripts/test-ramp-sid.mjs      # SID parsing and the north/south side map
 node scripts/test-ramp-boxes.mjs    # stand boxes fit their gaps and never overlap
 node scripts/test-ramp-overrides.mjs # every airport's override file, checked the same way
+node scripts/test-ramp-kiad.mjs     # the generated IAD surface, end to end
 ```
 
 ## Not built yet
