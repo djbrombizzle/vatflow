@@ -136,6 +136,7 @@
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { RampApp, FIELDS, fmtClock, hasOsmSurface, SOURCE_OSM, SOURCE_SCHEMATIC } from "./shared/ramp-app.js";
+import { departureLabel } from "./shared/ramp-sid.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "rampview");
 
@@ -209,9 +210,13 @@ function renderPanels(p) {
 
   const depBody = $("rvDepartures").querySelector("tbody");
   depBody.innerHTML = p.departures.slice(0, 40).map(d => {
-    const spot = d.spot
-      ? `${d.spot}${d.side ? "" : " ?"}`
-      : (d.sidBase ? `<span class="rv-unassigned">set ${d.sidBase}</span>` : "");
+    // Three separate unknowns, three separate answers — an aircraft with no
+    // gate is not the same problem as a SID with no side.
+    const label = departureLabel(d);
+    const spot = label.kind === "spot" ? `${d.spot}${d.side ? "" : " ?"}`
+      : label.kind === "side" ? `${String(d.side)[0]} <span class="rv-dim">no gate</span>`
+      : label.kind === "unset" ? `<span class="rv-unassigned">set ${d.sidBase}</span>`
+      : "";
     return `<tr data-cs="${d.callsign}"><td>${d.callsign}</td><td>${d.stand || ""}</td>` +
       `<td>${d.sid || ""}</td><td>${spot}</td><td>${d.phase}</td></tr>`;
   }).join("");

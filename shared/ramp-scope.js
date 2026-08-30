@@ -10,6 +10,7 @@
 import { modelBounds, pointInPoly } from "./ramp-airport.js";
 import { gateTag } from "./ramp-app-pure.mjs";
 import { GROUND_PHASES } from "./ramp-ground.js";
+import { departureLabel } from "./ramp-sid.js";
 
 const COLORS = {
   bg: "#05070a",
@@ -670,8 +671,8 @@ export class RampScope {
     }
     if (t.phase === "TAXI_OUT" || t.phase === "HOLDING" || t.phase === "PUSHBACK") {
       const dep = this.state.depRouting && this.state.depRouting.get(t.callsign);
-      if (dep && dep.spot) lines.push(dep.sid ? `${dep.sid} ${dep.spot}` : "SPOT " + dep.spot);
-      else if (dep && dep.sid) lines.push(dep.sid + " SID?");
+      const label = dep ? departureLabel(dep) : null;
+      if (label && label.text) lines.push(label.text);
       else if (t.sid && this.scale > 0.3) lines.push(t.sid);
     } else if (GROUND_PHASES.has(t.phase) && a && a.spot) {
       // Ground reads the spot, not the ETA: it is the instruction they issue.
