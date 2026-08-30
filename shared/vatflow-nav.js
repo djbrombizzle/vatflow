@@ -28,6 +28,13 @@ const NAV_ITEMS = [
     ],
   },
   {
+    id: "ramp",
+    label: "Ramp",
+    children: [
+      { id: "rampview", href: "rampview.html", label: "RampView" },
+    ],
+  },
+  {
     id: "center",
     label: "Center",
     children: [

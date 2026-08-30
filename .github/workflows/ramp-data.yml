@@ -1,0 +1,59 @@
+# Build RampView airport surfaces from OpenStreetMap and commit the result.
+#
+# Overpass is a build-time dependency only — the page loads the committed JSON,
+# so a slow or unavailable Overpass never affects a controller mid-session.
+name: Ramp surface data
+
+on:
+  workflow_dispatch:
+    inputs:
+      icao:
+        description: "ICAO to build (blank = every field in shared/ramp-app-fields.mjs)"
+        required: false
+        default: "KATL"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ramp-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build surface
+        run: |
+          set -euo pipefail
+          ICAO="${{ github.event.inputs.icao }}"
+          if [ -z "$ICAO" ]; then
+            node scripts/build-ramp-airport.mjs --all
+          else
+            node scripts/build-ramp-airport.mjs --icao "$ICAO"
+          fi
+
+      - name: Verify the build still parses
+        run: |
+          node scripts/test-ramp-osm.mjs
+          node scripts/test-ramp-alloc.mjs
+          node scripts/test-ramp-stands.mjs
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/ramp; then
+            echo "no surface changes"
+            exit 0
+          fi
+          git add data/ramp
+          git commit -m "Rebuild RampView surface data from OpenStreetMap"
+          git push

@@ -215,6 +215,11 @@ Reproduce the chrome, because it is what makes it read as a ramp position:
 
 | Phase | Scope | Done when |
 | --- | --- | --- |
+> **Build status (this branch):** P0–P4 are implemented — build script, canvas scope,
+> traffic pipeline with dead reckoning, stand occupancy, the seeded draw, ramp numbers,
+> arrival manager and spot list. P5 (conflict probe), P6 (Firebase sync) and P7 (playback)
+> are not started. Running notes: [RAMPVIEW-README.md](RAMPVIEW-README.md).
+
 | **P0 — Data** | `build-ramp-airport.mjs`, `data/ramp/KATL.json`, overrides format, unit tests | KATL geometry validates: every stand has id, heading, polygon |
 | **P1 — Scope** | Canvas renderer, projection, pan/zoom/rotate, layers, status bar | KATL surface renders and navigates at 60 fps |
 | **P2 — Targets** | Datafeed poll, dead reckoning, state machine, tags, silhouettes | Live traffic moves smoothly, tags legible at ramp zoom |
