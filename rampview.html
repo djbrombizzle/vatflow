@@ -275,7 +275,12 @@ fieldSel.addEventListener("change", async () => {
   icao = fieldSel.value;
   localStorage.setItem("vatflow.ramp.field", icao);
   history.replaceState(null, "", "?field=" + icao);
-  app.onSurfaceChange = () => afterModel();
+  app.onSurfaceChange = () => {
+  afterModel();
+  // A field with no committed schematic starts on the overlay; the background
+  // fetch landing is what clears it.
+  $("rvOverlay").hidden = true;
+};
 app.localSidSides = loadLocalSids(icao);
   await boot();
 });
@@ -447,7 +452,12 @@ async function boot() {
   }
 }
 
-app.onSurfaceChange = () => afterModel();
+app.onSurfaceChange = () => {
+  afterModel();
+  // A field with no committed schematic starts on the overlay; the background
+  // fetch landing is what clears it.
+  $("rvOverlay").hidden = true;
+};
 app.localSidSides = loadLocalSids(icao);
 app.onSidSidesChange = sides => {
   try { localStorage.setItem(SID_KEY + icao, JSON.stringify(sides)); } catch (_) {}

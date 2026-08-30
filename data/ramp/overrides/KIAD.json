@@ -1,0 +1,79 @@
+{
+  "_comment": [
+    "Hand-authored overlay for KIAD, merged over the surface geometry.",
+    "Unlike KATL there is no committed schematic: Dulles gate numbering is not something",
+    "to guess at, so stand ids, positions and headings all come from the OpenStreetMap",
+    "surface, which the page fetches and caches on first visit. Export it and commit it as",
+    "data/ramp/KIAD.osm.json to remove the fetch for everyone.",
+    "This file carries only what no machine-readable source publishes: the concourse",
+    "grouping, the ramp areas and the airline blocks.",
+    "UNVERIFIED — compiled from public terminal guides, August 2026."
+  ],
+  "icao": "KIAD",
+
+  "ramps": [
+    { "id": "RAB", "label": "Ramp A/B", "freq": null, "concourses": ["A", "B"],
+      "_status": "placeholder — MWAA Ramp Tower; confirm the split and the frequency" },
+    { "id": "RCD", "label": "Ramp C/D", "freq": null, "concourses": ["C", "D"],
+      "_status": "placeholder — United midfield; confirm the split and the frequency" },
+    { "id": "RZ", "label": "Ramp Z", "freq": null, "concourses": ["Z"],
+      "_status": "placeholder — commuter gates by the main terminal" }
+  ],
+
+  "concourses": {
+    "A": { "label": "Concourse A", "domestic": true, "intl": true },
+    "B": { "label": "Concourse B", "domestic": true, "intl": true },
+    "C": { "label": "Concourse C", "domestic": true, "intl": true },
+    "D": { "label": "Concourse D", "domestic": true, "intl": true },
+    "Z": { "label": "Concourse Z", "domestic": true }
+  },
+
+  "operatorBlocks": {
+    "UAL": { "concourses": ["C", "D"], "_note": "hub carrier — the midfield C/D building" },
+    "GJS": { "inherits": "UAL", "prefer": ["C"], "_note": "GoJet — United Express" },
+    "RPA": { "inherits": "UAL", "prefer": ["C"] },
+    "SKW": { "inherits": "UAL", "prefer": ["C"] },
+    "ASH": { "inherits": "UAL", "prefer": ["C"] },
+    "CPZ": { "inherits": "UAL", "prefer": ["C"] },
+
+    "AAL": { "concourses": ["B"] },
+    "DAL": { "concourses": ["B"] },
+    "SWA": { "concourses": ["B"] },
+    "FFT": { "concourses": ["B"] },
+    "JBU": { "concourses": ["B"] },
+    "ASA": { "concourses": ["B"] },
+    "NKS": { "concourses": ["B"] },
+
+    "AFR": { "concourses": ["A"] },
+    "KLM": { "concourses": ["A"] },
+    "ETD": { "concourses": ["A"] },
+    "VIR": { "concourses": ["A"] },
+    "DLH": { "concourses": ["A"] },
+    "CDG": { "concourses": ["A"] },
+    "BAW": { "concourses": ["D"] },
+    "UAE": { "concourses": ["D"] },
+    "QTR": { "concourses": ["D"] },
+    "ETH": { "concourses": ["D"] },
+    "SAS": { "concourses": ["D"] },
+    "TAP": { "concourses": ["D"] },
+
+    "FDX": { "opsType": "cargo" },
+    "UPS": { "opsType": "cargo" },
+    "GTI": { "opsType": "cargo" }
+  },
+
+  "sidSides": {},
+
+  "_sources": [
+    "Public IAD terminal guides — concourse layout and airline placement (August 2026)",
+    "Concourse B gate list and United C/D operation from the same guides"
+  ],
+  "_confirm": [
+    "Ramp control areas and frequencies are placeholders. IAD aprons are worked by MWAA Ramp",
+    "Tower; confirm how many positions there are, how the midfield splits, and the frequencies.",
+    "Airline blocks are unverified and change with the season.",
+    "sidSides is empty on purpose — set IAD SIDs from the SID Sides panel, which lists them",
+    "as they appear in live traffic.",
+    "Concourse E opens in 2026 and is not modelled; add it here and to the OSM surface when it does."
+  ]
+}

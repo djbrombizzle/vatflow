@@ -12,6 +12,7 @@ export const FIELDS = {
   KSLC: { ref: [40.7884, -111.9778], elevFt: 4227, name: "Salt Lake City International" },
   KLAX: { ref: [33.9425, -118.4081], elevFt: 125, name: "Los Angeles International" },
   KSEA: { ref: [47.4490, -122.3093], elevFt: 433, name: "Seattle–Tacoma International" },
+  KIAD: { ref: [38.9445, -77.4558], elevFt: 313, name: "Washington Dulles International" },
   KJFK: { ref: [40.6398, -73.7789], elevFt: 13, name: "John F. Kennedy International" },
   KBOS: { ref: [42.3643, -71.0052], elevFt: 20, name: "Boston Logan International" },
 };
