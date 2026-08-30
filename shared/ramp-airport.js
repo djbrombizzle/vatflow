@@ -88,8 +88,10 @@ export function headingDelta(a, b) {
  * @param {number} hdg heading the aircraft faces when parked
  * @param {string} sizeCode ICAO A–F
  */
-export function synthStandPoly(point, hdg, sizeCode) {
-  const [len, wid] = STAND_BOX[sizeCode] || STAND_BOX.C;
+export function synthStandPoly(point, hdg, sizeCode, scale = 1) {
+  const nominal = STAND_BOX[sizeCode] || STAND_BOX.C;
+  const len = nominal[0] * scale;
+  const wid = nominal[1] * scale;
   const th = hdg * D2R;
   const sin = Math.sin(th);
   const cos = Math.cos(th);
@@ -99,7 +101,68 @@ export function synthStandPoly(point, hdg, sizeCode) {
     point[1] + u * cos - v * sin,
   ];
   const half = wid / 2;
-  return [corner(6, -half), corner(6, half), corner(-len, half), corner(-len, -half)];
+  const nose = 6 * scale;
+  return [corner(nose, -half), corner(nose, half), corner(-len, half), corner(-len, -half)];
+}
+
+/** Nominal box footprint for a size code, [length, width] in metres. */
+export function standBox(sizeCode) {
+  return STAND_BOX[sizeCode] || STAND_BOX.C;
+}
+
+/**
+ * Shrink stand boxes so neighbours do not overlap.
+ *
+ * A nominal box is the size of the aircraft the stand takes, but real stands
+ * are packed tighter than that — nose-in rows sit 25–35 m apart while a code-C
+ * box is 42 m long. Drawn at nominal size they overlap into an unreadable
+ * smear, especially on an OSM surface where stand spacing varies gate by gate.
+ * Each box is scaled to fit the gap to its nearest neighbour, with a floor so a
+ * dense pier still shows a box rather than a dot.
+ *
+ * Occupancy matching is unaffected: standRadius() keeps its own minimum, so a
+ * smaller drawn box never makes a parked aircraft harder to match.
+ */
+export function fitStandBoxes(stands, opts = {}) {
+  const list = (stands || []).filter(s => s && s.point);
+  const gap = opts.gap == null ? 0.46 : opts.gap;
+  const minScale = opts.minScale == null ? 0.4 : opts.minScale;
+
+  for (const s of list) {
+    let nearest = Infinity;
+    for (const o of list) {
+      if (o === s) continue;
+      const d = Math.hypot(o.point[0] - s.point[0], o.point[1] - s.point[1]);
+      if (d < nearest) nearest = d;
+    }
+    const [len, wid] = standBox(s.sizeCode);
+    const radius = Math.hypot(len, wid) / 2;
+    let scale = 1;
+    if (isFinite(nearest) && radius > 0) {
+      scale = Math.min(1, Math.max(minScale, (nearest * gap) / radius));
+    }
+    // A stand mapped with no heading gets a square box: pointing a long box the
+    // wrong way looks worse, and reads as information we do not have.
+    const square = s.hdgKnown === false;
+    s.boxScale = Math.round(scale * 100) / 100;
+    s.poly = square
+      ? squarePoly(s.point, Math.min(len, wid) * scale)
+      : synthStandPoly(s.point, s.hdg, s.sizeCode, scale).map(round1);
+    if (!square) s.poly = s.poly.map(round1);
+  }
+  return stands;
+}
+
+function round1(p) {
+  return [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10];
+}
+
+function squarePoly(point, size) {
+  const h = Math.max(6, size / 2);
+  return [
+    [point[0] - h, point[1] + h], [point[0] + h, point[1] + h],
+    [point[0] + h, point[1] - h], [point[0] - h, point[1] - h],
+  ].map(round1);
 }
 
 /** Smallest stand code that will take this wake category. */

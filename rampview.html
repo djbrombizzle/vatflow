@@ -267,7 +267,8 @@ fieldSel.addEventListener("change", async () => {
   icao = fieldSel.value;
   localStorage.setItem("vatflow.ramp.field", icao);
   history.replaceState(null, "", "?field=" + icao);
-  app.localSidSides = loadLocalSids(icao);
+  app.onSurfaceChange = () => afterModel();
+app.localSidSides = loadLocalSids(icao);
   await boot();
 });
 
@@ -392,10 +393,12 @@ $("rvSurface").addEventListener("change", async e => {
 
 $("rvExport").addEventListener("click", () => {
   if (!app.model) return;
+  // Committing the exported file as data/ramp/<ICAO>.osm.json makes this the
+  // surface everyone gets, with no fetch at all.
   const blob = new Blob([JSON.stringify(app.model)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = icao + ".json";
+  a.download = icao + (app.source === SOURCE_OSM ? ".osm.json" : ".json");
   a.click();
   URL.revokeObjectURL(a.href);
 });
@@ -436,6 +439,7 @@ async function boot() {
   }
 }
 
+app.onSurfaceChange = () => afterModel();
 app.localSidSides = loadLocalSids(icao);
 app.onSidSidesChange = sides => {
   try { localStorage.setItem(SID_KEY + icao, JSON.stringify(sides)); } catch (_) {}
