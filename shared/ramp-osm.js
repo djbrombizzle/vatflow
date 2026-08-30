@@ -8,7 +8,7 @@
  * OSM data © OpenStreetMap contributors, ODbL.
  */
 
-import { makeProjection, bearingXY, synthStandPoly, minCodeForWake } from "./ramp-airport.js";
+import { makeProjection, bearingXY, synthStandPoly, fitStandBoxes, minCodeForWake } from "./ramp-airport.js";
 
 /** Public Overpass endpoints, tried in order. */
 export const OVERPASS_ENDPOINTS = [
@@ -122,7 +122,7 @@ export function parseOverpass(osm, opts) {
   });
 
   const seenStand = new Set();
-  const addStand = (id, point, hdg, tags) => {
+  const addStand = (id, point, hdg, tags, hdgKnown) => {
     if (!id || seenStand.has(id)) return;
     seenStand.add(id);
     const sizeCode = sizeFromTags(tags) || "C";
@@ -130,6 +130,7 @@ export function parseOverpass(osm, opts) {
       id,
       point: [round(point[0]), round(point[1])],
       hdg: Math.round(hdg),
+      hdgKnown: hdgKnown !== false,
       sizeCode,
       poly: synthStandPoly(point, hdg, sizeCode).map(p => [round(p[0]), round(p[1])]),
       operators: operatorsFromTags(tags),
@@ -147,7 +148,7 @@ export function parseOverpass(osm, opts) {
       if (kind !== "parking_position" && kind !== "gate") continue;
       const [x, y] = proj.toXY(el.lat, el.lon);
       const hdg = parseFloat(tags.direction || tags.heading || "");
-      addStand(standIdFromTags(tags), [x, y], isFinite(hdg) ? hdg : 0, tags);
+      addStand(standIdFromTags(tags), [x, y], isFinite(hdg) ? hdg : 0, tags, isFinite(hdg));
       continue;
     }
     if (el.type !== "way") continue;
@@ -174,7 +175,7 @@ export function parseOverpass(osm, opts) {
         // heading the aircraft faces when parked, and the last node the nose.
         const a = pts[pts.length - 2];
         const b = pts[pts.length - 1];
-        addStand(standIdFromTags(tags), b, bearingXY(a[0], a[1], b[0], b[1]), tags);
+        addStand(standIdFromTags(tags), b, bearingXY(a[0], a[1], b[0], b[1]), tags, true);
         break;
       }
       default:
@@ -183,5 +184,6 @@ export function parseOverpass(osm, opts) {
   }
 
   model.stands.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  fitStandBoxes(model.stands);
   return model;
 }
