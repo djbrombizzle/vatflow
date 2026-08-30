@@ -75,6 +75,15 @@ export class RampScope {
     this.state = { targets: [], occupancy: new Map(), assignments: new Map(), nowMs: Date.now(), myRamp: null };
     this.hover = null;
     this.selected = null;
+    /** Set by the page to follow the camera — used by the OSM basemap. */
+    this.onView = null;
+    /**
+     * True when an OSM basemap is drawn behind the canvas. The scope then
+     * clears to transparent instead of painting black, and stops drawing the
+     * aprons, buildings, taxiways and runways the basemap already has — drawing
+     * both would just be our synthetic geometry sitting on top of the real one.
+     */
+    this.underlay = false;
     this._labelBoxes = [];
     this._bindEvents();
     this.resize();
@@ -237,23 +246,31 @@ export class RampScope {
   }
 
   render() {
+    if (this.onView) this.onView({ cx: this.cx, cy: this.cy, scale: this.scale, rot: this.rot });
     const ctx = this.ctx;
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
-    ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, w, h);
+    if (this.underlay) ctx.clearRect(0, 0, w, h);
+    else {
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, w, h);
+    }
     this._labelBoxes = [];
 
     if (this.model) {
-      this._drawPolys(this.model.aprons, COLORS.apron);
-      this._drawPolys(this.model.buildings, COLORS.building);
+      if (!this.underlay) {
+        this._drawPolys(this.model.aprons, COLORS.apron);
+        this._drawPolys(this.model.buildings, COLORS.building);
+      }
       if (this.layers.areas) this._drawAreas();
-      if (this.layers.taxiways) this._drawLines(this.model.taxiways, COLORS.taxiway, 23);
-      this._drawRunways();
-      if (this.layers.taxiLabels && this.scale > 0.25) this._drawTaxiLabels();
-      this._drawApronLabels();
+      if (!this.underlay) {
+        if (this.layers.taxiways) this._drawLines(this.model.taxiways, COLORS.taxiway, 23);
+        this._drawRunways();
+        if (this.layers.taxiLabels && this.scale > 0.25) this._drawTaxiLabels();
+        this._drawApronLabels();
+      }
       this._drawBuildingLabels();
       if (this.layers.stands) this._drawStands();
       if (this.layers.spots) this._drawSpots();

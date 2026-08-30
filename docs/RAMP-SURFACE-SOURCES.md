@@ -83,6 +83,10 @@ Three real takeaways:
 
 ### Recommended sequence
 
+> **Steps 1 and 2 are built** — `shared/ramp-basemap.js` and `shared/ramp-aptdat.js` with
+> `scripts/build-ramp-aptdat.mjs`. Step 3 is still a decision, not a task: it needs a
+> Navigraph developer application before any of it can be written.
+
 1. **Render over an OSM aeroway basemap.** Biggest visual gain per hour, no new
    dependency, uses the basemap module VATFLOW already has. The surface stays vector on
    top; the basemap supplies the taxiway and apron shapes we currently draw ourselves.

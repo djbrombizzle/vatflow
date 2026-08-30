@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RampView — VATFLOW</title>
 <link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="shared/ramp.css">
 </head>
 <body>
@@ -47,6 +48,7 @@
 
   <div class="rv-body">
     <div class="rv-scopewrap">
+      <div id="rvBasemap" aria-hidden="true"></div>
       <canvas id="rvCanvas"></canvas>
       <div class="rv-overlay" id="rvOverlay" hidden>
         <div class="rv-overlay-card">
@@ -58,6 +60,7 @@
       <div class="rv-watch" id="rvWatch"></div>
       <div class="rv-panelbox" id="rvLayers" hidden>
         <b>Layers</b>
+        <label><input type="checkbox" id="rvBasemapToggle" checked> OSM basemap</label>
         <label><input type="checkbox" data-layer="taxiways" checked> Taxiways</label>
         <label><input type="checkbox" data-layer="taxiLabels" checked> Taxiway labels</label>
         <label><input type="checkbox" data-layer="stands" checked> Stands</label>
@@ -133,10 +136,12 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { RampApp, FIELDS, fmtClock, hasOsmSurface, SOURCE_OSM, SOURCE_SCHEMATIC } from "./shared/ramp-app.js";
 import { departureLabel } from "./shared/ramp-sid.js";
+import { mountRampBasemap } from "./shared/ramp-basemap.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "rampview");
 
@@ -328,6 +333,13 @@ for (const btn of document.querySelectorAll("[data-menu]")) {
   });
 }
 
+function setBasemapVisible(on) {
+  if (basemap) basemap.setVisible(on);
+  app.scope.underlay = !!on && !!basemap && basemap.ok;
+}
+
+$("rvBasemapToggle").addEventListener("change", e => setBasemapVisible(e.target.checked));
+
 document.querySelectorAll("[data-layer]").forEach(cb => {
   cb.addEventListener("change", () => { app.scope.layers[cb.dataset.layer] = cb.checked; });
 });
@@ -416,7 +428,34 @@ $("rvExport").addEventListener("click", () => {
   URL.revokeObjectURL(a.href);
 });
 
-window.addEventListener("resize", () => app.scope.resize());
+window.addEventListener("resize", () => {
+  app.scope.resize();
+  if (basemap) basemap.resize();
+});
+
+let basemap = null;
+
+function mountBasemap() {
+  if (basemap) basemap.destroy();
+  basemap = mountRampBasemap($("rvBasemap"), app.traffic.proj, {
+    onStatus: msg => { if (msg) $("rvStatus").textContent = msg; },
+    // If the basemap cannot draw, the scope goes back to painting its own
+    // ground and geometry rather than leaving the reader with an empty canvas.
+    // A control that does nothing is worse than no control: when the basemap
+    // cannot draw, untick it, disable it, and say why in its label.
+    onFail: () => {
+      app.scope.underlay = false;
+      const t = $("rvBasemapToggle");
+      t.checked = false;
+      t.disabled = true;
+      t.closest("label").title = "The basemap could not load in this browser.";
+      $("rvBasemap").style.display = "none";
+    },
+  });
+  setBasemapVisible($("rvBasemapToggle").checked);
+  // The scope owns the camera; the basemap follows it every frame it moves.
+  app.scope.onView = view => basemap && basemap.sync(view);
+}
 
 function afterModel() {
   const m = app.model;
@@ -435,6 +474,7 @@ function afterModel() {
     (c.noRamp ? ` · ${c.noRamp} stands without a ramp` : "");
   app.scope.resize();
   app.scope.fit();
+  mountBasemap();
 }
 
 async function boot() {

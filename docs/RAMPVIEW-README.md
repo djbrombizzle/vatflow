@@ -218,6 +218,50 @@ Until a SID has a side, the departure shows its ramp but no spot, and the spot
 list says `set PENCL` rather than picking an end at random. A ramp with only one
 spot (Ramp 9 has just 9S) sends everyone there.
 
+## The OSM basemap
+
+The scope can draw over a live OpenStreetMap vector basemap instead of its own
+flat ground — the same open data every good surface map is built on. Toggle it
+under **Layers → OSM basemap**.
+
+With it on, the scope stops drawing aprons, buildings, taxiways and runways and
+becomes a pure overlay: stands, ramp areas, hold spots, targets and tags on top
+of real taxiway geometry. With it off, everything is drawn from the surface model
+as before.
+
+- The basemap camera is driven from the scope's own view, so pan, zoom and
+  rotation stay in register. The conversion is a pure function
+  (`viewToCamera` in `shared/ramp-basemap.js`) with its own test, because getting
+  the Mercator latitude scaling wrong shows up as a map that drifts out of
+  alignment as you pan north.
+- Only the background, landcover, water, aeroway and building layers are kept.
+  Roads, place labels and POIs are removed — the scope draws its own labels, and
+  a road name under a stand box helps nobody.
+- If MapLibre or the tiles fail to load, the toggle disables itself and the scope
+  goes back to drawing its own ground. Nothing breaks and nothing goes blank.
+
+## Enriching a surface from apt.dat
+
+OSM knows where a stand is and what it is called. What it usually lacks is which
+way the aircraft parks, how big the stand is, and which airlines use it —
+exactly what the gate draw needs. X-Plane's `apt.dat` carries all three in rows
+`1300` and `1301`, community-maintained for every major field.
+
+```sh
+node scripts/build-ramp-aptdat.mjs --icao KATL --apt ~/path/to/apt.dat
+node scripts/build-ramp-aptdat.mjs --icao KATL --apt apt.dat --surface osm --dry
+```
+
+**Enrichment only.** It never moves a stand and never renames one. A record is
+matched by name first, then to the nearest stand within 45 m, and only fills
+fields the surface is missing — what OSM already states always wins. The run
+prints how many records matched, how many fields were filled, and how many
+records found no stand at all, which is a useful signal that the surface is
+missing gates.
+
+The `apt.dat` file is read from your local copy and never committed; only the
+derived heading, size code, operators and ops type are written into the surface.
+
 ## Using the scope
 
 - **Drag** to pan, **wheel** to zoom, **click** a target or stand to select it.
@@ -248,6 +292,7 @@ node scripts/test-ramp-sid.mjs      # SID parsing and the north/south side map
 node scripts/test-ramp-boxes.mjs    # stand boxes fit their gaps and never overlap
 node scripts/test-ramp-overrides.mjs # every airport's override file, checked the same way
 node scripts/test-ramp-kiad.mjs     # the generated IAD surface, end to end
+node scripts/test-ramp-aptdat.mjs   # apt.dat parsing/merge and the basemap camera
 ```
 
 ## Not built yet
