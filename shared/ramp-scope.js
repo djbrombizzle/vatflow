@@ -49,7 +49,7 @@ const PHASE_COLOR = {
   LANDED: COLORS.inbound,
   TAXI_IN: COLORS.inbound,
   IN_BLOCK: COLORS.occupied,
-  TURN: COLORS.timer,
+  TURN: COLORS.outbound,
   PUSHBACK: COLORS.holding,
   TAXI_OUT: COLORS.outbound,
   HOLDING: COLORS.holding,
@@ -686,7 +686,7 @@ export class RampScope {
     } else if (a && a.source === "unassigned") {
       lines.push("UNASSIGNED");
     }
-    if (t.phase === "TAXI_OUT" || t.phase === "HOLDING" || t.phase === "PUSHBACK") {
+    if (t.phase === "TURN" || t.phase === "TAXI_OUT" || t.phase === "HOLDING" || t.phase === "PUSHBACK") {
       const dep = this.state.depRouting && this.state.depRouting.get(t.callsign);
       const label = dep ? departureLabel(dep) : null;
       if (label && label.text) lines.push(label.text);
