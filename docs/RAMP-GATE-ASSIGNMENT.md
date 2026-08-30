@@ -100,6 +100,55 @@ airport is either good enough to ship or has a visible to-do list.
 
 ---
 
+## 2A. Can we source *all* of it? — what actually exists
+
+Asked directly: **how much of "where does every airline at ATL park" can we obtain?** The answer
+differs sharply by layer, and it's worth being exact, because three of these four are solved and one
+is not obtainable at any price.
+
+| Layer | Sourceable? | From where |
+| --- | --- | --- |
+| **Stand inventory + geometry** — every stand at ATL, its id, position, heading, size | **Fully.** ~200 stands | OSM `parking_position` + `apt.dat`. Machine-readable, complete for ATL |
+| **Airline → concourse** | **Fully, by curation.** ~30 lines per airport | Airport terminal guides and concourse maps. Not an API — a person compiles it once |
+| **Airline → specific gate lease** | **Partially** | `apt.dat` row 1301 airline codes where mapped; OSM `operator` tags, sparse. No comprehensive public dataset exists |
+| **Live gate for a given flight** | **No** | Paid, restricted, and the wrong airplane anyway (§0) |
+
+### Why the middle layer is curated, not fetched
+
+There is no airline-to-concourse API. Airports publish it as human-readable terminal maps, it changes
+a few times a year, and for ATL it collapses to about thirty lines. Curating it is an afternoon;
+scraping it would be a permanently broken dependency on someone's marketing site. So it lives in
+`data/ramp/overrides/<ICAO>.json`, version-controlled, with its sources recorded in the file.
+
+The seed for KATL is committed at `data/ramp/overrides/KATL.json` — Delta across T/A/B/C/D with
+international on E/F, American and United on T, Southwest on C (C1–C22, south end), Alaska on C,
+Spirit and Frontier on C/D, non-Delta international on F, plus cargo and default blocks. It is marked
+**unverified**: it was compiled from public terminal guides, which disagree with each other in places
+(Frontier shows up on C, D *and* E depending on the guide), and it needs a pass from someone who
+knows the field.
+
+### The per-gate layer, and why it matters less than it looks
+
+Real per-gate leasing — "gate D32 is Delta's, D34 is common-use" — isn't published as a dataset
+anywhere. `apt.dat` row 1301 carries per-stand airline codes for community-mapped airports and is the
+closest thing that exists, but coverage varies by airport and it can be years stale.
+
+That gap costs us very little, for a reason specific to this project: **the draw only needs
+concourse-level truth plus stand size to produce a ramp that looks right.** Knowing that a Delta
+narrowbody belongs somewhere on B and fits a code-C stand is enough; knowing that B14 specifically is
+under lease adds nothing a controller would notice, and would be wrong within a year.
+
+### The layer that actually matters on VATSIM
+
+Real-world leasing describes where airlines park in the real world. What we need is where aircraft
+park *on VATSIM* — and that we can measure exactly, from our own observations (§5). After a few weeks
+of event traffic the learned prior is a better description of our own network than any real-world
+dataset could be, because it is a description of the thing we're actually displaying.
+
+So the sourcing plan is: **build the inventory, curate the concourse map, measure the rest.**
+
+---
+
 ## 3. The allocator — a constrained random draw
 
 **Random is the right model, as long as it is constrained and seeded.** A real ramp doesn't hand
