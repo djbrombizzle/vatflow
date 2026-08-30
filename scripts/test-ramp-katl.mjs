@@ -148,3 +148,29 @@ assert(M.aprons.some(a => a.label === "NORTH CARGO") && M.aprons.some(a => a.lab
   "cargo and GA aprons are labelled");
 
 console.log(`ramp-katl extras: ${passed} assertions passed in total`);
+
+/* the two surfaces are independent, and both are usable */
+const { SOURCE_SCHEMATIC, SOURCE_OSM } = await import("../shared/ramp-app.js");
+assert(SOURCE_SCHEMATIC === "schematic" && SOURCE_OSM === "osm", "both surface sources are named");
+assert(M.source === "schematic", "the committed surface identifies itself as the schematic");
+
+/* widebodies have somewhere to go on every concourse, or ordinary arrivals
+   resolve to UNASSIGNED — which is wrong rather than conservative */
+for (const c of ["T", "A", "B", "C", "D", "E", "F"]) {
+  const wide = M.stands.filter(s => s.concourse === c && ["D", "E", "F"].includes(s.sizeCode));
+  assert(wide.length > 0, "concourse " + c + " has widebody-capable gates");
+}
+assert(M.stands.some(s => s.sizeCode === "F"), "the international pier takes a code-F aircraft");
+
+const bigCtx = () => ({
+  operatorBlocks: M.operatorBlocks, occupancy: new Set(), closures: new Set(),
+  blocked: new Set(), reservations: new Map(), nowMs: Date.UTC(2026, 7, 30, 12, 0, 0),
+});
+const domesticHeavy = assignStand({ callsign: "DAL319", sizeCode: "E" }, M.stands, bigCtx());
+assert(domesticHeavy.standId, "a domestic widebody gets a gate");
+const heavyStand = M.stands.find(s => s.id === domesticHeavy.standId);
+assert(["D", "E", "F"].includes(heavyStand.sizeCode), "and it is one that fits");
+const intlHeavy = assignStand({ callsign: "DLH440", sizeCode: "F", intl: true }, M.stands, bigCtx());
+assert(intlHeavy.standId && "EF".includes(intlHeavy.standId[0]), "an A380 draws the international pier");
+
+console.log(`ramp-katl surfaces: ${passed} assertions passed in total`);

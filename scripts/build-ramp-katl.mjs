@@ -100,11 +100,21 @@ const SPOTS = [
   ["5N", "D", "E", "N"], ["5S", "D", "E", "S"],
 ];
 
-/** Which stands take a widebody. Concourse E and F are the international piers. */
-function sizeFor(concourse, id) {
-  if (concourse === "F") return "E";
-  if (concourse === "E") return /^E(2[6-9]|3\d|1[46 8])/.test(id) ? "E" : "D";
-  if (concourse === "D") return "C";
+/**
+ * Which stands take a widebody.
+ *
+ * E and F are the international piers, but the domestic concourses are not all
+ * code C either — every hub concourse has widebody-capable gates, and without
+ * them a domestic 767 or A330 has nowhere on the field to go and resolves to
+ * UNASSIGNED, which is wrong rather than conservative.
+ */
+function sizeFor(concourse, id, index) {
+  if (concourse === "F") return index % 3 === 0 ? "F" : "E";   // the pier takes an A380
+  if (concourse === "E") return /^E(2[6-9]|3\d|1[468])/.test(id) ? "E" : "D";
+  // Roughly one gate in four on a domestic concourse takes a widebody, and one
+  // in eight takes a heavy — the usual hub mix.
+  if (index % 8 === 3) return "E";
+  if (index % 4 === 1) return "D";
   return "C";
 }
 
@@ -173,7 +183,7 @@ for (const [code, def] of Object.entries(CONCOURSES)) {
       // Nose sits at the building edge; the aircraft faces the concourse.
       const x = face === "west" ? def.x - HALF_WIDTH : def.x + HALF_WIDTH;
       const hdg = face === "west" ? 90 : 270;
-      const sizeCode = sizeFor(code, id);
+      const sizeCode = sizeFor(code, id, i);
       stands.push({
         id,
         point: [x, Math.round(y * 10) / 10],
