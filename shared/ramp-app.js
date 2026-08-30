@@ -12,6 +12,7 @@ import { parseOverpass, fetchOverpass } from "./ramp-osm.js";
 import { TrafficStore, POLL_MS, etaMs } from "./ramp-traffic.js";
 import { StandOccupancy } from "./ramp-stands.js";
 import { assignStand, operatorOf } from "./ramp-alloc.js";
+import { groundInbounds, entrySpot } from "./ramp-ground.js";
 import { RampScope, fmtClock } from "./ramp-scope.js";
 import { FIELDS } from "./ramp-app-fields.mjs";
 import { declaredStand, fmtEta } from "./ramp-app-pure.mjs";
@@ -272,6 +273,19 @@ export class RampApp {
       if (res.standId) reservations.set(res.standId, { callsign: t.callsign });
     }
 
+    // Refresh the entry spot every tick: it is chosen from where the aircraft
+    // actually is, so it flips end as an arrival rolls out the other way.
+    for (const t of targets) {
+      const a = this.assignments.get(t.callsign);
+      if (!a || !a.standId) continue;
+      const stand = this.model.stands.find(s => s.id === a.standId);
+      const entry = stand && stand.ramp
+        ? entrySpot({ x: t.dispX ?? t.x, y: t.dispY ?? t.y }, stand.ramp, this.model.spots)
+        : null;
+      a.spot = entry ? entry.spot.id : null;
+      a.ramp = stand ? stand.ramp : null;
+    }
+
     // Drop assignments for flights that have gone.
     const live = new Set(targets.map(t => t.callsign));
     for (const cs of [...this.assignments.keys()]) {
@@ -364,8 +378,15 @@ export class RampApp {
       const inbound = arrivals.filter(a => a.ramp === r.id).length;
       return { id: r.id, label: r.label, freq: r.freq || null, stands: stands.length, occupied, inbound };
     });
+    const ground = groundInbounds({
+      targets: [...this.traffic.targets.values()],
+      assignments: this.assignments,
+      model: this.model,
+      nowMs,
+    });
+
     return {
-      arrivals, departures, ramps,
+      arrivals, departures, ramps, ground,
       counts: {
         targets: this.traffic.targets.size,
         occupied: this.occupancy.occupied.size,

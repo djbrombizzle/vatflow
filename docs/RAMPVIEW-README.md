@@ -85,6 +85,29 @@ frequencies are **placeholders** — correct them before using it for real.
 - The **ramp prefix is inbound-only**. `DAL1438 R3/C30` while it is arriving; plain `C30`
   once it is on the stand or taxiing out.
 
+## The field view is for ground
+
+Ground works the movement area and has to send each arrival to the right ramp.
+That decision needs three things the stand id alone does not show: which ramp
+owns the gate, which spot the aircraft enters through, and what frequency to
+hand them to. So the whole-field view carries them:
+
+- **Routing lines.** Every inbound draws a dashed line, coloured by ramp, from
+  the aircraft to the spot it will enter through, then faintly on to its stand.
+  From across the airport you can see the flow — which alley each arrival is
+  headed for — without reading a single label.
+- **Inbound tags** read `DAL1438 · R3/C30 · SPOT 3S`.
+- **Ground — Ramp Entry panel** lists every arrival with its ramp, frequency,
+  entry spot and gate, aircraft already taxiing first, because those need the
+  instruction now. An arrival with no stand yet is listed and flagged rather
+  than hidden.
+- **Ramp counters** show inbound count per ramp, so an overloaded alley is
+  visible before it happens.
+
+The entry spot is chosen from where the aircraft actually is, not from the gate:
+an arrival rolling out south enters at 3S, the same gate off a north runway
+enters at 3N, and the choice corrects itself as the aircraft taxis.
+
 ## Using the scope
 
 - **Drag** to pan, **wheel** to zoom, **click** a target or stand to select it.
@@ -110,6 +133,7 @@ node scripts/test-ramp-alloc.mjs    # the draw: constrained, seeded, spread
 node scripts/test-ramp-stands.mjs   # occupancy: no flicker on a 15 s feed
 node scripts/test-ramp-osm.mjs      # OSM extraction + the committed overrides
 node scripts/test-ramp-katl.mjs     # the generated ATL surface, end to end
+node scripts/test-ramp-ground.mjs   # ramp entry: which ramp, which spot, which frequency
 ```
 
 ## Not built yet

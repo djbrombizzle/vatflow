@@ -59,6 +59,7 @@
         <label><input type="checkbox" data-layer="trails" checked> History trails</label>
         <label><input type="checkbox" data-layer="areas" checked> Ramp areas</label>
         <label><input type="checkbox" data-layer="spots" checked> Hold spots</label>
+        <label><input type="checkbox" data-layer="routing" checked> Ramp routing</label>
       </div>
       <div class="rv-panelbox" id="rvLegend" hidden>
         <b>Legend</b>
@@ -69,6 +70,7 @@
         <div><i class="sw" style="background:#48c7e0"></i> Arrival</div>
         <div><i class="sw" style="background:#5fd67d"></i> Departure</div>
         <div><i class="sw" style="background:#e0b23c"></i> Pushback / holding</div>
+        <div><i class="sw" style="background:linear-gradient(90deg,#5ac8e0,#e0b23c,#c98ce0)"></i> Inbound routing, by ramp</div>
       </div>
     </div>
 
@@ -77,6 +79,13 @@
         <header>Arrival Manager <span id="rvArrCount" class="rv-count">0</span></header>
         <div class="rv-tablewrap"><table id="rvArrivals">
           <thead><tr><th>Callsign</th><th>Type</th><th>Dist</th><th>ETA</th><th>Ramp/Gate</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </section>
+      <section class="rv-pane">
+        <header>Ground — Ramp Entry <span id="rvGndCount" class="rv-count">0</span></header>
+        <div class="rv-tablewrap"><table id="rvGround">
+          <thead><tr><th>Callsign</th><th>Ramp</th><th>Freq</th><th>Spot</th><th>Gate</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </section>
@@ -161,6 +170,19 @@ function renderPanels(p) {
       `<td>${a.eta}</td><td>${gate}</td></tr>`;
   }).join("");
 
+  $("rvGndCount").textContent = p.ground.length;
+  const gndBody = $("rvGround").querySelector("tbody");
+  gndBody.innerHTML = p.ground.slice(0, 30).map(g => {
+    if (g.unassigned) {
+      return `<tr data-cs="${g.callsign}"><td>${g.callsign}</td>` +
+        `<td colspan="4"><span class="rv-unassigned">no stand assigned</span></td></tr>`;
+    }
+    return `<tr data-cs="${g.callsign}"${g.onSurface ? ' class="rv-onsurface"' : ""}>` +
+      `<td><i class="rv-rampdot" style="background:${g.color}"></i>${g.callsign}</td>` +
+      `<td>${g.rampLabel || g.ramp}</td><td>${g.freq || ""}</td>` +
+      `<td>${g.spot || ""}</td><td>${g.gate}</td></tr>`;
+  }).join("");
+
   const depBody = $("rvDepartures").querySelector("tbody");
   depBody.innerHTML = p.departures.slice(0, 40).map(d =>
     `<tr data-cs="${d.callsign}"><td>${d.callsign}</td><td>${d.phase}</td>` +
@@ -169,8 +191,8 @@ function renderPanels(p) {
 
   $("rvWatch").innerHTML = p.ramps.map(r =>
     `<div class="rv-watchbox${app.myRamp === r.id ? " active" : ""}" data-ramp="${r.id}">` +
-    `<b>${r.label || r.id}${r.freq ? " · " + r.freq : ""}</b><span class="n">${r.occupied}</span>` +
-    `<i>${r.inbound} inbound · ${r.stands} stands</i></div>`
+    `<b>${r.label || r.id}${r.freq ? " " + r.freq : ""}</b><span class="n">${r.inbound}</span>` +
+    `<i>${r.occupied}/${r.stands} occupied</i></div>`
   ).join("");
 
   const sel = p.selected;

@@ -9,6 +9,7 @@
 
 import { modelBounds, pointInPoly } from "./ramp-airport.js";
 import { gateTag } from "./ramp-app-pure.mjs";
+import { entrySpot, rampColor, GROUND_PHASES } from "./ramp-ground.js";
 
 const COLORS = {
   bg: "#05070a",
@@ -69,7 +70,7 @@ export class RampScope {
     this.cy = 0;
     this.rot = 0;               // radians, clockwise from north-up
     this.layers = { taxiways: true, taxiLabels: true, stands: true, standBoxes: true,
-                    tags: true, trails: true, areas: true, spots: true };
+                    tags: true, trails: true, areas: true, spots: true, routing: true };
     this.state = { targets: [], occupancy: new Map(), assignments: new Map(), nowMs: Date.now(), myRamp: null };
     this.hover = null;
     this.selected = null;
@@ -257,6 +258,7 @@ export class RampScope {
       if (this.layers.spots) this._drawSpots();
       if (this.layers.areas) this._drawAreaLabels();
     }
+    if (this.layers.routing) this._drawRouting();
     if (this.layers.trails) this._drawTrails();
     this._drawTargets();
     if (this.layers.tags) this._drawTags();
@@ -578,6 +580,58 @@ export class RampScope {
     }
   }
 
+  /**
+   * Where each inbound is headed: a line from the target to the spot it will
+   * enter its ramp through, coloured by ramp. This is the whole reason the
+   * field view exists — ground has to see which ramp an arrival is going to in
+   * order to send it to the right one, and a stand id alone does not show that
+   * from across the airport.
+   */
+  _drawRouting() {
+    if (!this.model) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([6, 5]);
+    for (const t of this.state.targets) {
+      if (!GROUND_PHASES.has(t.phase) || t.standId) continue;
+      const a = this.state.assignments.get(t.callsign);
+      if (!a || !a.standId) continue;
+      const stand = this.model.stands.find(s => s.id === a.standId);
+      if (!stand || !stand.ramp) continue;
+      const entry = entrySpot({ x: t.dispX, y: t.dispY }, stand.ramp, this.model.spots);
+      if (!entry) continue;
+
+      const [tx, ty] = this.toScreen(t.dispX, t.dispY);
+      const [sx, sy] = this.toScreen(entry.spot.point[0], entry.spot.point[1]);
+      const [gx, gy] = this.toScreen(stand.point[0], stand.point[1]);
+      const color = rampColor(stand.ramp);
+
+      ctx.globalAlpha = this.state.myRamp && stand.ramp !== this.state.myRamp ? 0.25 : 0.85;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+
+      // Spot to stand, fainter: the leg the ramp controller owns.
+      ctx.globalAlpha *= 0.45;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(gx, gy);
+      ctx.stroke();
+
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.setLineDash([6, 5]);
+    }
+    ctx.restore();
+  }
+
   _drawTrails() {
     const ctx = this.ctx;
     ctx.fillStyle = "#33424e";
@@ -667,12 +721,13 @@ export class RampScope {
     } else if (a && a.source === "unassigned") {
       lines.push("UNASSIGNED");
     }
-    if (this.scale > 0.3) {
-      if (t.phase === "TAXI_OUT" || t.phase === "HOLDING" || t.phase === "PUSHBACK") {
-        if (t.sid) lines.push(t.sid);
-      } else if (a && a.etaText) {
-        lines.push(a.etaText);
-      }
+    if (t.phase === "TAXI_OUT" || t.phase === "HOLDING" || t.phase === "PUSHBACK") {
+      if (t.sid && this.scale > 0.3) lines.push(t.sid);
+    } else if (GROUND_PHASES.has(t.phase) && a && a.spot) {
+      // Ground reads the spot, not the ETA: it is the instruction they issue.
+      lines.push("SPOT " + a.spot);
+    } else if (a && a.etaText && this.scale > 0.3) {
+      lines.push(a.etaText);
     }
     return lines;
   }

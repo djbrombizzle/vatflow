@@ -215,6 +215,10 @@ Reproduce the chrome, because it is what makes it read as a ramp position:
 
 | Phase | Scope | Done when |
 | --- | --- | --- |
+> **Ground use:** the whole-field view exists so ground controllers can see which ramp each
+> arrival is headed for and hand it to the right one — routing lines coloured by ramp, the
+> entry spot on the tag, and a Ground / Ramp Entry list carrying ramp, frequency, spot and gate.
+>
 > **Build status (this branch):** P0–P4 are implemented — build script, canvas scope,
 > traffic pipeline with dead reckoning, stand occupancy, the seeded draw, ramp numbers,
 > arrival manager and spot list. P5 (conflict probe), P6 (Firebase sync) and P7 (playback)

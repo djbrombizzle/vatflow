@@ -254,18 +254,21 @@ areas.push({
 });
 
 /** Hold spots at each end of every alley. */
+/** A spot's id names its ramp: 3N and 3S are the ends of Ramp 3's alley. */
+const rampForSpot = id => "R" + (/^\d+/.exec(id) || ["?"])[0];
+
 const spots = SPOTS.map(([id, a, b, end]) => {
   const mid = (CONCOURSES[a].x + CONCOURSES[b].x) / 2;
   const y = end === "N" ? 470 : -520;
-  return { id, point: [mid, y], side: end === "N" ? "north" : "south" };
+  return { id, point: [mid, y], side: end === "N" ? "north" : "south", ramp: rampForSpot(id) };
 });
 spots.push(
-  { id: "6N", point: [150, 250], side: "north" },
-  { id: "6E", point: [150, -60], side: "east" },
-  { id: "6S", point: [150, -400], side: "south" },
-  { id: "8W", point: [300, -330], side: "west" },
-  { id: "8S", point: [300, -520], side: "south" },
-  { id: "9S", point: [560, -520], side: "south" },
+  { id: "6N", point: [150, 250], side: "north", ramp: "R6" },
+  { id: "6E", point: [150, -60], side: "east", ramp: "R6" },
+  { id: "6S", point: [150, -400], side: "south", ramp: "R6" },
+  { id: "8W", point: [300, -330], side: "west", ramp: "R8" },
+  { id: "8S", point: [300, -520], side: "south", ramp: "R8" },
+  { id: "9S", point: [560, -520], side: "south", ramp: "R9" },
 );
 
 /* --------------------------------------------------------------- assemble --- */
