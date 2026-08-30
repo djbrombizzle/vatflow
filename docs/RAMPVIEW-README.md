@@ -106,6 +106,34 @@ The entry spot is chosen from where the aircraft actually is, not from the gate:
 an arrival rolling out south enters at 3S, the same gate off a north runway
 enters at 3N, and the choice corrects itself as the aircraft taxis.
 
+## Departures — which end of the ramp
+
+A departure leaves through the end that faces its SID. RampView reads the SID
+from the filed route in the datafeed, strips the revision (`PENCL2`, `PENCL3` →
+`PENCL`), looks up the side, and combines it with the gate's ramp:
+
+| Gate | Ramp | SID | Side | Spot |
+| --- | --- | --- | --- | --- |
+| C30 | Ramp 3 | PENCL2 | NORTH | **3N** |
+| C30 | Ramp 3 | GAIRY2 | SOUTH | **3S** |
+| T13 | Ramp 1 | PENCL2 | NORTH | **1N** |
+| D18 | Ramp 4 | GAIRY2 | SOUTH | **4S** |
+
+Which way a SID faces is local knowledge, so it is configuration rather than
+something the app guesses. **SID Sides** in the menu bar opens the panel:
+
+- SIDs seen in live traffic with no side set are listed first, in amber — set
+  one with a single click on N or S.
+- Type a name to add a SID before it shows up in traffic.
+- Set a side once per SID name; every revision of it follows.
+- Your settings are saved in your browser and override the shipped defaults.
+  `data/ramp/overrides/KATL.json` ships only the two worked examples, PENCL
+  north and GAIRY south; the rest of ATL is deliberately unset.
+
+Until a SID has a side, the departure shows its ramp but no spot, and the spot
+list says `set PENCL` rather than picking an end at random. A ramp with only one
+spot (Ramp 9 has just 9S) sends everyone there.
+
 ## Using the scope
 
 - **Drag** to pan, **wheel** to zoom, **click** a target or stand to select it.
@@ -132,6 +160,7 @@ node scripts/test-ramp-stands.mjs   # occupancy: no flicker on a 15 s feed
 node scripts/test-ramp-osm.mjs      # OSM extraction + the committed overrides
 node scripts/test-ramp-katl.mjs     # the generated ATL surface, end to end
 node scripts/test-ramp-ground.mjs   # ramp entry: which ramp, which spot, which frequency
+node scripts/test-ramp-sid.mjs      # SID parsing and the north/south side map
 ```
 
 ## Not built yet

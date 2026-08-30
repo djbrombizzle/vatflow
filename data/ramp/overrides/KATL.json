@@ -284,6 +284,11 @@
     "Airline blocks below are compiled from public terminal guides and are unverified.",
     "Guides disagree on Frontier (C, D and E); pick what matches VATSIM practice.",
     "Ramp 9 shares concourse F with Ramp 8 (east vs west face) — an OSM-built surface",
-    "cannot split the faces and will put all of F on Ramp 8."
-  ]
+    "cannot split the faces and will put all of F on Ramp 8.",
+    "sidSides carries only the two SIDs given as examples (PENCL north, GAIRY south). Every other ATL SID is deliberately unset — a controller assigns sides in the SID Sides panel, and unset SIDs are listed there as they are seen in live traffic."
+  ],
+  "sidSides": {
+    "PENCL": "NORTH",
+    "GAIRY": "SOUTH"
+  }
 }

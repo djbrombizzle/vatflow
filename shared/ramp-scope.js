@@ -669,7 +669,10 @@ export class RampScope {
       lines.push("UNASSIGNED");
     }
     if (t.phase === "TAXI_OUT" || t.phase === "HOLDING" || t.phase === "PUSHBACK") {
-      if (t.sid && this.scale > 0.3) lines.push(t.sid);
+      const dep = this.state.depRouting && this.state.depRouting.get(t.callsign);
+      if (dep && dep.spot) lines.push(dep.sid ? `${dep.sid} ${dep.spot}` : "SPOT " + dep.spot);
+      else if (dep && dep.sid) lines.push(dep.sid + " SID?");
+      else if (t.sid && this.scale > 0.3) lines.push(t.sid);
     } else if (GROUND_PHASES.has(t.phase) && a && a.spot) {
       // Ground reads the spot, not the ETA: it is the instruction they issue.
       lines.push("SPOT " + a.spot);

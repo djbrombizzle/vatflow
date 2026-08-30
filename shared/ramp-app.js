@@ -13,11 +13,15 @@ import { TrafficStore, POLL_MS, etaMs } from "./ramp-traffic.js";
 import { StandOccupancy } from "./ramp-stands.js";
 import { assignStand, operatorOf } from "./ramp-alloc.js";
 import { groundInbounds, entrySpot } from "./ramp-ground.js";
+import { departureSpot, sideForSid, mergeSidSides, sidKey } from "./ramp-sid.js";
 import { RampScope, fmtClock } from "./ramp-scope.js";
 import { FIELDS } from "./ramp-app-fields.mjs";
 import { declaredStand, fmtEta } from "./ramp-app-pure.mjs";
 
 export { declaredStand, fmtEta };
+
+/** Departure phases the ramp still owns. */
+const DEPARTURE_PHASES = new Set(["IN_BLOCK", "TURN", "PUSHBACK", "TAXI_OUT", "HOLDING"]);
 
 export { FIELDS };
 
@@ -127,6 +131,12 @@ export class RampApp {
     /** callsign -> { standId, source, confidence, pinned, byCid, atMs, etaText, ramp } */
     this.assignments = new Map();
     this.closures = new Set();
+    /** SID name -> NORTH | SOUTH. Shipped defaults merged with local edits. */
+    this.sidSides = {};
+    /** callsign -> { gate, ramp, sid, side, spot } for departures on the surface. */
+    this.depRouting = new Map();
+    /** SID names seen in traffic that nobody has given a side yet. */
+    this.unmappedSids = new Set();
     this.myRamp = null;
     this.paused = false;
     this.lastFrameMs = performance.now();
@@ -140,6 +150,7 @@ export class RampApp {
     this.assignments.clear();
     const { model, overrides, origin, field } = await loadAirport(this.icao, this.onStatus);
     this.overrides = overrides;
+    this.sidSides = mergeSidSides(overrides && overrides.sidSides, this.localSidSides || {});
     this.field = field;
     if (model) this.useModel(model);
     else this.onStatus("No surface data for " + this.icao + " — fetch it from OpenStreetMap.");
@@ -202,6 +213,7 @@ export class RampApp {
     this.occupancy.update(nowMs, targets.filter(t => t.onGround));
     for (const t of targets) t.standId = this.occupancy.standOf(t.callsign);
     this.reconcileAssignments(nowMs, targets);
+    this.routeDepartures(targets);
     this.pushState(targets, nowMs);
     this.onRender(this.panels(nowMs));
   }
@@ -254,6 +266,7 @@ export class RampApp {
             operatorBlocks: this.model.operatorBlocks,
             occupancy: occupancySet,
             closures: this.closures,
+      depRouting: this.depRouting,
             blocked,
             reservations,
             nowMs,
@@ -291,6 +304,51 @@ export class RampApp {
     for (const cs of [...this.assignments.keys()]) {
       if (!live.has(cs)) this.assignments.delete(cs);
     }
+  }
+
+  /**
+   * Work out which end of its ramp each departure leaves through.
+   *
+   * The gate gives the ramp, the filed SID gives the side, and the two together
+   * give the spot. Computed while the aircraft still has a stand and then held,
+   * because the stand is released the moment it taxis clear.
+   */
+  routeDepartures(targets) {
+    const live = new Set();
+    for (const t of targets) {
+      if (t.dep !== this.icao || t.arr === this.icao) continue;
+      if (!DEPARTURE_PHASES.has(t.phase)) continue;
+      live.add(t.callsign);
+
+      if (t.sidBase && !this.sidSides[t.sidBase]) this.unmappedSids.add(t.sidBase);
+
+      const gate = t.standId || (this.depRouting.get(t.callsign) || {}).gate || null;
+      const stand = gate ? this.model.stands.find(s => s.id === gate) : null;
+      const ramp = stand ? stand.ramp : null;
+      const side = sideForSid(t.sidBase, this.sidSides);
+      const entry = ramp ? departureSpot(ramp, side, this.model.spots) : null;
+
+      this.depRouting.set(t.callsign, {
+        gate, ramp, side,
+        sid: t.sid || "",
+        sidBase: t.sidBase || "",
+        spot: entry ? entry.spot.id : null,
+        spotExact: entry ? entry.exact : false,
+      });
+    }
+    for (const cs of [...this.depRouting.keys()]) {
+      if (!live.has(cs)) this.depRouting.delete(cs);
+    }
+  }
+
+  /** Set or clear the side a SID departs through; persists locally. */
+  setSidSide(sid, side) {
+    const merged = mergeSidSides(this.sidSides, { [sid]: side });
+    if (side === null) delete merged[sid];
+    this.sidSides = merged;
+    this.unmappedSids.delete(sidKey(sid));
+    if (this.onSidSidesChange) this.onSidSidesChange(this.sidSides);
+    this.tick();
   }
 
   /** Manual assignment from the controller — pinned, and never redrawn. */
@@ -343,6 +401,7 @@ export class RampApp {
       occupancy: this.occupancy.occupied,
       assignments: this.assignments,
       closures: this.closures,
+      depRouting: this.depRouting,
       blocked: this.occupancy.blockedStands(),
       myRamp: this.myRamp,
       nowMs,
@@ -364,14 +423,20 @@ export class RampApp {
         conflict: !!(a && a.conflict),
       };
     });
-    const departures = this.traffic.departures().map(t => ({
-      callsign: t.callsign,
-      type: t.type,
-      phase: t.phase,
-      sid: t.sid,
-      stand: t.standId,
-      ramp: standRamp(this.model, t.standId),
-    }));
+    const departures = this.traffic.departures().map(t => {
+      const r = this.depRouting.get(t.callsign) || {};
+      return {
+        callsign: t.callsign,
+        type: t.type,
+        phase: t.phase,
+        sid: r.sid || t.sid,
+        sidBase: r.sidBase || t.sidBase,
+        stand: r.gate || t.standId,
+        ramp: r.ramp || standRamp(this.model, t.standId),
+        side: r.side || null,
+        spot: r.spot || null,
+      };
+    });
     const ramps = (this.model.ramps || []).map(r => {
       const stands = this.model.stands.filter(s => s.ramp === r.id);
       const occupied = stands.filter(s => this.occupancy.occupied.has(s.id)).length;
@@ -394,6 +459,8 @@ export class RampApp {
         unassigned: arrivals.filter(a => !a.stand).length,
       },
       selected: this.selected,
+      unmappedSids: [...this.unmappedSids].sort(),
+      sidSides: this.sidSides,
       lastFetchMs: this.traffic.lastFetchMs,
     };
   }

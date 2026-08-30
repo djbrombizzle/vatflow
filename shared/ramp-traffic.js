@@ -8,6 +8,7 @@
  */
 
 import { sizeCodeForType } from "./ramp-alloc.js";
+import { parseSid } from "./ramp-sid.js";
 
 export const VATSIM_DATA_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 export const POLL_MS = 15000;
@@ -41,17 +42,18 @@ function toTarget(p, proj, fieldElevFt) {
     dep: (fp.departure || "").toUpperCase(),
     arr: (fp.arrival || "").toUpperCase(),
     route: fp.route || "",
-    sid: firstRouteToken(fp.route),
+    sid: sidOf(fp).token,
+    sidBase: sidOf(fp).base,
     hasPlan: !!fp.departure,
     intl: false,
     updatedMs: Date.now(),
   };
 }
 
-/** First token of a route — good enough to show the SID on a departure tag. */
-function firstRouteToken(route) {
-  const t = String(route || "").trim().split(/\s+/)[0] || "";
-  return /^[A-Z]{4,7}\d[A-Z]?$/.test(t) ? t : "";
+/** The filed SID, as both the token (PENCL2) and the name (PENCL). */
+function sidOf(fp) {
+  const parsed = parseSid(fp.route, fp.departure);
+  return parsed || { token: "", base: "" };
 }
 
 /** Great-circle distance in NM. */
