@@ -85,8 +85,9 @@ declutter rules by zoom. Leaflet's tile/DOM model fights all four.
   "runways":  [{ "id": "08L/26R", "poly": [...], "thresholds": {...} }],
   "taxiways": [{ "ref": "B", "line": [[x,y],...], "width": 23 }],
   "aprons":   [ ... ], "buildings": [ ... ],
+  "ramps":    [{ "id": "R3", "label": "Ramp 3", "concourses": ["C","D"], "freq": "131.32" }],
   "stands":   [{ "id": "D32", "point": [x,y], "hdg": 271, "poly": [...],
-                 "maxWake": "H", "concourse": "D", "operators": ["DAL"] }],
+                 "maxWake": "H", "concourse": "D", "ramp": "R3", "operators": ["DAL"] }],
   "spots":    [{ "id": "SPOT 5", "line": [[x,y],[x,y]], "side": "north" }],
   "areas":    [{ "id": "NORTH", "poly": [...], "kind": "watch" }]
 }
@@ -135,9 +136,13 @@ page loads one static file and works offline.
 2. **How long** — in-block timestamp → the `MM:SS` countdown/count-up in the stand box.
    Turn-time target comes from `data/ramp/<ICAO>.json` defaults, overridable per aircraft.
 3. **What is coming** — inbound aircraft are matched to a *predicted* stand from (a) a manual
-   assignment made by the ramp controller, else (b) airline→concourse rules with a free-stand
-   picker, else (c) unassigned. Predicted stands render hatched, not solid, so a prediction is
-   never mistaken for truth.
+   assignment made by the ramp controller, else (b) a **seeded random draw** from the stands that
+   airline actually uses and that are open and size-compatible, else (c) unassigned. Predicted
+   stands render hatched, not solid, so a prediction is never mistaken for truth.
+
+Inbound tags carry the **ramp number** ahead of the gate — `DAL1438 R1/T12` — because the ramp is
+what says whose aircraft it is. Ramps are defined once per airport and stamped onto stands from
+their concourse; a controller selects the ramp they work and everything outside it dims.
 
 Stand box colour: **green** free, **amber** assigned/inbound with ETA, **red** occupied,
 **flashing red** conflict (see below), **grey** closed by the controller.
