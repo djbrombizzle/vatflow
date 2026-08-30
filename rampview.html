@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RampView — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="shared/ramp.css">
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+
+<div id="rampPage">
+  <!-- Title + menu bar -->
+  <div class="rv-titlebar">
+    <span class="rv-app">RampView</span>
+    <span class="rv-sep">::</span>
+    <span id="rvFieldName">—</span>
+  </div>
+  <div class="rv-menubar">
+    <select id="rvField" title="Airport"></select>
+    <button type="button" data-menu="layers">Layers</button>
+    <button type="button" data-menu="legend">Legend</button>
+    <button type="button" id="rvFetch" title="Fetch surface geometry from OpenStreetMap">Fetch surface</button>
+    <button type="button" id="rvExport" title="Download the built surface as JSON to commit">Export</button>
+    <button type="button" id="rvPause">Pause</button>
+    <label class="rv-myramp">Ramp
+      <select id="rvMyRamp"><option value="">All</option></select>
+    </label>
+    <input id="rvSearch" type="search" placeholder="Search callsign / stand" autocomplete="off">
+    <span class="rv-spacer"></span>
+    <span class="rv-mode">Mode: <b id="rvMode">Live</b></span>
+    <span class="rv-clock" id="rvClock">--:--:--Z</span>
+  </div>
+
+  <!-- Config banner -->
+  <div class="rv-config" id="rvConfig">Airport Configuration — <span id="rvConfigText">not set</span></div>
+
+  <div class="rv-body">
+    <div class="rv-scopewrap">
+      <canvas id="rvCanvas"></canvas>
+      <div class="rv-overlay" id="rvOverlay" hidden>
+        <div class="rv-overlay-card">
+          <h2 id="rvOverlayTitle">No surface data</h2>
+          <p id="rvOverlayText"></p>
+          <button type="button" id="rvOverlayBtn">Fetch from OpenStreetMap</button>
+        </div>
+      </div>
+      <div class="rv-watch" id="rvWatch"></div>
+      <div class="rv-panelbox" id="rvLayers" hidden>
+        <b>Layers</b>
+        <label><input type="checkbox" data-layer="taxiways" checked> Taxiways</label>
+        <label><input type="checkbox" data-layer="taxiLabels" checked> Taxiway labels</label>
+        <label><input type="checkbox" data-layer="stands" checked> Stands</label>
+        <label><input type="checkbox" data-layer="standBoxes" checked> Stand boxes</label>
+        <label><input type="checkbox" data-layer="tags" checked> Data tags</label>
+        <label><input type="checkbox" data-layer="trails" checked> History trails</label>
+      </div>
+      <div class="rv-panelbox" id="rvLegend" hidden>
+        <b>Legend</b>
+        <div><i class="sw" style="background:#2f9e5b"></i> Stand available</div>
+        <div><i class="sw" style="background:#c8382c"></i> Stand occupied</div>
+        <div><i class="sw" style="border:1px dashed #c98a1b;background:none"></i> Assigned inbound</div>
+        <div><i class="sw" style="background:#4a545e"></i> Closed</div>
+        <div><i class="sw" style="background:#48c7e0"></i> Arrival</div>
+        <div><i class="sw" style="background:#5fd67d"></i> Departure</div>
+        <div><i class="sw" style="background:#e0b23c"></i> Pushback / holding</div>
+      </div>
+    </div>
+
+    <aside class="rv-side">
+      <section class="rv-pane">
+        <header>Arrival Manager <span id="rvArrCount" class="rv-count">0</span></header>
+        <div class="rv-tablewrap"><table id="rvArrivals">
+          <thead><tr><th>Callsign</th><th>Type</th><th>Dist</th><th>ETA</th><th>Ramp/Gate</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </section>
+      <section class="rv-pane">
+        <header>Spot List <span id="rvDepCount" class="rv-count">0</span></header>
+        <div class="rv-tablewrap"><table id="rvDepartures">
+          <thead><tr><th>Callsign</th><th>Phase</th><th>SID</th><th>Gate</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </section>
+      <section class="rv-pane" id="rvSelPane">
+        <header>Selection</header>
+        <div class="rv-sel" id="rvSel">Click a target or stand.</div>
+        <div class="rv-assign">
+          <input id="rvAssignCs" placeholder="Callsign" autocomplete="off">
+          <input id="rvAssignStand" placeholder="Stand" autocomplete="off">
+          <button type="button" id="rvAssignBtn">Assign</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="rv-statusbar">
+    <span id="rvCoords">--</span>
+    <span id="rvCounts"></span>
+    <span class="rv-spacer"></span>
+    <span id="rvStatus">Loading…</span>
+    <span class="rv-attr" id="rvAttr"></span>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { RampApp, FIELDS, fmtClock } from "./shared/ramp-app.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "rampview");
+
+const $ = id => document.getElementById(id);
+const canvas = $("rvCanvas");
+const params = new URLSearchParams(location.search);
+let icao = (params.get("field") || localStorage.getItem("vatflow.ramp.field") || "KATL").toUpperCase();
+if (!FIELDS[icao]) icao = "KATL";
+
+const fieldSel = $("rvField");
+for (const [code, f] of Object.entries(FIELDS)) {
+  const o = document.createElement("option");
+  o.value = code;
+  o.textContent = code + " — " + f.name;
+  fieldSel.appendChild(o);
+}
+fieldSel.value = icao;
+
+const app = new RampApp({
+  canvas,
+  icao,
+  onStatus: msg => { if (msg) $("rvStatus").textContent = msg; },
+  onCursor: (x, y) => {
+    const p = app.field ? app.field.ref : null;
+    if (!p) return;
+    const lat = p[0] + (y / 6378137) * (180 / Math.PI);
+    const lon = p[1] + (x / (6378137 * Math.cos(p[0] * Math.PI / 180))) * (180 / Math.PI);
+    $("rvCoords").textContent =
+      `${lat.toFixed(5)} ${lon.toFixed(5)}  |  x ${x.toFixed(0)} y ${y.toFixed(0)} m  |  ` +
+      `${(Math.hypot(x, y) / 1852).toFixed(2)} nm ${((Math.atan2(x, y) * 180 / Math.PI + 360) % 360).toFixed(0)}°`;
+  },
+  onRender: renderPanels,
+});
+
+function renderPanels(p) {
+  $("rvArrCount").textContent = p.arrivals.length;
+  $("rvDepCount").textContent = p.departures.length;
+  $("rvCounts").textContent =
+    `${p.counts.targets} tracked · ${p.counts.occupied}/${p.counts.stands} stands occupied · ${p.counts.unassigned} unassigned`;
+
+  const arrBody = $("rvArrivals").querySelector("tbody");
+  arrBody.innerHTML = p.arrivals.slice(0, 40).map(a => {
+    const gate = a.stand
+      ? `${a.ramp ? a.ramp + "/" : ""}${a.stand}${a.source === "rule" || a.source === "rule-widened" || a.source === "rule-common" ? " ?" : ""}`
+      : `<span class="rv-unassigned">UNASSIGNED</span>`;
+    return `<tr data-cs="${a.callsign}"${a.conflict ? ' class="rv-conflict"' : ""}>` +
+      `<td>${a.callsign}</td><td>${a.type || ""}</td><td>${a.distNm.toFixed(0)}</td>` +
+      `<td>${a.eta}</td><td>${gate}</td></tr>`;
+  }).join("");
+
+  const depBody = $("rvDepartures").querySelector("tbody");
+  depBody.innerHTML = p.departures.slice(0, 40).map(d =>
+    `<tr data-cs="${d.callsign}"><td>${d.callsign}</td><td>${d.phase}</td>` +
+    `<td>${d.sid || ""}</td><td>${d.ramp ? d.ramp + "/" : ""}${d.stand || ""}</td></tr>`
+  ).join("");
+
+  $("rvWatch").innerHTML = p.ramps.map(r =>
+    `<div class="rv-watchbox${app.myRamp === r.id ? " active" : ""}" data-ramp="${r.id}">` +
+    `<b>${r.label || r.id}</b><span class="n">${r.occupied}</span>` +
+    `<i>${r.inbound} inbound · ${r.stands} stands</i></div>`
+  ).join("");
+
+  const sel = p.selected;
+  if (sel && sel.kind === "target") {
+    const t = sel.target;
+    const a = app.assignments.get(t.callsign);
+    $("rvSel").innerHTML =
+      `<b>${t.callsign}</b> ${t.type || ""}<br>${t.dep || "????"} → ${t.arr || "????"}<br>` +
+      `${t.phase} · ${Math.round(t.gs)} kt · ${t.distNm ? t.distNm.toFixed(1) + " nm" : ""}<br>` +
+      (t.standId ? `On stand <b>${t.standId}</b>` : a && a.standId ? `Assigned <b>${a.standId}</b> (${a.source})` : "No stand");
+    $("rvAssignCs").value = t.callsign;
+  } else if (sel && sel.kind === "stand") {
+    const s = sel.stand;
+    const occ = app.occupancy.occupied.get(s.id);
+    $("rvSel").innerHTML =
+      `Stand <b>${s.id}</b> · ${s.ramp || "no ramp"} · code ${s.sizeCode}<br>` +
+      (s.operators && s.operators.length ? `Operators ${s.operators.join(" ")}<br>` : "") +
+      (occ ? `<b>${occ.callsign}</b> ${fmtClock(occ.elapsedMs)} occupied` : "Available") +
+      `<br><button type="button" class="rv-mini" id="rvCloseStand">${app.closures.has(s.id) ? "Reopen" : "Close"} stand</button>`;
+    $("rvAssignStand").value = s.id;
+    const btn = $("rvCloseStand");
+    if (btn) btn.onclick = () => app.toggleClosure(s.id);
+  }
+
+  $("rvClock").textContent = new Date().toISOString().slice(11, 19) + "Z";
+}
+
+/* ---- controls ---- */
+
+fieldSel.addEventListener("change", async () => {
+  icao = fieldSel.value;
+  localStorage.setItem("vatflow.ramp.field", icao);
+  history.replaceState(null, "", "?field=" + icao);
+  await boot();
+});
+
+$("rvPause").addEventListener("click", () => {
+  app.paused = !app.paused;
+  $("rvPause").textContent = app.paused ? "Resume" : "Pause";
+  $("rvMode").textContent = app.paused ? "Paused" : "Live";
+});
+
+for (const btn of document.querySelectorAll("[data-menu]")) {
+  btn.addEventListener("click", () => {
+    const el = $("rv" + btn.dataset.menu[0].toUpperCase() + btn.dataset.menu.slice(1));
+    if (el) el.hidden = !el.hidden;
+  });
+}
+
+document.querySelectorAll("[data-layer]").forEach(cb => {
+  cb.addEventListener("change", () => { app.scope.layers[cb.dataset.layer] = cb.checked; });
+});
+
+$("rvWatch").addEventListener("click", e => {
+  const box = e.target.closest("[data-ramp]");
+  if (!box) return;
+  app.setMyRamp(app.myRamp === box.dataset.ramp ? null : box.dataset.ramp);
+  $("rvMyRamp").value = app.myRamp || "";
+});
+
+$("rvMyRamp").addEventListener("change", e => app.setMyRamp(e.target.value || null));
+
+$("rvAssignBtn").addEventListener("click", () => {
+  const cs = $("rvAssignCs").value.trim().toUpperCase();
+  const stand = $("rvAssignStand").value.trim().toUpperCase();
+  if (!cs) return;
+  if (!stand) { app.clearAssignment(cs); $("rvStatus").textContent = "Cleared " + cs; return; }
+  $("rvStatus").textContent = app.assignManual(cs, stand)
+    ? `Assigned ${cs} to ${stand}`
+    : `No stand ${stand} at ${icao}`;
+});
+
+$("rvSearch").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const q = e.target.value.trim().toUpperCase();
+  const t = app.traffic && app.traffic.targets.get(q);
+  if (t) { app.scope.goTo(t.dispX, t.dispY, Math.max(app.scope.scale, 0.6)); return; }
+  const s = app.model && app.model.stands.find(x => x.id === q);
+  if (s) app.scope.goTo(s.point[0], s.point[1], Math.max(app.scope.scale, 0.9));
+});
+
+for (const id of ["rvFetch", "rvOverlayBtn"]) {
+  $(id).addEventListener("click", async () => {
+    try {
+      $("rvOverlay").hidden = true;
+      await app.fetchSurface();
+      afterModel();
+    } catch (err) {
+      $("rvStatus").textContent = "OSM fetch failed: " + err.message;
+      $("rvOverlay").hidden = false;
+      $("rvOverlayText").textContent = "OpenStreetMap fetch failed: " + err.message;
+    }
+  });
+}
+
+$("rvExport").addEventListener("click", () => {
+  if (!app.model) return;
+  const blob = new Blob([JSON.stringify(app.model)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = icao + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+window.addEventListener("resize", () => app.scope.resize());
+
+function afterModel() {
+  const m = app.model;
+  const rampSel = $("rvMyRamp");
+  rampSel.innerHTML = '<option value="">All</option>' +
+    (m.ramps || []).map(r => `<option value="${r.id}">${r.label || r.id}</option>`).join("");
+  $("rvAttr").textContent = m.attribution || "";
+  const c = m.coverage || {};
+  $("rvConfigText").textContent =
+    `${m.stands.length} stands · ${c.noOperators || 0} without operator tags · ${c.noRamp || 0} without a ramp`;
+  app.scope.resize();
+  app.scope.fit();
+}
+
+async function boot() {
+  app.stop();
+  $("rvFieldName").textContent = FIELDS[icao].name;
+  const ok = await app.start(icao);
+  if (ok) {
+    afterModel();
+    $("rvOverlay").hidden = true;
+  } else {
+    $("rvOverlayTitle").textContent = "No surface data for " + icao;
+    $("rvOverlayText").textContent =
+      "Run scripts/build-ramp-airport.mjs to commit it, or pull it straight from OpenStreetMap now — it is cached in this browser.";
+    $("rvOverlay").hidden = false;
+  }
+}
+
+window.__rampApp = app;   // exposed for smoke tests and console debugging
+
+setInterval(() => { $("rvClock").textContent = new Date().toISOString().slice(11, 19) + "Z"; }, 1000);
+boot();
+</script>
+</body>
+</html>
