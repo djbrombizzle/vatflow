@@ -268,14 +268,23 @@ export class RampApp {
   useModel(model) {
     this.model = model;
     this.scope.setModel(model);
+    // Stand ids differ between surfaces, so occupancy is rebuilt.
     this.occupancy = new StandOccupancy(model.stands);
-    this.traffic = new TrafficStore({
-      icao: this.icao,
-      proj: makeProjection(this.field.ref[0], this.field.ref[1]),
-      ref: this.field.ref,
-      elevFt: this.field.elevFt,
-      horizonNm: ASSIGN_HORIZON_NM,
-    });
+
+    // Traffic is NOT rebuilt for the same field. The store holds every target's
+    // phase history, and the phase machine needs that history to know an
+    // aircraft sitting still is mid-turn rather than freshly arrived. Throwing
+    // it away on a surface swap re-classified every stationary departure from
+    // scratch and dropped it out of the spot list.
+    if (!this.traffic || this.traffic.icao !== this.icao) {
+      this.traffic = new TrafficStore({
+        icao: this.icao,
+        proj: makeProjection(this.field.ref[0], this.field.ref[1]),
+        ref: this.field.ref,
+        elevFt: this.field.elevFt,
+        horizonNm: ASSIGN_HORIZON_NM,
+      });
+    }
   }
 
   startLoops() {

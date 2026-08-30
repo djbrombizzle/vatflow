@@ -221,8 +221,9 @@ spot (Ramp 9 has just 9S) sends everyone there.
 ## The OSM basemap
 
 The scope can draw over a live OpenStreetMap vector basemap instead of its own
-flat ground — the same open data every good surface map is built on. Toggle it
-under **Layers → OSM basemap**.
+flat ground — the same open data every good surface map is built on. It is
+**off by default**: turn it on under **Layers → OSM basemap**. With it off the
+page behaves exactly as it did before the basemap existed.
 
 With it on, the scope stops drawing aprons, buildings, taxiways and runways and
 becomes a pure overlay: stands, ramp areas, hold spots, targets and tags on top
@@ -296,6 +297,7 @@ node scripts/test-ramp-boxes.mjs    # stand boxes fit their gaps and never overl
 node scripts/test-ramp-overrides.mjs # every airport's override file, checked the same way
 node scripts/test-ramp-kiad.mjs     # the generated IAD surface, end to end
 node scripts/test-ramp-aptdat.mjs   # apt.dat parsing/merge and the basemap camera
+node scripts/test-ramp-phases.mjs   # a departure stays a departure, at every stage
 ```
 
 ## Not built yet

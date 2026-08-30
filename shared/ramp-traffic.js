@@ -203,7 +203,11 @@ export function nextPhase(prev, t, nowMs) {
       // comes from the flight plan, not from its speed. Without this, a page
       // opened mid-bank shows every taxiing departure as an arrival.
       const outbound = t.dep === t.field && t.arr !== t.field;
-      if (!moving) return "IN_BLOCK";
+      // An aircraft standing on a gate with an outbound plan is mid-turn, not
+      // an arrival that happens to be parked. IN_BLOCK reads as "just arrived"
+      // everywhere else, and it is what dropped stationary departures out of
+      // the spot list entirely.
+      if (!moving) return outbound ? "TURN" : "IN_BLOCK";
       if (t.gs > 40) return outbound ? "TAXI_OUT" : "LANDED";
       return outbound ? "TAXI_OUT" : "TAXI_IN";
     }
@@ -214,7 +218,10 @@ export function nextPhase(prev, t, nowMs) {
     case "TAXI_IN":
       return moving ? "TAXI_IN" : "IN_BLOCK";
     case "IN_BLOCK":
-      return moving ? "PUSHBACK" : "IN_BLOCK";
+      // Once a filed outbound plan appears, an arrival that parked becomes the
+      // next departure. This is the normal turn: land, block in, file out.
+      if (!moving) return t.dep === t.field && t.arr !== t.field ? "TURN" : "IN_BLOCK";
+      return "PUSHBACK";
     case "TURN":
       return moving ? "PUSHBACK" : "TURN";
     case "PUSHBACK":
