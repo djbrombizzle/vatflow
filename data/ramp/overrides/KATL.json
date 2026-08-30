@@ -1,77 +1,303 @@
 {
   "_comment": [
-    "Hand-authored overlay for KATL, merged over the OSM/apt.dat build output.",
-    "Stand inventory, positions, headings and sizes come from the build — NOT from this file.",
-    "This file carries only what no machine-readable source publishes: which airlines use",
-    "which concourse, how concourses group into ramp control areas, and local corrections.",
-    "UNVERIFIED — first cut compiled from public airport/terminal guides (Aug 2026).",
-    "Ramp grouping and frequencies are placeholders pending confirmation."
+    "Hand-authored overlay for KATL, merged over the built surface.",
+    "Ramp areas, frequencies and hold spots are transcribed from the published ATL ramp chart.",
+    "Ramp ownership at ATL runs down the ALLEY, not the concourse: Ramp 2 owns the east face",
+    "of A and the west face of B. scripts/build-ramp-katl.mjs assigns each gate its ramp",
+    "directly; the concourse lists here are the fallback for an OSM-built surface, which has",
+    "no face information.",
+    "Airline blocks remain UNVERIFIED — compiled from public terminal guides."
   ],
   "icao": "KATL",
-
   "ramps": [
-    { "id": "R1", "label": "Ramp 1", "concourses": ["T"],     "freq": null, "_status": "placeholder" },
-    { "id": "R2", "label": "Ramp 2", "concourses": ["A", "B"], "freq": null, "_status": "placeholder" },
-    { "id": "R3", "label": "Ramp 3", "concourses": ["C", "D"], "freq": null, "_status": "placeholder" },
-    { "id": "R4", "label": "Ramp 4", "concourses": ["E", "F"], "freq": null, "_status": "placeholder" }
+    {
+      "id": "R1",
+      "label": "Ramp 1",
+      "freq": "131.45",
+      "concourses": [
+        "T"
+      ],
+      "_owns": "T both faces + A west"
+    },
+    {
+      "id": "R2",
+      "label": "Ramp 2",
+      "freq": "131.85",
+      "concourses": [
+        "A"
+      ],
+      "_owns": "A east + B west"
+    },
+    {
+      "id": "R3",
+      "label": "Ramp 3",
+      "freq": "129.275",
+      "concourses": [
+        "B"
+      ],
+      "_owns": "B east + C west"
+    },
+    {
+      "id": "R4",
+      "label": "Ramp 4",
+      "freq": "130.075",
+      "concourses": [
+        "C"
+      ],
+      "_owns": "C east + D west"
+    },
+    {
+      "id": "R5",
+      "label": "Ramp 5",
+      "freq": "129.375",
+      "concourses": [
+        "D"
+      ],
+      "_owns": "D east + E west"
+    },
+    {
+      "id": "R6",
+      "label": "Ramp 6",
+      "freq": "131.375",
+      "concourses": [
+        "E"
+      ],
+      "note": "International. 129.25 during deice operations; 131.375 for Ramp 6S.",
+      "_owns": "E east"
+    },
+    {
+      "id": "R8",
+      "label": "Ramp 8",
+      "freq": "128.975",
+      "concourses": [
+        "F"
+      ],
+      "_owns": "F west"
+    },
+    {
+      "id": "R9",
+      "label": "Ramp 9",
+      "freq": "131.875",
+      "concourses": [],
+      "_owns": "F east"
+    }
   ],
-
   "concourses": {
-    "T": { "label": "Concourse T", "domestic": true },
-    "A": { "label": "Concourse A", "domestic": true },
-    "B": { "label": "Concourse B", "domestic": true },
-    "C": { "label": "Concourse C", "domestic": true },
-    "D": { "label": "Concourse D", "domestic": true },
-    "E": { "label": "Concourse E", "domestic": true, "intl": true },
-    "F": { "label": "Concourse F — Maynard H. Jackson Jr. Intl Terminal", "intl": true }
+    "T": {
+      "label": "Concourse T",
+      "domestic": true
+    },
+    "A": {
+      "label": "Concourse A",
+      "domestic": true
+    },
+    "B": {
+      "label": "Concourse B",
+      "domestic": true
+    },
+    "C": {
+      "label": "Concourse C",
+      "domestic": true
+    },
+    "D": {
+      "label": "Concourse D",
+      "domestic": true
+    },
+    "E": {
+      "label": "Concourse E",
+      "domestic": true,
+      "intl": true
+    },
+    "F": {
+      "label": "Concourse F — Maynard H. Jackson Jr. Intl Terminal",
+      "intl": true
+    }
   },
-
   "operatorBlocks": {
-    "DAL": { "concourses": ["T", "A", "B", "C", "D"], "intl": ["E", "F"], "_note": "hub carrier — uses the whole field" },
-    "EDV": { "inherits": "DAL", "prefer": ["C", "D"], "_note": "Endeavor — Delta Connection regional" },
-    "SKW": { "inherits": "DAL", "prefer": ["C", "D"] },
-    "RPA": { "inherits": "DAL", "prefer": ["C", "D"] },
-    "JIA": { "inherits": "DAL", "prefer": ["C", "D"] },
-
-    "AAL": { "concourses": ["T"] },
-    "UAL": { "concourses": ["T"] },
-    "ASA": { "concourses": ["C"] },
-    "SWA": { "concourses": ["C"], "gateRanges": ["C1-C22"], "_note": "south end of C" },
-    "NKS": { "concourses": ["C", "D"] },
-    "FFT": { "concourses": ["C", "D", "E"] },
-    "JBU": { "concourses": ["T"] },
-
-    "AMX": { "concourses": ["E"] },
-    "ACA": { "concourses": ["E", "F"] },
-    "WJA": { "concourses": ["F"] },
-    "AFR": { "concourses": ["F"] },
-    "KLM": { "concourses": ["F"] },
-    "BAW": { "concourses": ["F"] },
-    "VIR": { "concourses": ["F"] },
-    "DLH": { "concourses": ["F"] },
-    "KAL": { "concourses": ["F"] },
-    "THY": { "concourses": ["F"] },
-    "QTR": { "concourses": ["F"] },
-    "ETH": { "concourses": ["F"] },
-    "ETD": { "concourses": ["F"] },
-
-    "FDX": { "opsType": "cargo" },
-    "UPS": { "opsType": "cargo" },
-    "GTI": { "opsType": "cargo" },
-
-    "*":      { "concourses": ["T"], "_note": "unlisted domestic carrier" },
-    "*_INTL": { "concourses": ["F"], "_note": "unlisted international carrier" },
-    "*_GA":   { "opsType": "ga" }
+    "DAL": {
+      "concourses": [
+        "T",
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "intl": [
+        "E",
+        "F"
+      ],
+      "_note": "hub carrier — uses the whole field"
+    },
+    "EDV": {
+      "inherits": "DAL",
+      "prefer": [
+        "C",
+        "D"
+      ],
+      "_note": "Endeavor — Delta Connection regional"
+    },
+    "SKW": {
+      "inherits": "DAL",
+      "prefer": [
+        "C",
+        "D"
+      ]
+    },
+    "RPA": {
+      "inherits": "DAL",
+      "prefer": [
+        "C",
+        "D"
+      ]
+    },
+    "JIA": {
+      "inherits": "DAL",
+      "prefer": [
+        "C",
+        "D"
+      ]
+    },
+    "AAL": {
+      "concourses": [
+        "T"
+      ]
+    },
+    "UAL": {
+      "concourses": [
+        "T"
+      ]
+    },
+    "ASA": {
+      "concourses": [
+        "C"
+      ]
+    },
+    "SWA": {
+      "concourses": [
+        "C"
+      ],
+      "gateRanges": [
+        "C1-C22"
+      ],
+      "_note": "south end of C"
+    },
+    "NKS": {
+      "concourses": [
+        "C",
+        "D"
+      ]
+    },
+    "FFT": {
+      "concourses": [
+        "C",
+        "D",
+        "E"
+      ]
+    },
+    "JBU": {
+      "concourses": [
+        "T"
+      ]
+    },
+    "AMX": {
+      "concourses": [
+        "E"
+      ]
+    },
+    "ACA": {
+      "concourses": [
+        "E",
+        "F"
+      ]
+    },
+    "WJA": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "AFR": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "KLM": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "BAW": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "VIR": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "DLH": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "KAL": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "THY": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "QTR": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "ETH": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "ETD": {
+      "concourses": [
+        "F"
+      ]
+    },
+    "FDX": {
+      "opsType": "cargo"
+    },
+    "UPS": {
+      "opsType": "cargo"
+    },
+    "GTI": {
+      "opsType": "cargo"
+    },
+    "*": {
+      "concourses": [
+        "T"
+      ],
+      "_note": "unlisted domestic carrier"
+    },
+    "*_INTL": {
+      "concourses": [
+        "F"
+      ],
+      "_note": "unlisted international carrier"
+    },
+    "*_GA": {
+      "opsType": "ga"
+    }
   },
-
   "_sources": [
-    "atl.com concourse maps and airport terminal guides",
-    "upgradedpoints.com / airlineairport.com ATL terminal guides (Aug 2026)",
-    "Southwest C1-C22 (south end of C); AAL + UAL on T; non-Delta international on F"
+    "Published ATL ramp chart — ramp areas, frequencies, hold spots and gate inventory",
+    "Public ATL terminal guides — airline to concourse mapping (unverified)"
   ],
   "_confirm": [
-    "Ramp control area grouping and frequencies — placeholders above.",
-    "Frontier appears on C, D and E across sources; pick the one that matches VATSIM practice.",
-    "Concourse E gate range: airport guides say E1-E6, but the reference screenshots show E2-E36. Trust the built geometry."
+    "Airline blocks below are compiled from public terminal guides and are unverified.",
+    "Guides disagree on Frontier (C, D and E); pick what matches VATSIM practice.",
+    "Ramp 9 shares concourse F with Ramp 8 (east vs west face) — an OSM-built surface",
+    "cannot split the faces and will put all of F on Ramp 8."
   ]
 }

@@ -34,7 +34,7 @@
   </div>
 
   <!-- Config banner -->
-  <div class="rv-config" id="rvConfig">Airport Configuration — <span id="rvConfigText">not set</span></div>
+  <div class="rv-config" id="rvConfig">Surface — <span id="rvConfigText">loading</span></div>
 
   <div class="rv-body">
     <div class="rv-scopewrap">
@@ -55,6 +55,8 @@
         <label><input type="checkbox" data-layer="standBoxes" checked> Stand boxes</label>
         <label><input type="checkbox" data-layer="tags" checked> Data tags</label>
         <label><input type="checkbox" data-layer="trails" checked> History trails</label>
+        <label><input type="checkbox" data-layer="areas" checked> Ramp areas</label>
+        <label><input type="checkbox" data-layer="spots" checked> Hold spots</label>
       </div>
       <div class="rv-panelbox" id="rvLegend" hidden>
         <b>Legend</b>
@@ -165,7 +167,7 @@ function renderPanels(p) {
 
   $("rvWatch").innerHTML = p.ramps.map(r =>
     `<div class="rv-watchbox${app.myRamp === r.id ? " active" : ""}" data-ramp="${r.id}">` +
-    `<b>${r.label || r.id}</b><span class="n">${r.occupied}</span>` +
+    `<b>${r.label || r.id}${r.freq ? " · " + r.freq : ""}</b><span class="n">${r.occupied}</span>` +
     `<i>${r.inbound} inbound · ${r.stands} stands</i></div>`
   ).join("");
 
@@ -281,8 +283,10 @@ function afterModel() {
     (m.ramps || []).map(r => `<option value="${r.id}">${r.label || r.id}</option>`).join("");
   $("rvAttr").textContent = m.attribution || "";
   const c = m.coverage || {};
+  const ramps = (m.ramps || []).map(r => `${r.label || r.id} ${r.freq || ""}`.trim()).join(" · ");
   $("rvConfigText").textContent =
-    `${m.stands.length} stands · ${c.noOperators || 0} without operator tags · ${c.noRamp || 0} without a ramp`;
+    `${m.stands.length} stands · ${(m.ramps || []).length} ramps${ramps ? " — " + ramps : ""}` +
+    (c.noRamp ? ` · ${c.noRamp} stands without a ramp` : "");
   app.scope.resize();
   app.scope.fit();
 }

@@ -16,6 +16,9 @@
 }
 
 * { box-sizing: border-box; }
+/* Author display rules outrank the UA [hidden] rule, so state it explicitly —
+   without this the overlay and the layer panels can never be dismissed. */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--rv-bg); color: var(--rv-text); font-family: var(--rv-mono); }
 #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
 
