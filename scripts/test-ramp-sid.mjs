@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sidBase, sidKey, parseSid, sideForSid, departureSpot, mergeSidSides, SIDE_NORTH, SIDE_SOUTH } from "../shared/ramp-sid.js";
+import { sidBase, sidKey, parseSid, departureLabel, sideForSid, departureSpot, mergeSidSides, SIDE_NORTH, SIDE_SOUTH } from "../shared/ramp-sid.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -88,5 +88,32 @@ for (const [sid, side] of Object.entries(ov.sidSides)) {
   assert(sidKey(sid) === sid, "shipped SID " + sid + " is stored without a revision");
   assert(side === "NORTH" || side === "SOUTH", "shipped side for " + sid + " is valid");
 }
+
+/* the tag says which unknown is actually missing */
+const lab = o => departureLabel(o);
+assert(lab({ sid: "PENCL2", side: "NORTH", spot: "3N" }).text === "PENCL2 3N",
+  "ramp and side known: the tag is the instruction");
+assert(lab({ sid: "PENCL2", side: "NORTH", spot: "3N" }).kind === "spot", "and it is a spot");
+
+// The DAL210 case: PENCL is configured, but the aircraft has no gate, so there
+// is no ramp and no spot. Saying SID? here sends the controller to configure a
+// SID that is already configured.
+const noGate = lab({ sid: "PENCL2", side: "NORTH", spot: null });
+assert(noGate.kind === "side", "no gate is its own state, not an unset SID");
+assert(noGate.text === "PENCL2 N", "and the tag still says which way it is going");
+assert(!noGate.text.includes("SID?"), "a configured SID is never labelled SID?");
+
+const unset = lab({ sid: "CUTTN2", side: null, spot: null });
+assert(unset.kind === "unset" && unset.text === "CUTTN2 SID?", "an unconfigured SID does say SID?");
+assert(lab({ sid: "", side: null, spot: null }).kind === "none", "no filed SID, no label");
+assert(lab({}).text === "", "empty input is safe");
+assert(lab({ sid: "", side: "SOUTH", spot: "3S" }).text === "SPOT 3S", "a spot with no SID still reads");
+assert(lab({ sid: "", side: "SOUTH" }).text === "S", "a side with no SID still reads");
+
+/* and the two states are told apart by side, not by the SID being known */
+const configured = { PENCL: SIDE_NORTH };
+assert(sideForSid("PENCL2", configured) === "NORTH", "PENCL2 resolves from a PENCL entry");
+assert(lab({ sid: "PENCL2", side: sideForSid("PENCL2", configured), spot: null }).kind === "side",
+  "a configured SID with no gate is a side, not an unset");
 
 console.log(`ramp-sid: ${passed} assertions passed`);

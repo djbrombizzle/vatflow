@@ -89,6 +89,32 @@ export function departureSpot(rampId, side, spots) {
   return side ? null : null;
 }
 
+/**
+ * What a departure's tag should say, and why.
+ *
+ * Three different unknowns used to collapse into "SID?", which sent the
+ * controller to configure a SID that was already configured. They are separate
+ * questions and get separate answers:
+ *
+ *   spot  — ramp and side both known: the instruction, e.g. "PENCL2 3N"
+ *   side  — the SID's side is known but the aircraft has no gate, so no ramp
+ *           and no spot. Still useful: it is a north departure. "PENCL2 N"
+ *   unset — nobody has given this SID a side yet. "PENCL2 SID?"
+ *
+ * @param {{ sid?: string, side?: string|null, spot?: string|null }} o
+ * @returns {{ kind: string, text: string }}
+ */
+export function departureLabel(o = {}) {
+  const sid = o.sid || "";
+  if (o.spot) return { kind: "spot", text: sid ? `${sid} ${o.spot}` : `SPOT ${o.spot}` };
+  if (o.side) {
+    const initial = String(o.side).toUpperCase()[0];
+    return { kind: "side", text: sid ? `${sid} ${initial}` : initial };
+  }
+  if (sid) return { kind: "unset", text: `${sid} SID?` };
+  return { kind: "none", text: "" };
+}
+
 /** Every SID name the map knows, sorted. */
 export function knownSids(map) {
   return Object.keys(map || {}).sort();
