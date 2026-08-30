@@ -76,9 +76,20 @@ machine-readable source publishes:
 `data/ramp/overrides/KATL.json` is the worked example. Its ramp grouping and
 frequencies are **placeholders** — correct them before using it for real.
 
+## Gate assignment in v1
+
+- A **mapped** airline draws from its own block (see `operatorBlocks` in the override file).
+- An **unmapped** airline draws a random open, size-compatible gate anywhere on the field.
+  The draw is seeded on the callsign, so the gate is stable for that flight, and the ramp
+  follows from wherever it lands — an unmapped carrier drawn onto C30 shows `R3`.
+- The **ramp prefix is inbound-only**. `DAL1438 R3/C30` while it is arriving; plain `C30`
+  once it is on the stand or taxiing out.
+
 ## Using the scope
 
 - **Drag** to pan, **wheel** to zoom, **click** a target or stand to select it.
+- **Field** zooms out to the whole airport — all five runways, the taxiway system and the
+  cargo, maintenance and GA aprons. **Ramp** zooms back to the terminal complex.
 - **Ramp** selector (or clicking a ramp counter) sets the ramp you're working:
   yours stays at full brightness, everything else dims.
 - **Assign** takes a callsign and a stand. A manual assignment is pinned — the

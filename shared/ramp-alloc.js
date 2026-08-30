@@ -107,15 +107,19 @@ export function isCandidate(stand, flight, ctx) {
   const block = ctx.block || { concourses: [], gateRanges: [], opsType: null };
   if (block.opsType) {
     if ((stand.opsType || "airline") !== block.opsType) return false;
-  } else {
-    if (stand.operators && stand.operators.length) {
-      const op = operatorOf(flight.callsign);
-      if (op && stand.operators.includes(op)) return true;
-    }
-    const c = String(stand.concourse || "").toUpperCase();
-    if (block.concourses.length && !block.concourses.includes(c)) return false;
-    if (!inGateRanges(stand.id, block.gateRanges)) return false;
+    return true;
   }
+  if (block.anyStand) return true;
+
+  const op = operatorOf(flight.callsign);
+  if (stand.operators && stand.operators.length) {
+    // A stand tagged for particular airlines belongs to them.
+    if (!op || !stand.operators.includes(op)) return false;
+    return true;
+  }
+  const c = String(stand.concourse || "").toUpperCase();
+  if (block.concourses.length && !block.concourses.includes(c)) return false;
+  if (!inGateRanges(stand.id, block.gateRanges)) return false;
   return true;
 }
 
@@ -166,6 +170,20 @@ export function assignStand(flight, stands, ctx) {
   // Widening must never reach into another airline's block, so "common use"
   // means a concourse no other operator claims — not "anywhere with a gap".
   const common = commonConcourses(ctx.operatorBlocks, operator);
+  // An airline nobody has mapped gets a random open gate rather than nothing:
+  // for a first version a plausible gate beats UNASSIGNED, and the ramp still
+  // follows from wherever the draw lands. Airlines that DO have a block keep
+  // the strict behaviour — their traffic never wanders into someone else's.
+  const known = !!(ctx.operatorBlocks && ctx.operatorBlocks[operator]);
+  if (!known && !block.concourses.length && !block.opsType) {
+    const anyCtx = { ...ctx, block: { concourses: [], prefer: [], opsType: null, gateRanges: [] } };
+    const open = stands.filter(s => isCandidate(s, flight, anyCtx));
+    const pick = weightedDraw(open, open.map(s => weightFor(s, flight, anyCtx)), rng);
+    return pick
+      ? { standId: pick.id, source: "rule-any", confidence: "low" }
+      : { standId: null, source: "unassigned", confidence: "none" };
+  }
+
   const tiers = [
     { block, source: "rule" },
     { block: { ...block, gateRanges: [] }, source: "rule-widened" },

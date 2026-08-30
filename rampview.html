@@ -23,6 +23,8 @@
     <button type="button" data-menu="legend">Legend</button>
     <button type="button" id="rvFetch" title="Fetch surface geometry from OpenStreetMap">Fetch surface</button>
     <button type="button" id="rvExport" title="Download the built surface as JSON to commit">Export</button>
+    <button type="button" id="rvViewField" title="Zoom out to the whole airport">Field</button>
+    <button type="button" id="rvViewRamp" title="Zoom to the terminal ramp">Ramp</button>
     <button type="button" id="rvPause">Pause</button>
     <label class="rv-myramp">Ramp
       <select id="rvMyRamp"><option value="">All</option></select>
@@ -162,7 +164,7 @@ function renderPanels(p) {
   const depBody = $("rvDepartures").querySelector("tbody");
   depBody.innerHTML = p.departures.slice(0, 40).map(d =>
     `<tr data-cs="${d.callsign}"><td>${d.callsign}</td><td>${d.phase}</td>` +
-    `<td>${d.sid || ""}</td><td>${d.ramp ? d.ramp + "/" : ""}${d.stand || ""}</td></tr>`
+    `<td>${d.sid || ""}</td><td>${d.stand || ""}</td></tr>`
   ).join("");
 
   $("rvWatch").innerHTML = p.ramps.map(r =>
@@ -203,6 +205,20 @@ fieldSel.addEventListener("change", async () => {
   localStorage.setItem("vatflow.ramp.field", icao);
   history.replaceState(null, "", "?field=" + icao);
   await boot();
+});
+
+$("rvViewField").addEventListener("click", () => app.scope.fit());
+$("rvViewRamp").addEventListener("click", () => {
+  const m = app.model;
+  if (!m || !m.stands.length) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const st of m.stands) {
+    minX = Math.min(minX, st.point[0]); maxX = Math.max(maxX, st.point[0]);
+    minY = Math.min(minY, st.point[1]); maxY = Math.max(maxY, st.point[1]);
+  }
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  app.scope.goTo((minX + maxX) / 2, (minY + maxY) / 2,
+    Math.min(w / (maxX - minX + 500), h / (maxY - minY + 400)));
 });
 
 $("rvPause").addEventListener("click", () => {

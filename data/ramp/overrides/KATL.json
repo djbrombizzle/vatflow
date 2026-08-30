@@ -6,7 +6,8 @@
     "of A and the west face of B. scripts/build-ramp-katl.mjs assigns each gate its ramp",
     "directly; the concourse lists here are the fallback for an OSM-built surface, which has",
     "no face information.",
-    "Airline blocks remain UNVERIFIED — compiled from public terminal guides."
+    "Airline blocks remain UNVERIFIED — compiled from public terminal guides.",
+    "No wildcard block: an airline that is not listed draws a random open, size-compatible gate anywhere on the field, and its ramp follows from the gate it lands on."
   ],
   "icao": "KATL",
   "ramps": [
@@ -273,21 +274,6 @@
     },
     "GTI": {
       "opsType": "cargo"
-    },
-    "*": {
-      "concourses": [
-        "T"
-      ],
-      "_note": "unlisted domestic carrier"
-    },
-    "*_INTL": {
-      "concourses": [
-        "F"
-      ],
-      "_note": "unlisted international carrier"
-    },
-    "*_GA": {
-      "opsType": "ga"
     }
   },
   "_sources": [
