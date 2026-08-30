@@ -14,7 +14,11 @@ half has a real source:
 | --- | --- | --- | --- |
 | **Occupancy** | Who is physically on stand D32 right now? | Changes every minute | **Observed** — VATSIM datafeed position matched to stand geometry. This is ground truth, not a guess. |
 | **Affinity** | Which airlines use which stands at this field? | Changes yearly | **Fetched once at build time** — OSM stand tags + X-Plane `apt.dat` airline codes + hand overrides, committed as static JSON. |
-| **Assignment** | Which specific stand does inbound DAL1438 get? | Per flight | **Allocated deterministically** by us from affinity + live occupancy, and overridable by the ramp controller. |
+| **Assignment** | Which specific stand does inbound DAL1438 get? | Per flight | **Drawn at random from the legal candidates** — the airline's own block, open, free, size-compatible — with a seed that keeps the answer stable. Overridable by the ramp controller. |
+
+Random is the right model for the third row, provided it is *constrained* (only stands that airline
+actually uses, and only open ones) and *seeded* (the same flight doesn't get a new gate every poll).
+See §3.
 
 The thing people reach for first — *fetch the real-world gate for this flight* — is the one thing
 worth rejecting outright, for three reasons:
@@ -44,8 +48,8 @@ because a guess that looks like a fact is the failure mode that makes a ramp dis
 | **T0** | **Observed** — the aircraft is physically in the stand | Truth | Solid fill, plain tag `DAL1438 D32` | Nobody; it *is* the state |
 | **T1** | **Pilot-declared** — gate parsed from flight-plan remarks (`GATE A12`, `/GATE:A12`, `STAND A12`) | High | Solid outline, tag suffix `·P` | Controller can override |
 | **T2** | **Controller-assigned** — typed on the scope, synced to the room | High | Solid outline, tag suffix `·A`, hover shows assigning CID | Any unlocked controller |
-| **T3** | **Learned prior** — this operator/type has historically parked here at this field | Medium | Hatched fill, tag suffix `·?` | Controller assignment supersedes |
-| **T4** | **Rule-based** — airline→concourse affinity + free-stand allocator | Medium‑low | Hatched fill, tag suffix `·?` | Controller assignment supersedes |
+| **T3** | **Learned prior** — weights the draw toward stands this operator/type actually uses here | Medium | Hatched fill, tag suffix `·?` | Controller assignment supersedes |
+| **T4** | **Rule-based** — seeded random draw from the airline's open, compatible stands | Medium‑low | Hatched fill, tag suffix `·?` | Controller assignment supersedes |
 | **T5** | **Unresolved** — no affinity data, no free compatible stand | — | Tag reads `UNASSIGNED`, flight lands in an "unassigned" bucket on the arrival manager | Controller must assign |
 
 Two rules keep this honest:
@@ -68,7 +72,7 @@ Two rules keep this honest:
   "point": [x, y], "hdg": 271, "poly": [[x,y], ...],
   "sizeCode": "D",                  // ICAO A–F, drives compatibility
   "maxWake": "H",
-  "concourse": "D", "terminal": "DOMESTIC",
+  "concourse": "D", "ramp": "R3", "terminal": "DOMESTIC",
   "operators": ["DAL", "EDV"],      // ICAO airline codes, may be empty
   "opsType": "airline",             // airline | cargo | ga | military | none
   "intl": false,                    // customs/FIS-capable
@@ -96,55 +100,120 @@ airport is either good enough to ship or has a visible to-do list.
 
 ---
 
-## 3. The allocator
+## 3. The allocator — a constrained random draw
 
-### 3.1 When it runs
+**Random is the right model, as long as it is constrained and seeded.** A real ramp doesn't hand
+every AAL arrival the same "best" gate; it fills whatever is open in that airline's block. A weighted
+best-pick allocator would produce an unrealistically tidy ramp — the same stands used every time and
+the far end of a concourse permanently empty. A draw across the legal candidates matches reality and
+is far simpler to reason about.
 
-Not every poll. Assignment is **sticky by design**; an assignment that churns between polls is
-useless to a controller and impossible to coordinate over voice. It runs only on:
+Two properties are non-negotiable, and neither conflicts with randomness:
 
-- an inbound entering the assignment horizon (default 40 NM / ~15 min out),
-- the assigned stand becoming unavailable (still occupied inside the ETA window, or closed),
-- a controller clearing or reassigning,
-- an aircraft-type change on the flight plan (size compatibility may break).
+- **Constrained** — the draw only ever sees stands the airline actually uses, that are open, free and
+  size-compatible. Nobody gets a random gate; they get a random *legal* gate.
+- **Seeded** — the draw is `mulberry32(hash(callsign + dateUtc))`, never `Math.random()`. Same flight,
+  same day, same gate — on every client, on every reload, and in playback. This is what lets two
+  controllers see the same suggestion with zero sync traffic, and what stops the gate from changing
+  under a pilot who already read it back.
 
-Once assigned, an assignment is **pinned** until one of those fires. A controller assignment is
-pinned harder — the allocator will never silently move it, only raise a conflict.
+### 3.1 Candidate filter
 
-### 3.2 Hard constraints (filter)
+A stand is a candidate when **all** hold:
 
-A candidate stand must be: not occupied and not reserved inside `[ETA − 5 min, ETA + turn]`; not
-closed; not blocked by an in-use neighbour (`blockedBy`); size-compatible (`sizeCode` ≥ aircraft
-ICAO code); ops-type compatible (cargo doesn't get a pax stand while cargo stands are free);
-customs-capable if the flight is international.
+| Constraint | Rule |
+| --- | --- |
+| Operator | The stand's block belongs to this airline (§3.2) |
+| Free | Unoccupied and unreserved across `[ETA − 5 min, ETA + turn]` |
+| Open | Not closed by a controller, not blocked by an in-use neighbour |
+| Size | `stand.sizeCode ≥ aircraft ICAO code` |
+| Ops type | Cargo doesn't take a pax stand while cargo stands are free |
+| Customs | International arrival requires an FIS-capable stand |
 
-### 3.3 Soft score (rank)
+### 3.2 Airline → block affinity
+
+Authored at airport level, which is far easier to maintain than tagging 200 stands individually.
+Per-stand `operators` (from OSM / `apt.dat`) refines it where it exists.
+
+```jsonc
+// data/ramp/overrides/KATL.json
+"operatorBlocks": {
+  "DAL": { "concourses": ["T","A","B","C","D"], "intl": ["E","F"] },
+  "AAL": { "concourses": ["T"] },
+  "SWA": { "concourses": ["C"] },
+  "UAL": { "concourses": ["T"] },
+  "FDX": { "opsType": "cargo" },
+  "*":   { "concourses": ["T"] }        // default block for unlisted carriers
+}
+```
+
+Regional partners inherit their mainline block unless listed (`EDV`, `SKW` → Delta's block), because
+on VATSIM they park where the mainline parks.
+
+### 3.3 The draw
 
 ```
-score = 100·operatorMatch          // exact ICAO airline code on the stand
-      +  60·allianceOrConcourse    // same concourse as the operator's usual block
-      +  25·learnedPrior           // P(stand | operator, sizeCode) from §5
-      +  15·sizeFit                // penalise parking an E175 on a code-E stand
-      -  10·taxiDistanceFromExit   // prefer the natural flow off the arrival runway
-      -  30·neighbourBlocking      // penalise choices that sterilise adjacent stands
-      -  50·pushConflictRisk       // penalise stands whose push envelope is busy
+candidates = stands.filter(hard constraints)
+if candidates is empty  → widen, in order:
+     1. the airline's other listed concourses (e.g. DAL onto E/F)
+     2. any common-use stand of the right size
+     3. UNASSIGNED                       ← never widen into another airline's block
+rng  = mulberry32(hash(callsign + dateUtc))
+pick = weightedDraw(candidates, rng)
 ```
 
-### 3.4 Deterministic tie-break
+The one weight worth keeping: **size fit**. An unweighted draw will happily park an E175 on a code-E
+widebody stand while narrowbody stands sit open, which looks wrong and wastes the ramp. Weighting the
+draw toward the tightest compatible stand keeps the variety while stopping the silly outcomes. It is
+a weight on a random draw, not a best-pick — two E175s arriving together still land on different stands.
 
-Ties resolve by `hash(callsign + date) mod n` over the tied set — **not** `Math.random()`. Three
-reasons this matters more than it looks:
+### 3.4 Stickiness
 
-- Every browser watching the field computes the **same** suggestion without needing to sync it.
-- The suggestion doesn't jitter between polls or across a page reload.
-- Playback of a recorded period reproduces exactly what controllers saw at the time.
+The draw runs when an inbound crosses the assignment horizon (40 NM / ~15 min), and then **not again**
+unless the stand becomes unavailable, a controller intervenes, or the filed type changes and breaks
+size compatibility. A controller assignment is pinned harder — the allocator raises a conflict rather
+than redrawing. An assignment that churns between polls is impossible to coordinate over voice.
 
-### 3.5 Release
-
-An assignment is released when the aircraft goes `IN_BLOCK` (it becomes T0 observation), when the
-flight is cancelled or the pilot disconnects outside the field, or 30 minutes after a missed ETA.
+Release is on `IN_BLOCK` (it becomes a T0 observation), on cancellation or off-field disconnect, or
+30 minutes after a missed ETA.
 
 ---
+
+## 3A. Ramp numbers
+
+Big fields are split into ramp control areas, and the ramp number — not the concourse letter — is
+what says *who owns this aircraft*. It becomes a first-class concept in the airport file:
+
+```jsonc
+"ramps": [
+  { "id": "R1", "label": "Ramp 1", "concourses": ["T"],     "freq": "129.60" },
+  { "id": "R2", "label": "Ramp 2", "concourses": ["A","B"], "freq": "129.75" },
+  { "id": "R3", "label": "Ramp 3", "concourses": ["C","D"], "freq": "131.32" },
+  { "id": "R4", "label": "Ramp 4", "concourses": ["E","F"], "freq": "118.02" }
+]
+```
+
+The build stamps `ramp: "R1"` onto every stand from its concourse, so the mapping is authored once
+per airport and never per stand.
+
+**Where the ramp number shows up:**
+
+- **Inbound data tag** — `DAL1438  R1/T12`. Ramp first: it answers "is this mine?" before the reader
+  gets to the gate. Stand boxes keep the real gate id (`T12`) on the stand itself, because that's what
+  the pilot reads off the signage and hears on frequency.
+- **Arrival manager** — a Ramp column, and the list is filterable to one ramp.
+- **My ramp** — a controller selects the ramp they're working; their stands and aircraft render at
+  full brightness and everything else dims. This is the single feature that makes a multi-ramp field
+  workable on one screen.
+- **Watch lists** — the `NORTH 9` / `SOUTH 3` counters in the screenshots become per-ramp counters by
+  default, which is almost certainly what they are on the real system.
+- **Handoff** — an inbound crossing into another ramp's area highlights as handoff-pending, mirroring
+  how real ramp positions pass aircraft between each other.
+
+**Open point:** the gate's own id stays `T12` in this design — the ramp number labels the *area and
+the position*, not the gate. If the intent is that gate labels themselves render as `R1-12`, that's a
+one-line display change, but it diverges from what pilots see on the jetway and read back on frequency.
+Confirm which you want.
 
 ## 4. Occupancy engine
 
@@ -204,8 +273,9 @@ from our own observations, and it's how T3 beats T4.
 - **Aggregate.** A weekly GitHub Action (`ramp-priors.yml`, mirroring the existing
   `staffing-hist.yml` + Supabase upsert pattern) collapses observations into
   `data/ramp/priors/<ICAO>.json`: `P(stand | operator, sizeCode)` with a sample count.
-- **Use.** Priors with `n ≥ 20` feed the `learnedPrior` score term. Below that threshold they're
-  ignored — a prior built from three observations is superstition.
+- **Use.** Priors with `n ≥ 20` bias the *weights* of the draw — a stand nobody ever uses is drawn
+  less often, one everybody uses is drawn more. They never collapse the draw to a single answer, and
+  below that threshold they're ignored entirely: a prior built from three observations is superstition.
 - **Cold start.** A brand-new airport runs on T4 rules alone and works fine; priors only sharpen it.
 
 ---
@@ -230,8 +300,12 @@ honoured without anyone typing anything.
 
 - A 30-minute recorded KATL bank replays with **zero** spurious occupancy flips.
 - A target disconnecting and reconnecting within 60 s keeps its stand and its turn timer.
-- The allocator is idempotent: the same feed snapshot allocates identically across 100 runs and
-  across two independent clients.
+- The draw is reproducible: the same callsign on the same day yields the same stand across 100 runs
+  and two independent clients.
+- The draw spreads: 200 simulated SWA arrivals at KATL fill concourse C broadly rather than
+  clustering on the first few stands.
+- No arrival is ever drawn into another airline's block — an AAL flight with concourse T full goes
+  `UNASSIGNED`, never to a C gate.
 - A code-C aircraft is never assigned a stand that `blocks` an occupied neighbour.
 - With affinity data deleted, every inbound resolves to `UNASSIGNED` — and nothing crashes or invents.
 
@@ -247,3 +321,7 @@ honoured without anyone typing anything.
 3. **Observation collection** — opt-in per user, or on by default for anyone with the page open?
 4. **Reservation window** — is 5 minutes before ETA the right hold, or should it scale with how far
    out the aircraft is?
+5. **Ramp labelling** — does the gate id itself become `R1-12`, or does the gate stay `T12` with the
+   ramp number shown alongside it as the position identifier? (§3A)
+6. **ATL ramp map** — confirm the concourse→ramp grouping and which carriers sit where; the block
+   table in §3.2 is a first cut from AAL→T, SWA→C, DAL→everywhere.
