@@ -173,6 +173,10 @@ export function stampRamps(model) {
       const m = /^([A-Z]+)/.exec(s.id || "");
       if (m) s.concourse = m[1];
     }
+    // A stand that already names its ramp keeps it: at fields where the ramp
+    // boundary runs down the middle of a concourse, the two faces belong to
+    // different ramps and the concourse alone cannot say which.
+    if (s.ramp) continue;
     s.ramp = rampByConcourse.get(String(s.concourse || "").toUpperCase()) || null;
   }
   return model;

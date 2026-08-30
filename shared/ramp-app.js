@@ -362,7 +362,7 @@ export class RampApp {
       const stands = this.model.stands.filter(s => s.ramp === r.id);
       const occupied = stands.filter(s => this.occupancy.occupied.has(s.id)).length;
       const inbound = arrivals.filter(a => a.ramp === r.id).length;
-      return { id: r.id, label: r.label, stands: stands.length, occupied, inbound };
+      return { id: r.id, label: r.label, freq: r.freq || null, stands: stands.length, occupied, inbound };
     });
     return {
       arrivals, departures, ramps,

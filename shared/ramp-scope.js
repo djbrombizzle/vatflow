@@ -30,6 +30,13 @@ const COLORS = {
   manual: "#dd6fd0",
   text: "#d7e2ea",
   leader: "#5b6a76",
+  nonmove: "#8a97a3",
+  spot: "#9aa9b5",
+  buildingLabel: "#9fb0bd",
+  rampFill: "rgba(72, 199, 224, 0.035)",
+  rampMine: "rgba(232, 168, 56, 0.075)",
+  rampLabel: "#7d94a3",
+  rampLabelMine: "#e8a838",
 };
 const PHASE_COLOR = {
   INBOUND: COLORS.inbound,
@@ -57,7 +64,8 @@ export class RampScope {
     this.cx = 0;                // view centre, local metres
     this.cy = 0;
     this.rot = 0;               // radians, clockwise from north-up
-    this.layers = { taxiways: true, taxiLabels: true, stands: true, standBoxes: true, tags: true, trails: true, areas: true };
+    this.layers = { taxiways: true, taxiLabels: true, stands: true, standBoxes: true,
+                    tags: true, trails: true, areas: true, spots: true };
     this.state = { targets: [], occupancy: new Map(), assignments: new Map(), nowMs: Date.now(), myRamp: null };
     this.hover = null;
     this.selected = null;
@@ -235,10 +243,14 @@ export class RampScope {
     if (this.model) {
       this._drawPolys(this.model.aprons, COLORS.apron);
       this._drawPolys(this.model.buildings, COLORS.building);
+      if (this.layers.areas) this._drawAreas();
       if (this.layers.taxiways) this._drawLines(this.model.taxiways, COLORS.taxiway, 23);
       this._drawLines(this.model.runways, COLORS.runway, 45, COLORS.runwayEdge);
       if (this.layers.taxiLabels && this.scale > 0.25) this._drawTaxiLabels();
+      this._drawBuildingLabels();
       if (this.layers.stands) this._drawStands();
+      if (this.layers.spots) this._drawSpots();
+      if (this.layers.areas) this._drawAreaLabels();
     }
     if (this.layers.trails) this._drawTrails();
     this._drawTargets();
@@ -283,6 +295,98 @@ export class RampScope {
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+    }
+  }
+
+  /**
+   * Ramp control areas and the non-movement boundary. The ramp label carries
+   * its frequency, as it does on the paper chart — it is the first thing a
+   * controller checks when they sit down.
+   */
+  _drawAreas() {
+    const ctx = this.ctx;
+    for (const a of this.model.areas || []) {
+      if (!a.poly || a.poly.length < 3) continue;
+      ctx.beginPath();
+      for (let i = 0; i < a.poly.length; i++) {
+        const [px, py] = this.toScreen(a.poly[i][0], a.poly[i][1]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      if (a.kind === "nonmovement") {
+        ctx.strokeStyle = COLORS.nonmove;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([7, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        continue;
+      }
+      ctx.closePath();
+      const mine = this.state.myRamp && a.id === this.state.myRamp;
+      ctx.fillStyle = mine ? COLORS.rampMine : COLORS.rampFill;
+      ctx.fill();
+    }
+
+  }
+
+  /**
+   * Ramp names and frequencies, drawn last so stands cannot cover them. The
+   * frequency belongs on the chart: it is the first thing a controller checks.
+   */
+  _drawAreaLabels() {
+    if (this.scale < 0.12) return;
+    const ctx = this.ctx;
+    ctx.textAlign = "center";
+    ctx.font = "600 12px ui-monospace, Menlo, monospace";
+    for (const a of this.model.areas || []) {
+      if (!a.label || !a.labelAt) continue;
+      const [px, py] = this.toScreen(a.labelAt[0], a.labelAt[1]);
+      const mine = this.state.myRamp && a.id === this.state.myRamp;
+      // Set along the alley, like the concourse names: the alley centre is the
+      // one strip of the ramp with no aircraft parked on it.
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(-Math.PI / 2 + this.rot);
+      const w = ctx.measureText(a.label).width + 14;
+      ctx.fillStyle = "rgba(5,7,10,0.85)";
+      ctx.fillRect(-w / 2, -9, w, 16);
+      ctx.fillStyle = mine ? COLORS.rampLabelMine : COLORS.rampLabel;
+      ctx.fillText(a.label, 0, 3);
+      ctx.restore();
+    }
+  }
+
+  /** Concourse names, set along the building like the chart. */
+  _drawBuildingLabels() {
+    if (this.scale < 0.14) return;
+    const ctx = this.ctx;
+    ctx.textAlign = "center";
+    ctx.font = "600 11px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = COLORS.buildingLabel;
+    for (const b of this.model.buildings || []) {
+      if (!b.label || !b.labelAt) continue;
+      const [px, py] = this.toScreen(b.labelAt[0], b.labelAt[1]);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(-Math.PI / 2 + this.rot);
+      ctx.fillText(b.label, 0, 4);
+      ctx.restore();
+    }
+  }
+
+  /** Ramp hold spots — the boxed 1N / 4S markers on the chart. */
+  _drawSpots() {
+    if (this.scale < 0.2) return;
+    const ctx = this.ctx;
+    ctx.font = "9px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center";
+    for (const sp of this.model.spots || []) {
+      if (!sp.point) continue;
+      const [px, py] = this.toScreen(sp.point[0], sp.point[1]);
+      ctx.strokeStyle = COLORS.spot;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px - 11, py - 7, 22, 14);
+      ctx.fillStyle = COLORS.spot;
+      ctx.fillText(sp.id, px, py + 3);
     }
   }
 
@@ -336,11 +440,18 @@ export class RampScope {
       }
 
       if (showLabels) {
-        const [px, py] = this.toScreen(s.point[0], s.point[1]);
+        // Print the id outboard along the stand, away from the building: the
+        // west and east faces of a concourse are only ~35 m apart and their
+        // labels would otherwise land on top of each other.
+        const th = (s.hdg || 0) * Math.PI / 180;
+        const [px, py] = this.toScreen(
+          s.point[0] - Math.sin(th) * 26,
+          s.point[1] - Math.cos(th) * 26
+        );
         ctx.fillStyle = COLORS.text;
         ctx.font = "9px ui-monospace, Menlo, monospace";
         ctx.textAlign = "center";
-        ctx.fillText(s.id, px, py - 4);
+        ctx.fillText(s.id, px, py + 3);
       }
       ctx.globalAlpha = 1;
     }
