@@ -65,26 +65,56 @@ async function cachePut(key, value) {
 
 /* ----------------------------------------------------------------- load --- */
 
+/** The two surfaces a field can have, kept side by side rather than replacing each other. */
+export const SOURCE_SCHEMATIC = "schematic";
+export const SOURCE_OSM = "osm";
+
+const osmKey = icao => icao + ":osm";
+
 /**
  * Resolve an airport's surface model.
- * 1. `data/ramp/<ICAO>.json` if the build has been run and committed.
- * 2. the browser's IndexedDB cache from a previous OSM fetch.
- * 3. nothing — the caller offers "fetch from OpenStreetMap".
+ *
+ * Both surfaces are independent: the committed schematic (clean gate labels and
+ * face-level ramp ownership) and the OSM fetch (real taxiway geometry). Loading
+ * one never discards the other, so a controller can switch back and forth.
+ *
+ * @param {string} icao
+ * @param {{ source?: string, onStatus?: Function }} [opts]
  */
-export async function loadAirport(icao, onStatus) {
+export async function loadAirport(icao, opts = {}) {
   const field = FIELDS[icao];
   if (!field) throw new Error("Unknown field " + icao);
+  const onStatus = opts.onStatus;
   const overrides = await fetchJson(`data/ramp/overrides/${icao}.json`);
+  const want = opts.source || null;
 
-  let model = await fetchJson(`data/ramp/${icao}.json`);
-  let origin = "built";
-  if (!model) {
-    model = await cacheGet(icao);
-    origin = model ? "cache" : null;
+  const schematic = want === SOURCE_OSM ? null : await fetchJson(`data/ramp/${icao}.json`);
+  const osm = want === SOURCE_SCHEMATIC ? null : await cacheGet(osmKey(icao));
+
+  let model = null;
+  let origin = null;
+  if (want === SOURCE_OSM && osm) { model = osm; origin = SOURCE_OSM; }
+  else if (want === SOURCE_SCHEMATIC && schematic) { model = schematic; origin = SOURCE_SCHEMATIC; }
+  else if (!want) {
+    // No preference: the schematic is the better default — its gate labels and
+    // ramp ownership are exact where OSM's are inferred.
+    if (schematic) { model = schematic; origin = SOURCE_SCHEMATIC; }
+    else if (osm) { model = osm; origin = SOURCE_OSM; }
   }
-  if (!model) return { model: null, overrides, origin: null, field };
+
+  if (!model) return { model: null, overrides, origin: null, field, hasOsm: !!osm, hasSchematic: !!schematic };
   if (onStatus) onStatus(`Surface loaded (${origin})`);
-  return { model: finalise(model, overrides), overrides, origin, field };
+  return {
+    model: finalise(model, overrides),
+    overrides, origin, field,
+    hasOsm: !!osm,
+    hasSchematic: !!schematic,
+  };
+}
+
+/** Is a cached OSM surface available for this field? */
+export async function hasOsmSurface(icao) {
+  return !!(await cacheGet(osmKey(icao)));
 }
 
 /** Fetch the surface live from Overpass, then cache it. */
@@ -93,7 +123,7 @@ export async function fetchAirportFromOsm(icao, overrides, onStatus) {
   const osm = await fetchOverpass(field.ref, onStatus);
   if (onStatus) onStatus("Parsing surface…");
   const model = parseOverpass(osm, { icao, ref: field.ref });
-  await cachePut(icao, model);
+  await cachePut(osmKey(icao), model);
   return finalise(model, overrides);
 }
 
@@ -145,27 +175,59 @@ export class RampApp {
     this._timer = null;
   }
 
-  async start(icao) {
+  async start(icao, source) {
     if (icao) this.icao = icao;
     this.assignments.clear();
-    const { model, overrides, origin, field } = await loadAirport(this.icao, this.onStatus);
+    const { model, overrides, origin, field, hasOsm } =
+      await loadAirport(this.icao, { source: source || this.source, onStatus: this.onStatus });
+    this.hasOsm = hasOsm;
     this.overrides = overrides;
     this.sidSides = mergeSidSides(overrides && overrides.sidSides, this.localSidSides || {});
     this.field = field;
     if (model) this.useModel(model);
     else this.onStatus("No surface data for " + this.icao + " — fetch it from OpenStreetMap.");
     this.origin = origin;
+    this.source = origin;
     this.startLoops();
     return !!model;
   }
 
-  /** Pull the surface from Overpass in the browser and use it immediately. */
+  /**
+   * Pull the surface from Overpass and switch to it.
+   *
+   * A failure here leaves whatever is already loaded exactly as it was — losing
+   * a working map because a rate-limited mirror said no is not an acceptable
+   * outcome mid-session.
+   */
   async fetchSurface() {
     this.onStatus("Fetching surface from OpenStreetMap…");
     const model = await fetchAirportFromOsm(this.icao, this.overrides, this.onStatus);
     this.useModel(model);
-    this.origin = "osm";
-    this.onStatus(`Surface fetched — ${model.stands.length} stands, ${model.taxiways.length} taxiways.`);
+    this.origin = SOURCE_OSM;
+    this.source = SOURCE_OSM;
+    this.hasOsm = true;
+    this.onStatus(`OpenStreetMap surface — ${model.stands.length} stands, ${model.taxiways.length} taxiways.`);
+    return model;
+  }
+
+  /** Switch between the committed schematic and the cached OSM surface. */
+  async setSurface(source) {
+    if (source === this.source) return this.model;
+    const { model, origin } = await loadAirport(this.icao, { source });
+    if (!model) {
+      this.onStatus(source === SOURCE_OSM
+        ? "No OpenStreetMap surface cached yet — fetch it first."
+        : "No built surface for " + this.icao + ".");
+      return null;
+    }
+    this.assignments.clear();
+    this.depRouting.clear();
+    this.useModel(model);
+    this.source = origin;
+    this.origin = origin;
+    this.onStatus(`Switched to the ${origin === SOURCE_OSM ? "OpenStreetMap" : "schematic"} surface — ` +
+      `${model.stands.length} stands.`);
+    this.tick();
     return model;
   }
 

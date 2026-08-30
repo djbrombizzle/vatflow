@@ -22,7 +22,13 @@
     <button type="button" data-menu="layers">Layers</button>
     <button type="button" data-menu="legend">Legend</button>
     <button type="button" data-menu="sids">SID Sides</button>
-    <button type="button" id="rvFetch" title="Fetch surface geometry from OpenStreetMap">Fetch surface</button>
+    <label class="rv-myramp">Surface
+      <select id="rvSurface" title="Schematic: exact gate labels and ramp ownership. OpenStreetMap: real taxiway geometry.">
+        <option value="schematic">Schematic</option>
+        <option value="osm">OpenStreetMap</option>
+      </select>
+    </label>
+    <button type="button" id="rvFetch" title="Fetch or refresh the OpenStreetMap surface">Fetch OSM</button>
     <button type="button" id="rvExport" title="Download the built surface as JSON to commit">Export</button>
     <button type="button" id="rvViewField" title="Zoom out to the whole airport">Field</button>
     <button type="button" id="rvViewRamp" title="Zoom to the terminal ramp">Ramp</button>
@@ -129,7 +135,7 @@
 
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-import { RampApp, FIELDS, fmtClock } from "./shared/ramp-app.js";
+import { RampApp, FIELDS, fmtClock, hasOsmSurface, SOURCE_OSM, SOURCE_SCHEMATIC } from "./shared/ramp-app.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "rampview");
 
@@ -340,19 +346,49 @@ $("rvSearch").addEventListener("keydown", e => {
   if (s) app.scope.goTo(s.point[0], s.point[1], Math.max(app.scope.scale, 0.9));
 });
 
-for (const id of ["rvFetch", "rvOverlayBtn"]) {
-  $(id).addEventListener("click", async () => {
-    try {
-      $("rvOverlay").hidden = true;
-      await app.fetchSurface();
-      afterModel();
-    } catch (err) {
-      $("rvStatus").textContent = "OSM fetch failed: " + err.message;
+async function fetchOsmSurface() {
+  const btn = $("rvFetch");
+  btn.disabled = true;
+  btn.textContent = "Fetching…";
+  try {
+    $("rvOverlay").hidden = true;
+    await app.fetchSurface();
+    afterModel();
+  } catch (err) {
+    // Never take a working surface away because a mirror said no: the schematic
+    // (or a previously cached OSM surface) is still loaded and still correct.
+    const detail = "OpenStreetMap fetch failed: " + err.message;
+    $("rvStatus").textContent = app.model
+      ? detail + " — keeping the current surface."
+      : detail;
+    if (!app.model) {
       $("rvOverlay").hidden = false;
-      $("rvOverlayText").textContent = "OpenStreetMap fetch failed: " + err.message;
+      $("rvOverlayTitle").textContent = "No surface data for " + icao;
+      $("rvOverlayText").textContent = detail;
     }
-  });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Fetch OSM";
+  }
 }
+
+$("rvFetch").addEventListener("click", fetchOsmSurface);
+$("rvOverlayBtn").addEventListener("click", fetchOsmSurface);
+
+$("rvSurface").addEventListener("change", async e => {
+  const want = e.target.value;
+  // Ask the cache rather than trusting a snapshot taken at page load — a fetch
+  // in another tab, or one that finished after boot, still counts.
+  if (want === SOURCE_OSM) app.hasOsm = await hasOsmSurface(icao);
+  if (want === SOURCE_OSM && !app.hasOsm) {
+    await fetchOsmSurface();
+    $("rvSurface").value = app.source;
+    return;
+  }
+  const model = await app.setSurface(want);
+  if (model) afterModel();
+  $("rvSurface").value = app.source;
+});
 
 $("rvExport").addEventListener("click", () => {
   if (!app.model) return;
@@ -368,14 +404,18 @@ window.addEventListener("resize", () => app.scope.resize());
 
 function afterModel() {
   const m = app.model;
+  $("rvSurface").value = app.source || SOURCE_SCHEMATIC;
+  $("rvSurface").querySelector('option[value="osm"]').textContent =
+    app.hasOsm ? "OpenStreetMap" : "OpenStreetMap (fetch)";
   const rampSel = $("rvMyRamp");
   rampSel.innerHTML = '<option value="">All</option>' +
     (m.ramps || []).map(r => `<option value="${r.id}">${r.label || r.id}</option>`).join("");
   $("rvAttr").textContent = m.attribution || "";
   const c = m.coverage || {};
   const ramps = (m.ramps || []).map(r => `${r.label || r.id} ${r.freq || ""}`.trim()).join(" · ");
+  const label = app.source === SOURCE_OSM ? "OpenStreetMap" : "Schematic";
   $("rvConfigText").textContent =
-    `${m.stands.length} stands · ${(m.ramps || []).length} ramps${ramps ? " — " + ramps : ""}` +
+    `${label} · ${m.stands.length} stands · ${(m.ramps || []).length} ramps${ramps ? " — " + ramps : ""}` +
     (c.noRamp ? ` · ${c.noRamp} stands without a ramp` : "");
   app.scope.resize();
   app.scope.fit();
