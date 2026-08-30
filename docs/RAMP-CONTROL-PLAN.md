@@ -142,6 +142,9 @@ page loads one static file and works offline.
 Stand box colour: **green** free, **amber** assigned/inbound with ETA, **red** occupied,
 **flashing red** conflict (see below), **grey** closed by the controller.
 
+Full subsystem spec — provenance tiers, the deterministic allocator, occupancy hysteresis and the
+VATSIM-specific edge cases: **[RAMP-GATE-ASSIGNMENT.md](RAMP-GATE-ASSIGNMENT.md)**.
+
 ### 2.5 Sequencing, watch lists, arrival manager
 
 - **Watch lists** (`NORTH 9`) are user-defined: a saved filter — polygon area, state, runway,
