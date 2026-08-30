@@ -230,10 +230,13 @@ of real taxiway geometry. With it off, everything is drawn from the surface mode
 as before.
 
 - The basemap camera is driven from the scope's own view, so pan, zoom and
-  rotation stay in register. The conversion is a pure function
-  (`viewToCamera` in `shared/ramp-basemap.js`) with its own test, because getting
-  the Mercator latitude scaling wrong shows up as a map that drifts out of
-  alignment as you pan north.
+  rotation stay in register. Two things keep that honest: `viewToCamera` uses
+  MapLibre's 512-pixel world (the older 256-pixel slippy-map figure makes every
+  zoom exactly one too high, which draws the basemap at twice the scope's scale),
+  and the basemap then **measures what the map actually did** — projecting two
+  points a known distance apart and correcting the zoom by the log2 of the
+  difference. A wrong constant cannot survive that, and it re-checks every few
+  seconds in case a style change moves the scale underneath it.
 - Only the background, landcover, water, aeroway and building layers are kept.
   Roads, place labels and POIs are removed — the scope draws its own labels, and
   a road name under a stand box helps nobody.

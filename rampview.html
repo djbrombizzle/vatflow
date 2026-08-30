@@ -503,7 +503,8 @@ app.onSidSidesChange = sides => {
   try { localStorage.setItem(SID_KEY + icao, JSON.stringify(sides)); } catch (_) {}
 };
 
-window.__rampApp = app;   // exposed for smoke tests and console debugging
+window.__rampApp = app;
+window.__rampBasemap = () => basemap;   // exposed for smoke tests and console debugging
 
 setInterval(() => { $("rvClock").textContent = new Date().toISOString().slice(11, 19) + "Z"; }, 1000);
 boot();

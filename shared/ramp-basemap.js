@@ -12,8 +12,19 @@
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 
-/** Web Mercator metres per pixel at zoom 0 on the equator. */
-const M_PER_PX_Z0 = 156543.03392804097;
+/**
+ * Web Mercator metres per pixel at zoom 0 on the equator, for MapLibre's tiles.
+ *
+ * MapLibre GL sizes the world as 512 x 2^zoom pixels, not the 256 of the older
+ * slippy-map convention — so this is the equator's circumference over 512, and
+ * using the 256 figure makes every zoom exactly one too high, which renders the
+ * basemap at twice the scope's scale. The calibration below means a wrong
+ * constant can never survive anyway, but it should start out right.
+ */
+const M_PER_PX_Z0 = 40075016.6855785 / 512;
+
+/** Ground distance used to measure the map's real scale, in metres. */
+const CAL_M = 1000;
 
 /**
  * Basemap layers worth keeping under an airport surface. Roads, labels, POIs
@@ -50,6 +61,18 @@ export function viewToCamera(view, proj) {
 export function cameraToScale(zoom, lat) {
   const cos = Math.cos((lat * Math.PI) / 180);
   return Math.pow(2, zoom) / (M_PER_PX_Z0 * cos);
+}
+
+/**
+ * How far the zoom must move so that `measuredPx` becomes `wantPx`.
+ *
+ * Scale doubles per zoom level, so the correction is the log2 of the ratio. This
+ * is what lets the basemap calibrate itself against the live map rather than
+ * trusting a hard-coded tile-size convention.
+ */
+export function zoomCorrection(measuredPx, wantPx) {
+  if (!isFinite(measuredPx) || !isFinite(wantPx) || measuredPx <= 0 || wantPx <= 0) return 0;
+  return Math.log2(wantPx / measuredPx);
 }
 
 /** Our projection speaks [lat, lon]; MapLibre wants [lon, lat]. */
@@ -106,7 +129,40 @@ export function mountRampBasemap(container, proj, opts = {}) {
     return dead;
   }
 
-  const state = { ok: true, visible: true, last: null, failed: false };
+  const state = { ok: true, visible: true, last: null, failed: false, zoomOffset: 0, calibrated: false };
+
+  function jump(view) {
+    const cam = viewToCamera(view, proj);
+    const zoom = cam.zoom + state.zoomOffset;
+    if (!isFinite(zoom) || zoom < 0 || zoom > 24) return;
+    map.jumpTo({ center: cam.center, zoom, bearing: cam.bearing });
+  }
+
+  /**
+   * Measure what the map actually did and correct for it.
+   *
+   * Projects two points a known distance apart and compares the pixels between
+   * them with the pixels the scope would use. Any disagreement is a pure power
+   * of two, so one correction fixes it at every zoom — and it holds whatever
+   * tile size or projection tweak the library uses.
+   */
+  function calibrate() {
+    if (!state.ok || !state.visible || !state.last) return;
+    const view = state.last;
+    try {
+      const a = proj.toLL(view.cx, view.cy);
+      const b = proj.toLL(view.cx + CAL_M, view.cy);
+      const pa = map.project([a[1], a[0]]);
+      const pb = map.project([b[1], b[0]]);
+      const measured = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+      const correction = zoomCorrection(measured, CAL_M * view.scale);
+      if (Math.abs(correction) > 0.01) {
+        state.zoomOffset += correction;
+        jump(view);
+      }
+      state.calibrated = true;
+    } catch (_) { /* the map is not ready to project yet; try again next tick */ }
+  }
 
   map.on("load", () => {
     // Strip everything the scope does better itself.
@@ -115,8 +171,13 @@ export function mountRampBasemap(container, proj, opts = {}) {
         if (!KEEP_LAYER.test(layer.id)) map.removeLayer(layer.id);
       }
     } catch (_) { /* a style without those layers is still fine */ }
+    calibrate();
     onStatus(null);
   });
+
+  // Re-check occasionally: cheap, and it catches a style or library change that
+  // moves the scale under us rather than leaving the overlay silently adrift.
+  const calTimer = setInterval(calibrate, 2000);
 
   map.on("error", e => {
     // One message, not one per failed tile.
@@ -137,9 +198,8 @@ export function mountRampBasemap(container, proj, opts = {}) {
       if (!state.ok || !state.visible) return;
       if (viewUnchanged(state.last, view)) return;
       state.last = { cx: view.cx, cy: view.cy, scale: view.scale, rot: view.rot || 0 };
-      const cam = viewToCamera(view, proj);
-      if (!isFinite(cam.zoom) || cam.zoom < 0 || cam.zoom > 24) return;
-      map.jumpTo({ center: cam.center, zoom: cam.zoom, bearing: cam.bearing });
+      jump(view);
+      if (!state.calibrated) calibrate();
     },
 
     setVisible(on) {
@@ -155,7 +215,14 @@ export function mountRampBasemap(container, proj, opts = {}) {
       if (state.ok) map.resize();
     },
 
+    /** Zoom levels added to the computed camera to match the scope. */
+    get zoomOffset() { return state.zoomOffset; },
+
+    /** The underlying MapLibre map — for debugging and for measuring register. */
+    get map() { return map; },
+
     destroy() {
+      clearInterval(calTimer);
       try { map.remove(); } catch (_) { /* already gone */ }
       state.ok = false;
     },
