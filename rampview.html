@@ -21,6 +21,7 @@
     <select id="rvField" title="Airport"></select>
     <button type="button" data-menu="layers">Layers</button>
     <button type="button" data-menu="legend">Legend</button>
+    <button type="button" data-menu="sids">SID Sides</button>
     <button type="button" id="rvFetch" title="Fetch surface geometry from OpenStreetMap">Fetch surface</button>
     <button type="button" id="rvExport" title="Download the built surface as JSON to commit">Export</button>
     <button type="button" id="rvViewField" title="Zoom out to the whole airport">Field</button>
@@ -60,6 +61,17 @@
         <label><input type="checkbox" data-layer="areas" checked> Ramp areas</label>
         <label><input type="checkbox" data-layer="spots" checked> Hold spots</label>
       </div>
+      <div class="rv-panelbox rv-sidpanel" id="rvSids" hidden>
+        <b>SID Sides</b>
+        <p class="rv-hint">Which end of the ramp a SID departs through. Revision numbers are
+        ignored — setting PENCL covers PENCL2 and PENCL3. Saved in this browser.</p>
+        <div class="rv-sidadd">
+          <input id="rvSidName" placeholder="SID e.g. BANNG" autocomplete="off" maxlength="6">
+          <button type="button" data-side="NORTH">North</button>
+          <button type="button" data-side="SOUTH">South</button>
+        </div>
+        <div class="rv-sidlist" id="rvSidList"></div>
+      </div>
       <div class="rv-panelbox" id="rvLegend" hidden>
         <b>Legend</b>
         <div><i class="sw" style="background:#2f9e5b"></i> Stand available</div>
@@ -90,7 +102,7 @@
       <section class="rv-pane">
         <header>Spot List <span id="rvDepCount" class="rv-count">0</span></header>
         <div class="rv-tablewrap"><table id="rvDepartures">
-          <thead><tr><th>Callsign</th><th>Phase</th><th>SID</th><th>Gate</th></tr></thead>
+          <thead><tr><th>Callsign</th><th>Gate</th><th>SID</th><th>Spot</th><th>Phase</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </section>
@@ -135,6 +147,11 @@ for (const [code, f] of Object.entries(FIELDS)) {
   fieldSel.appendChild(o);
 }
 fieldSel.value = icao;
+
+const SID_KEY = "vatflow.ramp.sidSides.";
+function loadLocalSids(field) {
+  try { return JSON.parse(localStorage.getItem(SID_KEY + field) || "{}"); } catch (_) { return {}; }
+}
 
 const app = new RampApp({
   canvas,
@@ -182,10 +199,13 @@ function renderPanels(p) {
   }).join("");
 
   const depBody = $("rvDepartures").querySelector("tbody");
-  depBody.innerHTML = p.departures.slice(0, 40).map(d =>
-    `<tr data-cs="${d.callsign}"><td>${d.callsign}</td><td>${d.phase}</td>` +
-    `<td>${d.sid || ""}</td><td>${d.stand || ""}</td></tr>`
-  ).join("");
+  depBody.innerHTML = p.departures.slice(0, 40).map(d => {
+    const spot = d.spot
+      ? `${d.spot}${d.side ? "" : " ?"}`
+      : (d.sidBase ? `<span class="rv-unassigned">set ${d.sidBase}</span>` : "");
+    return `<tr data-cs="${d.callsign}"><td>${d.callsign}</td><td>${d.stand || ""}</td>` +
+      `<td>${d.sid || ""}</td><td>${spot}</td><td>${d.phase}</td></tr>`;
+  }).join("");
 
   $("rvWatch").innerHTML = p.ramps.map(r =>
     `<div class="rv-watchbox${app.myRamp === r.id ? " active" : ""}" data-ramp="${r.id}">` +
@@ -215,7 +235,24 @@ function renderPanels(p) {
     if (btn) btn.onclick = () => app.toggleClosure(s.id);
   }
 
+  renderSidPanel(p);
   $("rvClock").textContent = new Date().toISOString().slice(11, 19) + "Z";
+}
+
+function renderSidPanel(p) {
+  const set = Object.entries(p.sidSides || {}).sort(([a], [b]) => a.localeCompare(b));
+  const unmapped = (p.unmappedSids || []).filter(s => !p.sidSides[s]);
+  const row = (sid, side) =>
+    `<div class="rv-sidrow${side ? "" : " unset"}" data-sid="${sid}">` +
+    `<span class="s">${sid}</span>` +
+    `<button type="button" class="${side === "NORTH" ? "on" : ""}" data-set="NORTH">N</button>` +
+    `<button type="button" class="${side === "SOUTH" ? "on" : ""}" data-set="SOUTH">S</button>` +
+    `<button type="button" class="x" data-set="">×</button></div>`;
+  $("rvSidList").innerHTML =
+    (unmapped.length
+      ? `<div class="rv-sidhdr">Seen in traffic, no side set</div>` + unmapped.map(s => row(s, null)).join("")
+      : "") +
+    (set.length ? `<div class="rv-sidhdr">Configured</div>` + set.map(([s, v]) => row(s, v)).join("") : "");
 }
 
 /* ---- controls ---- */
@@ -224,7 +261,24 @@ fieldSel.addEventListener("change", async () => {
   icao = fieldSel.value;
   localStorage.setItem("vatflow.ramp.field", icao);
   history.replaceState(null, "", "?field=" + icao);
+  app.localSidSides = loadLocalSids(icao);
   await boot();
+});
+
+$("rvSidList").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-set]");
+  if (!btn) return;
+  const sid = btn.closest("[data-sid]").dataset.sid;
+  app.setSidSide(sid, btn.dataset.set || null);
+});
+
+$("rvSids").querySelector(".rv-sidadd").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-side]");
+  if (!btn) return;
+  const sid = $("rvSidName").value.trim().toUpperCase();
+  if (!sid) return;
+  app.setSidSide(sid, btn.dataset.side);
+  $("rvSidName").value = "";
 });
 
 $("rvViewField").addEventListener("click", () => app.scope.fit());
@@ -341,6 +395,11 @@ async function boot() {
     $("rvOverlay").hidden = false;
   }
 }
+
+app.localSidSides = loadLocalSids(icao);
+app.onSidSidesChange = sides => {
+  try { localStorage.setItem(SID_KEY + icao, JSON.stringify(sides)); } catch (_) {}
+};
 
 window.__rampApp = app;   // exposed for smoke tests and console debugging
 
