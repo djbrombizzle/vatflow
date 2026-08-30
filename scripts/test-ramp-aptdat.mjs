@@ -5,7 +5,7 @@
  */
 import { parseAptDat, mergeAptDat } from "../shared/ramp-aptdat.js";
 import { makeProjection, synthStandPoly } from "../shared/ramp-airport.js";
-import { viewToCamera, cameraToScale, viewUnchanged, mountRampBasemap } from "../shared/ramp-basemap.js";
+import { viewToCamera, cameraToScale, viewUnchanged, zoomCorrection, mountRampBasemap } from "../shared/ramp-basemap.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -114,6 +114,20 @@ assert(viewToCamera({ cx: 0, cy: 0, scale: 0.55, rot: Math.PI / 2 }, proj).beari
 assert(viewUnchanged({ cx: 1, cy: 2, scale: 0.5, rot: 0 }, { cx: 1, cy: 2, scale: 0.5, rot: 0 }), "an unmoved view is unchanged");
 assert(!viewUnchanged({ cx: 1, cy: 2, scale: 0.5 }, { cx: 40, cy: 2, scale: 0.5 }), "a panned view is changed");
 assert(!viewUnchanged(null, { cx: 1, cy: 2, scale: 0.5 }), "no previous view is always changed");
+
+/* the camera uses MapLibre's 512px world, and calibrates away any disagreement */
+const EQUATOR = 40075016.6855785;
+const mppAt = (zoom, lat) => (EQUATOR * Math.cos(lat * Math.PI / 180)) / (512 * Math.pow(2, zoom));
+const z = viewToCamera({ cx: 0, cy: 0, scale: 0.1 }, proj).zoom;
+assert(Math.abs(mppAt(z, REF[0]) - 10) < 1e-6,
+  "the computed zoom really is 10 m per pixel in MapLibre's 512px world");
+assert(Math.abs(z - 12.670) < 0.01, "and that is zoom 12.67, not the 13.67 a 256px world would give");
+
+assert(zoomCorrection(50, 100) === 1, "a map drawing half-size needs one zoom level more");
+assert(zoomCorrection(200, 100) === -1, "and one drawing double-size needs one less");
+assert(zoomCorrection(100, 100) === 0, "a map already in register needs no correction");
+assert(zoomCorrection(0, 100) === 0 && zoomCorrection(NaN, 100) === 0 && zoomCorrection(100, 0) === 0,
+  "a measurement that makes no sense corrects by nothing rather than throwing");
 
 /* with no MapLibre present the basemap is inert, never a crash */
 let failed = false;
