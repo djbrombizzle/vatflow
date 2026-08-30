@@ -111,6 +111,10 @@ export function isCandidate(stand, flight, ctx) {
   }
   if (block.anyStand) return true;
 
+  // Cargo pads, remote hardstands and GA parking are not ordinary gates: they
+  // are only drawn when a block asks for that ops type by name.
+  if ((stand.opsType || "airline") !== "airline") return false;
+
   const op = operatorOf(flight.callsign);
   if (stand.operators && stand.operators.length) {
     // A stand tagged for particular airlines belongs to them.
