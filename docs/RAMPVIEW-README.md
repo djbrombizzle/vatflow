@@ -92,17 +92,15 @@ That decision needs three things the stand id alone does not show: which ramp
 owns the gate, which spot the aircraft enters through, and what frequency to
 hand them to. So the whole-field view carries them:
 
-- **Routing lines.** Every inbound draws a dashed line, coloured by ramp, from
-  the aircraft to the spot it will enter through, then faintly on to its stand.
-  From across the airport you can see the flow — which alley each arrival is
-  headed for — without reading a single label.
-- **Inbound tags** read `DAL1438 · R3/C30 · SPOT 3S`.
+- **Inbound tags** read `DAL1438 · R3/C30 · SPOT 3S` — the ramp, the gate, and
+  the spot the aircraft enters through, on the target itself.
 - **Ground — Ramp Entry panel** lists every arrival with its ramp, frequency,
   entry spot and gate, aircraft already taxiing first, because those need the
   instruction now. An arrival with no stand yet is listed and flagged rather
   than hidden.
 - **Ramp counters** show inbound count per ramp, so an overloaded alley is
-  visible before it happens.
+  visible before it happens. The dot beside each callsign in the ground list is
+  that ramp's colour.
 
 The entry spot is chosen from where the aircraft actually is, not from the gate:
 an arrival rolling out south enters at 3S, the same gate off a north runway
