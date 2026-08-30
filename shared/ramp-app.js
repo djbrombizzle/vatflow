@@ -197,10 +197,12 @@ export class RampApp {
     this.origin = origin;
     this.source = origin;
     this.startLoops();
-    if (this.autoFetchOsm !== false && origin === SOURCE_SCHEMATIC && !hasOsm) {
+    if (this.autoFetchOsm !== false && !hasOsm) {
       // First visit to this field: pull the real geometry in the background and
-      // switch to it when it lands. The schematic keeps the page working in the
-      // meantime, and a failure is silent — there is a working surface already.
+      // switch to it when it lands. Where a schematic exists it keeps the page
+      // working meanwhile; where none does — a field added with override data
+      // only, as KIAD is — this fetch is the only way the map arrives, so it has
+      // to run whether or not there is something to fall back to.
       this.backgroundFetch();
     }
     return !!model;
@@ -233,7 +235,12 @@ export class RampApp {
       await this.fetchSurface();
       if (this.onSurfaceChange) this.onSurfaceChange();
     } catch (err) {
-      this.onStatus("Showing the schematic — OpenStreetMap fetch failed (" + err.message + ").");
+      // Two different situations: a field with a schematic still has a usable
+      // map, one without has nothing on screen yet. Saying "showing the
+      // schematic" for a field that has none is just wrong.
+      this.onStatus(this.model
+        ? "Showing the schematic — OpenStreetMap fetch failed (" + err.message + ")."
+        : "No surface for " + this.icao + " yet — OpenStreetMap fetch failed (" + err.message + "). Retry below.");
     }
   }
 

@@ -80,6 +80,38 @@ scaled to the gap it actually has, so neighbours never overlap while a bigger
 gate still draws bigger where there is room. A stand OSM maps with no heading
 gets a square rather than a long box pointed the wrong way.
 
+## Airports
+
+| Field | Surface | Notes |
+| --- | --- | --- |
+| **KATL** | Committed schematic + OSM | Ramp areas, frequencies and hold spots from the published ATL ramp chart |
+| **KIAD** | OSM only | Override data ships; geometry is fetched. Ramp areas and frequencies are **placeholders** |
+
+Other fields in `shared/ramp-app-fields.mjs` (KDFW, KCLT, KDTW, KMSP, KSLC, KLAX,
+KSEA, KJFK, KBOS) have a reference point and will load an OSM surface, but no
+override data yet — so no ramp areas and no airline blocks, which means every
+arrival draws a random open gate.
+
+### KIAD
+
+Dulles ships override data only: concourses A, B, C, D and Z, and the airline
+blocks — United and United Express on the C/D midfield, American, Delta,
+Southwest, Frontier, JetBlue, Alaska and Spirit on B, Air France / KLM / Etihad /
+Virgin Atlantic / Lufthansa on A, British Airways / Emirates / Qatar / Ethiopian
+on D. Gate numbering comes from OpenStreetMap rather than from a guess, so the
+page fetches the surface on first visit and caches it.
+
+Two things are deliberately not filled in:
+
+- **Ramp areas and frequencies are placeholders.** IAD aprons are worked by MWAA
+  Ramp Tower and the split between positions is not something to invent. The
+  three areas (A/B, C/D, Z) are a starting shape; correct them in
+  `data/ramp/overrides/KIAD.json`.
+- **`sidSides` is empty.** Set IAD SIDs from the SID Sides panel, which lists
+  them as they appear in live traffic.
+
+Concourse E opens in 2026 and is not modelled.
+
 ## Getting a surface for another airport
 
 For a field with no committed build, the page looks for geometry in this order:
@@ -205,6 +237,7 @@ node scripts/test-ramp-katl.mjs     # the generated ATL surface, end to end
 node scripts/test-ramp-ground.mjs   # ramp entry: which ramp, which spot, which frequency
 node scripts/test-ramp-sid.mjs      # SID parsing and the north/south side map
 node scripts/test-ramp-boxes.mjs    # stand boxes fit their gaps and never overlap
+node scripts/test-ramp-overrides.mjs # every airport's override file, checked the same way
 ```
 
 ## Not built yet
