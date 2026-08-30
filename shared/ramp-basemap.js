@@ -113,6 +113,7 @@ export function mountRampBasemap(container, proj, opts = {}) {
 
   let map;
   try {
+    container.style.display = "none";   // opt-in; the page turns it on
     map = new window.maplibregl.Map({
       container,
       style: opts.styleUrl || STYLE_URL,
@@ -129,7 +130,7 @@ export function mountRampBasemap(container, proj, opts = {}) {
     return dead;
   }
 
-  const state = { ok: true, visible: true, last: null, failed: false, zoomOffset: 0, calibrated: false };
+  const state = { ok: true, visible: false, last: null, failed: false, zoomOffset: 0, calibrated: false };
 
   function jump(view) {
     const cam = viewToCamera(view, proj);
