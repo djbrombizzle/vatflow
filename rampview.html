@@ -183,8 +183,11 @@ function renderPanels(p) {
 
   const arrBody = $("rvArrivals").querySelector("tbody");
   arrBody.innerHTML = p.arrivals.slice(0, 40).map(a => {
+    // Same rule as the scope tag: anything we predicted carries a "?", anything
+    // observed or assigned by a person does not. Keyed on confidence rather than
+    // an enumerated source list, so a new source can never slip through unmarked.
     const gate = a.stand
-      ? `${a.ramp ? a.ramp + "/" : ""}${a.stand}${a.source === "rule" || a.source === "rule-widened" || a.source === "rule-common" ? " ?" : ""}`
+      ? `${a.ramp ? a.ramp + "/" : ""}${a.stand}${a.confidence && a.confidence !== "high" ? " ?" : ""}`
       : `<span class="rv-unassigned">UNASSIGNED</span>`;
     return `<tr data-cs="${a.callsign}"${a.conflict ? ' class="rv-conflict"' : ""}>` +
       `<td>${a.callsign}</td><td>${a.type || ""}</td><td>${a.distNm.toFixed(0)}</td>` +
