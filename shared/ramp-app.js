@@ -509,6 +509,7 @@ export class RampApp {
         stand: a ? a.standId : null,
         ramp: a ? a.ramp : null,
         source: a ? a.source : "unassigned",
+        confidence: a ? a.confidence : null,
         conflict: !!(a && a.conflict),
       };
     });
