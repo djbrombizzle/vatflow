@@ -185,3 +185,12 @@ html, body { margin: 0; height: 100%; background: var(--rv-bg); color: var(--rv-
 .rv-sidrow button.on { color: #05070a; background: var(--rv-accent); border-color: var(--rv-accent); }
 .rv-sidrow button.x { width: 18px; color: #6b7b87; }
 .rv-sidrow button:hover { border-color: var(--rv-accent); }
+
+/* OSM basemap, behind the scope canvas */
+#rvBasemap {
+  position: absolute; inset: 0; z-index: 0;
+  /* Hold it back so the scope's own geometry stays the foreground. */
+  filter: brightness(0.72) saturate(0.55) contrast(0.95);
+}
+#rvBasemap .maplibregl-control-container { display: none !important; }
+#rvCanvas { position: relative; z-index: 1; background: transparent; }
