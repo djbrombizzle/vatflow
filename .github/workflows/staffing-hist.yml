@@ -202,6 +202,7 @@ jobs:
             console.log("atc index periods:", atcPeriods.map(p => p.period).join(", "));
           }
           NODE
+          node scripts/build-staffing-atc-trends.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/staffing-hist data/staffing-atc

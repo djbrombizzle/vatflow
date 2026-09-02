@@ -16,6 +16,9 @@ import {
   mergeAtcPositionGroups,
   statsimAtcFetchJobs,
   statsimAtcCustomUrl,
+  statsimAtcCalendarYearUrl,
+  atcTrendYears,
+  buildAtcTrendRows,
   buildAtcCoverage,
   analyzeStaffItEffect
 } from "../shared/staffing-atc-hours.js";
@@ -133,5 +136,20 @@ const merged = mergeAtcPositionGroups([
 ]);
 assert.equal(merged.length, 1);
 assert.equal(merged[0].seconds, 150);
+
+const trendYears = [2020, 2021, 2022];
+const trendPositions = {
+  2020: [{ prefix: "DEN", type: "CTR", seconds: 10000 }],
+  2021: [{ prefix: "DEN", type: "CTR", seconds: 15000 }],
+  2022: [{ prefix: "DEN", type: "CTR", seconds: 20000 }]
+};
+const trendRows = buildAtcTrendRows(trendPositions, trendYears, (prefix, type) =>
+  type === "CTR" && prefix === "DEN" ? { id: "ZDV", type: "CTR" } : null);
+assert.equal(trendRows.length, 1);
+assert.equal(trendRows[0].hoursByYear[2020], 2.8);
+assert.equal(trendRows[0].trendPct, 100);
+
+assert.ok(statsimAtcCalendarYearUrl(2025).includes("2025-01-01T00%3A01"));
+assert.deepEqual(atcTrendYears(), [2020, 2021, 2022, 2023, 2024, 2025]);
 
 console.log("ok");
