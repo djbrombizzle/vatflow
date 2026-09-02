@@ -39,6 +39,7 @@ const NAV_ITEMS = [
     label: "Center",
     children: [
       { id: "erids", href: "erids.html", label: "ERIDS" },
+      { id: "swim2vice", href: "swim2vice.html", label: "SWIM \u2192 vICE" },
     ],
   },
   {
