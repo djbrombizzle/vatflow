@@ -391,6 +391,25 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
 }
 .subtab:hover { color: var(--text); }
 .subtab.active { color: var(--text); background: var(--surface); border-color: var(--border-hi); }
+.histdatatabs { display: flex; gap: 6px; margin: 4px 0 14px; flex-wrap: wrap; }
+.histdatatab {
+  font-family: var(--font-data); font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  color: var(--text-muted); background: var(--elevated); border: 1px solid var(--border);
+}
+.histdatatab:hover { color: var(--text); border-color: var(--border-hi); }
+.histdatatab.active { color: var(--accent-text); background: var(--surface); border-color: var(--border-hi); }
+.staffit-summary {
+  margin: 0 0 14px; padding: 14px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; line-height: 1.55; color: var(--text-dim);
+}
+.staffit-summary .headline { font-family: var(--font-data); font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.staffit-summary .verdict-yes { color: var(--ok); }
+.staffit-summary .verdict-mixed { color: var(--warn); }
+.staffit-summary .bands { margin-top: 10px; font-size: 12px; }
+.staffit-summary .bands span { display: inline-block; margin-right: 14px; }
+.staffit-summary .counter { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
 .subbadge { background: rgba(212, 92, 92, 0.25); color: #ffc9c9; border-radius: 8px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
 
 /* ---------- ground stop ---------- */
@@ -4038,7 +4057,9 @@ let staffingHist = {
   },
   lookup: {
     facility: "", type: "", artcc: "", day: ""
-  }
+  },
+  /* recommendations | staffit — which historical table is visible */
+  dataView: "recommendations"
 };
 const STAFFING_HIST_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const STAFFING_HIST_TABLE_COLS = [
@@ -4050,10 +4071,7 @@ const STAFFING_HIST_TABLE_COLS = [
   { key: "avgOps", label: "Avg ops", num: true },
   { key: "upcoming", label: "Staff next 7 days" },
   { key: "predOps", label: "Pred. ops", num: true },
-  { key: "events", label: "Events" },
-  /* Period totals for the whole facility — ATC hours have no hourly breakdown. */
-  { key: "atcHours", label: "ATC hrs", num: true },
-  { key: "opsPerAtcHour", label: "Ops / ATC hr", num: true }
+  { key: "events", label: "Events" }
 ];
 function statsimCountryUrl(period) {
   const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
@@ -4234,10 +4252,8 @@ const STATSIM_ATC_COMBINED = "https://statsim.net/atc/combinedtime/";
 const ATC_COVERAGE_TYPES = ["TWR", "APP", "CTR"];
 /*
  * Traffic with zero controller hours has an unbounded movements-per-hour rate.
- * Sorters here multiply differences, so use a large finite stand-in (Infinity
- * would produce NaN) that still sorts first and satisfies ">N" filters.
+ * Kept out of the UI — staff-it analysis uses staffed vs unstaffed medians instead.
  */
-const ATC_RATE_UNSTAFFED = Number.MAX_SAFE_INTEGER;
 let staffingAtc = {
   period: "thisweek",
   status: "idle",
@@ -4253,11 +4269,11 @@ const STAFFING_ATC_TABLE_COLS = [
   { key: "type", label: "Type" },
   { key: "artcc", label: "ARTCC" },
   { key: "movements", label: "Movements", num: true },
+  { key: "staffed", label: "Staffed" },
   { key: "hours", label: "ATC hrs", num: true },
-  { key: "uptime", label: "Uptime", num: true },
   { key: "coverage", label: "Coverage", num: true },
-  { key: "opsPerHour", label: "Ops / ATC hr", num: true },
-  { key: "verdict", label: "Verdict" }
+  { key: "staffTier", label: "Staff level" },
+  { key: "staffSignal", label: "Signal" }
 ];
 function statsimAtcUrl(period) {
   const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
@@ -4351,12 +4367,6 @@ function atcCoverageRows() {
   ensureAtcCoverageFresh();
   const atc = staffingAtc.result;
   return (atc && atc.coverage && atc.coverage.rows) || [];
-}
-/** Facility-level ATC totals keyed for the recommendations table's two new columns. */
-function atcCoverageLookup() {
-  const map = {};
-  for (const r of atcCoverageRows()) map[r.type + "|" + r.id] = r;
-  return map;
 }
 function atcCoverageTotals() {
   ensureAtcCoverageFresh();
@@ -5012,7 +5022,7 @@ function histRoundOps(n) {
   if (!isFinite(n) || n <= 0) return 0;
   return n >= 10 ? Math.round(n) : Math.round(n * 10) / 10;
 }
-function enrichStaffingHistTableRow(slot, networkEvents, nowMs, atcLookup) {
+function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
   const hourMap = histHourMapForSlot(slot);
   let staffWin = hourMap
     ? histStaffUpWindow(hourMap, STAFF_HIST_MIN_HOURS, STAFF_HIST_MAX_HOURS)
@@ -5047,7 +5057,6 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs, atcLookup) {
   /* Keep legacy score fields for any leftover list UI / sorting compat. */
   const histScoreVal = avgOps;
   const score = eventCount ? predOps : avgOps;
-  const atc = atcLookup ? atcLookup[slot.type + "|" + slot.id] : null;
   return {
     id: slot.id,
     type: slot.type,
@@ -5076,23 +5085,17 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs, atcLookup) {
     upcomingEndMs: win ? win.endMs : 0,
     upcomingLabel,
     upcomingEvents,
-    eventText: eventItems.filter(Boolean).join(" \u00b7 "),
-    atcHours: atc ? atc.hours : null,
-    atcCoveragePct: atc ? atc.coveragePct : null,
-    atcOpsPerHour: atc ? atc.opsPerHour : null,
-    atcMovements: atc ? atc.movements : null,
-    atcVerdict: atc ? atc.verdict : null
+    eventText: eventItems.filter(Boolean).join(" \u00b7 ")
   };
 }
 function buildStaffingHistTableRows(result) {
   if (!result) return [];
   const nowMs = Date.now();
   const events = result.networkEvents || [];
-  const atcLookup = staffingAtc.result ? atcCoverageLookup() : null;
   const rows = [];
-  for (const slot of (result.towers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs, atcLookup));
-  for (const slot of (result.approaches || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs, atcLookup));
-  for (const slot of (result.centers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs, atcLookup));
+  for (const slot of (result.towers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
+  for (const slot of (result.approaches || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
+  for (const slot of (result.centers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
   return rows;
 }
 function histLookupQueryActive() {
@@ -5256,8 +5259,6 @@ function histTableCellText(row, key) {
     case "predOps":
     case "upcomingScore": return String(row.predOps != null ? row.predOps : "");
     case "events": return String(row.eventText || "");
-    case "atcHours": return String(row.atcHours != null ? row.atcHours : "");
-    case "opsPerAtcHour": return String(row.atcOpsPerHour != null ? row.atcOpsPerHour : "");
     default: return "";
   }
 }
@@ -5269,10 +5270,6 @@ function histTableNumVal(row, key) {
     case "predOps":
     case "upcomingScore": return row.predOps != null ? row.predOps : row.upcomingScore;
     case "upcoming": return row.upcomingStartMs;
-    case "atcHours": return row.atcHours;
-    case "opsPerAtcHour": return row.atcOpsPerHour == null
-      ? (row.atcHours === 0 && row.atcMovements ? ATC_RATE_UNSTAFFED : null)
-      : row.atcOpsPerHour;
     default: return null;
   }
 }
@@ -5283,8 +5280,7 @@ function histTablePassesFilters(row) {
     if (!raw) continue;
     const m = raw.match(/^([<>]=?)\s*(\d+(?:\.\d+)?)$/);
     if (m && (key === "avgOps" || key === "predOps" || key === "score" ||
-        key === "upcomingScore" || key === "day" ||
-        key === "atcHours" || key === "opsPerAtcHour")) {
+        key === "upcomingScore" || key === "day")) {
       const v = histTableNumVal(row, key === "day" ? "day" : key);
       if (v == null || !isFinite(v)) return false;
       const n = +m[2];
@@ -5355,10 +5351,6 @@ function renderStaffingHistTable(result) {
       title = "Average operations (arr+dep) in the 2\u20134hr staff-up window on this weekday, averaged across the selected period";
     } else if (c.key === "predOps") {
       title = "Predicted operations for the next matching day: avg ops \u00d7 event uplift when a nearby VATSIM event overlaps";
-    } else if (c.key === "atcHours") {
-      title = "Controller hours online for this facility across the whole ATC period (not just this window)";
-    } else if (c.key === "opsPerAtcHour") {
-      title = "Period movements per controller hour for this facility \u2014 load the ATC period row to populate";
     }
     h += '<th class="' + (staffingHist.sortKey === c.key ? "sorted" : "") +
       '" data-hist-sort="' + c.key + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" +
@@ -5373,8 +5365,6 @@ function renderStaffingHistTable(result) {
       : c.key === "artcc" ? "ZJX"
       : c.key === "day" ? "Mon"
       : c.key === "avgOps" || c.key === "predOps" ? ">20"
-      : c.key === "atcHours" ? "<5"
-      : c.key === "opsPerAtcHour" ? ">100"
       : "\u00B7";
     h += '<td><input data-hist-filter="' + c.key + '" data-keep="hist-f-' + c.key +
       '" value="' + esc((staffingHist.filters && staffingHist.filters[c.key]) || "") +
@@ -5422,34 +5412,74 @@ function renderStaffingHistTable(result) {
         "</td>" +
         "<td>" + predCell + "</td>" +
         '<td class="hist-events">' + (r.eventText ? esc(r.eventText) : '<span class="cell-muted">\u2014</span>') +
-        "</td>" +
-        histAtcCellsHtml(r) +
-        "</tr>";
+        "</td></tr>";
     }
   }
   h += "</tbody></table></div>";
   return h;
 }
-/** ATC hours / ops-per-hour for the facility as a whole, blank until ATC hours load. */
-function histAtcCellsHtml(r) {
-  if (!staffingAtc.result) {
-    const hint = "Load the ATC period row to fill this in";
-    return '<td class="cell-muted" title="' + esc(hint) + '">\u2014</td>' +
-      '<td class="cell-muted" title="' + esc(hint) + '">\u2014</td>';
-  }
-  const hoursTitle = r.atcHours
-    ? (r.atcHours + " controller hours for " + r.id + " over the whole ATC period" +
-      (r.atcCoveragePct != null ? " (" + r.atcCoveragePct + "% of elapsed hours)" : ""))
-    : "Nobody online at " + r.id + " in the ATC period";
-  const rateCell = r.atcOpsPerHour == null
-    ? (r.atcMovements ? '<span class="cell-alert">no ATC</span>' : '<span class="cell-muted">\u2014</span>')
-    : ('<span title="' + esc(r.atcMovements + " period movements \u00f7 " + r.atcHours +
-      " controller hours" + (r.atcVerdict ? " \u00b7 " + r.atcVerdict : "")) + '">' +
-      r.atcOpsPerHour + "</span>");
-  return '<td title="' + esc(hoursTitle) + '"' + (r.atcHours ? "" : ' class="cell-muted"') + ">" +
-    (r.atcHours != null ? r.atcHours : 0) + "</td><td>" + rateCell + "</td>";
+function renderStaffingHistDataTabs() {
+  const v = staffingHist.dataView || "recommendations";
+  return '<div class="histdatatabs">' +
+    '<span class="histdatatab' + (v === "recommendations" ? " active" : "") +
+    '" data-hist-dataview="recommendations">Staffing recommendations</span>' +
+    '<span class="histdatatab' + (v === "staffit" ? " active" : "") +
+    '" data-hist-dataview="staffit">Staff it &amp; they will come?</span>' +
+    "</div>";
 }
-/* ---------- Pilots vs ATC coverage table ---------- */
+function staffTierLabel(tier) {
+  if (tier === "light") return "Light";
+  if (tier === "moderate") return "Moderate";
+  if (tier === "heavy") return "Heavy";
+  return "None";
+}
+function staffSignalClass(sig) {
+  if (sig === "busy · no ATC") return "cell-alert";
+  if (sig === "staffed") return "cell-ok";
+  return "cell-muted";
+}
+function renderStaffItSummary(staffIt) {
+  if (!staffIt || !staffIt.busyCount) {
+    return '<div class="staffit-summary"><div class="headline">Staff it &amp; they will come?</div>' +
+      "Not enough facilities with meaningful traffic in this sample to compare staffed vs unstaffed.</div>";
+  }
+  const headlineCls = staffIt.leansYes ? "verdict-yes" : "verdict-mixed";
+  const headline = staffIt.leansYes
+    ? "In this sample, staffed facilities see more pilots"
+    : "Mixed signal — staffing and traffic rise together, but causation is unclear";
+  let h = '<div class="staffit-summary"><div class="headline ' + headlineCls + '">' +
+    esc(headline) + "</div>";
+  h += "Among <b>" + staffIt.busyCount + "</b> USA facilities with \u2265" + staffIt.minMovements +
+    " movements in the period:<br>" +
+    "<b>Staffed</b> (any ATC): median <b>" + staffIt.staffedMedian + "</b> movements across " +
+    staffIt.staffedCount + " facilities \u00b7 " +
+    "<b>Unstaffed</b>: median <b>" + staffIt.unstaffedMedian + "</b> across " +
+    staffIt.unstaffedCount + " facilities";
+  if (staffIt.ratio != null) {
+    h += " \u00b7 staffed sites see <b>" + staffIt.ratio + "\u00d7</b> the median traffic";
+  }
+  if (staffIt.correlation != null) {
+    h += "<br>Rank correlation (ATC hours \u2194 movements): <b>" + staffIt.correlation + "</b> " +
+      (staffIt.correlation >= 0.35 ? "(positive association)" : "(weak association)");
+  }
+  h += '<div class="bands">';
+  for (const b of staffIt.bands) {
+    if (!b.count) continue;
+    h += "<span><b>" + esc(b.label) + "</b> \u00b7 " + b.count + " sites \u00b7 median " +
+      b.medianMovements + " mov</span>";
+  }
+  h += "</div>";
+  if (staffIt.counterexamples && staffIt.counterexamples.length) {
+    h += '<div class="counter"><b>Counterexamples</b> (busy with no ATC): ';
+    h += staffIt.counterexamples.map(r => esc(r.id) + " " + r.movements).join(", ");
+    h += " — traffic without staffing does happen.</div>";
+  }
+  h += '<div class="counter">Association only: pilots often flock to fields that are already busy, ' +
+    "and staffing usually follows demand. Opening a position alone may not create traffic.</div>";
+  h += "</div>";
+  return h;
+}
+/* ---------- Staff it & they will come? (pilots vs ATC staffing) ---------- */
 function atcRowArtcc(row) {
   if (!row) return "";
   if (row.type === "CTR") return String(row.id || "").toUpperCase();
@@ -5487,7 +5517,9 @@ function atcTableCellText(row, key) {
     case "facility": return String(row.id || "");
     case "type": return String(row.type || "");
     case "artcc": return String(row.artcc || "");
-    case "verdict": return String(row.verdict || "");
+    case "staffed": return row.staffed ? "yes" : "no";
+    case "staffTier": return staffTierLabel(row.staffTier);
+    case "staffSignal": return String(row.staffSignal || "");
     default: return "";
   }
 }
@@ -5495,11 +5527,8 @@ function atcTableNumVal(row, key) {
   switch (key) {
     case "movements": return row.movements;
     case "hours": return row.hours;
-    case "uptime": return row.uptimePct;
     case "coverage": return row.coveragePct;
-    case "opsPerHour": return row.opsPerHour == null
-      ? (row.movements ? ATC_RATE_UNSTAFFED : null)
-      : row.opsPerHour;
+    case "staffed": return row.staffed ? 1 : 0;
     default: return null;
   }
 }
@@ -5537,52 +5566,47 @@ function sortedAtcTableRows(rows) {
   });
   return out;
 }
-function atcVerdictClass(verdict) {
-  if (verdict === "unstaffed") return "cell-alert";
-  if (verdict === "needs coverage") return "cell-warn";
-  if (verdict === "well covered") return "cell-ok";
-  return "cell-muted";
-}
 function atcFmtNum(v, suffix) {
   if (v == null || !isFinite(v)) return '<span class="cell-muted">\u2014</span>';
   return v + (suffix || "");
 }
-function renderStaffingAtcCoverage() {
+function renderStaffItView() {
   const atc = staffingAtc.result;
-  let h = '<div class="staffsec">Pilots vs ATC coverage <span>movements against controller hours</span></div>';
+  let h = "";
   if (!atc) {
-    h += '<div class="staffnone">No controller hours loaded. Press <b>Load ATC hours</b> on the ' +
-      "<b>ATC</b> period row above (or Paste / upload).</div>";
+    h += '<div class="staffsec">Staff it &amp; they will come? <span>do staffed fields see more pilots?</span></div>';
+    h += '<div class="staffnone">Load controller hours on the <b>ATC</b> period row above, ' +
+      "and pilot movements on the <b>Pilots</b> row, to compare staffing against traffic.</div>";
     return h;
   }
-  const totals = atcCoverageTotals() || { hours: 0, movements: 0, facilities: 0 };
+  if (!staffingHist.result) {
+    h += '<div class="staffnone">Controller hours loaded — load the <b>Pilots</b> row to add movement counts.</div>';
+    return h;
+  }
+  const staffIt = (atc.coverage && atc.coverage.staffIt) || null;
+  const totals = atcCoverageTotals() || { hours: 0, facilities: 0 };
   const all = atcDisplayRows();
   const visible = sortedAtcTableRows(all.filter(atcTablePasses));
   const periodLabel = (STAFFING_HIST_PERIODS.find(p => p.id === atc.period) || {}).label || atc.period;
   const histLabel = (STAFFING_HIST_PERIODS.find(p => p.id === staffingHist.period) || {}).label ||
     staffingHist.period;
 
-  h += '<div class="staffhist-meta">' + esc(periodLabel) + " \u00b7 " + totals.hours +
-    " controller hours across " + totals.facilities + " USA facilities (CTR " + (totals.CTR || 0) +
-    " \u00b7 APP " + (totals.APP || 0) + " \u00b7 TWR " + (totals.TWR || 0) + ")" +
-    (totals.opsPerHour != null
-      ? " \u00b7 " + totals.movements + " movements = " + totals.opsPerHour + " per controller hour"
-      : "") +
-    " \u00b7 " + Math.round(atc.elapsedHours) + " hours elapsed in the period</div>";
+  h += renderStaffItSummary(staffIt);
 
-  if (!staffingHist.result) {
-    h += '<div class="staffnone">Controller hours only \u2014 load the <b>Pilots</b> row to compare ' +
-      "movements against them.</div>";
-  } else if (staffingAtc.period !== staffingHist.period) {
+  h += '<div class="staffhist-meta">' + esc(periodLabel) + " \u00b7 " + totals.hours +
+    " controller hours \u00b7 " + totals.facilities + " facilities (CTR " + (totals.CTR || 0) +
+    " \u00b7 APP " + (totals.APP || 0) + " \u00b7 TWR " + (totals.TWR || 0) + ")" +
+    " \u00b7 " + Math.round(atc.elapsedHours) + " hours elapsed</div>";
+
+  if (staffingAtc.period !== staffingHist.period) {
     h += '<div class="staffhist-status err">Periods differ: movements are from <b>' + esc(histLabel) +
       "</b> and controller hours from <b>" + esc(periodLabel) +
-      "</b>. Match both rows for a like-for-like comparison.</div>";
+      "</b>. Match both rows for a fair comparison.</div>";
   }
 
   h += '<div class="staffhist-count">Showing ' + visible.length + " of " + all.length +
-    " facilities \u00b7 Coverage = controller hours \u00f7 hours elapsed so far \u00b7 " +
-    "Uptime = StatSim's own share of the whole calendar period \u00b7 " +
-    "concurrent positions count separately, so both can exceed 100%" +
+    " facilities \u00b7 <b>Staffed</b> = any controller time in the period \u00b7 " +
+    "<b>Signal</b> highlights busy fields with nobody online" +
     (atcTableFiltersActive()
       ? ' <span class="clr" data-atc-clearfilters style="color:var(--accent-text);cursor:pointer;text-decoration:underline;margin-left:8px">Clear filters</span>'
       : "") +
@@ -5591,12 +5615,12 @@ function renderStaffingAtcCoverage() {
   h += '<div class="staffhist-tablewrap staffatc-tablewrap tablewrap"><table><thead><tr>';
   for (const c of STAFFING_ATC_TABLE_COLS) {
     let title = "";
-    if (c.key === "movements") title = "Arrivals + departures in the loaded pilot period for this facility";
-    else if (c.key === "hours") title = "Combined controller hours online (concurrent positions count separately)";
-    else if (c.key === "uptime") title = "StatSim's uptime for these positions, summed \u2014 controller hours as a " +
-      "share of the whole calendar period, so it reads low mid-week";
-    else if (c.key === "coverage") title = "Controller hours as a share of the hours elapsed so far in the period";
-    else if (c.key === "opsPerHour") title = "Movements per controller hour \u2014 higher means traffic is outrunning staffing";
+    if (c.key === "movements") title = "Total arrivals + departures in the loaded pilot period";
+    else if (c.key === "staffed") title = "Whether anyone was online at this facility in the ATC period";
+    else if (c.key === "hours") title = "Combined controller hours (concurrent positions count separately)";
+    else if (c.key === "coverage") title = "Controller hours as a share of hours elapsed so far in the period";
+    else if (c.key === "staffTier") title = "None, Light (<5h), Moderate (5\u201315h), or Heavy (15h+)";
+    else if (c.key === "staffSignal") title = "busy \u00b7 no ATC = traffic without staffing; staffed = ATC was online";
     h += '<th class="' + (staffingAtc.sortKey === c.key ? "sorted" : "") +
       '" data-atc-sort="' + c.key + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" +
       c.label +
@@ -5630,13 +5654,13 @@ function renderStaffingAtcCoverage() {
         "<td>" + esc(r.type) + "</td>" +
         "<td>" + (r.artcc ? esc(r.artcc) : '<span class="cell-muted">\u2014</span>') + "</td>" +
         "<td>" + (r.movements || '<span class="cell-muted">0</span>') + "</td>" +
+        "<td>" + (r.staffed
+          ? '<span class="cell-ok">Yes</span>'
+          : '<span class="cell-muted">No</span>') + "</td>" +
         '<td title="' + esc(hoursTitle) + '">' + (r.hours ? r.hours : '<span class="cell-muted">0</span>') + "</td>" +
-        "<td>" + atcFmtNum(r.uptimePct, "%") + "</td>" +
         "<td>" + atcFmtNum(r.coveragePct, "%") + "</td>" +
-        "<td>" + (r.opsPerHour == null
-          ? (r.movements ? '<span class="cell-alert">no ATC</span>' : '<span class="cell-muted">\u2014</span>')
-          : r.opsPerHour) + "</td>" +
-        '<td class="' + atcVerdictClass(r.verdict) + '">' + esc(r.verdict) + "</td>" +
+        "<td>" + esc(staffTierLabel(r.staffTier)) + "</td>" +
+        '<td class="' + staffSignalClass(r.staffSignal) + '">' + esc(r.staffSignal) + "</td>" +
         "</tr>";
     }
   }
@@ -5920,6 +5944,7 @@ function renderStaffingHistLookup() {
 function renderStaffingHistorical() {
   restoreStaffingHistoricalCache();
   const res = staffingHist.result;
+  const view = staffingHist.dataView || "recommendations";
   let h = renderStaffingHistPeriodControls({ showLive: true, showAtc: true });
 
   h += '<div class="staffsub" style="margin-bottom:14px">Pilot source: <a href="' +
@@ -5929,11 +5954,19 @@ function renderStaffingHistorical() {
     esc(statsimAtcUrl(staffingAtc.period)) + "</a>. Times are UTC. USA facilities only (K / PA / PH). " +
     "Pilot database refresh: Mondays via GitHub Actions; ATC hours are read live.</div>";
 
+  h += renderStaffingHistDataTabs();
+
+  if (view === "staffit") {
+    h += renderStaffItView();
+    h += '<div class="staffnote">The <b>Staff it &amp; they will come?</b> view compares period movements against ' +
+      "whether anyone was online at each facility. It does <b>not</b> prove that opening a position creates traffic — " +
+      "busy fields are usually staffed first. Use <b>Staffing recommendations</b> for when to log on.</div>";
+    return h;
+  }
+
   if (!res) {
     h += '<div class="staffnone">No pilot analysis loaded. Press <b>Load from database</b> ' +
       "(or Process live / Paste) on the Pilots row.</div>";
-    /* Controller hours stand on their own until pilot movements arrive. */
-    if (staffingAtc.result) h += renderStaffingAtcCoverage();
     return h;
   }
 
@@ -5946,8 +5979,6 @@ function renderStaffingHistorical() {
     "</div>";
 
   h += renderStaffingHistTable(res);
-
-  h += renderStaffingAtcCoverage();
 
   if (staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport);
 
@@ -5971,11 +6002,7 @@ function renderStaffingHistorical() {
     "(within " + STAFF_EVENT_RADIUS_NM + " nm) overlaps that window (+35% per event, max two). " +
     "Filter Facility/ARTCC (e.g. ZJX), Type (TWR / APP / CTR), or Day (Mon). " +
     "Process live / Paste remain available as fallbacks. " +
-    "<b>ATC hrs</b> and <b>Ops / ATC hr</b> come from the ATC period row: combined controller time online " +
-    "from StatSim, totalled per facility for the whole period (there is no hourly breakdown), so the same " +
-    "figure repeats across that facility's days. Concurrent positions count separately, and the pilot week " +
-    "is a rolling 7 days while StatSim's ATC week runs Monday to Sunday \u2014 keep both period selectors " +
-    "on the same setting when comparing.</div>";
+    "Open <b>Staff it &amp; they will come?</b> to compare staffing against pilot traffic for the period.</div>";
   return h;
 }
 function renderStaffingLiveBody() {
@@ -6183,9 +6210,9 @@ function renderHelp() {
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
     '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online, read ' +
-    'live from statsim.net/atc/combinedtime). Each has its own period, and the <b>Pilots vs ATC coverage</b> ' +
-    'table pairs them per facility: movements, ATC hours, uptime, coverage, and movements per controller hour. ' +
-    'Facilities with traffic and nobody online read <b>unstaffed</b>.</li>' +
+    'live from statsim.net/atc/combinedtime). Historical Data has two tabs: <b>Staffing recommendations</b> ' +
+    'and <b>Staff it &amp; they will come?</b> — the latter compares median pilot traffic at staffed vs unstaffed ' +
+    'facilities (association, not proof that opening a position creates traffic).</li>' +
     '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
     'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
@@ -7666,6 +7693,12 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
+  const histDataView = e.target.closest("[data-hist-dataview]");
+  if (histDataView) {
+    staffingHist.dataView = histDataView.dataset.histDataview || "recommendations";
+    renderContent();
+    return;
+  }
   if (e.target.closest("[data-hist-clearfilters]")) {
     staffingHist.filters = {};
     for (const c of STAFFING_HIST_TABLE_COLS) staffingHist.filters[c.key] = "";
@@ -7698,7 +7731,7 @@ contentEl.addEventListener("click", e => {
     else {
       staffingAtc.sortKey = key;
       staffingAtc.sortDir = (key === "facility" || key === "type" ||
-        key === "artcc" || key === "verdict") ? 1 : -1;
+        key === "artcc" || key === "staffSignal" || key === "staffTier" || key === "staffed") ? 1 : -1;
     }
     renderContent();
     return;

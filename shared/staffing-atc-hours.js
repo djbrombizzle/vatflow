@@ -196,14 +196,121 @@ function roundTo(n, digits) {
   return Math.round(n * f) / f;
 }
 
-/** Movement volume with little or no controller time is what we want to surface. */
-function coverageVerdict(movements, hours, coveragePct) {
-  if (!movements) return hours > 0 ? "quiet · staffed" : "quiet";
-  if (hours <= 0) return "unstaffed";
-  if (coveragePct < 5 && movements >= 200) return "needs coverage";
-  if (coveragePct < 15 && movements >= 500) return "needs coverage";
-  if (coveragePct >= 25) return "well covered";
-  return "partly covered";
+function median(nums) {
+  const a = (nums || []).filter(n => n != null && isFinite(n)).sort((x, y) => x - y);
+  if (!a.length) return 0;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+/** Rank correlation between staffing hours and pilot movements (association, not causation). */
+function spearmanRank(xs, ys) {
+  if (!xs || xs.length < 4 || xs.length !== ys.length) return null;
+  function ranks(vals) {
+    const indexed = vals.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+    const out = new Array(vals.length);
+    let i = 0;
+    while (i < indexed.length) {
+      let j = i;
+      while (j + 1 < indexed.length && indexed[j + 1].v === indexed[i].v) j++;
+      const rank = (i + j) / 2 + 1;
+      for (let k = i; k <= j; k++) out[indexed[k].i] = rank;
+      i = j + 1;
+    }
+    return out;
+  }
+  const rx = ranks(xs);
+  const ry = ranks(ys);
+  const n = xs.length;
+  let sumD2 = 0;
+  for (let i = 0; i < n; i++) {
+    const d = rx[i] - ry[i];
+    sumD2 += d * d;
+  }
+  return roundTo(1 - (6 * sumD2) / (n * (n * n - 1)), 2);
+}
+
+function staffTierFromHours(hours) {
+  if (!(hours > 0)) return "none";
+  if (hours < 5) return "light";
+  if (hours < 15) return "moderate";
+  return "heavy";
+}
+
+/** Per-facility label for the staff-it view — no ops/hour rate. */
+function staffSignal(movements, hours, minMovements) {
+  const busy = (movements || 0) >= minMovements;
+  if (hours > 0) return busy ? "staffed" : "quiet · staffed";
+  return busy ? "busy · no ATC" : "quiet";
+}
+
+/**
+ * Does staffing line up with more pilots? Compares staffed vs unstaffed facilities
+ * with meaningful traffic, plus staffing-hour bands and rank correlation.
+ */
+export function analyzeStaffItEffect(rows, { minMovements = 50 } = {}) {
+  const busy = (rows || []).filter(r => (r.movements || 0) >= minMovements);
+  const staffed = busy.filter(r => (r.hours || 0) > 0);
+  const unstaffed = busy.filter(r => !(r.hours > 0));
+  const staffedMedian = median(staffed.map(r => r.movements));
+  const unstaffedMedian = median(unstaffed.map(r => r.movements));
+
+  const byType = {};
+  for (const typ of ATC_POSITION_TYPES) {
+    const s = staffed.filter(r => r.type === typ);
+    const u = unstaffed.filter(r => r.type === typ);
+    const sm = median(s.map(r => r.movements));
+    const um = median(u.map(r => r.movements));
+    byType[typ] = {
+      staffedCount: s.length,
+      unstaffedCount: u.length,
+      staffedMedian: sm,
+      unstaffedMedian: um,
+      ratio: um > 0 ? roundTo(sm / um, 1) : null
+    };
+  }
+
+  const bands = [
+    { id: "none", label: "No ATC", test: r => !(r.hours > 0) },
+    { id: "light", label: "Light (<5h)", test: r => r.hours > 0 && r.hours < 5 },
+    { id: "moderate", label: "Moderate (5\u201315h)", test: r => r.hours >= 5 && r.hours < 15 },
+    { id: "heavy", label: "Heavy (15h+)", test: r => r.hours >= 15 }
+  ].map(b => {
+    const group = busy.filter(b.test);
+    return {
+      id: b.id,
+      label: b.label,
+      count: group.length,
+      medianMovements: median(group.map(r => r.movements)),
+      avgMovements: group.length
+        ? roundTo(group.reduce((sum, r) => sum + r.movements, 0) / group.length, 0)
+        : 0
+    };
+  });
+
+  const counterexamples = unstaffed.slice().sort((a, b) => b.movements - a.movements).slice(0, 6);
+  const ratio = unstaffedMedian > 0 ? roundTo(staffedMedian / unstaffedMedian, 1) : null;
+  const correlation = spearmanRank(busy.map(r => r.hours), busy.map(r => r.movements));
+
+  return {
+    minMovements,
+    busyCount: busy.length,
+    staffedCount: staffed.length,
+    unstaffedCount: unstaffed.length,
+    staffedMedian: roundTo(staffedMedian, 0),
+    unstaffedMedian: roundTo(unstaffedMedian, 0),
+    staffedAvg: staffed.length
+      ? roundTo(staffed.reduce((s, r) => s + r.movements, 0) / staffed.length, 0) : 0,
+    unstaffedAvg: unstaffed.length
+      ? roundTo(unstaffed.reduce((s, r) => s + r.movements, 0) / unstaffed.length, 0) : 0,
+    ratio,
+    correlation,
+    byType,
+    bands,
+    counterexamples,
+    /* True when staffed sites clearly see more traffic — still not proof of causation. */
+    leansYes: ratio != null && ratio >= 1.5 && staffed.length >= 8 && unstaffed.length >= 3
+  };
 }
 
 /**
@@ -220,8 +327,10 @@ export function buildAtcCoverage({
   mapFacility,
   movementsFor,
   elapsedHours,
-  extraFacilities
+  extraFacilities,
+  minMovements
 } = {}) {
+  const minMov = minMovements != null ? minMovements : 50;
   const map = typeof mapFacility === "function" ? mapFacility : () => null;
   const movesOf = typeof movementsFor === "function" ? movementsFor : () => 0;
   const elapsed = elapsedHours > 0 ? elapsedHours : 0;
@@ -265,7 +374,6 @@ export function buildAtcCoverage({
     const movements = Math.max(0, Math.round(movesOf(r.id, r.type) || 0));
     const hours = roundTo(r.hours, 1);
     const coveragePct = elapsed > 0 ? roundTo((r.hours / elapsed) * 100, 1) : null;
-    const opsPerHour = r.hours > 0 ? roundTo(movements / r.hours, 1) : null;
     return {
       id: r.id,
       type: r.type,
@@ -273,10 +381,11 @@ export function buildAtcCoverage({
       callsigns: r.callsigns.slice(),
       movements,
       hours,
+      staffed: r.hours > 0,
+      staffTier: staffTierFromHours(r.hours),
+      staffSignal: staffSignal(movements, r.hours, minMov),
       uptimePct: r.uptimePct ? roundTo(r.uptimePct, 2) : null,
-      coveragePct,
-      opsPerHour,
-      verdict: coverageVerdict(movements, r.hours, coveragePct == null ? 0 : coveragePct)
+      coveragePct
     };
   });
 
@@ -290,7 +399,7 @@ export function buildAtcCoverage({
     totals.hours = roundTo(totals.hours + r.hours, 1);
     totals.movements += r.movements;
   }
-  totals.opsPerHour = totals.hours > 0 ? roundTo(totals.movements / totals.hours, 1) : null;
+  const staffIt = analyzeStaffItEffect(rows, { minMovements: minMov });
 
-  return { rows, totals, matchedPositions, skippedPositions, elapsedHours: elapsed };
+  return { rows, totals, staffIt, matchedPositions, skippedPositions, elapsedHours: elapsed };
 }
