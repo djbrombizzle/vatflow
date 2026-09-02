@@ -3629,11 +3629,12 @@ function artccFromCtrPrefix(prefix) {
   if (!p) return null;
   if (STAFFING_ARTCC_SET.has(p)) return p;
   if (STAFFING_CTR_ALIASES[p]) return STAFFING_CTR_ALIASES[p];
-  /* MEM_CTR / SLC_CTR / ATL_CTR → airport → ARTCC */
+  /* MEM_CTR / SLC_CTR → KMEM / KSLC via the explicit airport table only.
+     Do not polygon-match: TOR_CTR (Toronto) would become KTOR (Torrington, WY)
+     and land in ZDV. Foreign / unknown CTR prefixes must stay unmapped. */
   const icao = resolveUsIcao(p);
-  if (icao) {
-    const viaApt = airportStaffingArtcc(icao);
-    if (viaApt && STAFFING_ARTCC_SET.has(viaApt)) return viaApt;
+  if (icao && STAFFING_AIRPORT_ARTCC[icao] && STAFFING_ARTCC_SET.has(STAFFING_AIRPORT_ARTCC[icao])) {
+    return STAFFING_AIRPORT_ARTCC[icao];
   }
   return null;
 }
