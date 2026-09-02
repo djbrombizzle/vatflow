@@ -5580,8 +5580,9 @@ function renderStaffingAtcCoverage() {
   }
 
   h += '<div class="staffhist-count">Showing ' + visible.length + " of " + all.length +
-    " facilities \u00b7 Coverage = controller hours \u00f7 hours elapsed in the period \u00b7 " +
-    "Uptime is StatSim's own figure over the whole calendar period" +
+    " facilities \u00b7 Coverage = controller hours \u00f7 hours elapsed so far \u00b7 " +
+    "Uptime = StatSim's own share of the whole calendar period \u00b7 " +
+    "concurrent positions count separately, so both can exceed 100%" +
     (atcTableFiltersActive()
       ? ' <span class="clr" data-atc-clearfilters style="color:var(--accent-text);cursor:pointer;text-decoration:underline;margin-left:8px">Clear filters</span>'
       : "") +
@@ -5592,8 +5593,9 @@ function renderStaffingAtcCoverage() {
     let title = "";
     if (c.key === "movements") title = "Arrivals + departures in the loaded pilot period for this facility";
     else if (c.key === "hours") title = "Combined controller hours online (concurrent positions count separately)";
-    else if (c.key === "uptime") title = "StatSim uptime: share of the whole calendar period with someone online";
-    else if (c.key === "coverage") title = "Controller hours divided by the hours that have elapsed in the period";
+    else if (c.key === "uptime") title = "StatSim's uptime for these positions, summed \u2014 controller hours as a " +
+      "share of the whole calendar period, so it reads low mid-week";
+    else if (c.key === "coverage") title = "Controller hours as a share of the hours elapsed so far in the period";
     else if (c.key === "opsPerHour") title = "Movements per controller hour \u2014 higher means traffic is outrunning staffing";
     h += '<th class="' + (staffingAtc.sortKey === c.key ? "sorted" : "") +
       '" data-atc-sort="' + c.key + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" +
@@ -5920,10 +5922,12 @@ function renderStaffingHistorical() {
   const res = staffingHist.result;
   let h = renderStaffingHistPeriodControls({ showLive: true, showAtc: true });
 
-  h += '<div class="staffsub" style="margin-bottom:14px">Source page: <a href="' +
+  h += '<div class="staffsub" style="margin-bottom:14px">Pilot source: <a href="' +
     esc(statsimCountryUrl(staffingHist.period)) + '" target="_blank" rel="noopener" style="color:var(--accent-text)">' +
-    esc(statsimCountryUrl(staffingHist.period)) + "</a>. Times are UTC. USA airports only (K / PA / PH). " +
-    "Database refresh: Mondays via GitHub Actions.</div>";
+    esc(statsimCountryUrl(staffingHist.period)) + "</a> \u00b7 ATC source: <a href=\"" +
+    esc(statsimAtcUrl(staffingAtc.period)) + '" target="_blank" rel="noopener" style="color:var(--accent-text)">' +
+    esc(statsimAtcUrl(staffingAtc.period)) + "</a>. Times are UTC. USA facilities only (K / PA / PH). " +
+    "Pilot database refresh: Mondays via GitHub Actions; ATC hours are read live.</div>";
 
   if (!res) {
     h += '<div class="staffnone">No pilot analysis loaded. Press <b>Load from database</b> ' +
@@ -5966,7 +5970,12 @@ function renderStaffingHistorical() {
     "<b>Pred. ops</b> = avg ops for the next matching day, raised when a nearby VATSIM event " +
     "(within " + STAFF_EVENT_RADIUS_NM + " nm) overlaps that window (+35% per event, max two). " +
     "Filter Facility/ARTCC (e.g. ZJX), Type (TWR / APP / CTR), or Day (Mon). " +
-    "Process live / Paste remain available as fallbacks.</div>";
+    "Process live / Paste remain available as fallbacks. " +
+    "<b>ATC hrs</b> and <b>Ops / ATC hr</b> come from the ATC period row: combined controller time online " +
+    "from StatSim, totalled per facility for the whole period (there is no hourly breakdown), so the same " +
+    "figure repeats across that facility's days. Concurrent positions count separately, and the pilot week " +
+    "is a rolling 7 days while StatSim's ATC week runs Monday to Sunday \u2014 keep both period selectors " +
+    "on the same setting when comparing.</div>";
   return h;
 }
 function renderStaffingLiveBody() {
@@ -6173,6 +6182,10 @@ function renderHelp() {
     '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
+    '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online, read ' +
+    'live from statsim.net/atc/combinedtime). Each has its own period, and the <b>Pilots vs ATC coverage</b> ' +
+    'table pairs them per facility: movements, ATC hours, uptime, coverage, and movements per controller hour. ' +
+    'Facilities with traffic and nobody online read <b>unstaffed</b>.</li>' +
     '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
     'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
