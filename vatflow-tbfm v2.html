@@ -412,6 +412,15 @@ input:focus, select:focus, button:focus-visible { box-shadow: 0 0 0 2px var(--ac
 .staffit-summary .bands { margin-top: 10px; font-size: 12px; }
 .staffit-summary .bands span { display: inline-block; margin-right: 14px; }
 .staffit-summary .counter { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+.atctrend-summary {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; margin: 0 0 14px; font-size: 13px; line-height: 1.5;
+}
+.atctrend-summary .headline { font-family: var(--font-data); font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+.atctrend-summary .yearbars { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; font-size: 12px; }
+.atctrend-summary .yearbars span { white-space: nowrap; }
+.atctrend-summary .trend-up { color: var(--ok); }
+.atctrend-summary .trend-down { color: var(--warn); }
 .subbadge { background: rgba(212, 92, 92, 0.25); color: #ffc9c9; border-radius: 8px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
 
 /* ---------- ground stop ---------- */
@@ -4266,6 +4275,18 @@ let staffingAtc = {
   sortDir: -1,
   filters: { facility: "", type: "", artcc: "" }
 };
+let staffingAtcTrend = {
+  status: "idle",
+  message: "",
+  years: [],
+  rows: [],
+  summary: null,
+  computedAt: null,
+  sourceNote: "",
+  sortKey: "total",
+  sortDir: -1,
+  filters: { facility: "", type: "", artcc: "" }
+};
 const STAFFING_ATC_TABLE_COLS = [
   { key: "facility", label: "Facility" },
   { key: "type", label: "Type" },
@@ -5516,6 +5537,8 @@ function renderStaffingHistDataTabs() {
     '" data-hist-dataview="recommendations">Staffing recommendations</span>' +
     '<span class="histdatatab' + (v === "staffit" ? " active" : "") +
     '" data-hist-dataview="staffit">Staff it &amp; they will come?</span>' +
+    '<span class="histdatatab' + (v === "atctrend" ? " active" : "") +
+    '" data-hist-dataview="atctrend">ATC hours trend</span>' +
     "</div>";
 }
 function staffTierLabel(tier) {
@@ -5660,6 +5683,205 @@ function sortedAtcTableRows(rows) {
 function atcFmtNum(v, suffix) {
   if (v == null || !isFinite(v)) return '<span class="cell-muted">\u2014</span>';
   return v + (suffix || "");
+}
+function atcTrendFmtHours(h) {
+  if (!(h > 0)) return '<span class="cell-muted">\u2014</span>';
+  return h >= 100 ? Math.round(h) : (Math.round(h * 10) / 10);
+}
+function atcTrendFmtPct(pct) {
+  if (pct == null || !isFinite(pct)) return '<span class="cell-muted">\u2014</span>';
+  const cls = pct > 0 ? "cell-ok" : pct < 0 ? "cell-alert" : "";
+  const sign = pct > 0 ? "+" : "";
+  return '<span class="' + cls + '">' + sign + pct + "%</span>";
+}
+function buildStaffingAtcTrendRows(packed) {
+  const api = atcHoursApi();
+  if (!api || !packed) return { rows: [], summary: null, years: [] };
+  const years = packed.years || [];
+  const positionsByYear = {};
+  for (const y of years) {
+    const raw = packed.positionsByYear[String(y)] || [];
+    positionsByYear[y] = api.expandCompactAtcPositions
+      ? api.expandCompactAtcPositions(raw)
+      : raw;
+  }
+  const rows = api.buildAtcTrendRows(positionsByYear, years, atcFacilityFromPrefix);
+  const summary = api.summarizeAtcTrend(rows, years);
+  return { rows, summary, years };
+}
+async function loadStaffingAtcTrends() {
+  if (staffingAtcTrend.status === "loading") return;
+  staffingAtcTrend.status = "loading";
+  staffingAtcTrend.message = "Loading ATC hours trend (2020\u20132025)\u2026";
+  renderContent();
+  try {
+    if (!window.VF_StaffingAtcStore || !window.VF_StaffingAtcStore.loadStaffingAtcTrends) {
+      throw new Error("ATC trends store not loaded");
+    }
+    ensureBoundariesIfNeeded();
+    const packed = await window.VF_StaffingAtcStore.loadStaffingAtcTrends();
+    const built = buildStaffingAtcTrendRows(packed);
+    staffingAtcTrend.years = built.years;
+    staffingAtcTrend.rows = built.rows.map(r => ({ ...r, artcc: atcRowArtcc(r) }));
+    staffingAtcTrend.summary = built.summary;
+    staffingAtcTrend.computedAt = packed.computedAt;
+    const when = packed.computedAt
+      ? new Date(packed.computedAt).toISOString().replace("T", " ").slice(0, 16) + "Z"
+      : "unknown";
+    staffingAtcTrend.sourceNote = packed.sourceLabel + " \u00b7 computed " + when;
+    staffingAtcTrend.status = "ok";
+    staffingAtcTrend.message = built.rows.length + " USA facilities \u00b7 " +
+      built.years[0] + "\u2013" + built.years[built.years.length - 1] +
+      " calendar years \u00b7 " + staffingAtcTrend.sourceNote;
+  } catch (e) {
+    staffingAtcTrend.status = "error";
+    staffingAtcTrend.message = ((e && e.message) || String(e)) +
+      " \u2014 run scripts/build-staffing-atc-trends.mjs to generate data/staffing-atc/trends.json.";
+  }
+  renderContent();
+}
+function renderAtcTrendSummary(summary, years) {
+  if (!summary || !years || !years.length) {
+    return '<div class="atctrend-summary"><div class="headline">ATC hours trend</div>No trend data loaded.</div>';
+  }
+  const first = summary.firstYear;
+  const last = summary.lastYear;
+  const pct = summary.trendPct;
+  let headlineCls = "";
+  let headline = "USA controller hours by calendar year";
+  if (pct != null && first != null && last != null) {
+    headlineCls = pct >= 0 ? "trend-up" : "trend-down";
+    headline = (pct >= 0 ? "Trending up" : "Trending down") + ": " + first + " \u2192 " + last +
+      " (" + (pct >= 0 ? "+" : "") + pct + "% across staffed USA facilities)";
+  }
+  let h = '<div class="atctrend-summary"><div class="headline ' + headlineCls + '">' +
+    esc(headline) + "</div>";
+  h += '<div class="yearbars">';
+  for (const y of years) {
+    const hrs = summary.totalsByYear[y] || 0;
+    h += "<span><b>" + y + "</b> " + Math.round(hrs).toLocaleString() + " h</span>";
+  }
+  h += "</div>";
+  h += '<div class="counter" style="margin-top:8px;font-size:12px;color:var(--text-muted)">' +
+    "Global StatSim positions mapped to USA facilities (K / PA / PH). No pilot data. " +
+    "Each year is Jan 1 00:01 \u2013 Dec 31 23:59 UTC from statsim.net/atc/combinedtime/custom.</div>";
+  h += "</div>";
+  return h;
+}
+function atcTrendCellText(row, key) {
+  if (key === "facility") return String(row.id || "");
+  if (key === "type") return String(row.type || "");
+  if (key === "artcc") return String(row.artcc || "");
+  return "";
+}
+function atcTrendNumVal(row, key) {
+  if (key === "total") return row.totalHours;
+  if (key === "trend") return row.trendPct;
+  if (/^\d{4}$/.test(key)) return row.hoursByYear[+key];
+  return null;
+}
+function atcTrendPasses(row) {
+  const f = staffingAtcTrend.filters || {};
+  if (f.facility && !atcIdQueryMatch(row.id, f.facility)) return false;
+  if (f.type && String(row.type || "").indexOf(f.type.toUpperCase()) === -1) return false;
+  if (f.artcc && !atcIdQueryMatch(row.artcc, f.artcc)) return false;
+  return true;
+}
+function atcTrendFiltersActive() {
+  const f = staffingAtcTrend.filters || {};
+  return Object.keys(f).some(k => String(f[k] || "").trim() !== "");
+}
+function sortedAtcTrendRows(rows) {
+  const key = staffingAtcTrend.sortKey || "total";
+  const dir = staffingAtcTrend.sortDir || -1;
+  const out = rows.slice();
+  out.sort((a, b) => {
+    const num = key === "total" || key === "trend" || /^\d{4}$/.test(key);
+    if (num) {
+      let va = atcTrendNumVal(a, key);
+      let vb = atcTrendNumVal(b, key);
+      if (va == null || !isFinite(va)) va = -1;
+      if (vb == null || !isFinite(vb)) vb = -1;
+      if (va !== vb) return (va - vb) * dir;
+    } else {
+      const r = atcTrendCellText(a, key).localeCompare(atcTrendCellText(b, key));
+      if (r) return r * dir;
+    }
+    return (b.totalHours - a.totalHours) || String(a.id).localeCompare(String(b.id));
+  });
+  return out;
+}
+function renderAtcTrendView() {
+  let h = '<div class="staffsec">ATC hours trend <span>USA controller hours by calendar year (no pilots)</span></div>';
+  if (staffingAtcTrend.status === "idle") {
+    h += '<div class="staffnone">Press <b>Load trend data</b> to load precomputed 2020\u20132025 hours from StatSim.</div>';
+    h += '<div class="staffhist-actions" style="margin:8px 0 14px">' +
+      '<button type="button" data-atc-trend-load>Load trend data</button></div>';
+    return h;
+  }
+  if (staffingAtcTrend.status === "loading") {
+    h += '<div class="staffhist-status">' + esc(staffingAtcTrend.message) + "</div>";
+    return h;
+  }
+  if (staffingAtcTrend.status === "error") {
+    h += '<div class="staffhist-status err">' + esc(staffingAtcTrend.message) + "</div>";
+    h += '<div class="staffhist-actions" style="margin:8px 0 14px">' +
+      '<button type="button" data-atc-trend-load>Retry</button></div>';
+    return h;
+  }
+  const years = staffingAtcTrend.years || [];
+  const all = staffingAtcTrend.rows || [];
+  const visible = sortedAtcTrendRows(all.filter(atcTrendPasses));
+  h += renderAtcTrendSummary(staffingAtcTrend.summary, years);
+  h += '<div class="staffhist-meta">' + esc(staffingAtcTrend.message || staffingAtcTrend.sourceNote) + "</div>";
+  h += '<div class="staffhist-count">Showing ' + visible.length + " of " + all.length + " facilities" +
+    (atcTrendFiltersActive()
+      ? ' <span class="clr" data-atc-trend-clearfilters style="color:var(--accent-text);cursor:pointer;text-decoration:underline;margin-left:8px">Clear filters</span>'
+      : "") +
+    "</div>";
+  h += '<div class="staffhist-tablewrap staffatc-tablewrap tablewrap"><table><thead><tr>';
+  const cols = [
+    { key: "facility", label: "Facility" },
+    { key: "type", label: "Type" },
+    { key: "artcc", label: "ARTCC" }
+  ];
+  for (const y of years) cols.push({ key: String(y), label: String(y), num: true });
+  cols.push({ key: "total", label: "Total", num: true });
+  cols.push({ key: "trend", label: "Trend", num: true });
+  for (const c of cols) {
+    h += '<th class="' + (staffingAtcTrend.sortKey === c.key ? "sorted" : "") +
+      '" data-atc-trend-sort="' + c.key + '">' + c.label +
+      (staffingAtcTrend.sortKey === c.key ? (staffingAtcTrend.sortDir === 1 ? " \u25B4" : " \u25BE") : "") +
+      "</th>";
+  }
+  h += '</tr><tr class="filterrow">';
+  for (const c of cols) {
+    if (c.key === "facility" || c.key === "type" || c.key === "artcc") {
+      h += '<th><input type="text" data-atc-trend-filter="' + c.key + '" value="' +
+        esc((staffingAtcTrend.filters || {})[c.key] || "") + '" placeholder="Filter"></th>';
+    } else {
+      h += "<th></th>";
+    }
+  }
+  h += "</tr></thead><tbody>";
+  if (!visible.length) {
+    h += '<tr><td colspan="' + cols.length +
+      '"><span class="cell-muted">No facilities match filters.</span></td></tr>';
+  } else {
+    for (const r of visible) {
+      h += "<tr><td><strong>" + esc(r.id) + "</strong></td><td>" + esc(r.type) + "</td><td>" +
+        (r.artcc ? esc(r.artcc) : '<span class="cell-muted">\u2014</span>') + "</td>";
+      for (const y of years) {
+        h += "<td>" + atcTrendFmtHours(r.hoursByYear[y] || 0) + "</td>";
+      }
+      h += "<td><strong>" + atcTrendFmtHours(r.totalHours) + "</strong></td>";
+      h += "<td>" + atcTrendFmtPct(r.trendPct) + "</td></tr>";
+    }
+  }
+  h += "</tbody></table></div>";
+  h += '<div class="staffhist-actions" style="margin-top:8px">' +
+    '<button type="button" class="ghost" data-atc-trend-load>Reload trend data</button></div>';
+  return h;
 }
 function renderStaffItView() {
   const atc = staffingAtc.result;
@@ -6050,6 +6272,14 @@ function renderStaffingHistorical() {
 
   h += renderStaffingHistDataTabs();
 
+  if (view === "atctrend") {
+    h += renderAtcTrendView();
+    h += '<div class="staffnote">The <b>ATC hours trend</b> tab shows controller hours per USA facility for each ' +
+      "calendar year (2020\u20132025) from StatSim custom ranges. Use filters to search by facility, type, or ARTCC. " +
+      "<b>Trend</b> is % change from the first to the last year with hours at that facility.</div>";
+    return h;
+  }
+
   if (view === "staffit") {
     h += renderStaffItView();
     h += '<div class="staffnote">The <b>Staff it &amp; they will come?</b> view compares period movements against ' +
@@ -6304,10 +6534,9 @@ function renderHelp() {
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
     '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online). ' +
-    'Both support <b>Load from database</b> (Monday refresh). ATC <b>This year</b> should use the database — ' +
-    'the full-year StatSim page is too large for browser proxies. Historical Data has two tabs: ' +
-    '<b>Staffing recommendations</b> and <b>Staff it &amp; they will come?</b> — the latter compares median ' +
-    'pilot traffic at staffed vs unstaffed facilities (association, not proof that opening a position creates traffic).</li>' +
+    'Both support <b>Load from database</b> (Monday refresh). Historical Data has three tabs: ' +
+    '<b>Staffing recommendations</b>, <b>Staff it &amp; they will come?</b> (pilots vs staffing), and ' +
+    '<b>ATC hours trend</b> (2020\u20132025 calendar-year controller hours, no pilot data).</li>' +
     '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
     'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
@@ -7791,12 +8020,44 @@ contentEl.addEventListener("click", e => {
   const histDataView = e.target.closest("[data-hist-dataview]");
   if (histDataView) {
     staffingHist.dataView = histDataView.dataset.histDataview || "recommendations";
+    if (staffingHist.dataView === "atctrend" && staffingAtcTrend.status === "idle") {
+      loadStaffingAtcTrends();
+      return;
+    }
     renderContent();
     return;
   }
   if (e.target.closest("[data-hist-clearfilters]")) {
     staffingHist.filters = {};
     for (const c of STAFFING_HIST_TABLE_COLS) staffingHist.filters[c.key] = "";
+    renderContent();
+    return;
+  }
+  if (e.target.closest("[data-atc-trend-load]")) {
+    loadStaffingAtcTrends();
+    return;
+  }
+  if (e.target.closest("[data-atc-trend-clearfilters]")) {
+    staffingAtcTrend.filters = { facility: "", type: "", artcc: "" };
+    renderContent();
+    return;
+  }
+  const atcTrendSort = e.target.closest("th[data-atc-trend-sort]");
+  if (atcTrendSort) {
+    const key = atcTrendSort.dataset.atcTrendSort;
+    if (staffingAtcTrend.sortKey === key) staffingAtcTrend.sortDir = -staffingAtcTrend.sortDir;
+    else {
+      staffingAtcTrend.sortKey = key;
+      staffingAtcTrend.sortDir = (key === "facility" || key === "type" || key === "artcc") ? 1 : -1;
+    }
+    renderContent();
+    return;
+  }
+  const atcTrendFilter = e.target.closest("[data-atc-trend-filter]");
+  if (atcTrendFilter && e.type === "input") {
+    const key = atcTrendFilter.dataset.atcTrendFilter;
+    if (!staffingAtcTrend.filters) staffingAtcTrend.filters = {};
+    staffingAtcTrend.filters[key] = atcTrendFilter.value;
     renderContent();
     return;
   }

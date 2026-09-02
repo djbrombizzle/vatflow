@@ -8,10 +8,14 @@ import {
   resolveAtcRange,
   groupAtcPositions,
   mergeAtcPositionGroups,
-  statsimAtcFetchJobs
+  statsimAtcFetchJobs,
+  statsimAtcCalendarYearUrl,
+  compactAtcPositions,
+  ATC_TREND_FIRST_YEAR,
+  atcTrendYears
 } from "../../shared/staffing-atc-hours.js";
 
-export { STAFFING_ATC_PERIODS as PERIODS };
+export { STAFFING_ATC_PERIODS as PERIODS, ATC_TREND_FIRST_YEAR, atcTrendYears };
 
 function looksLikeAtcPage(text) {
   return /Time online/i.test(text) && /_(TWR|APP|CTR)\b/.test(text);
@@ -82,5 +86,21 @@ export async function fetchAtcPeriod(period, onProgress, nowMs) {
     range,
     chunks: jobs.length,
     failedChunks: failed
+  };
+}
+
+export async function fetchAtcCalendarYear(year, onProgress) {
+  const y = Math.floor(+year);
+  const url = statsimAtcCalendarYearUrl(y);
+  if (typeof onProgress === "function") onProgress(1, 1, String(y));
+  const text = await fetchStatsimAtcUrlText(url, { timeoutMs: 240000 });
+  const positions = groupAtcPositions(parseStatsimAtc(text));
+  if (!positions.length) throw new Error("No StatSim ATC rows for " + y);
+  return {
+    year: y,
+    url,
+    positions,
+    positionGroups: positions.length,
+    totalSeconds: Math.round(positions.reduce((s, p) => s + (p.seconds || 0), 0))
   };
 }

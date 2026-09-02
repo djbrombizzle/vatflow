@@ -12,6 +12,7 @@ StatSim's **This year** ATC page is ~900 KB with thousands of position rows. Bro
 
 ```bash
 STAFFING_ATC_SKIP_DB=1 node scripts/build-staffing-atc.mjs thisyear
+STAFFING_ATC_SKIP_DB=1 node scripts/build-staffing-atc-trends.mjs
 # or with Supabase upsert:
 # SUPABASE_SERVICE_ROLE_KEY=... node scripts/build-staffing-atc.mjs thisweek thismonth thisyear
 ```
@@ -19,6 +20,8 @@ STAFFING_ATC_SKIP_DB=1 node scripts/build-staffing-atc.mjs thisyear
 ## GitHub Actions
 
 Workflow: `.github/workflows/staffing-hist.yml` (runs after each pilot period build).
+
+Also builds `data/staffing-atc/trends.json` (2020–2025 calendar-year hours for the **ATC hours trend** tab).
 
 Optional secret:
 

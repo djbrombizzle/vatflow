@@ -36,6 +36,141 @@ export function statsimAtcCustomUrl(fromMs, toMs) {
     encodeURIComponent(fmtStatsimAtcDateTime(toMs));
 }
 
+/** StatSim calendar-year custom range (matches statsim.net UI: Jan 1 00:01 – Dec 31 23:59 UTC). */
+export function statsimAtcCalendarYearUrl(year) {
+  const y = Math.floor(+year);
+  return STATSIM_ATC_COMBINED + "custom/" +
+    encodeURIComponent(y + "-01-01T00:01") + "/" +
+    encodeURIComponent(y + "-12-31T23:59");
+}
+
+export const ATC_TREND_FIRST_YEAR = 2020;
+export const ATC_TREND_LAST_YEAR = 2025;
+
+/** Last calendar year included in the multi-year ATC trend table. */
+export function atcTrendLastYear(nowMs) {
+  return ATC_TREND_LAST_YEAR;
+}
+
+export function atcTrendYears(firstYear, lastYear) {
+  const first = firstYear != null ? +firstYear : ATC_TREND_FIRST_YEAR;
+  const last = lastYear != null ? +lastYear : ATC_TREND_LAST_YEAR;
+  const out = [];
+  for (let y = first; y <= last; y++) out.push(y);
+  return out;
+}
+
+function roundHours(h) {
+  return Math.round(h * 10) / 10;
+}
+
+/**
+ * Join per-year position groups into facility rows with hours per calendar year.
+ * Positions may be compact { p, t, s } or full grouped rows from groupAtcPositions().
+ */
+export function buildAtcTrendRows(positionsByYear, years, mapFacility) {
+  const map = typeof mapFacility === "function" ? mapFacility : () => null;
+  const yearList = years && years.length ? years : Object.keys(positionsByYear || {}).map(Number).sort();
+  const byFac = {};
+
+  function addYear(year, positions) {
+    for (const pos of positions || []) {
+      const prefix = pos.prefix != null ? pos.prefix : pos.p;
+      const type = pos.type != null ? pos.type : pos.t;
+      if (!prefix || !ATC_POSITION_TYPES.includes(type)) continue;
+      const fac = map(prefix, type);
+      if (!fac || !fac.id) continue;
+      const key = (fac.type || type) + "|" + fac.id;
+      if (!byFac[key]) {
+        byFac[key] = { id: fac.id, type: fac.type || type, hoursByYear: {} };
+      }
+      const sec = pos.seconds != null ? pos.seconds : pos.s;
+      if (!(sec > 0)) continue;
+      byFac[key].hoursByYear[year] = roundHours((byFac[key].hoursByYear[year] || 0) + sec / 3600);
+    }
+  }
+
+  for (const year of yearList) {
+    const list = positionsByYear[year] != null
+      ? positionsByYear[year]
+      : (positionsByYear[String(year)] || []);
+    addYear(year, list);
+  }
+
+  const rows = Object.values(byFac).map(r => {
+    let total = 0;
+    let firstY = null;
+    let firstH = 0;
+    let lastY = null;
+    let lastH = 0;
+    for (const y of yearList) {
+      const h = r.hoursByYear[y] || 0;
+      total += h;
+      if (h > 0) {
+        if (firstY == null) { firstY = y; firstH = h; }
+        lastY = y; lastH = h;
+      }
+    }
+    let trendPct = null;
+    if (firstY != null && lastY != null && firstY !== lastY && firstH > 0) {
+      trendPct = Math.round(((lastH - firstH) / firstH) * 1000) / 10;
+    }
+    return {
+      id: r.id,
+      type: r.type,
+      hoursByYear: r.hoursByYear,
+      totalHours: roundHours(total),
+      firstYear: firstY,
+      lastYear: lastY,
+      trendPct
+    };
+  });
+
+  const latestYear = yearList.length ? yearList[yearList.length - 1] : 0;
+  rows.sort((a, b) =>
+    ((b.hoursByYear[latestYear] || 0) - (a.hoursByYear[latestYear] || 0)) ||
+    (b.totalHours - a.totalHours) ||
+    String(a.id).localeCompare(String(b.id)));
+
+  return rows;
+}
+
+/** Network-wide USA controller hours per calendar year from trend rows. */
+export function summarizeAtcTrend(rows, years) {
+  const yearList = years && years.length ? years : [];
+  const totalsByYear = {};
+  for (const y of yearList) totalsByYear[y] = 0;
+  for (const r of rows || []) {
+    for (const y of yearList) {
+      totalsByYear[y] = roundHours(totalsByYear[y] + (r.hoursByYear[y] || 0));
+    }
+  }
+  const ys = yearList.filter(y => totalsByYear[y] > 0);
+  let trendPct = null;
+  if (ys.length >= 2) {
+    const first = totalsByYear[ys[0]];
+    const last = totalsByYear[ys[ys.length - 1]];
+    if (first > 0) trendPct = Math.round(((last - first) / first) * 1000) / 10;
+  }
+  return { totalsByYear, trendPct, firstYear: ys[0] || null, lastYear: ys[ys.length - 1] || null };
+}
+
+/** Compact position rows for JSON storage. */
+export function compactAtcPositions(positions) {
+  return (positions || [])
+    .filter(p => p && (p.seconds > 0 || p.s > 0))
+    .map(p => ({
+      p: p.prefix != null ? p.prefix : p.p,
+      t: p.type != null ? p.type : p.t,
+      s: Math.round(p.seconds != null ? p.seconds : p.s)
+    }));
+}
+
+/** Expand compact rows back to grouped shape for buildAtcTrendRows. */
+export function expandCompactAtcPositions(compact) {
+  return (compact || []).map(p => ({ prefix: p.p, type: p.t, seconds: p.s }));
+}
+
 /**
  * StatSim's thisyear page is ~900 KB and breaks browser CORS proxies. Fetch it as
  * monthly custom chunks (server build) or load precomputed JSON instead.

@@ -70,3 +70,23 @@ export async function loadStaffingAtc(period) {
   }
   throw new Error(lastErr || "No precomputed ATC hours for " + p);
 }
+
+/** Multi-year calendar ATC hours (2020–2025) for the trend tab. */
+export async function loadStaffingAtcTrends() {
+  const r = await fetch("data/staffing-atc/trends.json", { cache: "no-store" });
+  if (!r.ok) throw new Error("Static ATC trends HTTP " + r.status);
+  const json = await r.json();
+  if (!json || !json.years || !json.positions_by_year) {
+    throw new Error("Invalid ATC trends data");
+  }
+  return {
+    computedAt: json.computed_at || null,
+    sourceLabel: json.source_label || null,
+    years: json.years,
+    firstYear: json.first_year,
+    lastYear: json.last_year,
+    networkSecondsByYear: json.network_seconds_by_year || {},
+    positionsByYear: json.positions_by_year,
+    source: "static"
+  };
+}
