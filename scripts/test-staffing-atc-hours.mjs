@@ -21,7 +21,9 @@ import {
   atcTrendYears,
   buildAtcTrendRows,
   buildAtcCoverage,
-  analyzeStaffItEffect
+  analyzeStaffItEffect,
+  linearRegression,
+  buildMovementAtcScatter
 } from "../shared/staffing-atc-hours.js";
 
 const html = `
@@ -153,5 +155,24 @@ assert.equal(trendRows[0].trendPct, 100);
 assert.ok(statsimAtcCalendarYearUrl(2025).includes("2025-01-01T00%3A01"));
 assert.ok(statsimAtcTrendYearUrl(2026).includes("2026-08-31"));
 assert.deepEqual(atcTrendYears(), [2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+
+const fit = linearRegression([
+  { x: 0, y: 10 }, { x: 10, y: 30 }, { x: 20, y: 50 }
+]);
+assert.ok(fit);
+assert.equal(fit.slope, 2);
+assert.equal(fit.intercept, 10);
+assert.equal(fit.r, 1);
+
+const scatter = buildMovementAtcScatter([
+  { id: "ZDV", type: "CTR", hours: 100, movements: 4000 },
+  { id: "ZLA", type: "CTR", hours: 50, movements: 2000 },
+  { id: "KDEN", type: "TWR", hours: 20, movements: 900 },
+  { id: "KATL", type: "TWR", hours: 0, movements: 5000 }
+]);
+assert.equal(scatter.CTR.points.length, 2);
+assert.equal(scatter.TWR.unstaffedCount, 1);
+assert.ok(scatter.CTR.fit && scatter.CTR.fit.slope > 0);
+assert.equal(scatter.APP.points.length, 0);
 
 console.log("ok");
