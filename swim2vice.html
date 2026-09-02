@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWIM to vICE — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel-2: #121820;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --green: #4ade80;
+    --red: #f87171;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--ui);
+    font-size: 14px; line-height: 1.6; padding-top: var(--vatflow-nav-h);
+  }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  h1 { font-family: var(--mono); font-size: 20px; letter-spacing: 0.12em; margin: 0 0 6px; }
+  h1 span { color: var(--amber); }
+  .lede { color: var(--muted); margin: 0 0 22px; max-width: 70ch; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--dim);
+       text-transform: uppercase; margin: 26px 0 10px; font-weight: 600; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+  .tabs button {
+    background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
+    font: inherit; padding: 9px 14px; cursor: pointer;
+  }
+  .tabs button[aria-selected="true"] { color: var(--amber); border-bottom-color: var(--amber); }
+  .tabs button:hover { color: var(--text); }
+
+  .step { border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+          padding: 16px 18px; margin-bottom: 14px; }
+  .step > h2 { display: flex; align-items: baseline; gap: 10px; }
+  .step > h2 b { font-family: var(--mono); color: var(--amber); font-size: 12px; }
+  .step[hidden] { display: none; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  p { margin: 0 0 10px; }
+  ol, ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  code, kbd { font-family: var(--mono); font-size: 12px; background: var(--panel-2);
+              border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; }
+  a { color: var(--amber); }
+
+  button.act {
+    background: var(--amber); color: #16202b; border: 0; border-radius: 5px; font: inherit;
+    font-weight: 600; padding: 8px 14px; cursor: pointer;
+  }
+  button.act:hover { filter: brightness(1.1); }
+  button.act:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+  button.ghost {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 5px; font: inherit; padding: 8px 14px; cursor: pointer;
+  }
+  button.ghost:hover { border-color: var(--amber); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  label.field { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"], select, input[type="number"] {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 5px; padding: 7px 9px; font: inherit; font-size: 13px; min-width: 0;
+  }
+  input:focus, select:focus { outline: 1px solid var(--amber); }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+  .drop {
+    border: 1px dashed var(--line); border-radius: 8px; padding: 26px; text-align: center;
+    color: var(--muted); cursor: pointer; transition: 0.12s;
+  }
+  .drop:hover, .drop.over { border-color: var(--amber); background: var(--panel-2); color: var(--text); }
+
+  pre.snippet {
+    background: #060a0e; border: 1px solid var(--line); border-radius: 6px; padding: 12px;
+    font-family: var(--mono); font-size: 11px; line-height: 1.45; color: #9fb0bf;
+    max-height: 230px; overflow: auto; margin: 0 0 10px; white-space: pre;
+  }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12px; font-family: var(--mono); }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--dim); font-weight: 600; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  td.wrap-cell { white-space: normal; font-size: 11px; color: var(--muted); }
+  .scroll { overflow-x: auto; max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; }
+
+  .stats { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 4px; }
+  .stat b { display: block; font-family: var(--mono); font-size: 20px; color: var(--amber); line-height: 1.2; }
+  .stat span { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* One series, one hue: magnitude by hour. Recessive axis, no legend needed. */
+  .hours { display: flex; align-items: flex-end; gap: 2px; height: 74px; margin: 14px 0 4px; }
+  .hours .bar { flex: 1; background: var(--amber); border-radius: 3px 3px 0 0; min-height: 2px; opacity: 0.85; }
+  .hours .bar.empty { background: var(--line); opacity: 1; }
+  .hours .bar:hover { opacity: 1; outline: 1px solid var(--text); }
+  .hourlabels { display: flex; gap: 2px; font-family: var(--mono); font-size: 9px; color: var(--dim); }
+  .hourlabels span { flex: 1; text-align: center; }
+
+  .note { border-left: 2px solid var(--amber); padding: 8px 0 8px 12px; margin: 12px 0; color: var(--muted); }
+  .bad { border-left-color: var(--red); }
+  .ok { border-left-color: var(--green); }
+  .bad b, .issues b { color: var(--red); }
+  .ok b { color: var(--green); }
+  .issues { max-height: 190px; overflow: auto; font-size: 12px; font-family: var(--mono);
+            border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  .issues div { margin-bottom: 4px; color: var(--muted); }
+  .path { font-family: var(--mono); font-size: 12px; color: var(--amber); word-break: break-all; }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+
+<div class="wrap">
+  <h1>SWIM <span>&rarr;</span> vICE</h1>
+  <p class="lede">
+    Record a live traffic feed in your browser, boil it down to a vice timetable, and fly the
+    traffic that was really there. vice does not replay radar &mdash; it flies aircraft itself from
+    flight plans &mdash; so what a recording has to become is one row per flight, plus the routes
+    they filed.
+  </p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="record">1 &middot; Record</button>
+    <button role="tab" aria-selected="false" data-tab="convert">2 &middot; Convert</button>
+    <button role="tab" aria-selected="false" data-tab="install">3 &middot; Install &amp; fly</button>
+  </div>
+
+  <!-- ============================ RECORD ============================ -->
+  <section id="tab-record">
+    <div class="step">
+      <h2><b>1</b> Open the feed and start the recorder</h2>
+      <ol>
+        <li>Open the page that shows the live traffic &mdash; for example the SWIM ERAM scope &mdash;
+          and let it connect until you can see aircraft moving.</li>
+        <li>Open the browser console: <kbd>F12</kbd> (or <kbd>Cmd</kbd>+<kbd>Option</kbd>+<kbd>I</kbd>
+          on a Mac), then click the <b>Console</b> tab.</li>
+        <li>If the console asks you to type <code>allow pasting</code> before it will accept pasted
+          code, type that first and press Enter.</li>
+        <li>Paste the whole block below and press Enter. A small amber panel appears in the
+          bottom-right corner counting frames.</li>
+      </ol>
+      <pre class="snippet" id="snippet">loading&hellip;</pre>
+      <div class="row">
+        <button class="act" id="copySnippet">Copy recorder to clipboard</button>
+        <span class="small muted" id="copyState"></span>
+      </div>
+      <div class="note">
+        <b>If the counter stays at zero</b>, the page opened its connection before the recorder was
+        watching. Reload the page and paste again straight away &mdash; or, in DevTools, switch the
+        Network tab to <b>Offline</b> for two seconds and back to <b>Online</b>, which makes the page
+        reconnect through the recorder.
+      </div>
+    </div>
+
+    <div class="step">
+      <h2><b>2</b> Leave it running</h2>
+      <p>Keep the tab open and the screen awake. The recorder saves a numbered part file every 20 MB
+        so a long session cannot fill up memory; your browser may ask once whether to allow multiple
+        downloads &mdash; say yes. When you are done, press <b>Stop</b> on the panel (or run
+        <code>swimRecorder.stop()</code>), which downloads whatever is left.</p>
+      <p class="small muted">The recorder only reads. It never sends anything anywhere, and
+        <code>swimRecorder.stop()</code> puts the page back exactly as it was.</p>
+    </div>
+
+    <div class="step">
+      <h2><b>3</b> How long to record</h2>
+      <p><b>Record for at least as long as you intend to fly, plus about 30 minutes.</b> A timetable
+        contains only the flights you captured: when your recording runs out, the scope goes quiet,
+        however long the sim keeps running.</p>
+      <ul>
+        <li><b>45&ndash;60 minutes</b> &mdash; the practical minimum. Enough for one short session,
+          with no room to choose a start time.</li>
+        <li><b>2&ndash;3 hours</b> &mdash; the sweet spot. Covers a full arrival or departure bank
+          with a build-up and a taper, and lets you start the sim anywhere in the middle.</li>
+        <li><b>6+ hours, or a whole day</b> &mdash; a timetable you can launch at any hour, with the
+          real overnight lull and morning push in it.</li>
+      </ul>
+      <p>Record a busy period on purpose. An hour of a major airport is roughly 60&ndash;110
+        movements; an hour of a quiet field may be five, which will not feel like much once vice
+        splits it into arrivals and departures. Note the local time you started &mdash; you will want
+        to start the sim near it.</p>
+    </div>
+  </section>
+
+  <!-- ============================ CONVERT ============================ -->
+  <section id="tab-convert" hidden>
+    <div class="step">
+      <h2><b>1</b> Load your recording</h2>
+      <div class="drop" id="drop">
+        Drop your <code>.ndjson</code> part files here, or click to choose them.
+        <br><span class="small">All parts at once is fine &mdash; they are stitched back together in order.</span>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".ndjson,.json,.txt" hidden>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" id="loadDemo">Load demo recording</button>
+        <span class="small muted">Four hours of made-up Denver traffic, to try the tool without capturing anything.</span>
+      </div>
+      <div id="loadState" class="small muted" style="margin-top:10px"></div>
+    </div>
+
+    <div class="step" id="stepAirport" hidden>
+      <h2><b>2</b> Which airport, and where is it?</h2>
+      <p class="small muted">A timetable belongs to one airport. vice uses every flight that departs
+        from or arrives at it, and ignores the rest &mdash; overflights included.</p>
+      <div class="grid">
+        <div>
+          <label class="field" for="airport">Airport (ICAO)</label>
+          <input type="text" id="airport" maxlength="4" placeholder="KDEN" autocomplete="off">
+          <div class="small muted" id="airportSuggestions" style="margin-top:6px"></div>
+        </div>
+        <div>
+          <label class="field" for="timezone">Local time zone at that airport</label>
+          <select id="timezone"></select>
+          <div class="small muted" style="margin-top:6px">vice reads timetable times as local, not Zulu.</div>
+        </div>
+        <div>
+          <label class="field" for="ttname">Timetable name</label>
+          <input type="text" id="ttname" placeholder="Tuesday Evening Push" autocomplete="off">
+          <div class="small muted" style="margin-top:6px">Becomes the file name and the label in vice.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="stepMapping" hidden>
+      <h2><b>3</b> Match up the fields</h2>
+      <p class="small muted">These are guesses from the keys your feed actually uses. Check them
+        against the example values and fix any that are wrong &mdash; the sample column is usually
+        enough to tell.</p>
+      <div class="scroll" style="max-height:none">
+        <table id="mappingTable">
+          <thead><tr><th>vice needs</th><th>Field in your recording</th><th>Example values</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="step" id="stepTiming" hidden>
+      <h2><b>4</b> Timing</h2>
+      <div id="timingExplain" class="small muted" style="margin-bottom:12px"></div>
+      <div class="grid">
+        <div>
+          <label class="field" for="taxiOut">Taxi-out estimate (minutes)</label>
+          <input type="number" id="taxiOut" value="12" min="0" max="60">
+          <div class="small muted" style="margin-top:6px">Subtracted from when a departure first
+            appeared, because vice reads a departure's time as <b>pushback</b> and adds the taxi itself.</div>
+        </div>
+        <div>
+          <label class="field" for="arrivalLead">Arrival adjustment (minutes)</label>
+          <input type="number" id="arrivalLead" value="0" min="0" max="60">
+          <div class="small muted" style="margin-top:6px">Subtracted from when an arrival was last
+            seen. Leave at 0 if the feed tracks aircraft to the runway.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="stepReview" hidden>
+      <h2><b>5</b> Review</h2>
+      <div class="stats" id="stats"></div>
+      <div class="hours" id="hours"></div>
+      <div class="hourlabels" id="hourLabels"></div>
+      <div class="small muted" style="margin-top:6px">Flights per local hour. Empty hours are hours
+        of empty scope &mdash; start the sim inside the busy part.</div>
+
+      <div id="verdict"></div>
+      <div id="issues"></div>
+
+      <h3>First 60 rows</h3>
+      <div class="scroll">
+        <table id="preview">
+          <thead><tr><th>callsign</th><th>origin</th><th>destination</th><th>aircraft_type</th>
+            <th>time</th><th>cargo</th><th>op</th><th>seen</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="step" id="stepExport" hidden>
+      <h2><b>6</b> Export</h2>
+      <div class="row">
+        <button class="act" id="downloadCsv">Download timetable CSV</button>
+        <button class="ghost" id="downloadRoutes">Download traffic_routes JSON</button>
+        <button class="ghost" id="copyRoutes">Copy traffic_routes</button>
+        <span class="small muted" id="exportState"></span>
+      </div>
+      <p class="small muted" style="margin-top:12px">The CSV is the timetable. The JSON is optional:
+        it holds the routes your traffic really filed, which you paste into a scenario so vice stops
+        inventing its own. Step 3 of this page says where each one goes.</p>
+    </div>
+  </section>
+
+  <!-- ============================ INSTALL ============================ -->
+  <section id="tab-install" hidden>
+    <div class="step">
+      <h2><b>1</b> Put the CSV where vice looks</h2>
+      <p>Timetables live in a folder named after the airport, and vice finds them on its own &mdash;
+        no rebuilding, no editing anything else:</p>
+      <p class="path">&lt;vice resources&gt;/traffic/timetables/&lt;ICAO&gt;/&lt;Your Name&gt;.csv</p>
+      <p>Where <code>&lt;vice resources&gt;</code> is:</p>
+      <ul>
+        <li><b>Windows</b> &mdash; <code>%AppData%\Vice\resources</code>
+          (paste that into the Explorer address bar)</li>
+        <li><b>macOS</b> &mdash; <code>~/Library/Application Support/Vice/resources</code>
+          (Finder &rarr; Go &rarr; Go to Folder)</li>
+        <li><b>Linux</b> &mdash; <code>~/.config/Vice/resources</code></li>
+        <li><b>Running vice from a source checkout</b> &mdash; the <code>resources/</code> folder in
+          the checkout itself</li>
+      </ul>
+      <p>So a Denver timetable ends up at
+        <span class="path">%AppData%\Vice\resources\traffic\timetables\KDEN\Tuesday Evening Push.csv</span>
+        Create the <code>KDEN</code> folder if it is not there. The file name is the name vice shows
+        you, so name it something you will recognise.</p>
+      <div class="note">Keep the CSV somewhere of your own as well. A vice update that refreshes its
+        resources can take anything extra in that folder with it.</div>
+    </div>
+
+    <div class="step">
+      <h2><b>2</b> Fly it</h2>
+      <ol>
+        <li>Start vice and pick a scenario that includes your airport. If no scenario there exists
+          yet, that is its own project &mdash; building a facility is much more work than this was.</li>
+        <li>In the new-sim window, find the <b>traffic source</b> setting and change it from
+          <b>Scenario</b> to <b>Timetable</b>. Your timetable is in the list beside it. If neither
+          appears, vice did not find the file: check the folder name is the ICAO code and the file
+          ends in <code>.csv</code>.</li>
+        <li>Set the sim's start time to a time your recording covers &mdash; the busy hours from the
+          histogram in step 2. Start it at 0300 local and you will get an empty scope, correctly.</li>
+        <li>Launch. The callsigns, types and city pairs on the scope are the ones that were really
+          flying.</li>
+      </ol>
+    </div>
+
+    <div class="step">
+      <h2><b>3</b> Optional: the real routes</h2>
+      <p>A timetable records where each flight went, not how it got there, so vice works out a route
+        for every flight from its own databases. If your feed carried filed routes, this page will
+        have built a <code>traffic_routes</code> block from them &mdash; the routes your traffic
+        actually flew.</p>
+      <p>Open the scenario's JSON file (in <code>&lt;vice resources&gt;/scenarios/</code>), find the
+        airport's object, and paste the <code>"traffic_routes"</code> member into it alongside the
+        members already there. Then start vice with that file:</p>
+      <p class="path">vice -scenario "C:\path\to\your-scenario.json"</p>
+      <p class="small muted">vice checks its own scenario routes first, then its database of recently
+        filed routes, then the FAA's preferred routes &mdash; so this only overrides what it would
+        otherwise guess.</p>
+    </div>
+
+    <div class="step">
+      <h2>When something is wrong</h2>
+      <ul>
+        <li><b>vice refuses to start, naming a row</b> &mdash; the CSV was edited after export, or
+          this page's checks were overridden. Re-export and use the file as it comes.</li>
+        <li><b>Timetable is not offered</b> &mdash; wrong folder, or the scenario does not include
+          that airport. The folder must be the ICAO code exactly: <code>KDEN</code>, not
+          <code>DEN</code> or <code>kden</code>.</li>
+        <li><b>Traffic dries up mid-session</b> &mdash; you reached the end of what you recorded.
+          Record longer, or start the sim earlier in the window.</li>
+        <li><b>Aircraft appear with strange routes</b> &mdash; expected without a
+          <code>traffic_routes</code> block; vice is guessing. See step 3.</li>
+        <li><b>Everything is an arrival, or everything is a departure</b> &mdash; the origin and
+          destination fields are swapped in the mapping. Go back and switch them.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script src="data/vice/vice-reference.js"></script>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import {
+  FIELDS, parseRecording, extractRecords, describeKeys, guessFieldMapping, suggestAirports,
+  buildFlights, validateFlights, coverage, toTimetableCSV, toTrafficRoutes,
+} from "./shared/swim2vice-core.mjs";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "swim2vice");
+
+const reference = window.VICE_REFERENCE || {};
+const $ = id => document.getElementById(id);
+
+const state = { records: [], keys: [], mapping: {}, flights: [], cityPairs: new Map(), errors: [], warnings: [] };
+
+/* ---- tabs ---- */
+for (const tab of document.querySelectorAll('[role="tab"]')) {
+  tab.onclick = () => {
+    for (const other of document.querySelectorAll('[role="tab"]')) {
+      const on = other === tab;
+      other.setAttribute("aria-selected", String(on));
+      $("tab-" + other.dataset.tab).hidden = !on;
+    }
+    window.scrollTo({ top: 0 });
+  };
+}
+
+/* ---- the recorder snippet ---- */
+fetch("shared/swim2vice-recorder.js")
+  .then(r => r.text())
+  .then(text => { $("snippet").textContent = text; })
+  .catch(() => { $("snippet").textContent = "Could not load the recorder — open shared/swim2vice-recorder.js directly."; });
+
+$("copySnippet").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($("snippet").textContent);
+    $("copyState").textContent = "Copied. Paste it into the console on the feed's page.";
+  } catch {
+    $("copyState").textContent = "Clipboard blocked — select the text above and copy it by hand.";
+  }
+};
+
+/* ---- time zones ---- */
+const COMMON_ZONES = [
+  "America/New_York", "America/Chicago", "America/Denver", "America/Phoenix",
+  "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu",
+];
+{
+  const select = $("timezone");
+  const all = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
+  const listed = new Set();
+  const add = (zone, group) => {
+    if (listed.has(zone)) return;
+    listed.add(zone);
+    const option = document.createElement("option");
+    option.value = zone;
+    option.textContent = group ? `${zone}` : zone;
+    select.append(option);
+  };
+  for (const zone of COMMON_ZONES) add(zone);
+  const separator = document.createElement("option");
+  separator.disabled = true;
+  separator.textContent = "──────────";
+  select.append(separator);
+  for (const zone of all) add(zone);
+  select.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Denver";
+  if (!listed.has(select.value)) select.value = "America/Denver";
+}
+
+/* ---- loading a recording ---- */
+const drop = $("drop");
+drop.onclick = () => $("fileInput").click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => {
+  e.preventDefault();
+  drop.classList.remove("over");
+  loadFiles([...e.dataTransfer.files]);
+};
+$("fileInput").onchange = e => loadFiles([...e.target.files]);
+
+$("loadDemo").onclick = async () => {
+  $("loadState").textContent = "Loading the demo recording…";
+  try {
+    const text = await (await fetch("data/vice/swim2vice-demo.ndjson")).text();
+    ingest([{ name: "swim2vice-demo.ndjson", text }]);
+    $("airport").value = "KDEN";
+    $("timezone").value = "America/Denver";
+    $("ttname").value = "Demo Denver Session";
+    recompute();
+  } catch {
+    $("loadState").textContent = "Could not load the demo recording.";
+  }
+};
+
+async function loadFiles(files) {
+  const usable = files.filter(f => f.size > 0);
+  if (!usable.length) return;
+  $("loadState").textContent = `Reading ${usable.length} file(s)…`;
+  // Parts are numbered by the recorder, so name order is chronological order.
+  usable.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const loaded = [];
+  for (const file of usable) loaded.push({ name: file.name, text: await file.text() });
+  ingest(loaded);
+  recompute();
+}
+
+function ingest(files) {
+  let frames = [];
+  let skipped = 0;
+  for (const file of files) {
+    const parsed = parseRecording(file.text);
+    frames = frames.concat(parsed.frames);
+    skipped += parsed.skipped;
+  }
+  frames.sort((a, b) => String(a.t).localeCompare(String(b.t)));
+
+  const { records, parseErrors } = extractRecords(frames);
+  state.records = records;
+  state.keys = describeKeys(records);
+  state.mapping = guessFieldMapping(state.keys);
+
+  $("loadState").innerHTML = records.length
+    ? `<b style="color:var(--green)">${frames.length.toLocaleString()} frames</b> read from `
+      + `${files.length} file(s); ${records.length.toLocaleString()} flight records found`
+      + (skipped ? ` &middot; ${skipped} unreadable line(s) skipped` : "")
+      + (parseErrors ? ` &middot; ${parseErrors} non-JSON frame(s) ignored` : "")
+    : `<b style="color:var(--red)">No flight records found</b> in ${frames.length.toLocaleString()} frames. `
+      + `The recorder may have captured a feed that carries no callsigns, or the recording is empty.`;
+
+  if (!records.length) {
+    for (const id of ["stepAirport", "stepMapping", "stepTiming", "stepReview", "stepExport"]) $(id).hidden = true;
+    return;
+  }
+
+  renderMapping();
+  renderSuggestions();
+  $("stepAirport").hidden = false;
+  $("stepMapping").hidden = false;
+}
+
+function renderSuggestions() {
+  const suggestions = suggestAirports(state.records, state.mapping, reference, 6);
+  const box = $("airportSuggestions");
+  box.textContent = "";
+  if (!suggestions.length) return;
+  box.append("Busiest in this recording: ");
+  suggestions.forEach((s, i) => {
+    if (i) box.append(" · ");
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = `${s.airport} (${s.flights})`;
+    link.onclick = e => {
+      e.preventDefault();
+      $("airport").value = s.airport;
+      recompute();
+    };
+    box.append(link);
+  });
+  if (!$("airport").value) $("airport").value = suggestions[0].airport;
+}
+
+function renderMapping() {
+  const body = $("mappingTable").querySelector("tbody");
+  body.textContent = "";
+  for (const field of FIELDS) {
+    const row = body.insertRow();
+    const label = row.insertCell();
+    label.innerHTML = `${field.label}${field.required ? ' <span style="color:var(--amber)">*</span>' : ""}`
+      + `<div class="small muted" style="white-space:normal">${field.hint}</div>`;
+
+    const select = document.createElement("select");
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = field.required ? "— choose —" : "— not in this feed —";
+    select.append(none);
+    for (const key of state.keys) {
+      const option = document.createElement("option");
+      option.value = key.key;
+      option.textContent = `${key.key}  (${key.count.toLocaleString()}×)`;
+      select.append(option);
+    }
+    select.value = state.mapping[field.id] || "";
+    select.onchange = () => {
+      state.mapping[field.id] = select.value;
+      showSamples(samples, select.value);
+      renderSuggestions();
+      recompute();
+    };
+    row.insertCell().append(select);
+
+    const samples = row.insertCell();
+    samples.className = "wrap-cell";
+    showSamples(samples, select.value);
+  }
+}
+
+function showSamples(cell, key) {
+  const description = state.keys.find(k => k.key === key);
+  cell.textContent = description ? description.samples.join(" · ") : "—";
+}
+
+for (const id of ["airport", "timezone", "ttname", "taxiOut", "arrivalLead"]) {
+  $(id).addEventListener("change", recompute);
+  $(id).addEventListener("input", recompute);
+}
+
+/* ---- the conversion ---- */
+function recompute() {
+  const airport = $("airport").value.trim().toUpperCase();
+  const mapping = state.mapping;
+  const ready = state.records.length && airport.length === 4
+    && mapping.callsign && mapping.origin && mapping.destination && mapping.aircraftType;
+
+  for (const id of ["stepTiming", "stepReview", "stepExport"]) $(id).hidden = !ready;
+  if (!ready) return;
+
+  const built = buildFlights(state.records, mapping, {
+    airport,
+    timeZone: $("timezone").value,
+    reference,
+    taxiOutMinutes: Number($("taxiOut").value) || 0,
+    arrivalLeadMinutes: Number($("arrivalLead").value) || 0,
+  });
+  state.flights = built.flights;
+  state.cityPairs = built.cityPairs;
+
+  const checked = validateFlights(state.flights, reference);
+  state.errors = checked.errors;
+  state.warnings = checked.warnings;
+
+  renderTiming(mapping);
+  renderReview(built.dropped, airport);
+}
+
+function renderTiming(mapping) {
+  const fromFeed = [];
+  if (mapping.departureTime) fromFeed.push("departures");
+  if (mapping.arrivalTime) fromFeed.push("arrivals");
+
+  $("timingExplain").innerHTML = fromFeed.length === 2
+    ? "Your feed publishes both departure and arrival times, so these are used as they come and the "
+      + "adjustments below do nothing."
+    : `Times for ${fromFeed.length ? "the rest of your traffic" : "your traffic"} come from when each `
+      + "flight was seen on the feed: a departure from when it first appeared, an arrival from when it "
+      + "last did. These two numbers correct for the difference between that and what vice expects.";
+  $("taxiOut").disabled = Boolean(mapping.departureTime);
+  $("arrivalLead").disabled = Boolean(mapping.arrivalTime);
+}
+
+function renderReview(dropped, airport) {
+  const stats = coverage(state.flights);
+
+  $("stats").innerHTML = [
+    ["flights", stats.total],
+    ["departures", stats.departures],
+    ["arrivals", stats.arrivals],
+    ["hours covered", (stats.spanMinutes / 60).toFixed(1)],
+    ["busiest hour", stats.busiestHour === null ? "—" : `${String(stats.busiestHour).padStart(2, "0")}00`],
+    ["in that hour", stats.busiestHourCount],
+  ].map(([label, value]) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`).join("");
+
+  const peak = Math.max(1, ...stats.perHour);
+  $("hours").innerHTML = stats.perHour.map((count, hour) =>
+    `<div class="bar${count ? "" : " empty"}" style="height:${count ? Math.max(4, (count / peak) * 100) : 3}%"`
+    + ` title="${String(hour).padStart(2, "0")}00 local — ${count} flight${count === 1 ? "" : "s"}"></div>`
+  ).join("");
+  $("hourLabels").innerHTML = stats.perHour
+    .map((_, hour) => `<span>${hour % 3 === 0 ? String(hour).padStart(2, "0") : ""}</span>`).join("");
+
+  const droppedNotes = [];
+  if (dropped.notAtAirport) droppedNotes.push(`${dropped.notAtAirport} flight(s) never touched ${airport}`);
+  if (dropped.noType) droppedNotes.push(`${dropped.noType} had no aircraft type`);
+  if (dropped.noAirports) droppedNotes.push(`${dropped.noAirports} had no origin or destination`);
+  if (dropped.noCallsign) droppedNotes.push(`${dropped.noCallsign} record(s) had no usable callsign`);
+  if (dropped.noTime) droppedNotes.push(`${dropped.noTime} had no usable time`);
+
+  const verdict = $("verdict");
+  if (!state.flights.length) {
+    verdict.innerHTML = `<div class="note bad"><b>No flights at ${airport}.</b> Check the airport code, `
+      + `and check that origin and destination are mapped to the right fields.</div>`;
+  } else if (state.errors.length) {
+    verdict.innerHTML = `<div class="note bad"><b>${state.errors.length} row(s) vice will refuse.</b> `
+      + `Drop them and the rest of the timetable is fine.</div>`
+      + `<div class="row" style="margin-bottom:10px"><button class="act" id="dropBad">`
+      + `Drop the ${state.errors.length} bad row(s)</button></div>`;
+    $("dropBad").onclick = () => {
+      const bad = new Set(state.errors.map(e => e.index));
+      state.flights = state.flights.filter((_, i) => !bad.has(i));
+      const rechecked = validateFlights(state.flights, reference);
+      state.errors = rechecked.errors;
+      state.warnings = rechecked.warnings;
+      renderReview(dropped, airport);
+    };
+  } else {
+    verdict.innerHTML = `<div class="note ok"><b>Valid.</b> ${state.flights.length} flights, checked `
+      + `against the same rules vice applies when it loads the file.`
+      + (stats.spanMinutes < 90
+        ? ` Only ${Math.round(stats.spanMinutes)} minutes of traffic, though — enough for a short session, not a long one.`
+        : "")
+      + `</div>`;
+  }
+
+  const issues = [...state.errors, ...state.warnings];
+  $("issues").innerHTML = issues.length || droppedNotes.length
+    ? `<div class="issues">`
+      + droppedNotes.map(n => `<div>Not included: ${n}.</div>`).join("")
+      + issues.slice(0, 60).map(i => `<div><b>${i.kind}</b> · ${i.message}</div>`).join("")
+      + (issues.length > 60 ? `<div>…and ${issues.length - 60} more.</div>` : "")
+      + `</div>`
+    : "";
+
+  const body = $("preview").querySelector("tbody");
+  body.textContent = "";
+  for (const row of state.flights.slice(0, 60)) {
+    const tr = body.insertRow();
+    for (const value of [row.callsign, row.origin, row.destination, row.aircraft_type, row.time,
+      String(row.cargo), row.operation, `${row.observations}×`]) {
+      tr.insertCell().textContent = value;
+    }
+  }
+}
+
+/* ---- export ---- */
+function download(name, text, type) {
+  const blob = new Blob([text], { type });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 10000);
+}
+
+function timetableName() {
+  const raw = $("ttname").value.trim() || "SWIM Recorded Session";
+  return raw.replace(/[\\/:*?"<>|]/g, "-");
+}
+
+$("downloadCsv").onclick = () => {
+  if (!state.flights.length) return;
+  download(`${timetableName()}.csv`, toTimetableCSV(state.flights), "text/csv");
+  const airport = $("airport").value.trim().toUpperCase();
+  $("exportState").innerHTML = `Put it in <span class="path">…/resources/traffic/timetables/${airport}/</span>`;
+};
+
+function routesJSON() {
+  return JSON.stringify(toTrafficRoutes(state.cityPairs, $("airport").value.trim().toUpperCase()), null, 2);
+}
+
+$("downloadRoutes").onclick = () => {
+  if (!state.cityPairs.size) {
+    $("exportState").textContent = "No routes in this recording — map a route field in step 3, if the feed has one.";
+    return;
+  }
+  download(`traffic_routes-${$("airport").value.trim().toUpperCase()}.json`, routesJSON(), "application/json");
+  $("exportState").textContent = "Paste the traffic_routes member into the airport's object in your scenario JSON.";
+};
+
+$("copyRoutes").onclick = async () => {
+  if (!state.cityPairs.size) {
+    $("exportState").textContent = "No routes in this recording — map a route field in step 3, if the feed has one.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(routesJSON());
+    $("exportState").textContent = "Copied.";
+  } catch {
+    $("exportState").textContent = "Clipboard blocked — use the download button instead.";
+  }
+};
+</script>
+</body>
+</html>
