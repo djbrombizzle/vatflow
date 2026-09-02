@@ -13,6 +13,9 @@ import {
   resolveAtcRange,
   atcElapsedHours,
   groupAtcPositions,
+  mergeAtcPositionGroups,
+  statsimAtcFetchJobs,
+  statsimAtcCustomUrl,
   buildAtcCoverage,
   analyzeStaffItEffect
 } from "../shared/staffing-atc-hours.js";
@@ -119,5 +122,16 @@ const empty = buildAtcCoverage({
 });
 assert.equal(empty.rows[0].staffSignal, "busy · no ATC");
 assert.equal(empty.staffIt.unstaffedCount, 1);
+
+const yearJobs = statsimAtcFetchJobs("thisyear", Date.UTC(2026, 8, 2, 12, 0, 0));
+assert.ok(yearJobs.length >= 9);
+assert.ok(statsimAtcCustomUrl(Date.UTC(2026, 0, 1), Date.UTC(2026, 0, 31, 23, 59)).includes("custom/"));
+
+const merged = mergeAtcPositionGroups([
+  [{ prefix: "DEN", type: "CTR", seconds: 100, uptimePct: 1, callsigns: ["DEN_CTR"], groups: 1 }],
+  [{ prefix: "DEN", type: "CTR", seconds: 50, uptimePct: 2, callsigns: ["DEN_17_CTR"], groups: 1 }]
+]);
+assert.equal(merged.length, 1);
+assert.equal(merged[0].seconds, 150);
 
 console.log("ok");

@@ -111,12 +111,22 @@ jobs:
             exit 1
           fi
           test -f "data/staffing-hist/${{ matrix.period }}.json"
+          node scripts/build-staffing-atc.mjs "${{ matrix.period }}" 2>&1 | tee -a "$LOG"
+          test -f "data/staffing-atc/${{ matrix.period }}.json"
 
-      - name: Upload ${{ matrix.period }} artifact
+      - name: Upload pilot ${{ matrix.period }} artifact
         uses: actions/upload-artifact@v4
         with:
           name: staffing-hist-${{ matrix.period }}
           path: data/staffing-hist/${{ matrix.period }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload ATC ${{ matrix.period }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: staffing-atc-${{ matrix.period }}
+          path: data/staffing-atc/${{ matrix.period }}.json
           if-no-files-found: error
           retention-days: 7
 
@@ -131,24 +141,26 @@ jobs:
       - name: Download period artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: staffing-hist-*
-          path: /tmp/staffing-hist-artifacts
+          pattern: staffing-*
+          path: /tmp/staffing-artifacts
           merge-multiple: true
 
       - name: Apply artifacts and commit
         run: |
           set -euo pipefail
           shopt -s nullglob
-          files=(/tmp/staffing-hist-artifacts/*.json)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "::error::No period artifacts to publish (all matrix builds failed?)."
-            exit 1
-          fi
-          mkdir -p data/staffing-hist
-          for f in "${files[@]}"; do
+          mkdir -p data/staffing-hist data/staffing-atc
+          for f in /tmp/staffing-artifacts/**/*.json /tmp/staffing-artifacts/*.json; do
+            [ -f "$f" ] || continue
             base="$(basename "$f")"
-            echo "Applying $base"
-            cp "$f" "data/staffing-hist/$base"
+            [ "$base" = "index.json" ] && continue
+            if grep -q '"position_groups"' "$f" 2>/dev/null; then
+              echo "Applying ATC $base"
+              cp "$f" "data/staffing-atc/$base"
+            elif grep -q '"flight_rows"' "$f" 2>/dev/null; then
+              echo "Applying pilot $base"
+              cp "$f" "data/staffing-hist/$base"
+            fi
           done
           node <<'NODE'
           const fs = require("fs");
@@ -171,13 +183,31 @@ jobs:
           const index = { updated_at: new Date().toISOString(), periods };
           fs.writeFileSync(path.join(dir, "index.json"), JSON.stringify(index, null, 2) + "\n");
           console.log("index periods:", periods.map(p => p.period).join(", "));
+          const atcDir = "data/staffing-atc";
+          const atcPeriods = [];
+          for (const id of PERIODS) {
+            const fp = path.join(atcDir, id + ".json");
+            if (!fs.existsSync(fp)) continue;
+            const j = JSON.parse(fs.readFileSync(fp, "utf8"));
+            atcPeriods.push({
+              period: j.period || id,
+              computed_at: j.computed_at || null,
+              position_groups: j.position_groups || 0,
+              total_seconds: j.total_seconds || 0
+            });
+          }
+          if (atcPeriods.length) {
+            fs.writeFileSync(path.join(atcDir, "index.json"),
+              JSON.stringify({ updated_at: new Date().toISOString(), periods: atcPeriods }, null, 2) + "\n");
+            console.log("atc index periods:", atcPeriods.map(p => p.period).join(", "));
+          }
           NODE
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/staffing-hist
+          git add data/staffing-hist data/staffing-atc
           if git diff --cached --quiet; then
             echo "No data file changes to commit (artifacts matched existing files)."
             exit 0
           fi
-          git commit -m "Update staffing historical aggregates"
+          git commit -m "Update staffing historical and ATC aggregates"
           git push
