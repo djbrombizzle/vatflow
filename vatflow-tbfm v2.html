@@ -5857,10 +5857,12 @@ function renderAtcTrendView() {
   h += '</tr><tr class="filterrow">';
   for (const c of cols) {
     if (c.key === "facility" || c.key === "type" || c.key === "artcc") {
-      h += '<th><input type="text" data-atc-trend-filter="' + c.key + '" value="' +
-        esc((staffingAtcTrend.filters || {})[c.key] || "") + '" placeholder="Filter"></th>';
+      const ph = c.key === "facility" ? "KMCO / MCO" : c.key === "type" ? "TWR/APP/CTR" : "ZJX";
+      h += '<td><input data-atc-trend-filter="' + c.key + '" data-keep="atc-trend-f-' + c.key +
+        '" value="' + esc((staffingAtcTrend.filters || {})[c.key] || "") +
+        '" placeholder="' + ph + '" title="Filter ' + c.label + '" autocomplete="off"></td>';
     } else {
-      h += "<th></th>";
+      h += "<td></td>";
     }
   }
   h += "</tr></thead><tbody>";
@@ -8053,14 +8055,6 @@ contentEl.addEventListener("click", e => {
     renderContent();
     return;
   }
-  const atcTrendFilter = e.target.closest("[data-atc-trend-filter]");
-  if (atcTrendFilter && e.type === "input") {
-    const key = atcTrendFilter.dataset.atcTrendFilter;
-    if (!staffingAtcTrend.filters) staffingAtcTrend.filters = {};
-    staffingAtcTrend.filters[key] = atcTrendFilter.value;
-    renderContent();
-    return;
-  }
   if (e.target.closest("[data-atc-load-db]")) {
     loadStaffingAtcFromDb();
     return;
@@ -8576,6 +8570,19 @@ contentEl.addEventListener("input", e => {
     const v = atcFilter.value.toUpperCase();
     atcFilter.value = v;
     staffingAtc.filters[atcFilter.dataset.atcFilter] = v;
+    renderContent();
+    return;
+  }
+  const atcTrendFilter = e.target.closest("input[data-atc-trend-filter]");
+  if (atcTrendFilter) {
+    if (!staffingAtcTrend.filters) staffingAtcTrend.filters = { facility: "", type: "", artcc: "" };
+    let v = atcTrendFilter.value;
+    const fk = atcTrendFilter.dataset.atcTrendFilter;
+    if (fk === "facility" || fk === "type" || fk === "artcc") {
+      v = v.toUpperCase();
+      atcTrendFilter.value = v;
+    }
+    staffingAtcTrend.filters[fk] = v;
     renderContent();
     return;
   }
