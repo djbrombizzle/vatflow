@@ -4,6 +4,10 @@ Built by `node scripts/build-staffing-hist.mjs` (GitHub Actions every Monday at 
 
 The Historical Data tab loads from Supabase `public.staffing_hist` first, then falls back to these JSON files.
 
+This covers pilot movements only. The tab's second period row (controller time online) is not
+precomputed: it reads <https://statsim.net/atc/combinedtime> live in the browser through a CORS
+proxy and parses it with `shared/staffing-atc-hours.js`.
+
 ## Why the API key is required
 
 StatSim’s country HTML pages now often return **empty** Departed/Arrived tables to
