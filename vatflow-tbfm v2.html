@@ -20,6 +20,10 @@ window.addEventListener("vatflow-auth-changed", () => {
 import * as StaffingHistStore from "./shared/staffing-hist-store.js";
 window.VF_StaffingHist = StaffingHistStore;
 </script>
+<script type="module">
+import * as StaffingAtcHours from "./shared/staffing-atc-hours.js";
+window.VF_StaffingAtc = StaffingAtcHours;
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 import * as FcaStore from "./shared/fca-store.js";
@@ -3489,7 +3493,13 @@ const STAFFING_CTR_ALIASES = {
   CLE:"ZOB", DTW:"ZOB", PIT:"ZOB",
   MSP:"ZMP",
   KC:"ZKC", STL:"ZKC",
+  FTW:"ZFW",
   ANC:"ZAN", HNL:"ZHN"
+};
+/* Alaska / Hawaii fields keep their 3-letter LID on VATSIM but are P-prefixed ICAOs. */
+const STAFFING_NON_K_FIELDS = {
+  ANC:"PANC", FAI:"PAFA", JNU:"PAJN", PSG:"PAPG",
+  HNL:"PHNL", OGG:"PHOG", KOA:"PHKO", ITO:"PHTO", LIH:"PHLI"
 };
 let staffingPtCache = {};
 let staffingUsTraconCache = null;
@@ -3502,6 +3512,7 @@ function resolveUsIcao(code) {
   const raw = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (!raw) return null;
   if (isUsStaffingAirport(raw) && lookup(raw)) return raw;
+  if (STAFFING_NON_K_FIELDS[raw]) return STAFFING_NON_K_FIELDS[raw];
   if (raw.length === 3) {
     const k = "K" + raw;
     if (isUsStaffingAirport(k) && lookup(k)) return k;
@@ -4146,7 +4157,8 @@ function statsimFetchJobs(period) {
   if (!jobs.length) return [{ label: "this week", url: statsimCountryUrl("thisweek") }];
   return jobs;
 }
-async function fetchStatsimUrlText(url) {
+/** StatSim sends no CORS header, so every browser read goes through a proxy. */
+async function fetchStatsimProxiedText(url, looksRight) {
   let lastErr = null;
   for (const prox of STATSIM_FETCH_PROXIES) {
     try {
@@ -4156,13 +4168,17 @@ async function fetchStatsimUrlText(url) {
       if (timer) clearTimeout(timer);
       if (!r.ok) { lastErr = "HTTP " + r.status; continue; }
       const text = await r.text();
-      if (text && /Departed/i.test(text) && /(Arrived|Origin|Callsign)/i.test(text)) return text;
+      if (text && looksRight(text)) return text;
       lastErr = "Unexpected response from proxy";
     } catch (e) {
       lastErr = (e && e.name === "AbortError") ? "Request timed out" : ((e && e.message) || String(e));
     }
   }
   throw new Error(lastErr || "Could not reach StatSim");
+}
+async function fetchStatsimUrlText(url) {
+  return fetchStatsimProxiedText(url,
+    text => /Departed/i.test(text) && /(Arrived|Origin|Callsign)/i.test(text));
 }
 async function fetchStatsimCountryFlights(period, onProgress) {
   const jobs = statsimFetchJobs(period);
@@ -4197,6 +4213,176 @@ async function fetchStatsimCountryFlights(period, onProgress) {
       : "No flight rows returned from StatSim.");
   }
   return { flights: all, chunks: jobs.length, failedChunks: failed };
+}
+
+/* ---------- ATC Staffing: controller hours (StatSim time online) ---------- */
+const STATSIM_ATC_COMBINED = "https://statsim.net/atc/combinedtime/";
+/* Only compare facilities the historical table can recommend. */
+const ATC_COVERAGE_TYPES = ["TWR", "APP", "CTR"];
+let staffingAtc = {
+  period: "thisweek",
+  status: "idle",
+  message: "",
+  pasteOpen: false,
+  result: null,
+  sortKey: "movements",
+  sortDir: -1,
+  filters: { facility: "", type: "", artcc: "" }
+};
+const STAFFING_ATC_TABLE_COLS = [
+  { key: "facility", label: "Facility" },
+  { key: "type", label: "Type" },
+  { key: "artcc", label: "ARTCC" },
+  { key: "movements", label: "Movements", num: true },
+  { key: "hours", label: "ATC hrs", num: true },
+  { key: "uptime", label: "Uptime", num: true },
+  { key: "coverage", label: "Coverage", num: true },
+  { key: "opsPerHour", label: "Ops / ATC hr", num: true },
+  { key: "verdict", label: "Verdict" }
+];
+function statsimAtcUrl(period) {
+  const p = STAFFING_HIST_PERIODS.some(x => x.id === period) ? period : "thisweek";
+  return STATSIM_ATC_COMBINED + p;
+}
+function atcHoursApi() {
+  return window.VF_StaffingAtc || null;
+}
+async function fetchStatsimAtcText(period) {
+  return fetchStatsimProxiedText(statsimAtcUrl(period),
+    text => /Time online/i.test(text) || /_(TWR|APP|CTR)\b/.test(text));
+}
+/** Same callsign → facility rules the Live tab uses (TWR → ICAO, APP → TRACON, CTR → ARTCC). */
+function atcFacilityFromPrefix(prefix, type) {
+  const fac = parseStaffingController({ callsign: prefix + "_" + type });
+  if (!fac || !fac.id || !ATC_COVERAGE_TYPES.includes(fac.type)) return null;
+  return { id: fac.id, type: fac.type };
+}
+/** Period movements per facility, rolled up from the loaded pilot aggregate. */
+function atcMovementIndex() {
+  const index = { TWR: {}, APP: {}, CTR: {} };
+  const res = staffingHist.result;
+  const byAirport = (res && res.byAirport) || {};
+  for (const icao of Object.keys(byAirport)) {
+    const apt = byAirport[icao];
+    const total = (apt.totalDep || 0) + (apt.totalArr || 0);
+    if (!total) continue;
+    index.TWR[icao] = (index.TWR[icao] || 0) + total;
+    const tracon = traconForAirport(icao);
+    if (tracon) index.APP[tracon] = (index.APP[tracon] || 0) + total;
+    const artcc = airportStaffingArtcc(icao);
+    if (artcc) index.CTR[artcc] = (index.CTR[artcc] || 0) + total;
+  }
+  return index;
+}
+/** Facilities the recommendations table already lists, so busy-but-unstaffed shows up. */
+function atcRecommendedFacilities() {
+  const res = staffingHist.result;
+  if (!res) return [];
+  const out = [];
+  const seen = {};
+  const add = (slots, type) => {
+    for (const s of slots || []) {
+      const key = type + "|" + s.id;
+      if (!s.id || seen[key]) continue;
+      seen[key] = 1;
+      out.push({ id: s.id, type });
+    }
+  };
+  add(res.towers, "TWR");
+  add(res.approaches, "APP");
+  add(res.centers, "CTR");
+  return out;
+}
+/** Which pilot aggregate a coverage build used, so a period change invalidates it. */
+function atcMovementsKey() {
+  const res = staffingHist.result;
+  return res ? staffingHist.period + ":" + (res.flightRows || 0) + ":" + (res.usEvents || 0) : "";
+}
+/**
+ * Join controller hours to pilot movements. Runs whenever either side loads, so
+ * the coverage table survives a period change on the other row.
+ */
+function rebuildAtcCoverage() {
+  const api = atcHoursApi();
+  const atc = staffingAtc.result;
+  if (!api || !atc) return;
+  const index = atcMovementIndex();
+  atc.coverage = api.buildAtcCoverage({
+    positions: atc.positions || [],
+    mapFacility: atcFacilityFromPrefix,
+    movementsFor: (id, type) => (index[type] && index[type][id]) || 0,
+    elapsedHours: atc.elapsedHours,
+    extraFacilities: atcRecommendedFacilities()
+  });
+  atc.movementsKey = atcMovementsKey();
+}
+function ensureAtcCoverageFresh() {
+  const atc = staffingAtc.result;
+  if (!atc) return;
+  if (!atc.coverage || atc.movementsKey !== atcMovementsKey()) rebuildAtcCoverage();
+}
+function atcCoverageRows() {
+  ensureAtcCoverageFresh();
+  const atc = staffingAtc.result;
+  return (atc && atc.coverage && atc.coverage.rows) || [];
+}
+/** Facility-level ATC totals keyed for the recommendations table's two new columns. */
+function atcCoverageLookup() {
+  const map = {};
+  for (const r of atcCoverageRows()) map[r.type + "|" + r.id] = r;
+  return map;
+}
+function atcCoverageTotals() {
+  ensureAtcCoverageFresh();
+  const atc = staffingAtc.result;
+  return (atc && atc.coverage && atc.coverage.totals) || null;
+}
+async function loadStaffingAtcHours(textOverride) {
+  const api = atcHoursApi();
+  if (!api) {
+    staffingAtc.status = "error";
+    staffingAtc.message = "ATC hours module not loaded.";
+    renderContent();
+    return;
+  }
+  const period = staffingAtc.period || "thisweek";
+  staffingAtc.status = "loading";
+  staffingAtc.message = textOverride != null
+    ? "Parsing pasted / uploaded StatSim ATC data\u2026"
+    : "Fetching StatSim ATC time online " + period + "\u2026";
+  renderContent();
+  try {
+    const text = textOverride != null ? textOverride : await fetchStatsimAtcText(period);
+    /* User may have switched the ATC period while the request was in flight. */
+    if (staffingAtc.period !== period) return;
+    const positions = api.groupAtcPositions(api.parseStatsimAtc(text));
+    if (!positions.length) {
+      throw new Error("No controller rows found. Paste the StatSim ATC combined time page.");
+    }
+    const range = api.resolveAtcRange(text, period);
+    ensureBoundariesIfNeeded();
+    staffingAtc.result = {
+      period,
+      positions,
+      range,
+      elapsedHours: api.atcElapsedHours(range),
+      computedAtMs: Date.now(),
+      sourceNote: textOverride != null ? "paste / upload" : "live via proxy"
+    };
+    rebuildAtcCoverage();
+    const cov = staffingAtc.result.coverage;
+    staffingAtc.status = "ok";
+    staffingAtc.message = "Parsed " + positions.length + " controller position groups \u00b7 " +
+      cov.rows.length + " USA facilities \u00b7 " + cov.totals.hours + " controller hours \u00b7 " +
+      staffingAtc.result.sourceNote +
+      (staffingHist.result ? "" : " \u00b7 load pilot data to compare movements");
+  } catch (e) {
+    if (staffingAtc.period !== period) return;
+    staffingAtc.status = "error";
+    staffingAtc.message = ((e && e.message) || String(e)) +
+      " \u2014 StatSim blocks direct browser reads, so this depends on a CORS proxy. Use Paste / upload as a fallback.";
+  }
+  if (staffingAtc.period === period) renderContent();
 }
 function histAirportCoords(icao) {
   const code = resolveUsIcao(icao) || String(icao || "").toUpperCase();
@@ -5325,6 +5511,7 @@ async function finalizeStaffingHistorical(result, sourceNote) {
   }
 
   staffingHist.result = result;
+  rebuildAtcCoverage();
   staffingHist.selectedAirport = (result.towers[0] && result.towers[0].id) ||
     (result.topAirports[0] && result.topAirports[0].icao) || null;
   staffingHist.status = "ok";
