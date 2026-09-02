@@ -17,6 +17,7 @@ import {
   statsimAtcFetchJobs,
   statsimAtcCustomUrl,
   statsimAtcCalendarYearUrl,
+  statsimAtcTrendYearUrl,
   atcTrendYears,
   buildAtcTrendRows,
   buildAtcCoverage,
@@ -150,6 +151,7 @@ assert.equal(trendRows[0].hoursByYear[2020], 2.8);
 assert.equal(trendRows[0].trendPct, 100);
 
 assert.ok(statsimAtcCalendarYearUrl(2025).includes("2025-01-01T00%3A01"));
-assert.deepEqual(atcTrendYears(), [2020, 2021, 2022, 2023, 2024, 2025]);
+assert.ok(statsimAtcTrendYearUrl(2026).includes("2026-08-31"));
+assert.deepEqual(atcTrendYears(), [2020, 2021, 2022, 2023, 2024, 2025, 2026]);
 
 console.log("ok");

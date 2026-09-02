@@ -4281,6 +4281,7 @@ let staffingAtcTrend = {
   years: [],
   rows: [],
   summary: null,
+  partialYears: null,
   computedAt: null,
   sourceNote: "",
   sortKey: "total",
@@ -5705,14 +5706,15 @@ function buildStaffingAtcTrendRows(packed) {
       ? api.expandCompactAtcPositions(raw)
       : raw;
   }
-  const rows = api.buildAtcTrendRows(positionsByYear, years, atcFacilityFromPrefix);
-  const summary = api.summarizeAtcTrend(rows, years);
-  return { rows, summary, years };
+  const partialYears = packed.partialYears || null;
+  const rows = api.buildAtcTrendRows(positionsByYear, years, atcFacilityFromPrefix, partialYears);
+  const summary = api.summarizeAtcTrend(rows, years, partialYears);
+  return { rows, summary, years, partialYears };
 }
 async function loadStaffingAtcTrends() {
   if (staffingAtcTrend.status === "loading") return;
   staffingAtcTrend.status = "loading";
-  staffingAtcTrend.message = "Loading ATC hours trend (2020\u20132025)\u2026";
+  staffingAtcTrend.message = "Loading ATC hours trend (2020\u20132026)\u2026";
   renderContent();
   try {
     if (!window.VF_StaffingAtcStore || !window.VF_StaffingAtcStore.loadStaffingAtcTrends) {
@@ -5724,6 +5726,7 @@ async function loadStaffingAtcTrends() {
     staffingAtcTrend.years = built.years;
     staffingAtcTrend.rows = built.rows.map(r => ({ ...r, artcc: atcRowArtcc(r) }));
     staffingAtcTrend.summary = built.summary;
+    staffingAtcTrend.partialYears = built.partialYears;
     staffingAtcTrend.computedAt = packed.computedAt;
     const when = packed.computedAt
       ? new Date(packed.computedAt).toISOString().replace("T", " ").slice(0, 16) + "Z"
@@ -5740,7 +5743,7 @@ async function loadStaffingAtcTrends() {
   }
   renderContent();
 }
-function renderAtcTrendSummary(summary, years) {
+function renderAtcTrendSummary(summary, years, partialYears) {
   if (!summary || !years || !years.length) {
     return '<div class="atctrend-summary"><div class="headline">ATC hours trend</div>No trend data loaded.</div>';
   }
@@ -5752,19 +5755,27 @@ function renderAtcTrendSummary(summary, years) {
   if (pct != null && first != null && last != null) {
     headlineCls = pct >= 0 ? "trend-up" : "trend-down";
     headline = (pct >= 0 ? "Trending up" : "Trending down") + ": " + first + " \u2192 " + last +
-      " (" + (pct >= 0 ? "+" : "") + pct + "% across staffed USA facilities)";
+      " (" + (pct >= 0 ? "+" : "") + pct + "% across staffed USA facilities, full years only)";
   }
   let h = '<div class="atctrend-summary"><div class="headline ' + headlineCls + '">' +
     esc(headline) + "</div>";
   h += '<div class="yearbars">';
   for (const y of years) {
     const hrs = summary.totalsByYear[y] || 0;
-    h += "<span><b>" + y + "</b> " + Math.round(hrs).toLocaleString() + " h</span>";
+    const partial = partialYears && (partialYears[y] || partialYears[String(y)]);
+    h += "<span><b>" + y + "</b> " + Math.round(hrs).toLocaleString() + " h";
+    if (partial && partial.label) {
+      h += ' <span class="cell-muted">(' + esc(partial.label) + ")</span>";
+    }
+    h += "</span>";
   }
   h += "</div>";
-  h += '<div class="counter" style="margin-top:8px;font-size:12px;color:var(--text-muted)">' +
-    "Global StatSim positions mapped to USA facilities (K / PA / PH). No pilot data. " +
-    "Each year is Jan 1 00:01 \u2013 Dec 31 23:59 UTC from statsim.net/atc/combinedtime/custom.</div>";
+  h += '<div class="counter" style="margin-top:8px;font-size:12px;color:var(--text-muted)">';
+  if (partialYears && partialYears["2026"]) {
+    h += "<b>2026</b> includes controller time through <b>Aug 31, 2026</b> only (not a full calendar year). ";
+  }
+  h += "Global StatSim positions mapped to USA facilities (K / PA / PH). No pilot data. " +
+    "Full years use Jan 1 00:01 \u2013 Dec 31 23:59 UTC from statsim.net/atc/combinedtime/custom.</div>";
   h += "</div>";
   return h;
 }
@@ -5814,7 +5825,7 @@ function sortedAtcTrendRows(rows) {
 function renderAtcTrendView() {
   let h = '<div class="staffsec">ATC hours trend <span>USA controller hours by calendar year (no pilots)</span></div>';
   if (staffingAtcTrend.status === "idle") {
-    h += '<div class="staffnone">Press <b>Load trend data</b> to load precomputed 2020\u20132025 hours from StatSim.</div>';
+    h += '<div class="staffnone">Press <b>Load trend data</b> to load precomputed 2020\u20132026 hours from StatSim.</div>';
     h += '<div class="staffhist-actions" style="margin:8px 0 14px">' +
       '<button type="button" data-atc-trend-load>Load trend data</button></div>';
     return h;
@@ -5832,7 +5843,7 @@ function renderAtcTrendView() {
   const years = staffingAtcTrend.years || [];
   const all = staffingAtcTrend.rows || [];
   const visible = sortedAtcTrendRows(all.filter(atcTrendPasses));
-  h += renderAtcTrendSummary(staffingAtcTrend.summary, years);
+  h += renderAtcTrendSummary(staffingAtcTrend.summary, years, staffingAtcTrend.partialYears);
   h += '<div class="staffhist-meta">' + esc(staffingAtcTrend.message || staffingAtcTrend.sourceNote) + "</div>";
   h += '<div class="staffhist-count">Showing ' + visible.length + " of " + all.length + " facilities" +
     (atcTrendFiltersActive()
@@ -5845,12 +5856,18 @@ function renderAtcTrendView() {
     { key: "type", label: "Type" },
     { key: "artcc", label: "ARTCC" }
   ];
-  for (const y of years) cols.push({ key: String(y), label: String(y), num: true });
+  for (const y of years) {
+    const partial = staffingAtcTrend.partialYears && staffingAtcTrend.partialYears[String(y)];
+    const yLabel = partial ? String(y) + "*" : String(y);
+    const yTitle = partial && partial.label ? partial.label : "Full calendar year";
+    cols.push({ key: String(y), label: yLabel, num: true, title: yTitle });
+  }
   cols.push({ key: "total", label: "Total", num: true });
   cols.push({ key: "trend", label: "Trend", num: true });
   for (const c of cols) {
     h += '<th class="' + (staffingAtcTrend.sortKey === c.key ? "sorted" : "") +
-      '" data-atc-trend-sort="' + c.key + '">' + c.label +
+      '" data-atc-trend-sort="' + c.key + '"' +
+      (c.title ? ' title="' + esc(c.title) + '"' : "") + ">" + c.label +
       (staffingAtcTrend.sortKey === c.key ? (staffingAtcTrend.sortDir === 1 ? " \u25B4" : " \u25BE") : "") +
       "</th>";
   }
@@ -6277,8 +6294,9 @@ function renderStaffingHistorical() {
   if (view === "atctrend") {
     h += renderAtcTrendView();
     h += '<div class="staffnote">The <b>ATC hours trend</b> tab shows controller hours per USA facility for each ' +
-      "calendar year (2020\u20132025) from StatSim custom ranges. Use filters to search by facility, type, or ARTCC. " +
-      "<b>Trend</b> is % change from the first to the last year with hours at that facility.</div>";
+      "calendar year (2020\u20132026) from StatSim custom ranges. <b>2026</b> is through Aug 31, 2026 only. " +
+      "Use filters to search by facility, type, or ARTCC. " +
+      "<b>Trend</b> is % change from the first to the last full calendar year with hours at that facility.</div>";
     return h;
   }
 
@@ -6538,7 +6556,7 @@ function renderHelp() {
     '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online). ' +
     'Both support <b>Load from database</b> (Monday refresh). Historical Data has three tabs: ' +
     '<b>Staffing recommendations</b>, <b>Staff it &amp; they will come?</b> (pilots vs staffing), and ' +
-    '<b>ATC hours trend</b> (2020\u20132025 calendar-year controller hours, no pilot data).</li>' +
+    '<b>ATC hours trend</b> (2020\u20132026 calendar-year controller hours; 2026 through Aug 31 only, no pilot data).</li>' +
     '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
     'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +

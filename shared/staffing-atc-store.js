@@ -71,7 +71,7 @@ export async function loadStaffingAtc(period) {
   throw new Error(lastErr || "No precomputed ATC hours for " + p);
 }
 
-/** Multi-year calendar ATC hours (2020–2025) for the trend tab. */
+/** Multi-year calendar ATC hours (2020–2026) for the trend tab. */
 export async function loadStaffingAtcTrends() {
   const r = await fetch("data/staffing-atc/trends.json", { cache: "no-store" });
   if (!r.ok) throw new Error("Static ATC trends HTTP " + r.status);
@@ -85,6 +85,7 @@ export async function loadStaffingAtcTrends() {
     years: json.years,
     firstYear: json.first_year,
     lastYear: json.last_year,
+    partialYears: json.partial_years || null,
     networkSecondsByYear: json.network_seconds_by_year || {},
     positionsByYear: json.positions_by_year,
     source: "static"

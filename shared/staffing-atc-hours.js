@@ -45,7 +45,29 @@ export function statsimAtcCalendarYearUrl(year) {
 }
 
 export const ATC_TREND_FIRST_YEAR = 2020;
-export const ATC_TREND_LAST_YEAR = 2025;
+export const ATC_TREND_LAST_YEAR = 2026;
+
+/** Calendar years that are not full Jan–Dec ranges in the trend table. */
+export const ATC_TREND_PARTIAL_YEARS = {
+  2026: { through: "2026-08-31T23:59", label: "through Aug 31, 2026" }
+};
+
+/** StatSim URL for a trend-table year (full calendar year, or partial when configured). */
+export function statsimAtcTrendYearUrl(year) {
+  const y = Math.floor(+year);
+  const partial = ATC_TREND_PARTIAL_YEARS[y];
+  if (partial) {
+    return STATSIM_ATC_COMBINED + "custom/" +
+      encodeURIComponent(y + "-01-01T00:01") + "/" +
+      encodeURIComponent(partial.through);
+  }
+  return statsimAtcCalendarYearUrl(y);
+}
+
+export function atcTrendPartialLabel(year) {
+  const p = ATC_TREND_PARTIAL_YEARS[Math.floor(+year)];
+  return p ? p.label : null;
+}
 
 /** Last calendar year included in the multi-year ATC trend table. */
 export function atcTrendLastYear(nowMs) {
@@ -68,9 +90,10 @@ function roundHours(h) {
  * Join per-year position groups into facility rows with hours per calendar year.
  * Positions may be compact { p, t, s } or full grouped rows from groupAtcPositions().
  */
-export function buildAtcTrendRows(positionsByYear, years, mapFacility) {
+export function buildAtcTrendRows(positionsByYear, years, mapFacility, partialYears) {
   const map = typeof mapFacility === "function" ? mapFacility : () => null;
   const yearList = years && years.length ? years : Object.keys(positionsByYear || {}).map(Number).sort();
+  const isPartial = y => !!(partialYears && (partialYears[y] || partialYears[String(y)]));
   const byFac = {};
 
   function addYear(year, positions) {
@@ -106,7 +129,7 @@ export function buildAtcTrendRows(positionsByYear, years, mapFacility) {
     for (const y of yearList) {
       const h = r.hoursByYear[y] || 0;
       total += h;
-      if (h > 0) {
+      if (h > 0 && !isPartial(y)) {
         if (firstY == null) { firstY = y; firstH = h; }
         lastY = y; lastH = h;
       }
@@ -136,8 +159,9 @@ export function buildAtcTrendRows(positionsByYear, years, mapFacility) {
 }
 
 /** Network-wide USA controller hours per calendar year from trend rows. */
-export function summarizeAtcTrend(rows, years) {
+export function summarizeAtcTrend(rows, years, partialYears) {
   const yearList = years && years.length ? years : [];
+  const isPartial = y => !!(partialYears && (partialYears[y] || partialYears[String(y)]));
   const totalsByYear = {};
   for (const y of yearList) totalsByYear[y] = 0;
   for (const r of rows || []) {
@@ -145,14 +169,20 @@ export function summarizeAtcTrend(rows, years) {
       totalsByYear[y] = roundHours(totalsByYear[y] + (r.hoursByYear[y] || 0));
     }
   }
-  const ys = yearList.filter(y => totalsByYear[y] > 0);
+  const ys = yearList.filter(y => totalsByYear[y] > 0 && !isPartial(y));
   let trendPct = null;
   if (ys.length >= 2) {
     const first = totalsByYear[ys[0]];
     const last = totalsByYear[ys[ys.length - 1]];
     if (first > 0) trendPct = Math.round(((last - first) / first) * 1000) / 10;
   }
-  return { totalsByYear, trendPct, firstYear: ys[0] || null, lastYear: ys[ys.length - 1] || null };
+  return {
+    totalsByYear,
+    trendPct,
+    firstYear: ys[0] || null,
+    lastYear: ys[ys.length - 1] || null,
+    partialYears: partialYears || null
+  };
 }
 
 /** Compact position rows for JSON storage. */

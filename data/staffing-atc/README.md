@@ -21,7 +21,7 @@ STAFFING_ATC_SKIP_DB=1 node scripts/build-staffing-atc-trends.mjs
 
 Workflow: `.github/workflows/staffing-hist.yml` (runs after each pilot period build).
 
-Also builds `data/staffing-atc/trends.json` (2020–2025 calendar-year hours for the **ATC hours trend** tab).
+Also builds `data/staffing-atc/trends.json` (2020–2026 calendar-year hours for the **ATC hours trend** tab; 2026 through Aug 31 only).
 
 Optional secret:
 
