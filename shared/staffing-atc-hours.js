@@ -196,6 +196,90 @@ export function compactAtcPositions(positions) {
     }));
 }
 
+/**
+ * Ordinary least-squares fit: movements ≈ slope * hours + intercept.
+ * Returns null when there are fewer than 2 finite points.
+ */
+export function linearRegression(points) {
+  const pts = (points || []).filter(p =>
+    p && isFinite(p.x) && isFinite(p.y));
+  const n = pts.length;
+  if (n < 2) return null;
+  let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
+  for (const p of pts) {
+    sumX += p.x;
+    sumY += p.y;
+    sumXX += p.x * p.x;
+    sumXY += p.x * p.y;
+  }
+  const denom = n * sumXX - sumX * sumX;
+  if (!(Math.abs(denom) > 1e-12)) {
+    return {
+      slope: 0,
+      intercept: sumY / n,
+      r: null,
+      r2: null,
+      n,
+      xMin: Math.min(...pts.map(p => p.x)),
+      xMax: Math.max(...pts.map(p => p.x))
+    };
+  }
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  let ssTot = 0, ssRes = 0;
+  const meanY = sumY / n;
+  for (const p of pts) {
+    const pred = slope * p.x + intercept;
+    ssTot += (p.y - meanY) * (p.y - meanY);
+    ssRes += (p.y - pred) * (p.y - pred);
+  }
+  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : null;
+  const r = r2 == null ? null : (slope >= 0 ? 1 : -1) * Math.sqrt(Math.max(0, r2));
+  return {
+    slope: roundTo(slope, 4),
+    intercept: roundTo(intercept, 2),
+    r: r == null ? null : roundTo(r, 3),
+    r2: r2 == null ? null : roundTo(r2, 3),
+    n,
+    xMin: Math.min(...pts.map(p => p.x)),
+    xMax: Math.max(...pts.map(p => p.x))
+  };
+}
+
+/**
+ * Build scatter datasets for CTR / APP / TWR from coverage rows.
+ * X = ATC hours, Y = pilot movements. Includes unstaffed (x=0) points.
+ */
+export function buildMovementAtcScatter(rows) {
+  const byType = { CTR: [], APP: [], TWR: [] };
+  for (const r of rows || []) {
+    if (!r || !byType[r.type]) continue;
+    const hours = r.hours > 0 ? r.hours : 0;
+    const movements = Math.max(0, r.movements || 0);
+    byType[r.type].push({
+      id: r.id,
+      type: r.type,
+      x: hours,
+      y: movements,
+      hours,
+      movements
+    });
+  }
+  const out = {};
+  for (const typ of ATC_POSITION_TYPES) {
+    const points = byType[typ].slice().sort((a, b) =>
+      (b.y - a.y) || (b.x - a.x) || String(a.id).localeCompare(String(b.id)));
+    out[typ] = {
+      type: typ,
+      points,
+      fit: linearRegression(points.map(p => ({ x: p.x, y: p.y }))),
+      staffedCount: points.filter(p => p.x > 0).length,
+      unstaffedCount: points.filter(p => !(p.x > 0)).length
+    };
+  }
+  return out;
+}
+
 /** Expand compact rows back to grouped shape for buildAtcTrendRows. */
 export function expandCompactAtcPositions(compact) {
   return (compact || []).map(p => ({ prefix: p.p, type: p.t, seconds: p.s }));
