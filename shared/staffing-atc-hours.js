@@ -10,6 +10,94 @@
 /** Position types worth staffing recommendations — GND / DEL / DEP / FSS are ignored. */
 export const ATC_POSITION_TYPES = ["CTR", "APP", "TWR"];
 
+export const STAFFING_ATC_PERIODS = ["thisweek", "thismonth", "thisyear"];
+
+export const STATSIM_ATC_COMBINED = "https://statsim.net/atc/combinedtime/";
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+/** StatSim custom-range timestamps for /atc/combinedtime/custom/{from}/{to}. */
+export function fmtStatsimAtcDateTime(ms) {
+  const d = new Date(ms);
+  return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate()) +
+    "T" + pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes());
+}
+
+export function statsimAtcCombinedUrl(period) {
+  const p = STAFFING_ATC_PERIODS.includes(period) ? period : "thisweek";
+  return STATSIM_ATC_COMBINED + p;
+}
+
+export function statsimAtcCustomUrl(fromMs, toMs) {
+  return STATSIM_ATC_COMBINED + "custom/" +
+    encodeURIComponent(fmtStatsimAtcDateTime(fromMs)) + "/" +
+    encodeURIComponent(fmtStatsimAtcDateTime(toMs));
+}
+
+/**
+ * StatSim's thisyear page is ~900 KB and breaks browser CORS proxies. Fetch it as
+ * monthly custom chunks (server build) or load precomputed JSON instead.
+ */
+export function statsimAtcFetchJobs(period, nowMs) {
+  const p = STAFFING_ATC_PERIODS.includes(period) ? period : "thisweek";
+  if (p === "thisweek" || p === "thismonth") {
+    return [{ label: p === "thisweek" ? "this week" : "this month", url: statsimAtcCombinedUrl(p) }];
+  }
+  const now = nowMs != null ? nowMs : Date.now();
+  const d = new Date(now);
+  const y = d.getUTCFullYear();
+  let mo = 0;
+  const jobs = [];
+  while (mo < 12) {
+    const fromMs = Date.UTC(y, mo, 1, 0, 0, 0);
+    if (fromMs >= now) break;
+    const toMs = Math.min(Date.UTC(y, mo + 1, 1, 0, 0, 0) - 60000, now);
+    jobs.push({
+      label: y + "-" + pad2(mo + 1),
+      url: statsimAtcCustomUrl(fromMs, toMs)
+    });
+    mo++;
+  }
+  if (!jobs.length) {
+    return [{ label: "this week", url: statsimAtcCombinedUrl("thisweek") }];
+  }
+  return jobs;
+}
+
+/** Sum grouped position rows from multiple StatSim pages or monthly chunks. */
+export function mergeAtcPositionGroups(groupLists) {
+  const byKey = {};
+  for (const groups of groupLists || []) {
+    for (const g of groups || []) {
+      if (!g || !ATC_POSITION_TYPES.includes(g.type)) continue;
+      const key = g.prefix + "|" + g.type;
+      if (!byKey[key]) {
+        byKey[key] = {
+          prefix: g.prefix,
+          type: g.type,
+          seconds: 0,
+          uptimePct: 0,
+          callsigns: [],
+          groups: 0
+        };
+      }
+      const row = byKey[key];
+      row.seconds += g.seconds || 0;
+      row.uptimePct += g.uptimePct || 0;
+      row.groups += g.groups || 1;
+      for (const cs of g.callsigns || []) {
+        if (!row.callsigns.includes(cs)) row.callsigns.push(cs);
+      }
+    }
+  }
+  return Object.values(byKey)
+    .map(g => ({ ...g, hours: g.seconds / 3600 }))
+    .sort((a, b) => b.seconds - a.seconds ||
+      a.prefix.localeCompare(b.prefix) || a.type.localeCompare(b.type));
+}
+
 function stripTags(s) {
   return String(s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")

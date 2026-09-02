@@ -18,7 +18,9 @@ window.addEventListener("vatflow-auth-changed", () => {
 </script>
 <script type="module">
 import * as StaffingHistStore from "./shared/staffing-hist-store.js";
+import * as StaffingAtcStore from "./shared/staffing-atc-store.js";
 window.VF_StaffingHist = StaffingHistStore;
+window.VF_StaffingAtcStore = StaffingAtcStore;
 </script>
 <script type="module">
 import * as StaffingAtcHours from "./shared/staffing-atc-hours.js";
@@ -4037,8 +4039,8 @@ const VATSIM_EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
 const STAFF_EVENT_RADIUS_NM = 500;
 const STAFF_EVENT_SCORE_BOOST = 0.35;   /* +35% predicted ops per overlapping nearby event (capped at 2) */
 const STATSIM_FETCH_PROXIES = [
-  u => "https://r.jina.ai/http://" + u.replace(/^https?:\/\//, ""),
   u => "https://r.jina.ai/https://" + u.replace(/^https?:\/\//, ""),
+  u => "https://r.jina.ai/http://" + u.replace(/^https?:\/\//, ""),
   u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
   u => "https://corsproxy.io/?url=" + encodeURIComponent(u)
 ];
@@ -4282,9 +4284,37 @@ function statsimAtcUrl(period) {
 function atcHoursApi() {
   return window.VF_StaffingAtc || null;
 }
-async function fetchStatsimAtcText(period) {
-  return fetchStatsimProxiedText(statsimAtcUrl(period),
-    text => /Time online/i.test(text) || /_(TWR|APP|CTR)\b/.test(text));
+async function fetchStatsimAtcText(period, onProgress) {
+  const api = atcHoursApi();
+  if (!api || !api.statsimAtcFetchJobs) {
+    return fetchStatsimProxiedText(statsimAtcUrl(period),
+      text => /Time online/i.test(text) || /_(TWR|APP|CTR)\b/.test(text));
+  }
+  const jobs = api.statsimAtcFetchJobs(period);
+  const groupedChunks = [];
+  let lastErr = null;
+  let sampleText = "";
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    if (typeof onProgress === "function") onProgress(i + 1, jobs.length, job.label);
+    try {
+      const text = await fetchStatsimProxiedText(job.url,
+        t => /Time online/i.test(t) || /_(TWR|APP|CTR)\b/.test(t));
+      groupedChunks.push(api.groupAtcPositions(api.parseStatsimAtc(text)));
+      if (!sampleText) sampleText = text;
+    } catch (e) {
+      lastErr = (e && e.message) || String(e);
+      if (jobs.length === 1) throw e;
+    }
+    if (i < jobs.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+  if (!groupedChunks.length) throw new Error(lastErr || "Could not reach StatSim");
+  if (jobs.length === 1) return { text: sampleText, positions: groupedChunks[0] };
+  return {
+    text: sampleText,
+    positions: api.mergeAtcPositionGroups(groupedChunks),
+    chunked: true
+  };
 }
 /** Same callsign → facility rules the Live tab uses (TWR → ICAO, APP → TRACON, CTR → ARTCC). */
 function atcFacilityFromPrefix(prefix, type) {
@@ -4373,6 +4403,56 @@ function atcCoverageTotals() {
   const atc = staffingAtc.result;
   return (atc && atc.coverage && atc.coverage.totals) || null;
 }
+function applyStaffingAtcResult(period, positions, range, sourceNote, computedAtMs) {
+  const api = atcHoursApi();
+  const whenMs = computedAtMs != null ? computedAtMs : Date.now();
+  const resolvedRange = range || (api ? api.atcPeriodRange(period, whenMs) : null);
+  ensureBoundariesIfNeeded();
+  staffingAtc.result = {
+    period,
+    positions: positions || [],
+    range: resolvedRange,
+    elapsedHours: api ? api.atcElapsedHours(resolvedRange, whenMs) : 0,
+    computedAtMs: whenMs,
+    sourceNote: sourceNote || ""
+  };
+  rebuildAtcCoverage();
+  const cov = staffingAtc.result.coverage;
+  staffingAtc.status = "ok";
+  staffingAtc.message = "Parsed " + (positions ? positions.length : 0) + " controller position groups \u00b7 " +
+    cov.rows.length + " USA facilities \u00b7 " + cov.totals.hours + " controller hours \u00b7 " +
+    staffingAtc.result.sourceNote +
+    (staffingHist.result ? "" : " \u00b7 load pilot data to compare movements");
+}
+async function loadStaffingAtcFromDb() {
+  const period = staffingAtc.period || "thisweek";
+  staffingAtc.status = "loading";
+  staffingAtc.message = "Loading precomputed ATC " + period + " from database\u2026";
+  renderContent();
+  try {
+    if (!window.VF_StaffingAtcStore || !window.VF_StaffingAtcStore.loadStaffingAtc) {
+      throw new Error("ATC store not loaded");
+    }
+    const packed = await window.VF_StaffingAtcStore.loadStaffingAtc(period);
+    if (staffingAtc.period !== period) return;
+    const when = packed.computedAt
+      ? new Date(packed.computedAt).toISOString().replace("T", " ").slice(0, 16) + "Z"
+      : "unknown";
+    applyStaffingAtcResult(
+      period,
+      packed.positions,
+      packed.range,
+      "database (" + packed.source + ") \u00b7 computed " + when,
+      packed.computedAt ? Date.parse(packed.computedAt) : Date.now()
+    );
+  } catch (e) {
+    if (staffingAtc.period !== period) return;
+    staffingAtc.status = "error";
+    staffingAtc.message = ((e && e.message) || String(e)) +
+      " \u2014 use Load ATC hours (live) or Paste / upload as a fallback.";
+  }
+  if (staffingAtc.period === period) renderContent();
+}
 async function loadStaffingAtcHours(textOverride) {
   const api = atcHoursApi();
   if (!api) {
@@ -4388,30 +4468,41 @@ async function loadStaffingAtcHours(textOverride) {
     : "Fetching StatSim ATC time online " + period + "\u2026";
   renderContent();
   try {
-    const text = textOverride != null ? textOverride : await fetchStatsimAtcText(period);
-    /* User may have switched the ATC period while the request was in flight. */
-    if (staffingAtc.period !== period) return;
-    const positions = api.groupAtcPositions(api.parseStatsimAtc(text));
-    if (!positions.length) {
-      throw new Error("No controller rows found. Paste the StatSim ATC combined time page.");
+    let positions;
+    let range;
+    let sourceNote;
+    if (textOverride != null) {
+      const text = textOverride;
+      const positionsParsed = api.groupAtcPositions(api.parseStatsimAtc(text));
+      if (!positionsParsed.length) {
+        throw new Error("No controller rows found. Paste the StatSim ATC combined time page.");
+      }
+      positions = positionsParsed;
+      range = api.resolveAtcRange(text, period);
+      sourceNote = "paste / upload";
+    } else {
+      const fetched = await fetchStatsimAtcText(period, (i, n, label) => {
+        if (staffingAtc.period !== period) return;
+        staffingAtc.message = "Fetching StatSim ATC " + period + " (" + i + "/" + n + " " + label + ")\u2026";
+        renderContent();
+      });
+      if (staffingAtc.period !== period) return;
+      if (fetched && fetched.positions) {
+        positions = fetched.positions;
+        range = api.resolveAtcRange(fetched.text || "", period);
+        sourceNote = fetched.chunked ? "live via proxy (chunked)" : "live via proxy";
+      } else {
+        const text = fetched;
+        positions = api.groupAtcPositions(api.parseStatsimAtc(text));
+        if (!positions.length) {
+          throw new Error("No controller rows found. Paste the StatSim ATC combined time page.");
+        }
+        range = api.resolveAtcRange(text, period);
+        sourceNote = "live via proxy";
+      }
     }
-    const range = api.resolveAtcRange(text, period);
-    ensureBoundariesIfNeeded();
-    staffingAtc.result = {
-      period,
-      positions,
-      range,
-      elapsedHours: api.atcElapsedHours(range),
-      computedAtMs: Date.now(),
-      sourceNote: textOverride != null ? "paste / upload" : "live via proxy"
-    };
-    rebuildAtcCoverage();
-    const cov = staffingAtc.result.coverage;
-    staffingAtc.status = "ok";
-    staffingAtc.message = "Parsed " + positions.length + " controller position groups \u00b7 " +
-      cov.rows.length + " USA facilities \u00b7 " + cov.totals.hours + " controller hours \u00b7 " +
-      staffingAtc.result.sourceNote +
-      (staffingHist.result ? "" : " \u00b7 load pilot data to compare movements");
+    if (staffingAtc.period !== period) return;
+    applyStaffingAtcResult(period, positions, range, sourceNote, Date.now());
   } catch (e) {
     if (staffingAtc.period !== period) return;
     staffingAtc.status = "error";
@@ -5909,7 +6000,9 @@ function renderStaffingHistPeriodControls(opts) {
       '<label>Period<select data-atc-period>' + staffingPeriodOptionsHtml(staffingAtc.period) +
       "</select></label>" +
       '<div class="staffhist-actions">' +
-      '<button type="button" data-atc-load' + (atcBusy ? " disabled" : "") +
+      '<button type="button" data-atc-load-db' + (atcBusy ? " disabled" : "") +
+      ">Load from database</button>" +
+      '<button type="button" class="ghost" data-atc-load' + (atcBusy ? " disabled" : "") +
       ">Load ATC hours</button>" +
       '<button type="button" class="ghost" data-atc-toggle-paste>Paste / upload</button>' +
       "</div></div>";
@@ -5924,8 +6017,9 @@ function renderStaffingHistPeriodControls(opts) {
         ">Process paste</button></div>";
     }
     h += staffingStatusHtml(staffingAtc.status, staffingAtc.message,
-      "Controller time online is read live from statsim.net/atc/combinedtime through a CORS proxy " +
-      "(nothing is precomputed). Press Load ATC hours, or Paste / upload when the proxy is blocked.");
+      "Controller hours are precomputed into Supabase (<code>staffing_atc</code>) and static JSON every Monday. " +
+      "Use <b>Load from database</b> for week / month / year (recommended for <b>This year</b>). " +
+      "<b>Load ATC hours</b> fetches live through a CORS proxy; Paste / upload when blocked.");
   }
   return h;
 }
@@ -5952,7 +6046,7 @@ function renderStaffingHistorical() {
     esc(statsimCountryUrl(staffingHist.period)) + "</a> \u00b7 ATC source: <a href=\"" +
     esc(statsimAtcUrl(staffingAtc.period)) + '" target="_blank" rel="noopener" style="color:var(--accent-text)">' +
     esc(statsimAtcUrl(staffingAtc.period)) + "</a>. Times are UTC. USA facilities only (K / PA / PH). " +
-    "Pilot database refresh: Mondays via GitHub Actions; ATC hours are read live.</div>";
+    "Pilot database refresh: Mondays via GitHub Actions; ATC hours load from the database (refreshed Mondays) or live proxy.</div>";
 
   h += renderStaffingHistDataTabs();
 
@@ -6209,10 +6303,11 @@ function renderHelp() {
     '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
-    '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online, read ' +
-    'live from statsim.net/atc/combinedtime). Historical Data has two tabs: <b>Staffing recommendations</b> ' +
-    'and <b>Staff it &amp; they will come?</b> — the latter compares median pilot traffic at staffed vs unstaffed ' +
-    'facilities (association, not proof that opening a position creates traffic).</li>' +
+    '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online). ' +
+    'Both support <b>Load from database</b> (Monday refresh). ATC <b>This year</b> should use the database — ' +
+    'the full-year StatSim page is too large for browser proxies. Historical Data has two tabs: ' +
+    '<b>Staffing recommendations</b> and <b>Staff it &amp; they will come?</b> — the latter compares median ' +
+    'pilot traffic at staffed vs unstaffed facilities (association, not proof that opening a position creates traffic).</li>' +
     '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
     'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
@@ -7703,6 +7798,10 @@ contentEl.addEventListener("click", e => {
     staffingHist.filters = {};
     for (const c of STAFFING_HIST_TABLE_COLS) staffingHist.filters[c.key] = "";
     renderContent();
+    return;
+  }
+  if (e.target.closest("[data-atc-load-db]")) {
+    loadStaffingAtcFromDb();
     return;
   }
   if (e.target.closest("[data-atc-load]")) {
