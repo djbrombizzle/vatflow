@@ -25,6 +25,7 @@ const NAV_ITEMS = [
       { id: "fca", href: "FCA-builderv02.html", label: "FCA Builder" },
       { id: "idst", href: "idst.html", label: "IDST" },
       { id: "artcc", href: "artcc-dashboard.html", label: "FCA Overview" },
+      { id: "fca-acc", href: "fca-accuracy.html", label: "FCA Accuracy" },
     ],
   },
   {

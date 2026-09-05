@@ -28,6 +28,7 @@ export function normalizeFca(f) {
   if (!Array.isArray(f.order)) f.order = [];
   if (!f.releases || typeof f.releases !== "object" || Array.isArray(f.releases)) f.releases = {};
   if (f.enabled == null) f.enabled = true;
+  if (f.trackCrossings == null) f.trackCrossings = false;
   return f;
 }
 
@@ -40,6 +41,8 @@ export function vatsimToMeterPilot(p) {
   const gs = p.groundspeed || 0;
   return {
     callsign: p.callsign,
+    cid: p.cid != null ? p.cid : null,
+    logonTime: p.logon_time || null,
     lat: p.latitude,
     lon: p.longitude,
     alt: p.altitude || 0,
