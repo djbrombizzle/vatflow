@@ -1559,7 +1559,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 html.list-mode,html.list-mode body{
   overflow:auto;height:100%;background:#000;color:#f2f2f2;
 }
-html.list-mode body > *:not(#cpdlcListWin){display:none !important;}
+html.list-mode body > *:not(#cpdlcListWin):not(script){display:none !important;}
 #cpdlcListWin{display:none;}
 html.list-mode #cpdlcListWin{
   display:flex !important;flex-direction:column;min-height:100vh;
@@ -2382,13 +2382,18 @@ html.list-mode #cpdlcListWin{
     u.searchParams.delete('cmd');
     u.searchParams.delete('acid');
     u.searchParams.set('list','1');
-    const features='popup=yes,width=240,height=560,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes';
-    const w=window.open(u.toString(),'vusalinkCpdlcList',features);
+    const href=u.toString();
+    const features='width=260,height=580,menubar=no,toolbar=no,location=yes,status=no,scrollbars=yes,resizable=yes';
+    const w=window.open(href,'vusalinkCpdlcList',features);
     if(!w){
       if(typeof flashStatus==='function')flashStatus('Allow popups to open the CPDLC list window');
-    }else{
-      try{w.focus();}catch(_){}
+      return;
     }
+    try{
+      // Named windows can be reused without navigating; force the list URL.
+      if(!w.closed) w.location.replace(href);
+      w.focus();
+    }catch(_){}
   }
   window.openCpdlcListWindow=openCpdlcListWindow;
 
@@ -3689,11 +3694,12 @@ function tabSigMark(){
   return (btn&&btn.classList.contains('flash'))?'\u2295\uFE0E':'';
 }
 function updateTabTitle(){
-  const n=countMyCpdlc();
   if(listMode()){
+    const n=displayList().length;
     document.title=n?('CPDLC LIST · '+n):'CPDLC LIST';
     return;
   }
+  const n=countMyCpdlc();
   const sig=tabSigMark();
   if(settings.compactTabTitle)document.title='['+n+sig+']';
   else document.title=n?('('+n+sig+')vUSAlink EDST'):(sig?sig+' vUSAlink EDST':'vUSAlink EDST');
