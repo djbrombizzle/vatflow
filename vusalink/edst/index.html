@@ -8,7 +8,11 @@
 (function(){
   // Apply list/CRC chrome before first paint to avoid flashing the full ACL.
   const p=new URLSearchParams(location.search);
-  if(p.has('list'))document.documentElement.classList.add('list-mode');
+  if(p.has('list')){
+    document.documentElement.classList.add('list-mode');
+    // Parser-inserted so Chromium honors the refresh (createElement meta is ignored).
+    document.write('<meta http-equiv="refresh" content="30" id="listMetaRefresh">');
+  }
   else if(p.has('crc'))document.documentElement.classList.add('crc-mode');
 })();
 </script>
@@ -2650,8 +2654,13 @@ const frozenCs=new Set();                // brown F
 let alertSelection=null;                 // {cs, type:'r'|'y'|'a'}
 let alertShowFilter=null;                // {type, cs?} for GPD Show / Show ALL
 let conflictProbeTimer=null;let pollTimer=null,burstUntil=0,vatsimTimer=null;
+let vatsimBusy=false, vatsimFeedReady=false;
 let myPosition={callsign:'',label:'',freqMhz:null};
 const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM transceivers feed
+const LIST_SNAP_KEY='vedst_cpdlc_list_snap_v1';
+const LIST_SNAP_MAX_AGE=25000;
+let listSnapBc=null;
+try{ listSnapBc=new BroadcastChannel('vedst_cpdlc_list_snap'); }catch(_){}
 // GI (General Information) — free text synced via hub to tier-1 neighbor centers
 const giMessages=[];                     // [{id,ts,from,fromShort,cid,callsign,text}] newest last
 let giSince=0;                           // hub poll cursor (max seen id)
@@ -2806,6 +2815,142 @@ function applyFreqMeta(d){
   pilotFreqs.clear();
   const pf=(d&&d.pilotFreqs)||{};
   Object.keys(pf).forEach(cs=>{const a=pf[cs];if(Array.isArray(a)&&a.length)pilotFreqs.set(cs.toUpperCase(),a);});
+}
+function readListSnap(){
+  try{
+    const raw=localStorage.getItem(LIST_SNAP_KEY);
+    if(!raw)return null;
+    const p=JSON.parse(raw);
+    if(!p||typeof p!=='object')return null;
+    if(Date.now()-(+p.t||0)>LIST_SNAP_MAX_AGE)return null;
+    if(p.freqMhz==null||!Number.isFinite(+p.freqMhz))return null;
+    return p;
+  }catch(_){ return null; }
+}
+function applyListSnap(p){
+  if(!listMode()||!p||typeof p!=='object')return false;
+  if(Date.now()-(+p.t||0)>LIST_SNAP_MAX_AGE)return false;
+  let changed=false;
+  const freq=Number(p.freqMhz);
+  if(Number.isFinite(freq)&&(myPosition.freqMhz==null||!Number.isFinite(myPosition.freqMhz))){
+    myPosition={
+      callsign:(p.callsign||'').toUpperCase(),
+      label:p.label||positionLabelFromCallsign(p.callsign||''),
+      freqMhz:freq
+    };
+    changed=true;
+  }
+  const pf=p.pilotFreqs||{};
+  Object.keys(pf).forEach(cs=>{
+    const a=pf[cs];
+    if(!Array.isArray(a)||!a.length)return;
+    const k=cs.toUpperCase();
+    if(!pilotFreqs.has(k)){pilotFreqs.set(k,a);changed=true;}
+  });
+  if(Array.isArray(p.connected)){
+    p.connected.forEach(c=>{
+      const k=String(c||'').toUpperCase();
+      if(k&&!connected.has(k)){connected.add(k);changed=true;}
+    });
+  }
+  if(!vatsimFeedReady&&Array.isArray(p.ac)&&p.ac.length){
+    liveFlights=p.ac.map(row=>({
+      cs:(row.cs||'').toUpperCase(),
+      type:row.type||'----',
+      alt:row.alt||0,
+      hs:'/',
+      source:'live',
+      onFreq:true
+    })).filter(a=>a.cs);
+    changed=true;
+  }
+  if(changed){
+    updatePositionBar();
+    if(myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)){
+      try{sessionStorage.removeItem('vedst_list_reloads');}catch(_){}
+      clearListMetaRefresh();
+    }
+  }
+  return changed;
+}
+function publishListSnap(){
+  if(listMode()||monitorMode())return;
+  if(!(hubMode()||configured()))return;
+  if(myPosition.freqMhz==null||!Number.isFinite(myPosition.freqMhz))return;
+  const ac=[];
+  liveFlights.forEach(a=>{
+    if(!a||a.source==='manual')return;
+    if(!connected.has(a.cs)||!tunedToOurFreq(a.cs))return;
+    ac.push({cs:a.cs,alt:a.alt||0,type:a.type||'',source:'live'});
+  });
+  const pf={};
+  pilotFreqs.forEach((v,k)=>{if(Array.isArray(v)&&v.length)pf[k]=v.slice();});
+  const payload={
+    t:Date.now(),
+    freqMhz:myPosition.freqMhz,
+    callsign:myPosition.callsign||'',
+    label:myPosition.label||'',
+    connected:[...connected],
+    ac,
+    pilotFreqs:pf
+  };
+  try{localStorage.setItem(LIST_SNAP_KEY,JSON.stringify(payload));}catch(_){}
+  try{if(listSnapBc)listSnapBc.postMessage(payload);}catch(_){}
+}
+function setListMetaRefresh(sec){
+  if(!listMode())return;
+  let m=document.getElementById('listMetaRefresh');
+  if(!m){
+    m=document.createElement('meta');
+    m.setAttribute('http-equiv','refresh');
+    m.id='listMetaRefresh';
+    document.head.appendChild(m);
+  }
+  m.setAttribute('content',String(sec));
+}
+function clearListMetaRefresh(){
+  const m=document.getElementById('listMetaRefresh');
+  if(m&&m.parentNode)m.parentNode.removeChild(m);
+}
+let listKeepaliveOn=false;
+function installListKeepalive(){
+  if(listKeepaliveOn||!listMode())return;
+  listKeepaliveOn=true;
+  setListMetaRefresh(30);
+  const kick=()=>{refreshVatsim(true);};
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)kick();});
+  window.addEventListener('pageshow',kick);
+  window.addEventListener('focus',kick);
+  window.addEventListener('storage',e=>{
+    if(e.key!==LIST_SNAP_KEY||!e.newValue)return;
+    try{if(applyListSnap(JSON.parse(e.newValue)))renderCpdlcListOverlay();}catch(_){}
+  });
+  if(listSnapBc){
+    listSnapBc.onmessage=ev=>{
+      try{if(applyListSnap(ev.data))renderCpdlcListOverlay();}catch(_){}
+    };
+  }
+  setTimeout(kick,1500);
+  setTimeout(kick,5000);
+  // CRC may ignore meta refresh and long intervals. Reload while still waiting.
+  if(!window._listReloadPulse){
+    window._listReloadPulse=setInterval(()=>{
+      if(!listMode())return;
+      if(myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz))return;
+      try{location.reload();}catch(_){}
+    },20000);
+  }
+  // If CRC never got a voice frequency, full-reload once so the overlay retries.
+  setTimeout(()=>{
+    if(!listMode())return;
+    if(myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz))return;
+    try{
+      const n=+(sessionStorage.getItem('vedst_list_reloads')||0);
+      if(n>=2)return;
+      sessionStorage.setItem('vedst_list_reloads',String(n+1));
+    }catch(_){}
+    try{location.reload();}catch(_){}
+  },15000);
 }
 function displayList(){
   let list=board().slice();
@@ -3005,8 +3150,23 @@ async function api(path,extra){
       verifyToken:verifyTokenFor((settings.cid||'').trim())},extra);
     url=path;
   }
-  const res=await fetch(url,{method:'POST',
-    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const timeoutMs=listMode()?10000:0;
+  let ctrl=null, abortTimer=null;
+  if(timeoutMs && typeof AbortController!=='undefined'){
+    ctrl=new AbortController();
+    abortTimer=setTimeout(()=>{try{ctrl.abort();}catch(_){}},timeoutMs);
+  }
+  const fetchP=fetch(url,{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(body),
+    signal:ctrl?ctrl.signal:undefined,cache:'no-store'});
+  let res;
+  try{
+    res=(!ctrl&&timeoutMs)
+      ? await Promise.race([fetchP,new Promise((_,rej)=>setTimeout(()=>rej(new Error('hub timeout')),timeoutMs))])
+      : await fetchP;
+  }finally{
+    if(abortTimer)clearTimeout(abortTimer);
+  }
   const text=await res.text();
   let data=null;
   try{data=text?JSON.parse(text):null;}
@@ -3480,6 +3640,7 @@ async function refreshMonitor(force){
 }
 async function refreshVatsim(force){
   if(monitorMode())return refreshMonitor(force);
+  if(vatsimBusy)return;
   if(!force && window.VFRefresh&&window.VFRefresh.isUserTyping()){
     window.VFRefresh.deferWhileTyping(()=>refreshVatsim(false));
     return;
@@ -3488,12 +3649,19 @@ async function refreshVatsim(force){
   const airspace=airspaceId();
   if(!hub&&!airspace)return;
   if(!force&&menusOpen())return;
+  vatsimBusy=true;
+  const lockTimer=setTimeout(()=>{vatsimBusy=false;},listMode()?12000:35000);
   setVat('busy','VATSIM '+(airspace||'hub')+' ...');
   try{
     const d=await api('/api/vatsim',{airspace});
     if(!d.ok){setVat('err',d.error||'vatsim error');updatePositionBar();return;}
     applyFreqMeta(d);                  // controller freq + pilot freqs come from the hub now
+    if(listMode()&&myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)){
+      try{sessionStorage.removeItem('vedst_list_reloads');}catch(_){}
+      clearListMetaRefresh();
+    }
     liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];
+    vatsimFeedReady=true;
     if(hub){
       hubArtcc=d.airspace||hubArtcc;
       applyVerify(d.verify);
@@ -3508,11 +3676,19 @@ async function refreshVatsim(force){
         +(myPosition.label?` \u00b7 ${myPosition.label} ${formatFreqMhz(myPosition.freqMhz)}`:''));
     }
     updatePositionBar();
+    publishListSnap();
     try{renderBoard();}
     catch(re){console.warn('renderBoard failed',re);}
   }catch(e){
     console.warn('VATSIM refresh failed',e);
     setVat('err','proxy offline');
+    if(listMode()){
+      applyListSnap(readListSnap());
+      try{renderCpdlcListOverlay();}catch(_){}
+    }
+  }finally{
+    clearTimeout(lockTimer);
+    vatsimBusy=false;
   }
 }
 function mapLive(f){
@@ -3524,7 +3700,10 @@ function mapLive(f){
     route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:false};
 }
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
-  vatsimTimer=setInterval(()=>refreshVatsim(false),monitorMode()?20000:30000);}
+  // CRC's embedded browser is unreliable with long timers. LIST force-polls
+  // VATSIM every 4s (menus/typing cannot skip) so voice freq stays current.
+  const ms=listMode()?4000:monitorMode()?20000:30000;
+  vatsimTimer=setInterval(()=>refreshVatsim(!!listMode()),ms);}
 
 //============================================================ board
 const rows=document.getElementById('rows');
@@ -3736,6 +3915,7 @@ function renderCpdlcListOverlay(){
   const empty=document.getElementById('listEmpty');
   const ul=document.getElementById('listAc');
   if(!meta||!empty||!ul)return;
+  if(!freqFilterActive()) applyListSnap(readListSnap());
   const list=displayList();
   const pos=myPosition.label||'';
   const freq=formatFreqMhz(myPosition.freqMhz);
@@ -3774,6 +3954,7 @@ function renderBoard(){
     renderCpdlcListOverlay();
     return;
   }
+  publishListSnap();
   scheduleConflictProbe();
   const list=displayList();
   const onListConnected=new Set(list.filter(a=>connected.has(a.cs)).map(a=>a.cs));
@@ -4073,6 +4254,10 @@ function onOAuthReady(){
   syncCidFromOAuth();
   setHoppie(false,(configured()||hubMode())?'connecting...':'VIEW ONLY \u2014 type an ARTCC to watch');
   setVat('',(airspaceId()||hubMode())?('VATSIM '+(airspaceId()||'hub')):'VIEW ONLY \u2014 type an ARTCC to watch');
+  if(listMode()){
+    applyListSnap(readListSnap());
+    installListKeepalive();
+  }
   if(configured()||hubMode()){pollOnce();schedulePoll();}
   refreshVatsim(true);scheduleVatsim();
   renderBoard();
