@@ -174,20 +174,32 @@ export async function fetchWinds() {
   windInfo.status = "loading";
   const merged = {};
   let ok = 0;
+  const regionStatus = {};
   for (const reg of WIND_REGIONS) {
     const url = "https://aviationweather.gov/api/data/windtemp?region=" + reg + "&level=low";
     let text = null;
-    for (const prox of WIND_PROXIES) {
+    // Direct first: the CORS proxies exist for the browser, and going through
+    // them from Node (fca-tracker, the climb study) adds two flaky hops that
+    // silently drop regions. In a browser this attempt fails CORS and falls
+    // through to the proxies exactly as before.
+    for (const attempt of [u => u, ...WIND_PROXIES]) {
       try {
-        const r = await fetch(prox(url));
+        const r = await fetch(attempt(url));
         if (r.ok) {
           text = await r.text();
           if (text && /\bFT\b/.test(text)) break;
           text = null;
         }
-      } catch (e) { /* try next proxy */ }
+      } catch (e) { /* try next source */ }
     }
-    if (text) { Object.assign(merged, parseWindtemp(text)); ok++; }
+    if (text) {
+      const parsed = parseWindtemp(text);
+      regionStatus[reg] = Object.keys(parsed).length;
+      Object.assign(merged, parsed);
+      ok++;
+    } else {
+      regionStatus[reg] = 0;
+    }
   }
   const out = {};
   let count = 0;
@@ -197,7 +209,15 @@ export async function fetchWinds() {
   }
   windStations = out;
   windHwCache = {};
-  windInfo = { status: count > 0 ? "ok" : "error", count, time: Date.now() };
+  // regions/placed travel with the status so a partial fetch is visible
+  // instead of reading as a healthy "ok".
+  windInfo = {
+    status: count > 0 ? "ok" : "error",
+    count,
+    parsed: Object.keys(merged).length,
+    regions: regionStatus,
+    time: Date.now(),
+  };
   return windInfo;
 }
 

@@ -43,7 +43,14 @@ if (USE_WINDS) {
   bindWindAirportLookup(icao => getAirport(icao));
   await loadAirports();
   windStatus = await fetchWinds();
-  console.log(`winds: ${windStatus.status}, ${windStatus.count} stations`);
+  console.log(`winds: ${windStatus.status}, ${windStatus.count} stations placed`
+    + (windStatus.parsed != null ? ` (${windStatus.parsed} parsed)` : ""));
+  if (windStatus.regions) {
+    const per = Object.entries(windStatus.regions).map(([r, n]) => `${r}:${n}`).join(" ");
+    console.log(`  per region — ${per}`);
+    const dead = Object.entries(windStatus.regions).filter(([, n]) => !n).map(([r]) => r);
+    if (dead.length) console.log(`  !! no data from: ${dead.join(", ")} — wind coverage will suffer`);
+  }
 }
 
 let windHits = 0, windMisses = 0;
