@@ -4,6 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>vUSAlink EDST</title>
+<script>
+(function(){
+  // Apply list/CRC chrome before first paint to avoid flashing the full ACL.
+  const p=new URLSearchParams(location.search);
+  if(p.has('list'))document.documentElement.classList.add('list-mode');
+  else if(p.has('crc'))document.documentElement.classList.add('crc-mode');
+})();
+</script>
+<style>
+/* Early list-mode paint (before the large EDST font CSS) so the popup is not blank/unstyled. */
+html.list-mode,html.list-mode body{
+  margin:0;padding:0;background:#000;color:#f2f2f2;overflow:auto;height:100%;
+  font-family:Consolas,'Cascadia Mono',Menlo,monospace;font-size:13px;
+}
+html.list-mode body > *:not(#cpdlcListWin):not(script){display:none !important;}
+#cpdlcListWin{display:none;}
+html.list-mode #cpdlcListWin{
+  display:flex !important;flex-direction:column;min-height:100vh;
+  padding:6px 8px 10px;user-select:text;cursor:default;
+}
+html.list-mode #cpdlcListWin .clw-hdr{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px solid #333;padding-bottom:4px;margin-bottom:4px;}
+html.list-mode #cpdlcListWin .clw-title{letter-spacing:.4px;font-size:12px;color:#d2d2cd;}
+html.list-mode #cpdlcListWin .clw-clock{font-size:16px;letter-spacing:1px;}
+html.list-mode #cpdlcListWin .clw-clock i{font-style:normal;font-size:11px;color:#cfcfcf;margin-left:3px;}
+html.list-mode #cpdlcListWin .clw-meta{color:#8a9088;font-size:11px;margin-bottom:6px;}
+html.list-mode #cpdlcListWin .clw-note{color:#6a7068;font-size:10px;margin-bottom:8px;}
+html.list-mode #cpdlcListWin .clw-empty{color:#8a9088;font-size:12px;padding:8px 0;}
+html.list-mode #cpdlcListWin .clw-ac{list-style:none;margin:0;padding:0;}
+html.list-mode #cpdlcListWin .clw-ac li{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid #1a1a1a;font-size:18px;color:#fff;}
+html.list-mode #cpdlcListWin .clw-ac .clw-fl{color:#8a9088;font-size:13px;}
+</style>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-2D6CB4BNQQ"></script>
 <script>
@@ -1545,9 +1576,57 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 #crcbar #crcAuthChip.signed{background:#1a3a38;border-color:#2e9c9c;color:#9fe6e0}
 #btnCrcLink{min-width:22px !important;padding:1px 5px !important}
 
+/* ── View-only CPDLC on-freq list popup (?list=1) ─────────────────────────
+   Compact callsign list for overlaying on CRC with PowerToys Always On Top.
+   No command chrome; send paths are also blocked in JS.                    */
+html.list-mode,html.list-mode body{
+  overflow:auto;height:100%;background:#000;color:#f2f2f2;
+}
+html.list-mode body > *:not(#cpdlcListWin):not(script){display:none !important;}
+#cpdlcListWin{display:none;}
+html.list-mode #cpdlcListWin{
+  display:flex !important;flex-direction:column;min-height:100vh;
+  padding:6px 8px 10px;font-family:'EDST','EDSTv2',Consolas,'Cascadia Mono',monospace;
+  user-select:text;cursor:default;
+}
+#cpdlcListWin .clw-hdr{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  border-bottom:1px solid #333;padding-bottom:4px;margin-bottom:4px;
+}
+#cpdlcListWin .clw-title{color:#d2d2cd;letter-spacing:.4px;font-size:12px;}
+#cpdlcListWin .clw-clock{color:#f2f2f2;font-size:16px;letter-spacing:1px;font-variant-numeric:tabular-nums;}
+#cpdlcListWin .clw-clock i{font-style:normal;font-size:11px;color:#cfcfcf;margin-left:3px;}
+#cpdlcListWin .clw-meta{color:#8a9088;font-size:11px;line-height:1.35;margin-bottom:6px;}
+#cpdlcListWin .clw-note{color:#6a7068;font-size:10px;margin-bottom:8px;}
+#cpdlcListWin .clw-empty{color:#8a9088;font-size:12px;padding:8px 0;}
+#cpdlcListWin .clw-ac{
+  list-style:none;margin:0;padding:0;flex:1;
+}
+#cpdlcListWin .clw-ac li{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  padding:3px 0;border-bottom:1px solid #1a1a1a;font-size:18px;line-height:1.2;
+  color:#fff;letter-spacing:.4px;
+}
+#cpdlcListWin .clw-ac .clw-fl{
+  color:#8a9088;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:0;
+}
+#cpdlcListWin .clw-count{color:#d2d2cd;}
+
 </style>
 </head>
 <body>
+
+<!-- View-only CPDLC on-freq list (opened via LIST → new browser window) -->
+<div id="cpdlcListWin" aria-label="On-frequency CPDLC aircraft">
+  <div class="clw-hdr">
+    <span class="clw-title">ON FREQ · CPDLC</span>
+    <span class="clw-clock"><b id="listClock">----</b><i id="listSec">--</i></span>
+  </div>
+  <div class="clw-meta" id="listMeta">Waiting for position…</div>
+  <div class="clw-note">View only — no commands</div>
+  <div class="clw-empty" id="listEmpty">No aircraft on frequency with CPDLC</div>
+  <ul class="clw-ac" id="listAc"></ul>
+</div>
 
 <div id="edstbar">
   <div class="etb-row" id="etbMain">
@@ -1574,6 +1653,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
     <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
     <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
+    <span class="etb-btn" id="btnCpdlcListMain" title="Open on-frequency CPDLC list in a new window (view only — drag over CRC; use PowerToys Always On Top)">LIST</span>
     <span class="etb-btn" id="btnCrcModeMain" title="Toggle CRC browser mode (hides nav, forces CPDLC on-freq filter)">CRC</span>
     <span class="etb-btn" id="btnCrcLinkMain" title="Copy CRC direct link to clipboard">&#10697;</span>
   </div>
@@ -1599,6 +1679,7 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   <span class="etb-time"><b id="crcClock">----</b><i id="crcSec">--</i></span>
   <span class="etb-stat on" id="crcStatSat">SAT<br>COMM</span>
   <span class="etb-stat" id="crcBtnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
+  <span class="etb-btn" id="btnCpdlcList" title="Open on-frequency CPDLC list in a new window (view only — drag over CRC; use PowerToys Always On Top)">LIST</span>
   <span class="etb-btn active" id="btnCrcMode" title="Exit CRC mode">CRC</span>
   <span class="etb-btn" id="btnCrcLink" title="Copy CRC direct link to clipboard">&#10697;</span>
 </div>
@@ -2267,8 +2348,12 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
 <script>
 (function(){
   const CRC_KEY='vatflow_crc_mode';
+  const _params=new URLSearchParams(location.search);
+  const _listParam=_params.has('list');
+  const _crcParam=_params.has('crc');
 
   function isCrc(){return document.body.classList.contains('crc-mode');}
+  function isList(){return document.documentElement.classList.contains('list-mode')||document.body.classList.contains('list-mode');}
 
   function _applyFilter(){
     // CRC locks the displayed list to CPDLC-on-freq without overwriting the
@@ -2293,7 +2378,9 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   }
 
   function setCrcMode(on){
+    if(isList())return;
     document.body.classList.toggle('crc-mode',on);
+    document.documentElement.classList.toggle('crc-mode',on);
     localStorage.setItem(CRC_KEY,on?'1':'0');
     const u=new URL(location.href);
     on?u.searchParams.set('crc','1'):u.searchParams.delete('crc');
@@ -2305,19 +2392,55 @@ body.crc-mode #boardwrap            { height: calc(100vh - 56px) !important; }
   function copyCrcLink(btnId){
     const u=new URL(location.href);
     u.searchParams.set('crc','1');
+    u.searchParams.delete('list');
     navigator.clipboard?.writeText(u.toString()).catch(()=>{});
     const btn=document.getElementById(btnId||'btnCrcLinkMain');
     if(btn){const t=btn.innerHTML;btn.textContent='OK';setTimeout(()=>{btn.innerHTML=t;},1500);}
   }
 
+  function openCpdlcListWindow(){
+    if(isList())return;
+    const u=new URL(location.href);
+    u.searchParams.delete('crc');
+    u.searchParams.delete('cmd');
+    u.searchParams.delete('acid');
+    u.searchParams.set('list','1');
+    const href=u.toString();
+    const features='width=260,height=580,menubar=no,toolbar=no,location=yes,status=no,scrollbars=yes,resizable=yes';
+    const w=window.open(href,'vusalinkCpdlcList',features);
+    if(!w){
+      if(typeof flashStatus==='function')flashStatus('Allow popups to open the CPDLC list window');
+      return;
+    }
+    try{
+      // Named windows can be reused without navigating; force the list URL.
+      if(!w.closed) w.location.replace(href);
+      w.focus();
+    }catch(_){}
+  }
+  window.openCpdlcListWindow=openCpdlcListWindow;
+
+  // List mode wins over CRC: a view-only overlay must not load command chrome.
   // Activate CRC chrome only from ?crc=1 (CRC aliases / compact tab).
   // Do not restore from localStorage on the classic EDST URL — that made
   // /vusalink/edst/ open in CRC mode after any prior CRC session.
-  const _param=new URLSearchParams(location.search).has('crc');
-  if(_param)document.body.classList.add('crc-mode');
-  else localStorage.setItem(CRC_KEY,'0');
+  if(_listParam){
+    document.documentElement.classList.add('list-mode');
+    document.body.classList.add('list-mode');
+    document.documentElement.classList.remove('crc-mode');
+    document.body.classList.remove('crc-mode');
+    localStorage.setItem(CRC_KEY,'0');
+  }else if(_crcParam){
+    document.body.classList.add('crc-mode');
+    document.documentElement.classList.add('crc-mode');
+  }else{
+    localStorage.setItem(CRC_KEY,'0');
+  }
 
   document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('btnCpdlcListMain')?.addEventListener('click',openCpdlcListWindow);
+    document.getElementById('btnCpdlcList')?.addEventListener('click',openCpdlcListWindow);
+
     // Wire up toggle + link buttons in both bars
     document.getElementById('btnCrcModeMain')?.addEventListener('click',()=>setCrcMode(!isCrc()));
     document.getElementById('btnCrcLinkMain')?.addEventListener('click',()=>copyCrcLink('btnCrcLinkMain'));
@@ -2401,9 +2524,11 @@ if(settings.aclFilter!=='all'&&settings.aclFilter!=='cpdlc'&&settings.aclFilter!
 }
 settings.showAll=settings.aclFilter==='all';
 settings.showCpdlcOnly=settings.aclFilter==='cpdlc';
+function listMode(){return document.documentElement.classList.contains('list-mode')||document.body.classList.contains('list-mode');}
+function crcMode(){return document.body.classList.contains('crc-mode');}
 function aclFilterMode(){
-  // CRC display lock — does not mutate the stored classic Sort preference.
-  if(document.body.classList.contains('crc-mode'))return 'cpdlc';
+  // CRC / list display lock — does not mutate the stored classic Sort preference.
+  if(crcMode()||listMode())return 'cpdlc';
   const m=String(settings.aclFilter||'').toLowerCase();
   if(m==='all'||m==='cpdlc'||m==='freq')return m;
   return settings.showAll===true?'all':'freq';
@@ -2411,7 +2536,7 @@ function aclFilterMode(){
 function setAclFilterMode(mode){
   // In CRC mode Sort is locked to CPDLC-on-freq. Keep vedst_settings.aclFilter
   // as the classic preference so exiting CRC (or opening without ?crc) restores it.
-  if(document.body.classList.contains('crc-mode')){
+  if(crcMode()||listMode()){
     syncAclSortUi();
     updatePositionBar();
     renderBoard();
@@ -2459,7 +2584,7 @@ function openAclSortMenu(){
   menu.classList.remove('hidden');
   syncAclSortUi();
 }
-function isMuted(){return !(settings.volume>0);}                 // volume 0 (or unset) = muted
+function isMuted(){return listMode()||!(settings.volume>0);}                 // volume 0 (or unset) = muted; list window never chimes
 // settings.volume is the gain multiplier: 1.0 = current sound levels (shown as 50%),
 // 2.0 = double (shown as 100%). Slider% = multiplier*50.
 function volScale(){return Math.max(0,Math.min(2,settings.volume==null?1:settings.volume));}
@@ -2684,9 +2809,9 @@ function applyFreqMeta(d){
 }
 function displayList(){
   let list=board().slice();
-  // CRC mode: strict CPDLC-on-freq only — no manual rows, no fallbacks.
+  // CRC / list overlay: strict CPDLC-on-freq only — no manual rows, no fallbacks.
   // Both conditions must be true simultaneously using live VATSIM transceiver data.
-  if(document.body.classList.contains('crc-mode')){
+  if(crcMode()||listMode()){
     if(!freqFilterActive()){
       // Freq not yet known — show nothing (do not leak full sector list)
       return [];
@@ -2696,6 +2821,10 @@ function displayList(){
       connected.has(a.cs) &&       // CPDLC logged on via hub
       tunedToOurFreq(a.cs)         // pilot transceiver matches controller freq (VATSIM API)
     );
+    if(listMode()){
+      list.sort((x,y)=>(x.cs||'').localeCompare(y.cs||''));
+      return list;
+    }
     const k=sortState.key;if(!k)return list;
     const acc={lmh:a=>statusScore(a),cs:a=>a.cs||'',type:a=>a.type||'',alt:a=>a.alt||0,gs:a=>gsOf(a),squawk:a=>a.squawk||'',route:a=>a.route||''}[k];
     if(!acc)return list;
@@ -2846,7 +2975,7 @@ function syncCidFromOAuth(){
 }
 function oauthReady(){return HUB_FEATURE&&!!(settings.hubUrl&&oauthSignedIn()&&settings.cid);}
 function hubMode(){return oauthReady();}   // signed-in hub session (VATSIM position drives feed)
-function canControl(){return configured()||(hubMode()&&verifyOK);}   // CPDLC uplinks need vNAS verify
+function canControl(){return !listMode()&&(configured()||(hubMode()&&verifyOK));}   // CPDLC uplinks need vNAS verify; list window is view-only
 function monitorMode(){return !hubMode()&&!configured();}     // VIEW ONLY (unsigned-in observers)
 function monitorArtcc(){return (settings.viewArtcc||'').trim().toUpperCase();}
 function airspaceId(){return (hubMode()?hubArtcc:(settings.airspace||settings.station||'')).trim().toUpperCase();}
@@ -2854,6 +2983,9 @@ const HUB_EP={'/api/vatsim':'/hub/vatsim','/api/poll':'/hub/poll','/api/send':'/
 function hubBase(){return (settings.hubUrl||DEFAULT_HUB_URL).replace(/\/+$/,'');}
 async function api(path,extra){
   extra=extra||{};
+  if(listMode()&&(path==='/api/send'||path==='/api/conn'||path==='/api/gi')){
+    return {ok:false,error:'list view is read-only'};
+  }
   let url, body;
   if(hubMode()){                      // hub API (signed-in session)
     const cid=(settings.cid||'').trim();
@@ -2922,6 +3054,7 @@ async function probeVerify(){
 let lastSendError='';
 async function sendCpdlc(to,ra,message,mrn){
   lastSendError='';
+  if(listMode()){lastSendError='LIST VIEW ONLY';return null;}
   if(!configured()&&!hubMode()){
     lastSendError='NOT AUTH';
     if(WEB_ONLY&&!oauthSignedIn())window.VatflowAuth.login();
@@ -3584,16 +3717,63 @@ function tabSigMark(){
   return (btn&&btn.classList.contains('flash'))?'\u2295\uFE0E':'';
 }
 function updateTabTitle(){
+  if(listMode()){
+    const n=displayList().length;
+    document.title=n?('CPDLC LIST · '+n):'CPDLC LIST';
+    return;
+  }
   const n=countMyCpdlc();
   const sig=tabSigMark();
   if(settings.compactTabTitle)document.title='['+n+sig+']';
   else document.title=n?('('+n+sig+')vUSAlink EDST'):(sig?sig+' vUSAlink EDST':'vUSAlink EDST');
+}
+function listAltLabel(a){
+  const n=round10(a&&a.alt||0);
+  return n?pad3(n):'';
+}
+function renderCpdlcListOverlay(){
+  const meta=document.getElementById('listMeta');
+  const empty=document.getElementById('listEmpty');
+  const ul=document.getElementById('listAc');
+  if(!meta||!empty||!ul)return;
+  const list=displayList();
+  const pos=myPosition.label||'';
+  const freq=formatFreqMhz(myPosition.freqMhz);
+  if(monitorMode()||(!hubMode()&&!configured())){
+    meta.textContent='Sign in on the CPDLC page to show aircraft on your frequency';
+  }else if(myPosition.freqMhz==null||!Number.isFinite(myPosition.freqMhz)){
+    meta.textContent='Waiting for voice frequency…';
+  }else{
+    const n=list.length;
+    meta.innerHTML=esc(pos+(freq?'  '+freq:''))+' · <span class="clw-count">'+n+' a/c</span>';
+  }
+  if(!list.length){
+    empty.classList.remove('hidden');
+    if(monitorMode()||(!hubMode()&&!configured())){
+      empty.textContent='Sign in required';
+    }else if(myPosition.freqMhz==null||!Number.isFinite(myPosition.freqMhz)){
+      empty.textContent='Waiting for voice frequency…';
+    }else{
+      empty.textContent='No aircraft on frequency with CPDLC';
+    }
+    ul.innerHTML='';
+    return;
+  }
+  empty.classList.add('hidden');
+  ul.innerHTML=list.map(a=>{
+    const fl=listAltLabel(a);
+    return '<li><span>'+esc(a.cs||'')+'</span>'+(fl?'<span class="clw-fl">'+esc(fl)+'</span>':'')+'</li>';
+  }).join('');
 }
 function renderBoard(){
   checkWilcoTimeouts();
   updateMode();updatePositionBar();updateTabTitle();
   annotateFlights();
   pruneHandoffAwait();
+  if(listMode()){
+    renderCpdlcListOverlay();
+    return;
+  }
   scheduleConflictProbe();
   const list=displayList();
   const onListConnected=new Set(list.filter(a=>connected.has(a.cs)).map(a=>a.cs));
@@ -7538,6 +7718,7 @@ document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
 
 //============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / MSG / ALERT / row select)
 rows.addEventListener('click',e=>{
+  if(listMode())return;
   const pendAck=e.target.closest('.ul-red[data-pend]');
   if(pendAck){
     e.preventDefault();e.stopPropagation();
@@ -8080,6 +8261,10 @@ function tickEdstClock(){
   const s=document.getElementById('edstSec');
   if(c)c.textContent=hh+mm;
   if(s)s.textContent=ss;
+  const lc=document.getElementById('listClock');
+  const ls=document.getElementById('listSec');
+  if(lc)lc.textContent=hh+mm;
+  if(ls)ls.textContent=ss;
 }
 tickEdstClock();
 setInterval(tickEdstClock,1000);
@@ -8189,6 +8374,7 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 //
 // Full alias reference: /vusalink/edst/crc-aliases.txt
 (function applyUrlIntent(){
+  if(listMode())return;
   const p=new URLSearchParams(location.search);
   const rawCmd=(p.get('cmd')||'').trim();
   const rawAcid=(p.get('acid')||'').toUpperCase().trim();

@@ -5,6 +5,7 @@ import {
   freqsMatch,
   isTunedToFreq,
   filterBoardList,
+  filterCpdlcOnFreqOverlay,
   freqFilterShouldRun,
 } from "../shared/acl-display-filter.js";
 
@@ -137,6 +138,23 @@ list = filterBoardList(board, {
 });
 assert(!list.some(a => a.cs === "JBU4"), "EDST cpdlc hides off-frequency CPDLC");
 assert(!list.some(a => a.cs === "UAL2"), "EDST cpdlc hides off-frequency non-CPDLC");
+
+list = filterCpdlcOnFreqOverlay(board, {
+  freqFilterOn: true,
+  connected,
+  isTuned: tuned,
+});
+assert(list.map(a => a.cs).join(",") === "DAL3", "overlay → on-freq AND CPDLC only");
+assert(!list.some(a => a.source === "manual"), "overlay excludes manual strips");
+assert(!list.some(a => a.cs === "AAL1"), "overlay excludes on-freq without CPDLC");
+assert(!list.some(a => a.cs === "JBU4"), "overlay excludes off-freq CPDLC");
+
+list = filterCpdlcOnFreqOverlay(board, {
+  freqFilterOn: false,
+  connected,
+  isTuned: tuned,
+});
+assert(list.length === 0, "overlay without controller freq → empty (no sector leak)");
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log("\nall passed");

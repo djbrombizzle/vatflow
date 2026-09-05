@@ -104,6 +104,28 @@ export function filterBoardList(list, opts = {}) {
   return out;
 }
 
+/**
+ * View-only overlay list: live VATSIM aircraft that are both on the controller
+ * voice frequency AND logged on to CPDLC. Empty when frequency is unknown
+ * (do not leak the sector list). Manual strips are never included.
+ *
+ * @param {object[]} list board rows ({cs, source, ...})
+ * @param {{ freqFilterOn?: boolean,
+ *           connected: Set<string>|string[],
+ *           isTuned: (cs:string)=>boolean }} opts
+ */
+export function filterCpdlcOnFreqOverlay(list, opts = {}) {
+  const freqOn = !!opts.freqFilterOn;
+  if (!freqOn) return [];
+  const connected = opts.connected instanceof Set
+    ? opts.connected
+    : new Set(opts.connected || []);
+  const isTuned = typeof opts.isTuned === "function" ? opts.isTuned : () => false;
+  return (Array.isArray(list) ? list : []).filter((a) =>
+    !!(a && a.source !== "manual" && connected.has(a.cs) && isTuned(a.cs))
+  );
+}
+
 export function freqFilterShouldRun({ monitorMode, mode, showAll, freqMhz, canFilter }) {
   const m = mode != null
     ? normalizeAclFilter({ aclFilter: mode })
