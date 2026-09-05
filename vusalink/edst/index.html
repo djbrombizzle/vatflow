@@ -10,14 +10,8 @@
   const p=new URLSearchParams(location.search);
   if(p.has('list')){
     document.documentElement.classList.add('list-mode');
-    // CRC's embedded browser often stalls JS polling. A native meta refresh is
-    // the fallback — keep it long enough that the first hub/VATSIM fetch can
-    // finish. The list-mode script shortens this once the overlay is live.
-    var m=document.createElement('meta');
-    m.setAttribute('http-equiv','refresh');
-    m.setAttribute('content','30');
-    m.id='listMetaRefresh';
-    document.head.appendChild(m);
+    // Parser-inserted so Chromium honors the refresh (createElement meta is ignored).
+    document.write('<meta http-equiv="refresh" content="30" id="listMetaRefresh">');
   }
   else if(p.has('crc'))document.documentElement.classList.add('crc-mode');
 })();
@@ -2938,6 +2932,14 @@ function installListKeepalive(){
   }
   setTimeout(kick,1500);
   setTimeout(kick,5000);
+  // CRC may ignore meta refresh and long intervals. Reload while still waiting.
+  if(!window._listReloadPulse){
+    window._listReloadPulse=setInterval(()=>{
+      if(!listMode())return;
+      if(myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz))return;
+      try{location.reload();}catch(_){}
+    },20000);
+  }
   // If CRC never got a voice frequency, full-reload once so the overlay retries.
   setTimeout(()=>{
     if(!listMode())return;
