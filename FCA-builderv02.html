@@ -105,6 +105,7 @@
   .fca-act{font-family:var(--mono);font-size:12px;color:var(--muted-2);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;flex:none}
   .fca-act:hover{color:var(--text);background:#1a2230}
   .fca-act.del:hover{color:var(--red);background:#1a1010}
+  .rec-badge{font:700 8px var(--mono);letter-spacing:.08em;color:#061018;background:var(--cyan);border-radius:3px;padding:1px 5px;flex:none}
   .fca-meta{display:flex;flex-wrap:wrap;gap:6px;padding:0 11px 9px;font-family:var(--mono);font-size:10px;color:var(--muted)}
   .fca-meta span{background:#162030;border:1px solid var(--line);border-radius:4px;padding:2px 6px}
   .demand{font-family:var(--mono);font-size:10px;padding:5px 11px;border-top:1px solid var(--line);
@@ -1375,6 +1376,7 @@ function renderFcaList(){
         <span class="swatch" style="color:${f.color};background:${f.color}"></span>
         <span class="fca-name">${escapeHtml(f.name)}</span>
         ${expanded?"":`<span class="mini-dmd${hot?" hot":dmd?" live":""}" title="demand ≤${DEMAND_WINDOW_MIN}m">${dmd}</span>`}
+        ${f.trackCrossings?`<span class="rec-badge" title="Recording planned vs actual crossings">REC</span>`:""}
         ${ctl?`<span class="fca-act" data-edit="${f.id}" title="Edit rate / MIT / filters">✎</span>
         <span class="fca-act del" data-del="${f.id}" title="Delete this FCA">✕</span>
         <div class="sw-track ${f.enabled?"on":""}" data-en="${f.id}" title="Enable/disable"><div class="sw-knob"></div></div>`:""}
@@ -1479,6 +1481,10 @@ function openEditor(fca){
         </div>
       </div>
       <div class="fld"><label>Color</label><div class="swatches" id="f_sw"></div></div>
+      <div class="fld">
+        <label class="chk-row"><input type="checkbox" id="f_track" ${fca.trackCrossings?"checked":""}> Record crossings</label>
+        <div class="hint">Unattended: freeze first profile ETA and log actual line crossings for weeks/months. Does not issue RDY. View results on <a href="fca-accuracy.html" style="color:var(--cyan)">FCA Accuracy</a>.</div>
+      </div>
       <div class="form-actions">
         <button class="btn" id="f_redraw">↻ Redraw line</button>
         <button class="btn primary" id="f_save">Save FCA</button>
@@ -1541,6 +1547,7 @@ function saveEditor(){
   if(f.points.length<2){ toast("Draw at least 2 points for the line.",2600); return; }
   if(f.mode==="rate"&&!f.rate){ toast("Enter a meter rate, or switch to MIT.",2600); return; }
   if(f.mode==="mit"&&!f.mit){ toast("Enter a MIT value, or switch to Rate.",2600); return; }
+  f.trackCrossings=!!document.getElementById("f_track")?.checked;
   if(!state.fcas.some(x=>x.id===f.id)) state.fcas.push(f);
   cloudPush(f);
   state.editing=null; state.editingBackup=null; closeEditor();
@@ -1859,7 +1866,7 @@ function makeBlankFca(){
   const defaultArtcc=arts.length===1?arts[0]:"";
   return { id:nid(), name:"FCA "+(state.fcas.length+1), points:[], dests:[], origins:[], fixes:[], artcc:defaultArtcc, scope:[], minFL:null, maxFL:null,
            dir:"any", mode:"rate", rate:30, mit:15, excluded:[], order:[],
-           color:FCA_COLORS[state.fcas.length%FCA_COLORS.length], enabled:true };
+           color:FCA_COLORS[state.fcas.length%FCA_COLORS.length], enabled:true, trackCrossings:false };
 }
 function drawAddPoint(latlng){
   const d=state.drawing; if(!d) return;
@@ -2338,6 +2345,7 @@ function normalizeFca(f){            // fill defaults + sanitize older/remote/im
   if(!f.id) f.id=nid();
   if(typeof f.name!=="string"||!f.name.trim()) f.name="Untitled FCA";
   if(!f.color) f.color=FCA_COLORS[0]; if(f.enabled==null) f.enabled=true;
+  if(f.trackCrossings==null) f.trackCrossings=false;
   if(!f.dir) f.dir="any"; if(!f.mode) f.mode="rate"; if(f.mit==null) f.mit=15;
   if(!Array.isArray(f.excluded)) f.excluded=[];
   if(!Array.isArray(f.order)) f.order=[];

@@ -642,6 +642,23 @@ function buildGroundCandidate(p, fca, nowMs, ready) {
   };
 }
 
+/**
+ * Unconstrained profile ETA (sec from now). Same climb/GS model as live strips,
+ * without rate/MIT slotting or a frozen RDY CTA.
+ */
+export function plannedProfileEta(p, fca, nowMs) {
+  nowMs = nowMs != null ? nowMs : Date.now();
+  const isAir = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
+  if (isAir) {
+    const c = buildAirCandidate(p, fca);
+    if (!c || c.eta == null) return null;
+    return { etaSec: c.eta, dist: c.dist, plannedFrom: "air", cross: c.cross };
+  }
+  const c = buildGroundCandidate(p, fca, nowMs, false);
+  if (!c || c.eta == null) return null;
+  return { etaSec: c.eta, dist: c.dist, plannedFrom: "gnd", cross: c.cross };
+}
+
 /* ============================================================
    SEPARATION + SLOTTING
    ============================================================ */
