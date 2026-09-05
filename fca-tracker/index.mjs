@@ -9,6 +9,8 @@
  *   VATFLOW_NAV_BASE             default: https://vatflow.io/data/nav
  *   VATFLOW_SITE_BASE            default: https://vatflow.io/
  *   POLL_MS                      default: 20000
+ *   DRY_RUN                      1 = log only, never write (uses SUPABASE_ANON_KEY to read)
+ *   SUPABASE_ANON_KEY            read key for DRY_RUN
  */
 import { loadAirports, getAirport } from "../shared/fca-metering.js";
 import { loadNavData } from "../shared/route-engine.js";
@@ -22,9 +24,14 @@ import {
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || "https://qoaipsfcidpymboojfwa.supabase.co").replace(/\/$/, "");
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const DRY_RUN = process.env.DRY_RUN === "1";
+const ANON_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79";
+const READ_KEY = DRY_RUN ? ANON_KEY : SERVICE_KEY;
 const NAV_BASE = process.env.VATFLOW_NAV_BASE || "https://vatflow.io/data/nav";
 const SITE_BASE = (process.env.VATFLOW_SITE_BASE || "https://vatflow.io/").replace(/\/?$/, "/");
 const POLL_MS = Math.max(10000, parseInt(process.env.POLL_MS, 10) || 20000);
+/** Exit cleanly after this many seconds (0 = run forever). Used by the hourly CI runner. */
+const RUN_SECONDS = Math.max(0, parseInt(process.env.RUN_SECONDS, 10) || 0);
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 
 const tracksByFca = new Map();
@@ -38,8 +45,8 @@ function log(...args) {
 async function sb(path, { method = "GET", body, prefer, query } = {}) {
   const url = SUPABASE_URL + "/rest/v1/" + path + (query || "");
   const headers = {
-    apikey: SERVICE_KEY,
-    Authorization: "Bearer " + SERVICE_KEY,
+    apikey: READ_KEY,
+    Authorization: "Bearer " + READ_KEY,
     Accept: "application/json",
     "Content-Type": "application/json",
   };
@@ -137,8 +144,17 @@ async function loadOpenTracks() {
   return rows.length;
 }
 
+/**
+ * Recently completed crossings, so a restart does not re-open a track for a
+ * flight already recorded. Bounded because the unique (fca_id, flight_key)
+ * constraint is the real duplicate guard — this is only an optimization, and a
+ * flight_key carries its logon time so old keys cannot collide with new flights.
+ */
 async function loadCompletedKeys() {
-  const rows = await sb("fca_crossings", { query: "?select=fca_id,flight_key" }) || [];
+  const sinceIso = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
+  const rows = await sb("fca_crossings", {
+    query: "?select=fca_id,flight_key&actual_at=gte." + encodeURIComponent(sinceIso),
+  }) || [];
   for (const r of rows) {
     if (!completedByFca.has(r.fca_id)) completedByFca.set(r.fca_id, new Set());
     completedByFca.get(r.fca_id).add(r.flight_key);
@@ -156,6 +172,7 @@ async function loadFcas() {
 }
 
 async function persist(fcaId, { upserts, crossings, lost }) {
+  if (DRY_RUN) return;
   for (const c of crossings) {
     await sb("fca_crossings", {
       method: "POST",
@@ -191,10 +208,11 @@ async function poll() {
     log("poll skip expire — VATSIM returned 0 connected pilots");
     return;
   }
-  let nCross = 0, nOpen = 0, nLost = 0;
+  let nCross = 0, nOpen = 0, nLost = 0, nNew = 0;
   for (const fca of fcas) {
     if (!tracksByFca.has(fca.id)) tracksByFca.set(fca.id, new Map());
     if (!completedByFca.has(fca.id)) completedByFca.set(fca.id, new Set());
+    const before = new Set(tracksByFca.get(fca.id).keys());
     const result = processFcaPoll(
       fca,
       pilots,
@@ -203,18 +221,28 @@ async function poll() {
       nowMs,
     );
     await persist(fca.id, result);
+    for (const t of result.upserts) {
+      if (before.has(t.flight_key)) continue;
+      nNew++;
+      log(`  FREEZE ${t.callsign} ${t.dep}->${t.arr} ${fca.name} planned=${toIso(t.planned_at)} from=${t.planned_from} dist=${Math.round(t.dist_nm_at_plan || 0)}nm`);
+    }
+    for (const c of result.crossings) {
+      log(`  CROSS  ${c.callsign} ${c.dep}->${c.arr} ${fca.name} planned=${toIso(c.planned_at)} actual=${toIso(c.actual_at)} delta=${c.delta_sec}s`);
+    }
+    for (const l of result.lost) log(`  LOST   ${l.callsign} ${fca.name}`);
     nCross += result.crossings.length;
     nLost += result.lost.length;
     nOpen += tracksByFca.get(fca.id).size;
   }
-  log(`poll fcas=${fcas.length} pilots=${pilots.length} open=${nOpen} crossings=${nCross} lost=${nLost}`);
+  log(`poll${DRY_RUN ? " [dry-run]" : ""} fcas=${fcas.length} pilots=${pilots.length} new=${nNew} open=${nOpen} crossings=${nCross} lost=${nLost}`);
 }
 
 async function main() {
-  if (!SERVICE_KEY) {
-    console.error("SUPABASE_SERVICE_ROLE_KEY is required");
+  if (!SERVICE_KEY && !DRY_RUN) {
+    console.error("SUPABASE_SERVICE_ROLE_KEY is required (or set DRY_RUN=1 to log without writing)");
     process.exit(1);
   }
+  if (DRY_RUN) log("DRY RUN — reading with the anon key, no writes");
   bindWindAirportLookup(icao => getAirport(icao));
   log("loading airports / nav / ARTCC / winds…");
   await Promise.all([
@@ -235,12 +263,24 @@ async function main() {
   const [nOpen, nDone] = await Promise.all([loadOpenTracks(), loadCompletedKeys()]);
   log(`restored open=${nOpen} completed=${nDone}`);
 
+  let polls = 0, pollErrors = 0;
   const tick = async () => {
-    try { await poll(); }
-    catch (e) { log("poll error:", e.message || e); }
+    try { await poll(); polls++; }
+    catch (e) { pollErrors++; log("poll error:", e.message || e); }
   };
   await tick();
-  setInterval(tick, POLL_MS);
+  const pollTimer = setInterval(tick, POLL_MS);
+
+  if (RUN_SECONDS) {
+    log(`will exit after ${RUN_SECONDS}s`);
+    setTimeout(() => {
+      clearInterval(pollTimer);
+      if (windTimer) clearInterval(windTimer);
+      log(`shutting down — polls=${polls} errors=${pollErrors}`);
+      // A run that never completed a poll is a failure, not a quiet success.
+      process.exit(polls > 0 ? 0 : 1);
+    }, RUN_SECONDS * 1000);
+  }
 }
 
 process.on("SIGINT", () => { if (windTimer) clearInterval(windTimer); process.exit(0); });

@@ -104,6 +104,7 @@
     <select id="fcaPick"><option value="">All recorded</option></select>
   </div>
   <div class="ranges" id="ranges"></div>
+  <div class="ranges" id="phases"></div>
   <button type="button" class="btn" id="csvBtn">CSV</button>
   <span class="spacer"></span>
   <div class="stat">Watching <b id="openCount">—</b></div>
@@ -112,7 +113,9 @@
   <p class="hint">
     Planned time is the unconstrained profile ETA frozen the first time an aircraft matches the FCA — not a rate/MIT slot and not RDY.
     Actual is interpolated when the VATSIM track crosses the line.
-    Enable <b>Record crossings</b> on an FCA in <a href="FCA-builderv02.html">FCA Builder</a>, leave it on, and keep the tracker worker running.
+    Enable <b>Record crossings</b> on an FCA in <a href="FCA-builderv02.html">FCA Builder</a> and leave it on.
+    <br><b>Air</b> froze while the aircraft was already flying, so the error is mostly the transit model.
+    <b>Ground</b> froze before wheels-up, so it also carries however long the pilot actually sat there.
   </p>
   <div id="empty" class="empty" hidden></div>
   <div id="body" hidden>
@@ -160,7 +163,18 @@ import {
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "fca-acc");
 
-const state = { range: "7d", fcaId: "", rows: [], options: [] };
+const PHASES = [
+  { id: "", label: "All" },
+  { id: "air", label: "Air" },
+  { id: "gnd", label: "Ground" },
+];
+
+const state = { range: "7d", fcaId: "", phase: "", rows: [], options: [] };
+
+function visibleRows() {
+  if (!state.phase) return state.rows;
+  return state.rows.filter(r => r.planned_from === state.phase);
+}
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -182,6 +196,20 @@ function renderRanges() {
       state.range = btn.getAttribute("data-range");
       renderRanges();
       refresh();
+    });
+  });
+}
+
+function renderPhases() {
+  const wrap = document.getElementById("phases");
+  wrap.innerHTML = PHASES.map(p =>
+    `<button type="button" class="btn${state.phase === p.id ? " on" : ""}" data-phase="${p.id}">${p.label}</button>`
+  ).join("");
+  wrap.querySelectorAll("[data-phase]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.phase = btn.getAttribute("data-phase");
+      renderPhases();
+      render();
     });
   });
 }
@@ -292,17 +320,28 @@ async function refresh() {
 
     if (!state.options.length && !state.rows.length) {
       showEmpty(`<b>No crossing archive yet</b>
-        Draw an FCA in <a href="FCA-builderv02.html">FCA Builder</a>, turn on <b>Record crossings</b>, leave it enabled, and deploy the tracker worker.
+        Draw an FCA in <a href="FCA-builderv02.html">FCA Builder</a> and turn on <b>Record crossings</b>.
         Planned times freeze on first match; actual crossings appear here after aircraft cross the line.`);
       return;
     }
-    showBody();
-    renderKpis(summarizeCrossings(state.rows));
-    renderHist(state.rows);
-    renderTable(state.rows);
+    render();
   } catch (e) {
     showEmpty(`<b>Could not load crossings</b>${esc(e && e.message ? e.message : String(e))}`);
   }
+}
+
+function render() {
+  const rows = visibleRows();
+  if (!state.rows.length) {
+    showEmpty(`<b>Nothing recorded in this range yet</b>
+      ${state.options.length} FCA(s) are set to record. Planned times freeze as soon as an aircraft matches,
+      and a row appears here once it actually crosses the line.`);
+    return;
+  }
+  showBody();
+  renderKpis(summarizeCrossings(rows));
+  renderHist(rows);
+  renderTable(rows);
 }
 
 document.getElementById("fcaPick").addEventListener("change", () => {
@@ -310,7 +349,7 @@ document.getElementById("fcaPick").addEventListener("change", () => {
   refresh();
 });
 document.getElementById("csvBtn").addEventListener("click", () => {
-  const csv = crossingsToCsv(state.rows);
+  const csv = crossingsToCsv(visibleRows());
   const blob = new Blob([csv], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -320,6 +359,7 @@ document.getElementById("csvBtn").addEventListener("click", () => {
 });
 
 renderRanges();
+renderPhases();
 initFcaStore({ canPush: () => false }).then(refresh).catch(refresh);
 </script>
 </body>

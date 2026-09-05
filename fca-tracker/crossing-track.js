@@ -168,6 +168,16 @@ export function processFcaPoll(fca, pilots, tracks, completedKeys, nowMs, opts =
     const existing = tracks.get(key);
     if (existing && existing.status === "open") {
       const airborne = p.phase === "air" && (p.gs || 0) >= AIR_MIN_GS;
+      // Airborne then stopped: it landed without ever crossing (reroute, diversion,
+      // or a feed gap over the line). Close it instead of touching it forever.
+      if (!airborne && existing.last_phase === "air") {
+        const closed = cloneTrack(existing);
+        closed.status = "lost";
+        closed.last_seen_at = nowMs;
+        tracks.set(key, closed);
+        lost.push(closed);
+        continue;
+      }
       if (airborne && existing.last_lat != null && existing.last_lon != null) {
         const hit = interpolateTrackCrossing(
           { lat: existing.last_lat, lon: existing.last_lon, t: existing.last_seen_at },
