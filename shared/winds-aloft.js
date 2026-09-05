@@ -142,6 +142,27 @@ export function routeHeadwind(points, altFt) {
   return v;
 }
 
+/**
+ * Full wind vector at a point: { dirDeg, spdKt }, direction the wind blows
+ * FROM. Callers solving for true airspeed need this rather than the headwind
+ * component below, because any crosswind understates TAS once the cross term
+ * is dropped. Null when no station is in range.
+ */
+export function pointWind(lat, lon, altFt) {
+  const w = nearestWind(lat, lon, altFt);
+  if (!w) return null;
+  if (w.dir == null) return w.spd === 0 ? { dirDeg: 0, spdKt: 0 } : null;
+  return { dirDeg: w.dir, spdKt: w.spd };
+}
+
+/** Seed stations directly (tests, offline replay). Mirrors seedAirports. */
+export function seedWindStations(map) {
+  if (!map) return;
+  for (const id in map) windStations[id] = map[id];
+  windHwCache = {};
+  windInfo = { status: "ok", count: Object.keys(windStations).length, time: Date.now() };
+}
+
 /** Headwind at a single point along a course (kt). */
 export function pointHeadwind(lat, lon, courseDeg, altFt) {
   const w = nearestWind(lat, lon, altFt);
