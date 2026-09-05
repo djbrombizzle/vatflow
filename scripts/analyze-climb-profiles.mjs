@@ -9,12 +9,18 @@
  * many climbs survived the quality gates and what rejected the rest, and then
  * the IAS curve per aircraft type with n and IQR against every point.
  *
- * Winds: none by default. Ground speed is then read as true airspeed, which
- * biases IAS by roughly 0.7 kt per kt of real wind -- fine for checking the
- * shape and the type mix, useless as a measurement. Pass --winds <file.json>
- * (a map of "lat,lon,FL" -> {dirDeg, spdKt}) once a wind source is wired up.
+ * Winds come from the same AWC FB tables the FCA ETA engine already uses
+ * (shared/winds-aloft.js), so a climb is measured against the same atmosphere
+ * its ETA was predicted in. Pass --no-winds to skip the fetch; ground speed is
+ * then read as true airspeed, which biases IAS by roughly 0.7 kt per kt of
+ * real wind -- fine for checking shape and type mix, useless as a measurement.
+ *
+ * FB coverage is US-only and station-based, so flights outside it fall back to
+ * still air. Those are reported separately rather than silently averaged in.
  */
 import { readFileSync } from "node:fs";
+import { getAirport, loadAirports } from "../shared/fca-metering.js";
+import { bindWindAirportLookup, fetchWinds, pointWind } from "../shared/winds-aloft.js";
 import {
   ALT_BANDS,
   aggregateCurve,
@@ -30,12 +36,22 @@ for (let i = 2; i < process.argv.length; i += 2) {
 }
 const IN = args.get("in") || "feed.ndjson";
 const MIN_FLIGHTS = parseInt(args.get("min-flights") || "5", 10);
-const WINDS = args.get("winds") ? JSON.parse(readFileSync(args.get("winds"), "utf8")) : null;
+const USE_WINDS = !args.has("no-winds");
 
+let windStatus = { status: "off", count: 0 };
+if (USE_WINDS) {
+  bindWindAirportLookup(icao => getAirport(icao));
+  await loadAirports();
+  windStatus = await fetchWinds();
+  console.log(`winds: ${windStatus.status}, ${windStatus.count} stations`);
+}
+
+let windHits = 0, windMisses = 0;
 function windAt(lat, lon, altFt) {
-  if (!WINDS) return null;
-  const key = `${Math.round(lat)},${Math.round(lon)},${Math.round(altFt / 1000)}`;
-  return WINDS[key] || null;
+  if (!USE_WINDS) return null;
+  const w = pointWind(lat, lon, altFt);
+  if (w) windHits++; else windMisses++;
+  return w;
 }
 
 /* ---- load and group into per-flight position tracks ---- */
@@ -117,7 +133,17 @@ const ranked = [...flightsByType.entries()]
   .sort((a, b) => b[1].length - a[1].length);
 
 console.log(`\n=== IAS CURVES BY TYPE (n >= ${MIN_FLIGHTS}) ===`);
-if (!WINDS) console.log(`!! no wind data — IAS values are biased, shape only\n`);
+if (!USE_WINDS) {
+  console.log(`!! --no-winds: ground speed read as TAS, IAS biased — shape only\n`);
+} else {
+  const cover = windHits + windMisses;
+  const pct = cover ? (100 * windHits / cover).toFixed(1) : "0.0";
+  console.log(`wind coverage: ${pct}% of samples (${windMisses} fell back to still air)`);
+  if (windHits / Math.max(cover, 1) < 0.5) {
+    console.log(`!! under half of samples had wind data — treat these as shape, not measurement`);
+  }
+  console.log("");
+}
 const header = "type      n   " + ALT_BANDS.map(b => b.label.padStart(11)).join("");
 console.log(header);
 console.log("-".repeat(header.length));

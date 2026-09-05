@@ -25,6 +25,7 @@ import {
   tasToCas,
   tasToMach,
 } from "../shared/climb-profile.js";
+import { pointWind, seedWindStations } from "../shared/winds-aloft.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -236,6 +237,44 @@ function analyse(raw, wind, isaDevC = 0) {
   const raw = flyClimb({ iasBelow10k: 290 });
   const { flight } = analyse(raw, null);
   assert(flight.exceeded250Below10k, "290 KIAS below 10k is flagged");
+}
+
+/* ============================================================
+   FCA WIND SOURCE -- the same tables the ETA engine already uses
+   ============================================================ */
+{
+  // A climb flown through a real wind, corrected using winds-aloft's own
+  // station data rather than a second wind source. If these disagree, a climb
+  // would be measured against a different atmosphere than its ETA was
+  // predicted in, which would make the comparison meaningless.
+  seedWindStations({
+    DEN: {
+      lat: 39.86, lon: -104.67,
+      levels: { 12000: { dir: 250, spd: 55 }, 18000: { dir: 250, spd: 55 },
+                24000: { dir: 250, spd: 55 }, 30000: { dir: 250, spd: 55 } },
+    },
+  });
+  assert(pointWind(39.9, -104.7, 24000).spdKt === 55, "pointWind reads the seeded station");
+  assert(pointWind(39.9, -104.7, 24000).dirDeg === 250, "pointWind carries direction");
+  assert(pointWind(5, 5, 24000) === null, "no station in range yields null, not a guess");
+
+  const raw = flyClimb({ iasClimb: 295, mach: 0.78, windDir: 250, windSpd: 55, track: 70,
+                         startLat: 39.86, startLon: -104.67 });
+  const samples = [];
+  for (let i = 1; i < raw.length; i++) {
+    const w = pointWind(raw[i].lat, raw[i].lon, raw[i].alt);
+    samples.push(buildSample(raw[i - 1], raw[i], w));
+  }
+  const flight = reduceFlight(samples);
+  approx(flight.bands["18000_24000"].iasKt, 295, 2,
+    "recovers 295 KIAS using the FCA wind tables");
+
+  // And the same climb uncorrected, to show what the wind source is buying.
+  const bare = [];
+  for (let i = 1; i < raw.length; i++) bare.push(buildSample(raw[i - 1], raw[i], null));
+  const bareFlight = reduceFlight(bare);
+  const gain = Math.abs(bareFlight.bands["18000_24000"].iasKt - 295);
+  assert(gain > 10, `skipping the wind correction costs over 10 kt (got ${gain.toFixed(1)})`);
 }
 
 /* ============================================================
