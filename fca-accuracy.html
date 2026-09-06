@@ -145,6 +145,8 @@
     </div>
   </div>
 </div>
+<!-- fca-store needs window.supabase before init(), or it silently loads nothing. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { init as initFcaStore, getFcas } from "./shared/fca-store.js";
