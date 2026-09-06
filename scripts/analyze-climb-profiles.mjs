@@ -189,6 +189,22 @@ for (const [type, flights] of ranked) {
   console.log(`${" ".repeat(13)}${iqr}   IQR`);
 }
 
+/* ---- climb rate: the other half of the FCA profile model ---- */
+console.log(`\n=== CLIMB RATE BY TYPE (fpm, median) ===`);
+const vsHeader = "type      n   " + ALT_BANDS.map(b => b.label.padStart(11)).join("");
+console.log(vsHeader);
+console.log("-".repeat(vsHeader.length));
+for (const [type, flights] of ranked) {
+  const c = aggregateCurve(flights);
+  const cells = ALT_BANDS.map(b => {
+    const v = c.bands[b.key];
+    return (v && v.vsMedian != null ? `${Math.round(v.vsMedian)}` : "-").padStart(11);
+  }).join("");
+  console.log(`${type.padEnd(9)}${String(flights.length).padStart(4)}  ${cells}`);
+}
+console.log(`\nfca-metering.js models this as two numbers: CLIMB_FPM_LOW ${
+  ""}below 10k and CLIMB_FPM_HIGH above.`);
+
 const thin = [...flightsByType.entries()].filter(([, f]) => f.length < MIN_FLIGHTS);
 console.log(`\n${ranked.length} types with n >= ${MIN_FLIGHTS}; ${thin.length} thinner types held back`);
 console.log(`(the thin tail is expected — it is what the class-level fallback is for)`);
