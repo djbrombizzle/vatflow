@@ -215,6 +215,39 @@
     display: block; font-size: 9px; letter-spacing: 0.1em; color: var(--muted-2);
     margin-bottom: 6px; text-transform: uppercase;
   }
+  .art-src { display: block; margin-top: 3px; letter-spacing: 0.06em; color: var(--muted-2); opacity: 0.75; }
+  .detail-kv .v.est-taxi { color: var(--amber); }
+  .est-meta {
+    display: block; font-size: 9px; font-weight: 400; letter-spacing: 0.06em;
+    color: var(--muted-2); margin-top: 2px; text-transform: uppercase;
+  }
+  /* runway / SID configuration in the settings drawer */
+  .taxi-cfg { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .taxi-cfg h3 {
+    margin: 0 0 6px; font: 700 10px/1 var(--mono); letter-spacing: 0.1em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .taxi-cfg-fields { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .taxi-cfg-fields button {
+    font: 700 10px/1 var(--mono); padding: 4px 8px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--line-2); background: #0d1219; color: var(--muted);
+  }
+  .taxi-cfg-fields button.on { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+  .rwy-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .rwy-chip {
+    font: 700 10px/1 var(--mono); padding: 5px 8px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--line-2); background: #0d1219; color: var(--muted-2);
+  }
+  .rwy-chip.on { border-color: #56d364; color: #56d364; background: rgba(86, 211, 100, 0.1); }
+  .sid-rules { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+  .sid-rule { display: flex; gap: 6px; align-items: center; font-size: 10px; }
+  .sid-rule .sid-name { flex: 0 0 78px; color: var(--text); font-weight: 700; }
+  .sid-rule select, .taxi-cfg input {
+    font: 400 10px/1 var(--mono); padding: 4px 6px; border-radius: 3px;
+    border: 1px solid var(--line-2); background: #0a0e14; color: var(--text);
+  }
+  .sid-rule .auto { color: var(--muted-2); font-size: 9px; }
+  .taxi-cfg-note { font-size: 9px; color: var(--muted-2); line-height: 1.5; margin-top: 6px; }
   .rdy-btn {
     width: 100%; font: 700 12px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer;
     padding: 12px; border-radius: 5px; border: 1px solid var(--line-2);
@@ -247,6 +280,7 @@
 <div class="settings-panel" id="settingsPanel">
   <div id="atcStatus">Sign in with VATSIM to use RDY.</div>
   <div class="settings-hint">RDY requires sign-in and an active controller position on the VATSIM feed. Build programs in FCA Builder. Map awareness: FCA Overview.</div>
+  <div class="taxi-cfg" id="taxiCfg"></div>
 </div>
 
 <div class="workspace">
@@ -308,7 +342,11 @@ import { mountHelp, IDST_HELP } from "./shared/vatflow-help.js";
 import {
   loadAirports, getAirport, fmtZulu, fpFields, computeTowerDepartures,
   markReady, clearReady, isReady, mergeRemoteFca, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
+  setTaxiEstimator,
 } from "./shared/fca-metering.js";
+import { countQueueAhead, estimateTaxiSec, sidFromRoute } from "./shared/taxi-estimate.js";
+import { loadRunwayEnds, loadSidRunways, runwayEndsFor, sidRunwaysFor } from "./shared/taxi-runways.js";
+import { loadTaxiConfig, saveTaxiConfig, setSidRule, toggleActiveRunway } from "./shared/taxi-config-store.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -333,6 +371,10 @@ const state = {
   atcVerified: false,
   atcCallsign: null,
   cid: null,
+  /** ICAOs whose runway ends have been requested — load once per field. */
+  taxiFieldsLoaded: new Set(),
+  /** Which airport the settings-panel runway config is editing. */
+  taxiCfgField: "",
 };
 
 let sb = null;
@@ -472,6 +514,8 @@ function fetchLive() {
         });
       state.pilots = pilots;
       state.controllers = d.controllers || [];
+      resetTaxiTick();
+      ensureTaxiData();
       setFeed("live");
       revalidateAtcAuth();
       scheduleRender();
@@ -507,6 +551,12 @@ function computeResult() {
 }
 
 function renderChips() {
+  /* Keep the config drawer in step with the airport list, but never rebuild it
+     while someone is typing in one of its inputs. */
+  const cfgHost = document.getElementById("taxiCfg");
+  const panelOpen = document.getElementById("settingsPanel").classList.contains("show");
+  if (panelOpen && cfgHost && !cfgHost.contains(document.activeElement)) renderTaxiConfig();
+
   const f = MyDash.getFilters();
   const apt = document.getElementById("chipsAirport");
   const appr = document.getElementById("chipsApproach");
@@ -565,6 +615,18 @@ function renderDetail(d) {
     ? `<div class="detail-kv"><span class="k">ART FLOOR</span><span class="v">${fmtZulu(rel.readyMs)}</span></div>`
     : "";
   const draft = state.artDraft[d.callsign] || "";
+  /* Prefill ART with the taxi estimate. A typed draft always wins; the
+     suggestion re-renders with the feed so it never goes stale. */
+  const suggest = frozen ? null : suggestedArt(d.callsign, Date.now());
+  const artValue = draft || (suggest ? suggest.text : "");
+  const est = suggest && suggest.est;
+  const estRow = est
+    ? `<div class="detail-kv"><span class="k">EST TAXI</span>` +
+      `<span class="v est-taxi">${Math.round(est.sec / 60)}m` +
+      `<span class="est-meta">${escapeHtml(est.runway || "RWY ?")}` +
+      (est.parts.queueAhead ? ` · ${est.parts.queueAhead} ahead` : "") +
+      `</span></span></div>`
+    : "";
   body.innerHTML =
     `<div class="detail-acid">${escapeHtml(d.callsign)}</div>` +
     `<div class="detail-route">${escapeHtml(d.dep || "????")} → ${escapeHtml(d.arr || "????")} · ${escapeHtml(d.type || "")}</div>` +
@@ -575,13 +637,20 @@ function renderDetail(d) {
     `<div class="detail-kv"><span class="k">EST HOLD</span><span class="v${hold > 1 && !frozen ? " hold" : ""}">${frozen ? "released" : (hold > 1 ? "+" + hold + "m" : "none")}</span></div>` +
     `<div class="detail-kv"><span class="k">CFR / EDCT</span><span class="v${frozen ? " big" : ""}">${frozen ? fmtZulu(d.edctMs) : "—"}</span></div>` +
     `<div class="detail-kv"><span class="k">WINDOW</span><span class="v">${win}</span></div>` +
+    estRow +
     readyFloorLbl +
     `</div>` +
     (frozen ? "" :
-      `<span class="art-label">Aircraft ready time (wheels-up earliest)</span>` +
+      `<span class="art-label">Aircraft ready time (wheels-up earliest)` +
+      (est
+        ? `<span class="art-src">${escapeHtml(TAXI_TIER_LABEL[est.tier] || est.tier)}` +
+          ` · runway ${escapeHtml(TAXI_SOURCE_LABEL[est.runwaySource] || est.runwaySource)}</span>`
+        : "") +
+      `</span>` +
       `<div class="art-row">` +
       `<input id="artInput" type="text" maxlength="7" placeholder="HHMMz" autocomplete="off" ` +
-      `data-keep="idst-art" value="${escapeHtml(draft)}" title="Earliest wheels-up — release at or after this time">` +
+      `data-keep="idst-art" value="${escapeHtml(artValue)}" ` +
+      `title="Earliest wheels-up — release at or after this time">` +
       `<button type="button" class="art-set-btn" id="artSetBtn"${rdyDisabled}>SET</button>` +
       `</div>`) +
     `<button type="button" class="rdy-btn${frozen ? " on" : ""}" id="rdyBtn"${rdyDisabled}>` +
@@ -590,7 +659,7 @@ function renderDetail(d) {
     `<p class="detail-hint">` +
     (frozen
       ? "Cancel returns the flight to Unscheduled. Re-issue with a new ART if needed."
-      : "<b>SET</b> issues a CFR at or after the ART you entered. <b>RDY — ISSUE NOW</b> uses the ready-now buffer (~3 min) unless ART is filled — then ART is the floor. Speak the green CFR time to the pilot.") +
+      : "ART is prefilled with the estimated taxi time to the runway — <b>overwrite it</b> if the pilot tells you different. <b>SET</b> and <b>RDY — ISSUE NOW</b> both release at or after the ART shown. Speak the green CFR time to the pilot.") +
     `</p>`;
 
   const artEl = document.getElementById("artInput");
@@ -619,6 +688,250 @@ function renderDetail(d) {
   }
 }
 
+/* ============================================================
+   TAXI TIME ESTIMATION
+   Replaces the flat 3-minute ready buffer behind RDY with a per-aircraft
+   estimate, prefilled into ART so the controller always sees it and can
+   overwrite it before issuing. See shared/taxi-estimate.js.
+   ============================================================ */
+
+/** Pull runway ends for every field in scope; SID index loads once, globally. */
+function ensureTaxiData() {
+  loadSidRunways().then(() => { resetTaxiTick(); scheduleRender(); }).catch(() => {});
+  for (const icao of MyDash.getFilters().airports) {
+    const field = String(icao || "").toUpperCase();
+    if (!field || state.taxiFieldsLoaded.has(field)) continue;
+    state.taxiFieldsLoaded.add(field);
+    loadRunwayEnds(field).then(() => { resetTaxiTick(); scheduleRender(); }).catch(() => {});
+  }
+}
+
+/**
+ * Per-tick memo. The estimator is installed as the CFR engine's ready buffer,
+ * so it runs for every ground candidate inside every FCA sequence pass — and
+ * each estimate needs the runway of every other aircraft at the field to count
+ * the queue. Recomputing that per call is quadratic on a busy field, so the
+ * whole thing is derived once per feed update and read from here afterwards.
+ */
+let taxiTick = null;
+
+function resetTaxiTick() { taxiTick = null; }
+
+function buildTaxiTick() {
+  const byField = new Map();      // ICAO -> { config, ends, sidRunways, pilots: [] }
+  const releases = new Map();     // callsign -> earliest issued wheels-up
+  for (const fca of state.fcas) {
+    for (const [cs, rel] of Object.entries((fca && fca.releases) || {})) {
+      if (!rel || !isFinite(rel.edctMs)) continue;
+      const prev = releases.get(cs);
+      if (prev == null || rel.edctMs < prev) releases.set(cs, rel.edctMs);
+    }
+  }
+
+  const pilots = new Map();       // callsign -> { p, field, sid, runway }
+  for (const p of state.pilots) {
+    const field = (p.dep || "").toUpperCase();
+    if (!field || (p.gs || 0) > 60) continue;
+    if (!byField.has(field)) {
+      byField.set(field, {
+        config: loadTaxiConfig(field),
+        ends: runwayEndsFor(field),
+        sidRunways: sidRunwaysFor(field),
+        pilots: [],
+      });
+    }
+    const ctx = byField.get(field);
+    const sid = sidFromRoute(p.route);
+    const solo = estimateTaxiSec({
+      lat: p.lat, lon: p.lon, gs: p.gs, sid,
+      ends: ctx.ends, sidRunways: ctx.sidRunways, config: ctx.config,
+    });
+    const entry = { p, field, sid, runway: solo.runway, distNm: solo.distNm };
+    pilots.set(p.callsign, entry);
+    ctx.pilots.push({
+      callsign: p.callsign, dep: field, gs: p.gs, runway: solo.runway,
+      distNm: solo.distNm, releaseMs: releases.get(p.callsign),
+    });
+  }
+  return { byField, pilots, releases, estimates: new Map() };
+}
+
+/**
+ * Full estimate for one ground aircraft, including the departure queue ahead
+ * of it for its runway. Returns null when the pilot has left the feed.
+ */
+function taxiEstimateFor(callsign) {
+  if (!callsign) return null;
+  if (!taxiTick) taxiTick = buildTaxiTick();
+  if (taxiTick.estimates.has(callsign)) return taxiTick.estimates.get(callsign);
+
+  const entry = taxiTick.pilots.get(callsign);
+  if (!entry) { taxiTick.estimates.set(callsign, null); return null; }
+  const ctx = taxiTick.byField.get(entry.field);
+
+  const queueAhead = countQueueAhead({
+    callsign,
+    airport: entry.field,
+    runway: entry.runway,
+    myDistNm: entry.distNm,
+    myReleaseMs: taxiTick.releases.get(callsign),
+    pilots: ctx.pilots,
+  });
+
+  const est = estimateTaxiSec({
+    lat: entry.p.lat, lon: entry.p.lon, gs: entry.p.gs, sid: entry.sid,
+    ends: ctx.ends, sidRunways: ctx.sidRunways, config: ctx.config, queueAhead,
+  });
+  const out = { ...est, sid: entry.sid, field: entry.field };
+  taxiTick.estimates.set(callsign, out);
+  return out;
+}
+
+/**
+ * Suggested ART for an aircraft, as HHMM Zulu.
+ * Rounded UP to the next whole minute: a prefill rendered 25 s ago must still
+ * parse as a future time when the controller presses RDY, and parseZuluHhmm
+ * only grants a one-minute grace.
+ */
+function suggestedArt(callsign, nowMs) {
+  const est = taxiEstimateFor(callsign);
+  if (!est) return null;
+  const target = Math.ceil((nowMs + est.sec * 1000) / 60000) * 60000;
+  const d = new Date(target);
+  const hhmm = String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0");
+  return { est, ms: target, text: hhmm };
+}
+
+const TAXI_TIER_LABEL = {
+  blended: "observed + geometry",
+  geometric: "geometry",
+  observed: "observed",
+  fallback: "no runway data",
+};
+
+const TAXI_SOURCE_LABEL = {
+  override: "pinned",
+  rule: "SID rule",
+  sid: "from SID",
+  "sid-nearest": "from SID, nearest",
+  nearest: "nearest",
+  active: "only active",
+  none: "unknown",
+};
+
+/* Install the estimate as the CFR engine's ready buffer. Any aircraft the page
+   cannot estimate falls back to READY_BUFFER_SEC inside fca-metering. */
+setTaxiEstimator((p, nowMs) => {
+  const est = taxiEstimateFor(p && p.callsign);
+  return est ? est.sec : null;
+});
+
+/* ---------- runway / SID configuration (settings drawer) ---------- */
+
+/** SIDs worth listing: those actually filed by aircraft on the ground now. */
+function activeSidsAt(field) {
+  const sids = new Set();
+  for (const p of state.pilots) {
+    if ((p.dep || "").toUpperCase() !== field) continue;
+    if ((p.gs || 0) > 60) continue;
+    const sid = sidFromRoute(p.route);
+    if (sid) sids.add(sid);
+  }
+  return [...sids].sort();
+}
+
+function renderTaxiConfig() {
+  const host = document.getElementById("taxiCfg");
+  if (!host) return;
+  const fields = MyDash.getFilters().airports.map(a => a.toUpperCase());
+  if (!fields.length) {
+    host.innerHTML = `<h3>Departure runways</h3>` +
+      `<div class="taxi-cfg-note">Add a tower airport to configure its departure runways and SID assignments.</div>`;
+    return;
+  }
+  if (!fields.includes(state.taxiCfgField)) state.taxiCfgField = fields[0];
+  const field = state.taxiCfgField;
+  const cfg = loadTaxiConfig(field);
+  const ends = runwayEndsFor(field);
+  const sidIdx = sidRunwaysFor(field);
+
+  const tabs = fields.map(f =>
+    `<button type="button" data-taxi-field="${escapeHtml(f)}" class="${f === field ? "on" : ""}">${escapeHtml(f)}</button>`
+  ).join("");
+
+  const chips = ends.length
+    ? [...ends].sort((a, b) => a.id.localeCompare(b.id)).map(e =>
+        `<span class="rwy-chip${cfg.activeRunways.includes(e.id) ? " on" : ""}" ` +
+        `data-taxi-rwy="${escapeHtml(e.id)}" title="Toggle ${escapeHtml(e.id)} as a departure runway">${escapeHtml(e.id)}</span>`
+      ).join("")
+    : `<span class="taxi-cfg-note">No runway data for ${escapeHtml(field)} yet.</span>`;
+
+  const rwyOptions = [...ends].sort((a, b) => a.id.localeCompare(b.id));
+  const sids = activeSidsAt(field);
+  const rules = sids.length
+    ? sids.map(sid => {
+        const published = (sidIdx[sid] || []).join(", ") || "none published";
+        const cur = cfg.sidRules[sid] || "";
+        const opts = [`<option value="">AUTO</option>`]
+          .concat(rwyOptions.map(e =>
+            `<option value="${escapeHtml(e.id)}"${e.id === cur ? " selected" : ""}>${escapeHtml(e.id)}</option>`))
+          .join("");
+        return `<div class="sid-rule"><span class="sid-name">${escapeHtml(sid)}</span>` +
+          `<select data-taxi-sid="${escapeHtml(sid)}">${opts}</select>` +
+          `<span class="auto">${escapeHtml(published)}</span></div>`;
+      }).join("")
+    : `<div class="taxi-cfg-note">No SIDs filed by aircraft on the ground at ${escapeHtml(field)} right now.</div>`;
+
+  host.innerHTML =
+    `<h3>Departure runways &amp; taxi estimate</h3>` +
+    `<div class="taxi-cfg-fields">${tabs}</div>` +
+    `<div class="rwy-chips">${chips}</div>` +
+    `<div class="sid-rules">${rules}</div>` +
+    `<div class="sid-rule"><span class="sid-name">TAXI KT</span>` +
+    `<input type="number" min="3" max="40" step="1" style="width:60px" data-taxi-num="taxiKt" ` +
+    `value="${cfg.taxiKt != null ? cfg.taxiKt : ""}" placeholder="13">` +
+    `<span class="sid-name">RWY SEC</span>` +
+    `<input type="number" min="20" max="600" step="5" style="width:60px" data-taxi-num="rwyIntervalSec" ` +
+    `value="${cfg.rwyIntervalSec != null ? cfg.rwyIntervalSec : ""}" placeholder="90">` +
+    `</div>` +
+    `<div class="taxi-cfg-note">Green chips are the runways departing. A SID left on AUTO uses its ` +
+    `published runway transitions (listed alongside) narrowed to the active set. Blank fields use defaults ` +
+    `(13 kt taxi, 90 s per departure). Settings are stored in this browser.</div>`;
+}
+
+function bindTaxiConfig() {
+  const host = document.getElementById("taxiCfg");
+  if (!host) return;
+  host.addEventListener("click", e => {
+    const tab = e.target.closest("[data-taxi-field]");
+    if (tab) { state.taxiCfgField = tab.dataset.taxiField; renderTaxiConfig(); return; }
+    const chip = e.target.closest("[data-taxi-rwy]");
+    if (chip) {
+      toggleActiveRunway(state.taxiCfgField, chip.dataset.taxiRwy);
+      resetTaxiTick();
+      renderTaxiConfig();
+      scheduleRender();
+    }
+  });
+  host.addEventListener("change", e => {
+    const sel = e.target.closest("[data-taxi-sid]");
+    if (sel) {
+      setSidRule(state.taxiCfgField, sel.dataset.taxiSid, sel.value);
+      resetTaxiTick();
+      scheduleRender();
+      return;
+    }
+    const num = e.target.closest("[data-taxi-num]");
+    if (num) {
+      const raw = num.value.trim();
+      saveTaxiConfig(state.taxiCfgField, { [num.dataset.taxiNum]: raw === "" ? null : raw });
+      resetTaxiTick();
+      renderTaxiConfig();
+      scheduleRender();
+    }
+  });
+}
+
 function readArtMs(callsign) {
   const artEl = document.getElementById("artInput");
   const raw = (artEl && artEl.value.trim()) || (state.artDraft[callsign] || "").trim();
@@ -644,6 +957,7 @@ function cancelRelease(d) {
   const fca = state.fcas.find(f => f.id === d.fcaId);
   if (!fca || !d.callsign) return;
   clearReady(fca, d.callsign);
+  resetTaxiTick();
   cloudPush(fca);
   scheduleRender();
 }
@@ -677,6 +991,7 @@ function issueRelease(d, opts = {}) {
   const markOpts = (art.ms != null) ? { readyMs: art.ms } : undefined;
   const rel = markReady(fca, d.callsign, state.pilots, Date.now(), markOpts);
   if (!rel) return;
+  resetTaxiTick();          // a new release reorders the departure queue
   delete state.artDraft[d.callsign];
   cloudPush(fca);
   scheduleRender();
@@ -778,6 +1093,7 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   const panel = document.getElementById("settingsPanel");
   const open = panel.classList.toggle("show");
   document.getElementById("settingsBtn").classList.toggle("on", open);
+  if (open) renderTaxiConfig();
 });
 document.getElementById("refreshBtn").addEventListener("click", () => {
   fetchLive();
@@ -813,6 +1129,8 @@ loadAirports(() => {
   fetchArtccBoundaries().then(() => scheduleRender()).catch(() => {});
 }).catch(() => scheduleRender());
 
+bindTaxiConfig();
+ensureTaxiData();
 startFeedLoop();
 
 (function tickClock() {
