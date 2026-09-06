@@ -62,7 +62,9 @@ Enter the airport code to view its arrival flow. The table is sortable and filte
 
 ### 3. Issue releases (IDST — active FCA only)
 
-Airport TMU does **not** issue a time. For any pending ground departure in an **active FCA**, open **IDST**, set the same tower / approach / center filters as My Dashboard, and press **RDY** to lock a speakable wheels-up. Optional ART **HHMMz** is the earliest floor.
+Airport TMU does **not** issue a time. For any pending ground departure in an **active FCA**, open **IDST**, set the same tower / approach / center filters as My Dashboard, and press **RDY** to lock a speakable wheels-up.
+
+The ART **HHMMz** field is the earliest floor, and IDST **prefills it with an estimated taxi time** — how long from the aircraft's present position to its departure runway, plus the departures queued ahead of it for that runway. The estimate is a suggestion: overwrite it whenever the pilot tells you different. Set which runways are departing (and pin any SID to a runway) in the IDST settings drawer — **⚙ → Departure runways**. Leave it unconfigured and the estimate still works, using the nearest runway.
 
 Use **FCA Builder** or **FCA Overview** for the same RDY engine. Destination AAR / MIT on Airport TMU remains recommended delay for informational purposes only.
 

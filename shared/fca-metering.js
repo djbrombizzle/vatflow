@@ -43,7 +43,10 @@ export const DIR_LABEL = { any: "any dir", N: "NB", S: "SB", E: "EB", W: "WB" };
 /* ---- operational constants ---- */
 /** Legacy fallback groundspeed (kept for exports/back-compat only). */
 export const DEFAULT_GROUND_GS = 250;
-/** Minutes from "release issued" to realistic wheels-up. */
+/**
+ * Fallback seconds from "release issued" to realistic wheels-up, used when no
+ * taxi estimator is installed or the estimate is unusable. See setTaxiEstimator.
+ */
 export const READY_BUFFER_SEC = 180;
 /** CFR release window: -2/+1 minutes (compliance display). Times stay frozen after issue. */
 export const COMPLIANCE_EARLY_MS = 2 * 60000;
@@ -619,9 +622,39 @@ function buildAirCandidate(p, fca) {
   };
 }
 
-/** Ground earliest wheels-up (sec from now). Ready = now + buffer; else honor a future filed deptime. */
+/**
+ * Taxi-time estimator, injected by the page (see shared/taxi-estimate.js).
+ * Unset — or throwing, or returning nonsense — leaves the flat READY_BUFFER_SEC
+ * that this engine used before estimation existed.
+ */
+let taxiEstimator = null;
+
+/** @param {null|(p: object, nowMs: number) => number} fn — seconds until wheels-up */
+export function setTaxiEstimator(fn) {
+  taxiEstimator = typeof fn === "function" ? fn : null;
+}
+
+/** Estimated seconds from now to wheels-up for a ground aircraft. */
+export function readyBufferSec(p, nowMs) {
+  if (!taxiEstimator) return READY_BUFFER_SEC;
+  try {
+    const sec = taxiEstimator(p, nowMs);
+    return isFinite(sec) && sec > 0 ? sec : READY_BUFFER_SEC;
+  } catch (e) {
+    return READY_BUFFER_SEC;
+  }
+}
+
+/**
+ * Ground earliest wheels-up (sec from now). Ready = now + taxi estimate; else
+ * honor a future filed deptime.
+ *
+ * The estimate applies only on the ready path — the one RDY takes. Unissued
+ * flights keep planning against the flat buffer so the board's advisory delays
+ * do not move around underneath a controller who has not issued anything.
+ */
 function earliestOffSec(p, nowMs, ready) {
-  if (ready) return READY_BUFFER_SEC;
+  if (ready) return readyBufferSec(p, nowMs);
   const dep = ptimeToMs(p.deptime);
   if (dep != null && dep > nowMs + READY_BUFFER_SEC * 1000) return (dep - nowMs) / 1000;
   return READY_BUFFER_SEC;
@@ -664,7 +697,7 @@ export function plannedProfileEta(p, fca, nowMs) {
   let c = buildGroundCandidate(p, fca, nowMs, false);
   if (!c || c.eta == null) return null;
   if ((c.offSec || 0) > MAX_GROUND_OFF_SEC) {
-    c = buildGroundCandidate(p, fca, nowMs, true);   // ready=true -> READY_BUFFER_SEC
+    c = buildGroundCandidate(p, fca, nowMs, true);   // ready=true -> taxi estimate
     if (!c || c.eta == null) return null;
   }
   return { etaSec: c.eta, dist: c.dist, plannedFrom: "gnd", cross: c.cross };
@@ -734,7 +767,7 @@ function readyCrossingFloorSec(c, nowMs, readyMs) {
   if (readyMs != null && isFinite(readyMs)) {
     return Math.max((readyMs - nowMs) / 1000, 0) + transit;
   }
-  return READY_BUFFER_SEC + transit;
+  return readyBufferSec(c && c.p, nowMs) + transit;
 }
 
 /**
