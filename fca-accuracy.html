@@ -171,7 +171,7 @@ const PHASES = [
   { id: "gnd", label: "Ground" },
 ];
 
-const state = { range: "7d", fcaId: "", phase: "", rows: [], options: [] };
+const state = { range: "7d", fcaId: "", phase: "", rows: [], options: [], hist: [], storeReady: false, loaded: false };
 
 function visibleRows() {
   if (!state.phase) return state.rows;
@@ -303,38 +303,53 @@ function showBody() {
   document.getElementById("body").hidden = false;
 }
 
+function showLoading() {
+  showEmpty(`<b>Loading…</b>Reading the crossing archive.`);
+}
+
+const NO_ARCHIVE = `<b>No crossing archive yet</b>
+  Draw an FCA in <a href="FCA-builderv02.html">FCA Builder</a> and turn on <b>Record crossings</b>.
+  Planned times freeze on first match; actual crossings appear here after aircraft cross the line.`;
+
 async function refresh() {
   try {
-    const [hist, live] = await Promise.all([
-      loadCrossingFcaIds().catch(() => []),
-      Promise.resolve(getFcas() || []),
-    ]);
-    state.options = mergeFcaOptions(live, hist);
-    renderFcaPick();
+    state.hist = await loadCrossingFcaIds().catch(() => []);
+    syncOptions();
 
     const rows = await loadFcaCrossings({
       fcaId: state.fcaId || undefined,
       sinceMs: rangeStartMs(state.range),
     });
     state.rows = rows || [];
-    const open = await loadOpenTrackCount(state.fcaId || undefined).catch(() => 0);
-    document.getElementById("openCount").textContent = open + " open";
 
-    if (!state.options.length && !state.rows.length) {
-      showEmpty(`<b>No crossing archive yet</b>
-        Draw an FCA in <a href="FCA-builderv02.html">FCA Builder</a> and turn on <b>Record crossings</b>.
-        Planned times freeze on first match; actual crossings appear here after aircraft cross the line.`);
-      return;
-    }
+    // Informational only — never hold the table behind it.
+    loadOpenTrackCount(state.fcaId || undefined)
+      .then(open => { document.getElementById("openCount").textContent = open + " open"; })
+      .catch(() => { document.getElementById("openCount").textContent = "—"; });
+
+    state.loaded = true;
     render();
   } catch (e) {
+    state.loaded = false;
     showEmpty(`<b>Could not load crossings</b>${esc(e && e.message ? e.message : String(e))}`);
   }
+}
+
+/** Live FCAs arrive later than the archive; fold them into the picker when they do. */
+function syncOptions() {
+  state.options = mergeFcaOptions(getFcas() || [], state.hist);
+  renderFcaPick();
 }
 
 function render() {
   const rows = visibleRows();
   if (!state.rows.length) {
+    if (!state.options.length) {
+      // The archive is empty and the FCA list is still loading — do not yet
+      // claim nothing is set to record.
+      showEmpty(state.storeReady ? NO_ARCHIVE : `<b>Loading…</b>Reading the FCA list.`);
+      return;
+    }
     showEmpty(`<b>Nothing recorded in this range yet</b>
       ${state.options.length} FCA(s) are set to record. Planned times freeze as soon as an aircraft matches,
       and a row appears here once it actually crosses the line.`);
@@ -362,7 +377,19 @@ document.getElementById("csvBtn").addEventListener("click", () => {
 
 renderRanges();
 renderPhases();
-initFcaStore({ canPush: () => false }).then(refresh).catch(refresh);
+showLoading();
+refresh();
+
+// fca-store pulls the whole nav/airport/boundary bundle before it resolves, and
+// this page only needs it for FCA names and the live dot — never block on it.
+initFcaStore({ canPush: () => false })
+  .catch(err => { console.warn("fca-store:", err); })
+  .then(() => {
+    state.storeReady = true;
+    syncOptions();
+    // The archive fetch owns the view until it lands (or reports its own error).
+    if (state.loaded) render();
+  });
 </script>
 </body>
 </html>

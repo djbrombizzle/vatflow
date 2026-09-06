@@ -171,11 +171,19 @@ async function loadFcas() {
   }).filter(isTrackableFca);
 }
 
+/**
+ * PostgREST resolves an upsert against the primary key unless on_conflict names
+ * the constraint. Both tables key on a surrogate uuid, so without on_conflict
+ * every re-upsert of an already-open track raised 23505 and killed the poll.
+ */
+const ON_CONFLICT = "?on_conflict=fca_id,flight_key";
+
 async function persist(fcaId, { upserts, crossings, lost }) {
   if (DRY_RUN) return;
   for (const c of crossings) {
     await sb("fca_crossings", {
       method: "POST",
+      query: ON_CONFLICT,
       body: crossingToRow(c),
       prefer: "resolution=ignore-duplicates,return=minimal",
     });
@@ -188,6 +196,7 @@ async function persist(fcaId, { upserts, crossings, lost }) {
   if (rows.length) {
     await sb("fca_crossing_tracks", {
       method: "POST",
+      query: ON_CONFLICT,
       body: rows,
       prefer: "resolution=merge-duplicates,return=minimal",
     });
@@ -277,8 +286,9 @@ async function main() {
       clearInterval(pollTimer);
       if (windTimer) clearInterval(windTimer);
       log(`shutting down — polls=${polls} errors=${pollErrors}`);
-      // A run that never completed a poll is a failure, not a quiet success.
-      process.exit(polls > 0 ? 0 : 1);
+      // A run that errored more often than it polled recorded next to nothing,
+      // even if one early cycle got through. Fail loudly rather than look green.
+      process.exit(polls > 0 && pollErrors < polls ? 0 : 1);
     }, RUN_SECONDS * 1000);
   }
 }
