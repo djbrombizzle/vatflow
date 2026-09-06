@@ -36,6 +36,10 @@ for (let i = 2; i < process.argv.length; i += 2) {
 }
 const IN = args.get("in") || "feed.ndjson";
 const MIN_FLIGHTS = parseInt(args.get("min-flights") || "5", 10);
+// FB tables are US-only, so a global sample is mostly uncorrected. Curves are
+// built from flights whose own samples were actually wind-corrected; the rest
+// are counted and set aside rather than averaged in.
+const MIN_WIND = parseFloat(args.get("min-wind") || "0.8");
 const USE_WINDS = !args.has("no-winds");
 
 let windStatus = { status: "off", count: 0 };
@@ -103,7 +107,7 @@ for (const [raw, n] of seenRaw.slice(0, 15)) {
 /* ---- run the pipeline ---- */
 const rejects = new Map();
 const flightsByType = new Map();
-let analysed = 0, tooFew = 0;
+let analysed = 0, tooFew = 0, lowWind = 0, measured = 0;
 
 for (const tr of tracks.values()) {
   tr.pts.sort((a, b) => a.t - b.t);
@@ -121,15 +125,21 @@ for (const tr of tracks.values()) {
   if (accepted.length < 20) { tooFew++; continue; }
   const flight = reduceFlight(samples, { callsign: tr.cs, type: tr.ty || "UNKNOWN", dep: tr.dep });
   flight.crossover = crossoverBand(flight);
+  analysed++;
+  if (USE_WINDS && flight.windCoverage < MIN_WIND) { lowWind++; continue; }
   const t = flight.type;
   if (!flightsByType.has(t)) flightsByType.set(t, []);
   flightsByType.get(t).push(flight);
-  analysed++;
+  measured++;
 }
 
 console.log(`\n=== SAMPLE GATES ===`);
 console.log(`climbs analysed: ${analysed}`);
 console.log(`discarded (under 20 usable samples): ${tooFew}`);
+if (USE_WINDS) {
+  console.log(`set aside (under ${(MIN_WIND * 100).toFixed(0)}% wind coverage): ${lowWind}`);
+  console.log(`climbs measured: ${measured}`);
+}
 for (const [reason, n] of [...rejects.entries()].sort((a, b) => b[1] - a[1])) {
   console.log(`  rejected ${String(reason).padEnd(14)} ${n}`);
 }
@@ -140,6 +150,10 @@ const ranked = [...flightsByType.entries()]
   .sort((a, b) => b[1].length - a[1].length);
 
 console.log(`\n=== IAS CURVES BY TYPE (n >= ${MIN_FLIGHTS}) ===`);
+if (USE_WINDS) {
+  console.log(`built from ${measured} wind-corrected climbs `
+    + `(${lowWind} set aside as uncorrected — mostly outside US FB coverage)`);
+}
 if (!USE_WINDS) {
   console.log(`!! --no-winds: ground speed read as TAS, IAS biased — shape only\n`);
 } else {

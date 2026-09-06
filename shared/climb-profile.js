@@ -305,10 +305,15 @@ export function reduceFlight(samples, meta = {}) {
   }
   const all = [].concat(...byBand.values());
   const below10k = (byBand.get("1500_10000") || []);
+  // What fraction of this flight's samples had a real wind vector. Uncorrected
+  // samples read ground speed as true airspeed, so a climb with low coverage
+  // is not a measurement of anything and must be filterable, not averaged in.
+  const withWind = all.filter(s => s.windUsed).length;
   return {
     ...meta,
     bands,
     sampleCount: all.length,
+    windCoverage: all.length ? withWind / all.length : 0,
     topAltFt: all.length ? Math.max(...all.map(s => s.altFt)) : null,
     exceeded250Below10k: below10k.some(s => s.casKt > 255),
   };

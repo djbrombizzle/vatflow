@@ -277,6 +277,26 @@ function analyse(raw, wind, isaDevC = 0) {
   assert(gain > 10, `skipping the wind correction costs over 10 kt (got ${gain.toFixed(1)})`);
 }
 
+/* ---- per-flight wind coverage drives what counts as a measurement ---- */
+{
+  const raw = flyClimb({ iasClimb: 300, windDir: 250, windSpd: 55, track: 70 });
+  const wind = { dirDeg: 250, spdKt: 55 };
+  const full = [], half = [];
+  for (let i = 1; i < raw.length; i++) {
+    full.push(buildSample(raw[i - 1], raw[i], wind));
+    // Alternate samples fall outside station range, as they do near a coverage
+    // edge -- the flight is then half measurement, half raw ground speed.
+    half.push(buildSample(raw[i - 1], raw[i], i % 2 ? wind : null));
+  }
+  approx(reduceFlight(full).windCoverage, 1, 0.001, "fully corrected flight reports coverage 1");
+  approx(reduceFlight(half).windCoverage, 0.5, 0.06, "half-corrected flight reports about 0.5");
+  approx(reduceFlight([]).windCoverage, 0, 0.001, "empty flight reports no coverage");
+  // The half-covered flight is visibly wrong, which is why it must be
+  // filterable rather than averaged in with the good ones.
+  const err = Math.abs(reduceFlight(half).bands["18000_24000"].iasKt - 300);
+  assert(err > 5, `a half-corrected flight is off by more than 5 kt (got ${err.toFixed(1)})`);
+}
+
 /* ============================================================
    QUALITY GATES
    ============================================================ */
