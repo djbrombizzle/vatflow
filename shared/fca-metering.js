@@ -642,9 +642,16 @@ function buildGroundCandidate(p, fca, nowMs, ready) {
   };
 }
 
+/** A connected pilot sitting on the ground is not really departing half a day from now. */
+export const MAX_GROUND_OFF_SEC = 6 * 3600;
+
 /**
  * Unconstrained profile ETA (sec from now). Same climb/GS model as live strips,
  * without rate/MIT slotting or a frozen RDY CTA.
+ *
+ * Ground: a filed deptime is only trusted inside MAX_GROUND_OFF_SEC. ptimeToMs
+ * snaps a bare HHMM to the nearest ±12h, so a stale filed time otherwise anchors
+ * the freeze most of a day out and the recorded error is meaningless.
  */
 export function plannedProfileEta(p, fca, nowMs) {
   nowMs = nowMs != null ? nowMs : Date.now();
@@ -654,8 +661,12 @@ export function plannedProfileEta(p, fca, nowMs) {
     if (!c || c.eta == null) return null;
     return { etaSec: c.eta, dist: c.dist, plannedFrom: "air", cross: c.cross };
   }
-  const c = buildGroundCandidate(p, fca, nowMs, false);
+  let c = buildGroundCandidate(p, fca, nowMs, false);
   if (!c || c.eta == null) return null;
+  if ((c.offSec || 0) > MAX_GROUND_OFF_SEC) {
+    c = buildGroundCandidate(p, fca, nowMs, true);   // ready=true -> READY_BUFFER_SEC
+    if (!c || c.eta == null) return null;
+  }
   return { etaSec: c.eta, dist: c.dist, plannedFrom: "gnd", cross: c.cross };
 }
 

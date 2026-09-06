@@ -3,7 +3,13 @@
  * Regression tests for unattended FCA crossing freeze / interpolation.
  * Usage: node scripts/test-fca-crossing-track.mjs
  */
-import { hasPassedFca, seedAirports } from "../shared/fca-metering.js";
+import {
+  MAX_GROUND_OFF_SEC,
+  READY_BUFFER_SEC,
+  hasPassedFca,
+  plannedProfileEta,
+  seedAirports,
+} from "../shared/fca-metering.js";
 import {
   LOST_MS,
   flightKey,
@@ -157,6 +163,46 @@ const rRematch = processFcaPoll(FCA_SB, [approaching], tracks3, done3, later);
 assert(rRematch.upserts.length === 1, "return after lost opens a new freeze");
 assert(rRematch.upserts[0].planned_at !== planned0, "rematch planned time is not the old freeze");
 assert(rRematch.upserts[0].status === "open", "rematch is open again");
+
+/* ---- stale filed deptime does not anchor the freeze half a day out ---- */
+const groundBase = {
+  callsign: "JBU649",
+  cid: 777777,
+  logonTime: "2026-09-05T17:30:00Z",
+  phase: "gnd",
+  gs: 0,
+  lat: 25.7959,
+  lon: -80.2870,
+  hdg: 0,
+  alt: 8,
+  arr: "KMIA",
+  dep: "KMIA",
+  route: "DCT",
+  tas: 450,
+  fpAlt: 28000,
+};
+// FCA just north of KMIA so the filed route crosses it.
+const FCA_NORTH = { ...FCA_SB, id: "fca_north", dir: "any", dests: ["KMIA"], points: [[26.5, -82.0], [26.5, -79.5]] };
+const nearNoon = Date.parse("2026-09-05T23:31:00Z");
+
+const soon = plannedProfileEta({ ...groundBase, deptime: "2340", arr: "KMIA", dep: "KJFK", lat: 40.6413, lon: -73.7781 }, FCA_NORTH, nearNoon);
+assert(soon && soon.plannedFrom === "gnd", "ground pilot gets a gnd freeze");
+
+const stale = plannedProfileEta({ ...groundBase, deptime: "1120", arr: "KMIA", dep: "KJFK", lat: 40.6413, lon: -73.7781 }, FCA_NORTH, nearNoon);
+assert(stale, "stale deptime still produces a freeze");
+assert(stale.etaSec < MAX_GROUND_OFF_SEC,
+  `stale filed deptime is ignored, not projected ~12h out (got ${Math.round(stale.etaSec / 60)}min)`);
+assert(stale.etaSec >= READY_BUFFER_SEC, "guarded ground freeze still includes the ready buffer");
+
+/* ---- airborne then on the ground = landed without crossing ---- */
+const tracks4 = new Map();
+const done4 = new Set();
+processFcaPoll(FCA_SB, [approaching], tracks4, done4, now0);
+assert(tracks4.size === 1, "track open before diversion");
+const landedShort = { ...approaching, lat: 27.4, gs: 0, phase: "gnd", alt: 20 };
+const rLanded = processFcaPoll(FCA_SB, [landedShort], tracks4, done4, now0 + 60000);
+assert(rLanded.lost.length === 1, "airborne then stopped closes the track as lost");
+assert(rLanded.crossings.length === 0, "landing short of the line is not a crossing");
 
 /* ---- summary helpers ---- */
 const sum = summarizeCrossings([

@@ -1,0 +1,59 @@
+# Unattended FCA crossing tracker.
+#
+# Records planned vs actual crossing times for every FCA with "Record crossings"
+# enabled. Runs hourly and polls for ~58 minutes, so coverage is effectively
+# continuous without any always-on server. State lives in Supabase
+# (fca_crossing_tracks), so a gap between runs only loses that gap.
+name: FCA crossing tracker
+
+on:
+  schedule:
+    # Every hour, a few minutes past so the previous run has exited.
+    - cron: "2 * * * *"
+  workflow_dispatch:
+    inputs:
+      run_seconds:
+        description: "How long to poll (seconds). Default 3480 (58 min)."
+        required: false
+        default: ""
+      poll_ms:
+        description: "Poll interval in ms. Default 20000."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Never run two pollers at once — they would both freeze and write the same flights.
+concurrency:
+  group: fca-tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Poll VATSIM and record crossings
+        env:
+          SUPABASE_URL: https://qoaipsfcidpymboojfwa.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VATFLOW_NAV_BASE: https://vatflow.io/data/nav
+          VATFLOW_SITE_BASE: https://vatflow.io/
+          RUN_SECONDS: ${{ github.event.inputs.run_seconds || '3480' }}
+          POLL_MS: ${{ github.event.inputs.poll_ms || '20000' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY secret is missing — nothing can be recorded."
+            exit 1
+          fi
+          node fca-tracker/index.mjs
