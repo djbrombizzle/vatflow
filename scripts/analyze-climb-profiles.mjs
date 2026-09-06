@@ -157,15 +157,20 @@ if (USE_WINDS) {
 if (!USE_WINDS) {
   console.log(`!! --no-winds: ground speed read as TAS, IAS biased — shape only\n`);
 } else {
+  // Coverage across every sample seen says how much of the feed FB tables can
+  // reach; coverage across the flights actually used says whether the numbers
+  // below are measurements. Reporting only the first contradicts the filter.
   const cover = windHits + windMisses;
   const pct = cover ? (100 * windHits / cover).toFixed(1) : "0.0";
-  console.log(`wind coverage: ${pct}% of samples (${windMisses} fell back to still air)`);
-  if (windHits / Math.max(cover, 1) < 0.5) {
-    console.log(`!! under half of samples had wind data — treat these as shape, not measurement`);
-  }
+  const used = [...flightsByType.values()].flat();
+  const usedCov = used.length
+    ? used.reduce((a, f) => a + f.windCoverage, 0) / used.length : 0;
+  console.log(`FB reach over the whole feed: ${pct}% of samples`);
+  console.log(`wind coverage of the climbs used: ${(usedCov * 100).toFixed(1)}%`);
   console.log("");
 }
-const header = "type      n   " + ALT_BANDS.map(b => b.label.padStart(11)).join("");
+const header = "type      n   " + ALT_BANDS.map(b => b.label.padStart(11)).join("")
+  + "   Mach FL300+";
 console.log(header);
 console.log("-".repeat(header.length));
 for (const [type, flights] of ranked) {
@@ -174,7 +179,9 @@ for (const [type, flights] of ranked) {
     const v = c.bands[b.key];
     return (v ? `${v.iasMedian.toFixed(0)}` : "-").padStart(11);
   }).join("");
-  console.log(`${type.padEnd(9)}${String(flights.length).padStart(4)}  ${cells}`);
+  const hi = c.bands["30000_45000"];
+  const machCell = hi && hi.machMedian ? hi.machMedian.toFixed(3).replace(/^0/, "") : "  -  ";
+  console.log(`${type.padEnd(9)}${String(flights.length).padStart(4)}  ${cells}${machCell.padStart(13)}`);
   const iqr = ALT_BANDS.map(b => {
     const v = c.bands[b.key];
     return (v ? `${v.iasP25.toFixed(0)}-${v.iasP75.toFixed(0)}` : "").padStart(11);
