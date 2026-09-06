@@ -203,6 +203,16 @@ const landedShort = { ...approaching, lat: 27.4, gs: 0, phase: "gnd", alt: 20 };
 const rLanded = processFcaPoll(FCA_SB, [landedShort], tracks4, done4, now0 + 60000);
 assert(rLanded.lost.length === 1, "airborne then stopped closes the track as lost");
 assert(rLanded.crossings.length === 0, "landing short of the line is not a crossing");
+assert(rLanded.lost[0].status === "lost", "the closed row still reports lost");
+assert(tracks4.size === 0, "a closed track leaves the live map, so size is the open count");
+
+/* ---- the live map holds only open tracks ---- */
+const tracks5 = new Map();
+const done5 = new Set();
+processFcaPoll(FCA_SB, [approaching], tracks5, done5, now0);
+assert(tracks5.size === 1, "open track counts");
+processFcaPoll(FCA_SB, [], tracks5, done5, now0 + LOST_MS);
+assert(tracks5.size === 0, "a timed-out track is dropped, not left behind as lost");
 
 /* ---- summary helpers ---- */
 const sum = summarizeCrossings([

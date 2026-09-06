@@ -1,9 +1,13 @@
 # Unattended FCA crossing tracker.
 #
 # Records planned vs actual crossing times for every FCA with "Record crossings"
-# enabled. Runs hourly and polls for ~58 minutes, so coverage is effectively
-# continuous without any always-on server. State lives in Supabase
-# (fca_crossing_tracks), so a gap between runs only loses that gap.
+# enabled. Runs hourly and polls for 45 minutes. State lives in Supabase
+# (fca_crossing_tracks), so a gap between runs only loses that gap — but a gap
+# is not free: a flight that crosses the line while nothing is polling comes
+# back airborne-then-stopped and is closed as lost, never recorded. The poll
+# window is deliberately shorter than the hour so a run always ends before the
+# next trigger, which GitHub can deliver 30+ minutes late; a run still going
+# then holds the concurrency group and the next trigger is queued or dropped.
 name: FCA crossing tracker
 
 on:
@@ -13,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       run_seconds:
-        description: "How long to poll (seconds). Default 3480 (58 min)."
+        description: "How long to poll (seconds). Default 2700 (45 min)."
         required: false
         default: ""
       poll_ms:
@@ -48,7 +52,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VATFLOW_NAV_BASE: https://vatflow.io/data/nav
           VATFLOW_SITE_BASE: https://vatflow.io/
-          RUN_SECONDS: ${{ github.event.inputs.run_seconds || '3480' }}
+          RUN_SECONDS: ${{ github.event.inputs.run_seconds || '2700' }}
           POLL_MS: ${{ github.event.inputs.poll_ms || '20000' }}
         run: |
           set -euo pipefail

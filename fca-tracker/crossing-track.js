@@ -148,7 +148,10 @@ function crossingFrom(fca, track, p, hit) {
 
 /**
  * Advance one FCA against the current pilot snapshot.
- * tracks: Map(flightKey -> track) mutated in place (ms timestamps).
+ * tracks: Map(flightKey -> track) mutated in place (ms timestamps). It holds
+ *   only open tracks — a crossed or lost flight is dropped once returned, so
+ *   tracks.size is the live count and closed tracks do not pile up for the
+ *   life of the run. The closed row still goes out in `lost` to be persisted.
  * completedKeys: Set of flight keys already written to fca_crossings.
  */
 export function processFcaPoll(fca, pilots, tracks, completedKeys, nowMs, opts = {}) {
@@ -174,7 +177,7 @@ export function processFcaPoll(fca, pilots, tracks, completedKeys, nowMs, opts =
         const closed = cloneTrack(existing);
         closed.status = "lost";
         closed.last_seen_at = nowMs;
-        tracks.set(key, closed);
+        tracks.delete(key);
         lost.push(closed);
         continue;
       }
@@ -214,7 +217,7 @@ export function processFcaPoll(fca, pilots, tracks, completedKeys, nowMs, opts =
     if (nowMs - t.last_seen_at >= lostMs) {
       const closed = cloneTrack(t);
       closed.status = "lost";
-      tracks.set(key, closed);
+      tracks.delete(key);
       lost.push(closed);
     }
   }

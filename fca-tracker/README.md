@@ -13,9 +13,11 @@ Schema: [schema.sql](schema.sql). Anon clients can SELECT; writes use the servic
 
 ## How it runs in production (GitHub Actions)
 
-[`.github/workflows/fca-tracker.yml`](../.github/workflows/fca-tracker.yml) runs hourly and polls for ~58 minutes, so coverage is effectively continuous with no always-on server. It reuses the `SUPABASE_SERVICE_ROLE_KEY` repo secret that the staffing workflow already uses.
+[`.github/workflows/fca-tracker.yml`](../.github/workflows/fca-tracker.yml) runs hourly and polls for 45 minutes, with no always-on server. It reuses the `SUPABASE_SERVICE_ROLE_KEY` repo secret that the staffing workflow already uses.
 
-In-progress freezes live in Supabase, so a gap between runs only loses that gap — an aircraft still airborne is picked back up on the next run.
+The poll window is shorter than the hour on purpose. GitHub delivers scheduled runs late under load — 30+ minutes is normal — and a run still polling when the next trigger fires holds the `fca-tracker` concurrency group, so that trigger is queued or dropped and the gap widens from there. Ending well before the next hour keeps each trigger landing on a free group.
+
+In-progress freezes live in Supabase, so a gap between runs only loses that gap — an aircraft still airborne is picked back up on the next run. A gap is not free, though: a flight that actually crosses the line while nothing is polling comes back airborne-then-stopped, and is closed as `lost` rather than recorded. Gaps cost crossings.
 
 Two knobs via **Run workflow**: `run_seconds` and `poll_ms`.
 
@@ -43,7 +45,7 @@ Logs a `FREEZE` line per new track, `CROSS` with the delta, and `LOST` for fligh
 | `VATFLOW_NAV_BASE` | no | Defaults to `https://vatflow.io/data/nav` |
 | `VATFLOW_SITE_BASE` | no | Defaults to `https://vatflow.io/` |
 | `POLL_MS` | no | Default 20000 |
-| `RUN_SECONDS` | no | Exit after N seconds (0 = forever). The hourly job sets 3480. |
+| `RUN_SECONDS` | no | Exit after N seconds (0 = forever). The hourly job sets 2700. |
 | `DRY_RUN` | no | `1` = log only, never write |
 
 Do not put the service-role key in the static site or any client bundle.
