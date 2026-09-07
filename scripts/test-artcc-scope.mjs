@@ -45,6 +45,9 @@ assert(pointInArtcc("KZJX", 30.5, -81.7) === true, "KJAX area inside KZJX");
 assert(pointInArtcc("ZJX", 30.5, -81.7) === true, "KJAX area inside ZJX");
 // Chicago area outside ZJX
 assert(pointInArtcc("ZJX", 41.9, -87.6) === false, "ORD outside ZJX");
+// West Texas fields used on Airport TMU (Lubbock / Midland)
+assert(pointInArtcc("ZFW", 33.66364, -101.82278) === true, "KLBB inside ZFW");
+assert(pointInArtcc("ZFW", 31.94253, -102.20191) === true, "KMAF inside ZFW");
 
 if (failed) {
   console.error(`\n${failed} failed`);
