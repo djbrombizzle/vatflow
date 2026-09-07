@@ -209,14 +209,18 @@
     return DEFAULT_HUB;
   }
 
-  /** Hub-cached AWC feed (avoids browser CORS + slow allorigins). */
-  function fetchAwcViaHub(kind) {
+  /**
+   * Hub-cached AWC feed (avoids browser CORS + slow allorigins).
+   * want: sequences already seen on the live NWS feed. The hub refreshes a
+   * cache that predates them rather than serving SIGMETs with no text.
+   */
+  function fetchAwcViaHub(kind, want) {
     var path = kind === "isig" ? "/hub/isigmet" : "/hub/airsigmet";
     return fetchJson(hubBase() + path, {
       method: "POST",
       timeoutMs: HUB_TIMEOUT_MS,
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: JSON.stringify({ want: Array.isArray(want) ? want : [] }),
     }).then(function (data) {
       if (!data || data.ok === false)
         throw new Error((data && data.error) || "hub awc failed");
@@ -232,7 +236,7 @@
     var attempts = [];
     if (opts.viaHub === "air" || opts.viaHub === "isig") {
       attempts.push(function () {
-        return fetchAwcViaHub(opts.viaHub);
+        return fetchAwcViaHub(opts.viaHub, opts.want);
       });
     }
     if (opts.tryDirect !== false) {
@@ -691,10 +695,19 @@
     return lines.join("\n");
   }
 
+  /**
+   * NWS lists a SIGMET seconds after issuance but never carries its text, so a
+   * product AWC has not published yet can only be shown as a header. Flag those
+   * so callers can label the row and ask for the bulletin again shortly.
+   */
   function buildTextFromNws(props, awcHit) {
     var stub = buildStubFromNws(props);
-    if (awcHit && awcHit._rawText) return textsFromRaw(awcHit._rawText, stub);
-    return { text: stub, fullText: stub };
+    if (awcHit && awcHit._rawText) {
+      var texts = textsFromRaw(awcHit._rawText, stub);
+      texts.pending = false;
+      return texts;
+    }
+    return { text: stub, fullText: stub, pending: true };
   }
 
   function fromNwsFeature(feature, airIdx, isigIdx) {
@@ -732,6 +745,7 @@
       issueTime: props.issueTime || null,
       text: texts.text,
       fullText: texts.fullText,
+      pending: !!texts.pending,
       source: "nws",
     };
   }
@@ -863,22 +877,49 @@
       });
   }
 
+  /** Sequences listed without their bulletin text yet. */
+  function pendingSequences(entries) {
+    var out = [];
+    (entries || []).forEach(function (e) {
+      var seq = String((e && e.sequence) || "").trim().toUpperCase();
+      if (e && e.pending && seq && out.indexOf(seq) < 0) out.push(seq);
+    });
+    return out;
+  }
+
+  /** Split sequences awaiting text by the AWC feed that would carry them. */
+  function splitWanted(want) {
+    var out = { air: [], isig: [] };
+    (Array.isArray(want) ? want : []).forEach(function (raw) {
+      var seq = String(raw || "").trim().toUpperCase();
+      if (!seq) return;
+      if (isConvectiveSeq(seq)) out.air.push(seq);
+      else if (parseIntlSeries(seq)) out.isig.push(seq);
+    });
+    return out;
+  }
+
   /**
    * Fetch currently valid SIGMETs for an ARTCC/FIR (e.g. ZTL or KZTL).
-   * @returns {Promise<{artcc:string, entries:Array, error:?string}>}
+   * opts.want: sequences a previous fetch listed without bulletin text; the hub
+   * refreshes its AWC cache for those instead of serving the same header again.
+   * @returns {Promise<{artcc:string, entries:Array, pending:Array, error:?string}>}
    */
-  function fetchSigmetsForArtcc(artccRaw) {
+  function fetchSigmetsForArtcc(artccRaw, opts) {
+    opts = opts || {};
     var artcc = normalizeArtcc(artccRaw);
     if (!artcc) {
       return Promise.resolve({
         artcc: "",
         entries: [],
+        pending: [],
         error: "No ARTCC/FIR available for this session.",
       });
     }
 
     var nwsUrl =
       NWS_SIGMETS + "?start=" + encodeURIComponent(nwsStartIso(6));
+    var want = splitWanted(opts.want);
 
     return Promise.all([
       loadArtccBoundaries(),
@@ -891,6 +932,7 @@
           fetchJsonFlexible(AWC_AIRSIGMET, {
             viaHub: "air",
             tryDirect: false,
+            want: want.air,
           })
         ),
         7000,
@@ -901,6 +943,7 @@
           fetchJsonFlexible(AWC_ISIGMET, {
             viaHub: "isig",
             tryDirect: false,
+            want: want.isig,
           })
         ),
         7000,
@@ -969,7 +1012,12 @@
 
       entries = sortSigmetEntries(dropSupersededIntl(entries));
 
-      return { artcc: bareArtcc(artcc), entries: entries, error: null };
+      return {
+        artcc: bareArtcc(artcc),
+        entries: entries,
+        pending: pendingSequences(entries),
+        error: null,
+      };
     });
   }
 
@@ -1002,6 +1050,8 @@
     _isUsFaaSigmet: isUsFaaSigmet,
     _nwsIsStaleAgainstAwc: nwsIsStaleAgainstAwc,
     _isCurrentlyValid: isCurrentlyValid,
+    _pendingSequences: pendingSequences,
+    _splitWanted: splitWanted,
     _SIGMET_PROXIMITY_NM: SIGMET_PROXIMITY_NM,
     _haversineNm: haversineNm,
   };

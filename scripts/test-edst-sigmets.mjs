@@ -72,6 +72,37 @@ assert(
   !/https?:\/\//i.test(stub.text),
   "stub body has no URL"
 );
+assert(stub.pending === true, "a header-only NWS row is flagged pending");
+assert(
+  EdstSigmets._buildTextFromNws(
+    { fir: "KZMA", sequence: "59E" },
+    { _rawText: "KZMA SIGMET 59E VALID UNTIL 072355Z\nFROM 30SSW CRG..." }
+  ).pending === false,
+  "an NWS row backed by the AWC bulletin is not pending"
+);
+
+// --- chasing bulletins AWC has not published yet ---
+assert(
+  JSON.stringify(
+    EdstSigmets._pendingSequences([
+      { sequence: "59E", pending: true },
+      { sequence: "54E" },
+      { sequence: "59E", pending: true },
+      { sequence: "", pending: true },
+      { sequence: "CHARLIE 3", pending: true },
+    ])
+  ) === JSON.stringify(["59E", "CHARLIE 3"]),
+  "pending sequences are deduped and skip text-complete rows"
+);
+const wanted = EdstSigmets._splitWanted(["59e", "CHARLIE 3", "", "junk"]);
+assert(
+  JSON.stringify(wanted.air) === JSON.stringify(["59E"]),
+  "convective sequences are wanted from the airsigmet feed"
+);
+assert(
+  JSON.stringify(wanted.isig) === JSON.stringify(["CHARLIE 3"]),
+  "ICAO series are wanted from the isigmet feed"
+);
 
 const fromIsig = EdstSigmets._fromIsigmet(
   {
