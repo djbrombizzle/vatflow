@@ -1220,6 +1220,11 @@ td.eh-bk{text-align:center;min-width:14px}
   flex:0 0 auto;font-size:10px;letter-spacing:.06em;color:#000;background:#d8d63f;
   padding:0 5px;line-height:1.4;margin-left:4px;
 }
+#sigmenu .sig-item .sig-pending-tag{
+  flex:0 0 auto;font-size:10px;letter-spacing:.06em;color:#8a9088;
+  border:1px solid #3a3f3a;padding:0 5px;line-height:1.4;margin-left:4px;
+}
+#sigmenu .sig-item.pending .sig-text{color:#8a9088;font-style:italic}
 #sigmenu .sig-item .sig-meta{
   display:flex;align-items:center;gap:6px;color:#8a9088;font-size:11px;margin-bottom:4px;
 }
@@ -5502,8 +5507,16 @@ async function sendHandover(cs,fac){
 
 //============================================================ SIG (SIGMETs for FIR)
 const SIG_POLL_MS=90e3;                  // background refresh cadence
+// NWS lists a SIGMET seconds after issuance but never carries its text, which
+// only AWC publishes. Chase the missing bulletins well inside the poll cadence
+// so a flashed SIG is readable in seconds rather than on the next poll.
+const SIG_PENDING_RETRY_MS=20e3;
+const SIG_PENDING_MAX_TRIES=5;
 let sigLoading=false;
-let sigCache={artcc:'',entries:[],error:null,fetchedAt:0};
+let sigCache={artcc:'',entries:[],pending:[],error:null,fetchedAt:0};
+let sigPendingTimer=null;
+let sigPendingTries=0;
+let sigPendingKey='';
 const sigExpanded=new Set();             // entry ids currently showing full text
 const sigSeenIds=new Set();              // keys from last successful fetch
 const sigNewIds=new Set();               // keys not yet clicked in the SIG menu
@@ -5523,13 +5536,17 @@ function sigArtcc(){
 function sigBareArtcc(id){
   return String(id||'').toUpperCase().replace(/^K(?=Z)/,'');
 }
+// One identity per product across feeds. The text-less NWS row and the AWC row
+// that later replaces it are the same SIGMET, and they carry different ids and
+// time formats — keying on those re-flashed SIG and re-marked an already
+// acknowledged product as new once the bulletin arrived.
 function sigEntryId(entry,idx){
-  return String((entry&&(entry.id||entry.sequence))||('sig-'+idx));
+  const seq=String((entry&&entry.sequence)||'').trim().toUpperCase();
+  if(seq)return sigBareArtcc(entry&&entry.fir)+'|'+seq;
+  return String((entry&&entry.id)||('sig-'+idx));
 }
 function sigEntryKey(entry,idx){
-  return sigEntryId(entry,idx)+'|'
-    +String((entry&&(entry.start||entry.validTimeFrom))||'')+'|'
-    +String((entry&&(entry.end||entry.validTimeTo))||'');
+  return sigEntryId(entry,idx);
 }
 function sigShortText(entry){
   return String((entry&&entry.text)||'').trim();
@@ -5653,7 +5670,8 @@ function renderSigList(){
     const canExpand=sigCanExpand(e);
     const open=canExpand&&sigExpanded.has(id);
     const isNew=sigNewIds.has(key);
-    const body=open?sigFullText(e):sigShortText(e);
+    const body=(open?sigFullText(e):sigShortText(e))
+      +((e&&e.pending)?'\nAWAITING BULLETIN TEXT':'');
     const toggle=canExpand
       ?('<button type="button" class="sig-toggle" data-sig-toggle="'+esc(id)+'"'
         +' aria-expanded="'+(open?'true':'false')+'"'
@@ -5661,10 +5679,12 @@ function renderSigList(){
         +(open?'▼':'▶')+'</button>')
       :'<span class="sig-toggle" style="visibility:hidden" aria-hidden="true">▶</span>';
     const newTag=isNew?'<span class="sig-new-tag">NEW</span>':'';
-    return '<div class="sig-item'+(open?' expanded':'')+(isNew?' new':'')+'"'
+    const pending=!!(e&&e.pending);
+    const pendingTag=pending?'<span class="sig-pending-tag">TEXT PENDING</span>':'';
+    return '<div class="sig-item'+(open?' expanded':'')+(isNew?' new':'')+(pending?' pending':'')+'"'
       +' data-sig-id="'+esc(id)+'" data-sig-key="'+esc(key)+'"'
       +(isNew?' title="Click to acknowledge this SIGMET"':'')+'>'
-      +'<div class="sig-meta">'+toggle+'<b>'+esc(sigFmtMeta(e))+'</b>'+newTag+'</div>'
+      +'<div class="sig-meta">'+toggle+'<b>'+esc(sigFmtMeta(e))+'</b>'+pendingTag+newTag+'</div>'
       +'<div class="sig-text">'+esc(body||'')+'</div>'
       +'</div>';
   }).join('');
@@ -5695,17 +5715,33 @@ function toggleSigExpand(id){
     }
   });
 })();
+function sigPendingSeqs(){
+  return Array.isArray(sigCache.pending)?sigCache.pending:[];
+}
+/** Re-ask for bulletins the last fetch could not supply, then back off. */
+function scheduleSigPendingRetry(){
+  if(sigPendingTimer){clearTimeout(sigPendingTimer);sigPendingTimer=null;}
+  const want=sigPendingSeqs();
+  const key=want.join(',');
+  if(key!==sigPendingKey){sigPendingKey=key;sigPendingTries=0;}
+  if(!want.length||sigPendingTries>=SIG_PENDING_MAX_TRIES)return;
+  sigPendingTries++;
+  sigPendingTimer=setTimeout(()=>{
+    sigPendingTimer=null;
+    refreshSigmets(true,{silent:true,want}).catch(()=>{});
+  },SIG_PENDING_RETRY_MS);
+}
 async function refreshSigmets(force,opts){
   opts=opts||{};
   const silent=!!opts.silent;
   const art=sigArtcc();
   if(!art){
-    sigCache={artcc:'',entries:[],error:'Set or verify an ARTCC to load SIGMETs.',fetchedAt:Date.now()};
+    sigCache={artcc:'',entries:[],pending:[],error:'Set or verify an ARTCC to load SIGMETs.',fetchedAt:Date.now()};
     if(!silent||sigMenuOpen())renderSigList();
     return;
   }
   if(!window.EdstSigmets||typeof EdstSigmets.fetchSigmetsForArtcc!=='function'){
-    sigCache={artcc:art,entries:[],error:'SIGMET module failed to load.',fetchedAt:Date.now()};
+    sigCache={artcc:art,entries:[],pending:[],error:'SIGMET module failed to load.',fetchedAt:Date.now()};
     if(!silent||sigMenuOpen())renderSigList();
     return;
   }
@@ -5721,14 +5757,16 @@ async function refreshSigmets(force,opts){
     if(sigMenuOpen())renderSigList();
   }
   const gen=++sigFetchGen;
+  const want=Array.isArray(opts.want)?opts.want:sigPendingSeqs();
   try{
-    const result=await EdstSigmets.fetchSigmetsForArtcc(art);
+    const result=await EdstSigmets.fetchSigmetsForArtcc(art,{want:want});
     if(gen!==sigFetchGen)return; // superseded
     const entries=result.entries||[];
     noteSigEntries(entries,result.artcc||art);
     sigCache={
       artcc:result.artcc||art,
       entries:entries,
+      pending:result.pending||[],
       error:result.error||null,
       fetchedAt:Date.now(),
     };
@@ -5737,6 +5775,7 @@ async function refreshSigmets(force,opts){
     sigCache={
       artcc:art,
       entries:sigCache.entries||[],
+      pending:sigPendingSeqs(),
       error:(e&&e.message)||'Failed to fetch SIGMETs',
       fetchedAt:Date.now(),
     };
@@ -5744,6 +5783,7 @@ async function refreshSigmets(force,opts){
   sigLoading=false;
   if(sigMenuOpen())renderSigList();
   syncSigButton();
+  scheduleSigPendingRetry();
 }
 function scheduleSigPoll(){
   if(sigPollTimer)clearTimeout(sigPollTimer);
