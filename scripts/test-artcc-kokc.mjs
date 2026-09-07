@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Airport → ARTCC ownership used by Airport TMU canEditAirport.
- * Usage: node scripts/test-artcc-access.mjs
+ * KOKC ownership used by Airport TMU canEditAirport.
+ * Usage: node scripts/test-artcc-kokc.mjs
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -25,14 +25,8 @@ function assert(cond, msg) {
   }
 }
 
-assert(AIRPORT_ARTCC.KLBB === "ZFW", "AIRPORT_ARTCC lists KLBB as ZFW");
-assert(AIRPORT_ARTCC.KMAF === "ZFW", "AIRPORT_ARTCC lists KMAF as ZFW");
 assert(AIRPORT_ARTCC.KOKC === "ZFW", "AIRPORT_ARTCC lists KOKC as ZFW");
-assert(primaryAirportArtcc("KLBB") === "ZFW", "primaryAirportArtcc(KLBB) → ZFW");
-assert(primaryAirportArtcc("KMAF") === "ZFW", "primaryAirportArtcc(KMAF) → ZFW");
 assert(primaryAirportArtcc("KOKC") === "ZFW", "primaryAirportArtcc(KOKC) → ZFW");
-assert(primaryAirportArtcc("lbb") === "ZFW", "3-letter LBB → ZFW");
-assert(primaryAirportArtcc("maf") === "ZFW", "3-letter MAF → ZFW");
 assert(primaryAirportArtcc("okc") === "ZFW", "3-letter OKC → ZFW");
 assert(primaryAirportArtcc("KDFW") === "ZFW", "KDFW still ZFW");
 assert(primaryAirportArtcc("KDAL") === "ZFW", "KDAL still ZFW");
@@ -46,24 +40,12 @@ function canEdit(claims, icao) {
   if (!owner) return false;
   return (claims.artccs || []).includes(owner);
 }
-assert(canEdit(zfwClaims, "KLBB") === true, "ZFW editor can set KLBB TMU program");
-assert(canEdit(zfwClaims, "KMAF") === true, "ZFW editor can set KMAF TMU program");
 assert(canEdit(zfwClaims, "KOKC") === true, "ZFW editor can set KOKC TMU program");
-assert(canEdit({ fullAccess: true, artccs: ["ZAB"] }, "KLBB") === false, "ZAB editor cannot set KLBB");
-assert(canEdit({ fullAccess: true, artccs: ["ZAB"] }, "KMAF") === false, "ZAB editor cannot set KMAF");
 assert(canEdit({ fullAccess: true, artccs: ["ZKC"] }, "KOKC") === false, "ZKC editor cannot set KOKC");
 
-const klbb = [33.66364, -101.82278];
-const kmaf = [31.94253, -102.20191];
 const kokc = [35.3931, -97.6007];
-assert(artccForPoint(klbb[0], klbb[1]) === "ZFW", "KLBB coordinates inside ZFW polygon");
-assert(artccForPoint(kmaf[0], kmaf[1]) === "ZFW", "KMAF coordinates inside ZFW polygon");
 assert(artccForPoint(kokc[0], kokc[1]) === "ZFW", "KOKC coordinates inside ZFW polygon");
-assert(pointInArtcc("ZFW", klbb[0], klbb[1]) === true, "KLBB pointInArtcc ZFW");
-assert(pointInArtcc("ZFW", kmaf[0], kmaf[1]) === true, "KMAF pointInArtcc ZFW");
 assert(pointInArtcc("ZFW", kokc[0], kokc[1]) === true, "KOKC pointInArtcc ZFW");
-assert(pointInArtcc("ZAB", klbb[0], klbb[1]) === false, "KLBB not in ZAB");
-assert(pointInArtcc("ZAB", kmaf[0], kmaf[1]) === false, "KMAF not in ZAB");
 assert(pointInArtcc("ZKC", kokc[0], kokc[1]) === false, "KOKC not in ZKC");
 
 if (failed) {
