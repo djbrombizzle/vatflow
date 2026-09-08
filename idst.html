@@ -573,12 +573,29 @@ function computeResult() {
   });
 }
 
+/**
+ * Refresh the config drawer from the main render pass.
+ *
+ * Guarded on purpose: renderBody() calls renderChips() before it draws the
+ * flight list, so an exception raised in here would abort the render and leave
+ * the board blank. Nothing in the settings drawer is worth losing the flight
+ * list over — if it fails, it fails alone and the next tick tries again.
+ */
+function refreshTaxiConfigPanel() {
+  try {
+    const cfgHost = document.getElementById("taxiCfg");
+    const panel = document.getElementById("settingsPanel");
+    if (!cfgHost || !panel || !panel.classList.contains("show")) return;
+    // Never rebuild it out from under someone typing in one of its inputs.
+    if (cfgHost.contains(document.activeElement)) return;
+    renderTaxiConfig();
+  } catch (e) {
+    console.warn("taxi config panel:", e);
+  }
+}
+
 function renderChips() {
-  /* Keep the config drawer in step with the airport list, but never rebuild it
-     while someone is typing in one of its inputs. */
-  const cfgHost = document.getElementById("taxiCfg");
-  const panelOpen = document.getElementById("settingsPanel").classList.contains("show");
-  if (panelOpen && cfgHost && !cfgHost.contains(document.activeElement)) renderTaxiConfig();
+  refreshTaxiConfigPanel();
 
   const f = MyDash.getFilters();
   const apt = document.getElementById("chipsAirport");
@@ -1181,7 +1198,7 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   const panel = document.getElementById("settingsPanel");
   const open = panel.classList.toggle("show");
   document.getElementById("settingsBtn").classList.toggle("on", open);
-  if (open) renderTaxiConfig();
+  if (open) refreshTaxiConfigPanel();
 });
 document.getElementById("refreshBtn").addEventListener("click", () => {
   fetchLive();
