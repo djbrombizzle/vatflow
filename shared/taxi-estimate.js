@@ -86,6 +86,15 @@ export function expandRunwayToken(token, activeRunways) {
 
 const PROC_RE = /^[A-Z]{3,5}\d[A-Z]?$/;
 
+/**
+ * Strip the revision off a procedure name: BANNG3 -> BANNG.
+ * Rules are keyed on the base so a chart revision does not silently drop them —
+ * when BANNG3 becomes BANNG4 the controller's assignment still applies.
+ */
+export function sidBase(name) {
+  return String(name || "").trim().toUpperCase().replace(/\d[A-Z]?$/, "");
+}
+
 /** First route token that looks like a procedure name — the filed SID, if any. */
 export function sidFromRoute(route) {
   const tokens = String(route || "")
@@ -133,8 +142,10 @@ export function assignRunway(opts = {}) {
   const ov = normalizeRunway(override);
   if (ov) return { runway: ov, source: "override", candidates: [ov] };
 
-  if (sid && sidRules[sid]) {
-    const ruled = normalizeRunway(sidRules[sid]);
+  // Rules are stored by base name, but accept a full name too so a rule typed
+  // as BANNG3 still binds.
+  if (sid) {
+    const ruled = normalizeRunway(sidRules[sidBase(sid)] || sidRules[sid]);
     if (ruled) return { runway: ruled, source: "rule", candidates: [ruled] };
   }
 
