@@ -34,6 +34,27 @@ Include `FIX_BASE.csv` or `FIX.csv`, `NAV_BASE.csv` or `NAV.csv`, `AWY_BASE.csv`
 | `airways.json` | Airway designation → ordered waypoint chain |
 | `procedures.json` | SID/STAR identifiers → fix sequences |
 | `preferred.json` | `DEP|ARR` → route string (from PFR when available) |
+| `sid-runways.json` | ICAO → `{ SID: [runway, ...] }` published runway transitions |
+| `runways.json` | ICAO → `[[end, lat, lon, hdgTrue, lengthFt], ...]` runway thresholds |
+
+## Taxi-estimation data
+
+`sid-runways.json` and `runways.json` back the IDST taxi-time estimate and its
+departure-runway configuration. They are built separately from the NASR set:
+
+```bash
+node scripts/build-sid-runways.mjs     # from procedures.json, no network
+node scripts/build-runway-index.mjs    # from OurAirports runways.csv
+```
+
+`runways.json` covers every 4-letter ICAO ident worldwide (~7,400 airports,
+712 KB raw / ~265 KB gzipped). Coordinates are rounded to 4 decimal places —
+about 11 m, far finer than a taxi estimate needs.
+
+Rebuild `runways.json` when airports open, close, or renumber runways; there is
+no cycle to track it against. `shared/taxi-runways.js` falls back to fetching
+the OurAirports CSV live if the file is missing, so a stale build degrades to
+slower rather than broken.
 
 ## Runtime
 

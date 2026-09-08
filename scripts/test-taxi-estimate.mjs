@@ -294,6 +294,16 @@ const ATL_SIDS = { BANNG3: ["09L", "09R", "10", "27B", "28"], SKORR6: [] };
   const dca = parseOurAirportsRunways(csv, "KDCA");
   assert(dca.length === 2 && dca[0].id === "01", "other fields not mixed in");
   assert(parseOurAirportsRunways(csv, "KSFO").length === 0, "unknown field yields nothing");
+
+  /* A comma inside a quoted field must not shift every column after it. */
+  const quoted = [
+    header,
+    '4,3682,"KBWI",10502,200,"ASPH, GROOVED",1,0,"10",39.1747,-76.6896,141,94,0,"28",39.1726,-76.6527,129,274,0',
+  ].join("\n");
+  const bwi = parseOurAirportsRunways(quoted, "KBWI");
+  assert(bwi.length === 2, "quoted comma does not break the row");
+  assert(bwi.map(e => e.id).join() === "10,28", "ends still parse past a quoted comma");
+  assert(Math.abs(bwi[0].lat - 39.1747) < 1e-6, "coordinates not shifted by a quoted comma");
 }
 
 /* ---------- prefill round-trip ----------
