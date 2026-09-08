@@ -17,10 +17,17 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "data", "nav", "runways.json");
-const SRC = "https://davidmegginson.github.io/ourairports-data/runways.csv";
+/** Canonical source repo first; the Pages mirror is the same file. */
+const SOURCES = [
+  "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/runways.csv",
+  "https://davidmegginson.github.io/ourairports-data/runways.csv",
+];
 
-/** Airports we estimate taxi times for: US/Canada scheduled fields. */
-const IDENT_RE = /^(K[A-Z]{3}|C[YZ][A-Z]{2}|P[AH][A-Z]{2})$/;
+/** Every 4-letter ICAO ident. Worldwide — VATSIM events are not US-only. */
+const IDENT_RE = /^[A-Z]{4}$/;
+
+/** Threshold coordinates only need metre-level precision for a taxi estimate. */
+const COORD_DP = 1e4;
 
 function splitCsvLine(line) {
   const out = [];
@@ -47,9 +54,18 @@ function normalizeRunway(id) {
   return String(num).padStart(2, "0") + m[2];
 }
 
-const res = await fetch(SRC);
-if (!res.ok) throw new Error(`fetch runways.csv: HTTP ${res.status}`);
-const csv = await res.text();
+let csv = null;
+let lastErr = null;
+for (const src of SOURCES) {
+  try {
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    csv = await res.text();
+    console.log(`source: ${src}`);
+    break;
+  } catch (e) { lastErr = e; }
+}
+if (csv == null) throw new Error(`fetch runways.csv failed: ${lastErr && lastErr.message}`);
 
 const lines = csv.split("\n");
 const header = splitCsvLine(lines[0]).map(h => h.trim());
@@ -71,7 +87,7 @@ for (let i = 1; i < lines.length; i++) {
   if (!lines[i].trim()) continue;
   const c = splitCsvLine(lines[i]);
   const apt = (c[cIdent] || "").toUpperCase();
-  if (!IDENT_RE.test(apt) || c[cClosed] === "1") continue;
+  if (!IDENT_RE.test(apt) || c[cClosed] === "1") continue;   // skip closed runways
   const lenFt = parseInt(c[cLen], 10) || 0;
   for (const e of ENDS) {
     const id = normalizeRunway(c[e.ident]);
@@ -81,8 +97,8 @@ for (let i = 1; i < lines.length; i++) {
     const hdg = parseFloat(c[e.hdg]);
     (out[apt] ||= []).push([
       id,
-      Math.round(lat * 1e5) / 1e5,
-      Math.round(lon * 1e5) / 1e5,
+      Math.round(lat * COORD_DP) / COORD_DP,
+      Math.round(lon * COORD_DP) / COORD_DP,
       isFinite(hdg) ? Math.round(hdg) : (parseInt(id, 10) || 0) * 10,
       lenFt,
     ]);

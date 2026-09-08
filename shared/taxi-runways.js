@@ -18,11 +18,11 @@ const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/r
 
 let sidIndex = null;
 let sidLoading = null;
-let builtEnds = null;
-let builtEndsTried = false;
+let builtEndsLoading = null;
 let oaCsv = null;
 let oaLoading = null;
 const endsCache = new Map();
+const endsLoading = new Map();
 
 function base() {
   return (typeof window !== "undefined" && window.VATFLOW_NAV_BASE) || NAV_BASE;
@@ -45,6 +45,23 @@ export function sidRunwaysFor(icao) {
   return sidIndex[String(icao || "").toUpperCase()] || {};
 }
 
+/** CSV split that respects quoted fields — a naive split shifts every column. */
+function splitCsvLine(line) {
+  const out = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (quoted && line[i + 1] === '"') { cur += '"'; i++; }
+      else quoted = !quoted;
+    } else if (ch === "," && !quoted) { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
 /**
  * Parse OurAirports runways.csv for one airport into runway ends.
  * Columns: id,airport_ref,airport_ident,length_ft,width_ft,surface,lighted,
@@ -56,7 +73,7 @@ export function parseOurAirportsRunways(csv, icao) {
   const ends = [];
   for (const line of String(csv || "").split("\n")) {
     if (!line.includes(',"' + field + '",')) continue;
-    const c = line.split(",").map(x => x.replace(/^"|"$/g, ""));
+    const c = splitCsvLine(line);
     if (c[2] !== field || c[7] === "1") continue;      // wrong field, or closed
     const lenFt = parseInt(c[3], 10) || 0;
     const push = (ident, lat, lon, hdg) => {
@@ -76,13 +93,21 @@ export function parseOurAirportsRunways(csv, icao) {
   return ends;
 }
 
+/**
+ * The built threshold index, fetched once and shared.
+ *
+ * Memoizing the promise rather than a "tried" flag matters: ensureTaxiData()
+ * asks for every scoped airport in one synchronous loop, so a flag set before
+ * the fetch resolves handed null to every field after the first and sent them
+ * all to the multi-megabyte CSV fallback instead.
+ */
 function loadBuiltEnds() {
-  if (builtEndsTried) return Promise.resolve(builtEnds);
-  builtEndsTried = true;
-  return fetch(`${base()}/runways.json`)
+  if (builtEndsLoading) return builtEndsLoading;
+  builtEndsLoading = fetch(`${base()}/runways.json`)
     .then(r => (r.ok ? r.json() : null))
-    .then(j => { builtEnds = j || null; return builtEnds; })
-    .catch(() => { builtEnds = null; return null; });
+    .then(j => j || null)
+    .catch(() => null);
+  return builtEndsLoading;
 }
 
 function loadOaCsv() {
@@ -103,7 +128,8 @@ export function loadRunwayEnds(icao) {
   const field = String(icao || "").toUpperCase();
   if (!field) return Promise.resolve([]);
   if (endsCache.has(field)) return Promise.resolve(endsCache.get(field));
-  return loadBuiltEnds()
+  if (endsLoading.has(field)) return endsLoading.get(field);
+  const p = loadBuiltEnds()
     .then(built => {
       if (built && Array.isArray(built[field]) && built[field].length) {
         return built[field].map(([id, lat, lon, hdg, lenFt]) => ({
@@ -112,8 +138,10 @@ export function loadRunwayEnds(icao) {
       }
       return loadOaCsv().then(csv => parseOurAirportsRunways(csv, field));
     })
-    .then(ends => { endsCache.set(field, ends); return ends; })
-    .catch(() => { endsCache.set(field, []); return []; });
+    .then(ends => { endsCache.set(field, ends); endsLoading.delete(field); return ends; })
+    .catch(() => { endsCache.set(field, []); endsLoading.delete(field); return []; });
+  endsLoading.set(field, p);
+  return p;
 }
 
 /** Synchronous view — [] until loadRunwayEnds has resolved for this field. */
