@@ -11,7 +11,7 @@
  *                  live OurAirports CSV — the same source and parse that
  *                  runway-balancer.html already uses.
  */
-import { normalizeRunway } from "./taxi-estimate.js";
+import { normalizeRunway, sidBase } from "./taxi-estimate.js";
 
 const NAV_BASE = "data/nav";
 const OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv";
@@ -125,4 +125,29 @@ export function runwayEndsFor(icao) {
 export function seedTaxiRunwayData({ sids, ends } = {}) {
   if (sids) { sidIndex = sids; sidLoading = Promise.resolve(sidIndex); }
   if (ends) for (const [k, v] of Object.entries(ends)) endsCache.set(k.toUpperCase(), v);
+}
+
+/**
+ * Every SID published at a field, by base name (BANNG3 and BANNG4 collapse to
+ * BANNG). Drives the config drawer's catalog so a controller can pin a runway
+ * before anyone files the procedure. [] until the index has loaded.
+ */
+export function sidNamesFor(icao) {
+  return [...new Set(Object.keys(sidRunwaysFor(icao)).map(sidBase).filter(Boolean))].sort();
+}
+
+/**
+ * Runway tokens published for a SID, accepting a base name — the union across
+ * every revision at that field. [] when the field or SID is unknown.
+ */
+export function publishedRunwaysForSid(icao, nameOrBase) {
+  const base = sidBase(nameOrBase);
+  if (!base) return [];
+  const idx = sidRunwaysFor(icao);
+  const out = new Set();
+  for (const [name, runways] of Object.entries(idx)) {
+    if (sidBase(name) !== base) continue;
+    for (const r of runways || []) out.add(r);
+  }
+  return [...out].sort();
 }

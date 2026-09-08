@@ -222,7 +222,9 @@
     color: var(--muted-2); margin-top: 2px; text-transform: uppercase;
   }
   /* runway / SID configuration in the settings drawer */
-  .taxi-cfg { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  /* Keep the drawer reading as a panel — it sits in a full-width bar, and
+     without a cap the rows sprawl across the whole page. */
+  .taxi-cfg { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); max-width: 620px; }
   .taxi-cfg h3 {
     margin: 0 0 6px; font: 700 10px/1 var(--mono); letter-spacing: 0.1em;
     color: var(--muted); text-transform: uppercase;
@@ -241,12 +243,28 @@
   .rwy-chip.on { border-color: #56d364; color: #56d364; background: rgba(86, 211, 100, 0.1); }
   .sid-rules { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
   .sid-rule { display: flex; gap: 6px; align-items: center; font-size: 10px; }
-  .sid-rule .sid-name { flex: 0 0 78px; color: var(--text); font-weight: 700; }
+  .sid-rule .sid-name { flex: 0 0 70px; color: var(--text); font-weight: 700; }
+  .sid-rule .sid-count { color: var(--muted-2); font-size: 9px; min-width: 20px; }
   .sid-rule select, .taxi-cfg input {
     font: 400 10px/1 var(--mono); padding: 4px 6px; border-radius: 3px;
     border: 1px solid var(--line-2); background: #0a0e14; color: var(--text);
   }
-  .sid-rule .auto { color: var(--muted-2); font-size: 9px; }
+  .taxi-cfg input.err { border-color: var(--red); }
+  .taxi-cfg input.taxi-num { width: 60px; }
+  .sid-rule .sid-pub { color: var(--muted-2); font-size: 9px; }
+  .sid-rule .sid-del {
+    cursor: pointer; color: var(--muted-2); border: 1px solid var(--line-2);
+    border-radius: 3px; padding: 2px 5px; font-size: 9px; line-height: 1;
+  }
+  .sid-rule .sid-del:hover { color: var(--red); border-color: var(--red); }
+  .forced {
+    font: 700 8px var(--mono); color: var(--amber); border: 1px solid var(--amber);
+    border-radius: 3px; padding: 1px 4px; letter-spacing: 0.05em;
+  }
+  .sid-pin { display: flex; gap: 4px; align-items: center; margin-bottom: 8px; }
+  .sid-pin input { width: 150px; flex: 0 0 150px; text-transform: uppercase; }
+  .sid-pin select { font: 400 10px/1 var(--mono); padding: 4px 6px; border-radius: 3px;
+    border: 1px solid var(--line-2); background: #0a0e14; color: var(--text); }
   .taxi-cfg-note { font-size: 9px; color: var(--muted-2); line-height: 1.5; margin-top: 6px; }
   .rdy-btn {
     width: 100%; font: 700 12px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer;
@@ -344,9 +362,14 @@ import {
   markReady, clearReady, isReady, mergeRemoteFca, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
   setTaxiEstimator,
 } from "./shared/fca-metering.js";
-import { countQueueAhead, estimateTaxiSec, sidFromRoute } from "./shared/taxi-estimate.js";
-import { loadRunwayEnds, loadSidRunways, runwayEndsFor, sidRunwaysFor } from "./shared/taxi-runways.js";
-import { loadTaxiConfig, saveTaxiConfig, setSidRule, toggleActiveRunway } from "./shared/taxi-config-store.js";
+import { countQueueAhead, estimateTaxiSec, sidBase, sidFromRoute } from "./shared/taxi-estimate.js";
+import {
+  loadRunwayEnds, loadSidRunways, publishedRunwaysForSid, runwayEndsFor,
+  sidNamesFor, sidRunwaysFor,
+} from "./shared/taxi-runways.js";
+import {
+  loadTaxiConfig, removeSidRule, saveTaxiConfig, setSidRule, toggleActiveRunway,
+} from "./shared/taxi-config-store.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -550,12 +573,29 @@ function computeResult() {
   });
 }
 
+/**
+ * Refresh the config drawer from the main render pass.
+ *
+ * Guarded on purpose: renderBody() calls renderChips() before it draws the
+ * flight list, so an exception raised in here would abort the render and leave
+ * the board blank. Nothing in the settings drawer is worth losing the flight
+ * list over — if it fails, it fails alone and the next tick tries again.
+ */
+function refreshTaxiConfigPanel() {
+  try {
+    const cfgHost = document.getElementById("taxiCfg");
+    const panel = document.getElementById("settingsPanel");
+    if (!cfgHost || !panel || !panel.classList.contains("show")) return;
+    // Never rebuild it out from under someone typing in one of its inputs.
+    if (cfgHost.contains(document.activeElement)) return;
+    renderTaxiConfig();
+  } catch (e) {
+    console.warn("taxi config panel:", e);
+  }
+}
+
 function renderChips() {
-  /* Keep the config drawer in step with the airport list, but never rebuild it
-     while someone is typing in one of its inputs. */
-  const cfgHost = document.getElementById("taxiCfg");
-  const panelOpen = document.getElementById("settingsPanel").classList.contains("show");
-  if (panelOpen && cfgHost && !cfgHost.contains(document.activeElement)) renderTaxiConfig();
+  refreshTaxiConfigPanel();
 
   const f = MyDash.getFilters();
   const apt = document.getElementById("chipsAirport");
@@ -828,16 +868,16 @@ setTaxiEstimator((p, nowMs) => {
 
 /* ---------- runway / SID configuration (settings drawer) ---------- */
 
-/** SIDs worth listing: those actually filed by aircraft on the ground now. */
-function activeSidsAt(field) {
-  const sids = new Set();
+/** How many aircraft on the ground are currently filed on each SID base name. */
+function filedSidCounts(field) {
+  const counts = new Map();
   for (const p of state.pilots) {
     if ((p.dep || "").toUpperCase() !== field) continue;
     if ((p.gs || 0) > 60) continue;
-    const sid = sidFromRoute(p.route);
-    if (sid) sids.add(sid);
+    const base = sidBase(sidFromRoute(p.route));
+    if (base) counts.set(base, (counts.get(base) || 0) + 1);
   }
-  return [...sids].sort();
+  return counts;
 }
 
 function renderTaxiConfig() {
@@ -853,50 +893,95 @@ function renderTaxiConfig() {
   const field = state.taxiCfgField;
   const cfg = loadTaxiConfig(field);
   const ends = runwayEndsFor(field);
-  const sidIdx = sidRunwaysFor(field);
 
   const tabs = fields.map(f =>
     `<button type="button" data-taxi-field="${escapeHtml(f)}" class="${f === field ? "on" : ""}">${escapeHtml(f)}</button>`
   ).join("");
 
-  const chips = ends.length
-    ? [...ends].sort((a, b) => a.id.localeCompare(b.id)).map(e =>
+  const sortedEnds = [...ends].sort((a, b) => a.id.localeCompare(b.id));
+  const chips = sortedEnds.length
+    ? sortedEnds.map(e =>
         `<span class="rwy-chip${cfg.activeRunways.includes(e.id) ? " on" : ""}" ` +
         `data-taxi-rwy="${escapeHtml(e.id)}" title="Toggle ${escapeHtml(e.id)} as a departure runway">${escapeHtml(e.id)}</span>`
       ).join("")
     : `<span class="taxi-cfg-note">No runway data for ${escapeHtml(field)} yet.</span>`;
 
-  const rwyOptions = [...ends].sort((a, b) => a.id.localeCompare(b.id));
-  const sids = activeSidsAt(field);
-  const rules = sids.length
-    ? sids.map(sid => {
-        const published = (sidIdx[sid] || []).join(", ") || "none published";
+  /* Assignable runways: the departing set once chosen, every end before that. */
+  const assignable = cfg.activeRunways.length
+    ? sortedEnds.filter(e => cfg.activeRunways.includes(e.id))
+    : sortedEnds;
+
+  /* Rows: SIDs being filed right now, plus every SID a rule is pinned to —
+     a pinned rule stays visible at x0 so it can be seen and removed. */
+  const counts = filedSidCounts(field);
+  const rows = [...new Set([...counts.keys(), ...Object.keys(cfg.sidRules)])].sort();
+
+  const ruleRows = rows.length
+    ? rows.map(sid => {
+        const n = counts.get(sid) || 0;
         const cur = cfg.sidRules[sid] || "";
+        const forced = !!cur && n === 0;
+        const published = publishedRunwaysForSid(field, sid).join(", ");
         const opts = [`<option value="">AUTO</option>`]
-          .concat(rwyOptions.map(e =>
+          .concat(assignable.map(e =>
             `<option value="${escapeHtml(e.id)}"${e.id === cur ? " selected" : ""}>${escapeHtml(e.id)}</option>`))
           .join("");
-        return `<div class="sid-rule"><span class="sid-name">${escapeHtml(sid)}</span>` +
+        return `<div class="sid-rule">` +
+          `<span class="sid-name">${escapeHtml(sid)}</span>` +
+          `<span class="sid-count">&times;${n}</span>` +
+          (forced ? `<span class="forced" title="Runway pinned by config — applies when traffic files it">FORCED</span>` : "") +
           `<select data-taxi-sid="${escapeHtml(sid)}">${opts}</select>` +
-          `<span class="auto">${escapeHtml(published)}</span></div>`;
+          `<span class="sid-pub">${escapeHtml(published || "not published here")}</span>` +
+          (cur ? `<span class="sid-del" data-taxi-delsid="${escapeHtml(sid)}" title="Remove this rule">&#10005;</span>` : "") +
+          `</div>`;
       }).join("")
-    : `<div class="taxi-cfg-note">No SIDs filed by aircraft on the ground at ${escapeHtml(field)} right now.</div>`;
+    : `<div class="taxi-cfg-note">No SID rules pinned, and nothing filed on the ground right now. ` +
+      `Pin one below to set it ahead of the traffic.</div>`;
+
+  /* Catalog for the PIN box: every SID published at this field, from nav data,
+     so a runway can be assigned before anyone connects. */
+  const catalog = sidNamesFor(field);
+  const datalist = catalog.map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
+  const pinOpts = assignable.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.id)}</option>`).join("");
 
   host.innerHTML =
     `<h3>Departure runways &amp; taxi estimate</h3>` +
     `<div class="taxi-cfg-fields">${tabs}</div>` +
     `<div class="rwy-chips">${chips}</div>` +
-    `<div class="sid-rules">${rules}</div>` +
+    `<div class="sid-rules">${ruleRows}</div>` +
+    `<div class="sid-pin">` +
+    `<input id="taxiPinSid" list="taxiSidCatalog" maxlength="6" placeholder="SID e.g. BANNG" autocomplete="off">` +
+    `<datalist id="taxiSidCatalog">${datalist}</datalist>` +
+    `<select id="taxiPinRwy">${pinOpts || `<option value="">&mdash;</option>`}</select>` +
+    `<button type="button" class="btn sm" id="taxiPinBtn">PIN</button>` +
+    `</div>` +
     `<div class="sid-rule"><span class="sid-name">TAXI KT</span>` +
-    `<input type="number" min="3" max="40" step="1" style="width:60px" data-taxi-num="taxiKt" ` +
+    `<input type="number" min="3" max="40" step="1" class="taxi-num" data-taxi-num="taxiKt" ` +
     `value="${cfg.taxiKt != null ? cfg.taxiKt : ""}" placeholder="13">` +
     `<span class="sid-name">RWY SEC</span>` +
-    `<input type="number" min="20" max="600" step="5" style="width:60px" data-taxi-num="rwyIntervalSec" ` +
+    `<input type="number" min="20" max="600" step="5" class="taxi-num" data-taxi-num="rwyIntervalSec" ` +
     `value="${cfg.rwyIntervalSec != null ? cfg.rwyIntervalSec : ""}" placeholder="90">` +
     `</div>` +
-    `<div class="taxi-cfg-note">Green chips are the runways departing. A SID left on AUTO uses its ` +
-    `published runway transitions (listed alongside) narrowed to the active set. Blank fields use defaults ` +
-    `(13 kt taxi, 90 s per departure). Settings are stored in this browser.</div>`;
+    `<div class="taxi-cfg-note">Green chips are the runways departing. A rule sends every departure on that SID ` +
+    `to one runway; AUTO uses the SID's published transitions (listed alongside) narrowed to the active set. ` +
+    `Rules are keyed on the base name, so pinning <b>BANNG</b> covers BANNG3, BANNG4 and any later revision. ` +
+    `${catalog.length ? catalog.length + " SIDs published at " + escapeHtml(field) + " — type or pick one to pin ahead of the traffic. " : ""}` +
+    `Blank fields use defaults (13 kt taxi, 90 s per departure). Settings are stored in this browser.</div>`;
+}
+
+/** Pin the SID typed in the config drawer to the selected runway. */
+function pinSidRule() {
+  const sidEl = document.getElementById("taxiPinSid");
+  const rwyEl = document.getElementById("taxiPinRwy");
+  if (!sidEl || !rwyEl) return;
+  const sid = sidBase(sidEl.value);
+  const rwy = rwyEl.value;
+  if (!sid || !rwy) { sidEl.classList.add("err"); setTimeout(() => sidEl.classList.remove("err"), 1200); return; }
+  setSidRule(state.taxiCfgField, sid, rwy);
+  sidEl.value = "";
+  resetTaxiTick();
+  renderTaxiConfig();
+  scheduleRender();
 }
 
 function bindTaxiConfig() {
@@ -905,12 +990,32 @@ function bindTaxiConfig() {
   host.addEventListener("click", e => {
     const tab = e.target.closest("[data-taxi-field]");
     if (tab) { state.taxiCfgField = tab.dataset.taxiField; renderTaxiConfig(); return; }
+
     const chip = e.target.closest("[data-taxi-rwy]");
     if (chip) {
       toggleActiveRunway(state.taxiCfgField, chip.dataset.taxiRwy);
       resetTaxiTick();
       renderTaxiConfig();
       scheduleRender();
+      return;
+    }
+
+    const del = e.target.closest("[data-taxi-delsid]");
+    if (del) {
+      removeSidRule(state.taxiCfgField, del.dataset.taxiDelsid);
+      resetTaxiTick();
+      renderTaxiConfig();
+      scheduleRender();
+      return;
+    }
+
+    if (e.target.closest("#taxiPinBtn")) pinSidRule();
+  });
+
+  host.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.id === "taxiPinSid") {
+      e.preventDefault();
+      pinSidRule();
     }
   });
   host.addEventListener("change", e => {
@@ -1093,7 +1198,7 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   const panel = document.getElementById("settingsPanel");
   const open = panel.classList.toggle("show");
   document.getElementById("settingsBtn").classList.toggle("on", open);
-  if (open) renderTaxiConfig();
+  if (open) refreshTaxiConfigPanel();
 });
 document.getElementById("refreshBtn").addEventListener("click", () => {
   fetchLive();

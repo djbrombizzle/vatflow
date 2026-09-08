@@ -10,13 +10,13 @@
  * shared backend (the Firebase taximon/* nodes, or a Supabase table) can be
  * dropped in later without touching callers.
  */
-import { normalizeRunway } from "./taxi-estimate.js";
+import { normalizeRunway, sidBase } from "./taxi-estimate.js";
 
 const KEY_PREFIX = "vatflow.taxiConfig.v1.";
 
 export const DEFAULT_CONFIG = {
   activeRunways: [],   // [] = infer from geometry rather than assume a flow
-  sidRules: {},        // SID -> runway, overriding the published transitions
+  sidRules: {},        // SID base name -> runway, overriding published transitions
   spoolSec: null,      // null = use the estimator default
   taxiKt: null,
   rwyIntervalSec: null,
@@ -37,7 +37,7 @@ function sanitize(raw) {
   cfg.sidRules = {};
   if (raw.sidRules && typeof raw.sidRules === "object") {
     for (const [sid, rwy] of Object.entries(raw.sidRules)) {
-      const s = String(sid || "").trim().toUpperCase();
+      const s = sidBase(sid);
       const r = normalizeRunway(rwy);
       if (s && r) cfg.sidRules[s] = r;
     }
@@ -83,15 +83,23 @@ export function toggleActiveRunway(icao, runway) {
   return saveTaxiConfig(icao, { activeRunways: active });
 }
 
-/** Pin a SID to a runway; a blank runway clears the rule. */
+/**
+ * Pin a SID to a runway; a blank runway clears the rule.
+ * Keyed on the base name, so pinning BANNG3 also pins BANNG4.
+ */
 export function setSidRule(icao, sid, runway) {
-  const s = String(sid || "").trim().toUpperCase();
+  const s = sidBase(sid);
   if (!s) return loadTaxiConfig(icao);
   const cfg = loadTaxiConfig(icao);
   const rules = { ...cfg.sidRules };
   const r = normalizeRunway(runway);
   if (r) rules[s] = r; else delete rules[s];
   return saveTaxiConfig(icao, { sidRules: rules });
+}
+
+/** Drop a pinned SID rule entirely. */
+export function removeSidRule(icao, sid) {
+  return setSidRule(icao, sid, "");
 }
 
 export function clearTaxiConfig(icao) {

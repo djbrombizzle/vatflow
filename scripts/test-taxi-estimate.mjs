@@ -5,7 +5,7 @@
  */
 import {
   assignRunway, countQueueAhead, estimateTaxiSec, expandRunwayToken, gcNm,
-  medianTaxiSec, normalizeRunway, sidFromRoute,
+  medianTaxiSec, normalizeRunway, sidBase, sidFromRoute,
   FALLBACK_TAXI_SEC, MAX_TAXI_SEC, MIN_TAXI_SEC,
 } from "../shared/taxi-estimate.js";
 import { READY_BUFFER_SEC, readyBufferSec, setTaxiEstimator } from "../shared/fca-metering.js";
@@ -42,6 +42,14 @@ assert(sidFromRoute("DEEZZ6.CANDR J60") === "DEEZZ6", "dotted SID");
 assert(sidFromRoute("KATL DCT SPA") === null, "no SID in a direct route");
 assert(sidFromRoute("") === null, "empty route");
 
+assert(sidBase("BANNG3") === "BANNG", "strips the revision digit");
+assert(sidBase("DEEZZ6") === "DEEZZ", "strips a six");
+assert(sidBase("HOBTT2") === "HOBTT", "strips a two");
+assert(sidBase("SKORR4A") === "SKORR", "strips digit plus letter");
+assert(sidBase("BANNG") === "BANNG", "already a base name is unchanged");
+assert(sidBase(" banng3 ") === "BANNG", "trims and upcases");
+assert(sidBase("") === "", "empty stays empty");
+
 /* ---------- geometry sanity ---------- */
 near(gcNm(33.6367, -84.4281, 33.6367, -84.3281), 5.0, 0.2, "1 deg lon at 33N ≈ 50 nm/10");
 
@@ -64,6 +72,20 @@ const ATL_SIDS = { BANNG3: ["09L", "09R", "10", "27B", "28"], SKORR6: [] };
   const b = assignRunway({ ...gate, sid: "BANNG3", ends: ATL_ENDS,
     activeRunways: ["09L", "10"], sidRunways: ATL_SIDS, sidRules: { BANNG3: "10" } });
   assert(b.source === "rule" && b.runway === "10", "SID rule beats the published set");
+
+  /* Rules are keyed on the base name so a chart revision does not drop them. */
+  const rev = assignRunway({ ...gate, sid: "BANNG3", ends: ATL_ENDS,
+    activeRunways: ["09L", "10"], sidRunways: ATL_SIDS, sidRules: { BANNG: "10" } });
+  assert(rev.source === "rule" && rev.runway === "10", "base-name rule binds a revised SID");
+
+  const nextRev = assignRunway({ ...gate, sid: "BANNG7", ends: ATL_ENDS,
+    activeRunways: ["09L", "10"], sidRunways: ATL_SIDS, sidRules: { BANNG: "10" } });
+  assert(nextRev.runway === "10", "base-name rule survives a future revision");
+
+  /* A pinned runway applies even when it is not in the SID's published set. */
+  const offPlate = assignRunway({ ...gate, sid: "BANNG3", ends: ATL_ENDS,
+    activeRunways: ["09L"], sidRunways: ATL_SIDS, sidRules: { BANNG: "28" } });
+  assert(offPlate.runway === "28", "an explicit rule is not second-guessed");
 
   const c = assignRunway({ ...gate, sid: "BANNG3", ends: ATL_ENDS,
     activeRunways: ["09L"], sidRunways: ATL_SIDS });
