@@ -2756,6 +2756,9 @@ function pilotMatchesOurFreq(cs){
 function shouldDimAdj(a){
   // ADJ (outside our ARTCC, in the 20 nm buffer) is gray unless the pilot is on
   // our voice frequency — or we already have live CPDLC with them.
+  // The hub re-categorises anything tuned to our voice freq as FREQ (it may be
+  // well outside the VAT-Spy boundary after an early handoff), and FREQ rows
+  // are ours: ATC + pilot + same frequency outranks geography, so never dim.
   if(!a||a.cat!=='ADJ')return false;
   if(cpdlcActiveWith(a.cs)||tunedToOurFreq(a.cs))return false;
   return true;
