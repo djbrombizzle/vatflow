@@ -266,6 +266,18 @@
   .sid-pin select { font: 400 10px/1 var(--mono); padding: 4px 6px; border-radius: 3px;
     border: 1px solid var(--line-2); background: #0a0e14; color: var(--text); }
   .taxi-cfg-note { font-size: 9px; color: var(--muted-2); line-height: 1.5; margin-top: 6px; }
+  .taxi-shared {
+    font: 700 8px var(--mono); letter-spacing: 0.06em; margin-left: 6px;
+    border: 1px solid var(--line-2); border-radius: 3px; padding: 1px 5px; color: var(--muted-2);
+  }
+  .taxi-scope { font-size: 9px; margin-bottom: 8px; }
+  .taxi-can-edit { color: #56d364; }
+  .taxi-ro { color: var(--muted-2); }
+  .taxi-cfg-status { font-size: 9px; color: var(--amber); margin-bottom: 8px; }
+  .rwy-chip.ro { cursor: default; opacity: 0.75; }
+  .taxi-cfg select:disabled, .taxi-cfg input:disabled, .taxi-cfg button:disabled {
+    opacity: 0.45; cursor: not-allowed;
+  }
   .rdy-btn {
     width: 100%; font: 700 12px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer;
     padding: 12px; border-radius: 5px; border: 1px solid var(--line-2);
@@ -368,7 +380,8 @@ import {
   sidNamesFor, sidRunwaysFor,
 } from "./shared/taxi-runways.js";
 import {
-  loadTaxiConfig, removeSidRule, saveTaxiConfig, setSidRule, toggleActiveRunway,
+  canEditTaxiConfig, isTaxiConfigSynced, loadTaxiConfig, removeSidRule, saveTaxiConfig,
+  setSidRule, syncTaxiConfigs, syncTaxiPermissions, taxiConfigSignedIn, toggleActiveRunway,
 } from "./shared/taxi-config-store.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -398,6 +411,8 @@ const state = {
   taxiFieldsLoaded: new Set(),
   /** Which airport the settings-panel runway config is editing. */
   taxiCfgField: "",
+  /** Last message from a config write — shown in the drawer. */
+  taxiCfgMsg: "",
 };
 
 let sb = null;
@@ -744,7 +759,45 @@ function ensureTaxiData() {
     state.taxiFieldsLoaded.add(field);
     loadRunwayEnds(field).then(() => { resetTaxiTick(); scheduleRender(); }).catch(() => {});
   }
+
+  /* The runway/SID config is shared through the hub: whoever is running the
+     flow configures a field once and every other controller's estimate uses
+     it. Refresh with the feed so a change made at center shows up here. */
+  syncTaxiConfigs()
+    .then(ok => { if (ok) { resetTaxiTick(); scheduleRender(); } })
+    .catch(() => {});
+  syncTaxiPermissions(MyDash.getFilters().airports)
+    .then(() => refreshTaxiConfigPanel())
+    .catch(() => {});
 }
+
+/**
+ * Apply a config change. Writes are optimistic — the cache updates at once so
+ * the panel does not lag a round trip — and the hub is the authority on whether
+ * it sticks, re-checking the whitelist and the live controller feed.
+ */
+function applyTaxiChange(promise) {
+  state.taxiCfgMsg = "";
+  resetTaxiTick();
+  renderTaxiConfig();
+  scheduleRender();
+  Promise.resolve(promise)
+    .then(res => {
+      if (res && res.ok) {
+        state.taxiCfgMsg = "Shared with all controllers.";
+      } else {
+        state.taxiCfgMsg = TAXI_WRITE_ERROR[res && res.error] || "Change not saved to the hub — local only.";
+      }
+    })
+    .catch(() => { state.taxiCfgMsg = "Change not saved to the hub — local only."; })
+    .finally(() => { resetTaxiTick(); renderTaxiConfig(); scheduleRender(); });
+}
+
+const TAXI_WRITE_ERROR = {
+  auth_required: "Sign in with VATSIM to change the shared config.",
+  forbidden_airport: "You are not on position for this field, and not an ARTCC editor for it.",
+  hub_unreachable: "Hub unreachable — saved locally only, not shared.",
+};
 
 /**
  * Per-tick memo. The estimator is installed as the CFR engine's ready buffer,
@@ -893,6 +946,10 @@ function renderTaxiConfig() {
   const field = state.taxiCfgField;
   const cfg = loadTaxiConfig(field);
   const ends = runwayEndsFor(field);
+  /* The config is shared, so most people see it read-only. Writing needs either
+     an ARTCC editor whitelist entry for the field or a live local position. */
+  const canEdit = canEditTaxiConfig(field);
+  const dis = canEdit ? "" : " disabled";
 
   const tabs = fields.map(f =>
     `<button type="button" data-taxi-field="${escapeHtml(f)}" class="${f === field ? "on" : ""}">${escapeHtml(f)}</button>`
@@ -901,8 +958,8 @@ function renderTaxiConfig() {
   const sortedEnds = [...ends].sort((a, b) => a.id.localeCompare(b.id));
   const chips = sortedEnds.length
     ? sortedEnds.map(e =>
-        `<span class="rwy-chip${cfg.activeRunways.includes(e.id) ? " on" : ""}" ` +
-        `data-taxi-rwy="${escapeHtml(e.id)}" title="Toggle ${escapeHtml(e.id)} as a departure runway">${escapeHtml(e.id)}</span>`
+        `<span class="rwy-chip${cfg.activeRunways.includes(e.id) ? " on" : ""}${canEdit ? "" : " ro"}" ` +
+        `data-taxi-rwy="${escapeHtml(e.id)}" title="${canEdit ? "Toggle " + escapeHtml(e.id) + " as a departure runway" : "Read-only — set by whoever is working this field"}">${escapeHtml(e.id)}</span>`
       ).join("")
     : `<span class="taxi-cfg-note">No runway data for ${escapeHtml(field)} yet.</span>`;
 
@@ -930,9 +987,9 @@ function renderTaxiConfig() {
           `<span class="sid-name">${escapeHtml(sid)}</span>` +
           `<span class="sid-count">&times;${n}</span>` +
           (forced ? `<span class="forced" title="Runway pinned by config — applies when traffic files it">FORCED</span>` : "") +
-          `<select data-taxi-sid="${escapeHtml(sid)}">${opts}</select>` +
+          `<select data-taxi-sid="${escapeHtml(sid)}"${dis}>${opts}</select>` +
           `<span class="sid-pub">${escapeHtml(published || "not published here")}</span>` +
-          (cur ? `<span class="sid-del" data-taxi-delsid="${escapeHtml(sid)}" title="Remove this rule">&#10005;</span>` : "") +
+          (cur && canEdit ? `<span class="sid-del" data-taxi-delsid="${escapeHtml(sid)}" title="Remove this rule">&#10005;</span>` : "") +
           `</div>`;
       }).join("")
     : `<div class="taxi-cfg-note">No SID rules pinned, and nothing filed on the ground right now. ` +
@@ -944,29 +1001,41 @@ function renderTaxiConfig() {
   const datalist = catalog.map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
   const pinOpts = assignable.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.id)}</option>`).join("");
 
+  const scopeMsg = canEdit
+    ? `<span class="taxi-can-edit">You can set ${escapeHtml(field)}</span>`
+    : (taxiConfigSignedIn()
+        ? `<span class="taxi-ro">Read-only — set by an ARTCC editor for ${escapeHtml(field)} or a controller working it</span>`
+        : `<span class="taxi-ro">Read-only — sign in with VATSIM and work this field to change it</span>`);
+  const statusMsg = state.taxiCfgMsg
+    ? `<div class="taxi-cfg-status">${escapeHtml(state.taxiCfgMsg)}</div>` : "";
+
   host.innerHTML =
-    `<h3>Departure runways &amp; taxi estimate</h3>` +
+    `<h3>Departure runways &amp; taxi estimate ` +
+    `<span class="taxi-shared">${isTaxiConfigSynced() ? "shared" : "local only — hub not reached"}</span></h3>` +
     `<div class="taxi-cfg-fields">${tabs}</div>` +
+    `<div class="taxi-scope">${scopeMsg}</div>` +
+    statusMsg +
     `<div class="rwy-chips">${chips}</div>` +
     `<div class="sid-rules">${ruleRows}</div>` +
     `<div class="sid-pin">` +
-    `<input id="taxiPinSid" list="taxiSidCatalog" maxlength="6" placeholder="SID e.g. BANNG" autocomplete="off">` +
+    `<input id="taxiPinSid" list="taxiSidCatalog" maxlength="6" placeholder="SID e.g. BANNG" autocomplete="off"${dis}>` +
     `<datalist id="taxiSidCatalog">${datalist}</datalist>` +
-    `<select id="taxiPinRwy">${pinOpts || `<option value="">&mdash;</option>`}</select>` +
-    `<button type="button" class="btn sm" id="taxiPinBtn">PIN</button>` +
+    `<select id="taxiPinRwy"${dis}>${pinOpts || `<option value="">&mdash;</option>`}</select>` +
+    `<button type="button" class="btn sm" id="taxiPinBtn"${dis}>PIN</button>` +
     `</div>` +
     `<div class="sid-rule"><span class="sid-name">TAXI KT</span>` +
-    `<input type="number" min="3" max="40" step="1" class="taxi-num" data-taxi-num="taxiKt" ` +
+    `<input type="number" min="3" max="40" step="1" class="taxi-num" data-taxi-num="taxiKt"${dis} ` +
     `value="${cfg.taxiKt != null ? cfg.taxiKt : ""}" placeholder="13">` +
     `<span class="sid-name">RWY SEC</span>` +
-    `<input type="number" min="20" max="600" step="5" class="taxi-num" data-taxi-num="rwyIntervalSec" ` +
+    `<input type="number" min="20" max="600" step="5" class="taxi-num" data-taxi-num="rwyIntervalSec"${dis} ` +
     `value="${cfg.rwyIntervalSec != null ? cfg.rwyIntervalSec : ""}" placeholder="90">` +
     `</div>` +
     `<div class="taxi-cfg-note">Green chips are the runways departing. A rule sends every departure on that SID ` +
     `to one runway; AUTO uses the SID's published transitions (listed alongside) narrowed to the active set. ` +
     `Rules are keyed on the base name, so pinning <b>BANNG</b> covers BANNG3, BANNG4 and any later revision. ` +
     `${catalog.length ? catalog.length + " SIDs published at " + escapeHtml(field) + " — type or pick one to pin ahead of the traffic. " : ""}` +
-    `Blank fields use defaults (13 kt taxi, 90 s per departure). Settings are stored in this browser.</div>`;
+    `Blank fields use defaults (13 kt taxi, 90 s per departure). ` +
+    `This config is <b>shared with every controller</b> through the hub.</div>`;
 }
 
 /** Pin the SID typed in the config drawer to the selected runway. */
@@ -977,11 +1046,9 @@ function pinSidRule() {
   const sid = sidBase(sidEl.value);
   const rwy = rwyEl.value;
   if (!sid || !rwy) { sidEl.classList.add("err"); setTimeout(() => sidEl.classList.remove("err"), 1200); return; }
-  setSidRule(state.taxiCfgField, sid, rwy);
+  if (!canEditTaxiConfig(state.taxiCfgField)) return;
+  applyTaxiChange(setSidRule(state.taxiCfgField, sid, rwy));
   sidEl.value = "";
-  resetTaxiTick();
-  renderTaxiConfig();
-  scheduleRender();
 }
 
 function bindTaxiConfig() {
@@ -993,19 +1060,15 @@ function bindTaxiConfig() {
 
     const chip = e.target.closest("[data-taxi-rwy]");
     if (chip) {
-      toggleActiveRunway(state.taxiCfgField, chip.dataset.taxiRwy);
-      resetTaxiTick();
-      renderTaxiConfig();
-      scheduleRender();
+      if (!canEditTaxiConfig(state.taxiCfgField)) return;
+      applyTaxiChange(toggleActiveRunway(state.taxiCfgField, chip.dataset.taxiRwy));
       return;
     }
 
     const del = e.target.closest("[data-taxi-delsid]");
     if (del) {
-      removeSidRule(state.taxiCfgField, del.dataset.taxiDelsid);
-      resetTaxiTick();
-      renderTaxiConfig();
-      scheduleRender();
+      if (!canEditTaxiConfig(state.taxiCfgField)) return;
+      applyTaxiChange(removeSidRule(state.taxiCfgField, del.dataset.taxiDelsid));
       return;
     }
 
@@ -1021,18 +1084,15 @@ function bindTaxiConfig() {
   host.addEventListener("change", e => {
     const sel = e.target.closest("[data-taxi-sid]");
     if (sel) {
-      setSidRule(state.taxiCfgField, sel.dataset.taxiSid, sel.value);
-      resetTaxiTick();
-      scheduleRender();
+      if (!canEditTaxiConfig(state.taxiCfgField)) return;
+      applyTaxiChange(setSidRule(state.taxiCfgField, sel.dataset.taxiSid, sel.value));
       return;
     }
     const num = e.target.closest("[data-taxi-num]");
     if (num) {
+      if (!canEditTaxiConfig(state.taxiCfgField)) return;
       const raw = num.value.trim();
-      saveTaxiConfig(state.taxiCfgField, { [num.dataset.taxiNum]: raw === "" ? null : raw });
-      resetTaxiTick();
-      renderTaxiConfig();
-      scheduleRender();
+      applyTaxiChange(saveTaxiConfig(state.taxiCfgField, { [num.dataset.taxiNum]: raw === "" ? null : raw }));
     }
   });
 }
