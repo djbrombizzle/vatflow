@@ -5,6 +5,9 @@
  *   all    → entire sector / FIR list
  *   cpdlc  → CPDLC logged-on only (EDST may also require on-frequency)
  *   freq   → controller voice frequency match only (no freq known → manual only)
+ *   ground → aircraft on the ground (ground speed below GROUND_SPEED_KT), so a
+ *            controller can raise taxiing/parked aircraft on CPDLC. Frequency is
+ *            not required — ground aircraft are normally on a tower/ground freq.
  *   auto   → legacy classic default: on-freq (+ CPDLC-active) when freq known,
  *            else CPDLC connected only
  *
@@ -12,12 +15,33 @@
  * (and shows manual-only when the controller voice frequency is unknown).
  */
 
-export const ACL_FILTER_MODES = ["all", "cpdlc", "freq", "auto"];
+export const ACL_FILTER_MODES = ["all", "cpdlc", "freq", "ground", "auto"];
+
+/** Ground speed (kt) at or above which an aircraft is no longer "on the ground". */
+export const GROUND_SPEED_KT = 60;
+
+/**
+ * Ground speed of a board row in knots, or null when unknown.
+ * Rows carry a numeric `gs` from the live feed; manual strips carry neither and
+ * fall back to the "/450" heading-speed string used for display.
+ */
+export function groundSpeedKt(a) {
+  if (!a) return null;
+  if (a.gs != null && a.gs !== "" && Number.isFinite(+a.gs)) return +a.gs;
+  const m = String(a.hs || "").match(/(\d+)/);
+  return m ? +m[1] : null;
+}
+
+/** True when the row is a live aircraft moving slower than GROUND_SPEED_KT. */
+export function isOnGround(a) {
+  const gs = groundSpeedKt(a);
+  return gs != null && gs < GROUND_SPEED_KT;
+}
 
 export function normalizeAclFilter(settings) {
   const raw = settings && settings.aclFilter;
   const m = String(raw || "").toLowerCase();
-  if (m === "all" || m === "cpdlc" || m === "freq" || m === "auto") return m;
+  if (m === "all" || m === "cpdlc" || m === "freq" || m === "ground" || m === "auto") return m;
   if (settings && settings.showAll === true) return "all";
   if (settings && settings.showCpdlcOnly === true) return "cpdlc";
   return "auto";
@@ -43,7 +67,7 @@ export function isTunedToFreq(pilotFreqs, cs, freqMhz) {
 
 /**
  * @param {object[]} list board rows ({cs, source, ...})
- * @param {{ mode?: 'all'|'cpdlc'|'freq'|'auto',
+ * @param {{ mode?: 'all'|'cpdlc'|'freq'|'ground'|'auto',
  *           freqFilterOn?: boolean,
  *           cpdlcRequireFreq?: boolean,
  *           connected: Set<string>|string[],
@@ -80,6 +104,10 @@ export function filterBoardList(list, opts = {}) {
       if (cpdlcRequireFreq) return freqOn && isTuned(a.cs);
       return true;
     });
+  } else if (mode === "ground") {
+    // Aircraft stopped or taxiing anywhere in the sector list, plus manual strips.
+    // No frequency requirement: aircraft on the ground are on a tower/ground freq.
+    out = out.filter((a) => a && (a.source === "manual" || isOnGround(a)));
   } else if (mode === "freq") {
     if (freqOn) {
       out = out.filter((a) => a && (a.source === "manual" || isTuned(a.cs)));
@@ -132,6 +160,7 @@ export function freqFilterShouldRun({ monitorMode, mode, showAll, freqMhz, canFi
     : (showAll === true ? "all" : "auto");
   return !monitorMode
     && m !== "all"
+    && m !== "ground"
     && freqMhz != null
     && Number.isFinite(+freqMhz)
     && !!canFilter;

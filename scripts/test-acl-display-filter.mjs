@@ -7,6 +7,9 @@ import {
   filterBoardList,
   filterCpdlcOnFreqOverlay,
   freqFilterShouldRun,
+  groundSpeedKt,
+  isOnGround,
+  GROUND_SPEED_KT,
 } from "../shared/acl-display-filter.js";
 
 let failed = 0;
@@ -155,6 +158,52 @@ list = filterCpdlcOnFreqOverlay(board, {
   isTuned: tuned,
 });
 assert(list.length === 0, "overlay without controller freq → empty (no sector leak)");
+
+// ---- ground filter (SORT → SHOW GROUND A/C) ----
+assert(GROUND_SPEED_KT === 60, "ground threshold is 60 kt");
+assert(groundSpeedKt({ gs: 0 }) === 0, "numeric gs 0 kept (not treated as unknown)");
+assert(groundSpeedKt({ gs: 12 }) === 12, "numeric gs wins");
+assert(groundSpeedKt({ hs: "/450" }) === 450, "gs parsed from hs string");
+assert(groundSpeedKt({ hs: "/" }) === null, "unknown gs → null");
+assert(isOnGround({ gs: 0 }) === true, "stopped aircraft is on the ground");
+assert(isOnGround({ gs: 59 }) === true, "59 kt is on the ground");
+assert(isOnGround({ gs: 60 }) === false, "60 kt is airborne/rolling");
+assert(isOnGround({ hs: "/" }) === false, "unknown gs is not on the ground");
+
+const gndBoard = [
+  { cs: "AAL1", source: "live", gs: 0 },    // at the gate
+  { cs: "UAL2", source: "live", gs: 18 },   // taxiing
+  { cs: "MAN1", source: "manual" },         // manual strip
+  { cs: "DAL3", source: "live", gs: 140 },  // departing
+  { cs: "JBU4", source: "live", gs: 450 },  // enroute
+  { cs: "SWA5", source: "live", hs: "/25" },// taxiing, gs only in hs string
+];
+list = filterBoardList(gndBoard, {
+  mode: "ground",
+  freqFilterOn: true,
+  connected: new Set(["JBU4"]),
+  isTuned: () => false,
+});
+assert(
+  list.map(a => a.cs).join(",") === "AAL1,UAL2,MAN1,SWA5",
+  "ground → slow aircraft + manual strips, regardless of frequency",
+);
+list = filterBoardList(gndBoard, {
+  mode: "ground",
+  freqFilterOn: false,
+  connected: new Set(),
+  isTuned: () => false,
+});
+assert(
+  list.map(a => a.cs).join(",") === "AAL1,UAL2,MAN1,SWA5",
+  "ground list does not depend on a known controller frequency",
+);
+assert(normalizeAclFilter({ aclFilter: "ground" }) === "ground", "aclFilter ground");
+assert(showAllAircraftEnabled({ aclFilter: "ground" }) === false, "ground is not show-all");
+assert(
+  !freqFilterShouldRun({ monitorMode: false, mode: "ground", freqMhz: 132.65, canFilter: true }),
+  "freq filter off in ground mode",
+);
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log("\nall passed");

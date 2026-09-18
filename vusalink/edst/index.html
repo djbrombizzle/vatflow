@@ -1726,6 +1726,10 @@ html.list-mode #cpdlcListWin{
         <input type="radio" name="aclFilter" value="freq">
         <span class="lab"><b>SHOW FREQ A/C</b><span>Tuned to your voice frequency only (off-freq drops off)</span></span>
       </label>
+      <label class="opt" data-acl-filter="ground">
+        <input type="radio" name="aclFilter" value="ground">
+        <span class="lab"><b>SHOW GROUND A/C</b><span>On the ground (below 60 kt) &mdash; for CPDLC to aircraft at the gate or taxiing</span></span>
+      </label>
     </div>
   </div>
   <button type="button" class="et-btn" data-stub="Tools">Tools...</button>
@@ -2525,10 +2529,10 @@ let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',
 if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
 if(typeof settings.compactTabTitle!=='boolean')settings.compactTabTitle=false;
 if(typeof settings.moreOpen!=='boolean')settings.moreOpen=false;
-// ACL list filter: all | cpdlc | freq (EDST Sort menu — exclusive)
+// ACL list filter: all | cpdlc | freq | ground (EDST Sort menu — exclusive)
 settings.showAll=settings.showAll===true;
 settings.showCpdlcOnly=settings.showCpdlcOnly===true;
-if(settings.aclFilter!=='all'&&settings.aclFilter!=='cpdlc'&&settings.aclFilter!=='freq'){
+if(settings.aclFilter!=='all'&&settings.aclFilter!=='cpdlc'&&settings.aclFilter!=='freq'&&settings.aclFilter!=='ground'){
   settings.aclFilter=settings.showAll===true?'all':(settings.showCpdlcOnly===true?'cpdlc':'freq');
 }
 settings.showAll=settings.aclFilter==='all';
@@ -2539,7 +2543,7 @@ function aclFilterMode(){
   // CRC / list display lock — does not mutate the stored classic Sort preference.
   if(crcMode()||listMode())return 'cpdlc';
   const m=String(settings.aclFilter||'').toLowerCase();
-  if(m==='all'||m==='cpdlc'||m==='freq')return m;
+  if(m==='all'||m==='cpdlc'||m==='freq'||m==='ground')return m;
   return settings.showAll===true?'all':'freq';
 }
 function setAclFilterMode(mode){
@@ -2552,7 +2556,7 @@ function setAclFilterMode(mode){
     return;
   }
   const m=String(mode||'freq').toLowerCase();
-  settings.aclFilter=(m==='all'||m==='cpdlc')?m:'freq';
+  settings.aclFilter=(m==='all'||m==='cpdlc'||m==='ground')?m:'freq';
   settings.showAll=settings.aclFilter==='all';
   settings.showCpdlcOnly=settings.aclFilter==='cpdlc';
   persist();
@@ -2570,7 +2574,8 @@ function syncAclSortUi(){
     btn.classList.toggle('active',mode!=='freq');
     btn.setAttribute('aria-expanded',open?'true':'false');
     btn.title=mode==='all'?'SHOW ALL A/C'
-      :(mode==='cpdlc'?'SHOW CPDLC ONLY':'SHOW FREQ A/C');
+      :(mode==='cpdlc'?'SHOW CPDLC ONLY'
+        :(mode==='ground'?'SHOW GROUND A/C':'SHOW FREQ A/C'));
   }
   if(!menu)return;
   menu.querySelectorAll('.opt[data-acl-filter]').forEach(lab=>{
@@ -2721,6 +2726,17 @@ function cleanupGhostManuals(){
 }
 let sortState={key:null,dir:1};
 function gsOf(a){const m=(a.hs||'').match(/(\d+)/);return m?+m[1]:0;}
+// Ground filter: anything slower than this is treated as "on the ground" so the
+// controller can raise it on CPDLC at the gate or while taxiing.
+const GROUND_SPEED_KT=60;
+/** Ground speed in kt from the live feed (a.gs), falling back to the "/450" display string. */
+function groundSpeedKt(a){
+  if(!a)return null;
+  if(a.gs!=null&&a.gs!==''&&Number.isFinite(+a.gs))return +a.gs;
+  const m=String(a.hs||'').match(/(\d+)/);
+  return m?+m[1]:null;
+}
+function isOnGround(a){const gs=groundSpeedKt(a);return gs!=null&&gs<GROUND_SPEED_KT;}
 function statusScore(a){return (msgAlert.has(a.cs)?4:0)+(handoffPending.has(a.cs)?2:0)+(connected.has(a.cs)?1:0);}
 function freqsMatch(a,b){return a!=null&&b!=null&&Math.abs(a-b)<0.0015;}
 function formatFreqMhz(mhz){return mhz==null?'':mhz.toFixed(3);}
@@ -2776,6 +2792,11 @@ function countsForController(cs){
   if(mode==='freq'){
     return freqFilterActive()&&tunedToOurFreq(cs);
   }
+  if(mode==='ground'){
+    if(isManualStrip(cs))return true;
+    const a=liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs);
+    return !!a&&isOnGround(a);
+  }
   if(handoffAwaitFreq.has(cs)&&!pilotMatchesOurFreq(cs))return false;
   if(freqFilterActive()&&!pilotMatchesOurFreq(cs))return false;
   return true;
@@ -2789,7 +2810,8 @@ function pruneHandoffAwait(){
   handoffAwaitFreq.forEach(cs=>{if(!pilotMatchesOurFreq(cs))handoffAwaitFreq.delete(cs);});
 }
 function freqFilterActive(){
-  return !monitorMode()&&aclFilterMode()!=='all'&&myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)&&(hubMode()||configured());
+  const m=aclFilterMode();
+  return !monitorMode()&&m!=='all'&&m!=='ground'&&myPosition.freqMhz!=null&&Number.isFinite(myPosition.freqMhz)&&(hubMode()||configured());
 }
 function annotateFlights(){
   liveFlights.forEach(f=>{f.onFreq=pilotMatchesOurFreq(f.cs);});
@@ -2804,7 +2826,8 @@ function updatePositionBar(){
       const mode=aclFilterMode();
       hint.textContent=mode==='all'?'showing all aircraft in FIR/ARTCC'
         :(mode==='cpdlc'?'showing on-frequency CPDLC aircraft'
-          :'showing aircraft tuned to this frequency');
+          :(mode==='ground'?('showing aircraft on the ground (below '+GROUND_SPEED_KT+' kt)')
+            :'showing aircraft tuned to this frequency'));
     }
     bar.classList.remove('hidden');
   }else bar.classList.add('hidden');
@@ -2988,6 +3011,7 @@ function displayList(){
   //  all    → entire FIR/ARTCC sector list
   //  cpdlc  → on controller frequency AND CPDLC logged on
   //  freq   → tuned to controller frequency (default)
+  //  ground → on the ground (< GROUND_SPEED_KT) anywhere in the sector list
   // Off-frequency aircraft must disappear from cpdlc/freq lists. If we do not
   // yet know the controller voice frequency, those modes show manual rows only
   // (do not fall back to "all CPDLC connected").
@@ -3001,6 +3025,11 @@ function displayList(){
       if(!connected.has(a.cs))return false;
       return freqOn&&tunedToOurFreq(a.cs);
     });
+  }else if(mode==='ground'){
+    // Aircraft stopped or taxiing anywhere in the sector list, plus manual strips.
+    // No frequency match required — aircraft on the ground are on a tower/ground
+    // frequency, and the point of this filter is to reach them via CPDLC.
+    list=list.filter(a=>a.source==='manual'||isOnGround(a));
   }else{
     // freq (default)
     if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs));
