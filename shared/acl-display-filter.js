@@ -9,7 +9,8 @@
  *            controller can raise taxiing/parked aircraft on CPDLC. Frequency is
  *            not required — ground aircraft are normally on a tower/ground freq.
  *            Narrowed by opts.groundDep (departure airports typed in the Sort
- *            menu); blank means any airport in our own FIR/ARTCC.
+ *            menu); blank means any airport in our own FIR/ARTCC. Only aircraft
+ *            logged on to CPDLC are listed — the point is sending them a message.
  *   auto   → legacy classic default: on-freq (+ CPDLC-active) when freq known,
  *            else CPDLC connected only
  *
@@ -142,12 +143,16 @@ export function filterBoardList(list, opts = {}) {
     });
   } else if (mode === "ground") {
     // Aircraft stopped or taxiing, narrowed to the departure airport(s) asked for
-    // (blank = any airport in our own FIR/ARTCC). Manual strips are kept whatever
-    // their speed, but still have to match the airport.
+    // (blank = any airport in our own FIR/ARTCC) and to those logged on to CPDLC.
+    // Manual strips are the controller's own rows: kept whatever their speed and
+    // logon state, but they still have to match the airport.
     // No frequency requirement: aircraft on the ground are on a tower/ground freq.
-    out = out.filter(
-      (a) => a && (a.source === "manual" || isOnGround(a)) && matchesGroundDep(a, opts.groundDep),
-    );
+    out = out.filter((a) => {
+      if (!a) return false;
+      if (!matchesGroundDep(a, opts.groundDep)) return false;
+      if (a.source === "manual") return true;
+      return isOnGround(a) && connected.has(a.cs);
+    });
   } else if (mode === "freq") {
     if (freqOn) {
       out = out.filter((a) => a && (a.source === "manual" || isTuned(a.cs)));

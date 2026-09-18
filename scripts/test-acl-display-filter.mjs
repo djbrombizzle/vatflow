@@ -182,23 +182,36 @@ const gndBoard = [
   { cs: "SWA5", source: "live", hs: "/25", dep: "KATL", cat: "DEP" }, // taxiing, gs only in hs
   { cs: "NKS6", source: "live", gs: 5, dep: "KCLT", cat: "ADJ" },     // ground in the next FIR
 ];
+// Everything on the ground list must be logged on to CPDLC (KUSA).
+const gndConnected = new Set(["AAL1", "UAL2", "SWA5", "DAL3", "JBU4", "NKS6"]);
 const gndOpts = {
   mode: "ground",
   freqFilterOn: true,
-  connected: new Set(["JBU4"]),
+  connected: gndConnected,
   isTuned: () => false,
 };
 list = filterBoardList(gndBoard, gndOpts);
 assert(
   list.map(a => a.cs).join(",") === "AAL1,UAL2,MAN1,SWA5",
-  "ground, no airport → slow aircraft in our FIR + manual strips, regardless of frequency",
+  "ground, no airport → CPDLC aircraft on the ground in our FIR + manual strips, regardless of frequency",
 );
 assert(!list.some(a => a.cs === "NKS6"), "ground, no airport → ADJ (other FIR) ground traffic excluded");
 
-list = filterBoardList(gndBoard, { ...gndOpts, freqFilterOn: false, connected: new Set() });
+list = filterBoardList(gndBoard, { ...gndOpts, freqFilterOn: false });
 assert(
   list.map(a => a.cs).join(",") === "AAL1,UAL2,MAN1,SWA5",
   "ground list does not depend on a known controller frequency",
+);
+
+list = filterBoardList(gndBoard, { ...gndOpts, connected: new Set(["AAL1"]) });
+assert(
+  list.map(a => a.cs).join(",") === "AAL1,MAN1",
+  "aircraft not logged on to KUSA are not listed (manual strips stay)",
+);
+list = filterBoardList(gndBoard, { ...gndOpts, connected: new Set() });
+assert(
+  list.map(a => a.cs).join(",") === "MAN1",
+  "nobody logged on → only the controller's own manual strips",
 );
 
 list = filterBoardList(gndBoard, { ...gndOpts, groundDep: "KATL" });
