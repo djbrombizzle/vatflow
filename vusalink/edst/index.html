@@ -132,6 +132,22 @@ a{color:inherit}
 #edstTools .et-sort-dd .opt .lab{display:flex;flex-direction:column;gap:2px}
 #edstTools .et-sort-dd .opt .lab b{font-weight:normal;color:#f0f0ec}
 #edstTools .et-sort-dd .opt .lab span{color:#8a9088;font-size:11px}
+#edstTools .et-sort-dd .gnd-field{
+  display:flex;align-items:center;gap:6px;padding:6px 8px 7px 28px;
+  border-bottom:1px solid #1a1a1a;background:#0a0a0a;
+}
+#edstTools .et-sort-dd .gnd-field.off{opacity:.45}
+#edstTools .et-sort-dd .gnd-field label{color:#aeb6af;font-size:11px;letter-spacing:.4px}
+#edstTools .et-sort-dd .gnd-field input{
+  background:#000;border:1px solid #8a8a8a;color:#f0f0ec;font:inherit;font-size:12.5px;
+  padding:2px 6px;width:120px;text-transform:uppercase;
+}
+#edstTools .et-sort-dd .gnd-field input:focus{outline:1px solid var(--teal)}
+#edstTools .et-sort-dd .gnd-field button{
+  background:#0a0a0a;border:1px solid #6a6a6a;color:#d2d2cd;font:inherit;font-size:11px;
+  padding:2px 6px;cursor:pointer;
+}
+#edstTools .et-sort-dd .gnd-field button:hover{background:#1a1a1a}
 #edstTools .et-field{display:flex;align-items:center;gap:6px;margin-left:auto}
 #edstTools .et-field label{color:#aeb6af;font-size:12px}
 #edstTools .et-field input{background:#0a0a0a;border:1px solid #8a8a8a;color:#f0f0ec;
@@ -1730,6 +1746,13 @@ html.list-mode #cpdlcListWin{
         <input type="radio" name="aclFilter" value="ground">
         <span class="lab"><b>SHOW GROUND A/C</b><span>On the ground (below 60 kt) &mdash; for CPDLC to aircraft at the gate or taxiing</span></span>
       </label>
+      <div class="gnd-field" id="aclGroundDepRow">
+        <label for="aclGroundDep">DEP APT</label>
+        <input id="aclGroundDep" type="text" size="10" maxlength="32" autocomplete="off" spellcheck="false"
+               placeholder="any FIR airport"
+               title="Departure airport for SHOW GROUND A/C (e.g. KATL). Blank = every airport in your FIR/ARTCC.">
+        <button type="button" id="aclGroundDepClear" title="Clear — show every airport in your FIR/ARTCC">CLR</button>
+      </div>
     </div>
   </div>
   <button type="button" class="et-btn" data-stub="Tools">Tools...</button>
@@ -2525,7 +2548,7 @@ const DEFAULT_HUB_URL='https://web-production-3d9fe.up.railway.app';   // shared
 // VATSIM CID. The hub URL is built in, so Settings only asks for the CID. (Solo/direct-Hoppie
 // is retired — a browser can't reach Hoppie directly, which is why the hub exists.)
 const WEB_ONLY=true;
-let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,showCpdlcOnly:false,aclFilter:'freq',compactTabTitle:false,moreOpen:false});
+let settings=LS.get('vedst_settings',{logon:'',station:'',airspace:'',hubUrl:'',hubToken:'',cid:'',volume:1,logCollapsed:true,queueCollapsed:true,viewArtcc:'',showAll:false,showCpdlcOnly:false,aclFilter:'freq',groundDepApt:'',compactTabTitle:false,moreOpen:false});
 if(typeof settings.volume!=='number')settings.volume=(settings.muted===true?0:1);   // migrate old SOUND OFF -> volume 0
 if(typeof settings.compactTabTitle!=='boolean')settings.compactTabTitle=false;
 if(typeof settings.moreOpen!=='boolean')settings.moreOpen=false;
@@ -2537,6 +2560,8 @@ if(settings.aclFilter!=='all'&&settings.aclFilter!=='cpdlc'&&settings.aclFilter!
 }
 settings.showAll=settings.aclFilter==='all';
 settings.showCpdlcOnly=settings.aclFilter==='cpdlc';
+// SHOW GROUND A/C departure-airport box: blank = every airport in our FIR/ARTCC.
+if(typeof settings.groundDepApt!=='string')settings.groundDepApt='';
 function listMode(){return document.documentElement.classList.contains('list-mode')||document.body.classList.contains('list-mode');}
 function crcMode(){return document.body.classList.contains('crc-mode');}
 function aclFilterMode(){
@@ -2564,6 +2589,18 @@ function setAclFilterMode(mode){
   updatePositionBar();
   renderBoard();
 }
+/** Airports typed into the SHOW GROUND A/C box, normalised ("katl, kmco" → ["KATL","KMCO"]). */
+function groundDepApts(){
+  return String(settings.groundDepApt||'').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+}
+function setGroundDepApt(txt){
+  const v=String(txt||'').toUpperCase().replace(/[^A-Z0-9, ]/g,'').replace(/\s+/g,' ').trim();
+  if(v===settings.groundDepApt)return;
+  settings.groundDepApt=v;
+  persist();
+  updatePositionBar();
+  renderBoard();
+}
 function syncAclSortUi(){
   const mode=aclFilterMode();
   const btn=document.getElementById('btnAclSort');
@@ -2575,7 +2612,15 @@ function syncAclSortUi(){
     btn.setAttribute('aria-expanded',open?'true':'false');
     btn.title=mode==='all'?'SHOW ALL A/C'
       :(mode==='cpdlc'?'SHOW CPDLC ONLY'
-        :(mode==='ground'?'SHOW GROUND A/C':'SHOW FREQ A/C'));
+        :(mode==='ground'?('SHOW GROUND A/C'+(groundDepApts().length?' \u2014 '+groundDepApts().join(' '):''))
+          :'SHOW FREQ A/C'));
+  }
+  const row=document.getElementById('aclGroundDepRow');
+  const gd=document.getElementById('aclGroundDep');
+  if(row)row.classList.toggle('off',mode!=='ground');
+  if(gd){
+    if(document.activeElement!==gd&&gd.value!==(settings.groundDepApt||''))gd.value=settings.groundDepApt||'';
+    gd.placeholder='any '+(depArtccId()||'FIR')+' airport';
   }
   if(!menu)return;
   menu.querySelectorAll('.opt[data-acl-filter]').forEach(lab=>{
@@ -2737,6 +2782,29 @@ function groundSpeedKt(a){
   return m?+m[1]:null;
 }
 function isOnGround(a){const gs=groundSpeedKt(a);return gs!=null&&gs<GROUND_SPEED_KT;}
+/** Departure ICAO of a row — live rows carry a.dep; manual strips start their route with it. */
+function depIcaoOf(a){
+  if(!a)return '';
+  const d=String(a.dep||'').toUpperCase().trim();
+  if(d)return d;
+  const first=String(a.route||a._routeRaw||'').toUpperCase().trim().split(/\s+/)[0]||'';
+  return /^[A-Z]{3,4}$/.test(first)?first:'';
+}
+/**
+ * SHOW GROUND A/C airport match.
+ *  - box blank  → any airport in our own FIR/ARTCC (ADJ rows sit in the 20 nm
+ *    buffer outside the boundary, so they are another facility's ground traffic)
+ *  - box filled → only those departure airports, wherever they are. A 3-letter
+ *    entry (ATL) matches the 4-letter ICAO (KATL).
+ * Frequency is never considered: ground aircraft are on a tower/ground freq.
+ */
+function matchesGroundDep(a){
+  const want=groundDepApts();
+  if(!want.length)return !a||a.cat!=='ADJ';
+  const dep=depIcaoOf(a);
+  if(!dep)return false;
+  return want.some(w=>dep===w||(w.length===3&&dep.length===4&&dep.slice(1)===w));
+}
 function statusScore(a){return (msgAlert.has(a.cs)?4:0)+(handoffPending.has(a.cs)?2:0)+(connected.has(a.cs)?1:0);}
 function freqsMatch(a,b){return a!=null&&b!=null&&Math.abs(a-b)<0.0015;}
 function formatFreqMhz(mhz){return mhz==null?'':mhz.toFixed(3);}
@@ -2793,9 +2861,10 @@ function countsForController(cs){
     return freqFilterActive()&&tunedToOurFreq(cs);
   }
   if(mode==='ground'){
-    if(isManualStrip(cs))return true;
-    const a=liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs);
-    return !!a&&isOnGround(a);
+    const a=manual.find(x=>x&&(x.cs||'').toUpperCase()===cs)
+      ||liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs);
+    if(!a)return false;
+    return (a.source==='manual'||isOnGround(a))&&matchesGroundDep(a);
   }
   if(handoffAwaitFreq.has(cs)&&!pilotMatchesOurFreq(cs))return false;
   if(freqFilterActive()&&!pilotMatchesOurFreq(cs))return false;
@@ -2826,7 +2895,8 @@ function updatePositionBar(){
       const mode=aclFilterMode();
       hint.textContent=mode==='all'?'showing all aircraft in FIR/ARTCC'
         :(mode==='cpdlc'?'showing on-frequency CPDLC aircraft'
-          :(mode==='ground'?('showing aircraft on the ground (below '+GROUND_SPEED_KT+' kt)')
+          :(mode==='ground'?('showing aircraft on the ground (below '+GROUND_SPEED_KT+' kt) departing '
+              +(groundDepApts().length?groundDepApts().join(' / '):('any '+(depArtccId()||'FIR')+' airport')))
             :'showing aircraft tuned to this frequency'));
     }
     bar.classList.remove('hidden');
@@ -3011,7 +3081,8 @@ function displayList(){
   //  all    → entire FIR/ARTCC sector list
   //  cpdlc  → on controller frequency AND CPDLC logged on
   //  freq   → tuned to controller frequency (default)
-  //  ground → on the ground (< GROUND_SPEED_KT) anywhere in the sector list
+  //  ground → on the ground (< GROUND_SPEED_KT), departing the airport typed in
+  //           the Sort box (blank = any airport in our FIR/ARTCC)
   // Off-frequency aircraft must disappear from cpdlc/freq lists. If we do not
   // yet know the controller voice frequency, those modes show manual rows only
   // (do not fall back to "all CPDLC connected").
@@ -3026,10 +3097,12 @@ function displayList(){
       return freqOn&&tunedToOurFreq(a.cs);
     });
   }else if(mode==='ground'){
-    // Aircraft stopped or taxiing anywhere in the sector list, plus manual strips.
+    // Aircraft stopped or taxiing, narrowed to the departure airport(s) typed into
+    // the Sort menu box (blank = every airport in our FIR/ARTCC). Manual strips are
+    // kept whatever their speed, but still have to match the airport.
     // No frequency match required — aircraft on the ground are on a tower/ground
     // frequency, and the point of this filter is to reach them via CPDLC.
-    list=list.filter(a=>a.source==='manual'||isOnGround(a));
+    list=list.filter(a=>(a.source==='manual'||isOnGround(a))&&matchesGroundDep(a));
   }else{
     // freq (default)
     if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs));
@@ -4352,6 +4425,32 @@ const _btnRefresh=document.getElementById('btnRefresh');if(_btnRefresh)_btnRefre
       setAclFilterMode(lab.dataset.aclFilter);
       closeAclSortMenu();
     });
+  });
+  // SHOW GROUND A/C departure-airport box. Typing in it selects GROUND, so the
+  // controller can go straight for the airport without picking the mode first.
+  const gd=document.getElementById('aclGroundDep');
+  const gdClear=document.getElementById('aclGroundDepClear');
+  if(gd){
+    gd.value=settings.groundDepApt||'';
+    gd.addEventListener('click',e=>e.stopPropagation());
+    gd.addEventListener('input',()=>{
+      setGroundDepApt(gd.value);
+      if(aclFilterMode()!=='ground')setAclFilterMode('ground');
+      else syncAclSortUi();
+    });
+    gd.addEventListener('blur',()=>{gd.value=settings.groundDepApt||'';});
+    gd.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Enter'){e.preventDefault();closeAclSortMenu();}
+      else if(e.key==='Escape'){e.preventDefault();gd.value='';setGroundDepApt('');syncAclSortUi();}
+    });
+  }
+  if(gdClear)gdClear.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(gd)gd.value='';
+    setGroundDepApt('');
+    if(aclFilterMode()!=='ground')setAclFilterMode('ground');
+    else syncAclSortUi();
   });
   syncAclSortUi();
 })();

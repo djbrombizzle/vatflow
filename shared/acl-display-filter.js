@@ -8,6 +8,8 @@
  *   ground → aircraft on the ground (ground speed below GROUND_SPEED_KT), so a
  *            controller can raise taxiing/parked aircraft on CPDLC. Frequency is
  *            not required — ground aircraft are normally on a tower/ground freq.
+ *            Narrowed by opts.groundDep (departure airports typed in the Sort
+ *            menu); blank means any airport in our own FIR/ARTCC.
  *   auto   → legacy classic default: on-freq (+ CPDLC-active) when freq known,
  *            else CPDLC connected only
  *
@@ -36,6 +38,39 @@ export function groundSpeedKt(a) {
 export function isOnGround(a) {
   const gs = groundSpeedKt(a);
   return gs != null && gs < GROUND_SPEED_KT;
+}
+
+/** Departure ICAO of a row — live rows carry `dep`; manual strips start their route with it. */
+export function depIcaoOf(a) {
+  if (!a) return "";
+  const d = String(a.dep || "").toUpperCase().trim();
+  if (d) return d;
+  const first = String(a.route || a._routeRaw || "").toUpperCase().trim().split(/\s+/)[0] || "";
+  return /^[A-Z]{3,4}$/.test(first) ? first : "";
+}
+
+/** Free-typed departure airport box → normalised ICAO list ("katl, kmco" → ["KATL","KMCO"]). */
+export function parseGroundDep(txt) {
+  if (Array.isArray(txt)) {
+    return txt.map((t) => String(t || "").toUpperCase().trim()).filter(Boolean);
+  }
+  return String(txt || "").toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+}
+
+/**
+ * Departure-airport match for the ground filter.
+ * No airports given → any airport in our own FIR/ARTCC: ADJ rows sit in the
+ * outside-the-boundary buffer, so they are another facility's ground traffic.
+ * A 3-letter entry (ATL) matches the 4-letter ICAO (KATL).
+ */
+export function matchesGroundDep(a, groundDep) {
+  const want = parseGroundDep(groundDep);
+  if (!want.length) return !a || a.cat !== "ADJ";
+  const dep = depIcaoOf(a);
+  if (!dep) return false;
+  return want.some(
+    (w) => dep === w || (w.length === 3 && dep.length === 4 && dep.slice(1) === w),
+  );
 }
 
 export function normalizeAclFilter(settings) {
@@ -69,6 +104,7 @@ export function isTunedToFreq(pilotFreqs, cs, freqMhz) {
  * @param {object[]} list board rows ({cs, source, ...})
  * @param {{ mode?: 'all'|'cpdlc'|'freq'|'ground'|'auto',
  *           freqFilterOn?: boolean,
+ *           groundDep?: string|string[],
  *           cpdlcRequireFreq?: boolean,
  *           connected: Set<string>|string[],
  *           isTuned: (cs:string)=>boolean,
@@ -105,9 +141,13 @@ export function filterBoardList(list, opts = {}) {
       return true;
     });
   } else if (mode === "ground") {
-    // Aircraft stopped or taxiing anywhere in the sector list, plus manual strips.
+    // Aircraft stopped or taxiing, narrowed to the departure airport(s) asked for
+    // (blank = any airport in our own FIR/ARTCC). Manual strips are kept whatever
+    // their speed, but still have to match the airport.
     // No frequency requirement: aircraft on the ground are on a tower/ground freq.
-    out = out.filter((a) => a && (a.source === "manual" || isOnGround(a)));
+    out = out.filter(
+      (a) => a && (a.source === "manual" || isOnGround(a)) && matchesGroundDep(a, opts.groundDep),
+    );
   } else if (mode === "freq") {
     if (freqOn) {
       out = out.filter((a) => a && (a.source === "manual" || isTuned(a.cs)));
