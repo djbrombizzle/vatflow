@@ -2580,7 +2580,7 @@ function aclFilterMode(){
     ?m:(settings.showAll===true?'all':'freq');
   // _DEL/_GND/_TWR/_APP are CPDLC for aircraft on the ground only; _CTR/_FSS get
   // the whole menu. An unknown position is left alone — the hub owns sign-in.
-  return clampAclMode(stored,myPositionCallsign());
+  return groundOnlyPosition()?'ground':stored;
 }
 function setAclFilterMode(mode){
   // In CRC mode Sort is locked to CPDLC-on-freq. Keep vedst_settings.aclFilter
@@ -2593,7 +2593,7 @@ function setAclFilterMode(mode){
   }
   const m=String(mode||'freq').toLowerCase();
   const cs=myPositionCallsign();
-  if(isGroundOnly(cs)&&m!=='ground'){
+  if(groundOnlyPosition()&&m!=='ground'){
     flashStatus('GROUND A/C ONLY \u2014 '+(cs||'this position'));
     syncAclSortUi();
     return;
@@ -2655,12 +2655,15 @@ function syncAclSortUi(){
   }
   if(!menu)return;
   const posCs=myPositionCallsign();
-  const allowed=posCs?allowedAclModes(posCs):[];
-  const locked=!!posCs&&allowed.length>0&&allowed.length<4;
+  const locked=groundOnlyPosition();
+  const allowed=locked?['ground']:['all','cpdlc','freq','ground'];
   const note=document.getElementById('aclRoleNote');
   if(note){
     note.classList.toggle('hidden',!locked);
-    if(locked)note.textContent=posCs+' \u2014 '+roleLabel(posCs)+'. Center positions get the other filters.';
+    if(locked){
+      note.textContent=(posCs?posCs+' \u2014 ':'')
+        +'tower/TRACON position \u2014 ground aircraft only. Center positions get the other filters.';
+    }
   }
   menu.querySelectorAll('.opt[data-acl-filter]').forEach(lab=>{
     const on=lab.dataset.aclFilter===mode;
@@ -2757,12 +2760,27 @@ let myPosition={callsign:'',label:'',freqMhz:null};
 // own report, so the Sort lock knows a _TWR/_GND position even before the hub
 // has told us who we are.
 let vatsimPositionCs='';
+// Role the hub grants this session ("full" | "ground"); it is the authority —
+// the callsign is only a fallback while the hub has not answered yet.
+let hubRole='';
 function myPositionCallsign(){
   return (myPosition.callsign||vatsimPositionCs||'').toUpperCase();
 }
 // shared/cpdlc-position-role.js arrives with the module block below; until then
 // nothing is restricted (the hub is the gate that actually matters).
 function roleApi(){return window.CpdlcRole||null;}
+/** 'full' | 'ground' | '' (not known yet — nothing is restricted). */
+function positionAccess(){
+  if(hubRole==='ground'||hubRole==='full')return hubRole;
+  const cs=myPositionCallsign();
+  if(!cs)return '';
+  const R=roleApi();
+  if(!R)return '';
+  const modes=R.allowedAclModes(cs);
+  if(!modes.length)return '';
+  return modes.length===1?'ground':'full';
+}
+function groundOnlyPosition(){return positionAccess()==='ground';}
 function clampAclMode(mode,cs){const R=roleApi();return R?R.clampAclMode(mode,cs):mode;}
 function isGroundOnly(cs){const R=roleApi();return R?R.isGroundOnly(cs):false;}
 function allowedAclModes(cs){const R=roleApi();return R?R.allowedAclModes(cs):[];}
@@ -2844,6 +2862,9 @@ function isOnGround(a){const gs=groundSpeedKt(a);return gs!=null&&gs<GROUND_SPEE
 // aircraft at a gate or taxiing is never in it — so ground rows come straight
 // from the VATSIM pilot feed (the same payload the DEP list fetches).
 let groundMod=null,groundModReady=null,groundRows=[],groundBusy=false,groundTimer=null,groundErr=null;
+// Ground traffic as the hub sees it (has CPDLC logon state); groundRows is the
+// VATSIM-feed fallback for whatever the hub did not send.
+let hubGroundRows=[];
 function groundModeActive(){return !listMode()&&!crcMode()&&aclFilterMode()==='ground';}
 function ensureGroundMod(){
   if(groundMod)return Promise.resolve(groundMod);
@@ -2985,9 +3006,11 @@ function countsForController(cs){
   if(mode==='ground'){
     const a=manual.find(x=>x&&(x.cs||'').toUpperCase()===cs)
       ||liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs)
+      ||hubGroundRows.find(x=>x&&(x.cs||'').toUpperCase()===cs)
       ||groundRows.find(x=>x&&(x.cs||'').toUpperCase()===cs);
     if(!a)return false;
-    return (a.source==='manual'||isOnGround(a))&&matchesGroundDep(a);
+    if(a.source==='manual')return matchesGroundDep(a);
+    return isOnGround(a)&&matchesGroundDep(a)&&connected.has(cs);
   }
   if(handoffAwaitFreq.has(cs)&&!pilotMatchesOurFreq(cs))return false;
   if(freqFilterActive()&&!pilotMatchesOurFreq(cs))return false;
@@ -3018,7 +3041,7 @@ function updatePositionBar(){
       const mode=aclFilterMode();
       hint.textContent=mode==='all'?'showing all aircraft in FIR/ARTCC'
         :(mode==='cpdlc'?'showing on-frequency CPDLC aircraft'
-          :(mode==='ground'?('showing aircraft on the ground (below '+GROUND_SPEED_KT+' kt) departing '
+          :(mode==='ground'?('showing CPDLC aircraft on the ground (below '+GROUND_SPEED_KT+' kt) departing '
               +(effectiveGroundApts().length?effectiveGroundApts().join(' / '):('any '+(depArtccId()||'FIR')+' airport'))
               +(groundErr?' \u2014 VATSIM ground feed unavailable':(groundRows.length?'':' \u2014 loading\u2026')))
             :'showing aircraft tuned to this frequency'));
@@ -3229,12 +3252,20 @@ function displayList(){
     // kept whatever their speed, but still have to match the airport.
     // No frequency match required — aircraft on the ground are on a tower/ground
     // frequency, and the point of this filter is to reach them via CPDLC.
-    // Ground rows the hub never sends are merged in here; the hub's own row wins
-    // for a callsign both sources carry (it has the CPDLC / frequency data).
-    if(groundRows.length&&groundMod&&typeof groundMod.mergeGroundRows==='function'){
-      list=groundMod.mergeGroundRows(list,groundRows);
+    // Hub ground rows first (they carry CPDLC logon state), then anything only the
+    // VATSIM feed knows about. A callsign already on the list keeps its first row.
+    if(groundMod&&typeof groundMod.mergeGroundRows==='function'){
+      if(hubGroundRows.length)list=groundMod.mergeGroundRows(list,hubGroundRows);
+      if(groundRows.length)list=groundMod.mergeGroundRows(list,groundRows);
+    }else if(hubGroundRows.length){
+      const have=new Set(list.map(a=>(a.cs||'').toUpperCase()));
+      hubGroundRows.forEach(g=>{if(!have.has((g.cs||'').toUpperCase()))list.push(g);});
     }
-    list=list.filter(a=>(a.source==='manual'||isOnGround(a))&&matchesGroundDep(a));
+    // Only aircraft logged on to KUSA — the point of the list is sending them CPDLC.
+    // Manual strips are the controller's own rows and stay, as in the other filters.
+    list=list.filter(a=>a.source==='manual'
+      ? matchesGroundDep(a)
+      : (isOnGround(a)&&matchesGroundDep(a)&&connected.has(a.cs)));
   }else{
     // freq (default)
     if(freqOn)list=list.filter(a=>a.source==='manual'||tunedToOurFreq(a.cs));
@@ -3903,6 +3934,11 @@ async function refreshVatsim(force){
       clearListMetaRefresh();
     }
     liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];
+    // Aircraft on the ground come in their own bucket: the hub keeps them out of
+    // the enroute picture, and they carry the CPDLC state the VATSIM feed cannot.
+    hubGroundRows=(d.ground||[]).map(mapLive);
+    const roleNow=String((d.role||(d.verify&&d.verify.role)||'')).toLowerCase();
+    if(roleNow&&roleNow!==hubRole){hubRole=roleNow;onPositionChanged();}
     vatsimFeedReady=true;
     if(hub){
       hubArtcc=d.airspace||hubArtcc;
