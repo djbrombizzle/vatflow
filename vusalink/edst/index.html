@@ -2588,6 +2588,7 @@ function setAclFilterMode(mode){
   syncAclSortUi();
   updatePositionBar();
   renderBoard();
+  syncGroundFeed();
 }
 /** Airports typed into the SHOW GROUND A/C box, normalised ("katl, kmco" → ["KATL","KMCO"]). */
 function groundDepApts(){
@@ -2600,6 +2601,7 @@ function setGroundDepApt(txt){
   persist();
   updatePositionBar();
   renderBoard();
+  if(groundModeActive())refreshGroundList(true);
 }
 function syncAclSortUi(){
   const mode=aclFilterMode();
@@ -2782,6 +2784,58 @@ function groundSpeedKt(a){
   return m?+m[1]:null;
 }
 function isOnGround(a){const gs=groundSpeedKt(a);return gs!=null&&gs<GROUND_SPEED_KT;}
+// SHOW GROUND A/C traffic source. The hub ACL feed is the enroute picture — an
+// aircraft at a gate or taxiing is never in it — so ground rows come straight
+// from the VATSIM pilot feed (the same payload the DEP list fetches).
+let groundMod=null,groundModReady=null,groundRows=[],groundBusy=false,groundTimer=null,groundErr=null;
+function groundModeActive(){return !listMode()&&!crcMode()&&aclFilterMode()==='ground';}
+function ensureGroundMod(){
+  if(groundMod)return Promise.resolve(groundMod);
+  if(groundModReady)return groundModReady;
+  groundModReady=(async()=>{
+    await ensureDepMod();                       // loads VATSpy airports + ARTCC boundaries
+    groundMod=await import('../../shared/edst-ground-list.js');
+    return groundMod;
+  })().catch(err=>{
+    groundModReady=null;
+    throw err;
+  });
+  return groundModReady;
+}
+async function refreshGroundList(force){
+  if(!groundModeActive()){
+    stopGroundRefresh();
+    if(groundRows.length){groundRows=[];renderBoard();}
+    return;
+  }
+  if(groundBusy&&!force)return;
+  groundBusy=true;
+  try{
+    const dep=await ensureDepMod();             // owns the VATSIM data.json fetch
+    const mod=await ensureGroundMod();
+    const data=await dep.fetchVatsimData();
+    const built=mod.buildGroundList(depArtccId(),data,{apts:groundDepApts()});
+    groundRows=built.items||[];
+    groundErr=null;
+  }catch(err){
+    console.warn('ground list refresh failed',err);
+    groundErr=(err&&err.message)||String(err);
+  }finally{
+    groundBusy=false;
+  }
+  if(groundModeActive())renderBoard();
+}
+function scheduleGroundRefresh(){
+  if(groundTimer)return;
+  groundTimer=setInterval(()=>{refreshGroundList(false);},30000);   // VATSIM data.json cadence
+}
+function stopGroundRefresh(){
+  if(groundTimer){clearInterval(groundTimer);groundTimer=null;}
+}
+function syncGroundFeed(){
+  if(groundModeActive()){refreshGroundList(true);scheduleGroundRefresh();}
+  else{stopGroundRefresh();if(groundRows.length){groundRows=[];renderBoard();}}
+}
 /** Departure ICAO of a row — live rows carry a.dep; manual strips start their route with it. */
 function depIcaoOf(a){
   if(!a)return '';
@@ -2862,7 +2916,8 @@ function countsForController(cs){
   }
   if(mode==='ground'){
     const a=manual.find(x=>x&&(x.cs||'').toUpperCase()===cs)
-      ||liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs);
+      ||liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs)
+      ||groundRows.find(x=>x&&(x.cs||'').toUpperCase()===cs);
     if(!a)return false;
     return (a.source==='manual'||isOnGround(a))&&matchesGroundDep(a);
   }
@@ -2896,7 +2951,8 @@ function updatePositionBar(){
       hint.textContent=mode==='all'?'showing all aircraft in FIR/ARTCC'
         :(mode==='cpdlc'?'showing on-frequency CPDLC aircraft'
           :(mode==='ground'?('showing aircraft on the ground (below '+GROUND_SPEED_KT+' kt) departing '
-              +(groundDepApts().length?groundDepApts().join(' / '):('any '+(depArtccId()||'FIR')+' airport')))
+              +(groundDepApts().length?groundDepApts().join(' / '):('any '+(depArtccId()||'FIR')+' airport'))
+              +(groundErr?' \u2014 VATSIM ground feed unavailable':(groundRows.length?'':' \u2014 loading\u2026')))
             :'showing aircraft tuned to this frequency'));
     }
     bar.classList.remove('hidden');
@@ -3102,6 +3158,11 @@ function displayList(){
     // kept whatever their speed, but still have to match the airport.
     // No frequency match required — aircraft on the ground are on a tower/ground
     // frequency, and the point of this filter is to reach them via CPDLC.
+    // Ground rows the hub never sends are merged in here; the hub's own row wins
+    // for a callsign both sources carry (it has the CPDLC / frequency data).
+    if(groundRows.length&&groundMod&&typeof groundMod.mergeGroundRows==='function'){
+      list=groundMod.mergeGroundRows(list,groundRows);
+    }
     list=list.filter(a=>(a.source==='manual'||isOnGround(a))&&matchesGroundDep(a));
   }else{
     // freq (default)
@@ -8064,6 +8125,8 @@ function toggleDepMenu(){
   const find=document.getElementById('depFind');
   if(find)find.addEventListener('input',()=>renderDepRows(depItems,find.value));
   setTimeout(()=>{if(depArtccId()){refreshDepList(false);scheduleDepRefresh();}},2500);
+  // SHOW GROUND A/C is sticky — start its VATSIM feed when the page opens in it.
+  setTimeout(()=>{syncGroundFeed();},2600);
 })();
 document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
   el.addEventListener('click',()=>{
