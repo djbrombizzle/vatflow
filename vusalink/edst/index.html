@@ -137,6 +137,13 @@ a{color:inherit}
   border-bottom:1px solid #1a1a1a;background:#0a0a0a;
 }
 #edstTools .et-sort-dd .gnd-field.off{opacity:.45}
+#edstTools .et-sort-dd .opt.locked{opacity:.4;cursor:not-allowed}
+#edstTools .et-sort-dd .opt.locked:hover{background:transparent}
+#edstTools .et-sort-dd .role-note{
+  padding:5px 8px;border-bottom:1px solid #1a1a1a;background:#12100a;
+  color:var(--amber);font-size:11px;line-height:1.35;
+}
+#edstTools .et-sort-dd .role-note.hidden{display:none!important}
 #edstTools .et-sort-dd .gnd-field label{color:#aeb6af;font-size:11px;letter-spacing:.4px}
 #edstTools .et-sort-dd .gnd-field input{
   background:#000;border:1px solid #8a8a8a;color:#f0f0ec;font:inherit;font-size:12.5px;
@@ -1730,6 +1737,7 @@ html.list-mode #cpdlcListWin{
     <button type="button" class="et-btn" id="btnAclSort" title="Aircraft list filter" aria-haspopup="true" aria-expanded="false" aria-controls="aclSortMenu">Sort...</button>
     <div id="aclSortMenu" class="et-sort-dd hidden" role="menu" aria-label="Aircraft list filter">
       <div class="hdr">LIST FILTER</div>
+      <div class="role-note hidden" id="aclRoleNote"></div>
       <label class="opt" data-acl-filter="all">
         <input type="radio" name="aclFilter" value="all">
         <span class="lab"><b>SHOW ALL A/C</b><span>All aircraft in the FIR/ARTCC boundary</span></span>
@@ -1788,7 +1796,7 @@ html.list-mode #cpdlcListWin{
   <b id="verifyTitle">VERIFY TO SEND CPDLC</b>
   <span id="verifyAtisBlock" class="hidden">&mdash; add this code to your VATSIM controller info / ATIS:
   <span id="verifyCode">VUSA-----</span>, then wait ~30 s. You can remove it once verified &mdash; this device stays verified for 30 days.</span>
-  <span id="verifyVnasBlock" class="hidden">&mdash; log in to <b>vNAS</b> with the same VATSIM account (same CID), assume your <b>center</b> position, then wait for the feed to update (~30 s). This device stays verified for 30 days once confirmed.</span>
+  <span id="verifyVnasBlock" class="hidden">&mdash; log in to <b>vNAS</b> with the same VATSIM account (same CID), assume your position, then wait for the feed to update (~30 s). A <b>center</b> position gets every Sort... list filter; <b>_DEL / _GND / _TWR / _APP</b> get CPDLC with aircraft on the ground only. This device stays verified for 30 days once confirmed.</span>
   <span id="verifyState">checking&hellip;</span>
 </div>
 <div id="posBar" class="hidden">
@@ -2568,8 +2576,11 @@ function aclFilterMode(){
   // CRC / list display lock — does not mutate the stored classic Sort preference.
   if(crcMode()||listMode())return 'cpdlc';
   const m=String(settings.aclFilter||'').toLowerCase();
-  if(m==='all'||m==='cpdlc'||m==='freq'||m==='ground')return m;
-  return settings.showAll===true?'all':'freq';
+  const stored=(m==='all'||m==='cpdlc'||m==='freq'||m==='ground')
+    ?m:(settings.showAll===true?'all':'freq');
+  // _DEL/_GND/_TWR/_APP are CPDLC for aircraft on the ground only; _CTR/_FSS get
+  // the whole menu. An unknown position is left alone — the hub owns sign-in.
+  return clampAclMode(stored,myPositionCallsign());
 }
 function setAclFilterMode(mode){
   // In CRC mode Sort is locked to CPDLC-on-freq. Keep vedst_settings.aclFilter
@@ -2581,6 +2592,12 @@ function setAclFilterMode(mode){
     return;
   }
   const m=String(mode||'freq').toLowerCase();
+  const cs=myPositionCallsign();
+  if(isGroundOnly(cs)&&m!=='ground'){
+    flashStatus('GROUND A/C ONLY \u2014 '+(cs||'this position'));
+    syncAclSortUi();
+    return;
+  }
   settings.aclFilter=(m==='all'||m==='cpdlc'||m==='ground')?m:'freq';
   settings.showAll=settings.aclFilter==='all';
   settings.showCpdlcOnly=settings.aclFilter==='cpdlc';
@@ -2588,10 +2605,22 @@ function setAclFilterMode(mode){
   syncAclSortUi();
   updatePositionBar();
   renderBoard();
+  syncGroundFeed();
 }
 /** Airports typed into the SHOW GROUND A/C box, normalised ("katl, kmco" → ["KATL","KMCO"]). */
 function groundDepApts(){
   return String(settings.groundDepApt||'').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+}
+/**
+ * Airports the ground filter actually uses: what was typed, else the field this
+ * position works (KATL_GND → KATL). A center, or a TRACON position whose
+ * callsign names no field, falls back to every airport in the ARTCC.
+ */
+function effectiveGroundApts(){
+  const typed=groundDepApts();
+  if(typed.length)return typed;
+  const f=positionField(myPositionCallsign());
+  return f?[f]:[];
 }
 function setGroundDepApt(txt){
   const v=String(txt||'').toUpperCase().replace(/[^A-Z0-9, ]/g,'').replace(/\s+/g,' ').trim();
@@ -2600,6 +2629,7 @@ function setGroundDepApt(txt){
   persist();
   updatePositionBar();
   renderBoard();
+  if(groundModeActive())refreshGroundList(true);
 }
 function syncAclSortUi(){
   const mode=aclFilterMode();
@@ -2620,14 +2650,26 @@ function syncAclSortUi(){
   if(row)row.classList.toggle('off',mode!=='ground');
   if(gd){
     if(document.activeElement!==gd&&gd.value!==(settings.groundDepApt||''))gd.value=settings.groundDepApt||'';
-    gd.placeholder='any '+(depArtccId()||'FIR')+' airport';
+    const own=positionField(myPositionCallsign());
+    gd.placeholder=own?own:('any '+(depArtccId()||'FIR')+' airport');
   }
   if(!menu)return;
+  const posCs=myPositionCallsign();
+  const allowed=posCs?allowedAclModes(posCs):[];
+  const locked=!!posCs&&allowed.length>0&&allowed.length<4;
+  const note=document.getElementById('aclRoleNote');
+  if(note){
+    note.classList.toggle('hidden',!locked);
+    if(locked)note.textContent=posCs+' \u2014 '+roleLabel(posCs)+'. Center positions get the other filters.';
+  }
   menu.querySelectorAll('.opt[data-acl-filter]').forEach(lab=>{
     const on=lab.dataset.aclFilter===mode;
     lab.classList.toggle('on',on);
+    const off=locked&&!allowed.includes(lab.dataset.aclFilter);
+    lab.classList.toggle('locked',off);
+    lab.setAttribute('aria-disabled',off?'true':'false');
     const inp=lab.querySelector('input[type="radio"]');
-    if(inp)inp.checked=on;
+    if(inp){inp.checked=on;inp.disabled=off;}
   });
 }
 function closeAclSortMenu(){
@@ -2711,6 +2753,22 @@ let alertShowFilter=null;                // {type, cs?} for GPD Show / Show ALL
 let conflictProbeTimer=null;let pollTimer=null,burstUntil=0,vatsimTimer=null;
 let vatsimBusy=false, vatsimFeedReady=false;
 let myPosition={callsign:'',label:'',freqMhz:null};
+// Position callsign seen in the VATSIM controller feed — a backup for the hub's
+// own report, so the Sort lock knows a _TWR/_GND position even before the hub
+// has told us who we are.
+let vatsimPositionCs='';
+function myPositionCallsign(){
+  return (myPosition.callsign||vatsimPositionCs||'').toUpperCase();
+}
+// shared/cpdlc-position-role.js arrives with the module block below; until then
+// nothing is restricted (the hub is the gate that actually matters).
+function roleApi(){return window.CpdlcRole||null;}
+function clampAclMode(mode,cs){const R=roleApi();return R?R.clampAclMode(mode,cs):mode;}
+function isGroundOnly(cs){const R=roleApi();return R?R.isGroundOnly(cs):false;}
+function allowedAclModes(cs){const R=roleApi();return R?R.allowedAclModes(cs):[];}
+function roleLabel(cs){const R=roleApi();return R?R.roleLabel(cs):'';}
+function positionField(cs){const R=roleApi();return R?R.positionField(cs):'';}
+function findMyPosition(list,cid){const R=roleApi();return R?R.findMyPosition(list,cid):null;}
 const pilotFreqs=new Map();              // callsign -> [mhz, ...] from VATSIM transceivers feed
 const LIST_SNAP_KEY='vedst_cpdlc_list_snap_v1';
 const LIST_SNAP_MAX_AGE=25000;
@@ -2782,6 +2840,70 @@ function groundSpeedKt(a){
   return m?+m[1]:null;
 }
 function isOnGround(a){const gs=groundSpeedKt(a);return gs!=null&&gs<GROUND_SPEED_KT;}
+// SHOW GROUND A/C traffic source. The hub ACL feed is the enroute picture — an
+// aircraft at a gate or taxiing is never in it — so ground rows come straight
+// from the VATSIM pilot feed (the same payload the DEP list fetches).
+let groundMod=null,groundModReady=null,groundRows=[],groundBusy=false,groundTimer=null,groundErr=null;
+function groundModeActive(){return !listMode()&&!crcMode()&&aclFilterMode()==='ground';}
+function ensureGroundMod(){
+  if(groundMod)return Promise.resolve(groundMod);
+  if(groundModReady)return groundModReady;
+  groundModReady=(async()=>{
+    await ensureDepMod();                       // loads VATSpy airports + ARTCC boundaries
+    groundMod=await import('../../shared/edst-ground-list.js');
+    return groundMod;
+  })().catch(err=>{
+    groundModReady=null;
+    throw err;
+  });
+  return groundModReady;
+}
+async function refreshGroundList(force){
+  if(!groundModeActive()){
+    stopGroundRefresh();
+    if(groundRows.length){groundRows=[];renderBoard();}
+    return;
+  }
+  if(groundBusy&&!force)return;
+  groundBusy=true;
+  try{
+    const dep=await ensureDepMod();             // owns the VATSIM data.json fetch
+    const mod=await ensureGroundMod();
+    const data=await dep.fetchVatsimData();
+    const me=findMyPosition((data&&data.controllers)||[],(settings.cid||'').trim());
+    const csNow=((me&&me.callsign)||'').toUpperCase();
+    if(csNow&&csNow!==vatsimPositionCs){
+      const prev=myPositionCallsign();
+      vatsimPositionCs=csNow;
+      if(myPositionCallsign()!==prev)onPositionChanged();
+    }
+    const built=mod.buildGroundList(depArtccId(),data,{apts:effectiveGroundApts()});
+    groundRows=built.items||[];
+    groundErr=null;
+  }catch(err){
+    console.warn('ground list refresh failed',err);
+    groundErr=(err&&err.message)||String(err);
+  }finally{
+    groundBusy=false;
+  }
+  if(groundModeActive())renderBoard();
+}
+function scheduleGroundRefresh(){
+  if(groundTimer)return;
+  groundTimer=setInterval(()=>{refreshGroundList(false);},30000);   // VATSIM data.json cadence
+}
+function stopGroundRefresh(){
+  if(groundTimer){clearInterval(groundTimer);groundTimer=null;}
+}
+function onPositionChanged(){
+  syncAclSortUi();
+  updatePositionBar();
+  syncGroundFeed();
+}
+function syncGroundFeed(){
+  if(groundModeActive()){refreshGroundList(true);scheduleGroundRefresh();}
+  else{stopGroundRefresh();if(groundRows.length){groundRows=[];renderBoard();}}
+}
 /** Departure ICAO of a row — live rows carry a.dep; manual strips start their route with it. */
 function depIcaoOf(a){
   if(!a)return '';
@@ -2799,7 +2921,7 @@ function depIcaoOf(a){
  * Frequency is never considered: ground aircraft are on a tower/ground freq.
  */
 function matchesGroundDep(a){
-  const want=groundDepApts();
+  const want=effectiveGroundApts();
   if(!want.length)return !a||a.cat!=='ADJ';
   const dep=depIcaoOf(a);
   if(!dep)return false;
@@ -2862,7 +2984,8 @@ function countsForController(cs){
   }
   if(mode==='ground'){
     const a=manual.find(x=>x&&(x.cs||'').toUpperCase()===cs)
-      ||liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs);
+      ||liveFlights.find(x=>x&&(x.cs||'').toUpperCase()===cs)
+      ||groundRows.find(x=>x&&(x.cs||'').toUpperCase()===cs);
     if(!a)return false;
     return (a.source==='manual'||isOnGround(a))&&matchesGroundDep(a);
   }
@@ -2896,7 +3019,8 @@ function updatePositionBar(){
       hint.textContent=mode==='all'?'showing all aircraft in FIR/ARTCC'
         :(mode==='cpdlc'?'showing on-frequency CPDLC aircraft'
           :(mode==='ground'?('showing aircraft on the ground (below '+GROUND_SPEED_KT+' kt) departing '
-              +(groundDepApts().length?groundDepApts().join(' / '):('any '+(depArtccId()||'FIR')+' airport')))
+              +(effectiveGroundApts().length?effectiveGroundApts().join(' / '):('any '+(depArtccId()||'FIR')+' airport'))
+              +(groundErr?' \u2014 VATSIM ground feed unavailable':(groundRows.length?'':' \u2014 loading\u2026')))
             :'showing aircraft tuned to this frequency'));
     }
     bar.classList.remove('hidden');
@@ -2909,10 +3033,13 @@ function applyFreqMeta(d){
     myPosition={callsign:'',label:'',freqMhz:null};pilotFreqs.clear();return;
   }
   const f=(d&&d.myFreq!=null)?Number(d.myFreq):null;
+  const prevCs=myPositionCallsign();
   if(f!=null&&Number.isFinite(f)){
     const cs=(d.myCallsign||'').toUpperCase();
     myPosition={callsign:cs,label:positionLabelFromCallsign(cs),freqMhz:f};
   }else myPosition={callsign:'',label:'',freqMhz:null};
+  // Taking a different position can change which filters we are allowed.
+  if(myPositionCallsign()!==prevCs)onPositionChanged();
   pilotFreqs.clear();
   const pf=(d&&d.pilotFreqs)||{};
   Object.keys(pf).forEach(cs=>{const a=pf[cs];if(Array.isArray(a)&&a.length)pilotFreqs.set(cs.toUpperCase(),a);});
@@ -3102,6 +3229,11 @@ function displayList(){
     // kept whatever their speed, but still have to match the airport.
     // No frequency match required — aircraft on the ground are on a tower/ground
     // frequency, and the point of this filter is to reach them via CPDLC.
+    // Ground rows the hub never sends are merged in here; the hub's own row wins
+    // for a callsign both sources carry (it has the CPDLC / frequency data).
+    if(groundRows.length&&groundMod&&typeof groundMod.mergeGroundRows==='function'){
+      list=groundMod.mergeGroundRows(list,groundRows);
+    }
     list=list.filter(a=>(a.source==='manual'||isOnGround(a))&&matchesGroundDep(a));
   }else{
     // freq (default)
@@ -8064,6 +8196,8 @@ function toggleDepMenu(){
   const find=document.getElementById('depFind');
   if(find)find.addEventListener('input',()=>renderDepRows(depItems,find.value));
   setTimeout(()=>{if(depArtccId()){refreshDepList(false);scheduleDepRefresh();}},2500);
+  // SHOW GROUND A/C is sticky — start its VATSIM feed when the page opens in it.
+  setTimeout(()=>{syncGroundFeed();},2600);
 })();
 document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
   el.addEventListener('click',()=>{
@@ -8838,10 +8972,13 @@ import * as VatflowAuth from "../../shared/vatflow-auth.js";
 import * as VFRefresh from "../../shared/vatflow-refresh.js";
 import * as EdstSpdIsa from "../../shared/edst-spd-isa.js";
 import { fixEntriesAheadOfAircraft } from "../../shared/route-engine.js";
+import * as CpdlcRole from "../../shared/cpdlc-position-role.js";
 window.VFRefresh = VFRefresh;
 window.VatflowAuth = VatflowAuth;
 window.fixEntriesAheadOfAircraft = fixEntriesAheadOfAircraft;
 window.EdstSpdIsa = EdstSpdIsa;
+window.CpdlcRole = CpdlcRole;
+onPositionChanged();          // position rules are live now — re-apply the Sort lock
 await VatflowAuth.initVatflowAuth();
 updateAuthChip();
 onOAuthReady();

@@ -537,7 +537,7 @@
       <h3>Get started as a controller</h3>
       <ol>
         <li>Click <b>Sign in with VATSIM</b> in the top bar (your CID comes from VATSIM Connect).</li>
-        <li>Log on to VATSIM and open a US <b>center</b> position (for example <b>JAX_CTR</b> or <b>ZJX_CTR</b>).</li>
+        <li>Log on to VATSIM and open a US <b>center</b> position (for example <b>JAX_CTR</b> or <b>ZJX_CTR</b>) for the full aircraft list. A <b>_DEL / _GND / _TWR / _APP</b> position may also use CPDLC, limited to aircraft on the ground (EDST Sort... is locked to SHOW GROUND A/C).</li>
         <li>Log in to <b>vNAS</b> with the <b>same VATSIM CID</b> and assume the matching center sector in vNAS.</li>
         <li>vUSAlink checks the <a href="https://docs.virtualnas.net/data-admin/controller-feed/" target="_blank" rel="noopener noreferrer">vNAS controller feed</a> — your CID, callsign, and ARTCC must match. The yellow <b>VERIFY</b> bar clears automatically when vNAS confirms you.</li>
         <li>Once verified, the badge changes to <b>CONTROLLING</b> and you can send CPDLC. This device stays verified for 30 days.</li>
@@ -608,7 +608,7 @@
         <div class="hint">Set this with your VATSIM CID below to use the shared KUSA hub instead of Hoppie directly. Leave blank for solo/direct mode.</div></div>
       <div class="frow" id="cidRow"><label>My VATSIM CID</label>
         <input id="setCid" autocomplete="off" inputmode="numeric" placeholder="1234567" readonly>
-        <div class="hint" id="cidHint">Sign in with VATSIM (top bar) to connect. Your sector is taken from your live VATSIM position \u2014 you must be controlling a center (e.g. JAX_CTR).</div></div>
+        <div class="hint" id="cidHint">Sign in with VATSIM (top bar) to connect. Your sector is taken from your live VATSIM position \u2014 a center (e.g. JAX_CTR) for the full list, or _DEL/_GND/_TWR/_APP for ground aircraft only.</div></div>
       </div>
     </div>
     <p class="discord-hint">Questions? <a href="https://discord.gg/ZVSkeMZAqJ" target="_blank" rel="noopener noreferrer">Join our Discord</a>.</p>
