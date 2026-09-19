@@ -272,6 +272,8 @@
   }
   .taxi-scope { font-size: 9px; margin-bottom: 8px; }
   .taxi-can-edit { color: #56d364; }
+  .taxi-age { color: var(--muted-2); }
+  .taxi-age.stale { color: var(--amber); }
   .taxi-ro { color: var(--muted-2); }
   .taxi-cfg-status { font-size: 9px; color: var(--amber); margin-bottom: 8px; }
   .rwy-chip.ro { cursor: default; opacity: 0.75; }
@@ -381,7 +383,8 @@ import {
 } from "./shared/taxi-runways.js";
 import {
   canEditTaxiConfig, isTaxiConfigSynced, loadTaxiConfig, removeSidRule, saveTaxiConfig,
-  setSidRule, syncTaxiConfigs, syncTaxiPermissions, taxiConfigSignedIn, toggleActiveRunway,
+  setSidRule, syncTaxiConfigs, syncTaxiPermissions, taxiConfigAge, taxiConfigIsStale,
+  taxiConfigSignedIn, toggleActiveRunway,
 } from "./shared/taxi-config-store.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
@@ -1001,6 +1004,16 @@ function renderTaxiConfig() {
   const datalist = catalog.map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
   const pinOpts = assignable.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.id)}</option>`).join("");
 
+  /* A config authored hours before an event is the point of sharing it — but a
+     controller signing on later needs to see whether they are looking at this
+     morning's plan or one left over from a different flow. */
+  const age = taxiConfigAge(field);
+  const stale = taxiConfigIsStale(field);
+  const ageMsg = age
+    ? `<span class="taxi-age${stale ? " stale" : ""}">set ${escapeHtml(age)}` +
+      (stale ? " — check it still matches the flow" : "") + `</span>`
+    : "";
+
   const scopeMsg = canEdit
     ? `<span class="taxi-can-edit">You can set ${escapeHtml(field)}</span>`
     : (taxiConfigSignedIn()
@@ -1013,7 +1026,7 @@ function renderTaxiConfig() {
     `<h3>Departure runways &amp; taxi estimate ` +
     `<span class="taxi-shared">${isTaxiConfigSynced() ? "shared" : "local only — hub not reached"}</span></h3>` +
     `<div class="taxi-cfg-fields">${tabs}</div>` +
-    `<div class="taxi-scope">${scopeMsg}</div>` +
+    `<div class="taxi-scope">${scopeMsg}${ageMsg ? " · " + ageMsg : ""}</div>` +
     statusMsg +
     `<div class="rwy-chips">${chips}</div>` +
     `<div class="sid-rules">${ruleRows}</div>` +

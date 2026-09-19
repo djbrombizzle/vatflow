@@ -36,6 +36,8 @@ export const DEFAULT_CONFIG = {
 
 /** ICAO -> config, the synchronous read path. */
 const cache = new Map();
+/** ICAO -> ISO timestamp of the last hub write, for staleness display. */
+const updatedAt = new Map();
 /** ICAO -> { via } for fields this user may write; empty until checked. */
 const writable = new Map();
 let lastSyncAt = 0;
@@ -110,6 +112,40 @@ export function isTaxiConfigSynced() {
   return lastSyncAt > 0;
 }
 
+/**
+ * When this field's config was last written, as an ISO string, or null.
+ *
+ * Worth surfacing: a config set up hours before an event is exactly the point,
+ * but a controller signing on later has no other way to tell this morning's
+ * plan from one left over from last week's flow.
+ */
+export function taxiConfigUpdatedAt(icao) {
+  return updatedAt.get(icaoOf(icao)) || null;
+}
+
+/** Human age of a field's config — "4h ago", "3d ago", or "" when unknown. */
+export function taxiConfigAge(icao, nowMs) {
+  const iso = taxiConfigUpdatedAt(icao);
+  if (!iso) return "";
+  const then = Date.parse(iso);
+  if (!isFinite(then)) return "";
+  const mins = Math.max(0, Math.round(((nowMs || Date.now()) - then) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.round(mins / 60);
+  if (hrs < 48) return hrs + "h ago";
+  return Math.round(hrs / 24) + "d ago";
+}
+
+/** True when a config is old enough that a controller should re-check it. */
+export function taxiConfigIsStale(icao, nowMs) {
+  const iso = taxiConfigUpdatedAt(icao);
+  if (!iso) return false;
+  const then = Date.parse(iso);
+  if (!isFinite(then)) return false;
+  return (nowMs || Date.now()) - then > 18 * 3600 * 1000;
+}
+
 /** Fields this user may currently write, as ICAO -> { via }. */
 export function writableFields() {
   return new Map(writable);
@@ -142,6 +178,9 @@ export function syncTaxiConfigs(opts = {}) {
         const cfg = sanitize(raw);
         cache.set(id, cfg);
         writeMirror(id, cfg);
+      }
+      for (const [icao, ts] of Object.entries(data.updatedAt || {})) {
+        if (typeof ts === "string") updatedAt.set(icaoOf(icao), ts);
       }
       lastSyncAt = Date.now();
       return true;
@@ -203,6 +242,7 @@ export function saveTaxiConfig(icao, patch) {
         const confirmed = sanitize(d.config || merged);
         cache.set(id, confirmed);
         writeMirror(id, confirmed);
+        if (d.updatedAt) updatedAt.set(id, d.updatedAt);
         return { ok: true, config: confirmed, via: d.via };
       }
       return { ok: false, error: (d && d.error) || ("http_" + status), config: merged };
@@ -248,6 +288,7 @@ export function seedTaxiConfig(icao, cfg) {
 export function clearTaxiConfig(icao) {
   const id = icaoOf(icao);
   cache.set(id, { ...DEFAULT_CONFIG });
+  updatedAt.delete(id);
   try { localStorage.removeItem(key(id)); } catch (e) {}
   return cache.get(id);
 }
