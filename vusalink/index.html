@@ -139,6 +139,22 @@
   .customfix input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;width:120px}
   #rtEdit{min-width:min(420px,90vw);flex:1;max-width:100%}
 
+  /* ROUTE menu tabs + departure clearance (DCL) pane */
+  .rttabs{display:flex;border-bottom:1px solid #333;background:#0a0a0a}
+  .rttab{flex:1;text-align:center;padding:4px 8px;cursor:pointer;color:var(--fg-dim);letter-spacing:.5px;border-right:1px solid #222}
+  .rttab:last-child{border-right:none}
+  .rttab:hover,.rttab:active{background:#1c1c1c}
+  .rttab.on{background:#15303a;color:#9fe6e0}
+  .clncwarn{padding:3px 8px;background:var(--red-bg);color:var(--red-fg);text-align:center;letter-spacing:.5px}
+  .clncgrid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;padding:6px 8px;align-items:center}
+  .clncgrid label{color:var(--fg-dim);letter-spacing:.5px;white-space:nowrap}
+  .clncgrid input{background:#000;border:1px solid #555;color:var(--fg);padding:2px 6px;width:100%;min-width:0}
+  .clncrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .clncpre{white-space:pre-wrap;word-break:break-word;min-height:46px;color:#9fe6e0}
+  .clncpre .ph{color:var(--fg-dim)}
+  .clnccount{margin-left:auto;color:var(--fg-dim)}
+  .clnccount.over{color:var(--red-fg)}
+
   /* handoff + message popups */
   .holist{max-height:320px;overflow:auto}
   .holist .ho{padding:4px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:14px}
@@ -436,6 +452,11 @@
 <!-- ROUTE menu -->
 <div id="routemenu" class="pop hidden">
   <div class="hdr"><span class="title" id="rtTitle">ROUTE MENU</span><span class="x" data-close="routemenu">X</span></div>
+  <div class="rttabs">
+    <span class="rttab on" data-rttab="enroute" title="Airborne re-routes, directs and crossing restrictions">ENROUTE &mdash; AIRBORNE</span>
+    <span class="rttab" data-rttab="clnc" title="Departure clearance for an aircraft on the ground">CLEARANCE &mdash; GROUND</span>
+  </div>
+  <div id="rtPaneEnroute">
   <div class="bar"><span class="chip amend" id="rtAmend" title="Remove last queued item">AMEND</span>
     <span class="chip" id="rtScratchpad" title="Add to uplink queue">SCRATCHPAD</span>
     <span class="chip uplink" id="rtUplink">DIRECT</span></div>
@@ -454,6 +475,31 @@
   <div class="sectlabel">EDIT ROUTE &amp; UPLINK</div>
   <div class="customfix"><input id="rtEdit" placeholder="enroute route, e.g. OMN J79 CHS" autocomplete="off">
     <span class="chip cyan" id="rtSendRoute">UPLINK ROUTE</span></div>
+  </div>
+
+  <div id="rtPaneClnc" class="hidden">
+    <div class="clncwarn hidden" id="clncWarn">AIRBORNE &mdash; a departure clearance is for aircraft on the ground</div>
+    <div class="sectlabel">DEPARTURE CLEARANCE</div>
+    <div class="clncgrid">
+      <label>DEST</label><input id="clncDest" placeholder="KMCO" autocomplete="off">
+      <label>ROUTE</label><input id="clncRoute" placeholder="GAIRY2.IRQ FISHO Q93 GIPPL Q85 LPERD SNFLD3" autocomplete="off">
+      <label>CLIMB</label><input id="clncClimb" placeholder="CLB VIA SID EXCEPT MAINTAIN 5000" autocomplete="off">
+      <label>EXPECT</label><input id="clncExp" placeholder="350 &mdash; sends EXP 350 10 MIN AFT DP" autocomplete="off">
+      <label>DEP FRQ</label><input id="clncFreq" placeholder="125.25" autocomplete="off">
+      <label>SQUAWK</label><input id="clncSqk" placeholder="4517" autocomplete="off" inputmode="numeric">
+    </div>
+    <div class="customfix clncrow">
+      <span class="chip tgl" id="clncAsFiled" title="Append THEN AS FILED after the route">THEN AS FILED</span>
+      <span class="chip tgl on" id="clncLoad" title="Append the +LOAD NEW RTE TO XXX+ free-text line">+LOAD NEW RTE+</span>
+    </div>
+    <div class="sectlabel">PILOT SEES</div>
+    <div class="rtearea clncpre" id="clncPreview"></div>
+    <div class="bar">
+      <span class="chip" id="clncScratch" title="Add to uplink queue">SCRATCHPAD</span>
+      <span class="chip uplink" id="clncUplink">UPLINK CLEARANCE</span>
+      <span class="clnccount" id="clncCount">0/220</span>
+    </div>
+  </div>
 </div>
 
 <!-- HANDOFF menu -->
@@ -1067,6 +1113,10 @@ function applyUplinkEffects(cs,min,effects){
   }else if(effects.type==='squawk'){
     if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();}
     sqMin[cs]=min;
+  }else if(effects.type==='dcl'){
+    // Departure clearance carries a route and (usually) a beacon code in one uplink.
+    rtMin[cs]=min;routePending.add(cs);
+    if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();sqMin[cs]=min;}
   }
 }
 async function sendUplinkEntry(cs,entry){
@@ -2283,6 +2333,9 @@ function openRouteMenu(idx,x,y){
   delete document.getElementById('xresAltimInput').dataset.manual;
   xresAltimManual=false;
   document.getElementById('rtEdit').value=a._routeRaw||a.route||'';
+  clncPrefill(a);
+  // Open on the clearance tab when the aircraft looks like it is still on the ground.
+  setRouteTab(a.gs>50?'enroute':'clnc');
   placePop(routemenu,x,y);
 }
 function selectFix(fix){
@@ -2369,6 +2422,106 @@ document.getElementById('rtScratchpad').onclick=async()=>{
   close('routemenu');
 };
 document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarget.cs);};
+
+//============================================================ departure clearance (DCL) tab
+// Ground-only: builds a FAA Data Comm style clearance as ONE multi-element CPDLC
+// uplink (RA=WU), so the pilot answers WILCO/UNABLE exactly as for any other
+// clearance. Elements are joined with the same ' @_@ ' separator the uplink queue
+// uses — clients render that as a line break on the DCDU.
+const CLNC_MAX=220;                       // Hoppie packet budget (see mpFreeText maxlength)
+let clncAsFiled=false, clncLoadLine=true;
+const CLNC_FIELDS=['clncDest','clncRoute','clncClimb','clncExp','clncFreq','clncSqk'];
+function gel(id){return document.getElementById(id);}
+function clncVal(id){return (gel(id).value||'').trim().toUpperCase().replace(/\s+/g,' ');}
+function clncExpLevel(s){
+  const p=parseAltitudeInput(s);
+  return p?pad3(p.fl):(s||'').toUpperCase();
+}
+function stripRouteEnds(route,dep,arr){
+  const t=(route||'').trim().toUpperCase().split(/\s+/).filter(Boolean);
+  if(dep&&t[0]===dep.toUpperCase())t.shift();
+  if(arr&&t[t.length-1]===arr.toUpperCase())t.pop();
+  return t.join(' ');
+}
+function buildClearanceMessage(){
+  const dest=clncVal('clncDest');
+  if(!dest)return null;
+  const route=clncVal('clncRoute'),climb=clncVal('clncClimb');
+  const exp=clncVal('clncExp'),frq=clncVal('clncFreq'),sqk=clncVal('clncSqk');
+  const els=[`CLEARED TO THE @${dest}@ ARPT`];
+  if(route)els.push(`@${route}@`+(clncAsFiled?' THEN AS FILED':''));
+  else if(clncAsFiled)els.push('AS FILED');
+  if(climb)els.push(climb);
+  if(exp)els.push(`EXP @${clncExpLevel(exp)}@ 10 MIN AFT DP`);
+  if(frq)els.push(`DPFRQ @${frq}@`);
+  if(sqk)els.push(`SQUAWK @${sqk}@`);
+  if(clncLoadLine)els.push(`+LOAD NEW RTE TO ${dest}+`);
+  return {label:'CLNC',msg:els.join(' @_@ '),effects:{type:'dcl',code:sqk}};
+}
+// Render the message the way a DCDU shows it: markers stripped, elements on
+// their own lines. This is a preview of the text, not of the client's wrapping.
+function clncRenderPreview(){
+  const entry=buildClearanceMessage();
+  const pre=gel('clncPreview'),count=gel('clncCount');
+  if(!entry){
+    pre.innerHTML='<span class="ph">Enter a destination to build the clearance.</span>';
+    count.textContent='0/'+CLNC_MAX;count.classList.remove('over');
+    return null;
+  }
+  pre.textContent=entry.msg.split(' @_@ ').map(s=>s.replace(/@/g,'')).join('\n');
+  count.textContent=entry.msg.length+'/'+CLNC_MAX;
+  count.classList.toggle('over',entry.msg.length>CLNC_MAX);
+  return entry;
+}
+function clncPrefill(a){
+  gel('clncDest').value=(a.arr||'').toUpperCase();
+  gel('clncRoute').value=stripRouteEnds(a._routeRaw||a.route||'',a.dep,a.arr);
+  gel('clncClimb').value='CLB VIA SID';
+  gel('clncExp').value=a.alt?pad3(a.alt):'';
+  gel('clncFreq').value='';
+  gel('clncSqk').value=(a.assignedSquawk||a.squawk||'').trim();
+  clncAsFiled=false;gel('clncAsFiled').classList.remove('on');
+  clncLoadLine=true;gel('clncLoad').classList.add('on');
+  // Airborne aircraft can still be targeted, but say so plainly.
+  gel('clncWarn').classList.toggle('hidden',!(a.gs>50));
+  clncRenderPreview();
+}
+function setRouteTab(tab){
+  document.querySelectorAll('#routemenu .rttab').forEach(t=>t.classList.toggle('on',t.dataset.rttab===tab));
+  gel('rtPaneEnroute').classList.toggle('hidden',tab!=='enroute');
+  gel('rtPaneClnc').classList.toggle('hidden',tab!=='clnc');
+}
+document.querySelectorAll('#routemenu .rttab').forEach(t=>{
+  t.onclick=()=>setRouteTab(t.dataset.rttab);
+});
+CLNC_FIELDS.forEach(id=>gel(id).addEventListener('input',clncRenderPreview));
+gel('clncAsFiled').onclick=()=>{
+  clncAsFiled=!clncAsFiled;gel('clncAsFiled').classList.toggle('on',clncAsFiled);clncRenderPreview();
+};
+gel('clncLoad').onclick=()=>{
+  clncLoadLine=!clncLoadLine;gel('clncLoad').classList.toggle('on',clncLoadLine);clncRenderPreview();
+};
+function clncEntryOrWarn(){
+  const entry=clncRenderPreview();
+  if(!entry){logMsg('err',rtTarget?rtTarget.cs:'','clearance needs a destination');return null;}
+  if(entry.msg.length>CLNC_MAX){
+    logMsg('err',rtTarget.cs,`clearance is ${entry.msg.length} chars (max ${CLNC_MAX}) — shorten the route`);
+    return null;
+  }
+  return entry;
+}
+gel('clncUplink').onclick=async()=>{
+  if(!rtTarget)return;
+  const entry=clncEntryOrWarn();if(!entry)return;
+  const cs=rtTarget.cs;close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+gel('clncScratch').onclick=()=>{
+  if(!rtTarget)return;
+  const entry=clncEntryOrWarn();if(!entry)return;
+  if(!queueAdd(rtTarget.cs,entry))return;
+  close('routemenu');
+};
 
 //============================================================ HANDOFF menu (FLIGHT ID)
 const handoffpop=document.getElementById('handoffpop');
