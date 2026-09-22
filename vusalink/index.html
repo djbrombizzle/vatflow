@@ -152,6 +152,13 @@
   .clncrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .clncpre{white-space:pre-wrap;word-break:break-word;min-height:46px;color:#9fe6e0}
   .clncpre .ph{color:var(--fg-dim)}
+  .clnccdr{flex-wrap:nowrap}
+  .clnccdr #clncCdrCode{width:96px;flex:0 0 auto;text-transform:uppercase}
+  .clnccdr select{background:#000;border:1px solid #555;color:var(--fg);padding:2px 4px;flex:1;min-width:0}
+  .clncadv{color:var(--fg-dim);min-height:1em}
+  .clncadv .warn{color:var(--amber)}
+  .clncadv .bad{color:var(--red-fg)}
+  .clncadv .ok{color:var(--cyan)}
   .clnccount{margin-left:auto;color:var(--fg-dim)}
   .clnccount.over{color:var(--red-fg)}
 
@@ -482,6 +489,11 @@
     <div class="sectlabel">DEPARTURE CLEARANCE</div>
     <div class="clncgrid">
       <label>DEST</label><input id="clncDest" placeholder="KMCO" autocomplete="off">
+      <label>CDR</label><div class="clncrow clnccdr">
+        <input id="clncCdrCode" placeholder="ATLMCOGA" maxlength="8" autocomplete="off" spellcheck="false">
+        <select id="clncCdrPick"><option value="">&mdash; no CDRs loaded &mdash;</option></select>
+      </div>
+      <label></label><div class="clncadv" id="clncCdrInfo"></div>
       <label>ROUTE</label><input id="clncRoute" placeholder="GAIRY2.IRQ FISHO Q93 GIPPL Q85 LPERD SNFLD3" autocomplete="off">
       <label>CLIMB</label><input id="clncClimb" placeholder="CLB VIA SID EXCEPT MAINTAIN 5000" autocomplete="off">
       <label>EXPECT</label><input id="clncExp" placeholder="350 &mdash; sends EXP 350 10 MIN AFT DP" autocomplete="off">
@@ -2423,6 +2435,65 @@ document.getElementById('rtScratchpad').onclick=async()=>{
 };
 document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarget.cs);};
 
+//============================================================ coded departure routes (CDR)
+// data/cdr is sharded one file per origin airport; index.json maps the 3-letter
+// RCode prefix to its origin so a typed code finds its shard. Both are fetched
+// lazily and cached for the session.
+const CDR_BASE='../data/cdr/';
+let cdrIndex=null;
+const cdrShards={};                       // origin ICAO -> {dest:[[code,depFix,route,eq,coordReq,play]]} | null
+async function cdrLoadIndex(){
+  if(cdrIndex)return cdrIndex;
+  try{const r=await fetch(CDR_BASE+'index.json');if(r.ok)cdrIndex=await r.json();}catch(e){}
+  return cdrIndex;
+}
+async function cdrLoadOrigin(orig){
+  orig=(orig||'').trim().toUpperCase();
+  if(!orig)return null;
+  if(Object.prototype.hasOwnProperty.call(cdrShards,orig))return cdrShards[orig];
+  try{const r=await fetch(CDR_BASE+orig+'.json');cdrShards[orig]=r.ok?await r.json():null;}
+  catch(e){cdrShards[orig]=null;}
+  return cdrShards[orig];
+}
+function cdrRow(orig,dest,row){
+  return {code:row[0],orig,dest,depFix:row[1],route:row[2],eq:row[3],coordReq:row[4],play:row[5]};
+}
+// Resolve an 8-character RCode. Scans every destination in the shard because a
+// code's last two characters are not unique within an origin.
+async function cdrLookup(code){
+  code=(code||'').trim().toUpperCase();
+  if(!/^[A-Z0-9]{8}$/.test(code))return null;
+  const idx=await cdrLoadIndex();
+  if(!idx||!idx.prefix)return null;
+  const orig=idx.prefix[code.slice(0,3)];
+  if(!orig)return null;
+  const shard=await cdrLoadOrigin(orig);
+  if(!shard)return null;
+  for(const dest of Object.keys(shard)){
+    const hit=shard[dest].find(r=>r[0]===code);
+    if(hit)return cdrRow(orig,dest,hit);
+  }
+  return null;
+}
+async function cdrForPair(orig,dest){
+  const shard=await cdrLoadOrigin(orig);
+  dest=(dest||'').trim().toUpperCase();
+  if(!shard||!dest||!shard[dest])return [];
+  return shard[dest].map(r=>cdrRow((orig||'').toUpperCase(),dest,r));
+}
+function cdrDescribe(c){
+  if(!c)return '';
+  const bits=[`${c.orig}→${c.dest}`];
+  if(c.depFix)bits.push('DEP FIX '+c.depFix);
+  if(c.eq)bits.push('NAV EQP '+c.eq);
+  const warn=[];
+  if((c.coordReq||'').toUpperCase()==='Y')warn.push('COORD REQ');
+  if(c.play)warn.push(c.play);
+  let html=esc(bits.join(' · '));
+  if(warn.length)html+=' <span class="warn">'+esc(warn.join(' · '))+'</span>';
+  return html;
+}
+
 //============================================================ departure clearance (DCL) tab
 // Ground-only: builds a FAA Data Comm style clearance as ONE multi-element CPDLC
 // uplink (RA=WU), so the pilot answers WILCO/UNABLE exactly as for any other
@@ -2430,6 +2501,8 @@ document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarge
 // uses — clients render that as a line break on the DCDU.
 const CLNC_MAX=220;                       // Hoppie packet budget (see mpFreeText maxlength)
 let clncAsFiled=false, clncLoadLine=true;
+let clncCdrList=[];
+let clncPickToken=0, clncCodeToken=0;     // separate guards against stale async fills
 const CLNC_FIELDS=['clncDest','clncRoute','clncClimb','clncExp','clncFreq','clncSqk'];
 function gel(id){return document.getElementById(id);}
 function clncVal(id){return (gel(id).value||'').trim().toUpperCase().replace(/\s+/g,' ');}
@@ -2469,8 +2542,9 @@ function clncRenderPreview(){
     return null;
   }
   pre.textContent=entry.msg.split(' @_@ ').map(s=>s.replace(/@/g,'')).join('\n');
-  count.textContent=entry.msg.length+'/'+CLNC_MAX;
-  count.classList.toggle('over',entry.msg.length>CLNC_MAX);
+  const over=entry.msg.length-CLNC_MAX;
+  count.textContent=entry.msg.length+'/'+CLNC_MAX+(over>0?` (+${over})`:'');
+  count.classList.toggle('over',over>0);
   return entry;
 }
 function clncPrefill(a){
@@ -2484,7 +2558,38 @@ function clncPrefill(a){
   clncLoadLine=true;gel('clncLoad').classList.add('on');
   // Airborne aircraft can still be targeted, but say so plainly.
   gel('clncWarn').classList.toggle('hidden',!(a.gs>50));
+  gel('clncCdrCode').value='';
+  gel('clncCdrInfo').innerHTML='';
   clncRenderPreview();
+  clncLoadCdrs(a);
+}
+// Fill the CDR picker for this origin/destination pair. If the filed route
+// already matches one of them, pre-select it so the controller can see which
+// CDR the aircraft is currently on before swapping to another.
+async function clncLoadCdrs(a){
+  const sel=gel('clncCdrPick');
+  const token=++clncPickToken;
+  const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
+  sel.innerHTML='<option value="">— loading… —</option>';
+  if(!dep||!arr){sel.innerHTML='<option value="">— no dep/dest on file —</option>';return;}
+  let list=[];
+  try{list=await cdrForPair(dep,arr);}catch(e){list=[];}
+  if(token!==clncPickToken)return;             // a newer aircraft was opened
+  if(!list.length){
+    sel.innerHTML=`<option value="">— no CDRs for ${esc(dep)}→${esc(arr)} —</option>`;
+    return;
+  }
+  const filed=stripRouteEnds(a._routeRaw||a.route||'',dep,arr);
+  sel.innerHTML=`<option value="">— ${list.length} CDR${list.length>1?'S':''} for ${esc(dep)}→${esc(arr)} —</option>`;
+  list.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=c.code;
+    o.textContent=`${c.code}  ${c.route}`;
+    sel.appendChild(o);
+  });
+  clncCdrList=list;
+  const current=list.find(c=>c.route===filed);
+  if(current){sel.value=current.code;gel('clncCdrInfo').innerHTML='<span class="ok">ON FILE<\/span> '+cdrDescribe(current);}
 }
 function setRouteTab(tab){
   document.querySelectorAll('#routemenu .rttab').forEach(t=>t.classList.toggle('on',t.dataset.rttab===tab));
@@ -2501,11 +2606,48 @@ gel('clncAsFiled').onclick=()=>{
 gel('clncLoad').onclick=()=>{
   clncLoadLine=!clncLoadLine;gel('clncLoad').classList.toggle('on',clncLoadLine);clncRenderPreview();
 };
+// Applying a CDR overwrites the ROUTE field — that is the point of the feature:
+// the controller is issuing a route the pilot has not filed.
+function clncApplyCdr(c,note){
+  if(!c)return;
+  gel('clncRoute').value=c.route;
+  gel('clncDest').value=c.dest;
+  // A code for a different departure airport is almost always a typo.
+  const dep=(rtTarget&&rtTarget.dep||'').toUpperCase();
+  const mismatch=dep&&c.orig!==dep
+    ?`<span class="bad">CDR ORIGIN ${esc(c.orig)} ≠ FILED ${esc(dep)}<\/span> `:'';
+  gel('clncCdrInfo').innerHTML=mismatch+(note?note+' ':'')+cdrDescribe(c);
+  clncRenderPreview();
+}
+gel('clncCdrPick').onchange=()=>{
+  const code=gel('clncCdrPick').value;
+  if(!code){gel('clncCdrInfo').innerHTML='';return;}
+  const c=clncCdrList.find(x=>x.code===code);
+  if(c){gel('clncCdrCode').value=c.code;clncApplyCdr(c);}
+};
+gel('clncCdrCode').addEventListener('input',async()=>{
+  const el=gel('clncCdrCode');
+  const code=(el.value||'').trim().toUpperCase();
+  el.value=code;
+  const info=gel('clncCdrInfo');
+  if(code.length<8){info.innerHTML='';return;}
+  const token=++clncCodeToken;
+  const c=await cdrLookup(code);
+  if(token!==clncCodeToken)return;
+  if(!c){info.innerHTML='<span class="bad">'+esc(code)+' not a known CDR<\/span>';return;}
+  gel('clncCdrPick').value=clncCdrList.some(x=>x.code===c.code)?c.code:'';
+  clncApplyCdr(c);
+});
 function clncEntryOrWarn(){
   const entry=clncRenderPreview();
   if(!entry){logMsg('err',rtTarget?rtTarget.cs:'','clearance needs a destination');return null;}
   if(entry.msg.length>CLNC_MAX){
-    logMsg('err',rtTarget.cs,`clearance is ${entry.msg.length} chars (max ${CLNC_MAX}) — shorten the route`);
+    // Long CDRs routinely blow the budget, so name the overage and the cheapest
+    // thing to drop rather than just refusing.
+    const over=entry.msg.length-CLNC_MAX;
+    const hint=clncLoadLine?' — turn off +LOAD NEW RTE+ (frees 24) or shorten the route'
+                           :' — shorten the route';
+    logMsg('err',rtTarget.cs,`clearance is ${entry.msg.length} chars, ${over} over the ${CLNC_MAX} limit${hint}`);
     return null;
   }
   return entry;
