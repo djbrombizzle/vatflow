@@ -935,6 +935,39 @@ td.eh-bk{text-align:center;min-width:14px}
   background:#c8c8c8;color:#111;text-align:center;padding:2px 6px;letter-spacing:.4px;
   border-bottom:1px solid #999;font-size:12px;
 }
+/* Departure clearance panel — collapses under the CLEARANCE button */
+#routemenu .rt-clnc{display:none;background:#1a1a1a;border-bottom:1px solid #444}
+#routemenu .rt-clnc.open{display:block}
+#routemenu .rt-top .rt-btn.clnc-on{background:#15303a;color:#9fe6e0}
+#routemenu .clnc-warn{background:#6b3a3a;color:#fff;text-align:center;padding:3px 6px;letter-spacing:.4px}
+#routemenu .clnc-grid{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 8px;padding:6px;align-items:center;
+}
+#routemenu .clnc-grid label{color:#aeb6af;letter-spacing:.4px;white-space:nowrap}
+#routemenu .clnc-in{width:100%;box-sizing:border-box}
+#routemenu .clnc-cdr{display:flex;gap:6px;align-items:center;min-width:0}
+#routemenu .clnc-cdr #clncCdrCode{width:98px;flex:0 0 auto;text-transform:uppercase}
+#routemenu .clnc-sel{
+  flex:1;min-width:0;background:#0a0a0a;border:1px solid #8a8a8a;color:#f0f0ec;font:inherit;padding:2px 4px;
+}
+#routemenu .clnc-adv{color:#aeb6af;min-height:1em;word-break:break-word}
+#routemenu .clnc-adv .warn{color:#e0c28a}
+#routemenu .clnc-adv .bad{color:#e08a8a}
+#routemenu .clnc-adv .ok{color:#9fe6e0}
+#routemenu .clnc-opts{display:flex;flex-wrap:wrap;gap:4px;padding:0 6px 6px}
+#routemenu .clnc-opts .rt-btn{
+  border:1px solid #8a8a8a;background:#4a4a4a;color:#fff;font:inherit;padding:2px 8px;cursor:pointer;
+}
+#routemenu .clnc-opts .rt-btn:hover{background:#5a5a5a}
+#routemenu .clnc-opts .rt-btn.on{background:#6b3a3a}
+#routemenu .clnc-pre{
+  padding:5px 8px;background:#000;border-bottom:1px solid #333;color:#9fe6e0;
+  white-space:pre-wrap;word-break:break-word;min-height:46px;
+}
+#routemenu .clnc-pre .ph{color:#777}
+#routemenu .clnc-foot{display:flex;gap:6px;align-items:center;padding:6px;flex-wrap:wrap}
+#routemenu .clnc-count{margin-left:auto;color:#aeb6af}
+#routemenu .clnc-count.over{color:#e08a8a}
 #routemenu .rt-edit-wrap{padding:6px;background:#1a1a1a;border-bottom:1px solid #444}
 #routemenu .rt-edit{
   width:100%;box-sizing:border-box;min-height:44px;resize:vertical;
@@ -1932,6 +1965,7 @@ html.list-mode #cpdlcListWin{
   </div>
   <div class="rt-top">
     <button type="button" class="rt-btn stub" id="rtTrial" title="Coming soon">TRIAL PLAN</button>
+    <button type="button" class="rt-btn" id="rtClnc" title="Departure clearance — aircraft on the ground" aria-expanded="false">CLEARANCE</button>
     <button type="button" class="rt-btn amend" id="rtAmend" title="Remove last queued item">AMEND</button>
     <div class="rt-uplink-wrap">
       <button type="button" class="rt-btn disabled" id="rtUplink" title="Uplink route or direct">UPLINK</button>
@@ -1950,6 +1984,40 @@ html.list-mode #cpdlcListWin{
       <button type="button" class="rt-btn tgl" data-reason="RES" title="Restricted airspace">RES</button>
       <button type="button" class="rt-btn tgl" data-reason="EXP" title="Expedite">EXP</button>
       <button type="button" class="rt-btn tgl" data-reason="WX" title="Weather">WX</button>
+    </div>
+  </div>
+  <div class="rt-clnc" id="rtClncPanel">
+    <div class="clnc-warn hidden" id="clncWarn">AIRBORNE &mdash; a departure clearance is for aircraft on the ground</div>
+    <div class="clnc-grid">
+      <label for="clncDest">DEST</label>
+      <input id="clncDest" class="rt-cond-in clnc-in" maxlength="4" placeholder="KMCO" autocomplete="off" spellcheck="false">
+      <label for="clncCdrCode">CDR</label>
+      <div class="clnc-cdr">
+        <input id="clncCdrCode" class="rt-cond-in" maxlength="8" placeholder="ATLMCOGA" autocomplete="off" spellcheck="false">
+        <select id="clncCdrPick" class="clnc-sel"><option value="">&mdash; no CDRs loaded &mdash;</option></select>
+      </div>
+      <label></label><div class="clnc-adv" id="clncCdrInfo"></div>
+      <label for="clncRoute">ROUTE</label>
+      <input id="clncRoute" class="rt-cond-in clnc-in" placeholder="GAIRY2.IRQ FISHO Q93 GIPPL Q85 LPERD SNFLD3" autocomplete="off" spellcheck="false">
+      <label for="clncClimb">CLIMB</label>
+      <input id="clncClimb" class="rt-cond-in clnc-in" placeholder="CLB VIA SID EXCEPT MAINTAIN 5000" autocomplete="off" spellcheck="false">
+      <label for="clncExp">EXPECT</label>
+      <input id="clncExp" class="rt-cond-in clnc-in" maxlength="6" placeholder="350 &mdash; sends EXP 350 10 MIN AFT DP" autocomplete="off" spellcheck="false">
+      <label for="clncFreq">DEP FRQ</label>
+      <input id="clncFreq" class="rt-cond-in clnc-in" maxlength="7" placeholder="125.25" autocomplete="off" spellcheck="false">
+      <label for="clncSqk">SQUAWK</label>
+      <input id="clncSqk" class="rt-cond-in clnc-in" maxlength="4" placeholder="4517" autocomplete="off" inputmode="numeric" spellcheck="false">
+    </div>
+    <div class="clnc-opts">
+      <button type="button" class="rt-btn tgl" id="clncAsFiled" title="Append THEN AS FILED after the route">THEN AS FILED</button>
+      <button type="button" class="rt-btn tgl on" id="clncLoad" title="Append the +LOAD NEW RTE TO XXXX+ free-text line">+LOAD NEW RTE+</button>
+    </div>
+    <div class="rt-sect">PILOT SEES</div>
+    <div class="clnc-pre" id="clncPreview"></div>
+    <div class="clnc-foot">
+      <button type="button" class="rt-btn" id="clncScratch" title="Add to uplink queue">SCRATCHPAD</button>
+      <button type="button" class="rt-btn" id="clncUplink" title="Send the clearance now">UPLINK CLEARANCE</button>
+      <span class="clnc-count" id="clncCount">0/220</span>
     </div>
   </div>
   <div class="rt-sect">CURRENT RTE EDIT AREA</div>
@@ -3529,6 +3597,10 @@ function applyUplinkEffects(cs,min,effects){
   }else if(effects.type==='squawk'){
     if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();}
     sqMin[cs]=min;
+  }else if(effects.type==='dcl'){
+    // Departure clearance carries a route and (usually) a beacon code in one uplink.
+    rtMin[cs]=min;routePending.add(cs);
+    if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();sqMin[cs]=min;}
   }else if(effects.type==='hdg'){
     if(effects.hdg!=null)hdgAssigned[cs]=effects.hdg;
     hdgMin[cs]=min;hdgPending.add(cs);
@@ -5555,6 +5627,9 @@ function appendRtFixRow(list,fix){
 function openRouteMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   rtTarget=a;fixSelected=null;rtApd=false;rtDirectMode='NOW';rtWxDir='LEFT';rtReasons.clear();setRtReasonsOpen(false);syncRtReasons();syncRtDirectModeUi();
+  // Open the clearance panel straight away when the aircraft is still on the ground.
+  clncFilledFor='';
+  setClncOpen(!(a.gs>50));
   const af=document.getElementById('rtDirectAtFix');if(af)af.value='';
   const aa=document.getElementById('rtDirectAtAlt');if(aa)aa.value='';
   const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
@@ -5582,6 +5657,161 @@ function openRouteMenu(idx,x,y){
   syncRtUplink();
   placePop(routemenu,x,y);
 }
+//============================================================ departure clearance (DCL)
+// Composition and CDR lookup live in shared/vusalink-clearance.js so the
+// classic board and the EDST build the same message. Loaded on first use.
+let clncMod=null, cdrStore=null;
+let clncOpen=false, clncAsFiled=false, clncLoadLine=true;
+let clncCdrList=[], clncPickToken=0, clncCodeToken=0;
+let clncFilledFor='';            // callsign the panel is currently filled for
+const clncEl=id=>document.getElementById(id);
+async function clncEnsureMod(){
+  if(clncMod)return clncMod;
+  clncMod=await import('../../shared/vusalink-clearance.js');
+  cdrStore=clncMod.createCdrStore({base:'../../data/cdr/'});
+  return clncMod;
+}
+function clncFields(){
+  return {dest:clncEl('clncDest').value,route:clncEl('clncRoute').value,
+    climb:clncEl('clncClimb').value,expect:clncEl('clncExp').value,
+    depFreq:clncEl('clncFreq').value,squawk:clncEl('clncSqk').value};
+}
+function clncRenderPreview(){
+  const pre=clncEl('clncPreview'),count=clncEl('clncCount');
+  if(!clncMod){pre.innerHTML='<span class="ph">Loading…</span>';return null;}
+  const entry=clncMod.buildClearance(clncFields(),{asFiled:clncAsFiled,loadLine:clncLoadLine});
+  if(!entry){
+    pre.innerHTML='<span class="ph">Enter a destination to build the clearance.</span>';
+    count.textContent='0/'+clncMod.CLNC_MAX;count.classList.remove('over');
+    return null;
+  }
+  pre.textContent=clncMod.previewLines(entry.msg).join('\n');
+  const chk=clncMod.checkLength(entry.msg,{loadLine:clncLoadLine});
+  count.textContent=chk.length+'/'+clncMod.CLNC_MAX+(chk.ok?'':` (+${chk.over})`);
+  count.classList.toggle('over',!chk.ok);
+  return entry;
+}
+function setClncOpen(on){
+  clncOpen=!!on;
+  const panel=clncEl('rtClncPanel'),btn=clncEl('rtClnc');
+  if(panel)panel.classList.toggle('open',clncOpen);
+  if(btn){btn.classList.toggle('clnc-on',clncOpen);btn.setAttribute('aria-expanded',clncOpen?'true':'false');}
+  // Only prefill for a new aircraft — toggling the panel must not wipe edits.
+  if(clncOpen&&rtTarget&&clncFilledFor!==rtTarget.cs){clncFilledFor=rtTarget.cs;clncPrefill(rtTarget);}
+}
+async function clncPrefill(a){
+  await clncEnsureMod();
+  clncEl('clncDest').value=(a.arr||'').toUpperCase();
+  clncEl('clncRoute').value=clncMod.stripRouteEnds(a._routeRaw||a.route||'',a.dep,a.arr);
+  clncEl('clncClimb').value='CLB VIA SID';
+  clncEl('clncExp').value=a.alt?pad3(a.alt):'';
+  clncEl('clncFreq').value='';
+  clncEl('clncSqk').value=(a.assignedSquawk||a.squawk||'').trim();
+  clncAsFiled=false;clncEl('clncAsFiled').classList.remove('on');
+  clncLoadLine=true;clncEl('clncLoad').classList.add('on');
+  clncEl('clncCdrCode').value='';clncEl('clncCdrInfo').innerHTML='';
+  // Airborne aircraft can still be targeted, but say so plainly.
+  clncEl('clncWarn').classList.toggle('hidden',!(a.gs>50));
+  clncRenderPreview();
+  clncLoadCdrs(a);
+}
+// Fill the CDR picker for this pair. When the filed route already matches one,
+// pre-select it so the controller can see which CDR they are swapping away from.
+async function clncLoadCdrs(a){
+  const sel=clncEl('clncCdrPick');
+  const token=++clncPickToken;
+  const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
+  sel.innerHTML='<option value="">— loading… —</option>';
+  if(!dep||!arr){sel.innerHTML='<option value="">— no dep/dest on file —</option>';return;}
+  let list=[];
+  try{list=await cdrStore.forPair(dep,arr);}catch(e){list=[];}
+  if(token!==clncPickToken)return;
+  if(!list.length){
+    sel.innerHTML=`<option value="">— no CDRs for ${esc(dep)}→${esc(arr)} —</option>`;
+    clncCdrList=[];return;
+  }
+  const filed=clncMod.stripRouteEnds(a._routeRaw||a.route||'',dep,arr);
+  sel.innerHTML=`<option value="">— ${list.length} CDR${list.length>1?'S':''} for ${esc(dep)}→${esc(arr)} —</option>`;
+  list.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=c.code;o.textContent=`${c.code}  ${c.route}`;
+    sel.appendChild(o);
+  });
+  clncCdrList=list;
+  const current=list.find(c=>c.route===filed);
+  if(current){sel.value=current.code;clncEl('clncCdrInfo').innerHTML='<span class="ok">ON FILE<\/span> '+clncDescribe(current);}
+}
+function clncDescribe(c){
+  const d=clncMod.describeCdr(c);
+  let html=esc(d.text);
+  if(d.warn)html+=' <span class="warn">'+esc(d.warn)+'<\/span>';
+  return html;
+}
+// Applying a CDR overwrites ROUTE — that is the point: the controller is
+// issuing a route the pilot has not filed.
+function clncApplyCdr(c){
+  if(!c)return;
+  clncEl('clncRoute').value=c.route;
+  clncEl('clncDest').value=c.dest;
+  const dep=((rtTarget&&rtTarget.dep)||'').toUpperCase();
+  const mismatch=dep&&c.orig!==dep
+    ?`<span class="bad">CDR ORIGIN ${esc(c.orig)} ≠ FILED ${esc(dep)}<\/span> `:'';
+  clncEl('clncCdrInfo').innerHTML=mismatch+clncDescribe(c);
+  clncRenderPreview();
+}
+function clncEntryOrWarn(){
+  const entry=clncRenderPreview();
+  const cs=rtTarget?rtTarget.cs:'';
+  if(!entry){logMsg('err',cs,'clearance needs a destination');return null;}
+  const chk=clncMod.checkLength(entry.msg,{loadLine:clncLoadLine});
+  if(!chk.ok){
+    logMsg('err',cs,`clearance is ${chk.length} chars, ${chk.over} over the ${clncMod.CLNC_MAX} limit — ${chk.hint}`);
+    return null;
+  }
+  return entry;
+}
+clncEl('rtClnc').onclick=()=>setClncOpen(!clncOpen);
+['clncDest','clncRoute','clncClimb','clncExp','clncFreq','clncSqk']
+  .forEach(id=>clncEl(id).addEventListener('input',clncRenderPreview));
+clncEl('clncAsFiled').onclick=()=>{
+  clncAsFiled=!clncAsFiled;clncEl('clncAsFiled').classList.toggle('on',clncAsFiled);clncRenderPreview();
+};
+clncEl('clncLoad').onclick=()=>{
+  clncLoadLine=!clncLoadLine;clncEl('clncLoad').classList.toggle('on',clncLoadLine);clncRenderPreview();
+};
+clncEl('clncCdrPick').onchange=()=>{
+  const code=clncEl('clncCdrPick').value;
+  if(!code){clncEl('clncCdrInfo').innerHTML='';return;}
+  const c=clncCdrList.find(x=>x.code===code);
+  if(c){clncEl('clncCdrCode').value=c.code;clncApplyCdr(c);}
+};
+clncEl('clncCdrCode').addEventListener('input',async()=>{
+  const el=clncEl('clncCdrCode');
+  const code=(el.value||'').trim().toUpperCase();
+  el.value=code;
+  const info=clncEl('clncCdrInfo');
+  if(code.length<8){info.innerHTML='';return;}
+  await clncEnsureMod();
+  const token=++clncCodeToken;
+  const c=await cdrStore.lookup(code);
+  if(token!==clncCodeToken)return;
+  if(!c){info.innerHTML='<span class="bad">'+esc(code)+' not a known CDR<\/span>';return;}
+  clncEl('clncCdrPick').value=clncCdrList.some(x=>x.code===c.code)?c.code:'';
+  clncApplyCdr(c);
+});
+clncEl('clncUplink').onclick=async()=>{
+  if(!rtTarget)return;
+  const entry=clncEntryOrWarn();if(!entry)return;
+  const cs=rtTarget.cs;close('routemenu');
+  await sendUplinkEntry(cs,entry);renderBoard();
+};
+clncEl('clncScratch').onclick=()=>{
+  if(!rtTarget)return;
+  const entry=clncEntryOrWarn();if(!entry)return;
+  if(!queueAdd(rtTarget.cs,entry))return;
+  close('routemenu');
+};
+
 document.getElementById('rtEdit').addEventListener('input',syncRtUplink);
 document.getElementById('rtReasonChev').onclick=()=>setRtReasonsOpen(!rtReasonsOpen);
 document.getElementById('rtApd').onclick=()=>{rtApd=!rtApd;syncRtReasons();};
