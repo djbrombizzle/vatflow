@@ -189,9 +189,13 @@ console.log(`test-ramp-core: ${passed} passed`);
     assert(d.getHoppie().GTI1890 === true && d.getHoppie().GTI408 === false, "demo Hoppie status");
     const off = await d.sendTelex("GTI408", "KCVG AMAZON RAMP: TEST");
     assert(!off.ok && off.offline, "telex to a callsign not on Hoppie is refused");
-    assert(!(d.getState().flights.GTI408?.msgs || []).length, "nothing logged when refused");
+    // Only uplinks count: the simulator may have had GTI408 call for push by now.
+    const ups = () => (d.getState().flights.GTI408?.msgs || []).filter(m => m.dir === "up").length;
+    const downs = () => (d.getState().flights.GTI408?.msgs || []).filter(m => m.dir === "dn").length;
+    assert(ups() === 0, "nothing sent when refused");
+    const before = downs();
     const forced = await d.sendTelex("GTI408", "KCVG AMAZON RAMP: TEST", { force: true });
-    assert(forced.ok && d.getState().flights.GTI408.msgs.length === 1, "send anyway logs it, and nobody answers");
+    assert(forced.ok && ups() === 1 && downs() === before, "send anyway logs it, and nobody answers");
   } finally {
     Date.now = realNow;
     globalThis.setTimeout = realTimeout;
