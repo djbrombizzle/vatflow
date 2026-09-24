@@ -1,0 +1,588 @@
+{
+ "icao": "KCVG",
+ "version": 1,
+ "source": "CVG Amazon ramp chart (user-supplied). x/y are chart pixels on a 743x1060 image, north up; lat/lon to be filled from OSM or the stand editor. hdg/pushTo are read off the chart lead-in lines and need checking.",
+ "chart": {
+  "width": 743,
+  "height": 1060,
+  "latRef": [
+   {
+    "y": 8,
+    "lat": "N39-02.3"
+   },
+   {
+    "y": 1043,
+    "lat": "N39-01.5"
+   }
+  ]
+ },
+ "positions": [
+  {
+   "id": "AZN_RMP",
+   "name": "Amazon Ramp Control",
+   "freq": "130.500",
+   "owns": [
+    "AZN"
+   ]
+  },
+  {
+   "id": "TWYN_CTL",
+   "name": "Taxilane N Control",
+   "freq": "130.375",
+   "owns": [
+    "TWY-N"
+   ]
+  }
+ ],
+ "ramps": [
+  {
+   "id": "AZN",
+   "name": "Amazon Ramp",
+   "group": "Amazon",
+   "polygon": null,
+   "taxilanes": [
+    "A",
+    "B",
+    "C",
+    "1",
+    "2",
+    "3"
+   ]
+  }
+ ],
+ "callSpots": [
+  {
+   "id": "71",
+   "x": 515,
+   "y": 250,
+   "on": "N",
+   "serves": "1"
+  },
+  {
+   "id": "72",
+   "x": 458,
+   "y": 250,
+   "on": "N",
+   "serves": "A"
+  },
+  {
+   "id": "73",
+   "x": 393,
+   "y": 250,
+   "on": "N",
+   "serves": "B"
+  },
+  {
+   "id": "74",
+   "x": 333,
+   "y": 247,
+   "on": "N",
+   "serves": "C"
+  },
+  {
+   "id": "75",
+   "x": 197,
+   "y": 210,
+   "on": "N/D"
+  },
+  {
+   "id": "76",
+   "x": 197,
+   "y": 272,
+   "on": "D"
+  }
+ ],
+ "deiceSpots": [
+  {
+   "id": "N1-1",
+   "x": 337,
+   "y": 386,
+   "taxilane": "C"
+  },
+  {
+   "id": "N1-2",
+   "x": 337,
+   "y": 321,
+   "taxilane": "C"
+  },
+  {
+   "id": "N2-1",
+   "x": 397,
+   "y": 386,
+   "taxilane": "B"
+  },
+  {
+   "id": "N2-2",
+   "x": 397,
+   "y": 321,
+   "taxilane": "B"
+  },
+  {
+   "id": "N3",
+   "x": 455,
+   "y": 321,
+   "taxilane": "A"
+  },
+  {
+   "id": "N4",
+   "x": 515,
+   "y": 321,
+   "taxilane": "1"
+  }
+ ],
+ "stands": [
+  {
+   "id": "A01",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 495,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A02",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 546,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A03",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 598,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A04",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 647,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A05",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 711,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A06",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 767,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A07",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 819,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A08",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 870,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A09",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 932,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A10",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 505,
+   "y": 985,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B01",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 545,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B02",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 594,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B03",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 638,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B04",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 687,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B05",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 793,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B06",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 846,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B07",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 888,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B08",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 395,
+   "y": 944,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C01",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 341,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C02",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 382,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C03",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 422,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C04",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 466,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C05",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 507,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C06",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 548,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C07",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 590,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C08",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 631,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C09",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 668,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C10",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 697,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C11",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 727,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C12",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 762,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C13",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 794,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C14",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 914,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C15",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 300,
+   "y": 952,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  }
+ ],
+ "operators": {
+  "Amazon": {
+   "match": [],
+   "remarks": [
+    "AMAZON",
+    "PRIME AIR"
+   ],
+   "ramps": [
+    "AZN"
+   ]
+  },
+  "shared": {
+   "match": [
+    "ABX",
+    "ATN",
+    "GTI",
+    "SCX",
+    "SWQ"
+   ],
+   "ramps": [
+    "AZN"
+   ]
+  }
+ }
+}
