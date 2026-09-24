@@ -110,12 +110,12 @@
   .search { margin-left: auto; padding: 4px 8px; width: 170px; max-width: 100%; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; }
   table { width: 100%; border-collapse: collapse; }
   th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10.5px; font-weight: 650; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-  td { padding: 5px 7px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12.5px; }
+  td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12.5px; }
   tbody tr { cursor: pointer; }
   tbody tr:hover { background: #121c28; }
   tbody tr.sel { background: #13263d; box-shadow: inset 3px 0 0 var(--accent); }
   td.cs { font-weight: 650; }
-  .st { display: inline-block; min-width: 72px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #06101a; }
+  .st { display: inline-block; min-width: 64px; text-align: center; padding: 2px 6px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #06101a; }
   .badge { display: inline-block; padding: 1px 6px; margin-left: 5px; border-radius: 4px; font-size: 10px; font-weight: 700; vertical-align: 1px; }
   .badge.warn { background: #4a3710; color: #ffd27a; }
   .badge.bad { background: #4b1717; color: #ff9b9b; }
@@ -259,7 +259,7 @@
         </div>
         <div class="bd">
           <table>
-            <thead><tr><th>Callsign</th><th>Type</th><th>From → To</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th></tr></thead>
+            <thead><tr><th>Callsign</th><th>Type</th><th>Route</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th></tr></thead>
             <tbody id="flights"></tbody>
           </table>
           <div class="empty" id="flightsEmpty" hidden>No KCVG ramp traffic right now.</div>
@@ -568,7 +568,7 @@ function renderFlights() {
       : e?.callTime ? zulu(e.callTime) : "–";
     return `<tr data-cs="${esc(r.callsign)}" class="${r.callsign === ui.selected ? "sel" : ""}">
       <td class="cs">${esc(r.callsign)}${acarsDot(r.callsign)}</td><td>${esc(r.type)}</td>
-      <td>${esc(r.dep || "?")} → ${esc(r.arr || "?")}</td><td>${ramp}</td>
+      <td>${esc(r.dep || "?")}→${esc(r.arr || "?")}</td><td>${ramp}</td>
       <td><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></td>
       <td class="mono">${esc(eta)}</td></tr>`;
   }).join("");
