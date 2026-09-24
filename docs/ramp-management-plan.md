@@ -150,7 +150,7 @@ Assignments go as a **telex** (company-ops style, not a CPDLC clearance). So the
   - `KCVG AMAZON RAMP: STAND CHANGE. NEW STAND A03 VIA SPOT 72 TAXILANE A.`
   - `KCVG DHL RAMP: PARK STAND 21. ENTER AT SPOT 54 VIA N, DHL 2. CTC DHL RAMP 129.475.`
   - `KCVG RAMP: PUSH EXPECTED AT 1847Z. YOU ARE NUMBER 3. REQ PUSH WHEN READY.`
-- **Send options:** a manual **Send** button (default), or optional **auto-send on stand assignment** or **when the inbound is within X min**. Nothing goes out by surprise.
+- **Send options:** a manual **Send** button only. **There is no auto-send at launch.** Auto-send on assignment, or when the inbound is within X min, can be added later as an opt-in.
 - **Receipt:** telex has no delivery acknowledgement. The row shows **SENT hh:mmZ** and, if the pilot replies by telex, **ACK**.
 - **CPDLC-connected aircraft** (on vUSAlink): same text, and vUSAlink shows it in that aircraft's message log. The pilot only receives it once.
 
@@ -197,7 +197,7 @@ Both charts are transcribed in `data/ramp/KCVG.json`. That is **128 stands, 15 c
 | --- | --- | --- |
 | DHL North Ramp | 56–65 | DHL 6 |
 | DHL Ramp | 50–55 | push onto DHL 6, **or taxi straight out to N** (`taxiOut: "N"`) |
-| DHL 3 / DHL 4 | 39–49, with A/B suffixes, and 42 | DHL 3 or DHL 4 |
+| DHL 3 / DHL 4 | 39–49, with A/B suffixes, and 42 | DHL 3 (39–42), DHL 4 (43–49) |
 | DHL Main Ramp | 25–38 (with 35A/B, 36A/B, 37A) west of DHL 2, 16–24 east of DHL 2 | DHL 2 / DHL 3 |
 | DHL Sort (Bldg 2) | 3, 3A, 4, 4A, 5 | DHL 1 |
 | DHL South Ramp | 1, 2, 6–15, 15A, 101–108 | DHL 5 / DHL 7 / DHL 1 |
@@ -212,7 +212,7 @@ Both charts are transcribed in `data/ramp/KCVG.json`. That is **128 stands, 15 c
 - **Correction to the mock-up:** its "Amazon Ramp 71–75" row shows **call spots** as parking stands. The real stands are the A/B/C rows. The page draws spots as numbered circles, as the charts do.
 - **Two-controller handoff:** `AZN_RMP` works the Amazon ramp, stand → spot 71–74, then hands the aircraft to `DHL_RMP` on N taxilane. `DHL_RMP` owns its own push queue and N taxilane, and hands to ground at the outer spots. An Amazon departure appears on DHL Ramp's list as "at spot 7x".
 - **Telex station:** everything goes out from the Hoppie logon **`KCVG`**.
-- **Still to verify on the DHL chart:** nose direction for every DHL stand, and the push lane for stand 42.
+- **Still to verify on the DHL chart:** nose direction for every DHL stand.
 
 1. **Data:** schematics from both charts (done), then OSM import (plus the DHL chart grid) for lat/lon and the ramp polygons, then a check in the stand editor.
 2. **Demo mode** (`ramp.html?demo=KCVG`): a scripted cargo bank across both operators (about 25 aircraft), including stands 50–55 taxiing straight out to N. Inbounds on final, taxi-ins, parked, and departures calling for push. Built like the vUSAlink test traffic, so the page can be tested with no one online. Hoppie sends in demo mode go to a local log, never the network.
@@ -249,7 +249,7 @@ Phases 0–1 need no hub changes and can ship first.
 - N taxilane (130.375) is worked by DHL Ramp. There is no separate N taxilane position.
 - **Only `_RMP`, `_GND`, and `_TWR` on position may assign stands** or work the push queue. There is no company-ops role. So a ramp with none of those positions online is read-only: the board still shows derived states, but no stands are assigned and no telex is sent.
 - The test telex station is the Hoppie logon `KCVG`.
+- DHL stand 42 pushes onto DHL 3.
+- **No auto-send at launch.** Stand assignments go out only when a controller presses Send.
 
-**Open:**
-1. **DHL stand 42:** does it push onto DHL 3 or DHL 4?
-2. **Auto-send default:** off (manual Send only) is proposed for launch.
+**Open:** none. The plan is ready for phase 0–1.
