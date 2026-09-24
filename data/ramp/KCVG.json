@@ -1,0 +1,2218 @@
+{
+ "icao": "KCVG",
+ "version": 1,
+ "source": "CVG Amazon and CVG DHL ramp charts (user-supplied). x,y are pixels on the named chart, north up. Amazon lat/lon are derived from its evenly spaced grid (approximate). DHL lat/lon stay null until the OSM import or the stand editor. hdg/pushTo come from the chart lead-in lines; null means unclear. taxiOut marks stands that can also taxi straight out. maxCode is unused for now: aircraft size checks are deferred.",
+ "telexStation": "KCVG",
+ "charts": {
+  "AZN": {
+   "name": "CVG Amazon Ramp",
+   "width": 656,
+   "height": 1038,
+   "latRef": [
+    {
+     "y": 40,
+     "lat": "N39-02.3"
+    },
+    {
+     "y": 152,
+     "lat": "N39-02.2"
+    },
+    {
+     "y": 264,
+     "lat": "N39-02.1"
+    },
+    {
+     "y": 376,
+     "lat": "N39-02.0"
+    },
+    {
+     "y": 488,
+     "lat": "N39-01.9"
+    },
+    {
+     "y": 600,
+     "lat": "N39-01.8"
+    },
+    {
+     "y": 712,
+     "lat": "N39-01.7"
+    },
+    {
+     "y": 824,
+     "lat": "N39-01.6"
+    },
+    {
+     "y": 936,
+     "lat": "N39-01.5"
+    }
+   ],
+   "lonRef": [
+    {
+     "x": 95,
+     "lon": "W084-40.1"
+    },
+    {
+     "x": 179,
+     "lon": "W084-40.0"
+    },
+    {
+     "x": 263,
+     "lon": "W084-39.9"
+    },
+    {
+     "x": 347,
+     "lon": "W084-39.8"
+    },
+    {
+     "x": 431,
+     "lon": "W084-39.7"
+    },
+    {
+     "x": 515,
+     "lon": "W084-39.6"
+    },
+    {
+     "x": 599,
+     "lon": "W084-39.5"
+    }
+   ],
+   "note": "Evenly gridded (~112 px per 0.1' lat, ~84 px per 0.1' lon, ~1.7 m/px both ways), so stand lat/lon are derived from x,y. Expect +/- ~20 m; the stand editor refines them."
+  },
+  "DHL": {
+   "name": "CVG DHL Ramp",
+   "width": 648,
+   "height": 1025,
+   "latRef": [
+    {
+     "y": 152,
+     "lat": "N39-02.2"
+    },
+    {
+     "y": 265,
+     "lat": "N39-02.1"
+    },
+    {
+     "y": 378,
+     "lat": "N39-02"
+    },
+    {
+     "y": 688,
+     "lat": "N39-01.7"
+    },
+    {
+     "y": 797,
+     "lat": "N39-01.6"
+    },
+    {
+     "y": 908,
+     "lat": "N39-01.5"
+    }
+   ],
+   "lonRef": [
+    {
+     "x": 20,
+     "lon": "W084-39.5"
+    },
+    {
+     "x": 105,
+     "lon": "W084-39.4"
+    },
+    {
+     "x": 190,
+     "lon": "W084-39.3"
+    },
+    {
+     "x": 275,
+     "lon": "W084-39.2"
+    },
+    {
+     "x": 358,
+     "lon": "W084-39.1"
+    },
+    {
+     "x": 440,
+     "lon": "W084-39"
+    },
+    {
+     "x": 545,
+     "lon": "W084-38.9"
+    },
+    {
+     "x": 628,
+     "lon": "W084-38.8"
+    }
+   ],
+   "note": "Chart is not to scale between grid lines (lat spacing varies ~103-113 px per 0.1'); interpolate piecewise and treat as approximate."
+  }
+ },
+ "positions": [
+  {
+   "id": "AZN_RMP",
+   "name": "Amazon Ramp Control",
+   "freqs": [
+    "130.500"
+   ],
+   "owns": [
+    "AZN"
+   ]
+  },
+  {
+   "id": "DHL_RMP",
+   "name": "DHL Ramp Control",
+   "freqs": [
+    "129.475",
+    "130.375"
+   ],
+   "owns": [
+    "DHL-N",
+    "DHL-R",
+    "DHL-W",
+    "DHL-MAIN",
+    "DHL-SORT",
+    "DHL-S",
+    "DHL-MX",
+    "TWY-N"
+   ],
+   "note": "130.375 is N taxilane control, worked by DHL Ramp. It links the Amazon spots (71-74) and the DHL spots on N."
+  }
+ ],
+ "ramps": [
+  {
+   "id": "AZN",
+   "name": "Amazon Ramp",
+   "group": "Amazon",
+   "chart": "AZN",
+   "polygon": null,
+   "taxilanes": [
+    "A",
+    "B",
+    "C",
+    "1",
+    "2",
+    "3"
+   ]
+  },
+  {
+   "id": "DHL-N",
+   "name": "DHL North Ramp",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 6"
+   ]
+  },
+  {
+   "id": "DHL-R",
+   "name": "DHL Ramp (50-55)",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 6",
+    "N"
+   ]
+  },
+  {
+   "id": "DHL-W",
+   "name": "DHL 3 / DHL 4",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 3",
+    "DHL 4"
+   ]
+  },
+  {
+   "id": "DHL-MAIN",
+   "name": "DHL Main Ramp",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 2",
+    "DHL 3"
+   ]
+  },
+  {
+   "id": "DHL-SORT",
+   "name": "DHL Sort (Bldg 2)",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 1"
+   ]
+  },
+  {
+   "id": "DHL-S",
+   "name": "DHL South Ramp",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 5",
+    "DHL 7",
+    "DHL 1"
+   ]
+  },
+  {
+   "id": "DHL-MX",
+   "name": "DHL Hangar (MX)",
+   "group": "DHL",
+   "chart": "DHL",
+   "polygon": null,
+   "taxilanes": [
+    "DHL 7"
+   ]
+  }
+ ],
+ "callSpots": [
+  {
+   "id": "71",
+   "x": 455,
+   "y": 252,
+   "on": "N",
+   "serves": "1",
+   "chart": "AZN",
+   "lat": 39.035179,
+   "lon": -84.66119
+  },
+  {
+   "id": "72",
+   "x": 405,
+   "y": 252,
+   "on": "N",
+   "serves": "A",
+   "chart": "AZN",
+   "lat": 39.035179,
+   "lon": -84.662183
+  },
+  {
+   "id": "73",
+   "x": 348,
+   "y": 249,
+   "on": "N",
+   "serves": "B",
+   "chart": "AZN",
+   "lat": 39.035223,
+   "lon": -84.663313
+  },
+  {
+   "id": "74",
+   "x": 297,
+   "y": 249,
+   "on": "N",
+   "serves": "C",
+   "chart": "AZN",
+   "lat": 39.035223,
+   "lon": -84.664325
+  },
+  {
+   "id": "75",
+   "x": 180,
+   "y": 217,
+   "on": "N/D",
+   "chart": "AZN",
+   "lat": 39.035699,
+   "lon": -84.666647
+  },
+  {
+   "id": "76",
+   "x": 180,
+   "y": 270,
+   "on": "D",
+   "chart": "AZN",
+   "lat": 39.034911,
+   "lon": -84.666647
+  },
+  {
+   "id": "51",
+   "chart": "DHL",
+   "x": 418,
+   "y": 740,
+   "on": "S"
+  },
+  {
+   "id": "52",
+   "chart": "DHL",
+   "x": 412,
+   "y": 633,
+   "on": "S / DHL 1"
+  },
+  {
+   "id": "54",
+   "chart": "DHL",
+   "x": 412,
+   "y": 213,
+   "on": "S / N"
+  },
+  {
+   "id": "55",
+   "chart": "DHL",
+   "x": 412,
+   "y": 92,
+   "on": "S / DHL 6"
+  },
+  {
+   "id": "56",
+   "chart": "DHL",
+   "x": 363,
+   "y": 240,
+   "on": "N / DHL 2"
+  },
+  {
+   "id": "57",
+   "chart": "DHL",
+   "x": 248,
+   "y": 237,
+   "on": "N / DHL 3"
+  },
+  {
+   "id": "58",
+   "chart": "DHL",
+   "x": 137,
+   "y": 237,
+   "on": "N / DHL 4"
+  },
+  {
+   "id": "59",
+   "chart": "DHL",
+   "x": 107,
+   "y": 170,
+   "on": "N / DHL 6"
+  },
+  {
+   "id": "65",
+   "chart": "DHL",
+   "x": 55,
+   "y": 212,
+   "on": "N (west)"
+  }
+ ],
+ "deiceSpots": [
+  {
+   "id": "N1-1",
+   "x": 298,
+   "y": 371,
+   "taxilane": "C",
+   "chart": "AZN",
+   "lat": 39.033408,
+   "lon": -84.664306
+  },
+  {
+   "id": "N1-2",
+   "x": 298,
+   "y": 313,
+   "taxilane": "C",
+   "chart": "AZN",
+   "lat": 39.034271,
+   "lon": -84.664306
+  },
+  {
+   "id": "N2-1",
+   "x": 350,
+   "y": 371,
+   "taxilane": "B",
+   "chart": "AZN",
+   "lat": 39.033408,
+   "lon": -84.663274
+  },
+  {
+   "id": "N2-2",
+   "x": 350,
+   "y": 313,
+   "taxilane": "B",
+   "chart": "AZN",
+   "lat": 39.034271,
+   "lon": -84.663274
+  },
+  {
+   "id": "N3",
+   "x": 405,
+   "y": 313,
+   "taxilane": "A",
+   "chart": "AZN",
+   "lat": 39.034271,
+   "lon": -84.662183
+  },
+  {
+   "id": "N4",
+   "x": 455,
+   "y": 313,
+   "taxilane": "1",
+   "chart": "AZN",
+   "lat": 39.034271,
+   "lon": -84.66119
+  }
+ ],
+ "stands": [
+  {
+   "id": "A01",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 466,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.031994,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A02",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 509,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.031354,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A03",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 553,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.030699,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A04",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 597,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.030045,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A05",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 655,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.029182,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A06",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 700,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.028512,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A07",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 745,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.027842,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A08",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 790,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.027173,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A09",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 843,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.026384,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "A10",
+   "ramp": "AZN",
+   "row": "A",
+   "x": 450,
+   "y": 890,
+   "hdg": "E",
+   "pushTo": "A",
+   "lat": 39.025685,
+   "lon": -84.66129,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B01",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 507,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.031384,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B02",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 551,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.030729,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B03",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 591,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.030134,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B04",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 632,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.029524,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B05",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 722,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.028185,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B06",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 770,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.02747,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B07",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 806,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.026935,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "B08",
+   "ramp": "AZN",
+   "row": "B",
+   "x": 345,
+   "y": 856,
+   "hdg": "E",
+   "pushTo": "C",
+   "lat": 39.02619,
+   "lon": -84.663373,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C01",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 331,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.034003,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C02",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 368,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.033452,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C03",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 402,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.032946,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C04",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 440,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.032381,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C05",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 475,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.03186,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C06",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 510,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.031339,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C07",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 548,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.030774,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C08",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 583,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.030253,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C09",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 612,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.029821,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C10",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 640,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.029405,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C11",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 666,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.029018,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C12",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 696,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.028571,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C13",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 722,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.028185,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C14",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 830,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.026577,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "C15",
+   "ramp": "AZN",
+   "row": "C",
+   "x": 262,
+   "y": 858,
+   "hdg": "W",
+   "pushTo": "C",
+   "lat": 39.026161,
+   "lon": -84.66502,
+   "maxCode": null,
+   "blocks": [],
+   "chart": "AZN"
+  },
+  {
+   "id": "56",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 90,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "57",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 125,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "58",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 160,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "59",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 197,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "60",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 230,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "61",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 268,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "62",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 302,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "63",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 343,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "64",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 375,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "65",
+   "ramp": "DHL-N",
+   "chart": "DHL",
+   "x": 410,
+   "y": 40,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "50",
+   "ramp": "DHL-R",
+   "chart": "DHL",
+   "x": 167,
+   "y": 135,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "taxiOut": "N"
+  },
+  {
+   "id": "51",
+   "ramp": "DHL-R",
+   "chart": "DHL",
+   "x": 215,
+   "y": 135,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "taxiOut": "N"
+  },
+  {
+   "id": "52",
+   "ramp": "DHL-R",
+   "chart": "DHL",
+   "x": 263,
+   "y": 135,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "taxiOut": "N"
+  },
+  {
+   "id": "53",
+   "ramp": "DHL-R",
+   "chart": "DHL",
+   "x": 310,
+   "y": 135,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "taxiOut": "N"
+  },
+  {
+   "id": "54",
+   "ramp": "DHL-R",
+   "chart": "DHL",
+   "x": 357,
+   "y": 135,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "taxiOut": "N"
+  },
+  {
+   "id": "55",
+   "ramp": "DHL-R",
+   "chart": "DHL",
+   "x": 400,
+   "y": 135,
+   "hdg": null,
+   "pushTo": "DHL 6",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "taxiOut": "N"
+  },
+  {
+   "id": "42",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 262,
+   "y": 258,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "46A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 155,
+   "y": 248,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "46",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 182,
+   "y": 282,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "45B",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 155,
+   "y": 283,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "45A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 155,
+   "y": 310,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "45",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 182,
+   "y": 320,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "44B",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 155,
+   "y": 325,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "44A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 152,
+   "y": 342,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "44",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 182,
+   "y": 358,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "43A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 150,
+   "y": 378,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "43",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 182,
+   "y": 396,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "49",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 125,
+   "y": 425,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "48",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 147,
+   "y": 437,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "47",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 167,
+   "y": 437,
+   "hdg": null,
+   "pushTo": "DHL 4",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "41A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 212,
+   "y": 298,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "41",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 235,
+   "y": 298,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "40B",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 207,
+   "y": 323,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "40",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 235,
+   "y": 335,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "40A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 207,
+   "y": 348,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "39B",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 207,
+   "y": 370,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "39",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 235,
+   "y": 370,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "39A",
+   "ramp": "DHL-W",
+   "chart": "DHL",
+   "x": 207,
+   "y": 383,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "38",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 265,
+   "y": 272,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "37A",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 285,
+   "y": 288,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "37",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 265,
+   "y": 300,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "36B",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 300,
+   "y": 318,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "36",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 265,
+   "y": 340,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "36A",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 290,
+   "y": 350,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "35B",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 290,
+   "y": 363,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "35",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 265,
+   "y": 373,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "35A",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 300,
+   "y": 383,
+   "hdg": null,
+   "pushTo": "DHL 3",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "34",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 272,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "33",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 308,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "32",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 347,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "31",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 381,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "30",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 417,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "29",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 455,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "28",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 492,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "27",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 530,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "26",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 565,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "25",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 333,
+   "y": 601,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "24",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 248,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "23",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 293,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "22",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 330,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "21",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 367,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "20",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 418,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "19",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 462,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "18",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 503,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "17",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 541,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "16",
+   "ramp": "DHL-MAIN",
+   "chart": "DHL",
+   "x": 428,
+   "y": 580,
+   "hdg": null,
+   "pushTo": "DHL 2",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "3",
+   "ramp": "DHL-SORT",
+   "chart": "DHL",
+   "x": 195,
+   "y": 607,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "3A",
+   "ramp": "DHL-SORT",
+   "chart": "DHL",
+   "x": 212,
+   "y": 577,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4A",
+   "ramp": "DHL-SORT",
+   "chart": "DHL",
+   "x": 245,
+   "y": 577,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4",
+   "ramp": "DHL-SORT",
+   "chart": "DHL",
+   "x": 232,
+   "y": 607,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "5",
+   "ramp": "DHL-SORT",
+   "chart": "DHL",
+   "x": 265,
+   "y": 607,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "1",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 200,
+   "y": 673,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 265,
+   "y": 673,
+   "hdg": null,
+   "pushTo": "DHL 1",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "6",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 328,
+   "y": 688,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "7",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 328,
+   "y": 720,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "8",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 328,
+   "y": 755,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "9",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 328,
+   "y": 787,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "10",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 328,
+   "y": 818,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "11",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 328,
+   "y": 852,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "107",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 320,
+   "y": 880,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "15A",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 410,
+   "y": 672,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "15",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 388,
+   "y": 713,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "14",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 388,
+   "y": 760,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "13",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 388,
+   "y": 803,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "12",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 388,
+   "y": 847,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "108",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 390,
+   "y": 893,
+   "hdg": null,
+   "pushTo": "DHL 5",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "103",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 168,
+   "y": 892,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "104",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 205,
+   "y": 892,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "105",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 240,
+   "y": 892,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "106",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 272,
+   "y": 892,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "101",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 88,
+   "y": 940,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "102",
+   "ramp": "DHL-S",
+   "chart": "DHL",
+   "x": 137,
+   "y": 940,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "MX1",
+   "ramp": "DHL-MX",
+   "chart": "DHL",
+   "x": 329,
+   "y": 983,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "tags": [
+    "maintenance"
+   ]
+  },
+  {
+   "id": "MX2",
+   "ramp": "DHL-MX",
+   "chart": "DHL",
+   "x": 378,
+   "y": 983,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "tags": [
+    "maintenance"
+   ]
+  },
+  {
+   "id": "MX3",
+   "ramp": "DHL-MX",
+   "chart": "DHL",
+   "x": 428,
+   "y": 983,
+   "hdg": null,
+   "pushTo": "DHL 7",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": [],
+   "tags": [
+    "maintenance"
+   ]
+  }
+ ],
+ "operators": {
+  "DHL": {
+   "match": [
+    "DHK",
+    "BCS",
+    "DAE"
+   ],
+   "remarks": [
+    "DHL"
+   ],
+   "ramps": [
+    "DHL-N",
+    "DHL-R",
+    "DHL-W",
+    "DHL-MAIN",
+    "DHL-SORT",
+    "DHL-S"
+   ]
+  },
+  "Amazon": {
+   "match": [],
+   "remarks": [
+    "AMAZON",
+    "PRIME AIR"
+   ],
+   "ramps": [
+    "AZN"
+   ]
+  },
+  "shared": {
+   "match": [
+    "ABX",
+    "ATN",
+    "GTI",
+    "SCX",
+    "SWQ",
+    "CKS"
+   ],
+   "ramps": [
+    "AZN",
+    "DHL-N",
+    "DHL-R",
+    "DHL-W",
+    "DHL-MAIN",
+    "DHL-SORT",
+    "DHL-S"
+   ]
+  }
+ },
+ "assignRoles": [
+  "RMP",
+  "GND",
+  "TWR"
+ ]
+}
