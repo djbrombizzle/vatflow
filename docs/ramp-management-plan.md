@@ -1,6 +1,6 @@
 # Ramp Management — plan
 
-**Status:** phases 0–3 built for KCVG: `ramp.html` (demo + live), `shared/ramp-core.js`, `shared/ramp-demo.js`, `shared/ramp-live.js`, and the vUSAlink-hub ramp board (`ramp.py`). Phase 4 (vUSAlink STAND column, IDST release tie-in) and the stand editor are still to do. The terminal chart (Concourses A/B, remote parking north/south/east) is added as a third chart, `PAX`, with 87 stands on Ramp Control 130.9 (Ramp 3 taxilane 130.375).
+**Status:** phases 0–3 built for KCVG: `ramp.html` (demo + live), `shared/ramp-core.js`, `shared/ramp-demo.js`, `shared/ramp-live.js`, and the vUSAlink-hub ramp board (`ramp.py`). Phase 4 (vUSAlink STAND column, IDST release tie-in) and the stand editor are still to do. The terminal chart (Concourses A/B, remote parking north/south/east) is added as a third chart, `PAX`, with 87 stands on Ramp Control 130.9 (Ramp 3 taxilane 130.375). KIAD is added as a second airport (`data/ramp/KIAD.json`, 163 stands, North/Midfield/South Area Ramp), with an airport dropdown; each airport file carries its own views, local notes and demo fleet.
 **Origin:** user-submitted idea (quoted below), with a UI concept mock-up. The mock-up's airport is not real; it only shows the layout and features.
 **First test field:** KCVG, the Amazon and DHL cargo ramps, transcribed from the user-supplied ramp charts. Seed data is in [`data/ramp/KCVG.json`](../data/ramp/KCVG.json).
 
@@ -253,3 +253,18 @@ Phases 0–1 need no hub changes and can ship first.
 - **No auto-send at launch.** Stand assignments go out only when a controller presses Send.
 
 **Open:** none. The plan is ready for phase 0–1.
+
+---
+
+## Adding an airport
+
+1. Build `data/ramp/<ICAO>.json` from the airport's ramp chart. Copy the shape of `KCVG.json` or `KIAD.json`:
+   - `charts`: each chart image's size and its lat/lon grid ticks (`latRef` / `lonRef`, in chart pixels). If the chart is drawn to scale, stand coordinates come from the grid.
+   - `positions`: ramp positions, their frequencies and the ramps they own. `ramps`: groups of stands.
+   - `lanes`: taxilanes as chart-pixel polylines, with an optional `name` and `freq`. `laneSpots`: the call spot or spots at each lane.
+   - `stands`: `id`, `ramp`, `x`/`y` at the aircraft, `pushTo` lane, and an optional `label` when two ramps share a name.
+   - `callSpots`, `deiceSpots`, `buildings`, `operators`, `views`, `notes` and a `demo` fleet.
+2. Add it to `data/ramp/index.json`.
+3. In vUSAlink-hub `ramp.py`, add the field to `DEFAULT_STATIONS` (its telex station) and `FIELDS` (reference point and elevation).
+4. `node scripts/test-ramp-core.mjs` checks every airport in the index: unique stand ids, coordinates, push lanes, entry spots, telex length, and that demo stands exist.
+
