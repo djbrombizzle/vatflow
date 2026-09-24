@@ -13,6 +13,8 @@ import {
 } from "./ramp-core.js";
 
 const TICK_MS = 1000;
+/** Simulated pilots whose ACARS client is not on Hoppie, to show the ping check. */
+const NOT_ON_HOPPIE = new Set(["BCS77", "GTI408"]);
 /** Chart pixels per second (~1.7 m/px): push ~3 kt, taxi ~20 kt (sped up). */
 const PUSH_PX = 2.5;
 const TAXI_PX = 12;
@@ -274,12 +276,21 @@ export function createDemoStore(L) {
       emit();
       return res;
     },
-    async sendTelex(cs, text) {
+    getHoppie() {
+      const out = {};
+      for (const cs of planes.keys()) out[cs] = !NOT_ON_HOPPIE.has(cs);
+      return out;
+    },
+    async sendTelex(cs, text, { force = false } = {}) {
       const t = String(text || "").trim().toUpperCase();
       if (!t) return { ok: false, error: "empty message" };
+      const offline = NOT_ON_HOPPIE.has(cs);
+      if (offline && !force) {
+        return { ok: false, offline: true, error: `${cs} is not connected to Hoppie right now, so the telex would not reach them. Tell them by voice, or send anyway.` };
+      }
       applyOp(state, { op: "msg", callsign: cs, dir: "up", text: t }, "KCVG_RMP", Date.now());
       state.flights[cs].sent = [...(state.flights[cs].sent || []), { t: Date.now(), text: t }];
-      pilotSays(cs, "ROGER");
+      if (!offline) pilotSays(cs, "ROGER");
       emit();
       return { ok: true, dryRun: true };
     },

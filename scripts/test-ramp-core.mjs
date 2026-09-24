@@ -165,6 +165,12 @@ console.log(`test-ramp-core: ${passed} passed`);
     assert(gone && !d.getState().flights.ATN3401, "demo departure taxis to the spot and leaves the board");
     const sent = await d.sendTelex("GTI1890", "kcvg amazon ramp: test");
     assert(sent.ok && d.getState().flights.GTI1890.msgs.some(m => m.dir === "dn" && m.text === "ROGER"), "demo pilot answers a telex");
+    assert(d.getHoppie().GTI1890 === true && d.getHoppie().GTI408 === false, "demo Hoppie status");
+    const off = await d.sendTelex("GTI408", "KCVG AMAZON RAMP: TEST");
+    assert(!off.ok && off.offline, "telex to a callsign not on Hoppie is refused");
+    assert(!(d.getState().flights.GTI408?.msgs || []).length, "nothing logged when refused");
+    const forced = await d.sendTelex("GTI408", "KCVG AMAZON RAMP: TEST", { force: true });
+    assert(forced.ok && d.getState().flights.GTI408.msgs.length === 1, "send anyway logs it, and nobody answers");
   } finally {
     Date.now = realNow;
     globalThis.setTimeout = realTimeout;

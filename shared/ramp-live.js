@@ -7,9 +7,13 @@
  * or _TWR. Everyone else gets the read-only picture.
  *
  * Endpoints (vUSAlink-hub ramp.py):
- *   POST /hub/ramp/state  {icao, cid?, vatflowToken?}  -> {state, me, station, dryRun}
+ *   POST /hub/ramp/state  {icao, cid?, vatflowToken?}  -> {state, me, station, dryRun, hoppie}
  *   POST /hub/ramp/op     {icao, cid, vatflowToken, op, ...}
- *   POST /hub/ramp/telex  {icao, cid, vatflowToken, to, text}
+ *   POST /hub/ramp/telex  {icao, cid, vatflowToken, to, text, force?}
+ *
+ * `hoppie` is {callsign: connected} from the hub's Hoppie ping of the field's
+ * traffic. A telex to a callsign Hoppie says is not connected is refused (409,
+ * offline) unless sent with force.
  */
 import { emptyState } from "./ramp-core.js";
 import { getSession, getStoredToken } from "./vatflow-auth.js";
@@ -47,6 +51,7 @@ export function isLocalHub(url) {
 export function createLiveStore(L) {
   let state = emptyState(L.icao);
   let pilots = [];
+  let hoppie = {};
   const listeners = new Set();
   const store = {
     mode: "live",
@@ -54,6 +59,7 @@ export function createLiveStore(L) {
     status: { ok: false, text: "Connecting…" },
     station: "",
     dryRun: false,
+    getHoppie: () => hoppie,
     getState: () => state,
     getPilots: () => pilots,
     subscribe(fn) {
@@ -103,6 +109,7 @@ export function createLiveStore(L) {
       store.me = d.me || { canWrite: false, reason: "" };
       store.station = d.station || "";
       store.dryRun = !!d.dryRun;
+      hoppie = d.hoppie || {};
       store.status = { ok: true, text: `Hub connected · telex station ${store.station || "?"}${store.dryRun ? " (dry run)" : ""}` };
     } catch (e) {
       store.status = { ok: false, text: e.message || String(e) };
@@ -146,12 +153,14 @@ export function createLiveStore(L) {
     }
   }
 
-  async function sendTelex(to, text) {
+  async function sendTelex(to, text, { force = false } = {}) {
     try {
-      const d = await post("/hub/ramp/telex", { to, text });
+      const d = await post("/hub/ramp/telex", force ? { to, text, force: true } : { to, text });
       if (d.state) state = d.state;
+      if (typeof d.hoppieOnline === "boolean") hoppie = { ...hoppie, [to]: d.hoppieOnline };
+      if (d.offline) hoppie = { ...hoppie, [to]: false };
       emit();
-      return d.ok ? { ok: true, dryRun: !!d.dryRun } : { ok: false, error: d.error || "rejected" };
+      return d.ok ? { ok: true, dryRun: !!d.dryRun } : { ok: false, offline: !!d.offline, error: d.error || "rejected" };
     } catch (e) {
       return { ok: false, error: e.message || String(e) };
     }

@@ -120,6 +120,10 @@
   .badge.warn { background: #4a3710; color: #ffd27a; }
   .badge.bad { background: #4b1717; color: #ff9b9b; }
   .badge.info { background: #10304f; color: #8ec8ff; }
+  .acars { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; vertical-align: 2px; }
+  .acars.on { background: var(--occupied); }
+  .acars.off { background: transparent; box-shadow: inset 0 0 0 1.5px #8796a8; }
+  .hoppieLine { font-size: 11.5px; padding: 0 12px 4px; }
   .muted { color: var(--muted); }
   .empty { padding: 18px; color: var(--muted); text-align: center; font-size: 12.5px; }
 
@@ -561,12 +565,20 @@ function renderFlights() {
     const eta = r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
       : e?.callTime ? zulu(e.callTime) : "–";
     return `<tr data-cs="${esc(r.callsign)}" class="${r.callsign === ui.selected ? "sel" : ""}">
-      <td class="cs">${esc(r.callsign)}</td><td>${esc(r.type)}</td>
+      <td class="cs">${esc(r.callsign)}${acarsDot(r.callsign)}</td><td>${esc(r.type)}</td>
       <td>${esc(r.dep || "?")} → ${esc(r.arr || "?")}</td><td>${ramp}</td>
       <td><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></td>
       <td class="mono">${esc(eta)}</td></tr>`;
   }).join("");
   $("flightsEmpty").hidden = list.length > 0;
+}
+
+/** Hoppie connection marker: filled = on Hoppie, hollow = not connected, none = not checked. */
+function acarsDot(cs) {
+  const v = store.getHoppie()[cs];
+  if (v === true) return '<span class="acars on" title="ACARS on Hoppie: telex will reach them"></span>';
+  if (v === false) return '<span class="acars off" title="Not connected to Hoppie: telex will not reach them"></span>';
+  return "";
 }
 
 /* ---------------- selected flight ---------------- */
@@ -612,7 +624,8 @@ function renderSelected(state) {
   const e = r.entry || {};
   const me = store.me;
   const q = queueView(state, Date.now()).find(x => x.callsign === r.callsign);
-  const sig = JSON.stringify([r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  const hop = store.getHoppie()[r.callsign];
+  const sig = JSON.stringify([hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
 
@@ -661,7 +674,10 @@ function renderSelected(state) {
     <div class="row"><textarea id="tlxText" maxlength="${TELEX_MAX}" spellcheck="false" ${dis}></textarea></div>
     <div class="row"><button class="btn pri" id="bSend" ${dis}>Send to ${esc(r.callsign)}</button>
       <span class="muted" style="font-size:11px">${store.mode === "demo" ? "Demo: stays in this browser" : `From ${esc(store.station || "KCVG")}${store.dryRun ? " · hub dry run" : ""}`}</span></div>
-    <div class="flash ${ui.flash.kind}">${esc(ui.flash.text)}</div>
+    <div class="hoppieLine">${hop === true ? '<span class="acars on" style="margin:0 5px 0 0"></span>ACARS on Hoppie'
+      : hop === false ? '<span class="acars off" style="margin:0 5px 0 0"></span><span style="color:#ffd27a">Not on Hoppie: a telex will not reach them. Use voice.</span>'
+      : '<span class="muted">Hoppie connection not checked yet</span>'}</div>
+    <div class="flash ${ui.flash.kind}">${esc(ui.flash.text)}${ui.flash.force && me.canWrite ? ' <button class="btn warn" id="bSendForce" style="margin-left:6px">Send anyway</button>' : ""}</div>
     ${msgs.length ? `<div class="sec">Messages</div><div class="msgs">${msgs.map(m =>
       `<div class="${m.dir}">${zulu(m.t)} ${m.dir === "up" ? "▲" : "▼"} ${esc(m.text)}</div>`).join("")}</div>` : ""}`;
   $("selStand").value = keep.stand !== undefined ? keep.stand : (e.stand || "");
@@ -859,13 +875,14 @@ $("selected").addEventListener("click", async e => {
     await doOp({ op: "assign", callsign: r.callsign, stand: null }, "Stand cleared.");
   } else if (t.dataset.push !== undefined) {
     await doOp({ op: "push", callsign: r.callsign, push: t.dataset.push || null });
-  } else if (t.id === "bSend") {
+  } else if (t.id === "bSend" || t.id === "bSendForce") {
     const text = ($("tlxText").value || "").trim().toUpperCase();
     if (!text) return;
     if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
     t.disabled = true;
-    const res = await store.sendTelex(r.callsign, text);
-    ui.flash = res.ok ? { text: `Sent ${zulu(Date.now())}${res.dryRun ? " (dry run: not delivered)" : ""}.`, kind: "ok" } : { text: res.error || "Send failed", kind: "err" };
+    const res = await store.sendTelex(r.callsign, text, { force: t.id === "bSendForce" });
+    ui.flash = res.ok ? { text: `Sent ${zulu(Date.now())}${res.dryRun ? " (dry run: not delivered)" : ""}.`, kind: "ok" }
+      : { text: res.error || "Send failed", kind: "err", force: !!res.offline };
     if (res.ok) ui.composer.dirty = false;
     ui.selSig = "";
     scheduleRender();
