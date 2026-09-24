@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ramp Management — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --vatflow-nav-h: 28px;
+    --bg: #070b11;
+    --panel: #0d141d;
+    --panel-2: #111a25;
+    --line: #1d2a38;
+    --line-2: #2a3a4d;
+    --text: #d6e0ea;
+    --muted: #8796a8;
+    --muted-2: #5d6b7b;
+    --pave: #1a2330;
+    --lane: #232e3c;
+    --lane-line: #b9952a;
+    --bldg: #0b1016;
+    --empty: #e6edf5;
+    --assigned: #3aa0ff;
+    --occupied: #3fcf6a;
+    --pushreq: #f5b31c;
+    --pushheld: #ef4d4d;
+    --pushappr: #36d0d0;
+    --taxi: #b58cff;
+    --accent: #2f8cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.35 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .45; }
+  .mono { font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace; }
+
+  #app { position: fixed; top: var(--vatflow-nav-h); left: 0; right: 0; bottom: 0;
+    display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .ttl h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: .2px; }
+  .ttl .sub { color: var(--muted); font-size: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
+  .seg button { background: transparent; border: 0; padding: 6px 12px; color: var(--muted); font-weight: 600; font-size: 12px; }
+  .seg button + button { border-left: 1px solid var(--line-2); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .counters { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .ctr { display: flex; align-items: center; gap: 10px; padding: 6px 12px; min-width: 112px;
+    border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); }
+  .ctr .ic { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px; font-weight: 800; }
+  .ctr .lab { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .ctr .val { font-size: 19px; font-weight: 650; line-height: 1.1; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted-2); }
+  .pill.ok .dot { background: var(--occupied); }
+  .pill.bad .dot { background: var(--pushheld); }
+  .clock { font-size: 15px; font-weight: 600; }
+
+  /* ---------- body ---------- */
+  #body { display: grid; grid-template-columns: 208px 1fr; grid-template-rows: minmax(260px, 1fr) minmax(240px, 34vh); min-height: 0; }
+  #rail { grid-row: 1 / span 2; border-right: 1px solid var(--line); background: var(--panel); padding: 12px; overflow: auto; }
+  #rail h3 { margin: 14px 0 7px; font-size: 11px; font-weight: 650; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  #rail h3:first-child { margin-top: 0; }
+  .field { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px;
+    border: 1px solid var(--line-2); border-radius: 7px; font-size: 18px; font-weight: 700; }
+  .views { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+  .views button { padding: 7px 4px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel-2); font-size: 12px; }
+  .views button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tgl { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+  .tgl input { width: 34px; height: 18px; appearance: none; background: var(--line-2); border-radius: 9px; position: relative; cursor: pointer; }
+  .tgl input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .tgl input:checked { background: var(--accent); }
+  .tgl input:checked::after { left: 18px; }
+  .tgl input:disabled { opacity: .4; cursor: not-allowed; }
+  .legend div { display: flex; align-items: center; gap: 9px; padding: 3px 0; font-size: 12.5px; }
+  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .perm { margin-top: 12px; padding: 8px 10px; border-radius: 7px; font-size: 12px; border: 1px solid var(--line-2); color: var(--muted); }
+  .perm.ok { border-color: #22583a; color: #9fe0b5; }
+  .perm.ro { border-color: #6a5320; color: #f0cf85; }
+  .activity { font-size: 11.5px; color: var(--muted); }
+  .activity div { padding: 3px 0; border-bottom: 1px solid var(--line); }
+  .activity b { color: var(--text); font-weight: 600; }
+  select.sm { width: 100%; padding: 5px 6px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; }
+
+  #mapWrap { position: relative; min-height: 0; overflow: hidden; background: #0a1017; }
+  #map { width: 100%; height: 100%; display: block; }
+  #map .stand, #map .ac { cursor: pointer; }
+  #map text { font-family: "Inter", "Segoe UI", system-ui, sans-serif; pointer-events: none; }
+  .northArrow { position: absolute; right: 12px; bottom: 12px; width: 34px; padding: 4px 0; text-align: center;
+    border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); font-size: 11px; font-weight: 700; }
+  .zoom { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .zoom button { width: 30px; height: 28px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); font-size: 15px; font-weight: 700; }
+  #map { touch-action: none; cursor: grab; }
+  .mapNote { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: var(--muted-2); }
+
+  #panels { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; padding: 10px; min-height: 0; border-top: 1px solid var(--line); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .card > .hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .card > .hd h2 { margin: 0 6px 0 0; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+  .card > .bd { overflow: auto; min-height: 0; flex: 1; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button { padding: 3px 9px; font-size: 11.5px; border-radius: 5px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--muted); }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .search { margin-left: auto; padding: 4px 8px; width: 170px; max-width: 100%; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10.5px; font-weight: 650; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 5px 7px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12.5px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #121c28; }
+  tbody tr.sel { background: #13263d; box-shadow: inset 3px 0 0 var(--accent); }
+  td.cs { font-weight: 650; }
+  .st { display: inline-block; min-width: 84px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #06101a; }
+  .badge { display: inline-block; padding: 1px 6px; margin-left: 5px; border-radius: 4px; font-size: 10px; font-weight: 700; vertical-align: 1px; }
+  .badge.warn { background: #4a3710; color: #ffd27a; }
+  .badge.bad { background: #4b1717; color: #ff9b9b; }
+  .badge.info { background: #10304f; color: #8ec8ff; }
+  .muted { color: var(--muted); }
+  .empty { padding: 18px; color: var(--muted); text-align: center; font-size: 12.5px; }
+
+  /* selected flight */
+  .selHead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 10px 12px 2px; }
+  .selHead .cs { font-size: 21px; font-weight: 700; }
+  .chip { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 10px; padding: 8px 12px; }
+  .facts .k { font-size: 10.5px; color: var(--muted); }
+  .facts .v { font-size: 14px; font-weight: 650; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 12px; }
+  .btn { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; font-weight: 600; }
+  .btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.warn { background: #3d2c0b; border-color: #6b4f15; color: #ffd27a; }
+  .btn.bad { background: #3b1414; border-color: #6a2424; color: #ffaaaa; }
+  .btn.ok { background: #0f3522; border-color: #1f6a44; color: #9fe8bd; }
+  .sec { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; padding: 8px 12px 2px; }
+  textarea { width: 100%; min-height: 54px; resize: vertical; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line-2); background: #0a1119; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; text-transform: uppercase; }
+  .count { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .count.over { color: var(--pushheld); }
+  .msgs { padding: 2px 12px 10px; font-size: 11.5px; }
+  .msgs div { padding: 2px 0; font-family: "Cascadia Mono", Consolas, monospace; }
+  .msgs .up { color: #8ec8ff; }
+  .msgs .dn { color: #ffd27a; }
+  .flash { padding: 0 12px; font-size: 12px; min-height: 16px; }
+  .flash.err { color: #ff9b9b; }
+  .flash.ok { color: #9fe8bd; }
+
+  /* queue */
+  .q td, .q th { padding: 5px 5px; }
+  .q .st { min-width: 58px !important; padding: 2px 6px; }
+  .q .acts { display: flex; gap: 3px; }
+  .q .acts button { padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 11px; font-weight: 700; }
+  .holdSw { width: 30px; height: 16px; appearance: none; border-radius: 8px; background: var(--line-2); position: relative; cursor: pointer; vertical-align: middle; }
+  .holdSw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .holdSw:checked { background: var(--pushheld); }
+  .holdSw:checked::after { left: 16px; }
+  .holdSw:disabled { opacity: .4; cursor: not-allowed; }
+
+  @media (max-width: 1180px) {
+    #panels { grid-template-columns: 1fr 1fr; }
+    #panels .card:first-child { grid-column: 1 / span 2; }
+  }
+  @media (max-width: 860px) {
+    #app { position: static; display: block; padding-top: var(--vatflow-nav-h); }
+    #body { display: flex; flex-direction: column; }
+    #mapWrap { order: 1; }
+    #panels { order: 2; }
+    #rail { order: 3; }
+    #rail { border-right: 0; border-bottom: 1px solid var(--line); }
+    #mapWrap { height: 70vh; }
+    #panels { grid-template-columns: 1fr; }
+    #panels .card:first-child { grid-column: auto; }
+    .card > .bd { max-height: 60vh; }
+    .counters { margin-left: 0; }
+    .ctr { min-width: 0; flex: 1 1 40%; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div id="app">
+  <header>
+    <div class="ttl">
+      <h1>KCVG Ramp Management</h1>
+      <div class="sub">Stand assignment and push control for the Amazon and DHL cargo ramps</div>
+    </div>
+    <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+      <button data-mode="demo">DEMO</button>
+      <button data-mode="live">LIVE</button>
+    </div>
+    <div class="counters">
+      <div class="ctr"><div class="ic" style="background:#12304f;color:#8ec8ff">↓</div><div><div class="lab">Inbound</div><div class="val" id="cInbound">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#113a24;color:#9fe8bd">P</div><div><div class="lab">Parked</div><div class="val" id="cParked">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#3d2c0b;color:#ffd27a">↑</div><div><div class="lab">Push req</div><div class="val" id="cPushReq">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#3b1414;color:#ffaaaa">❚❚</div><div><div class="lab">Push held</div><div class="val" id="cPushHeld">0</div></div></div>
+    </div>
+    <span class="pill" id="connPill"><span class="dot"></span><span id="connText">…</span></span>
+    <span class="clock mono" id="clock">--:--:--Z</span>
+  </header>
+
+  <div id="body">
+    <aside id="rail">
+      <h3>Airport</h3>
+      <div class="field">KCVG <span class="muted" style="font-size:11px;font-weight:500">Cincinnati</span></div>
+      <h3>Ramp view</h3>
+      <div class="views" id="viewSeg">
+        <button data-view="ALL">All</button>
+        <button data-view="AZN">Amazon</button>
+        <button data-view="DHL">DHL</button>
+      </div>
+      <h3>Display</h3>
+      <label class="tgl">Stand labels <input type="checkbox" id="optLabels" checked></label>
+      <label class="tgl">Callsigns <input type="checkbox" id="optCallsigns" checked></label>
+      <label class="tgl">Aircraft types <input type="checkbox" id="optTypes"></label>
+      <h3>Ramp control</h3>
+      <label class="tgl">Hold all pushes <input type="checkbox" id="holdAll"></label>
+      <div class="tgl" style="gap:8px">Push spacing
+        <select class="sm" id="spacing" style="width:auto">
+          <option value="0">none</option><option value="60">1 min</option><option value="90">90 s</option>
+          <option value="120">2 min</option><option value="180">3 min</option><option value="300">5 min</option>
+        </select>
+      </div>
+      <h3>Legend</h3>
+      <div class="legend">
+        <div><i style="background:var(--empty)"></i>Empty</div>
+        <div><i style="background:var(--assigned)"></i>Assigned / reserved</div>
+        <div><i style="background:var(--occupied)"></i>Occupied</div>
+        <div><i style="background:var(--pushreq)"></i>Push requested</div>
+        <div><i style="background:var(--pushheld)"></i>Push held</div>
+        <div><i style="background:var(--pushappr)"></i>Push approved / pushing</div>
+        <div><i style="background:var(--taxi)"></i>Taxiing</div>
+      </div>
+      <div class="perm" id="perm"></div>
+      <h3>Activity</h3>
+      <div class="activity" id="activity"></div>
+    </aside>
+
+    <div id="mapWrap">
+      <svg id="map" preserveAspectRatio="xMidYMid meet" aria-label="KCVG ramp map"></svg>
+      <div class="mapNote" id="mapNote"></div>
+      <div class="zoom"><button id="zIn" title="Zoom in">+</button><button id="zOut" title="Zoom out">−</button><button id="zFit" title="Fit (or double-click the map)">⤢</button></div>
+      <div class="northArrow">▲<br>N</div>
+    </div>
+
+    <div id="panels">
+      <section class="card">
+        <div class="hd">
+          <h2>Flights</h2>
+          <div class="tabs" id="fTabs"></div>
+          <input class="search" id="search" placeholder="Search callsign, type, stand…" autocomplete="off">
+        </div>
+        <div class="bd">
+          <table>
+            <thead><tr><th>Callsign</th><th>Type</th><th>From → To</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th></tr></thead>
+            <tbody id="flights"></tbody>
+          </table>
+          <div class="empty" id="flightsEmpty" hidden>No KCVG ramp traffic right now.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="hd"><h2>Selected flight</h2></div>
+        <div class="bd" id="selected"><div class="empty">Select a flight in the table or on the map.</div></div>
+      </section>
+
+      <section class="card">
+        <div class="hd">
+          <h2>Push queue</h2>
+          <span class="muted" style="font-size:11.5px" id="qNote">Call order</span>
+          <button class="btn" id="resort" style="margin-left:auto" hidden>Back to call order</button>
+        </div>
+        <div class="bd">
+          <table class="q">
+            <thead><tr><th>#</th><th>Callsign / stand</th><th>Call</th><th>Status</th><th>Hold</th><th></th></tr></thead>
+            <tbody id="queue"></tbody>
+          </table>
+          <div class="empty" id="queueEmpty" hidden>No push requests.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import {
+  STATES, PUSH, indexLayout, deriveFlights, standStatuses, queueView, suggestStand,
+  composeStandTelex, composePushTelex, TELEX_MAX,
+} from "./shared/ramp-core.js";
+import { createDemoStore } from "./shared/ramp-demo.js";
+import { createLiveStore } from "./shared/ramp-live.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "ramp");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const zulu = t => { const d = new Date(t); return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "Z"; };
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+};
+
+const STATE_COLOR = {
+  [STATES.INBOUND]: "var(--assigned)", [STATES.TAXI_IN]: "var(--taxi)", [STATES.PARKED]: "var(--occupied)",
+  [STATES.PUSH_REQ]: "var(--pushreq)", [STATES.PUSH_HELD]: "var(--pushheld)", [STATES.PUSH_APPR]: "var(--pushappr)",
+  [STATES.PUSHING]: "var(--pushappr)", [STATES.TAXI_OUT]: "var(--taxi)",
+};
+const STAND_COLOR = { empty: "var(--empty)", assigned: "var(--assigned)", occupied: "var(--occupied)", pushreq: "var(--pushreq)", pushheld: "var(--pushheld)" };
+const STATE_ORDER = [STATES.PUSH_HELD, STATES.PUSH_REQ, STATES.PUSH_APPR, STATES.PUSHING, STATES.TAXI_IN, STATES.INBOUND, STATES.PARKED, STATES.TAXI_OUT];
+const TABS = [
+  ["ALL", "All", () => true],
+  ["INB", "Inbound", r => r.state === STATES.INBOUND || r.state === STATES.TAXI_IN],
+  ["PRK", "Parked", r => r.state === STATES.PARKED],
+  ["PSH", "Push", r => [STATES.PUSH_REQ, STATES.PUSH_HELD, STATES.PUSH_APPR, STATES.PUSHING].includes(r.state)],
+  ["OUT", "Taxi out", r => r.state === STATES.TAXI_OUT],
+];
+const PLANE = "M0,-11 L1.6,-8 L1.6,-3 L10,2 L10,4 L1.6,1.5 L1.2,7 L4,9.5 L4,11 L0,10 L-4,11 L-4,9.5 L-1.2,7 L-1.6,1.5 L-10,4 L-10,2 L-1.6,-3 L-1.6,-8 Z";
+
+const ui = {
+  view: LS.get("vatflow.ramp.view", "ALL"),
+  tab: "ALL",
+  search: "",
+  selected: null,
+  composer: { cs: null, tpl: "stand", text: "", dirty: false },
+  flash: { text: "", kind: "" },
+  selSig: "",
+};
+
+let L = null;
+let store = null;
+let unsub = null;
+let rows = [];
+const memory = new Map();
+
+/* ---------------- mode ---------------- */
+function initialMode() {
+  const q = new URLSearchParams(location.search).get("mode");
+  if (q === "demo" || q === "live") return q;
+  return LS.get("vatflow.ramp.mode", "demo");
+}
+
+function setMode(mode) {
+  if (store) { store.stop(); unsub && unsub(); }
+  memory.clear();
+  ui.selected = null;
+  ui.selSig = "";
+  store = mode === "live" ? createLiveStore(L) : createDemoStore(L);
+  unsub = store.subscribe(scheduleRender);
+  store.start();
+  LS.set("vatflow.ramp.mode", mode);
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  scheduleRender();
+}
+
+/* ---------------- render ---------------- */
+let raf = 0;
+function scheduleRender() {
+  if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); });
+}
+
+function render() {
+  const state = store.getState();
+  rows = deriveFlights(L, store.getPilots(), state, memory, Date.now());
+  renderHeader();
+  renderRail(state);
+  renderMap(state);
+  renderFlights();
+  renderSelected(state);
+  renderQueue(state);
+}
+
+function renderHeader() {
+  const c = s => rows.filter(r => s.includes(r.state)).length;
+  $("cInbound").textContent = c([STATES.INBOUND, STATES.TAXI_IN]);
+  $("cParked").textContent = c([STATES.PARKED, STATES.PUSH_REQ, STATES.PUSH_HELD, STATES.PUSH_APPR]);
+  $("cPushReq").textContent = c([STATES.PUSH_REQ]);
+  $("cPushHeld").textContent = c([STATES.PUSH_HELD]);
+  $("connPill").className = "pill " + (store.status.ok ? "ok" : "bad");
+  $("connText").textContent = store.mode === "demo" ? "Demo mode" : store.status.ok ? "Hub connected" : "Hub offline";
+  $("connPill").title = store.status.text;
+}
+
+function renderRail(state) {
+  const me = store.me;
+  const p = $("perm");
+  if (store.mode === "demo") {
+    p.className = "perm ok";
+    p.innerHTML = "<b>Demo.</b> Simulated traffic. Telex goes nowhere. Approve a push to watch it push and taxi out.";
+  } else if (me.canWrite) {
+    p.className = "perm ok";
+    p.innerHTML = `Working as <b>${esc(me.callsign)}</b>. ${esc(store.status.text)}`;
+  } else {
+    p.className = "perm ro";
+    p.innerHTML = `<b>Read-only.</b> ${esc(me.reason || "Sign in with VATSIM and be on KCVG_RMP, _GND or _TWR to assign stands.")}` +
+      (store.status.ok ? "" : `<br><span class="muted">${esc(store.status.text)}</span>`);
+  }
+  const hold = $("holdAll");
+  hold.checked = !!state.settings.holdAll;
+  hold.disabled = !me.canWrite;
+  const sp = $("spacing");
+  if (document.activeElement !== sp) sp.value = String(state.settings.spacingSec || 0);
+  sp.disabled = !me.canWrite;
+  $("activity").innerHTML = state.log.slice(-7).reverse()
+    .map(l => `<div><span class="mono">${zulu(l.t)}</span> ${esc(l.text)} <span class="muted">· ${esc(l.by)}</span></div>`).join("") ||
+    '<div class="muted">Nothing yet.</div>';
+}
+
+/* ---------------- map ---------------- */
+/** Content box of a chart: stands, spots, de-ice spots and named buildings, padded. */
+function cropBox(chart) {
+  const pts = [
+    ...L.stands.filter(s => s.chart === chart).map(s => [s.x, s.y]),
+    ...L.callSpots.filter(s => s.chart === chart).map(s => [s.x, s.y]),
+    ...L.deiceSpots.filter(s => s.chart === chart).map(s => [s.x, s.y]),
+    ...L.buildings.filter(b => b.chart === chart && b.name).flatMap(b => [[b.rect[0], b.rect[1]], [b.rect[0] + b.rect[2], b.rect[1] + b.rect[3]]]),
+  ];
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.max(0, Math.min(...xs) - 45), y0 = Math.max(0, Math.min(...ys) - 45);
+  const x1 = Math.min(L.charts[chart].width, Math.max(...xs) + 45), y1 = Math.min(L.charts[chart].height, Math.max(...ys) + 45);
+  return { x0, y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** [chart, dx, dy]: each chart's content box placed side by side, Amazon west of DHL. */
+function chartsForView() {
+  const ids = ui.view === "ALL" ? ["AZN", "DHL"] : [ui.view];
+  let x = 0;
+  return ids.map(id => {
+    const c = cropBox(id);
+    const out = [id, x - c.x0, -c.y0, c];
+    x += c.w + 16;
+    return out;
+  });
+}
+
+function rampBoxes(chart) {
+  const out = [];
+  for (const r of L.ramps.filter(r => r.chart === chart)) {
+    const st = L.stands.filter(s => s.ramp === r.id);
+    if (!st.length) continue;
+    const xs = st.map(s => s.x), ys = st.map(s => s.y);
+    out.push({ r, x0: Math.min(...xs) - 26, y0: Math.min(...ys) - 24, x1: Math.max(...xs) + 26, y1: Math.max(...ys) + 24 });
+  }
+  return out;
+}
+
+function renderMap(state) {
+  const svg = $("map");
+  const views = chartsForView();
+  const W = views.reduce((w, v) => w + v[3].w + 16, -16);
+  const H = Math.max(...views.map(v => v[3].h));
+  ui.fit = { x: 0, y: 0, w: W, h: H };
+  const vb = ui.vb || ui.fit;
+  svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const statuses = standStatuses(L, rows);
+  const byStand = new Map(rows.filter(r => r.atStand).map(r => [r.atStand, r]));
+  const showLabels = $("optLabels").checked;
+  const showCs = $("optCallsigns").checked;
+  const showTypes = $("optTypes").checked;
+  const sel = ui.selected;
+  const selRow = rows.find(r => r.callsign === sel);
+  let h = "";
+  for (const [chart, ox, oy, c] of views) {
+    h += `<g transform="translate(${ox},${oy})"><clipPath id="clip${chart}"><rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" rx="8"/></clipPath><g clip-path="url(#clip${chart})">`;
+    h += `<rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" fill="#0c131c"/>`;
+    for (const b of rampBoxes(chart)) {
+      h += `<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${b.y1 - b.y0}" rx="10" fill="var(--pave)"/>`;
+    }
+    for (const lane of L.lanes.filter(l => l.chart === chart)) {
+      const pts = lane.pts.map(p => p.join(",")).join(" ");
+      h += `<polyline points="${pts}" fill="none" stroke="var(--lane)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    for (const lane of L.lanes.filter(l => l.chart === chart)) {
+      const pts = lane.pts.map(p => p.join(",")).join(" ");
+      h += `<polyline points="${pts}" fill="none" stroke="var(--lane-line)" stroke-width="1.2" stroke-opacity=".7"/>`;
+    }
+    for (const b of L.buildings.filter(b => b.chart === chart)) {
+      const [x, y, w, hh] = b.rect;
+      h += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="3" fill="var(--bldg)" stroke="#2b3a4c"/>`;
+      if (b.name) h += `<text x="${x + w / 2}" y="${y + hh / 2 + 4}" text-anchor="middle" font-size="11" fill="#9fb0c2">${esc(b.name)}</text>`;
+    }
+    for (const b of rampBoxes(chart)) {
+      h += `<text x="${(b.x0 + b.x1) / 2}" y="${b.y0 - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="#c4d2e0">${esc(b.r.name)}</text>`;
+    }
+    // Lane names at the lane start.
+    for (const lane of L.lanes.filter(l => l.chart === chart)) {
+      const [x, y] = lane.pts[lane.pts.length > 2 ? 1 : 0];
+      h += `<text x="${x + 6}" y="${y + 14}" font-size="9.5" fill="#d8b64a" opacity=".8">${esc(lane.id)}</text>`;
+    }
+    for (const d of L.deiceSpots.filter(d => d.chart === chart)) {
+      h += `<rect x="${d.x - 15}" y="${d.y - 7}" width="30" height="14" rx="2" fill="#0a1017" stroke="#6f8196"/><text x="${d.x}" y="${d.y + 3.5}" text-anchor="middle" font-size="8.5" fill="#b4c3d3">${esc(d.id)}</text>`;
+    }
+    for (const s of L.callSpots.filter(s => s.chart === chart)) {
+      h += `<circle cx="${s.x}" cy="${s.y}" r="10" fill="#05080c" stroke="#e6edf5" stroke-width="1.5"/><text x="${s.x}" y="${s.y + 3.5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">${esc(s.id)}</text>`;
+    }
+    // Stands, and the aircraft parked on them.
+    for (const s of L.stands.filter(s => s.chart === chart)) {
+      const st = statuses.get(s.id);
+      const occ = byStand.get(s.id);
+      const color = occ ? (STATE_COLOR[occ.state] || STAND_COLOR.occupied) : st ? STAND_COLOR[st.key] : STAND_COLOR.empty;
+      const rot = s.noseHdg ?? 0;
+      const isSel = (occ && occ.callsign === sel) || (selRow && !selRow.atStand && selRow.stand === s.id);
+      const opacity = occ || st ? 1 : 0.5;
+      const target = occ ? `data-cs="${esc(occ.callsign)}"` : st?.callsign ? `data-cs="${esc(st.callsign)}"` : "";
+      h += `<g class="stand" data-stand="${esc(s.id)}" ${target} transform="translate(${s.x},${s.y})">`;
+      if (isSel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
+      h += `<circle r="13" fill="transparent"/>`;
+      h += `<path d="${PLANE}" transform="rotate(${rot})" fill="${color}" fill-opacity="${opacity}" stroke="#05080c" stroke-width=".6"/>`;
+      h += `</g>`;
+      const rad = (rot * Math.PI) / 180;
+      const lx = s.x + Math.sin(rad) * 22;
+      const ly = s.y - Math.cos(rad) * 22 + 3.5;
+      if (showLabels) {
+        h += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="#e6edf5">${esc(s.id)}</text>`;
+      }
+      const who = occ || (st?.key === "assigned" ? rows.find(r => r.callsign === st.callsign) : null);
+      if (who && (showCs || showTypes)) {
+        const t = [showCs ? who.callsign : "", showTypes ? who.type : ""].filter(Boolean).join(" ");
+        h += `<text x="${lx}" y="${ly + 10}" text-anchor="middle" font-size="8.5" fill="${occ ? "#b8c6d4" : "#8ec8ff"}">${esc(t)}</text>`;
+      }
+    }
+    // Moving aircraft (not on a stand).
+    for (const r of rows.filter(r => r.chart === chart && !r.atStand)) {
+      const color = STATE_COLOR[r.state] || "var(--taxi)";
+      h += `<g class="ac" data-cs="${esc(r.callsign)}" transform="translate(${r.x},${r.y})">`;
+      if (r.callsign === sel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
+      h += `<circle r="13" fill="transparent"/><path d="${PLANE}" transform="rotate(${r.hdg})" fill="${color}" stroke="#05080c" stroke-width=".6"/></g>`;
+      if (showCs) h += `<text x="${r.x + 14}" y="${r.y - 8}" font-size="10" font-weight="700" fill="${color}">${esc(r.callsign)}</text>`;
+    }
+    h += `</g></g>`;
+  }
+  svg.innerHTML = h;
+  const offMap = rows.filter(r => r.state === STATES.INBOUND).length;
+  $("mapNote").textContent = offMap ? `${offMap} inbound not yet on the ramp` : "";
+}
+
+/* ---------------- flights ---------------- */
+function rampLabel(r) {
+  const s = r.stand ? L.standById.get(r.stand) : null;
+  if (s) return (s.group === "Amazon" ? "AZN" : "DHL") + " " + s.id;
+  return "";
+}
+
+function renderFlights() {
+  $("fTabs").innerHTML = TABS.map(([id, label, fn]) =>
+    `<button data-tab="${id}" class="${ui.tab === id ? "on" : ""}">${label} (${rows.filter(fn).length})</button>`).join("");
+  const q = ui.search.trim().toUpperCase();
+  const tabFn = TABS.find(t => t[0] === ui.tab)[2];
+  const list = rows.filter(tabFn).filter(r => !q || [r.callsign, r.type, r.stand, r.dep, r.arr, r.atStand].some(v => String(v || "").includes(q)))
+    .sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.callsign.localeCompare(b.callsign));
+  $("flights").innerHTML = list.map(r => {
+    const e = r.entry;
+    let ramp = esc(rampLabel(r));
+    if (!r.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) {
+      ramp = r.op.group === "?" ? '<span class="badge warn">ramp ?</span>' : `<span class="muted">${esc(r.op.group)} · none</span>`;
+    }
+    if (r.wrongStand) ramp += `<span class="badge bad" title="Assigned ${esc(r.stand)}">at ${esc(r.atStand)}</span>`;
+    if (e?.reqStand && !e.stand) ramp += '<span class="badge info">REQ STAND</span>';
+    const eta = r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
+      : e?.callTime ? zulu(e.callTime) : "–";
+    return `<tr data-cs="${esc(r.callsign)}" class="${r.callsign === ui.selected ? "sel" : ""}">
+      <td class="cs">${esc(r.callsign)}</td><td>${esc(r.type)}</td>
+      <td>${esc(r.dep || "?")} → ${esc(r.arr || "?")}</td><td>${ramp}</td>
+      <td><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></td>
+      <td class="mono">${esc(eta)}</td></tr>`;
+  }).join("");
+  $("flightsEmpty").hidden = list.length > 0;
+}
+
+/* ---------------- selected flight ---------------- */
+function standOptions(r) {
+  const taken = new Map();
+  for (const x of rows) {
+    if (x.callsign === r.callsign) continue;
+    if (x.atStand) taken.set(x.atStand, x.callsign);
+    if (x.stand) taken.set(x.stand, x.callsign);
+  }
+  const mine = new Set(r.op.ramps);
+  const groups = [...L.ramps].sort((a, b) => Number(mine.has(b.id)) - Number(mine.has(a.id)));
+  return groups.map(g => {
+    const opts = L.stands.filter(s => s.ramp === g.id).map(s => {
+      const t = taken.get(s.id);
+      const mx = (s.tags || []).includes("maintenance");
+      return `<option value="${esc(s.id)}" ${t ? "disabled" : ""}>${esc(s.id)}${t ? ` — ${esc(t)}` : mx ? " — MX" : ""}</option>`;
+    }).join("");
+    return `<optgroup label="${esc(g.name)}${mine.has(g.id) ? " ★" : ""}">${opts}</optgroup>`;
+  }).join("");
+}
+
+function defaultTelex(r, tpl, state) {
+  const stand = document.getElementById("selStand")?.value || r.stand;
+  if (tpl === "stand" || tpl === "change") return stand ? composeStandTelex(L, stand, { change: tpl === "change" }) : "";
+  if (tpl === "push") {
+    const pos = queueView(state, Date.now()).find(q => q.callsign === r.callsign)?.pos;
+    return pos ? composePushTelex(L, r.stand, pos) : "";
+  }
+  return `${L.icao} RAMP: `;
+}
+
+function renderSelected(state) {
+  const box = $("selected");
+  const r = rows.find(x => x.callsign === ui.selected);
+  if (!r) {
+    if (ui.selSig !== "none") {
+      box.innerHTML = '<div class="empty">Select a flight in the table or on the map.</div>';
+      ui.selSig = "none";
+    }
+    return;
+  }
+  const e = r.entry || {};
+  const me = store.me;
+  const q = queueView(state, Date.now()).find(x => x.callsign === r.callsign);
+  const sig = JSON.stringify([r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  if (sig === ui.selSig) return;
+  ui.selSig = sig;
+
+  // Keep in-progress edits across the rebuild.
+  const keep = { stand: $("selStand")?.value, focus: document.activeElement?.id, selStart: $("tlxText")?.selectionStart };
+  if (ui.composer.cs !== r.callsign) {
+    ui.composer = { cs: r.callsign, tpl: r.stand || r.state === STATES.INBOUND || r.state === STATES.TAXI_IN ? "stand" : "push", text: "", dirty: false };
+    keep.stand = undefined;
+  }
+  const dis = me.canWrite ? "" : "disabled";
+  const isDep = r.dep === L.icao && r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN;
+  const onStand = !!r.atStand;
+  const dir = r.state === STATES.INBOUND || r.state === STATES.TAXI_IN ? "Inbound" : "Outbound";
+  const msgs = (e.msgs || []).slice(-6).reverse();
+  box.innerHTML = `
+    <div class="selHead"><span class="cs">${esc(r.callsign)}</span><span class="chip">${esc(r.type || "?")}</span><span class="chip">${dir}</span><span class="chip">${esc(r.op.group === "?" ? "operator ?" : r.op.group)}</span></div>
+    <div class="facts">
+      <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>
+      <div><div class="k">To</div><div class="v">${esc(r.arr || "?")}</div></div>
+      <div><div class="k">Stand</div><div class="v">${esc(r.stand || "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(r.atStand)}</span>` : ""}</div></div>
+      <div><div class="k">Status</div><div class="v"><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></div></div>
+    </div>
+    <div class="sec">Stand</div>
+    <div class="row">
+      <select class="sm" id="selStand" style="width:auto;min-width:130px" ${dis}><option value="">— pick a stand —</option>${standOptions(r)}</select>
+      <button class="btn" id="bSuggest" ${dis}>Suggest</button>
+      <button class="btn pri" id="bAssign" ${dis}>Assign</button>
+      ${e.stand ? `<button class="btn" id="bClear" ${dis}>Clear</button>` : ""}
+    </div>
+    ${isDep && onStand ? `<div class="sec">Push${q ? ` · #${q.pos} in queue` : ""}</div>
+    <div class="row">
+      ${!e.push ? `<button class="btn warn" data-push="REQ" ${dis}>Push request</button>` : ""}
+      ${e.push && e.push !== PUSH.HELD ? `<button class="btn bad" data-push="HELD" ${dis}>Hold</button>` : ""}
+      ${e.push === PUSH.HELD ? `<button class="btn warn" data-push="REQ" ${dis}>Release hold</button>` : ""}
+      ${e.push && e.push !== PUSH.APPROVED ? `<button class="btn ok" data-push="APPROVED" ${dis}>Approve push</button>` : ""}
+      ${e.push ? `<button class="btn" data-push="" ${dis}>Cancel</button>` : ""}
+    </div>` : ""}
+    <div class="sec">Send via Hoppie (telex)</div>
+    <div class="row">
+      <select class="sm" id="tlxTpl" style="width:auto" ${dis}>
+        <option value="stand">Stand assignment</option><option value="change">Stand change</option>
+        <option value="push">Push number</option><option value="custom">Custom</option>
+      </select>
+      <span class="count" id="tlxCount"></span>
+    </div>
+    <div class="row"><textarea id="tlxText" maxlength="${TELEX_MAX}" spellcheck="false" ${dis}></textarea></div>
+    <div class="row"><button class="btn pri" id="bSend" ${dis}>Send to ${esc(r.callsign)}</button>
+      <span class="muted" style="font-size:11px">${store.mode === "demo" ? "Demo: stays in this browser" : `From ${esc(store.station || "KCVG")}${store.dryRun ? " · hub dry run" : ""}`}</span></div>
+    <div class="flash ${ui.flash.kind}">${esc(ui.flash.text)}</div>
+    ${msgs.length ? `<div class="sec">Messages</div><div class="msgs">${msgs.map(m =>
+      `<div class="${m.dir}">${zulu(m.t)} ${m.dir === "up" ? "▲" : "▼"} ${esc(m.text)}</div>`).join("")}</div>` : ""}`;
+  $("selStand").value = keep.stand !== undefined ? keep.stand : (e.stand || "");
+  $("tlxTpl").value = ui.composer.tpl;
+  if (!ui.composer.dirty) ui.composer.text = defaultTelex(r, ui.composer.tpl, state);
+  $("tlxText").value = ui.composer.text;
+  updateCount();
+  if (keep.focus && $(keep.focus)) {
+    $(keep.focus).focus();
+    if (keep.focus === "tlxText" && keep.selStart != null) $("tlxText").setSelectionRange(keep.selStart, keep.selStart);
+  }
+}
+
+function updateCount() {
+  const n = ($("tlxText")?.value || "").length;
+  const c = $("tlxCount");
+  if (!c) return;
+  c.textContent = `${n}/${TELEX_MAX}`;
+  c.className = "count" + (n > TELEX_MAX ? " over" : "");
+}
+
+/* ---------------- queue ---------------- */
+function renderQueue(state) {
+  const now = Date.now();
+  const live = new Map(rows.map(r => [r.callsign, r]));
+  const view = queueView(state, now).filter(q => live.get(q.callsign)?.state !== STATES.TAXI_OUT);
+  const dis = store.me.canWrite ? "" : "disabled";
+  $("queue").innerHTML = view.map(q => {
+    const r = live.get(q.callsign);
+    const label = q.status === "SPACING" ? `WAIT ${Math.floor(q.wait / 60)}:${String(q.wait % 60).padStart(2, "0")}` : q.status;
+    const color = { READY: "var(--occupied)", HELD: "var(--pushheld)", APPROVED: "var(--pushappr)", SPACING: "var(--pushreq)", WAIT: "#6f8196" }[q.status];
+    const held = state.flights[q.callsign].push === PUSH.HELD;
+    return `<tr data-cs="${esc(q.callsign)}" class="${q.callsign === ui.selected ? "sel" : ""}">
+      <td>${q.pos}</td><td class="cs">${esc(q.callsign)}${q.moved ? ' <span class="badge warn" title="Moved by hand">moved</span>' : ""}${r ? "" : ' <span class="badge bad">not seen</span>'}
+        <div class="muted" style="font-weight:500;font-size:11px">${esc(q.stand || r?.atStand || "—")} · ${esc(r?.type || "")}</div></td>
+      <td class="mono">${zulu(q.callTime)}</td>
+      <td><span class="st" style="background:${color};min-width:70px">${label}</span></td>
+      <td><input type="checkbox" class="holdSw" data-hold="${esc(q.callsign)}" ${held ? "checked" : ""} ${dis} title="Hold keeps its place in line"></td>
+      <td><div class="acts">
+        ${q.status !== "APPROVED" ? `<button data-appr="${esc(q.callsign)}" ${dis} title="Approve push">✓</button>` : ""}
+        <button data-move="-1" data-mcs="${esc(q.callsign)}" ${dis} title="Move up">▲</button>
+        <button data-move="1" data-mcs="${esc(q.callsign)}" ${dis} title="Move down">▼</button>
+        <button data-cancel="${esc(q.callsign)}" ${dis} title="Remove from queue">✕</button>
+      </div></td></tr>`;
+  }).join("");
+  $("queueEmpty").hidden = view.length > 0;
+  const moved = view.some(q => q.moved);
+  $("resort").hidden = !moved;
+  $("resort").disabled = !store.me.canWrite;
+  $("qNote").textContent = state.settings.holdAll ? "ALL PUSHES HELD" : moved ? "Order changed by hand" : state.settings.spacingSec ? `Call order · ${state.settings.spacingSec}s spacing` : "Call order";
+}
+
+/* ---------------- actions ---------------- */
+async function doOp(o, okText) {
+  const res = await store.op(o);
+  ui.flash = res.ok ? { text: okText || "", kind: "ok" } : { text: res.error || "Rejected", kind: "err" };
+  ui.selSig = "";
+  scheduleRender();
+  return res;
+}
+
+function select(cs) {
+  ui.selected = cs;
+  ui.flash = { text: "", kind: "" };
+  ui.selSig = "";
+  scheduleRender();
+}
+
+$("modeSeg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-mode]");
+  if (b && b.dataset.mode !== store.mode) setMode(b.dataset.mode);
+});
+$("viewSeg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-view]");
+  if (!b) return;
+  ui.view = b.dataset.view;
+  ui.vb = null;
+  LS.set("vatflow.ramp.view", ui.view);
+  document.querySelectorAll("#viewSeg button").forEach(x => x.classList.toggle("on", x === b));
+  scheduleRender();
+});
+["optLabels", "optCallsigns", "optTypes"].forEach(id => $(id).addEventListener("change", scheduleRender));
+$("fTabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]");
+  if (b) { ui.tab = b.dataset.tab; scheduleRender(); }
+});
+$("search").addEventListener("input", e => { ui.search = e.target.value; scheduleRender(); });
+$("flights").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-cs]");
+  if (tr) select(tr.dataset.cs);
+});
+$("map").addEventListener("click", e => {
+  if (drag && drag.moved) return;
+  const g = e.target.closest("[data-cs], [data-stand]");
+  if (!g) return;
+  if (g.dataset.cs) return select(g.dataset.cs);
+  // Free stand clicked with a flight selected: preload it for Assign.
+  if (g.dataset.stand && ui.selected && $("selStand")) {
+    const opt = $("selStand").querySelector(`option[value="${CSS.escape(g.dataset.stand)}"]`);
+    if (opt && !opt.disabled) {
+      $("selStand").value = g.dataset.stand;
+      onStandPicked();
+    }
+  }
+});
+/* Zoom (wheel / buttons) and pan (drag). Double-click resets to fit. */
+function zoomBy(f, cx, cy) {
+  const vb = { ...(ui.vb || ui.fit) };
+  const w = Math.min(ui.fit.w * 1.2, Math.max(120, vb.w * f));
+  const k = w / vb.w;
+  cx ??= vb.x + vb.w / 2;
+  cy ??= vb.y + vb.h / 2;
+  ui.vb = { x: cx - (cx - vb.x) * k, y: cy - (cy - vb.y) * k, w, h: vb.h * k };
+  if (ui.vb.w >= ui.fit.w) ui.vb = null;
+  scheduleRender();
+}
+function svgPoint(e) {
+  const svg = $("map");
+  const p = svg.createSVGPoint();
+  p.x = e.clientX; p.y = e.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+$("map").addEventListener("wheel", e => {
+  e.preventDefault();
+  const p = svgPoint(e);
+  zoomBy(e.deltaY > 0 ? 1.18 : 1 / 1.18, p.x, p.y);
+}, { passive: false });
+let drag = null;
+$("map").addEventListener("pointerdown", e => {
+  drag = { x: e.clientX, y: e.clientY, vb: { ...(ui.vb || ui.fit) }, moved: false };
+});
+window.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+  drag.moved = true;
+  const r = $("map").getBoundingClientRect();
+  const k = Math.max(drag.vb.w / r.width, drag.vb.h / r.height);
+  ui.vb = { ...drag.vb, x: drag.vb.x - dx * k, y: drag.vb.y - dy * k };
+  scheduleRender();
+});
+window.addEventListener("pointerup", () => { if (drag) setTimeout(() => { drag = null; }, 0); });
+$("map").addEventListener("dblclick", () => { ui.vb = null; scheduleRender(); });
+$("zIn").addEventListener("click", () => zoomBy(1 / 1.4));
+$("zOut").addEventListener("click", () => zoomBy(1.4));
+$("zFit").addEventListener("click", () => { ui.vb = null; scheduleRender(); });
+
+$("holdAll").addEventListener("change", e => doOp({ op: "settings", holdAll: e.target.checked }));
+$("spacing").addEventListener("change", e => doOp({ op: "settings", spacingSec: Number(e.target.value) }));
+$("resort").addEventListener("click", () => doOp({ op: "resort" }));
+
+function onStandPicked() {
+  const r = rows.find(x => x.callsign === ui.selected);
+  if (!r || ui.composer.dirty) return;
+  if (ui.composer.tpl === "stand" || ui.composer.tpl === "change") {
+    ui.composer.text = defaultTelex(r, ui.composer.tpl, store.getState());
+    $("tlxText").value = ui.composer.text;
+    updateCount();
+  }
+}
+
+$("selected").addEventListener("change", e => {
+  if (e.target.id === "selStand") onStandPicked();
+  if (e.target.id === "tlxTpl") {
+    const r = rows.find(x => x.callsign === ui.selected);
+    ui.composer.tpl = e.target.value;
+    ui.composer.dirty = false;
+    ui.composer.text = r ? defaultTelex(r, ui.composer.tpl, store.getState()) : "";
+    $("tlxText").value = ui.composer.text;
+    updateCount();
+  }
+});
+$("selected").addEventListener("input", e => {
+  if (e.target.id !== "tlxText") return;
+  ui.composer.text = e.target.value;
+  ui.composer.dirty = true;
+  updateCount();
+});
+$("selected").addEventListener("click", async e => {
+  const r = rows.find(x => x.callsign === ui.selected);
+  if (!r) return;
+  const t = e.target.closest("button");
+  if (!t || t.disabled) return;
+  if (t.id === "bSuggest") {
+    const s = suggestStand(L, rows, r.op);
+    if (s) { $("selStand").value = s.id; onStandPicked(); }
+    else ui.flash = { text: "No free stand on this operator's ramps.", kind: "err" };
+  } else if (t.id === "bAssign") {
+    const stand = $("selStand").value;
+    if (!stand) { ui.flash = { text: "Pick a stand first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    const change = !!(r.entry?.stand && r.entry.stand !== stand);
+    const res = await doOp({ op: "assign", callsign: r.callsign, stand }, `Stand ${stand} assigned. Send the telex below to tell the pilot.`);
+    if (res.ok && !ui.composer.dirty) ui.composer.tpl = change ? "change" : "stand";
+  } else if (t.id === "bClear") {
+    await doOp({ op: "assign", callsign: r.callsign, stand: null }, "Stand cleared.");
+  } else if (t.dataset.push !== undefined) {
+    await doOp({ op: "push", callsign: r.callsign, push: t.dataset.push || null });
+  } else if (t.id === "bSend") {
+    const text = ($("tlxText").value || "").trim().toUpperCase();
+    if (!text) return;
+    if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    t.disabled = true;
+    const res = await store.sendTelex(r.callsign, text);
+    ui.flash = res.ok ? { text: `Sent ${zulu(Date.now())}${res.dryRun ? " (dry run: not delivered)" : ""}.`, kind: "ok" } : { text: res.error || "Send failed", kind: "err" };
+    if (res.ok) ui.composer.dirty = false;
+    ui.selSig = "";
+    scheduleRender();
+  }
+});
+$("queue").addEventListener("click", e => {
+  const t = e.target;
+  if (t.dataset.hold) return;
+  const b = t.closest("button");
+  if (b && !b.disabled) {
+    if (b.dataset.appr) return doOp({ op: "push", callsign: b.dataset.appr, push: PUSH.APPROVED });
+    if (b.dataset.move) return doOp({ op: "move", callsign: b.dataset.mcs, dir: Number(b.dataset.move) });
+    if (b.dataset.cancel) return doOp({ op: "push", callsign: b.dataset.cancel, push: null });
+  }
+  const tr = t.closest("tr[data-cs]");
+  if (tr && !b) select(tr.dataset.cs);
+});
+$("queue").addEventListener("change", e => {
+  const cs = e.target.dataset.hold;
+  if (cs) doOp({ op: "push", callsign: cs, push: e.target.checked ? PUSH.HELD : PUSH.REQ });
+});
+
+setInterval(() => {
+  const d = new Date();
+  $("clock").textContent = [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()].map(n => String(n).padStart(2, "0")).join(":") + "Z";
+}, 1000);
+// Spacing countdowns tick even when the feed is quiet.
+setInterval(scheduleRender, 1000);
+
+/* ---------------- boot ---------------- */
+try {
+  const raw = await (await fetch("data/ramp/KCVG.json")).json();
+  L = indexLayout(raw);
+  document.querySelectorAll("#viewSeg button").forEach(b => b.classList.toggle("on", b.dataset.view === ui.view));
+  setMode(initialMode());
+} catch (err) {
+  document.getElementById("mapWrap").innerHTML = `<div class="empty">Could not load the KCVG ramp layout: ${esc(err.message || err)}</div>`;
+}
+</script>
+</body>
+</html>

@@ -3,6 +3,12 @@
  "version": 1,
  "source": "CVG Amazon and CVG DHL ramp charts (user-supplied). x,y are pixels on the named chart, north up. Amazon lat/lon are derived from its evenly spaced grid (approximate). DHL lat/lon stay null until the OSM import or the stand editor. hdg/pushTo come from the chart lead-in lines; null means unclear. taxiOut marks stands that can also taxi straight out. maxCode is unused for now: aircraft size checks are deferred.",
  "telexStation": "KCVG",
+ "field": {
+  "lat": 39.0488,
+  "lon": -84.6678,
+  "elevFt": 896,
+  "radiusNm": 3
+ },
  "charts": {
   "AZN": {
    "name": "CVG Amazon Ramp",
@@ -265,6 +271,402 @@
    "polygon": null,
    "taxilanes": [
     "DHL 7"
+   ]
+  }
+ ],
+ "lanes": [
+  {
+   "id": "N",
+   "chart": "AZN",
+   "pts": [
+    [
+     150,
+     217
+    ],
+    [
+     656,
+     217
+    ]
+   ]
+  },
+  {
+   "id": "D",
+   "chart": "AZN",
+   "pts": [
+    [
+     150,
+     0
+    ],
+    [
+     150,
+     300
+    ]
+   ]
+  },
+  {
+   "id": "C",
+   "chart": "AZN",
+   "pts": [
+    [
+     297,
+     249
+    ],
+    [
+     297,
+     880
+    ]
+   ]
+  },
+  {
+   "id": "B",
+   "chart": "AZN",
+   "pts": [
+    [
+     348,
+     249
+    ],
+    [
+     348,
+     460
+    ]
+   ]
+  },
+  {
+   "id": "A",
+   "chart": "AZN",
+   "pts": [
+    [
+     405,
+     252
+    ],
+    [
+     405,
+     890
+    ]
+   ]
+  },
+  {
+   "id": "1",
+   "chart": "AZN",
+   "pts": [
+    [
+     455,
+     252
+    ],
+    [
+     455,
+     330
+    ],
+    [
+     405,
+     350
+    ]
+   ]
+  },
+  {
+   "id": "2",
+   "chart": "AZN",
+   "pts": [
+    [
+     297,
+     460
+    ],
+    [
+     405,
+     460
+    ]
+   ]
+  },
+  {
+   "id": "3",
+   "chart": "AZN",
+   "pts": [
+    [
+     297,
+     685
+    ],
+    [
+     405,
+     685
+    ]
+   ]
+  },
+  {
+   "id": "N",
+   "chart": "DHL",
+   "pts": [
+    [
+     0,
+     212
+    ],
+    [
+     412,
+     212
+    ]
+   ]
+  },
+  {
+   "id": "DHL 6",
+   "chart": "DHL",
+   "pts": [
+    [
+     107,
+     170
+    ],
+    [
+     107,
+     92
+    ],
+    [
+     412,
+     92
+    ]
+   ]
+  },
+  {
+   "id": "S",
+   "chart": "DHL",
+   "pts": [
+    [
+     448,
+     0
+    ],
+    [
+     448,
+     1000
+    ]
+   ]
+  },
+  {
+   "id": "DHL 2",
+   "chart": "DHL",
+   "pts": [
+    [
+     363,
+     212
+    ],
+    [
+     363,
+     633
+    ]
+   ]
+  },
+  {
+   "id": "DHL 3",
+   "chart": "DHL",
+   "pts": [
+    [
+     248,
+     212
+    ],
+    [
+     248,
+     400
+    ]
+   ]
+  },
+  {
+   "id": "DHL 4",
+   "chart": "DHL",
+   "pts": [
+    [
+     137,
+     212
+    ],
+    [
+     137,
+     420
+    ]
+   ]
+  },
+  {
+   "id": "DHL 1",
+   "chart": "DHL",
+   "pts": [
+    [
+     180,
+     633
+    ],
+    [
+     448,
+     633
+    ]
+   ]
+  },
+  {
+   "id": "DHL 5",
+   "chart": "DHL",
+   "pts": [
+    [
+     350,
+     633
+    ],
+    [
+     350,
+     915
+    ]
+   ]
+  },
+  {
+   "id": "DHL 7",
+   "chart": "DHL",
+   "pts": [
+    [
+     60,
+     915
+    ],
+    [
+     350,
+     915
+    ]
+   ]
+  },
+  {
+   "id": "DHL 7",
+   "chart": "DHL",
+   "pts": [
+    [
+     350,
+     915
+    ],
+    [
+     350,
+     983
+    ],
+    [
+     440,
+     983
+    ]
+   ]
+  }
+ ],
+ "laneSpots": {
+  "AZN": {
+   "A": "72",
+   "B": "73",
+   "C": "74",
+   "1": "71"
+  },
+  "DHL": {
+   "DHL 6": "59",
+   "DHL 2": "56",
+   "DHL 3": "57",
+   "DHL 4": "58",
+   "DHL 1": "52",
+   "DHL 5": "51",
+   "DHL 7": "51",
+   "N": "54"
+  }
+ },
+ "buildings": [
+  {
+   "chart": "AZN",
+   "name": "Amazon Building",
+   "rect": [
+    488,
+    420,
+    118,
+    235
+   ]
+  },
+  {
+   "chart": "AZN",
+   "name": "",
+   "rect": [
+    280,
+    68,
+    58,
+    68
+   ]
+  },
+  {
+   "chart": "AZN",
+   "name": "",
+   "rect": [
+    372,
+    40,
+    58,
+    62
+   ]
+  },
+  {
+   "chart": "AZN",
+   "name": "",
+   "rect": [
+    545,
+    40,
+    50,
+    72
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "Bldg 2 Sort",
+   "rect": [
+    178,
+    408,
+    100,
+    142
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "Bldg 1",
+   "rect": [
+    120,
+    453,
+    60,
+    22
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "Bldg 5",
+   "rect": [
+    125,
+    520,
+    32,
+    128
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "Bldg 3",
+   "rect": [
+    55,
+    580,
+    22,
+    110
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "ULD",
+   "rect": [
+    157,
+    738,
+    78,
+    106
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "",
+   "rect": [
+    258,
+    755,
+    12,
+    82
+   ]
+  },
+  {
+   "chart": "DHL",
+   "name": "DHL Hangar",
+   "rect": [
+    160,
+    945,
+    110,
+    80
    ]
   }
  ],

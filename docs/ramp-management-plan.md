@@ -1,6 +1,6 @@
 # Ramp Management — plan
 
-**Status:** proposal / planning. Nothing is built yet.
+**Status:** phases 0–3 built for KCVG: `ramp.html` (demo + live), `shared/ramp-core.js`, `shared/ramp-demo.js`, `shared/ramp-live.js`, and the vUSAlink-hub ramp board (`ramp.py`). Phase 4 (vUSAlink STAND column, IDST release tie-in) and the stand editor are still to do.
 **Origin:** user-submitted idea (quoted below), with a UI concept mock-up. The mock-up's airport is not real; it only shows the layout and features.
 **First test field:** KCVG, the Amazon and DHL cargo ramps, transcribed from the user-supplied ramp charts. Seed data is in [`data/ramp/KCVG.json`](../data/ramp/KCVG.json).
 
