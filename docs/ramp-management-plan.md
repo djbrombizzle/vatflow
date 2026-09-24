@@ -2,7 +2,7 @@
 
 **Status:** proposal / planning. Nothing is built yet.
 **Origin:** user-submitted idea (quoted below), with a UI concept mock-up. The mock-up's airport is not real; it only shows the layout and features.
-**First test field:** KCVG Amazon Ramp, from the user-supplied CVG Amazon ramp chart. Seed data is in [`data/ramp/KCVG.json`](../data/ramp/KCVG.json). The DHL ramps come next.
+**First test field:** KCVG, the Amazon and DHL cargo ramps, transcribed from the user-supplied ramp charts. Seed data is in [`data/ramp/KCVG.json`](../data/ramp/KCVG.json).
 
 > A useful VatFlow addition would be a ramp/gate management tool for facilities with controlled terminal and/or cargo ramps. It could show aircraft and gate/stand assignments, track basic states such as inbound, parked, pushing, or taxiing out, and include a push-hold queue that preserves call order when departures need to be metered. For arriving aircraft that would normally receive parking from company ops by radio or ACARS, VatFlow could use its existing Hoppie integration to send ramp or gate assignments directly, improving situational awareness and reducing unnecessary frequency coordination.
 
@@ -82,6 +82,8 @@ It is **shared across controllers**, the same way the IDST runway/SID config is 
 2. the callsign match lists
 3. **ask the controller**. The flight shows "ramp ?" until someone picks one.
 
+**Stands and call spots are separate ID spaces.** At KCVG, DHL stands 55–59 and 65 share numbers with call spots 55–59 and 65. The page labels them "stand 57" and "spot 57". Every uplink says STAND or SPOT in full, never a bare number.
+
 ### 3.2 Where the stands come from
 
 1. **OpenStreetMap import (primary).** `scripts/build-ramp-stands.mjs` queries Overpass for `aeroway=parking_position` (with `ref`) and `aeroway=apron` inside the airport boundary. It writes a draft `data/ramp/KCVG.json` with real coordinates. KCVG's cargo aprons are mapped in OSM. We need to check how complete the stand refs are.
@@ -110,12 +112,12 @@ TAXI IN ── (gs≈0 within ~35 m of a stand) ──► PARKED  PUSH REQ ─�
                                                         RAMP TAXI ─► (DE-ICE at N1-1…N4, optional)
                                                           │ reaches call spot 71–76
                                                           ▼
-                                                        AT SPOT ─► handed to Taxilane N / ground
+                                                        AT SPOT ─► handed to N taxilane / ground
                                                           ▼
                                                         TAXI OUT ─► (airborne) removed
 ```
 
-- **Call spots are the ramp's boundary.** At KCVG, Amazon Ramp (130.5) runs the ramp out to spots 71–74. Taxilane N Control (130.375) takes over from there, then ground. The inbound flow is the reverse: the aircraft enters at a spot and is given its stand. So the stand uplink should name the entry spot (for C-row stands, spot 74 via taxilane C).
+- **Call spots are the ramp's boundary.** At KCVG, Amazon Ramp (130.5) runs the Amazon ramp out to spots 71–74. From there, N taxilane (130.375) belongs to **DHL Ramp**. DHL Ramp hands aircraft to ground at the outer spots (51, 52, 54, 55 on S, and 75/76 on D). The inbound flow is the reverse: the aircraft enters at a spot and is given its stand. So the stand uplink should name the entry spot (for C-row stands, spot 74 via taxilane C).
 - **Occupancy:** nearest stand within a radius. A stand is occupied if any on-ground aircraft sits there, even one we never assigned. That catches pilots who park at the wrong spot. A **"wrong stand"** badge shows if it differs from the assignment.
 - **Conflicts:** assigning a stand that is occupied, blocked by an occupied `blocks` neighbour, or too small (`maxCode`) gives a warning. The controller can override.
 - **Auto-suggest:** the next free stand on the operator's ramp that fits the type. It prefers stands without blocked neighbours.
@@ -140,10 +142,11 @@ All of this goes in a DOM-free module, `shared/ramp-state.js`, and is unit-teste
 ### 6.1 Uplink
 Assignments go as a **telex** (company-ops style, not a CPDLC clearance). So the pilot does **not** have to be logged on to KUSA CPDLC, only connected to Hoppie with an ACARS client.
 
-- **From-station:** the field ramp station (for example `KCVG` or `CVGRMP`), sent by the hub. Controllers never handle a Hoppie logon code, same as vUSAlink.
+- **From-station:** the field's Hoppie logon, **`KCVG`** for the test, sent by the hub. Controllers never handle a Hoppie logon code, same as vUSAlink.
 - **Composer** (`shared/ramp-messages.js`, max 220 chars):
   - `KCVG AMAZON RAMP: PARK STAND C07. ENTER RAMP AT SPOT 74 VIA TAXILANE C. CTC AMAZON RAMP 130.5 AT SPOT 74.`
   - `KCVG AMAZON RAMP: STAND CHANGE. NEW STAND A03 VIA SPOT 72 TAXILANE A.`
+  - `KCVG DHL RAMP: PARK STAND 21. ENTER AT SPOT 54 VIA N, DHL 2. CTC DHL RAMP 129.475.`
   - `KCVG RAMP: PUSH EXPECTED AT 1847Z. YOU ARE NUMBER 3. REQ PUSH WHEN READY.`
 - **Send options:** a manual **Send** button (default), or optional **auto-send on stand assignment** or **when the inbound is within X min**. Nothing goes out by surprise.
 - **Receipt:** telex has no delivery acknowledgement. The row shows **SENT hh:mmZ** and, if the pilot replies by telex, **ACK**.
@@ -168,31 +171,50 @@ The hub polls the ramp station and parses free text:
 - **vUSAlink / EDST ground list:** add a **STAND** column, and colour it for push state. A controller working CPDLC clearances sees where the aircraft is parked.
 - **DCL → push:** after a DCL WILCO in vUSAlink, the Ramp page can prompt "push next?". The two stay separate; neither sends for the other.
 - **CPDLC Map / IDST:** show the stand and push state as a tag on ground aircraft.
-- **Other hubs / external clients:** publish a read-only `GET /ramp/public?icao=` (stand + state per callsign). Pilot-side tools, a vACC site, or a Discord bot can then show "your stand is DHL 61" without Hoppie.
+- **Other hubs / external clients:** publish a read-only `GET /ramp/public?icao=` (stand + state per callsign). Pilot-side tools, a vACC site, or a Discord bot can then show "your stand is DHL 21" without Hoppie.
 
 ---
 
-## 8. Test model — KCVG Amazon Ramp
+## 8. Test model — KCVG Amazon + DHL ramps
 
-What the chart gives us (all in `data/ramp/KCVG.json`):
+Both charts are transcribed in `data/ramp/KCVG.json`. That is **128 stands, 15 call spots, 6 de-ice spots, and 2 ramp positions**. Each stand and spot carries the chart it came from plus its pixel x/y on that chart, so the page can draw each ramp as its own schematic.
+
+### Amazon Ramp (chart `AZN`) — 33 stands
 
 | Item | Contents |
 | --- | --- |
-| Stands (33) | **A01–A10**: east row along the Amazon building, off taxilane A. **B01–B08**: centre row, off taxilane C. **C01–C15**: west row, off taxilane C. |
+| Stands | **A01–A10**: east row along the Amazon building, pushing onto taxilane A. **B01–B08**: centre row, pushing onto **C**. **C01–C15**: west row, pushing onto C. |
+| Size | **Only A06–A10 take heavies** (B744 / B748 / B77L, code E). All other Amazon stands are limited to code D (B763/B767). |
 | Taxilanes | A, B, C run north–south, with cross-lanes 1, 2, and 3. B ends at cross-lane 2. |
-| Call spots | **71** (lane 1), **72** (A), **73** (B), **74** (C) on taxilane N. **75** at N/D, **76** on D near D1. |
+| Call spots | **71** (lane 1), **72** (A), **73** (B), **74** (C) on N taxilane. **75** at N/D, **76** on D near D1. |
 | De-ice spots | N1-1, N1-2 (taxilane C) · N2-1, N2-2 (B) · N3 (A) · N4 (lane 1) |
-| Positions | **Amazon Ramp Control 130.5** (the ramp) · **Taxilane N Control 130.375** (taxilane N) |
-| Nearby | RWY 18C/36C to the west, via taxiways D / D1 / D2 |
+| Position | **Amazon Ramp Control 130.5** |
 
-**Correction to the mock-up:** its "Amazon Ramp 71–75" row shows the **call spots** as parking stands. In the real layout, 71–76 are handoff spots on taxilane N/D. The stands are the A/B/C rows, which is what the mock-up's "C01–C15" column already hints at. The Ramp page should draw the spots as numbered circles, as the chart does.
+### DHL (chart `DHL`) — 95 stands
 
-**Two-controller test:** this field covers the queue handoff directly. Amazon Ramp works stands → spot. Taxilane N works spot → ground. The push queue is owned by `AZN_RMP`. Aircraft reaching a spot show up for `TWYN_CTL` as "at spot 7x, awaiting taxi".
+| Ramp | Stands | Pushes onto |
+| --- | --- | --- |
+| DHL North Ramp | 56–65 | DHL 6 |
+| DHL Ramp | 50–55 | unclear on the chart (DHL 6 or N) |
+| DHL 3 / DHL 4 | 39–49, with A/B suffixes, and 42 | DHL 3 or DHL 4 |
+| DHL Main Ramp | 25–38 (with 35A/B, 36A/B, 37A) west of DHL 2, 16–24 east of DHL 2 | DHL 2 / DHL 3 |
+| DHL Sort (Bldg 2) | 3, 3A, 4, 4A, 5 | DHL 1 |
+| DHL South Ramp | 1, 2, 6–15, 15A, 101–108 | DHL 5 / DHL 7 / DHL 1 |
+| DHL Hangar | MX1–MX3 (maintenance; never auto-assigned) | DHL 7 |
 
-**To verify on the chart** (flagged in the JSON `source` note): each row's nose direction and push taxilane. They are read off the lead-in lines, and B-row access to taxilane A is unclear. Also the aircraft size limit per stand, which the chart does not give. Until we know, every stand accepts B763/B767-size aircraft and warns on anything larger.
+- **Call spots:** 51, 52, 54, 55 on taxiway S (to RWY 18L/36R). 56 (DHL 2), 57 (DHL 3), 58 (DHL 4), and 59 (DHL 6) on N. 65 at the west end of N, toward the Amazon side.
+- **Position:** **DHL Ramp Control 129.475**, which also works **N taxilane on 130.375**.
+- **Geo reference:** unlike the Amazon chart, this chart has both lat and lon grid lines. They are stored in `charts.DHL`, so a script can derive approximate stand coordinates. The chart is not to scale between grid lines, so treat those as a first guess for the stand editor to correct, not as occupancy-grade positions.
 
-1. **Data:** schematic from the chart (done), then OSM import for lat/lon and the ramp polygon, then a check in the stand editor. The DHL ramps (North/South/Main) follow the same way once we have their chart.
-2. **Demo mode** (`ramp.html?demo=KCVG`): a scripted cargo bank (about 17 aircraft, like the mock-up). Inbounds on final, taxi-ins, parked, and departures calling for push. Built like the vUSAlink test traffic, so the page can be tested with no one online. Hoppie sends in demo mode go to a local log, never the network.
+### How the test runs
+
+- **Correction to the mock-up:** its "Amazon Ramp 71–75" row shows **call spots** as parking stands. The real stands are the A/B/C rows. The page draws spots as numbered circles, as the charts do.
+- **Two-controller handoff:** `AZN_RMP` works the Amazon ramp, stand → spot 71–74, then hands the aircraft to `DHL_RMP` on N taxilane. `DHL_RMP` owns its own push queue and N taxilane, and hands to ground at the outer spots. An Amazon departure appears on DHL Ramp's list as "at spot 7x".
+- **Telex station:** everything goes out from the Hoppie logon **`KCVG`**.
+- **Still to verify on the DHL chart:** nose direction for every DHL stand, push lanes for 42 and 50–55, and which DHL stands take heavies. Until then, DHL stands have no size limit set, and the page warns instead of blocking.
+
+1. **Data:** schematics from both charts (done), then OSM import (plus the DHL chart grid) for lat/lon and the ramp polygons, then a check in the stand editor.
+2. **Demo mode** (`ramp.html?demo=KCVG`): a scripted cargo bank across both operators (about 25 aircraft), including heavies that must land on A06–A10 or a large DHL stand. Inbounds on final, taxi-ins, parked, and departures calling for push. Built like the vUSAlink test traffic, so the page can be tested with no one online. Hoppie sends in demo mode go to a local log, never the network.
 3. **Live test:** a KCVG event or a quiet session with a few pilots on Hoppie. Check: stands auto-detected correctly, telex received and understood in real ACARS clients, queue order held under pressure.
 4. **Unit tests** (`scripts/test-ramp-*.mjs`, same runner as the existing tests):
    - state machine transitions from recorded feed snapshots
@@ -217,11 +239,17 @@ Phases 0–1 need no hub changes and can ship first.
 
 ---
 
-## 10. Open questions
+## 10. Decisions and open questions
 
-1. **KCVG stand details:** which stands take B744/B748/B77L-size aircraft? And do B-row stands push onto taxilane A or C? Do we have a DHL-ramp chart like the Amazon one?
-2. **Who may assign:** only `_RMP` / `_GND` / `_TWR` on position (plus ZID editors)? Or also a designated "company ops" role for events with no ramp controller?
-3. **Telex from-station name:** `KCVG`, `CVGRMP`, or one per operator (`DHLOPS`, `AMZOPS`) so it reads like company ops?
-4. **Taxilane N Control:** is it a separate VATSIM position at KCVG (callsign?), or does KCVG ground usually cover it?
-5. **Uncontrolled ramps:** at fields with no ramp controller, should the tool act only as company ops (stands only, no push queue)?
-6. **Auto-send default:** off (manual Send only) is proposed for launch.
+**Decided:**
+- On the Amazon ramp, only A06–A10 take heavies (B744/B748/B77L).
+- Amazon B-row stands push onto taxilane C.
+- N taxilane (130.375) is worked by DHL Ramp. There is no separate N taxilane position.
+- The test telex station is the Hoppie logon `KCVG`.
+
+**Open:**
+1. **DHL stand sizes:** which DHL stands take B77L/B744/B748 (and the A330s)?
+2. **DHL push lanes:** do stands 50–55 push onto DHL 6 or N? Does 42 push onto DHL 3 or DHL 4?
+3. **Who may assign:** only `_RMP` / `_GND` / `_TWR` on position (plus ZID editors)? Or also a "company ops" role for events with no ramp controller?
+4. **Uncontrolled ramps:** at fields with no ramp controller, should the tool act only as company ops (stands only, no push queue)?
+5. **Auto-send default:** off (manual Send only) is proposed for launch.
