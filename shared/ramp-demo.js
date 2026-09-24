@@ -9,10 +9,14 @@
  * departures call for push, and an approved push actually pushes and taxis out.
  */
 import {
-  applyOp, emptyState, entrySpotFor, findLane, projectOnPolyline, chartHeading, PUSH,
+  applyOp, emptyState, entrySpotFor, findLane, operatorFor, projectOnPolyline, chartHeading, PUSH,
 } from "./ramp-core.js";
 
 const TICK_MS = 1000;
+/** Simulated pilots whose ACARS client is not on Hoppie, to show the ping check. */
+const NOT_ON_HOPPIE = new Set(["BCS77", "GTI408", "SKW5140"]);
+/** Where an inbound with no stand yet waits after landing, by operator group. */
+const HOLD_SPOT = { Amazon: "74", DHL: "54", Terminal: "3" };
 /** Chart pixels per second (~1.7 m/px): push ~3 kt, taxi ~20 kt (sped up). */
 const PUSH_PX = 2.5;
 const TAXI_PX = 12;
@@ -37,6 +41,15 @@ const FLEET = [
   // Just-parked arrivals.
   { cs: "ABX1205", type: "B763", dep: "KSDF", arr: "KCVG", rmk: "OPR/DHL", stand: "27" },
   { cs: "SCX9215", type: "B738", dep: "KMSP", arr: "KCVG", rmk: "OPR/AMAZON", stand: "B05" },
+  // Parked departures, terminal.
+  { cs: "DAL1234", type: "A321", dep: "KCVG", arr: "KATL", stand: "A12", push: "REQ", callAgo: 90 },
+  { cs: "EDV4913", type: "CRJ9", dep: "KCVG", arr: "KLGA", stand: "A7" },
+  { cs: "FFT1122", type: "A20N", dep: "KCVG", arr: "KDEN", stand: "B20A" },
+  { cs: "AAY501", type: "A320", dep: "KCVG", arr: "KSFB", stand: "B11" },
+  { cs: "SWA2231", type: "B38M", dep: "KCVG", arr: "KBWI", stand: "B15" },
+  { cs: "UAL1557", type: "B738", dep: "KCVG", arr: "KORD", stand: "B24" },
+  // Just-parked arrival, terminal.
+  { cs: "ENY3302", type: "E175", dep: "KDFW", arr: "KCVG", stand: "B8A" },
   // Inbounds: distance (nm), bearing from the field, pre-assigned stand.
   { cs: "DAE201", type: "B752", dep: "KORD", arr: "KCVG", distNm: 4, brg: 190, assigned: "14" },
   { cs: "DHK902", type: "B752", dep: "KJFK", arr: "KCVG", distNm: 14, brg: 60, assigned: "22" },
@@ -44,6 +57,9 @@ const FLEET = [
   { cs: "GTI1432", type: "B77L", dep: "PANC", arr: "KCVG", rmk: "OPR/AMAZON", distNm: 60, brg: 320, assigned: "A06" },
   { cs: "BCS77", type: "B763", dep: "KLAX", arr: "KCVG", distNm: 95, brg: 265 },
   { cs: "ABX1311", type: "B763", dep: "KSEA", arr: "KCVG", rmk: "OPR/DHL", distNm: 150, brg: 300 },
+  { cs: "DAL2687", type: "B739", dep: "KMSP", arr: "KCVG", distNm: 18, brg: 330, assigned: "A18" },
+  { cs: "SKW5140", type: "CRJ9", dep: "KDTW", arr: "KCVG", distNm: 35, brg: 10 },
+  { cs: "JBU1411", type: "A320", dep: "KBOS", arr: "KCVG", distNm: 70, brg: 60 },
 ];
 
 function lanePath(L, stand) {
@@ -108,7 +124,7 @@ export function createDemoStore(L) {
       planes.set(f.cs, ac);
     }
     state.log = [];
-    addLog("Demo started: KCVG cargo bank, 20 aircraft");
+    addLog(`Demo started: KCVG terminal and cargo, ${FLEET.length} aircraft`);
   }
 
   function addLog(text) {
@@ -140,7 +156,7 @@ export function createDemoStore(L) {
         if (ac.air.dist <= 0) {
           // Landed: roll to the entry spot for its ramp and wait for a stand.
           const stand = e?.stand ? L.standById.get(e.stand) : null;
-          const spotId = stand ? (entrySpotFor(L, stand) || {}).id : ac.rmk === "OPR/AMAZON" ? "74" : "54";
+          const spotId = stand ? (entrySpotFor(L, stand) || {}).id : HOLD_SPOT[operatorFor(L, ac.cs, ac.rmk).group] || "54";
           const spot = L.spotById.get(spotId);
           Object.assign(ac, { phase: "spot", chart: spot.chart, x: spot.x, y: spot.y, gs: 0 });
           addLog(`${ac.cs} landed, at spot ${spot.id}`);
@@ -274,12 +290,21 @@ export function createDemoStore(L) {
       emit();
       return res;
     },
-    async sendTelex(cs, text) {
+    getHoppie() {
+      const out = {};
+      for (const cs of planes.keys()) out[cs] = !NOT_ON_HOPPIE.has(cs);
+      return out;
+    },
+    async sendTelex(cs, text, { force = false } = {}) {
       const t = String(text || "").trim().toUpperCase();
       if (!t) return { ok: false, error: "empty message" };
+      const offline = NOT_ON_HOPPIE.has(cs);
+      if (offline && !force) {
+        return { ok: false, offline: true, error: `${cs} is not connected to Hoppie right now, so the telex would not reach them. Tell them by voice, or send anyway.` };
+      }
       applyOp(state, { op: "msg", callsign: cs, dir: "up", text: t }, "KCVG_RMP", Date.now());
       state.flights[cs].sent = [...(state.flights[cs].sent || []), { t: Date.now(), text: t }];
-      pilotSays(cs, "ROGER");
+      if (!offline) pilotSays(cs, "ROGER");
       emit();
       return { ok: true, dryRun: true };
     },
