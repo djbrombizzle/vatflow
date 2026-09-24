@@ -167,6 +167,12 @@ export function indexLayout(raw) {
   return L;
 }
 
+/** A stand's chart name. Two ramps can share one (Amazon A10, Concourse A A10), so the id may differ. */
+export function standLabel(L, id) {
+  const s = L.standById.get(id);
+  return (s && s.label) || id || "";
+}
+
 export function findLane(L, chart, id) {
   if (!id) return null;
   return (L.lanesByChart[chart] || []).find(l => l.id === id) || null;
@@ -503,7 +509,8 @@ export function suggestStand(L, rows, op) {
     if (r.stand) taken.add(r.stand);
   }
   const ramps = new Set(op?.ramps || []);
-  return L.stands.find(s => ramps.has(s.ramp) && !taken.has(s.id) && !(s.tags || []).includes("maintenance")) || null;
+  const off = s => (s.tags || []).some(t => t === "maintenance" || t === "closed");
+  return L.stands.find(s => ramps.has(s.ramp) && !taken.has(s.id) && !off(s)) || null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -526,10 +533,14 @@ export function composeStandTelex(L, standId, { change = false } = {}) {
   if (!s) return "";
   const spot = entrySpotFor(L, s);
   const pos = positionForRamp(L, s.ramp);
-  const lane = s.pushTo ? (/^[A-Z0-9]$/.test(s.pushTo) ? `TAXILANE ${s.pushTo}` : s.pushTo) : "";
-  const parts = [`${rampPrefix(L, s)}:`, change ? `STAND CHANGE. NEW STAND ${s.id}.` : `PARK STAND ${s.id}.`];
+  // A lane can carry its chart name ("RAMP 3 TAXILANE") and its own frequency (Ramp 3 is 130.375).
+  const laneObj = findLane(L, s.chart, s.pushTo);
+  const lane = laneObj?.name || (s.pushTo ? (/^[A-Z0-9]$/.test(s.pushTo) ? `TAXILANE ${s.pushTo}` : s.pushTo) : "");
+  const freq = laneObj?.freq || pos?.freqs[0];
+  const name = s.label || s.id;
+  const parts = [`${rampPrefix(L, s)}:`, change ? `STAND CHANGE. NEW STAND ${name}.` : `PARK STAND ${name}.`];
   if (spot) parts.push(`ENTER AT SPOT ${spot.id}${lane ? ` VIA ${lane}` : ""}.`);
-  if (pos) parts.push(`CTC ${pos.name.replace(/\s+CONTROL$/i, "").toUpperCase()} ${freqShort(pos.freqs[0])}${spot ? ` AT SPOT ${spot.id}` : ""}.`);
+  if (pos) parts.push(`CTC ${pos.name.replace(/\s+CONTROL$/i, "").toUpperCase()} ${freqShort(freq)}${spot ? ` AT SPOT ${spot.id}` : ""}.`);
   return parts.join(" ");
 }
 

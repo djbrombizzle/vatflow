@@ -22,8 +22,9 @@ function near(a, b, tol, msg) {
 const L = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.json", import.meta.url))));
 
 /* ---------- layout ---------- */
-assert(L.stands.length === 128, "128 stands");
-assert(new Set(L.stands.map(s => s.id)).size === 128, "stand ids unique");
+assert(L.stands.length === 215, "215 stands (33 Amazon, 95 DHL, 87 terminal)");
+assert(new Set(L.stands.map(s => s.id)).size === 215, "stand ids unique");
+assert(new Set(L.callSpots.map(s => s.id)).size === L.callSpots.length, "call spot ids unique");
 assert(L.stands.every(s => Number.isFinite(s.lat) && Number.isFinite(s.lon)), "every stand has lat/lon (chart grid fills DHL)");
 near(parseDm("N39-02.2"), 39.036667, 1e-5, "parse lat");
 near(parseDm("W084-39.5"), -84.658333, 1e-5, "parse lon");
@@ -48,10 +49,23 @@ near(parseDm("W084-39.5"), -84.658333, 1e-5, "parse lon");
   assert(L.standById.get("55").ramp === "DHL-R" && L.spotById.get("55"), "stand 55 and spot 55 both exist, separately");
 }
 
+// Terminal chart georeference: RWY 18L/36R edge at x=1331 vs published -84.6468; 18C/36C at x=80 vs -84.6686.
+{
+  near(L.proj.PAX.toLatLon(1331, 500).lon, -84.6468, 0.0002, "PAX 36R lon");
+  near(L.proj.PAX.toLatLon(80, 500).lon, -84.6686, 0.0002, "PAX 36C lon");
+  const b15 = L.standById.get("B15");
+  assert(locateOnChart(L, b15.lat, b15.lon).chart === "PAX", "B15 is on the terminal chart");
+  assert(nearestStand(L, b15.lat, b15.lon).stand.id === "B15", "nearest stand to B15 is B15");
+  near(L.standById.get("A6").noseHdg, 180, 1, "Concourse A north gates nose south (away from 1S)");
+  near(L.standById.get("B15").noseHdg, 0, 1, "Concourse B south gates nose north (away from 3)");
+  assert(L.standById.get("T-A10").label === "A10" && L.standById.get("A10").chart === "AZN", "A10 on both ramps, separate ids");
+}
+
 /* ---------- operators ---------- */
 assert(operatorFor(L, "DHK123", "").group === "DHL", "DHK is DHL");
 assert(operatorFor(L, "ATN3401", "OPR/AMAZON").group === "Amazon", "remarks win");
 assert(operatorFor(L, "GTI8801", "").group === "?", "shared carrier is ambiguous");
+assert(operatorFor(L, "DAL1234", "").group === "Terminal", "DAL parks at the terminal");
 
 /* ---------- telex ---------- */
 {
@@ -60,6 +74,10 @@ assert(operatorFor(L, "GTI8801", "").group === "?", "shared carrier is ambiguous
   const d = composeStandTelex(L, "21");
   assert(d === "KCVG DHL RAMP: PARK STAND 21. ENTER AT SPOT 56 VIA DHL 2. CTC DHL RAMP 129.475 AT SPOT 56.", "21 telex: " + d);
   assert(L.stands.every(s => composeStandTelex(L, s.id).length <= TELEX_MAX), "every stand telex fits the budget");
+  const ta10 = composeStandTelex(L, "T-A10");
+  const b15 = composeStandTelex(L, "B15");
+  assert(b15 === "KCVG RAMP: PARK STAND B15. ENTER AT SPOT 5 VIA RAMP 3 TAXILANE. CTC RAMP 130.375 AT SPOT 5.", "Ramp 3 taxilane frequency: " + b15);
+  assert(ta10 === "KCVG RAMP: PARK STAND A10. ENTER AT SPOT 2 VIA RAMP 1S TAXILANE. CTC RAMP 130.9 AT SPOT 2.", "terminal telex uses the chart name: " + ta10);
 }
 assert(parseDownlink("REQ PUSH") === "push", "REQ PUSH");
 assert(parseDownlink("ready for pushback") === "push", "ready for pushback");
@@ -132,6 +150,9 @@ assert(parseDownlink("HELLO") === "other", "other");
   assert(rows.find(r => r.callsign === "ATN1").state === STATES.TAXI_OUT, "taxi out");
   const sug = suggestStand(L, rows, operatorFor(L, "DHK9", ""));
   assert(sug && sug.group === "DHL", "suggests a DHL stand");
+  const pax = suggestStand(L, rows, operatorFor(L, "EDV1", ""));
+  assert(pax && pax.group === "Terminal", "suggests a terminal stand");
+  L.stands.filter(s => (s.tags || []).includes("closed")).forEach(s => assert(s.id !== pax.id, "never suggests a closed stand"));
 }
 
 console.log(`test-ramp-core: ${passed} passed`);

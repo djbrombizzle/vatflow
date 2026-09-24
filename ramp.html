@@ -69,7 +69,7 @@
   #rail h3:first-child { margin-top: 0; }
   .field { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px;
     border: 1px solid var(--line-2); border-radius: 7px; font-size: 18px; font-weight: 700; }
-  .views { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+  .views { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .views button { padding: 7px 4px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel-2); font-size: 12px; }
   .views button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tgl { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; font-size: 13px; }
@@ -115,7 +115,7 @@
   tbody tr:hover { background: #121c28; }
   tbody tr.sel { background: #13263d; box-shadow: inset 3px 0 0 var(--accent); }
   td.cs { font-weight: 650; }
-  .st { display: inline-block; min-width: 84px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #06101a; }
+  .st { display: inline-block; min-width: 72px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #06101a; }
   .badge { display: inline-block; padding: 1px 6px; margin-left: 5px; border-radius: 4px; font-size: 10px; font-weight: 700; vertical-align: 1px; }
   .badge.warn { background: #4a3710; color: #ffd27a; }
   .badge.bad { background: #4b1717; color: #ff9b9b; }
@@ -189,7 +189,7 @@
   <header>
     <div class="ttl">
       <h1>KCVG Ramp Management</h1>
-      <div class="sub">Stand assignment and push control for the Amazon and DHL cargo ramps</div>
+      <div class="sub">Stand assignment and push control for the terminal and the Amazon and DHL cargo ramps</div>
     </div>
     <div class="seg" id="modeSeg" role="group" aria-label="Mode">
       <button data-mode="demo">DEMO</button>
@@ -211,9 +211,10 @@
       <div class="field">KCVG <span class="muted" style="font-size:11px;font-weight:500">Cincinnati</span></div>
       <h3>Ramp view</h3>
       <div class="views" id="viewSeg">
-        <button data-view="ALL">All</button>
+        <button data-view="PAX">Terminal</button>
         <button data-view="AZN">Amazon</button>
         <button data-view="DHL">DHL</button>
+        <button data-view="ALL">All</button>
       </div>
       <h3>Display</h3>
       <label class="tgl">Stand labels <input type="checkbox" id="optLabels" checked></label>
@@ -292,7 +293,7 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
   STATES, PUSH, indexLayout, deriveFlights, standStatuses, queueView, suggestStand,
-  composeStandTelex, composePushTelex, TELEX_MAX,
+  composeStandTelex, composePushTelex, standLabel, TELEX_MAX,
 } from "./shared/ramp-core.js";
 import { createDemoStore } from "./shared/ramp-demo.js";
 import { createLiveStore } from "./shared/ramp-live.js";
@@ -324,7 +325,7 @@ const TABS = [
 const PLANE = "M0,-11 L1.6,-8 L1.6,-3 L10,2 L10,4 L1.6,1.5 L1.2,7 L4,9.5 L4,11 L0,10 L-4,11 L-4,9.5 L-1.2,7 L-1.6,1.5 L-10,4 L-10,2 L-1.6,-3 L-1.6,-8 Z";
 
 const ui = {
-  view: LS.get("vatflow.ramp.view", "ALL"),
+  view: LS.get("vatflow.ramp.view", "PAX"),
   tab: "ALL",
   search: "",
   selected: null,
@@ -429,7 +430,7 @@ function cropBox(chart) {
 
 /** [chart, dx, dy]: each chart's content box placed side by side, Amazon west of DHL. */
 function chartsForView() {
-  const ids = ui.view === "ALL" ? ["AZN", "DHL"] : [ui.view];
+  const ids = ui.view === "ALL" ? ["PAX", "AZN", "DHL"] : L.charts[ui.view] ? [ui.view] : ["PAX"];
   let x = 0;
   return ids.map(id => {
     const c = cropBox(id);
@@ -517,7 +518,7 @@ function renderMap(state) {
       const lx = s.x + Math.sin(rad) * 22;
       const ly = s.y - Math.cos(rad) * 22 + 3.5;
       if (showLabels) {
-        h += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="#e6edf5">${esc(s.id)}</text>`;
+        h += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="#e6edf5">${esc(s.label || s.id)}</text>`;
       }
       const who = occ || (st?.key === "assigned" ? rows.find(r => r.callsign === st.callsign) : null);
       if (who && (showCs || showTypes)) {
@@ -541,9 +542,10 @@ function renderMap(state) {
 }
 
 /* ---------------- flights ---------------- */
+const lbl = id => (id ? standLabel(L, id) : "");
 function rampLabel(r) {
   const s = r.stand ? L.standById.get(r.stand) : null;
-  if (s) return (s.group === "Amazon" ? "AZN" : "DHL") + " " + s.id;
+  if (s) return ({ Amazon: "AZN", DHL: "DHL", Terminal: "TERM" }[s.group] || s.group) + " " + (s.label || s.id);
   return "";
 }
 
@@ -560,7 +562,7 @@ function renderFlights() {
     if (!r.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) {
       ramp = r.op.group === "?" ? '<span class="badge warn">ramp ?</span>' : `<span class="muted">${esc(r.op.group)} · none</span>`;
     }
-    if (r.wrongStand) ramp += `<span class="badge bad" title="Assigned ${esc(r.stand)}">at ${esc(r.atStand)}</span>`;
+    if (r.wrongStand) ramp += `<span class="badge bad" title="Assigned ${esc(lbl(r.stand))}">at ${esc(lbl(r.atStand))}</span>`;
     if (e?.reqStand && !e.stand) ramp += '<span class="badge info">REQ STAND</span>';
     const eta = r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
       : e?.callTime ? zulu(e.callTime) : "–";
@@ -595,7 +597,8 @@ function standOptions(r) {
     const opts = L.stands.filter(s => s.ramp === g.id).map(s => {
       const t = taken.get(s.id);
       const mx = (s.tags || []).includes("maintenance");
-      return `<option value="${esc(s.id)}" ${t ? "disabled" : ""}>${esc(s.id)}${t ? ` — ${esc(t)}` : mx ? " — MX" : ""}</option>`;
+      const closed = (s.tags || []).includes("closed");
+      return `<option value="${esc(s.id)}" ${t || closed ? "disabled" : ""}>${esc(s.label || s.id)}${t ? ` — ${esc(t)}` : closed ? " — closed" : mx ? " — MX" : ""}</option>`;
     }).join("");
     return `<optgroup label="${esc(g.name)}${mine.has(g.id) ? " ★" : ""}">${opts}</optgroup>`;
   }).join("");
@@ -645,7 +648,7 @@ function renderSelected(state) {
     <div class="facts">
       <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>
       <div><div class="k">To</div><div class="v">${esc(r.arr || "?")}</div></div>
-      <div><div class="k">Stand</div><div class="v">${esc(r.stand || "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(r.atStand)}</span>` : ""}</div></div>
+      <div><div class="k">Stand</div><div class="v">${esc(r.stand ? lbl(r.stand) : "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(lbl(r.atStand))}</span>` : ""}</div></div>
       <div><div class="k">Status</div><div class="v"><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></div></div>
     </div>
     <div class="sec">Stand</div>
@@ -712,7 +715,7 @@ function renderQueue(state) {
     const held = state.flights[q.callsign].push === PUSH.HELD;
     return `<tr data-cs="${esc(q.callsign)}" class="${q.callsign === ui.selected ? "sel" : ""}">
       <td>${q.pos}</td><td class="cs">${esc(q.callsign)}${q.moved ? ' <span class="badge warn" title="Moved by hand">moved</span>' : ""}${r ? "" : ' <span class="badge bad">not seen</span>'}
-        <div class="muted" style="font-weight:500;font-size:11px">${esc(q.stand || r?.atStand || "—")} · ${esc(r?.type || "")}</div></td>
+        <div class="muted" style="font-weight:500;font-size:11px">${esc(lbl(q.stand || r?.atStand) || "—")} · ${esc(r?.type || "")}</div></td>
       <td class="mono">${zulu(q.callTime)}</td>
       <td><span class="st" style="background:${color};min-width:70px">${label}</span></td>
       <td><input type="checkbox" class="holdSw" data-hold="${esc(q.callsign)}" ${held ? "checked" : ""} ${dis} title="Hold keeps its place in line"></td>
