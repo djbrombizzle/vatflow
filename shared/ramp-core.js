@@ -28,7 +28,7 @@ export const PUSH = { REQ: "REQ", HELD: "HELD", APPROVED: "APPROVED" };
 /** Parked: groundspeed at or below this (kt). VATSIM reports 0 for a parked aircraft; pushbacks run 2-5 kt. */
 export const PARKED_GS = 1;
 /** A parked aircraft is "at" the nearest stand within this radius (m). */
-export const STAND_RADIUS_M = 45;
+export const STAND_RADIUS_M = 60;
 /** Moving this slowly this close to the stand it left counts as the push. */
 export const PUSH_GS = 9;
 export const PUSH_RADIUS_M = 90;
@@ -455,7 +455,10 @@ export function deriveFlights(L, pilots, state, memory, now) {
       chart: null, x: null, y: null, distNm: dNm, etaMin: null, state: null,
     };
     if (!onGround) {
-      if (Number(p.altitude) > f.elevFt + 300) mem.wasAirborne = true;
+      if (Number(p.altitude) > f.elevFt + 300) {
+        mem.wasAirborne = true;
+        mem.taxied = false;
+      }
       row.state = STATES.INBOUND;
       row.etaMin = gs > 40 ? Math.round((dNm / gs) * 60) : null;
       memory.set(cs, mem);
@@ -469,6 +472,9 @@ export function deriveFlights(L, pilots, state, memory, now) {
       row.y = loc.y;
     }
     const near = nearestStand(L, lat, lon);
+    // Moving on the ground since connecting: a stop after this is a hold on a
+    // taxiway, not parking.
+    if (gs > 5) mem.taxied = true;
     const arriving = mem.wasAirborne || (arr === icao && dep !== icao && !mem.parkedHere);
     if (gs <= PARKED_GS && near) {
       row.atStand = near.stand.id;
@@ -477,6 +483,17 @@ export function deriveFlights(L, pilots, state, memory, now) {
       mem.wasAirborne = false;
       row.wrongStand = !!(row.stand && row.stand !== near.stand.id);
       if (!row.stand) row.stand = near.stand.id;
+      row.state = e?.push === PUSH.HELD ? STATES.PUSH_HELD
+        : e?.push === PUSH.REQ ? (state.settings.holdAll ? STATES.PUSH_HELD : STATES.PUSH_REQ)
+        : e?.push === PUSH.APPROVED ? STATES.PUSH_APPR
+        : STATES.PARKED;
+    } else if (gs <= PARKED_GS && !mem.taxied && !mem.wasAirborne) {
+      // Stopped, has not flown or taxied since connecting, but not on a stand we know
+      // (a gate the chart places a little off, or a spot we have no stand for).
+      // It is parked: show it that way, with its push request, rather than taxiing.
+      mem.parkedHere = true;
+      mem.wasAirborne = false;
+      row.unknownStand = true;
       row.state = e?.push === PUSH.HELD ? STATES.PUSH_HELD
         : e?.push === PUSH.REQ ? (state.settings.holdAll ? STATES.PUSH_HELD : STATES.PUSH_REQ)
         : e?.push === PUSH.APPROVED ? STATES.PUSH_APPR

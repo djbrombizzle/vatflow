@@ -659,6 +659,7 @@ function renderFlights() {
     if (!r.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) {
       ramp = r.op.group === "?" ? '<span class="badge warn">ramp ?</span>' : `<span class="muted">${esc(r.op.group)} · none</span>`;
     }
+    if (r.unknownStand && !r.stand) ramp = '<span class="badge warn" title="Parked, but not within 60 m of a known stand">stand ?</span>';
     if (r.wrongStand) ramp += `<span class="badge bad" title="Assigned ${esc(lbl(r.stand))}">at ${esc(lbl(r.atStand))}</span>`;
     if (e?.reqStand && !e.stand) ramp += '<span class="badge info">REQ STAND</span>';
     const eta = r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
@@ -816,7 +817,10 @@ function renderQueue(state) {
     return st ? sel.has(st.ramp) : !live.get(q.callsign) || inSelection(live.get(q.callsign), sel);
   };
   // Positions stay field-wide (one call-order queue), filtered to the selected ramps.
-  const view = queueView(state, now).filter(q => live.get(q.callsign)?.state !== STATES.TAXI_OUT && inQueueSel(q));
+  // Only an approved push that has since taxied away drops out; a pending
+  // request or hold always shows, whatever the state detection says.
+  const gone = q => q.status === "APPROVED" && live.get(q.callsign)?.state === STATES.TAXI_OUT;
+  const view = queueView(state, now).filter(q => !gone(q) && inQueueSel(q));
   const dis = store.me.canWrite ? "" : "disabled";
   $("queue").innerHTML = view.map(q => {
     const r = live.get(q.callsign);
