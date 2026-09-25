@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  applyOp, composeStandTelex, deriveFlights, entrySpotFor, emptyState, indexLayout, locateOnChart,
+  airlineFor, applyOp, composeStandTelex, deriveFlights, entrySpotFor, standConflicts, emptyState, indexLayout, locateOnChart,
   nearestStand, operatorFor, parseDm, parseDownlink, queueOrder, queueView, standStatuses,
   suggestStand, STATES, PUSH, TELEX_MAX,
 } from "../shared/ramp-core.js";
@@ -233,6 +233,7 @@ console.log(`test-ramp-core: ${passed} passed`);
     // Every stand whose push lane has reporting points / call spots gets one.
     assert(A.stands.every(s => entrySpotFor(A, s) || !((A.laneSpots || {})[s.chart] || {})[s.pushTo]), `${a.icao} every stand has an entry spot`);
     assert(A.stands.every(s => composeStandTelex(A, s.id).length <= TELEX_MAX), `${a.icao} telex budget`);
+    assert((A.airlines || []).every(x => x.ramps.every(id => A.rampById.has(id))), `${a.icao} airline ramps exist`);
     assert((A.views || []).length && A.demo.fleet.every(f => !f.stand || A.standById.has(f.stand)) &&
       A.demo.fleet.every(f => !f.assigned || A.standById.has(f.assigned)), `${a.icao} views and demo fleet stands exist`);
   }
@@ -277,6 +278,32 @@ console.log(`test-ramp-core: ${passed} passed`);
   assert(t === "KDCA RAMP: PARK STAND C30. ENTER AT SPOT 1 VIA B/C ALLEY.", "KDCA telex has no CTC line without a frequency: " + t);
   assert(composeStandTelex(D, "A5") === "KDCA RAMP: PARK STAND A5. ENTER VIA TAXIWAY K.", "A gates: via K, no spot, no frequency: " + composeStandTelex(D, "A5"));
   assert(operatorFor(D, "AAL1846", "").group === "Terminal" && !operatorFor(D, "AAL1", "").ramps.includes("DCA-SH"), "airlines stay off the hangar ramp");
+
+  // Suggest by airline: at DCA each airline gets its own concourse, not the first free gate up north.
+  {
+    const want = { AAL100: "DCA-D", ENY4000: "DCA-E", JBU955: "DCA-C", DAL110: "DCA-B", UAL1: "DCA-B", ASA2: "DCA-B", SWA256: "DCA-A", ACA7: "DCA-A" };
+    for (const [cs, ramp] of Object.entries(want)) {
+      const st = suggestStand(D, [], operatorFor(D, cs, ""), cs);
+      assert(st && st.ramp === ramp, `${cs} suggested on ${ramp} (got ${st && st.ramp})`);
+    }
+    assert(airlineFor(D, "AAL2769").name === "American", "airline name");
+    // Full concourse: American spills from D to C.
+    const dRows = D.stands.filter(s => s.ramp === "DCA-D").map((s, i) => ({ callsign: "X" + i, atStand: s.id, stand: s.id }));
+    assert(suggestStand(D, dRows, operatorFor(D, "AAL1", ""), "AAL1").ramp === "DCA-C", "American spills over to C");
+    // A controller working only B: an American flight still gets a B gate rather than nothing.
+    assert(suggestStand(D, [], operatorFor(D, "AAL1", ""), "AAL1", new Set(["DCA-B"])).ramp === "DCA-B", "inside the selected ramps");
+  }
+  // A pilot spawns on an inbound's assigned gate: flagged until someone moves the inbound.
+  {
+    const rowsC = [
+      { callsign: "JBU955", state: STATES.INBOUND, stand: "C27", atStand: null },
+      { callsign: "N123AB", state: STATES.PARKED, stand: "C27", atStand: "C27" },
+      { callsign: "AAL1", state: STATES.TAXI_IN, stand: "D38", atStand: null },
+      { callsign: "DAL1", state: STATES.PARKED, stand: "B17", atStand: "B17" },
+    ];
+    const cf = standConflicts(rowsC);
+    assert(cf.size === 1 && cf.get("C27").occupant === "N123AB" && cf.get("C27").inbound === "JBU955", "conflict on C27");
+  }
 
   // DAL110 at KDCA: parked at B17, pushes into the B/C alley and stops at spot 2. The alley is
   // within 60 m of the B19 stand point, but a pushed-back aircraft lined up along the alley is

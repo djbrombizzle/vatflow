@@ -562,15 +562,55 @@ export function standStatuses(L, rows) {
 }
 
 /** First free stand on the flight's ramps: not occupied, not assigned, not maintenance. */
-export function suggestStand(L, rows, op) {
+/**
+ * The airline a callsign belongs to, from the airport file's "airlines" list
+ * ({name, match: [ICAO prefixes], ramps: [ramp ids, preferred first]}), or null.
+ */
+export function airlineFor(L, callsign) {
+  const pfx = String(callsign || "").toUpperCase().slice(0, 3);
+  return (L.airlines || []).find(a => (a.match || []).includes(pfx)) || null;
+}
+
+/**
+ * First free stand for a flight: the airline's own ramps first, in their order
+ * (Delta at DCA: B, then B10-B14), then the rest of the operator's ramps. Not
+ * occupied, not assigned, not maintenance or closed. `within` (ramp ids)
+ * narrows it to the controller's selected ramps when any of them fit.
+ */
+export function suggestStand(L, rows, op, callsign, within) {
   const taken = new Set();
   for (const r of rows) {
     if (r.atStand) taken.add(r.atStand);
     if (r.stand) taken.add(r.stand);
   }
-  const ramps = new Set(op?.ramps || []);
+  const airline = airlineFor(L, callsign);
+  let order = [...new Set([...(airline?.ramps || []), ...(op?.ramps || [])])];
+  if (within && within.size) {
+    const inSel = order.filter(id => within.has(id));
+    if (inSel.length) order = inSel;
+  }
   const off = s => (s.tags || []).some(t => t === "maintenance" || t === "closed");
-  return L.stands.find(s => ramps.has(s.ramp) && !taken.has(s.id) && !off(s)) || null;
+  for (const ramp of order) {
+    const s = L.stands.find(x => x.ramp === ramp && !taken.has(x.id) && !off(x));
+    if (s) return s;
+  }
+  return null;
+}
+
+/**
+ * Arrivals whose assigned stand is taken by another aircraft (a pilot spawned
+ * there, or someone parked on it): stand id -> {inbound, occupant}.
+ */
+export function standConflicts(rows) {
+  const at = new Map(rows.filter(r => r.atStand).map(r => [r.atStand, r.callsign]));
+  const out = new Map();
+  for (const r of rows) {
+    if (!r.stand || r.atStand) continue;
+    if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN) continue;
+    const occ = at.get(r.stand);
+    if (occ && occ !== r.callsign) out.set(r.stand, { inbound: r.callsign, occupant: occ });
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */

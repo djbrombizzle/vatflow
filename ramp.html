@@ -127,6 +127,10 @@
   .badge.warn { background: #4a3710; color: #ffd27a; }
   .badge.bad { background: #4b1717; color: #ff9b9b; }
   .badge.info { background: #10304f; color: #8ec8ff; }
+  @keyframes rampBlink { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+  .blink { animation: rampBlink 1s linear infinite; }
+  .conflictNote { margin: 2px 12px 6px; padding: 6px 9px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    border: 1px solid #7a2626; color: #ffb4b4; background: #2a0f0f; }
   .acars { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; vertical-align: 2px; }
   .acars.on { background: var(--occupied); }
   .acars.off { background: transparent; box-shadow: inset 0 0 0 1.5px #8796a8; }
@@ -297,7 +301,7 @@
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
-  STATES, PUSH, indexLayout, deriveFlights, standStatuses, queueView, suggestStand,
+  STATES, PUSH, indexLayout, deriveFlights, standStatuses, standConflicts, airlineFor, queueView, suggestStand,
   composeStandTelex, composePushTelex, standLabel, TELEX_MAX,
 } from "./shared/ramp-core.js";
 import { createDemoStore } from "./shared/ramp-demo.js";
@@ -376,6 +380,7 @@ function render() {
   rows = deriveFlights(L, store.getPilots(), state, memory, Date.now());
   const sel = selectedRamps();
   vrows = rows.filter(r => inSelection(r, sel));
+  conflicts = standConflicts(rows);
   renderHeader();
   renderRail(state);
   renderMap(state);
@@ -386,6 +391,10 @@ function render() {
 
 /** Flights on the selected ramps: what the table, counters and queue show. */
 let vrows = [];
+/** stand id -> {inbound, occupant}: an arrival's assigned stand taken by another aircraft. */
+let conflicts = new Map();
+/** Keep a blink in phase across the once-a-second re-render. */
+const blinkDelay = () => `animation-delay:-${Date.now() % 1000}ms`;
 
 function renderHeader() {
   const c = s => vrows.filter(r => s.includes(r.state)).length;
@@ -608,6 +617,11 @@ function renderMap(state) {
       const target = occ ? `data-cs="${esc(occ.callsign)}"` : st?.callsign ? `data-cs="${esc(st.callsign)}"` : "";
       h += `<g class="stand" data-stand="${esc(s.id)}" ${target} transform="translate(${s.x},${s.y})">`;
       if (isSel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
+      const cf = conflicts.get(s.id);
+      if (cf) {
+        h += `<g class="blink" style="${blinkDelay()}"><circle r="20" fill="rgba(239,77,77,.18)" stroke="#ef4d4d" stroke-width="2.5"/>` +
+          `<text y="-24" text-anchor="middle" font-size="11" font-weight="800" fill="#ff8080">⚠ ${esc(cf.occupant)}</text></g>`;
+      }
       h += `<circle r="13" fill="transparent"/>`;
       h += `<path d="${PLANE}" transform="rotate(${rot})" fill="${color}" fill-opacity="${opacity}" stroke="#05080c" stroke-width=".6"/>`;
       h += `</g>`;
@@ -662,6 +676,10 @@ function renderFlights() {
     if (r.unknownStand && !r.stand) ramp = '<span class="badge warn" title="Parked, but not within 60 m of a known stand">stand ?</span>';
     if (r.wrongStand) ramp += `<span class="badge bad" title="Assigned ${esc(lbl(r.stand))}">at ${esc(lbl(r.atStand))}</span>`;
     if (e?.reqStand && !e.stand) ramp += '<span class="badge info">REQ STAND</span>';
+    const cf = r.stand && conflicts.get(r.stand);
+    if (cf && cf.inbound === r.callsign) {
+      ramp += `<span class="badge bad blink" style="${blinkDelay()}" title="${esc(cf.occupant)} is parked on ${esc(lbl(r.stand))}">OCCUPIED · ${esc(cf.occupant)}</span>`;
+    }
     const eta = r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
       : e?.callTime ? zulu(e.callTime) : "–";
     return `<tr data-cs="${esc(r.callsign)}" class="${r.callsign === ui.selected ? "sel" : ""}">
@@ -731,7 +749,10 @@ function renderSelected(state) {
   const me = store.me;
   const q = queueView(state, Date.now()).find(x => x.callsign === r.callsign);
   const hop = store.getHoppie()[r.callsign];
-  const sig = JSON.stringify([hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  const cf = r.stand && conflicts.get(r.stand);
+  const myConflict = cf && cf.inbound === r.callsign ? cf : null;
+  const airline = airlineFor(L, r.callsign);
+  const sig = JSON.stringify([myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
 
@@ -747,7 +768,8 @@ function renderSelected(state) {
   const dir = r.state === STATES.INBOUND || r.state === STATES.TAXI_IN ? "Inbound" : "Outbound";
   const msgs = (e.msgs || []).slice(-6).reverse();
   box.innerHTML = `
-    <div class="selHead"><span class="cs">${esc(r.callsign)}</span><span class="chip">${esc(r.type || "?")}</span><span class="chip">${dir}</span><span class="chip">${esc(r.op.group === "?" ? "operator ?" : r.op.group)}</span></div>
+    <div class="selHead"><span class="cs">${esc(r.callsign)}</span><span class="chip">${esc(r.type || "?")}</span><span class="chip">${dir}</span><span class="chip">${esc(r.op.group === "?" ? "operator ?" : r.op.group)}</span>${airline ? `<span class="chip">${esc(airline.name)}</span>` : ""}</div>
+    ${myConflict ? `<div class="conflictNote">⚠ Stand ${esc(lbl(r.stand))} is occupied by ${esc(myConflict.occupant)}. Pick another stand, and send the pilot a stand change.</div>` : ""}
     <div class="facts">
       <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>
       <div><div class="k">To</div><div class="v">${esc(r.arr || "?")}</div></div>
@@ -991,12 +1013,12 @@ $("selected").addEventListener("click", async e => {
   const t = e.target.closest("button");
   if (!t || t.disabled) return;
   if (t.id === "bSuggest") {
-    // Suggest inside the selected ramps when the operator uses any of them.
-    const sel = selectedRamps();
-    const within = sel ? r.op.ramps.filter(id => sel.has(id)) : [];
-    const s = suggestStand(L, rows, within.length ? { ...r.op, ramps: within } : r.op);
-    if (s) { $("selStand").value = s.id; onStandPicked(); }
-    else ui.flash = { text: "No free stand on this operator's ramps.", kind: "err" };
+    // The airline's own gates first, then the operator's ramps; inside the selected ramps when any fit.
+    const s = suggestStand(L, rows, r.op, r.callsign, selectedRamps());
+    if (s) {
+      $("selStand").value = s.id;
+      onStandPicked();
+    } else ui.flash = { text: "No free stand on this airline's or operator's ramps.", kind: "err" };
   } else if (t.id === "bAssign") {
     const stand = $("selStand").value;
     if (!stand) { ui.flash = { text: "Pick a stand first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
