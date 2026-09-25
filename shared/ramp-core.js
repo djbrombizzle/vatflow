@@ -29,6 +29,15 @@ export const PUSH = { REQ: "REQ", HELD: "HELD", APPROVED: "APPROVED" };
 export const PARKED_GS = 1;
 /** A parked aircraft is "at" the nearest stand within this radius (m). */
 export const STAND_RADIUS_M = 60;
+/**
+ * Once an aircraft has moved, stopping near a stand only counts as parking
+ * there when its nose points the way that stand parks (within this many
+ * degrees). A pushed-back aircraft lined up along the alley is not parked at
+ * the gate beside it, however close the stand point is.
+ */
+export const PARK_HDG_TOL = 60;
+/** An arrival stopped this long near a stand is parked whatever its heading (stand noses are approximate). */
+export const PARK_DWELL_MS = 180000;
 /** Moving this slowly this close to the stand it left counts as the push. */
 export const PUSH_GS = 9;
 export const PUSH_RADIUS_M = 90;
@@ -51,6 +60,12 @@ export function distM(lat1, lon1, lat2, lon2) {
   const dl = ((lon2 - lon1) * Math.PI) / 180;
   const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
   return 2 * r * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** Smallest difference between two headings, 0-180. */
+export function angleDiff(a, b) {
+  const d = Math.abs((((a - b) % 360) + 360) % 360);
+  return d > 180 ? 360 - d : d;
 }
 
 export function distNm(lat1, lon1, lat2, lon2) {
@@ -475,8 +490,23 @@ export function deriveFlights(L, pilots, state, memory, now) {
     // Moving on the ground since connecting: a stop after this is a hold on a
     // taxiway, not parking.
     if (gs > 5) mem.taxied = true;
+    if (gs > 2) {
+      mem.moved = true;
+      // Leaving a stand (a push, or a pull-out) means it only parks again on a clear match.
+      if (mem.atStand) mem.leftStand = true;
+      mem.stoppedAt = null;
+    } else if (gs <= PARKED_GS && mem.stoppedAt == null) {
+      mem.stoppedAt = now;
+    }
     const arriving = mem.wasAirborne || (arr === icao && dep !== icao && !mem.parkedHere);
-    if (gs <= PARKED_GS && near) {
+    // Near a stand: parked there if it never moved since connecting, or its nose
+    // matches the stand, or (not having left a stand) it has sat there a while.
+    const hdgOk = near && (near.stand.noseHdg == null || angleDiff(Number(p.heading) || 0, near.stand.noseHdg) <= PARK_HDG_TOL);
+    const dwellOk = near && !mem.leftStand && mem.stoppedAt != null && now - mem.stoppedAt >= PARK_DWELL_MS;
+    const parkedNear = near && (!mem.moved || hdgOk || dwellOk);
+    if (gs <= PARKED_GS && parkedNear) {
+      mem.atStand = near.stand.id;
+      if (mem.leftStand && hdgOk) mem.leftStand = false;
       row.atStand = near.stand.id;
       mem.lastStand = near.stand.id;
       mem.parkedHere = true;
@@ -487,7 +517,7 @@ export function deriveFlights(L, pilots, state, memory, now) {
         : e?.push === PUSH.REQ ? (state.settings.holdAll ? STATES.PUSH_HELD : STATES.PUSH_REQ)
         : e?.push === PUSH.APPROVED ? STATES.PUSH_APPR
         : STATES.PARKED;
-    } else if (gs <= PARKED_GS && !mem.taxied && !mem.wasAirborne) {
+    } else if (gs <= PARKED_GS && !mem.moved && !mem.wasAirborne) {
       // Stopped, has not flown or taxied since connecting, but not on a stand we know
       // (a gate the chart places a little off, or a spot we have no stand for).
       // It is parked: show it that way, with its push request, rather than taxiing.
@@ -499,10 +529,12 @@ export function deriveFlights(L, pilots, state, memory, now) {
         : e?.push === PUSH.APPROVED ? STATES.PUSH_APPR
         : STATES.PARKED;
     } else if (arriving) {
+      mem.atStand = null;
       row.state = STATES.TAXI_IN;
     } else {
       const left = mem.lastStand ? L.standById.get(mem.lastStand) : null;
       const dLeft = left ? distM(lat, lon, left.lat, left.lon) : Infinity;
+      mem.atStand = null;
       row.state = gs <= PUSH_GS && dLeft <= PUSH_RADIUS_M ? STATES.PUSHING : STATES.TAXI_OUT;
       if (left) row.stand = row.stand || left.id;
     }
@@ -530,15 +562,55 @@ export function standStatuses(L, rows) {
 }
 
 /** First free stand on the flight's ramps: not occupied, not assigned, not maintenance. */
-export function suggestStand(L, rows, op) {
+/**
+ * The airline a callsign belongs to, from the airport file's "airlines" list
+ * ({name, match: [ICAO prefixes], ramps: [ramp ids, preferred first]}), or null.
+ */
+export function airlineFor(L, callsign) {
+  const pfx = String(callsign || "").toUpperCase().slice(0, 3);
+  return (L.airlines || []).find(a => (a.match || []).includes(pfx)) || null;
+}
+
+/**
+ * First free stand for a flight: the airline's own ramps first, in their order
+ * (Delta at DCA: B, then B10-B14), then the rest of the operator's ramps. Not
+ * occupied, not assigned, not maintenance or closed. `within` (ramp ids)
+ * narrows it to the controller's selected ramps when any of them fit.
+ */
+export function suggestStand(L, rows, op, callsign, within) {
   const taken = new Set();
   for (const r of rows) {
     if (r.atStand) taken.add(r.atStand);
     if (r.stand) taken.add(r.stand);
   }
-  const ramps = new Set(op?.ramps || []);
+  const airline = airlineFor(L, callsign);
+  let order = [...new Set([...(airline?.ramps || []), ...(op?.ramps || [])])];
+  if (within && within.size) {
+    const inSel = order.filter(id => within.has(id));
+    if (inSel.length) order = inSel;
+  }
   const off = s => (s.tags || []).some(t => t === "maintenance" || t === "closed");
-  return L.stands.find(s => ramps.has(s.ramp) && !taken.has(s.id) && !off(s)) || null;
+  for (const ramp of order) {
+    const s = L.stands.find(x => x.ramp === ramp && !taken.has(x.id) && !off(x));
+    if (s) return s;
+  }
+  return null;
+}
+
+/**
+ * Arrivals whose assigned stand is taken by another aircraft (a pilot spawned
+ * there, or someone parked on it): stand id -> {inbound, occupant}.
+ */
+export function standConflicts(rows) {
+  const at = new Map(rows.filter(r => r.atStand).map(r => [r.atStand, r.callsign]));
+  const out = new Map();
+  for (const r of rows) {
+    if (!r.stand || r.atStand) continue;
+    if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN) continue;
+    const occ = at.get(r.stand);
+    if (occ && occ !== r.callsign) out.set(r.stand, { inbound: r.callsign, occupant: occ });
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */
@@ -583,7 +655,9 @@ export function composePushTelex(L, standId, pos) {
 /** Classify a pilot downlink. Mirrors ramp.py parse_downlink(). */
 export function parseDownlink(text) {
   const t = String(text || "").toUpperCase().replace(/[^A-Z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-  if (/\b(REQ(UEST)?|RDY|READY)( FOR)? (PUSH|PUSHBACK|PUSH BACK)\b/.test(t) || /^PUSH( BACK)?( REQ(UEST)?)?$/.test(t)) return "push";
+  // Starts with PUSH / PUSHBACK, or asks for it; not when it cancels or declines.
+  if ((/\b(REQ(UEST(ING)?)?|RDY|READY)( FOR| TO)? (PUSH|PUSHBACK)\b/.test(t) || /^PUSH(BACK)?\b/.test(t)) &&
+      !/\b(CANCEL|CNL|NO|UNABLE|NEGATIVE|DISREGARD)\b/.test(t)) return "push";
   if (/\b(REQ(UEST)?|NEED)( A)? (STAND|GATE|PARKING|SPOT)\b/.test(t) || /^(STAND|GATE|PARKING)( REQ(UEST)?)?$/.test(t)) return "stand";
   return "other";
 }

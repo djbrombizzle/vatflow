@@ -1699,5 +1699,113 @@
     "brg": 30
    }
   ]
- }
+ },
+ "airlines": [
+  {
+   "name": "American",
+   "match": [
+    "AAL"
+   ],
+   "ramps": [
+    "DCA-D",
+    "DCA-C"
+   ]
+  },
+  {
+   "name": "American Eagle",
+   "match": [
+    "ENY",
+    "PDT",
+    "JIA"
+   ],
+   "ramps": [
+    "DCA-E",
+    "DCA-D"
+   ]
+  },
+  {
+   "name": "JetBlue",
+   "match": [
+    "JBU"
+   ],
+   "ramps": [
+    "DCA-C"
+   ]
+  },
+  {
+   "name": "Delta",
+   "match": [
+    "DAL",
+    "EDV"
+   ],
+   "ramps": [
+    "DCA-B",
+    "DCA-B10"
+   ]
+  },
+  {
+   "name": "United",
+   "match": [
+    "UAL",
+    "GJS",
+    "ASH"
+   ],
+   "ramps": [
+    "DCA-B",
+    "DCA-B10"
+   ]
+  },
+  {
+   "name": "Alaska",
+   "match": [
+    "ASA",
+    "QXE"
+   ],
+   "ramps": [
+    "DCA-B",
+    "DCA-B10"
+   ]
+  },
+  {
+   "name": "Republic / SkyWest (flies for AA, DL, UA)",
+   "match": [
+    "RPA",
+    "SKW"
+   ],
+   "ramps": [
+    "DCA-E",
+    "DCA-B",
+    "DCA-B10"
+   ]
+  },
+  {
+   "name": "Southwest",
+   "match": [
+    "SWA"
+   ],
+   "ramps": [
+    "DCA-A"
+   ]
+  },
+  {
+   "name": "Air Canada",
+   "match": [
+    "ACA",
+    "JZA"
+   ],
+   "ramps": [
+    "DCA-A"
+   ]
+  },
+  {
+   "name": "Frontier",
+   "match": [
+    "FFT"
+   ],
+   "ramps": [
+    "DCA-A"
+   ]
+  }
+ ],
+ "airlinesSource": "Airline concourses from flyreagan.com and airport guides: A1-A9 Air Canada, Frontier, Southwest; B10-B22 Alaska, Delta, United; C23-C34 American and JetBlue; D35-D45 American mainline; E46-E59 American Eagle. Ramps are listed in order of preference; Suggest falls back to the rest of the terminal when they are full."
 }
