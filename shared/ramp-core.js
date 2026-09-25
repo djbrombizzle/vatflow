@@ -551,7 +551,9 @@ export function composeStandTelex(L, standId, { change = false } = {}) {
   const name = s.label || s.id;
   const parts = [`${rampPrefix(L, s)}:`, change ? `STAND CHANGE. NEW STAND ${name}.` : `PARK STAND ${name}.`];
   if (spot) parts.push(`ENTER AT SPOT ${spot.id}${lane ? ` VIA ${lane}` : ""}.`);
-  if (pos) parts.push(`CTC ${pos.name.replace(/\s+CONTROL$/i, "").toUpperCase()} ${freqShort(freq)}${spot ? ` AT SPOT ${spot.id}` : ""}.`);
+  else if (laneObj?.name) parts.push(`ENTER VIA ${laneObj.name}.`);
+  // No CTC line when the chart gives the ramp no frequency (e.g. KDCA).
+  if (pos && freq) parts.push(`CTC ${pos.name.replace(/\s+CONTROL$/i, "").toUpperCase()} ${freqShort(freq)}${spot ? ` AT SPOT ${spot.id}` : ""}.`);
   return parts.join(" ");
 }
 

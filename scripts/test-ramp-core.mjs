@@ -204,13 +204,14 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD", "index lists KCVG and KIAD");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA", "index lists KCVG, KIAD and KDCA");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
     assert(new Set(A.stands.map(s => s.id)).size === A.stands.length, `${a.icao} stand ids unique`);
     assert(A.stands.every(s => Number.isFinite(s.lat) && s.noseHdg != null), `${a.icao} stands have lat/lon and a push lane`);
-    assert(A.stands.every(s => entrySpotFor(A, s)), `${a.icao} every stand has an entry spot`);
+    // Every stand whose push lane has reporting points / call spots gets one.
+    assert(A.stands.every(s => entrySpotFor(A, s) || !((A.laneSpots || {})[s.chart] || {})[s.pushTo]), `${a.icao} every stand has an entry spot`);
     assert(A.stands.every(s => composeStandTelex(A, s.id).length <= TELEX_MAX), `${a.icao} telex budget`);
     assert((A.views || []).length && A.demo.fleet.every(f => !f.stand || A.standById.has(f.stand)) &&
       A.demo.fleet.every(f => !f.assigned || A.standById.has(f.assigned)), `${a.icao} views and demo fleet stands exist`);
@@ -244,5 +245,17 @@ console.log(`test-ramp-core: ${passed} passed`);
   } finally {
     Date.now = realNow;
   }
+}
+/* ---------- KDCA ---------- */
+{
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDCA.json", import.meta.url))));
+  assert(D.stands.length === 66, "KDCA 66 stands");
+  // Runway 15/33 centreline crosses the N38-51.5 grid line (y 69) at x~510 on the chart.
+  near(D.proj.DCA.toXY(38 + 51.5 / 60, -77.0405).x, 510, 8, "KDCA 15/33 at 51.5'");
+  assert(entrySpotFor(D, D.standById.get("D38")).id === "5" && entrySpotFor(D, D.standById.get("E55")).id === "9" && entrySpotFor(D, D.standById.get("E53")).id === "10", "nearest reporting point on the alley");
+  const t = composeStandTelex(D, "C30");
+  assert(t === "KDCA RAMP: PARK STAND C30. ENTER AT SPOT 1 VIA B/C ALLEY.", "KDCA telex has no CTC line without a frequency: " + t);
+  assert(composeStandTelex(D, "A5") === "KDCA RAMP: PARK STAND A5. ENTER VIA TAXIWAY K.", "A gates: via K, no spot, no frequency: " + composeStandTelex(D, "A5"));
+  assert(operatorFor(D, "AAL1846", "").group === "Terminal" && !operatorFor(D, "AAL1", "").ramps.includes("DCA-SH"), "airlines stay off the hangar ramp");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);

@@ -1,0 +1,1703 @@
+{
+ "icao": "KDCA",
+ "version": 1,
+ "name": "Washington National",
+ "subtitle": "Stand assignment and push control for Terminal 2 (B-E), Terminal 1 (A1-A9) and the South Hangars",
+ "source": "Reagan National terminal area chart (user-supplied). x,y are chart pixels (681x1084), north up. The chart is evenly gridded (~100.3 px per 0.1' lon, ~127.6 px per 0.1' lat, ~1.44 m/px both ways) and runways 1/19, 15/33 and 4/22 all land within a few px of published, so stand lat/lon come from the grid. The chart shows gate labels, not lead-in lines, so each stand is its label moved ~10 px off the pier. Stands 2-7 are the South Hangars parking spots. The chart gives no ramp frequency.",
+ "telexStation": "KDCA",
+ "field": {
+  "lat": 38.8521,
+  "lon": -77.0377,
+  "elevFt": 15,
+  "radiusNm": 2.5
+ },
+ "charts": {
+  "DCA": {
+   "name": "DCA Terminal Area",
+   "width": 681,
+   "height": 1084,
+   "latRef": [
+    {
+     "y": 69,
+     "lat": "N38-51.5"
+    },
+    {
+     "y": 198,
+     "lat": "N38-51.4"
+    },
+    {
+     "y": 326,
+     "lat": "N38-51.3"
+    },
+    {
+     "y": 453,
+     "lat": "N38-51.2"
+    },
+    {
+     "y": 581,
+     "lat": "N38-51.1"
+    },
+    {
+     "y": 708,
+     "lat": "N38-51.0"
+    },
+    {
+     "y": 835,
+     "lat": "N38-50.9"
+    }
+   ],
+   "lonRef": [
+    {
+     "x": 39.0,
+     "lon": "W077-02.9"
+    },
+    {
+     "x": 139.3,
+     "lon": "W077-02.8"
+    },
+    {
+     "x": 239.6,
+     "lon": "W077-02.7"
+    },
+    {
+     "x": 339.9,
+     "lon": "W077-02.6"
+    },
+    {
+     "x": 440.2,
+     "lon": "W077-02.5"
+    },
+    {
+     "x": 540.5,
+     "lon": "W077-02.4"
+    }
+   ],
+   "note": "Grid ticks read from the chart edges and checked against all three runways."
+  }
+ },
+ "views": [
+  {
+   "id": "ED",
+   "label": "E / D",
+   "chart": "DCA",
+   "ramps": [
+    "DCA-E",
+    "DCA-D"
+   ]
+  },
+  {
+   "id": "CB",
+   "label": "C / B",
+   "chart": "DCA",
+   "ramps": [
+    "DCA-C",
+    "DCA-B",
+    "DCA-B10"
+   ]
+  },
+  {
+   "id": "AS",
+   "label": "A / Hangars",
+   "chart": "DCA",
+   "ramps": [
+    "DCA-A",
+    "DCA-SH"
+   ]
+  },
+  {
+   "id": "ALL",
+   "label": "All"
+  }
+ ],
+ "positions": [
+  {
+   "id": "DCA_RMP",
+   "name": "Ramp",
+   "freqs": [],
+   "owns": [
+    "DCA-E",
+    "DCA-D",
+    "DCA-C",
+    "DCA-B",
+    "DCA-B10",
+    "DCA-A",
+    "DCA-SH"
+   ],
+   "note": "The chart gives no ramp frequency, so the stand telex has no CTC line."
+  }
+ ],
+ "ramps": [
+  {
+   "id": "DCA-E",
+   "name": "Terminal 2 E46-E59",
+   "group": "Terminal",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "EN",
+    "DE",
+    "K"
+   ]
+  },
+  {
+   "id": "DCA-D",
+   "name": "Terminal 2 D35-D45",
+   "group": "Terminal",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "DE",
+    "CD",
+    "K"
+   ]
+  },
+  {
+   "id": "DCA-C",
+   "name": "Terminal 2 C23-C34",
+   "group": "Terminal",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "CD",
+    "BC",
+    "K"
+   ]
+  },
+  {
+   "id": "DCA-B",
+   "name": "Terminal 2 B15-B22",
+   "group": "Terminal",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "BC",
+    "K"
+   ]
+  },
+  {
+   "id": "DCA-B10",
+   "name": "Terminal 2 B10-B14",
+   "group": "Terminal",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "K"
+   ]
+  },
+  {
+   "id": "DCA-A",
+   "name": "Terminal 1 A1-A9",
+   "group": "Terminal",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "K"
+   ]
+  },
+  {
+   "id": "DCA-SH",
+   "name": "South Hangars",
+   "group": "Hangars",
+   "chart": "DCA",
+   "polygon": null,
+   "taxilanes": [
+    "SH"
+   ]
+  }
+ ],
+ "lanes": [
+  {
+   "id": "EN",
+   "name": "ALLEY NORTH OF E",
+   "chart": "DCA",
+   "pts": [
+    [
+     240,
+     56
+    ],
+    [
+     313,
+     30
+    ],
+    [
+     370,
+     12
+    ]
+   ]
+  },
+  {
+   "id": "DE",
+   "name": "D/E ALLEY",
+   "chart": "DCA",
+   "pts": [
+    [
+     300,
+     196
+    ],
+    [
+     350,
+     180
+    ],
+    [
+     393,
+     164
+    ],
+    [
+     433,
+     152
+    ],
+    [
+     505,
+     128
+    ]
+   ]
+  },
+  {
+   "id": "CD",
+   "name": "C/D ALLEY",
+   "chart": "DCA",
+   "pts": [
+    [
+     345,
+     340
+    ],
+    [
+     376,
+     329
+    ],
+    [
+     416,
+     317
+    ],
+    [
+     456,
+     302
+    ],
+    [
+     530,
+     280
+    ]
+   ]
+  },
+  {
+   "id": "BC",
+   "name": "B/C ALLEY",
+   "chart": "DCA",
+   "pts": [
+    [
+     400,
+     488
+    ],
+    [
+     435,
+     476
+    ],
+    [
+     483,
+     460
+    ],
+    [
+     545,
+     445
+    ]
+   ]
+  },
+  {
+   "id": "K",
+   "name": "TAXIWAY K",
+   "chart": "DCA",
+   "pts": [
+    [
+     505,
+     128
+    ],
+    [
+     530,
+     380
+    ],
+    [
+     545,
+     540
+    ],
+    [
+     560,
+     735
+    ],
+    [
+     545,
+     900
+    ],
+    [
+     530,
+     960
+    ],
+    [
+     470,
+     1010
+    ],
+    [
+     412,
+     1055
+    ]
+   ]
+  },
+  {
+   "id": "SH",
+   "name": "SOUTH HANGARS RAMP",
+   "chart": "DCA",
+   "pts": [
+    [
+     110,
+     1060
+    ],
+    [
+     250,
+     960
+    ],
+    [
+     380,
+     870
+    ]
+   ]
+  },
+  {
+   "id": "N",
+   "chart": "DCA",
+   "pts": [
+    [
+     370,
+     12
+    ],
+    [
+     410,
+     90
+    ],
+    [
+     500,
+     128
+    ]
+   ]
+  },
+  {
+   "id": "J",
+   "chart": "DCA",
+   "pts": [
+    [
+     560,
+     60
+    ],
+    [
+     570,
+     380
+    ],
+    [
+     590,
+     700
+    ],
+    [
+     600,
+     900
+    ]
+   ]
+  }
+ ],
+ "laneSpots": {
+  "DCA": {
+   "EN": [
+    "9",
+    "10",
+    "11"
+   ],
+   "DE": [
+    "6",
+    "7",
+    "8"
+   ],
+   "CD": [
+    "3",
+    "4",
+    "5"
+   ],
+   "BC": [
+    "1",
+    "2"
+   ]
+  }
+ },
+ "buildings": [
+  {
+   "chart": "DCA",
+   "name": "",
+   "line": [
+    [
+     250,
+     110
+    ],
+    [
+     290,
+     250
+    ],
+    [
+     335,
+     380
+    ],
+    [
+     395,
+     540
+    ],
+    [
+     450,
+     630
+    ],
+    [
+     470,
+     700
+    ],
+    [
+     460,
+     770
+    ],
+    [
+     400,
+     810
+    ],
+    [
+     380,
+     850
+    ]
+   ],
+   "w": 16
+  },
+  {
+   "chart": "DCA",
+   "name": "",
+   "line": [
+    [
+     258,
+     112
+    ],
+    [
+     338,
+     80
+    ]
+   ],
+   "w": 30
+  },
+  {
+   "chart": "DCA",
+   "name": "",
+   "line": [
+    [
+     300,
+     250
+    ],
+    [
+     412,
+     228
+    ]
+   ],
+   "w": 22
+  },
+  {
+   "chart": "DCA",
+   "name": "",
+   "line": [
+    [
+     360,
+     400
+    ],
+    [
+     468,
+     380
+    ]
+   ],
+   "w": 22
+  },
+  {
+   "chart": "DCA",
+   "name": "",
+   "line": [
+    [
+     410,
+     560
+    ],
+    [
+     482,
+     545
+    ]
+   ],
+   "w": 26
+  },
+  {
+   "chart": "DCA",
+   "name": "",
+   "line": [
+    [
+     377,
+     850
+    ],
+    [
+     377,
+     935
+    ]
+   ],
+   "w": 8
+  },
+  {
+   "chart": "DCA",
+   "name": "Terminal 1",
+   "rect": [
+    362,
+    931,
+    30,
+    30
+   ]
+  },
+  {
+   "chart": "DCA",
+   "name": "South Hangars",
+   "line": [
+    [
+     40,
+     1070
+    ],
+    [
+     350,
+     860
+    ]
+   ],
+   "w": 30
+  }
+ ],
+ "callSpots": [
+  {
+   "id": "1",
+   "chart": "DCA",
+   "x": 483,
+   "y": 460,
+   "on": "B/C alley"
+  },
+  {
+   "id": "2",
+   "chart": "DCA",
+   "x": 435,
+   "y": 476,
+   "on": "B/C alley"
+  },
+  {
+   "id": "3",
+   "chart": "DCA",
+   "x": 456,
+   "y": 302,
+   "on": "C/D alley"
+  },
+  {
+   "id": "4",
+   "chart": "DCA",
+   "x": 416,
+   "y": 317,
+   "on": "C/D alley"
+  },
+  {
+   "id": "5",
+   "chart": "DCA",
+   "x": 376,
+   "y": 329,
+   "on": "C/D alley"
+  },
+  {
+   "id": "6",
+   "chart": "DCA",
+   "x": 433,
+   "y": 152,
+   "on": "D/E alley"
+  },
+  {
+   "id": "7",
+   "chart": "DCA",
+   "x": 393,
+   "y": 164,
+   "on": "D/E alley"
+  },
+  {
+   "id": "8",
+   "chart": "DCA",
+   "x": 350,
+   "y": 180,
+   "on": "D/E alley"
+  },
+  {
+   "id": "9",
+   "chart": "DCA",
+   "x": 313,
+   "y": 30,
+   "on": "north of E"
+  },
+  {
+   "id": "10",
+   "chart": "DCA",
+   "x": 287,
+   "y": 40,
+   "on": "north of E"
+  },
+  {
+   "id": "11",
+   "chart": "DCA",
+   "x": 258,
+   "y": 48,
+   "on": "north of E"
+  },
+  {
+   "id": "12",
+   "chart": "DCA",
+   "x": 402,
+   "y": 44,
+   "on": "N"
+  },
+  {
+   "id": "14",
+   "chart": "DCA",
+   "x": 405,
+   "y": 87,
+   "on": "N"
+  }
+ ],
+ "deiceSpots": [],
+ "stands": [
+  {
+   "id": "E47",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 247,
+   "y": 82,
+   "hdg": null,
+   "pushTo": "EN",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E49",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 270,
+   "y": 76,
+   "hdg": null,
+   "pushTo": "EN",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E51",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 278,
+   "y": 64,
+   "hdg": null,
+   "pushTo": "EN",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E53",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 301,
+   "y": 57,
+   "hdg": null,
+   "pushTo": "EN",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E55",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 324,
+   "y": 51,
+   "hdg": null,
+   "pushTo": "EN",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E57",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 346,
+   "y": 53,
+   "hdg": null,
+   "pushTo": "EN",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E59",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 360,
+   "y": 75,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E58",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 366,
+   "y": 88,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E56",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 366,
+   "y": 101,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E54",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 356,
+   "y": 124,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E52",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 341,
+   "y": 136,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E50",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 317,
+   "y": 139,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E48",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 295,
+   "y": 145,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E46",
+   "ramp": "DCA-E",
+   "chart": "DCA",
+   "x": 284,
+   "y": 156,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D35",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 316,
+   "y": 224,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D37",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 350,
+   "y": 220,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D39",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 365,
+   "y": 206,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D41",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 387,
+   "y": 202,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D43",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 425,
+   "y": 196,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D43B",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 455,
+   "y": 196,
+   "hdg": null,
+   "pushTo": "DE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D45",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 437,
+   "y": 226,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D44",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 440,
+   "y": 238,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D44B",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 449,
+   "y": 250,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D42",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 419,
+   "y": 274,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D40",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 392,
+   "y": 281,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D38",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 364,
+   "y": 285,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D36",
+   "ramp": "DCA-D",
+   "chart": "DCA",
+   "x": 344,
+   "y": 296,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C23",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 374,
+   "y": 376,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C25",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 402,
+   "y": 368,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C27",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 427,
+   "y": 356,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C29",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 451,
+   "y": 346,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C31",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 476,
+   "y": 349,
+   "hdg": null,
+   "pushTo": "CD",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C33",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 494,
+   "y": 376,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C34",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 496,
+   "y": 393,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C32",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 484,
+   "y": 421,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C30",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 461,
+   "y": 429,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C28",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 435,
+   "y": 429,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C26",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 411,
+   "y": 436,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C24",
+   "ramp": "DCA-C",
+   "chart": "DCA",
+   "x": 391,
+   "y": 450,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B15",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 420,
+   "y": 526,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B17",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 445,
+   "y": 519,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B19",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 465,
+   "y": 506,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B21",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 486,
+   "y": 512,
+   "hdg": null,
+   "pushTo": "BC",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B22",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 502,
+   "y": 536,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B20",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 507,
+   "y": 550,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B18",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 504,
+   "y": 569,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B16",
+   "ramp": "DCA-B",
+   "chart": "DCA",
+   "x": 479,
+   "y": 585,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B14",
+   "ramp": "DCA-B10",
+   "chart": "DCA",
+   "x": 481,
+   "y": 635,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B12",
+   "ramp": "DCA-B10",
+   "chart": "DCA",
+   "x": 492,
+   "y": 664,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B11",
+   "ramp": "DCA-B10",
+   "chart": "DCA",
+   "x": 500,
+   "y": 682,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B10",
+   "ramp": "DCA-B10",
+   "chart": "DCA",
+   "x": 506,
+   "y": 700,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A1",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 361,
+   "y": 905,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A2",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 340,
+   "y": 924,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A3",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 332,
+   "y": 946,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A4",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 338,
+   "y": 966,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A5",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 361,
+   "y": 987,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A6",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 393,
+   "y": 987,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A7",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 418,
+   "y": 970,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A8",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 422,
+   "y": 950,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A9",
+   "ramp": "DCA-A",
+   "chart": "DCA",
+   "x": 418,
+   "y": 924,
+   "hdg": null,
+   "pushTo": "K",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2",
+   "ramp": "DCA-SH",
+   "chart": "DCA",
+   "x": 323,
+   "y": 872,
+   "hdg": null,
+   "pushTo": "SH",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "3",
+   "ramp": "DCA-SH",
+   "chart": "DCA",
+   "x": 283,
+   "y": 905,
+   "hdg": null,
+   "pushTo": "SH",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4",
+   "ramp": "DCA-SH",
+   "chart": "DCA",
+   "x": 230,
+   "y": 943,
+   "hdg": null,
+   "pushTo": "SH",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "5",
+   "ramp": "DCA-SH",
+   "chart": "DCA",
+   "x": 178,
+   "y": 983,
+   "hdg": null,
+   "pushTo": "SH",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "6",
+   "ramp": "DCA-SH",
+   "chart": "DCA",
+   "x": 125,
+   "y": 1025,
+   "hdg": null,
+   "pushTo": "SH",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "7",
+   "ramp": "DCA-SH",
+   "chart": "DCA",
+   "x": 78,
+   "y": 1062,
+   "hdg": null,
+   "pushTo": "SH",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  }
+ ],
+ "operators": {
+  "Terminal": {
+   "match": [
+    "AAL",
+    "ENY",
+    "PDT",
+    "JIA",
+    "RPA",
+    "DAL",
+    "EDV",
+    "SKW",
+    "UAL",
+    "ASH",
+    "GJS",
+    "JBU",
+    "SWA",
+    "NKS",
+    "FFT",
+    "ACA",
+    "JZA",
+    "ASA",
+    "QXE",
+    "AAY",
+    "MXY",
+    "CPZ",
+    "AWI"
+   ],
+   "remarks": [],
+   "ramps": [
+    "DCA-E",
+    "DCA-D",
+    "DCA-C",
+    "DCA-B",
+    "DCA-B10",
+    "DCA-A"
+   ]
+  },
+  "Hangars": {
+   "match": [],
+   "remarks": [],
+   "ramps": [
+    "DCA-SH"
+   ]
+  }
+ },
+ "notes": [
+  "Numbered circles are reporting points: give the pilot the one for the alley (e.g. spot 7 for the D/E alley).",
+  "Circled X marks are optional engine start points. Engine start for gates 7, 8 and 9 is mandatory at the start point east of Terminal 1.",
+  "Taxiway K ends at gate 5.",
+  "Non-movement area / vehicle lane: remain clear while taxiing.",
+  "Runway incursion hot spots HS1 (K/L/N by RWY 15-33) and HS3 (K/M/G by RWY 1-19): see the airport's 10-9 page."
+ ],
+ "assignRoles": [
+  "RMP",
+  "GND",
+  "TWR"
+ ],
+ "demo": {
+  "holdSpots": {
+   "Terminal": "3",
+   "Hangars": "1"
+  },
+  "fleet": [
+   {
+    "cs": "AAL1846",
+    "type": "A321",
+    "dep": "KDCA",
+    "arr": "KMIA",
+    "stand": "C29",
+    "push": "REQ",
+    "callAgo": 120
+   },
+   {
+    "cs": "DAL1455",
+    "type": "A320",
+    "dep": "KDCA",
+    "arr": "KATL",
+    "stand": "B17",
+    "push": "HELD",
+    "callAgo": 240
+   },
+   {
+    "cs": "SWA2277",
+    "type": "B737",
+    "dep": "KDCA",
+    "arr": "KMDW",
+    "stand": "B22"
+   },
+   {
+    "cs": "JBU1204",
+    "type": "A320",
+    "dep": "KDCA",
+    "arr": "KBOS",
+    "stand": "B11"
+   },
+   {
+    "cs": "UAL2150",
+    "type": "B738",
+    "dep": "KDCA",
+    "arr": "KORD",
+    "stand": "C33",
+    "push": "REQ",
+    "callAgo": 45
+   },
+   {
+    "cs": "ENY4318",
+    "type": "E175",
+    "dep": "KDCA",
+    "arr": "KRDU",
+    "stand": "E52"
+   },
+   {
+    "cs": "PDT5022",
+    "type": "E145",
+    "dep": "KDCA",
+    "arr": "KORF",
+    "stand": "A7",
+    "offHoppie": true
+   },
+   {
+    "cs": "RPA4501",
+    "type": "E175",
+    "dep": "KDCA",
+    "arr": "KLGA",
+    "stand": "D38"
+   },
+   {
+    "cs": "ASA3",
+    "type": "B739",
+    "dep": "KDCA",
+    "arr": "KSEA",
+    "stand": "D44"
+   },
+   {
+    "cs": "AAL2290",
+    "type": "A319",
+    "dep": "KCLT",
+    "arr": "KDCA",
+    "stand": "C24"
+   },
+   {
+    "cs": "DAL2981",
+    "type": "B712",
+    "dep": "KBOS",
+    "arr": "KDCA",
+    "distNm": 6,
+    "brg": 190,
+    "assigned": "B21"
+   },
+   {
+    "cs": "JIA5301",
+    "type": "CRJ9",
+    "dep": "KCLT",
+    "arr": "KDCA",
+    "distNm": 20,
+    "brg": 200,
+    "offHoppie": true
+   },
+   {
+    "cs": "AAL2517",
+    "type": "A321",
+    "dep": "KDFW",
+    "arr": "KDCA",
+    "distNm": 45,
+    "brg": 240,
+    "assigned": "C31"
+   },
+   {
+    "cs": "UAL1990",
+    "type": "A320",
+    "dep": "KEWR",
+    "arr": "KDCA",
+    "distNm": 80,
+    "brg": 30
+   }
+  ]
+ }
+}
