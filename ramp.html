@@ -74,6 +74,11 @@
   .views { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .views button { padding: 7px 4px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel-2); font-size: 12px; }
   .views button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .views button { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .vbox { width: 13px; height: 13px; flex: none; border: 1.5px solid currentColor; border-radius: 3px; opacity: .75;
+    display: grid; place-items: center; font-size: 10px; line-height: 1; }
+  .vbox:hover { opacity: 1; }
+  .views .hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted-2); }
   .tgl { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; font-size: 13px; }
   .tgl input { width: 34px; height: 18px; appearance: none; background: var(--line-2); border-radius: 9px; position: relative; cursor: pointer; }
   .tgl input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
@@ -262,7 +267,7 @@
             <thead><tr><th>Callsign</th><th>Type</th><th>Route</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th></tr></thead>
             <tbody id="flights"></tbody>
           </table>
-          <div class="empty" id="flightsEmpty" hidden>No ramp traffic at this airport right now.</div>
+          <div class="empty" id="flightsEmpty" hidden>No traffic on the selected ramps right now.</div>
         </div>
       </section>
 
@@ -325,7 +330,7 @@ const TABS = [
 const PLANE = "M0,-11 L1.6,-8 L1.6,-3 L10,2 L10,4 L1.6,1.5 L1.2,7 L4,9.5 L4,11 L0,10 L-4,11 L-4,9.5 L-1.2,7 L-1.6,1.5 L-10,4 L-10,2 L-1.6,-3 L-1.6,-8 Z";
 
 const ui = {
-  view: "",
+  views: new Set(),   // selected view ids (never "ALL"; all of them selected = All)
   tab: "ALL",
   search: "",
   selected: null,
@@ -369,6 +374,8 @@ function scheduleRender() {
 function render() {
   const state = store.getState();
   rows = deriveFlights(L, store.getPilots(), state, memory, Date.now());
+  const sel = selectedRamps();
+  vrows = rows.filter(r => inSelection(r, sel));
   renderHeader();
   renderRail(state);
   renderMap(state);
@@ -377,8 +384,11 @@ function render() {
   renderQueue(state);
 }
 
+/** Flights on the selected ramps: what the table, counters and queue show. */
+let vrows = [];
+
 function renderHeader() {
-  const c = s => rows.filter(r => s.includes(r.state)).length;
+  const c = s => vrows.filter(r => s.includes(r.state)).length;
   $("cInbound").textContent = c([STATES.INBOUND, STATES.TAXI_IN]);
   $("cParked").textContent = c([STATES.PARKED, STATES.PUSH_REQ, STATES.PUSH_HELD, STATES.PUSH_APPR]);
   $("cPushReq").textContent = c([STATES.PUSH_REQ]);
@@ -446,17 +456,74 @@ function viewList() {
   return L.views && L.views.length ? L.views : [{ id: "ALL", label: "All" }];
 }
 
-/** [chart, dx, dy, box]: each chart's box placed side by side. */
+/** The selectable views: every view that names a chart. "All" is every one of them. */
+function pickViews() {
+  return viewList().filter(v => v.chart);
+}
+
+function allSelected() {
+  const pv = pickViews();
+  return !pv.length || pv.every(v => ui.views.has(v.id));
+}
+
+/** Ramps a view covers: its own list, else every ramp on its chart. */
+function viewRamps(v) {
+  return v.ramps || L.ramps.filter(r => r.chart === v.chart).map(r => r.id);
+}
+
+/** Selected ramp ids, or null when everything is selected (no filtering). */
+function selectedRamps() {
+  if (allSelected()) return null;
+  return new Set(pickViews().filter(v => ui.views.has(v.id)).flatMap(viewRamps));
+}
+
+/**
+ * Whether a flight belongs to the selected ramps: by the stand it is at or
+ * assigned to; else by where it is on the ground (the chart); else, for an
+ * inbound with no stand, by the ramps its operator uses.
+ */
+function inSelection(r, sel = selectedRamps()) {
+  if (!sel) return true;
+  const st = L.standById.get(r.atStand || r.stand || "");
+  if (st) return sel.has(st.ramp);
+  if (r.chart) return L.ramps.some(x => x.chart === r.chart && sel.has(x.id));
+  return (r.op.ramps || []).some(id => sel.has(id));
+}
+
+/** [chart, dx, dy, box]: the selected views' charts side by side, each cropped to its selected ramps. */
 function chartsForView() {
-  const v = viewList().find(x => x.id === ui.view) || viewList()[0];
-  const ids = v.chart ? [v.chart] : Object.keys(L.charts);
+  const byChart = new Map();
+  const chosen = allSelected() ? pickViews() : pickViews().filter(v => ui.views.has(v.id));
+  for (const v of chosen) {
+    const cur = byChart.get(v.chart);
+    if (cur === null) continue;
+    if (!v.ramps) byChart.set(v.chart, null);
+    else byChart.set(v.chart, [...(cur || []), ...v.ramps]);
+  }
+  if (!byChart.size) for (const id of Object.keys(L.charts)) byChart.set(id, null);
   let x = 0;
-  return ids.map(id => {
-    const c = cropBox(id, v.chart ? v.ramps : null);
+  return Object.keys(L.charts).filter(id => byChart.has(id)).map(id => {
+    const c = cropBox(id, byChart.get(id));
     const out = [id, x - c.x0, -c.y0, c];
     x += c.w + 16;
     return out;
   });
+}
+
+function renderViewSeg() {
+  const pv = pickViews();
+  const all = allSelected();
+  $("viewSeg").innerHTML = pv.map(v => {
+    const on = !all && ui.views.has(v.id);
+    return `<button data-view="${esc(v.id)}" class="${on ? "on" : ""}" title="Show ${esc(v.label)} only">` +
+      `<span class="vbox" data-tick="${esc(v.id)}" title="${ui.views.has(v.id) ? "Remove from" : "Add to"} the selection">${ui.views.has(v.id) ? "✓" : ""}</span>${esc(v.label)}</button>`;
+  }).join("") +
+    `<button data-view="ALL" class="${all ? "on" : ""}">All</button>` +
+    (pv.length > 1 ? '<div class="hint">Click a ramp to show it alone. Tick boxes to combine ramps.</div>' : "");
+}
+
+function saveViews() {
+  LS.set(`vatflow.ramp.views.${L.icao}`, JSON.stringify([...ui.views]));
 }
 
 function rampBoxes(chart) {
@@ -556,7 +623,7 @@ function renderMap(state) {
     h += `</g></g>`;
   }
   svg.innerHTML = h;
-  const offMap = rows.filter(r => r.state === STATES.INBOUND).length;
+  const offMap = vrows.filter(r => r.state === STATES.INBOUND).length;
   $("mapNote").textContent = offMap ? `${offMap} inbound not yet on the ramp` : "";
 }
 
@@ -570,10 +637,10 @@ function rampLabel(r) {
 
 function renderFlights() {
   $("fTabs").innerHTML = TABS.map(([id, label, fn]) =>
-    `<button data-tab="${id}" class="${ui.tab === id ? "on" : ""}">${label} (${rows.filter(fn).length})</button>`).join("");
+    `<button data-tab="${id}" class="${ui.tab === id ? "on" : ""}">${label} (${vrows.filter(fn).length})</button>`).join("");
   const q = ui.search.trim().toUpperCase();
   const tabFn = TABS.find(t => t[0] === ui.tab)[2];
-  const list = rows.filter(tabFn).filter(r => !q || [r.callsign, r.type, r.stand, r.dep, r.arr, r.atStand].some(v => String(v || "").includes(q)))
+  const list = vrows.filter(tabFn).filter(r => !q || [r.callsign, r.type, r.stand, r.dep, r.arr, r.atStand].some(v => String(v || "").includes(q)))
     .sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.callsign.localeCompare(b.callsign));
   $("flights").innerHTML = list.map(r => {
     const e = r.entry;
@@ -731,7 +798,14 @@ function updateCount() {
 function renderQueue(state) {
   const now = Date.now();
   const live = new Map(rows.map(r => [r.callsign, r]));
-  const view = queueView(state, now).filter(q => live.get(q.callsign)?.state !== STATES.TAXI_OUT);
+  const sel = selectedRamps();
+  const inQueueSel = q => {
+    if (!sel) return true;
+    const st = L.standById.get(q.stand || live.get(q.callsign)?.atStand || "");
+    return st ? sel.has(st.ramp) : !live.get(q.callsign) || inSelection(live.get(q.callsign), sel);
+  };
+  // Positions stay field-wide (one call-order queue), filtered to the selected ramps.
+  const view = queueView(state, now).filter(q => live.get(q.callsign)?.state !== STATES.TAXI_OUT && inQueueSel(q));
   const dis = store.me.canWrite ? "" : "disabled";
   $("queue").innerHTML = view.map(q => {
     const r = live.get(q.callsign);
@@ -779,12 +853,24 @@ $("modeSeg").addEventListener("click", e => {
   if (b && b.dataset.mode !== store.mode) setMode(b.dataset.mode);
 });
 $("viewSeg").addEventListener("click", e => {
+  const tick = e.target.closest("[data-tick]");
   const b = e.target.closest("button[data-view]");
   if (!b) return;
-  ui.view = b.dataset.view;
+  const pv = pickViews().map(v => v.id);
+  if (tick) {
+    // Tick box: add or remove this ramp, keeping at least one.
+    const id = tick.dataset.tick;
+    if (allSelected()) ui.views = new Set(pv);
+    if (ui.views.has(id)) { if (ui.views.size > 1) ui.views.delete(id); }
+    else ui.views.add(id);
+  } else if (b.dataset.view === "ALL") {
+    ui.views = new Set(pv);
+  } else {
+    ui.views = new Set([b.dataset.view]);
+  }
   ui.vb = null;
-  LS.set(`vatflow.ramp.view.${L.icao}`, ui.view);
-  document.querySelectorAll("#viewSeg button").forEach(x => x.classList.toggle("on", x === b));
+  saveViews();
+  renderViewSeg();
   scheduleRender();
 });
 ["optLabels", "optCallsigns", "optTypes"].forEach(id => $(id).addEventListener("change", scheduleRender));
@@ -890,7 +976,10 @@ $("selected").addEventListener("click", async e => {
   const t = e.target.closest("button");
   if (!t || t.disabled) return;
   if (t.id === "bSuggest") {
-    const s = suggestStand(L, rows, r.op);
+    // Suggest inside the selected ramps when the operator uses any of them.
+    const sel = selectedRamps();
+    const within = sel ? r.op.ramps.filter(id => sel.has(id)) : [];
+    const s = suggestStand(L, rows, within.length ? { ...r.op, ramps: within } : r.op);
     if (s) { $("selStand").value = s.id; onStandPicked(); }
     else ui.flash = { text: "No free stand on this operator's ramps.", kind: "err" };
   } else if (t.id === "bAssign") {
@@ -954,11 +1043,13 @@ async function loadAirport(icao) {
   $("ttlSub").textContent = L.subtitle || "Stand assignment and push control";
   $("airportName").textContent = L.name || "";
   document.title = `${L.icao} Ramp Management — VATFLOW`;
-  const views = viewList();
-  const saved = LS.get(`vatflow.ramp.view.${L.icao}`, "");
-  ui.view = views.some(v => v.id === saved) ? saved : views[0].id;
+  const ids = pickViews().map(v => v.id);
+  let saved = [];
+  try { saved = JSON.parse(LS.get(`vatflow.ramp.views.${L.icao}`, "[]")); } catch (_) {}
+  saved = (Array.isArray(saved) ? saved : []).filter(id => ids.includes(id));
+  ui.views = new Set(saved.length ? saved : ids.slice(0, 1));
   ui.vb = null;
-  $("viewSeg").innerHTML = views.map(v => `<button data-view="${esc(v.id)}" class="${v.id === ui.view ? "on" : ""}">${esc(v.label)}</button>`).join("");
+  renderViewSeg();
   $("notesBox").hidden = !(L.notes && L.notes.length);
   $("notes").innerHTML = (L.notes || []).map(n => `<li>${esc(n)}</li>`).join("");
   ui.search = "";
