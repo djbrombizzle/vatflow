@@ -277,5 +277,60 @@ console.log(`test-ramp-core: ${passed} passed`);
   assert(t === "KDCA RAMP: PARK STAND C30. ENTER AT SPOT 1 VIA B/C ALLEY.", "KDCA telex has no CTC line without a frequency: " + t);
   assert(composeStandTelex(D, "A5") === "KDCA RAMP: PARK STAND A5. ENTER VIA TAXIWAY K.", "A gates: via K, no spot, no frequency: " + composeStandTelex(D, "A5"));
   assert(operatorFor(D, "AAL1846", "").group === "Terminal" && !operatorFor(D, "AAL1", "").ramps.includes("DCA-SH"), "airlines stay off the hangar ramp");
+
+  // DAL110 at KDCA: parked at B17, pushes into the B/C alley and stops at spot 2. The alley is
+  // within 60 m of the B19 stand point, but a pushed-back aircraft lined up along the alley is
+  // not parked at B19: it stays PUSHING until it taxis.
+  {
+    const s3 = emptyState("KDCA");
+    const m3 = new Map();
+    applyOp(s3, { op: "push", callsign: "DAL110", push: "APPROVED" }, "T", 1);
+    const b17 = D.standById.get("B17");
+    const at = (x, y) => D.proj.DCA.toLatLon(x, y);
+    const pl = { callsign: "DAL110", latitude: b17.lat, longitude: b17.lon, groundspeed: 0, altitude: 15, heading: b17.noseHdg,
+      flight_plan: { departure: "KDCA", arrival: "KBOS", aircraft_short: "A320" } };
+    let t = 0;
+    const step = (x, y, gs, hdg, dt = 5000) => {
+      const g = at(x, y);
+      Object.assign(pl, { latitude: g.lat, longitude: g.lon, groundspeed: gs, heading: hdg });
+      t += dt;
+      return deriveFlights(D, [pl], s3, m3, t)[0];
+    };
+    let r = deriveFlights(D, [pl], s3, m3, t)[0];
+    assert(r.atStand === "B17" && r.state === STATES.PUSH_APPR, `DAL110 starts parked at B17 (got ${r.atStand} ${r.state})`);
+    r = step(b17.x, b17.y - 20, 3, b17.noseHdg);
+    assert(r.state === STATES.PUSHING, `pushing (got ${r.state})`);
+    r = step(455, 470, 0, 68);
+    assert(!r.atStand && r.state === STATES.PUSHING, `stopped in the alley: pushing, not parked at ${r.atStand} (got ${r.state})`);
+    r = step(455, 470, 0, 68, 600000);
+    assert(!r.atStand, "still not parked after ten minutes in the alley");
+    r = step(530, 452, 15, 68);
+    assert(r.state === STATES.TAXI_OUT, `then taxis out (got ${r.state})`);
+  }
+  // An arrival that taxis in and stops nose-in at its gate is parked straight away; one that
+  // stops beside a gate pointing the wrong way is still taxiing until it has sat there 3 minutes.
+  {
+    const s4 = emptyState("KDCA");
+    const m4 = new Map();
+    const b21 = D.standById.get("B21");
+    const pl = { callsign: "AAL9", latitude: 38.9, longitude: -77.0, groundspeed: 250, altitude: 5000, heading: 0,
+      flight_plan: { departure: "KBOS", arrival: "KDCA" } };
+    deriveFlights(D, [pl], s4, m4, 0);
+    Object.assign(pl, { latitude: b21.lat, longitude: b21.lon, altitude: 15, groundspeed: 12, heading: 90 });
+    deriveFlights(D, [pl], s4, m4, 1000);
+    Object.assign(pl, { groundspeed: 0, heading: b21.noseHdg });
+    let r = deriveFlights(D, [pl], s4, m4, 2000)[0];
+    assert(r.atStand === "B21" && r.state === STATES.PARKED, `arrival nose-in at B21 is parked (got ${r.atStand} ${r.state})`);
+    const m5 = new Map();
+    Object.assign(pl, { latitude: 38.9, longitude: -77.0, groundspeed: 250, altitude: 5000 });
+    deriveFlights(D, [pl], s4, m5, 0);
+    Object.assign(pl, { latitude: b21.lat, longitude: b21.lon, altitude: 15, groundspeed: 12, heading: 70 });
+    deriveFlights(D, [pl], s4, m5, 1000);
+    pl.groundspeed = 0;
+    r = deriveFlights(D, [pl], s4, m5, 2000)[0];
+    assert(r.state === STATES.TAXI_IN && !r.atStand, `stopped beside the gate, wrong heading: still taxiing in (got ${r.state})`);
+    r = deriveFlights(D, [pl], s4, m5, 2000 + 181000)[0];
+    assert(r.atStand === "B21", "after 3 minutes there it counts as parked");
+  }
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
