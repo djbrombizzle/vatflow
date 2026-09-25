@@ -126,6 +126,7 @@
   .acars.on { background: var(--occupied); }
   .acars.off { background: transparent; box-shadow: inset 0 0 0 1.5px #8796a8; }
   .hoppieLine { font-size: 11.5px; padding: 0 12px 4px; }
+  .roNote { margin: 2px 12px 4px; padding: 6px 9px; border-radius: 6px; font-size: 11.5px; border: 1px solid #6a5320; color: #f0cf85; background: #1f190b; }
   .muted { color: var(--muted); }
   .empty { padding: 18px; color: var(--muted); text-align: center; font-size: 12.5px; }
 
@@ -646,7 +647,7 @@ function renderSelected(state) {
   const me = store.me;
   const q = queueView(state, Date.now()).find(x => x.callsign === r.callsign);
   const hop = store.getHoppie()[r.callsign];
-  const sig = JSON.stringify([hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  const sig = JSON.stringify([hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
 
@@ -669,6 +670,7 @@ function renderSelected(state) {
       <div><div class="k">Stand</div><div class="v">${esc(r.stand ? lbl(r.stand) : "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(lbl(r.atStand))}</span>` : ""}</div></div>
       <div><div class="k">Status</div><div class="v"><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></div></div>
     </div>
+    ${me.canWrite ? "" : `<div class="roNote"><b>Read-only:</b> ${esc(me.reason || "you can't change this board.")} Assigning a stand doesn't need the pilot on Hoppie, only a controller who can write.</div>`}
     <div class="sec">Stand</div>
     <div class="row">
       <select class="sm" id="selStand" style="width:auto;min-width:130px" ${dis}><option value="">— pick a stand —</option>${standOptions(r)}</select>
@@ -696,7 +698,7 @@ function renderSelected(state) {
     <div class="row"><button class="btn pri" id="bSend" ${dis}>Send to ${esc(r.callsign)}</button>
       <span class="muted" style="font-size:11px">${store.mode === "demo" ? "Demo: stays in this browser" : `From ${esc(store.station || L.icao)}${store.dryRun ? " · hub dry run" : ""}`}</span></div>
     <div class="hoppieLine">${hop === true ? '<span class="acars on" style="margin:0 5px 0 0"></span>ACARS on Hoppie'
-      : hop === false ? '<span class="acars off" style="margin:0 5px 0 0"></span><span style="color:#ffd27a">Not on Hoppie: a telex will not reach them. Use voice.</span>'
+      : hop === false ? '<span class="acars off" style="margin:0 5px 0 0"></span><span style="color:#ffd27a">Not on Hoppie: assign the stand here and give it by voice. A telex will not reach them.</span>'
       : '<span class="muted">Hoppie connection not checked yet</span>'}</div>
     <div class="flash ${ui.flash.kind}">${esc(ui.flash.text)}${ui.flash.force && me.canWrite ? ' <button class="btn warn" id="bSendForce" style="margin-left:6px">Send anyway</button>' : ""}</div>
     ${msgs.length ? `<div class="sec">Messages</div><div class="msgs">${msgs.map(m =>
