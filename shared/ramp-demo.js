@@ -10,7 +10,7 @@
  * departures call for push, and an approved push actually pushes and taxis out.
  */
 import {
-  applyOp, emptyState, entrySpotFor, findLane, operatorFor, projectOnPolyline, chartHeading, PUSH,
+  applyOp, emptyState, entrySpotFor, findLane, operatorFor, projectOnPolyline, chartHeading, queueOrder, PUSH,
 } from "./ramp-core.js";
 
 const TICK_MS = 1000;
@@ -90,6 +90,15 @@ export function createDemoStore(L) {
     }
     state.log = [];
     addLog(`Demo started: ${L.icao}, ${FLEET.length} aircraft`);
+  }
+
+  /** The hub's automatic answer to a push request (vUSAlink-hub ramp.py push_reply_text). */
+  function autoAck(cs, t) {
+    const pos = queueOrder(state).indexOf(cs) + 1;
+    if (!pos) return;
+    const hold = state.settings.holdAll || state.flights[cs].push === PUSH.HELD;
+    applyOp(state, { op: "msg", callsign: cs, dir: "up",
+      text: `${L.icao} RAMP: PUSH REQUEST RECEIVED, NUMBER ${pos}.${hold ? " EXPECT DELAY." : ""} MONITOR THE APPROPRIATE RAMP FREQUENCY FOR PUSH CLEARANCE.` }, "AUTO", t);
   }
 
   function addLog(text) {
@@ -189,6 +198,7 @@ export function createDemoStore(L) {
       if (ac) {
         applyOp(state, { op: "push", callsign: ac.cs, push: PUSH.REQ }, "TELEX", now);
         applyOp(state, { op: "msg", callsign: ac.cs, dir: "dn", text: "REQ PUSH" }, "TELEX", now);
+        autoAck(ac.cs, now + 2000);
       }
     }
     emit();

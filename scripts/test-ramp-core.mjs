@@ -198,6 +198,9 @@ console.log(`test-ramp-core: ${passed} passed`);
     let gone = false;
     for (let i = 0; i < 200 && !gone; i++) { step(1); gone = !rowOf("ATN3401"); }
     assert(gone && !d.getState().flights.ATN3401, "demo departure taxis to the spot and leaves the board");
+    // Simulated push calls get the hub's automatic acknowledgement.
+    const called = Object.entries(d.getState().flights).find(([, e]) => e.msgs.some(m => m.by === "AUTO"));
+    assert(!called || called[1].msgs.find(m => m.by === "AUTO").text.includes("PUSH REQUEST RECEIVED, NUMBER"), "demo auto-ack text");
     const sent = await d.sendTelex("GTI1890", "kcvg amazon ramp: test");
     assert(sent.ok && d.getState().flights.GTI1890.msgs.some(m => m.dir === "dn" && m.text === "ROGER"), "demo pilot answers a telex");
     assert(d.getHoppie().GTI1890 === true && d.getHoppie().GTI408 === false, "demo Hoppie status");
