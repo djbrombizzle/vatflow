@@ -1,0 +1,2893 @@
+{
+ "icao": "KIAD",
+ "version": 1,
+ "name": "Washington Dulles",
+ "subtitle": "Stand assignment and push control for the Dulles midfield concourses, E concourse and the R ramp",
+ "source": "Dulles midfield terminal ramp chart (user-supplied). x,y are chart pixels (1792x1125), north up. The chart is evenly gridded (~125.8 px per 0.1' lon, ~161 px per 0.1' lat, ~1.15 m/px both ways) and RWY 1C/19C lands within ~10 m of published, so stand lat/lon come from the grid. Gate points are ~12 px past the jet-bridge tip; regional stem gates (1A-6E) and R ramp stands sit at their labels.",
+ "telexStation": "KIAD",
+ "field": {
+  "lat": 38.9445,
+  "lon": -77.4558,
+  "elevFt": 313,
+  "radiusNm": 3
+ },
+ "charts": {
+  "IAD": {
+   "name": "IAD Midfield Terminal Ramps",
+   "width": 1792,
+   "height": 1125,
+   "latRef": [
+    {
+     "y": 221,
+     "lat": "N38-57.0"
+    },
+    {
+     "y": 383,
+     "lat": "N38-56.9"
+    },
+    {
+     "y": 543,
+     "lat": "N38-56.8"
+    },
+    {
+     "y": 705,
+     "lat": "N38-56.7"
+    },
+    {
+     "y": 866,
+     "lat": "N38-56.6"
+    },
+    {
+     "y": 1026,
+     "lat": "N38-56.5"
+    }
+   ],
+   "lonRef": [
+    {
+     "x": 186,
+     "lon": "W077-27.5"
+    },
+    {
+     "x": 312,
+     "lon": "W077-27.4"
+    },
+    {
+     "x": 438,
+     "lon": "W077-27.3"
+    },
+    {
+     "x": 563,
+     "lon": "W077-27.2"
+    },
+    {
+     "x": 689,
+     "lon": "W077-27.1"
+    },
+    {
+     "x": 815,
+     "lon": "W077-27.0"
+    },
+    {
+     "x": 941,
+     "lon": "W077-26.9"
+    },
+    {
+     "x": 1067,
+     "lon": "W077-26.8"
+    },
+    {
+     "x": 1192,
+     "lon": "W077-26.7"
+    },
+    {
+     "x": 1318,
+     "lon": "W077-26.6"
+    },
+    {
+     "x": 1444,
+     "lon": "W077-26.5"
+    },
+    {
+     "x": 1570,
+     "lon": "W077-26.4"
+    },
+    {
+     "x": 1696,
+     "lon": "W077-26.3"
+    }
+   ],
+   "note": "Grid ticks read from the chart edges; lon ticks sit ~12 px left of their labels."
+  }
+ },
+ "views": [
+  {
+   "id": "AB",
+   "label": "A / B",
+   "chart": "IAD",
+   "ramps": [
+    "IAD-AB-N",
+    "IAD-AB-S"
+   ]
+  },
+  {
+   "id": "CD",
+   "label": "C / D",
+   "chart": "IAD",
+   "ramps": [
+    "IAD-CD-N",
+    "IAD-CD-S"
+   ]
+  },
+  {
+   "id": "ER",
+   "label": "E / R",
+   "chart": "IAD",
+   "ramps": [
+    "IAD-E",
+    "IAD-R"
+   ]
+  },
+  {
+   "id": "ALL",
+   "label": "All"
+  }
+ ],
+ "positions": [
+  {
+   "id": "IAD_N_RMP",
+   "name": "North Area Ramp",
+   "freqs": [
+    "119.120"
+   ],
+   "owns": [
+    "IAD-AB-N"
+   ],
+   "note": "Taxilanes A and B."
+  },
+  {
+   "id": "IAD_M_RMP",
+   "name": "Midfield Area Ramp",
+   "freqs": [
+    "129.550"
+   ],
+   "owns": [
+    "IAD-AB-S",
+    "IAD-CD-N"
+   ],
+   "note": "Taxilanes C and D."
+  },
+  {
+   "id": "IAD_S_RMP",
+   "name": "South Area Ramp",
+   "freqs": [
+    "130.550"
+   ],
+   "owns": [
+    "IAD-CD-S",
+    "IAD-E",
+    "IAD-R"
+   ],
+   "note": "Taxilanes E and F."
+  }
+ ],
+ "ramps": [
+  {
+   "id": "IAD-AB-N",
+   "name": "A/B North",
+   "group": "Terminal",
+   "chart": "IAD",
+   "polygon": null,
+   "taxilanes": [
+    "B"
+   ]
+  },
+  {
+   "id": "IAD-AB-S",
+   "name": "A/B South",
+   "group": "Terminal",
+   "chart": "IAD",
+   "polygon": null,
+   "taxilanes": [
+    "C"
+   ]
+  },
+  {
+   "id": "IAD-CD-N",
+   "name": "C/D North",
+   "group": "Terminal",
+   "chart": "IAD",
+   "polygon": null,
+   "taxilanes": [
+    "D"
+   ]
+  },
+  {
+   "id": "IAD-CD-S",
+   "name": "C/D South",
+   "group": "Terminal",
+   "chart": "IAD",
+   "polygon": null,
+   "taxilanes": [
+    "E"
+   ]
+  },
+  {
+   "id": "IAD-E",
+   "name": "E Concourse",
+   "group": "Terminal",
+   "chart": "IAD",
+   "polygon": null,
+   "taxilanes": [
+    "E",
+    "F"
+   ]
+  },
+  {
+   "id": "IAD-R",
+   "name": "R Ramp",
+   "group": "Terminal",
+   "chart": "IAD",
+   "polygon": null,
+   "taxilanes": [
+    "F"
+   ]
+  }
+ ],
+ "lanes": [
+  {
+   "id": "A",
+   "chart": "IAD",
+   "pts": [
+    [
+     405,
+     93
+    ],
+    [
+     1540,
+     95
+    ]
+   ],
+   "freq": "119.120"
+  },
+  {
+   "id": "B",
+   "chart": "IAD",
+   "pts": [
+    [
+     405,
+     180
+    ],
+    [
+     1540,
+     180
+    ]
+   ],
+   "freq": "119.120"
+  },
+  {
+   "id": "C",
+   "chart": "IAD",
+   "pts": [
+    [
+     405,
+     455
+    ],
+    [
+     1540,
+     460
+    ]
+   ],
+   "freq": "129.550"
+  },
+  {
+   "id": "D",
+   "chart": "IAD",
+   "pts": [
+    [
+     405,
+     527
+    ],
+    [
+     1540,
+     530
+    ]
+   ],
+   "freq": "129.550"
+  },
+  {
+   "id": "E",
+   "chart": "IAD",
+   "pts": [
+    [
+     405,
+     740
+    ],
+    [
+     1540,
+     748
+    ]
+   ],
+   "freq": "130.550"
+  },
+  {
+   "id": "F",
+   "chart": "IAD",
+   "pts": [
+    [
+     405,
+     1055
+    ],
+    [
+     1540,
+     1055
+    ]
+   ],
+   "freq": "130.550"
+  },
+  {
+   "id": "E1",
+   "chart": "IAD",
+   "pts": [
+    [
+     705,
+     790
+    ],
+    [
+     705,
+     1005
+    ]
+   ],
+   "freq": "130.550"
+  },
+  {
+   "id": "Z",
+   "chart": "IAD",
+   "pts": [
+    [
+     368,
+     20
+    ],
+    [
+     368,
+     1100
+    ]
+   ]
+  },
+  {
+   "id": "J",
+   "chart": "IAD",
+   "pts": [
+    [
+     1580,
+     20
+    ],
+    [
+     1580,
+     1100
+    ]
+   ]
+  }
+ ],
+ "laneSpots": {
+  "IAD": {
+   "A": [
+    "70",
+    "71"
+   ],
+   "B": [
+    "72",
+    "73"
+   ],
+   "C": [
+    "78",
+    "79"
+   ],
+   "D": [
+    "80",
+    "81"
+   ],
+   "E": [
+    "82",
+    "83"
+   ],
+   "F": [
+    "86",
+    "87"
+   ],
+   "E1": [
+    "82"
+   ]
+  }
+ },
+ "buildings": [
+  {
+   "chart": "IAD",
+   "name": "Main Terminal",
+   "rect": [
+    860,
+    0,
+    330,
+    42
+   ]
+  },
+  {
+   "chart": "IAD",
+   "name": "Concourse B",
+   "rect": [
+    478,
+    298,
+    520,
+    32
+   ]
+  },
+  {
+   "chart": "IAD",
+   "name": "Concourse A",
+   "rect": [
+    998,
+    298,
+    265,
+    28
+   ]
+  },
+  {
+   "chart": "IAD",
+   "name": "",
+   "rect": [
+    1263,
+    305,
+    260,
+    26
+   ]
+  },
+  {
+   "chart": "IAD",
+   "name": "Concourse D",
+   "rect": [
+    455,
+    625,
+    540,
+    25
+   ]
+  },
+  {
+   "chart": "IAD",
+   "name": "Concourse C",
+   "rect": [
+    995,
+    625,
+    520,
+    25
+   ]
+  },
+  {
+   "chart": "IAD",
+   "name": "Concourse E",
+   "rect": [
+    1215,
+    872,
+    290,
+    40
+   ]
+  }
+ ],
+ "callSpots": [
+  {
+   "id": "70",
+   "chart": "IAD",
+   "x": 405,
+   "y": 93,
+   "on": "A / Z"
+  },
+  {
+   "id": "71",
+   "chart": "IAD",
+   "x": 1540,
+   "y": 95,
+   "on": "A / J"
+  },
+  {
+   "id": "72",
+   "chart": "IAD",
+   "x": 405,
+   "y": 180,
+   "on": "B / Z"
+  },
+  {
+   "id": "73",
+   "chart": "IAD",
+   "x": 1540,
+   "y": 180,
+   "on": "B / J"
+  },
+  {
+   "id": "78",
+   "chart": "IAD",
+   "x": 405,
+   "y": 453,
+   "on": "C / Z"
+  },
+  {
+   "id": "79",
+   "chart": "IAD",
+   "x": 1540,
+   "y": 465,
+   "on": "C / J"
+  },
+  {
+   "id": "80",
+   "chart": "IAD",
+   "x": 405,
+   "y": 527,
+   "on": "D / Z"
+  },
+  {
+   "id": "81",
+   "chart": "IAD",
+   "x": 1540,
+   "y": 530,
+   "on": "D / J"
+  },
+  {
+   "id": "82",
+   "chart": "IAD",
+   "x": 405,
+   "y": 738,
+   "on": "E / Z"
+  },
+  {
+   "id": "83",
+   "chart": "IAD",
+   "x": 1540,
+   "y": 748,
+   "on": "E / J"
+  },
+  {
+   "id": "86",
+   "chart": "IAD",
+   "x": 405,
+   "y": 1097,
+   "on": "F / Z"
+  },
+  {
+   "id": "87",
+   "chart": "IAD",
+   "x": 1540,
+   "y": 1052,
+   "on": "F / J"
+  }
+ ],
+ "deiceSpots": [],
+ "stands": [
+  {
+   "id": "B79",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 452,
+   "y": 263,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B75",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 500,
+   "y": 244,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B73",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 535,
+   "y": 265,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B71",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 573,
+   "y": 260,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B67",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 616,
+   "y": 261,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B65",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 640,
+   "y": 255,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B63",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 669,
+   "y": 263,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B51",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 721,
+   "y": 270,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B49",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 735,
+   "y": 263,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B47",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 780,
+   "y": 270,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B45",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 800,
+   "y": 265,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B43",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 855,
+   "y": 271,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B41",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 867,
+   "y": 265,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B37",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 942,
+   "y": 262,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A31",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1002,
+   "y": 267,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A25",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1065,
+   "y": 268,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A23",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1077,
+   "y": 263,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A19",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1150,
+   "y": 260,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A15",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1200,
+   "y": 259,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B78",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 447,
+   "y": 371,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B76",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 490,
+   "y": 384,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B74",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 521,
+   "y": 384,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B72",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 557,
+   "y": 369,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B70",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 597,
+   "y": 382,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B66",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 620,
+   "y": 382,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B64",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 652,
+   "y": 376,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B62",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 692,
+   "y": 389,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B50",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 726,
+   "y": 372,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B48",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 789,
+   "y": 371,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B44",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 842,
+   "y": 370,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B42",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 857,
+   "y": 366,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B40",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 915,
+   "y": 371,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "B38",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 925,
+   "y": 364,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A32",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1002,
+   "y": 369,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A26",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1056,
+   "y": 369,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A24",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1080,
+   "y": 369,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A22",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1122,
+   "y": 369,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A20",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1134,
+   "y": 368,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A16",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1192,
+   "y": 371,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A14",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1205,
+   "y": 362,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "5B",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1328,
+   "y": 250,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "5C",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1297,
+   "y": 268,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "5D",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1297,
+   "y": 290,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "5A",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1343,
+   "y": 290,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "3B",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1387,
+   "y": 248,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "3C",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1375,
+   "y": 290,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "3A",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1413,
+   "y": 290,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "1C",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1446,
+   "y": 254,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "1B",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1484,
+   "y": 254,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "1D",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1447,
+   "y": 292,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "1A",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1488,
+   "y": 290,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "1G",
+   "ramp": "IAD-AB-N",
+   "chart": "IAD",
+   "x": 1509,
+   "y": 313,
+   "hdg": null,
+   "pushTo": "B",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2G",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1509,
+   "y": 336,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "6A",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1342,
+   "y": 352,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "6E",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1300,
+   "y": 375,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "6B",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1342,
+   "y": 375,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "6C",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1321,
+   "y": 395,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4F",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1373,
+   "y": 352,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4E",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1373,
+   "y": 375,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4A",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1414,
+   "y": 352,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4B",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1414,
+   "y": 375,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "4C",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1394,
+   "y": 395,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2F",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1447,
+   "y": 352,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2E",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1447,
+   "y": 375,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2A",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1488,
+   "y": 352,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2C",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1456,
+   "y": 393,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "2B",
+   "ramp": "IAD-AB-S",
+   "chart": "IAD",
+   "x": 1482,
+   "y": 391,
+   "hdg": null,
+   "pushTo": "C",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D29",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 418,
+   "y": 603,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D29A",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 425,
+   "y": 585,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D27",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 452,
+   "y": 576,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D25",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 478,
+   "y": 580,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D25A",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 505,
+   "y": 588,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D23",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 540,
+   "y": 593,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D21",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 567,
+   "y": 593,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D19",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 631,
+   "y": 589,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D15",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 667,
+   "y": 592,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D11",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 748,
+   "y": 584,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D11A",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 742,
+   "y": 595,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D9",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 770,
+   "y": 590,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D7",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 800,
+   "y": 588,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D5",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 857,
+   "y": 593,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D3",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 922,
+   "y": 585,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D1",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 975,
+   "y": 585,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C27",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1012,
+   "y": 578,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C27A",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1020,
+   "y": 592,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C25",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1052,
+   "y": 589,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C23",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1085,
+   "y": 588,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C19",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1129,
+   "y": 589,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C17",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1172,
+   "y": 595,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C11",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1247,
+   "y": 589,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C11W",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1240,
+   "y": 576,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C9",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1287,
+   "y": 592,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C7",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1319,
+   "y": 597,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C5",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1377,
+   "y": 597,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C3",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1430,
+   "y": 595,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C1",
+   "ramp": "IAD-CD-N",
+   "chart": "IAD",
+   "x": 1477,
+   "y": 595,
+   "hdg": null,
+   "pushTo": "D",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D32",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 445,
+   "y": 672,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D32A",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 432,
+   "y": 684,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D32B",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 425,
+   "y": 697,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D30",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 505,
+   "y": 682,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D30A",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 495,
+   "y": 697,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D30B",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 490,
+   "y": 712,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D26",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 547,
+   "y": 682,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D24",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 590,
+   "y": 686,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D20",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 640,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D18",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 661,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D16",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 700,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D14",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 740,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D12",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 770,
+   "y": 677,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D10",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 802,
+   "y": 684,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D8",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 843,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D6",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 882,
+   "y": 682,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D4",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 917,
+   "y": 686,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D2",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 955,
+   "y": 682,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C28",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1010,
+   "y": 694,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C26",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1042,
+   "y": 687,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C24",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1074,
+   "y": 684,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C22",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1102,
+   "y": 688,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C20",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1130,
+   "y": 688,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C18",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1182,
+   "y": 700,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C14",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1227,
+   "y": 682,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C12",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1270,
+   "y": 688,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C8",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1342,
+   "y": 690,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C6",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1390,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C4",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1442,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C2",
+   "ramp": "IAD-CD-S",
+   "chart": "IAD",
+   "x": 1491,
+   "y": 679,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E11",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1300,
+   "y": 835,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E9",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1354,
+   "y": 817,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E9W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1369,
+   "y": 817,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E7",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1405,
+   "y": 828,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E5W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1414,
+   "y": 820,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E5",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1424,
+   "y": 812,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E3",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1460,
+   "y": 828,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E1W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1480,
+   "y": 828,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E1",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1497,
+   "y": 820,
+   "hdg": null,
+   "pushTo": "E",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E16",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1240,
+   "y": 967,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E14W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1250,
+   "y": 972,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E14",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1260,
+   "y": 964,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E12",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1322,
+   "y": 969,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E10W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1330,
+   "y": 977,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E10",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1337,
+   "y": 972,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E8",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1392,
+   "y": 970,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E6W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1400,
+   "y": 974,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E6",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1408,
+   "y": 967,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E4",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1465,
+   "y": 972,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E2W",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1482,
+   "y": 977,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "E2",
+   "ramp": "IAD-E",
+   "chart": "IAD",
+   "x": 1492,
+   "y": 967,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R28",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 450,
+   "y": 882,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R26",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 512,
+   "y": 882,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R24",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 575,
+   "y": 882,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R22",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 637,
+   "y": 882,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R16",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 770,
+   "y": 944,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R14",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 828,
+   "y": 905,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R12",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 888,
+   "y": 905,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R19",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 596,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R17",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 670,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R15",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 745,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R13",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 822,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R11",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 887,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R9",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 955,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R7",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 1026,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R5",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 1107,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "R3",
+   "ramp": "IAD-R",
+   "chart": "IAD",
+   "x": 1178,
+   "y": 1103,
+   "hdg": null,
+   "pushTo": "F",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  }
+ ],
+ "operators": {
+  "Terminal": {
+   "match": [
+    "UAL",
+    "SKW",
+    "RPA",
+    "GJS",
+    "ASH",
+    "AAL",
+    "DAL",
+    "JBU",
+    "SWA",
+    "ENY",
+    "EDV",
+    "FFT",
+    "NKS",
+    "AAY",
+    "MXY",
+    "ACA",
+    "JZA",
+    "BAW",
+    "DLH",
+    "AFR",
+    "KLM",
+    "UAE",
+    "QTR",
+    "ETD",
+    "SWR",
+    "AUA",
+    "SAS",
+    "TAP",
+    "IBE",
+    "ETH",
+    "THY",
+    "ANA",
+    "KAL",
+    "CPA",
+    "AIC",
+    "VIR",
+    "AVA",
+    "TAI",
+    "CMP",
+    "AMX",
+    "ICE",
+    "QXE",
+    "ASA"
+   ],
+   "remarks": [],
+   "ramps": [
+    "IAD-AB-N",
+    "IAD-AB-S",
+    "IAD-CD-N",
+    "IAD-CD-S",
+    "IAD-E",
+    "IAD-R"
+   ]
+  }
+ },
+ "notes": [
+  "Calling for the push: give callsign, terminal and gate, and first departure fix (\"XYZ 898, A6D, Blues\").",
+  "Calling for ramp entry: remain with FAA Ground until switched to ramp. On first contact give callsign, position (taxiway and taxilane approaching) and assigned gate (\"XYZ 898, Kilo approaching Bravo, AIC\").",
+  "All pushbacks from the Midfield Terminal ramp that will enter taxilanes need clearance from ramp control.",
+  "Wingspan over 118 ft (36 m): no Taxilane A between A1 and A5, and Taxilane E1 is closed.",
+  "Pilots leaving the North and South Ramp areas give their exit spot on first contact with Ground."
+ ],
+ "assignRoles": [
+  "RMP",
+  "GND",
+  "TWR"
+ ],
+ "demo": {
+  "holdSpots": {
+   "Terminal": "80"
+  },
+  "fleet": [
+   {
+    "cs": "UAL924",
+    "type": "B772",
+    "dep": "KIAD",
+    "arr": "EGLL",
+    "stand": "C4",
+    "push": "REQ",
+    "callAgo": 150
+   },
+   {
+    "cs": "UAL1978",
+    "type": "A320",
+    "dep": "KIAD",
+    "arr": "KSFO",
+    "stand": "C17",
+    "push": "HELD",
+    "callAgo": 260
+   },
+   {
+    "cs": "DLH419",
+    "type": "B748",
+    "dep": "KIAD",
+    "arr": "EDDF",
+    "stand": "A22"
+   },
+   {
+    "cs": "BAW216",
+    "type": "A35K",
+    "dep": "KIAD",
+    "arr": "EGLL",
+    "stand": "B43",
+    "push": "REQ",
+    "callAgo": 60
+   },
+   {
+    "cs": "UAL2210",
+    "type": "B39M",
+    "dep": "KIAD",
+    "arr": "KDEN",
+    "stand": "C27"
+   },
+   {
+    "cs": "UAL1122",
+    "type": "B38M",
+    "dep": "KIAD",
+    "arr": "KORD",
+    "stand": "D5"
+   },
+   {
+    "cs": "SWA3311",
+    "type": "B737",
+    "dep": "KIAD",
+    "arr": "KMCO",
+    "stand": "B70"
+   },
+   {
+    "cs": "JBU1072",
+    "type": "A320",
+    "dep": "KIAD",
+    "arr": "KBOS",
+    "stand": "B49"
+   },
+   {
+    "cs": "GJS4402",
+    "type": "CRJ7",
+    "dep": "KIAD",
+    "arr": "KBUF",
+    "stand": "3A"
+   },
+   {
+    "cs": "RPA4687",
+    "type": "E175",
+    "dep": "KIAD",
+    "arr": "KBNA",
+    "stand": "6B",
+    "offHoppie": true
+   },
+   {
+    "cs": "UAL1501",
+    "type": "B753",
+    "dep": "KDEN",
+    "arr": "KIAD",
+    "stand": "D14"
+   },
+   {
+    "cs": "AFR54",
+    "type": "B77W",
+    "dep": "LFPG",
+    "arr": "KIAD",
+    "stand": "A19"
+   },
+   {
+    "cs": "UAL2041",
+    "type": "A21N",
+    "dep": "KLAX",
+    "arr": "KIAD",
+    "distNm": 6,
+    "brg": 190,
+    "assigned": "C24"
+   },
+   {
+    "cs": "UAE231",
+    "type": "A388",
+    "dep": "OMDB",
+    "arr": "KIAD",
+    "distNm": 22,
+    "brg": 60,
+    "assigned": "B41"
+   },
+   {
+    "cs": "SKW5530",
+    "type": "CRJ9",
+    "dep": "KCLT",
+    "arr": "KIAD",
+    "distNm": 40,
+    "brg": 210,
+    "offHoppie": true
+   },
+   {
+    "cs": "UAL1680",
+    "type": "B738",
+    "dep": "KMCO",
+    "arr": "KIAD",
+    "distNm": 75,
+    "brg": 200
+   },
+   {
+    "cs": "ANA2",
+    "type": "B77W",
+    "dep": "RJTT",
+    "arr": "KIAD",
+    "distNm": 130,
+    "brg": 320
+   }
+  ]
+ }
+}

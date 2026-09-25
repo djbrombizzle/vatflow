@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  applyOp, composeStandTelex, deriveFlights, emptyState, indexLayout, locateOnChart,
+  applyOp, composeStandTelex, deriveFlights, entrySpotFor, emptyState, indexLayout, locateOnChart,
   nearestStand, operatorFor, parseDm, parseDownlink, queueOrder, queueView, standStatuses,
   suggestStand, STATES, PUSH, TELEX_MAX,
 } from "../shared/ramp-core.js";
@@ -199,6 +199,50 @@ console.log(`test-ramp-core: ${passed} passed`);
   } finally {
     Date.now = realNow;
     globalThis.setTimeout = realTimeout;
+  }
+}
+/* ---------- KIAD, and the airport index ---------- */
+{
+  const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD", "index lists KCVG and KIAD");
+  for (const a of index.airports) {
+    const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
+    assert(A.icao === a.icao, `${a.icao} file matches the index`);
+    assert(new Set(A.stands.map(s => s.id)).size === A.stands.length, `${a.icao} stand ids unique`);
+    assert(A.stands.every(s => Number.isFinite(s.lat) && s.noseHdg != null), `${a.icao} stands have lat/lon and a push lane`);
+    assert(A.stands.every(s => entrySpotFor(A, s)), `${a.icao} every stand has an entry spot`);
+    assert(A.stands.every(s => composeStandTelex(A, s.id).length <= TELEX_MAX), `${a.icao} telex budget`);
+    assert((A.views || []).length && A.demo.fleet.every(f => !f.stand || A.standById.has(f.stand)) &&
+      A.demo.fleet.every(f => !f.assigned || A.standById.has(f.assigned)), `${a.icao} views and demo fleet stands exist`);
+  }
+  const I = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIAD.json", import.meta.url))));
+  assert(I.stands.length === 163, "KIAD 163 stands");
+  // RWY 1C/19C centreline drawn at x~85; published -77.45955.
+  near(I.proj.IAD.toLatLon(85, 500).lon, -77.45955, 0.0002, "KIAD 1C lon");
+  near(I.standById.get("B41").noseHdg, 180, 1, "A/B north gates nose south, away from taxilane B");
+  near(I.standById.get("C4").noseHdg, 0, 1, "C/D south gates nose north, away from taxilane E");
+  assert(entrySpotFor(I, I.standById.get("B79")).id === "72" && entrySpotFor(I, I.standById.get("A15")).id === "73", "nearer spot on the lane");
+  const t = composeStandTelex(I, "C4");
+  assert(t === "KIAD SOUTH AREA RAMP: PARK STAND C4. ENTER AT SPOT 83 VIA TAXILANE E. CTC SOUTH AREA RAMP 130.55 AT SPOT 83.", "KIAD telex: " + t);
+  const n = composeStandTelex(I, "B41");
+  assert(n.includes("NORTH AREA RAMP") && n.includes("119.12") && n.includes("SPOT 72"), "north ramp telex: " + n);
+  assert(operatorFor(I, "UAL924", "").group === "Terminal", "UAL at the terminal");
+  // A KIAD demo inbound lands, waits at a spot, and parks once it has a stand.
+  const { createDemoStore } = await import("../shared/ramp-demo.js");
+  let now = Date.parse("2026-09-24T19:00:00Z");
+  const realNow = Date.now;
+  Date.now = () => now;
+  try {
+    const d = createDemoStore(I);
+    d.seed();
+    const mem = new Map();
+    const rowOf = cs => deriveFlights(I, d.getPilots(), d.getState(), mem, now).find(r => r.callsign === cs);
+    rowOf("UAL2041");
+    for (let i = 0; i < 200 && rowOf("UAL2041")?.state !== STATES.PARKED; i++) { now += 1000; d.tick(); }
+    assert(rowOf("UAL2041").atStand === "C24", "KIAD demo inbound parks at C24");
+    assert(d.me.callsign === "KIAD_RMP", "demo works as KIAD_RMP");
+  } finally {
+    Date.now = realNow;
   }
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);

@@ -183,11 +183,22 @@ export function positionForRamp(L, rampId) {
   return (L.positions || []).find(p => (p.owns || []).includes(rampId)) || null;
 }
 
-/** Entry call spot for a stand: its push lane's spot. */
+/**
+ * Entry call spot for a stand: its push lane's spot. A lane with a spot at each
+ * end (Dulles: 72 west, 73 east on taxilane B) lists both, and the stand gets
+ * the nearer one.
+ */
 export function entrySpotFor(L, stand) {
   const map = (L.laneSpots || {})[stand.chart] || {};
-  const id = map[stand.pushTo];
-  return id ? L.spotById.get(id) || null : null;
+  const ids = [].concat(map[stand.pushTo] || []);
+  let best = null;
+  for (const id of ids) {
+    const sp = L.spotById.get(id);
+    if (!sp) continue;
+    const d = Math.hypot(sp.x - stand.x, sp.y - stand.y);
+    if (!best || d < best.d) best = { sp, d };
+  }
+  return best ? best.sp : null;
 }
 
 /** Nearest stand to a position, within radius (m). */
