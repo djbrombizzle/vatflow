@@ -399,7 +399,7 @@ function renderRail(state) {
     p.innerHTML = `Working as <b>${esc(me.callsign)}</b>. ${esc(store.status.text)}`;
   } else {
     p.className = "perm ro";
-    p.innerHTML = `<b>Read-only.</b> ${esc(me.reason || `Sign in with VATSIM and be on ${L.icao}_RMP, _GND or _TWR to assign stands.`)}` +
+    p.innerHTML = `<b>Read-only.</b> ${esc(me.reason || `Only a signed-in controller on position as ${posPrefix()}_RMP, _GND or _TWR can assign stands.`)}` +
       (store.status.ok ? "" : `<br><span class="muted">${esc(store.status.text)}</span>`);
   }
   const hold = $("holdAll");
@@ -594,6 +594,11 @@ function renderFlights() {
   $("flightsEmpty").hidden = list.length > 0;
 }
 
+/** Callsign prefix for the field's positions: KIAD -> IAD, as VATSIM callsigns use. */
+function posPrefix() {
+  return /^K[A-Z0-9]{3}$/.test(L.icao) ? L.icao.slice(1) : L.icao;
+}
+
 /** Hoppie connection marker: filled = on Hoppie, hollow = not connected, none = not checked. */
 function acarsDot(cs) {
   const v = store.getHoppie()[cs];
@@ -670,7 +675,7 @@ function renderSelected(state) {
       <div><div class="k">Stand</div><div class="v">${esc(r.stand ? lbl(r.stand) : "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(lbl(r.atStand))}</span>` : ""}</div></div>
       <div><div class="k">Status</div><div class="v"><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></div></div>
     </div>
-    ${me.canWrite ? "" : `<div class="roNote"><b>Read-only:</b> ${esc(me.reason || "you can't change this board.")} Assigning a stand doesn't need the pilot on Hoppie, only a controller who can write.</div>`}
+    ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || `Only a controller on position as ${posPrefix()}_RMP, _GND or _TWR can assign stands.`)}</div>`}
     <div class="sec">Stand</div>
     <div class="row">
       <select class="sm" id="selStand" style="width:auto;min-width:130px" ${dis}><option value="">— pick a stand —</option>${standOptions(r)}</select>
