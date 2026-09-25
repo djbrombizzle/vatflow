@@ -84,6 +84,9 @@ assert(parseDownlink("ready for pushback") === "push", "ready for pushback");
 assert(parseDownlink("REQUEST STAND") === "stand", "REQUEST STAND");
 assert(parseDownlink("REQ GATE PLS") === "stand", "REQ GATE");
 assert(parseDownlink("HELLO") === "other", "other");
+for (const t of ["PUSH", "push", "PUSH BACK", "PUSHBACK", "PUSH C4", "PUSH C4 BLUES", "PUSH PLS", "PUSH AND START",
+  "READY TO PUSH", "REQUESTING PUSHBACK", "RDY PUSH", "UAL1128 REQ PUSH A6D BLUES"]) assert(parseDownlink(t) === "push", "push: " + t);
+for (const t of ["CANCEL PUSH", "NO PUSH REQ", "UNABLE PUSH", "PUSHED BACK", "DISREGARD PUSH"]) assert(parseDownlink(t) === "other", "not push: " + t);
 
 /* ---------- reducer + queue ---------- */
 {

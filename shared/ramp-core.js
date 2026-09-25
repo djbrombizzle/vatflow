@@ -583,7 +583,9 @@ export function composePushTelex(L, standId, pos) {
 /** Classify a pilot downlink. Mirrors ramp.py parse_downlink(). */
 export function parseDownlink(text) {
   const t = String(text || "").toUpperCase().replace(/[^A-Z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-  if (/\b(REQ(UEST)?|RDY|READY)( FOR)? (PUSH|PUSHBACK|PUSH BACK)\b/.test(t) || /^PUSH( BACK)?( REQ(UEST)?)?$/.test(t)) return "push";
+  // Starts with PUSH / PUSHBACK, or asks for it; not when it cancels or declines.
+  if ((/\b(REQ(UEST(ING)?)?|RDY|READY)( FOR| TO)? (PUSH|PUSHBACK)\b/.test(t) || /^PUSH(BACK)?\b/.test(t)) &&
+      !/\b(CANCEL|CNL|NO|UNABLE|NEGATIVE|DISREGARD)\b/.test(t)) return "push";
   if (/\b(REQ(UEST)?|NEED)( A)? (STAND|GATE|PARKING|SPOT)\b/.test(t) || /^(STAND|GATE|PARKING)( REQ(UEST)?)?$/.test(t)) return "stand";
   return "other";
 }
