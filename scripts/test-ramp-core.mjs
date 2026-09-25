@@ -148,6 +148,20 @@ assert(parseDownlink("HELLO") === "other", "other");
   pilots[0].groundspeed = 15;
   rows = deriveFlights(L, pilots, s, mem, 0);
   assert(rows.find(r => r.callsign === "ATN1").state === STATES.TAXI_OUT, "taxi out");
+  // Stopped away from every known stand, never taxied: parked (with its push request), not taxiing.
+  {
+    const s2 = emptyState("KCVG");
+    const m2 = new Map();
+    applyOp(s2, { op: "push", callsign: "UAL9", push: "REQ" }, "TELEX", 1);
+    const far = [{ callsign: "UAL9", latitude: 39.0470, longitude: -84.6600, groundspeed: 0, altitude: 896, flight_plan: { departure: "KCVG", arrival: "KSEA" } }];
+    let r9 = deriveFlights(L, far, s2, m2, 0)[0];
+    assert(r9.state === STATES.PUSH_REQ && r9.unknownStand && !r9.atStand, `parked off-stand keeps its push request (got ${r9.state})`);
+    far[0].groundspeed = 15;
+    deriveFlights(L, far, s2, m2, 0);
+    far[0].groundspeed = 0;
+    r9 = deriveFlights(L, far, s2, m2, 0)[0];
+    assert(r9.state === STATES.TAXI_OUT, `a stop after taxiing is a hold, not parking (got ${r9.state})`);
+  }
   const sug = suggestStand(L, rows, operatorFor(L, "DHK9", ""));
   assert(sug && sug.group === "DHL", "suggests a DHL stand");
   const pax = suggestStand(L, rows, operatorFor(L, "EDV1", ""));
