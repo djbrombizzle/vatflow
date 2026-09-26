@@ -144,7 +144,7 @@
   </details>
 
   <p class="foot">
-    Source: FAA D-ATIS via the public <a href="https://datis.clowd.io/" target="_blank" rel="noopener">datis.clowd.io</a> API. Refreshes every 2 minutes.
+    Source: FAA D-ATIS via the public <a href="https://atis.info/" target="_blank" rel="noopener">atis.info</a> API, with <a href="https://datis.clowd.io/" target="_blank" rel="noopener">datis.clowd.io</a> as a backup. Refreshes every 2 minutes.
     NOTAM detection is text-based and may miss or mislabel items — always read the full broadcast. For VATSIM / simulation use only, not for real-world navigation.
   </p>
 </main>
@@ -155,18 +155,27 @@ import { parseAtis, atisInfo, NOTAM_CATEGORIES } from "./shared/datis-parse.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "datis");
 
-const API = "https://datis.clowd.io/api/";
-// The API does not always send CORS headers, so fall back to public CORS proxies
-// (allorigins as winds-aloft uses, then codetabs; corsproxy.io last since it now wants an API key).
-// The last route that worked is tried first.
+// D-ATIS sources, tried in order: atis.info's public API, then datis.clowd.io.
+// Neither is guaranteed to send CORS headers, so each is tried direct and then
+// through public CORS proxies (corsproxy.io last since it now wants an API key).
+// The source + route that last worked is tried first.
+const SOURCES = [
+  { name: "atis.info", base: "https://atis.info/api/" },
+  { name: "clowd.io", base: "https://datis.clowd.io/api/" },
+];
 const ROUTES = [
   { name: "direct", url: u => u },
   { name: "allorigins", url: u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) },
   { name: "codetabs", url: u => "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(u) },
   { name: "corsproxy.io", url: u => "https://corsproxy.io/?url=" + encodeURIComponent(u) },
 ];
+const COMBOS = SOURCES.flatMap((src, si) => ROUTES.map((route, ri) => ({ si, ri, src, route })));
 const FETCH_TIMEOUT_MS = 8000;
-let goodRoute = 0;
+let goodCombo = 0;
+
+function comboLabel(c) {
+  return c.route.name === "direct" ? c.src.name : `${c.src.name} via ${c.route.name}`;
+}
 
 async function fetchJson(url) {
   const ctrl = new AbortController();
@@ -182,29 +191,63 @@ async function fetchJson(url) {
   }
 }
 
-// Errors that come from a proxy (API key, quota, blocked) rather than from the D-ATIS API.
+// Errors that come from a proxy (API key, quota, blocked) rather than from a D-ATIS API.
 const PROXY_ERROR_RE = /api key|corsproxy|proxy|rate.?limit|quota|forbidden|unauthori[sz]ed|too many/i;
 
-/** D-ATIS array for an airport, trying direct then the proxies. */
+/**
+ * Normalize a D-ATIS response to [{ type, datis, time }]. Both APIs return an
+ * array of { airport, type: "combined"|"arr"|"dep", datis, time, updatedAt };
+ * a single object or { data: [...] } wrapper is accepted too.
+ */
+function normalizeDatis(data) {
+  let list = data;
+  if (list && !Array.isArray(list)) list = Array.isArray(list.data) ? list.data : [list];
+  if (!Array.isArray(list)) return [];
+  return list
+    .map(d => d && typeof d === "object" ? {
+      type: String(d.type || d.kind || "combined").toLowerCase(),
+      datis: d.datis || d.text || d.atis || "",
+      time: d.updatedAt || d.time || null,
+    } : null)
+    .filter(d => d && typeof d.datis === "string" && d.datis.trim());
+}
+
+/** D-ATIS entries for an airport, trying every source and route. */
 async function fetchDatis(icao) {
-  const target = API + encodeURIComponent(icao);
-  const order = [goodRoute, ...ROUTES.keys()].filter((v, i, a) => a.indexOf(v) === i);
+  const order = [goodCombo, ...COMBOS.keys()].filter((v, i, a) => a.indexOf(v) === i);
   const tried = [];
+  let apiError = null;
   for (const i of order) {
+    const c = COMBOS[i];
     let r;
-    try { r = await fetchJson(ROUTES[i].url(target)); } catch (e) {
-      tried.push(`${ROUTES[i].name}: ${e.name === "AbortError" ? "timed out" : "blocked / network error"}`);
+    try { r = await fetchJson(c.route.url(c.src.base + encodeURIComponent(icao))); } catch (e) {
+      tried.push(`${comboLabel(c)}: ${e.name === "AbortError" ? "timed out" : "blocked / network error"}`);
       continue;
     }
-    if (Array.isArray(r.data) && r.data.length) { goodRoute = i; lastDiag = ""; return r.data; }
+    const entries = normalizeDatis(r.data);
+    if (r.ok && entries.length) { goodCombo = i; lastDiag = ""; return entries; }
     const err = r.data && typeof r.data.error === "string" ? r.data.error : null;
-    tried.push(`${ROUTES[i].name}: HTTP ${r.status} ${err || String(r.text || "").replace(/\s+/g, " ").slice(0, 80) || "(empty)"}`);
-    // The D-ATIS API answered but has nothing for this airport — no point trying other routes.
-    // A proxy's own error (e.g. corsproxy.io wanting an API key) just moves on to the next route.
-    if (err && !PROXY_ERROR_RE.test(err)) { goodRoute = i; throw new Error(`No D-ATIS for ${icao} (${err})`); }
+    tried.push(`${comboLabel(c)}: HTTP ${r.status} ${err || String(r.text || "").replace(/\s+/g, " ").slice(0, 80) || "(empty)"}`);
+    // An API's own "no D-ATIS here" is remembered; a proxy's own error just moves on.
+    if (err && !PROXY_ERROR_RE.test(err)) apiError = apiError || err;
   }
   lastDiag = tried.join("\n");
-  throw new Error("Could not reach the D-ATIS API (direct and all proxies failed)");
+  if (apiError) throw new Error(`No D-ATIS for ${icao} (${apiError})`);
+  throw new Error("Could not reach a D-ATIS source (atis.info and clowd.io, direct and via proxies)");
+}
+
+/** Airport list from atis.info /stations, through whichever route last worked. */
+async function fetchStations() {
+  const c = COMBOS[goodCombo];
+  if (c.src.name !== "atis.info") return null;
+  try {
+    const r = await fetchJson(c.route.url(c.src.base + "stations"));
+    const list = Array.isArray(r.data) ? r.data : null;
+    if (!list) return null;
+    return list.map(x => typeof x === "string" ? x : (x && (x.airport || x.icao || x.id)))
+      .filter(x => typeof x === "string" && /^[A-Z0-9]{3,4}$/i.test(x))
+      .map(x => x.toUpperCase());
+  } catch { return null; }
 }
 let lastDiag = "";
 const REFRESH_MS = 120000;
@@ -332,20 +375,17 @@ async function load(icao, { quiet = false } = {}) {
   syncControls();
   if (!quiet) setStatus("Loading " + icao + "…");
   try {
-    const data = await fetchDatis(icao);
     // Stable order: combined, arrival, departure.
     const order = { combined: 0, arr: 1, dep: 2 };
-    const entries = data
-      .filter(d => d && d.datis)
-      .map(d => ({ type: d.type, datis: d.datis, time: d.updatedAt || d.time }))
-      .sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9));
+    const entries = (await fetchDatis(icao)).sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9));
+    loadStationsOnce();
     const letters = entries.map(e => atisInfo(e.datis).letter).join();
     const changed = quiet && state.lastLetters[icao] && state.lastLetters[icao] !== letters;
     state.lastLetters[icao] = letters;
     state.entries = entries;
     if (state.tab >= entries.length) state.tab = 0;
     render(changed);
-    setStatus(`Updated ${new Date().toISOString().slice(11, 16)}Z${goodRoute ? " via " + ROUTES[goodRoute].name : ""}${changed ? " · NEW INFO" : ""}`);
+    setStatus(`Updated ${new Date().toISOString().slice(11, 16)}Z from ${comboLabel(COMBOS[goodCombo])}${changed ? " · NEW INFO" : ""}`);
   } catch (e) {
     if (!quiet) { state.entries = []; render(); }
     setStatus(e.message, true);
@@ -359,9 +399,31 @@ function schedule() {
   if (state.icao) state.timer = setTimeout(() => load(state.icao, { quiet: true }), REFRESH_MS);
 }
 
+// Dropdown list: the built-in names, replaced by atis.info's live /stations list once it loads.
+let airportList = AIRPORTS;
+const AIRPORT_NAMES = new Map(AIRPORTS);
+
+function renderAirportOptions() {
+  const sel = $("apt");
+  sel.innerHTML = `<option value="">Select airport…</option>` +
+    airportList.map(([c, n]) => `<option value="${c}">${c}${n ? " — " + esc(n) : ""}</option>`).join("");
+  sel.value = airportList.some(([c]) => c === state.icao) ? state.icao : "";
+}
+
+let stationsLoaded = false;
+async function loadStationsOnce() {
+  if (stationsLoaded) return;
+  stationsLoaded = true;
+  const codes = await fetchStations();
+  if (!codes || !codes.length) { stationsLoaded = false; return; }
+  airportList = [...new Set(codes)].sort().map(c => [c, AIRPORT_NAMES.get(c) || ""]);
+  renderAirportOptions();
+  syncControls();
+}
+
 function syncControls() {
   const sel = $("apt");
-  const known = AIRPORTS.some(([c]) => c === state.icao);
+  const known = airportList.some(([c]) => c === state.icao);
   sel.value = known ? state.icao : "";
   $("custom").value = known ? "" : (state.icao || "");
   const url = new URL(location.href);
@@ -391,8 +453,7 @@ function showPasted(text) {
 }
 
 // --- wire up ---
-$("apt").innerHTML = `<option value="">Select airport…</option>` +
-  AIRPORTS.map(([c, n]) => `<option value="${c}">${c} — ${esc(n)}</option>`).join("");
+renderAirportOptions();
 $("apt").onchange = e => { if (e.target.value) load(e.target.value); };
 $("go").onclick = () => load($("custom").value);
 $("custom").onkeydown = e => { if (e.key === "Enter") load($("custom").value); };
