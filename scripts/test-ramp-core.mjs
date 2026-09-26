@@ -427,6 +427,7 @@ console.log(`test-ramp-core: ${passed} passed`);
   const I = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIAD.json", import.meta.url))));
   const lab = (cs) => airlineStands(I, { callsign: cs, op: operatorFor(I, cs, "") }).map(id => standLabel(I, id));
   assert(lab("GJS4402").every(l => /^(A|[1-6])/.test(l)), "IAD United Express on A gates: " + lab("GJS4402").join(" "));
+  assert(standLabel(I, "1B") === "A1B" && composeStandTelex(I, "1B").includes("PARK STAND A1B"), "IAD regional pads are named A1B etc: " + composeStandTelex(I, "1B"));
   assert(lab("SWA12").every(l => l.startsWith("B")), "IAD Southwest on B");
   assert(lab("UAL12").every(l => /^[CDE]/.test(l)), "IAD United on C/D/E");
   assert(standLabel(I, suggestStand(I, [], operatorFor(I, "SWA12", ""), "SWA12").id).startsWith("B"), "IAD Suggest honours gates");

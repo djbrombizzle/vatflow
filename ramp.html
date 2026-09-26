@@ -470,7 +470,8 @@ function cropBox(chart, ramps) {
     const st = L.stands.filter(s => s.chart === chart && ramps.includes(s.ramp));
     const xs = st.map(s => s.x), ys = st.map(s => s.y);
     const x0 = Math.max(0, Math.min(...xs) - 70), y0 = Math.max(0, Math.min(...ys) - 70);
-    const x1 = Math.min(L.charts[chart].width, Math.max(...xs) + 70), y1 = Math.min(L.charts[chart].height, Math.max(...ys) + 70);
+    // Not clamped to the chart: the map is drawn from data, and a stand can sit at the chart's edge (IAD R3-R19).
+    const x1 = Math.max(...xs) + 70, y1 = Math.max(...ys) + 70;
     return { x0, y0, w: x1 - x0, h: y1 - y0 };
   }
   const pts = [
@@ -481,7 +482,7 @@ function cropBox(chart, ramps) {
   ];
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   const x0 = Math.max(0, Math.min(...xs) - 45), y0 = Math.max(0, Math.min(...ys) - 45);
-  const x1 = Math.min(L.charts[chart].width, Math.max(...xs) + 45), y1 = Math.min(L.charts[chart].height, Math.max(...ys) + 45);
+  const x1 = Math.max(...xs) + 45, y1 = Math.max(...ys) + 45;
   return { x0, y0, w: x1 - x0, h: y1 - y0 };
 }
 
