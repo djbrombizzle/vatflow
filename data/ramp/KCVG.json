@@ -4486,8 +4486,13 @@
  "airlinesSource": "Terminal split from cvgairport.com and airport guides: Concourse B is Delta and Delta Connection; Concourse A has American, United, Southwest, Frontier, Allegiant, Alaska, Air Canada, Breeze and the other carriers. Cargo parks by operator (DHL by callsign, Amazon by OPR/AMAZON in remarks); ABX, ATN, GTI and other carriers flying for both need the remarks to tell which ramp. Remote parking is not given out automatically.",
  "assignRoles": [
   "RMP",
+  "DEL",
   "GND",
-  "TWR"
+  "TWR",
+  "APP",
+  "DEP",
+  "CTR",
+  "FSS"
  ],
  "views": [
   {
