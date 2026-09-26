@@ -153,6 +153,45 @@ import { parseAtis, atisInfo, NOTAM_CATEGORIES } from "./shared/datis-parse.js";
 mountVatflowNav(document.getElementById("vatflowAppNav"), "datis");
 
 const API = "https://datis.clowd.io/api/";
+// The API does not always send CORS headers, so fall back to public CORS proxies
+// (same ones winds-aloft / ERIDS use). The last route that worked is tried first.
+const ROUTES = [
+  { name: "direct", url: u => u },
+  { name: "corsproxy.io", url: u => "https://corsproxy.io/?url=" + encodeURIComponent(u) },
+  { name: "allorigins", url: u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) },
+];
+const FETCH_TIMEOUT_MS = 8000;
+let goodRoute = 0;
+
+async function fetchJson(url) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { /* not JSON */ }
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** D-ATIS array for an airport, trying direct then the proxies. */
+async function fetchDatis(icao) {
+  const target = API + encodeURIComponent(icao);
+  const order = [goodRoute, ...ROUTES.keys()].filter((v, i, a) => a.indexOf(v) === i);
+  let apiError = null;
+  for (const i of order) {
+    let r;
+    try { r = await fetchJson(ROUTES[i].url(target)); } catch { continue; }
+    if (Array.isArray(r.data) && r.data.length) { goodRoute = i; return r.data; }
+    // The API answered but has nothing for this airport — no point trying other routes.
+    if (r.data && r.data.error) { apiError = r.data.error; goodRoute = i; break; }
+  }
+  if (apiError) throw new Error(`No D-ATIS for ${icao} (${apiError})`);
+  throw new Error("Could not reach the D-ATIS API (direct and proxies failed)");
+}
 const REFRESH_MS = 120000;
 
 // Airports with FAA D-ATIS.
@@ -278,12 +317,7 @@ async function load(icao, { quiet = false } = {}) {
   syncControls();
   if (!quiet) setStatus("Loading " + icao + "…");
   try {
-    const res = await fetch(API + encodeURIComponent(icao), { cache: "no-store" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !Array.isArray(data) || !data.length) {
-      const why = data && data.error ? data.error : `HTTP ${res.status}`;
-      throw new Error(`No D-ATIS for ${icao} (${why})`);
-    }
+    const data = await fetchDatis(icao);
     // Stable order: combined, arrival, departure.
     const order = { combined: 0, arr: 1, dep: 2 };
     const entries = data
@@ -296,10 +330,10 @@ async function load(icao, { quiet = false } = {}) {
     state.entries = entries;
     if (state.tab >= entries.length) state.tab = 0;
     render(changed);
-    setStatus(`Updated ${new Date().toISOString().slice(11, 16)}Z${changed ? " · NEW INFO" : ""}`);
+    setStatus(`Updated ${new Date().toISOString().slice(11, 16)}Z${goodRoute ? " via " + ROUTES[goodRoute].name : ""}${changed ? " · NEW INFO" : ""}`);
   } catch (e) {
     if (!quiet) { state.entries = []; render(); }
-    setStatus(e.message === "Failed to fetch" ? "Could not reach the D-ATIS API" : e.message, true);
+    setStatus(e.message, true);
   }
   schedule();
 }
