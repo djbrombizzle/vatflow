@@ -44,6 +44,8 @@
   .status { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
   .status.err { color: var(--red); }
 
+  .diag { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; margin: -6px 0 12px; }
+  .diag:empty { display: none; }
   .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .tabs button { font-size: 12px; }
 
@@ -130,6 +132,7 @@
     <span id="status" class="status"></span>
   </div>
 
+  <pre id="diag" class="diag"></pre>
   <div id="tabs" class="tabs"></div>
   <div id="out"></div>
 
@@ -173,7 +176,7 @@ async function fetchJson(url) {
     const text = await res.text();
     let data = null;
     try { data = JSON.parse(text); } catch { /* not JSON */ }
-    return { ok: res.ok, status: res.status, data };
+    return { ok: res.ok, status: res.status, data, text };
   } finally {
     clearTimeout(t);
   }
@@ -186,17 +189,24 @@ const PROXY_ERROR_RE = /api key|corsproxy|proxy|rate.?limit|quota|forbidden|unau
 async function fetchDatis(icao) {
   const target = API + encodeURIComponent(icao);
   const order = [goodRoute, ...ROUTES.keys()].filter((v, i, a) => a.indexOf(v) === i);
+  const tried = [];
   for (const i of order) {
     let r;
-    try { r = await fetchJson(ROUTES[i].url(target)); } catch { continue; }
-    if (Array.isArray(r.data) && r.data.length) { goodRoute = i; return r.data; }
+    try { r = await fetchJson(ROUTES[i].url(target)); } catch (e) {
+      tried.push(`${ROUTES[i].name}: ${e.name === "AbortError" ? "timed out" : "blocked / network error"}`);
+      continue;
+    }
+    if (Array.isArray(r.data) && r.data.length) { goodRoute = i; lastDiag = ""; return r.data; }
     const err = r.data && typeof r.data.error === "string" ? r.data.error : null;
+    tried.push(`${ROUTES[i].name}: HTTP ${r.status} ${err || String(r.text || "").replace(/\s+/g, " ").slice(0, 80) || "(empty)"}`);
     // The D-ATIS API answered but has nothing for this airport — no point trying other routes.
     // A proxy's own error (e.g. corsproxy.io wanting an API key) just moves on to the next route.
     if (err && !PROXY_ERROR_RE.test(err)) { goodRoute = i; throw new Error(`No D-ATIS for ${icao} (${err})`); }
   }
+  lastDiag = tried.join("\n");
   throw new Error("Could not reach the D-ATIS API (direct and all proxies failed)");
 }
+let lastDiag = "";
 const REFRESH_MS = 120000;
 
 // Airports with FAA D-ATIS.
@@ -340,6 +350,7 @@ async function load(icao, { quiet = false } = {}) {
     if (!quiet) { state.entries = []; render(); }
     setStatus(e.message, true);
   }
+  $("diag").textContent = lastDiag ? "Tried:\n" + lastDiag : "";
   schedule();
 }
 
