@@ -473,6 +473,8 @@ export function deriveFlights(L, pilots, state, memory, now) {
     const row = {
       callsign: cs, type, dep, arr, gs, hdg: Number(p.heading) || 0,
       op, entry: e, stand: e?.stand || null, atStand: null, wrongStand: false,
+      // Filed proposed departure time (HHMM Z), for flights leaving this field.
+      ptime: dep === icao ? ptimeMs(fp.deptime, now) : null,
       chart: null, x: null, y: null, distNm: dNm, etaMin: null, state: null,
     };
     if (!onGround) {
@@ -551,12 +553,41 @@ export function deriveFlights(L, pilots, state, memory, now) {
   return rows;
 }
 
-/** Colour key for a stand: empty | assigned | occupied | pushreq | pushheld. */
+/**
+ * A flight plan's proposed departure time ("1435", HHMM Z) as epoch ms: the
+ * occurrence nearest `now` (within 12 h either side), or null.
+ */
+export function ptimeMs(deptime, now) {
+  const d = String(deptime ?? "").replace(/\D/g, "");
+  // "0000" is what most clients file when the pilot leaves the time blank.
+  if (!d || /^0+$/.test(d)) return null;
+  const s = d.padStart(4, "0").slice(0, 4);
+  const h = +s.slice(0, 2);
+  const m = +s.slice(2, 4);
+  if (h > 23 || m > 59) return null;
+  const t = new Date(now);
+  let ms = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate(), h, m);
+  if (ms - now > 12 * 36e5) ms -= 864e5;
+  else if (now - ms > 12 * 36e5) ms += 864e5;
+  return ms;
+}
+
+/**
+ * Minutes to the proposed departure time: "12" before it, "0" at it, and
+ * counting up "+1", "+2"... once it has passed. "" with no time filed.
+ */
+export function ptimeCountdown(ptime, now) {
+  if (ptime == null) return "";
+  const min = Math.floor((ptime - now) / 60000);
+  return min >= 0 ? String(min) : `+${-min}`;
+}
+
+/** Colour key for a stand: empty | assigned | proposed | occupied | pushreq | pushheld. */
 export function standStatuses(L, rows) {
   const out = new Map();
   for (const r of rows) {
     if (r.stand && !r.atStand && L.standById.has(r.stand) && !out.has(r.stand)) {
-      if (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN) out.set(r.stand, { key: "assigned", callsign: r.callsign });
+      if (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN) out.set(r.stand, { key: r.autoStand ? "proposed" : "assigned", callsign: r.callsign });
     }
   }
   for (const r of rows) {
@@ -567,7 +598,6 @@ export function standStatuses(L, rows) {
   return out;
 }
 
-/** First free stand on the flight's ramps: not occupied, not assigned, not maintenance. */
 /**
  * The airline a callsign belongs to, from the airport file's "airlines" list
  * ({name, match: [ICAO prefixes], ramps: [ramp ids, preferred first]}), or null.
@@ -595,12 +625,97 @@ export function suggestStand(L, rows, op, callsign, within) {
     const inSel = order.filter(id => within.has(id));
     if (inSel.length) order = inSel;
   }
-  const off = s => (s.tags || []).some(t => t === "maintenance" || t === "closed");
   for (const ramp of order) {
-    const s = L.stands.find(x => x.ramp === ramp && !taken.has(x.id) && !off(x));
+    const own = airline?.ramps.includes(ramp);
+    const s = L.stands.find(x => x.ramp === ramp && !taken.has(x.id) && !standOff(x) && (!own || airlineGate(airline, x)));
     if (s) return s;
   }
   return null;
+}
+
+const standOff = s => (s.tags || []).some(t => t === "maintenance" || t === "closed");
+
+/** An airline's "gates" (label prefixes, e.g. ["A"] for IAD's A gates) narrow its ramps. */
+function airlineGate(airline, s) {
+  const g = airline?.gates;
+  if (!g || !g.length) return true;
+  const label = String(s.label || s.id).toUpperCase();
+  return g.some(p => label.startsWith(p));
+}
+
+/** Airline-style callsign: three-letter ICAO code and a flight number (not N123AB). */
+const AIRLINE_CS_RE = /^[A-Z]{3}[0-9][0-9A-Z]{0,4}$/;
+
+/**
+ * The stands an arrival's airline parks on, preferred first, or null for
+ * general aviation and anyone the airport file does not place: the airline
+ * list first, then an operator group that matched by callsign or remarks
+ * (DHL, Amazon at CVG). Carriers flying for more than one operator ("?") get
+ * none, as their ramp depends on the day's contract.
+ */
+export function airlineStands(L, row) {
+  if (!AIRLINE_CS_RE.test(row.callsign)) return null;
+  const airline = airlineFor(L, row.callsign);
+  const ramps = airline ? airline.ramps : row.op && row.op.group !== "?" ? row.op.ramps : null;
+  if (!ramps || !ramps.length) return null;
+  const out = [];
+  for (const ramp of ramps) {
+    for (const s of L.stands) if (s.ramp === ramp && !standOff(s) && airlineGate(airline, s)) out.push(s.id);
+  }
+  return out.length ? out : null;
+}
+
+/**
+ * Proposed gates for arrivals that have none on the board, from their
+ * airline's gates. Each proposal sticks (memo: callsign -> stand id, kept by
+ * the caller between renders) until that gate is taken, by an aircraft
+ * parked or spawned on it or another flight's assignment; then it moves to
+ * the next free gate of the same airline. With none free the row gets
+ * noGate. General aviation is left alone. Mutates rows: r.stand, r.autoStand,
+ * r.noGate. A proposal is the page's; it goes on the board when a controller
+ * assigns it or sends the stand telex.
+ */
+export function autoAssignStands(L, rows, memo) {
+  const taken = new Set();
+  for (const r of rows) {
+    if (r.atStand) taken.add(r.atStand);
+    if (r.entry?.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) taken.add(r.entry.stand);
+  }
+  const want = [];
+  for (const r of rows) {
+    if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN) continue;
+    if (r.entry?.stand) continue;
+    const stands = airlineStands(L, r);
+    if (stands) want.push({ r, stands });
+  }
+  // Closest first: taxiing in, then by ETA / distance.
+  want.sort((a, b) => (a.r.state === STATES.TAXI_IN ? 0 : 1) - (b.r.state === STATES.TAXI_IN ? 0 : 1)
+    || (a.r.etaMin ?? 1e9) - (b.r.etaMin ?? 1e9) || a.r.distNm - b.r.distNm || a.r.callsign.localeCompare(b.r.callsign));
+  const keep = new Set();
+  // Pass 1: proposals that still hold keep their gate.
+  for (const w of want) {
+    const prev = memo.get(w.r.callsign);
+    if (prev && w.stands.includes(prev) && !taken.has(prev)) {
+      taken.add(prev);
+      w.stand = prev;
+    }
+  }
+  // Pass 2: the rest take the first free gate of their airline.
+  for (const w of want) {
+    if (!w.stand) w.stand = w.stands.find(id => !taken.has(id)) || null;
+    if (w.stand) taken.add(w.stand);
+    keep.add(w.r.callsign);
+    if (w.stand) {
+      memo.set(w.r.callsign, w.stand);
+      w.r.stand = w.stand;
+      w.r.autoStand = true;
+    } else {
+      memo.delete(w.r.callsign);
+      w.r.noGate = true;
+    }
+  }
+  for (const cs of [...memo.keys()]) if (!keep.has(cs)) memo.delete(cs);
+  return rows;
 }
 
 /**

@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import {
   airlineFor, applyOp, composeStandTelex, deriveFlights, entrySpotFor, standConflicts, emptyState, indexLayout, locateOnChart,
   nearestStand, operatorFor, parseDm, parseDownlink, queueOrder, queueView, standStatuses,
-  suggestStand, STATES, PUSH, TELEX_MAX,
+  suggestStand, STATES, PUSH, TELEX_MAX, autoAssignStands, airlineStands, ptimeMs, ptimeCountdown, standLabel,
 } from "../shared/ramp-core.js";
 
 let passed = 0;
@@ -375,5 +375,89 @@ console.log(`test-ramp-core: ${passed} passed`);
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(R, [], operatorFor(R, cs, ""), cs).ramp === ramp, `KRDU ${cs} on ${ramp}`);
   assert(operatorFor(R, "DAL1402", "").group === "Terminal", "an airline match sets the operator group (no 'operator ?')");
   assert(operatorFor(R, "N123AB", "").group === "?", "unknown callsigns stay '?'");
+}
+/* ---------- auto gates and proposed departure times ---------- */
+{
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDCA.json", import.meta.url))));
+  const st = emptyState("KDCA");
+  const inb = (cs, dist) => ({ callsign: cs, latitude: D.field.lat + dist / 60, longitude: D.field.lon, altitude: 8000, groundspeed: 240,
+    heading: 180, flight_plan: { departure: "KATL", arrival: "KDCA", aircraft_short: "A320" } });
+  const parkedAt = (cs, id) => {
+    const s = D.standById.get(id);
+    return { callsign: cs, latitude: s.lat, longitude: s.lon, altitude: 15, groundspeed: 0, heading: s.noseHdg || 0,
+      flight_plan: { departure: "KDCA", arrival: "KATL", aircraft_short: "A320", deptime: "1430" } };
+  };
+  const memo = new Map();
+  const mem = new Map();
+  const now = Date.UTC(2026, 8, 26, 14, 20);
+  const derive = (pl, t = now) => autoAssignStands(D, deriveFlights(D, pl, st, mem, t), memo);
+  let rs = derive([inb("DAL100", 20), inb("N123AB", 10), inb("DAL200", 40)]);
+  const by = cs => rs.find(r => r.callsign === cs);
+  const dalGates = airlineStands(D, by("DAL100"));
+  assert(dalGates && dalGates.every(id => ["DCA-B", "DCA-B10"].includes(D.standById.get(id).ramp)), "Delta proposals come from the B gates");
+  assert(by("DAL100").autoStand && by("DAL100").stand === dalGates[0], `nearest Delta arrival gets the first B gate (got ${by("DAL100").stand})`);
+  assert(by("DAL200").stand === dalGates[1], "the next Delta arrival gets the next one");
+  assert(!by("N123AB").stand && !by("N123AB").autoStand && !by("N123AB").noGate, "general aviation gets no proposal");
+  const first = by("DAL100").stand;
+  rs = derive([inb("DAL100", 18), inb("N123AB", 10), inb("DAL200", 38)]);
+  assert(by("DAL100").stand === first, "a proposal sticks between renders");
+  // Someone spawns on the proposed gate: the proposal moves, to another Delta gate.
+  rs = derive([inb("DAL100", 16), inb("DAL200", 36), parkedAt("DAL999", first)]);
+  assert(by("DAL100").stand !== first && dalGates.includes(by("DAL100").stand), `spawn on ${first}: proposal moves to another Delta gate (got ${by("DAL100").stand})`);
+  assert(by("DAL200").stand === dalGates[1], "the other proposal holds");
+  assert(standConflicts(rs).size === 0, "a proposal never shows as a conflict");
+  // A board assignment wins and takes that gate out of the pool.
+  applyOp(st, { op: "assign", callsign: "DAL200", stand: "B20" }, "T", now);
+  rs = derive([inb("DAL100", 16), inb("DAL200", 36), parkedAt("DAL999", first)]);
+  assert(by("DAL200").stand === "B20" && !by("DAL200").autoStand, "an assigned stand is not replaced");
+  // Every Delta gate taken: flag it.
+  const fill = dalGates.filter(id => id !== "B20").map((id, i) => parkedAt("DAL" + (500 + i), id));
+  rs = derive([inb("DAL100", 16), inb("DAL200", 36), ...fill]);
+  assert(by("DAL100").noGate && !by("DAL100").stand, "no free Delta gate: noGate, and no gate from another airline");
+  assert(standStatuses(D, derive([inb("DAL300", 30)])).get(memo.get("DAL300"))?.key === "proposed", "proposed gates colour as proposed");
+  // Cargo at CVG by operator: DHL by callsign, Amazon by remarks, shared carriers left alone.
+  const C = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.json", import.meta.url))));
+  const op = (cs, rmk) => ({ callsign: cs, op: operatorFor(C, cs, rmk) });
+  assert(C.standById.get(airlineStands(C, op("DHK12", ""))[0]).group === "DHL", "CVG DHL by callsign");
+  assert(C.standById.get(airlineStands(C, op("ATN3350", "OPR/AMAZON"))[0]).ramp === "AZN", "CVG Amazon by remarks");
+  assert(airlineStands(C, op("ATN3350", "")) === null, "CVG ATN with no remarks: no proposal");
+  assert(airlineStands(C, op("DAL12", "")).every(id => C.standById.get(id).ramp === "PAX-B"), "CVG Delta on B");
+  assert(airlineStands(C, op("AAL12", "")).every(id => C.standById.get(id).ramp === "PAX-A"), "CVG American on A");
+  // IAD: United Express on the A gates and regional pads, others on B.
+  const I = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIAD.json", import.meta.url))));
+  const lab = (cs) => airlineStands(I, { callsign: cs, op: operatorFor(I, cs, "") }).map(id => standLabel(I, id));
+  assert(lab("GJS4402").every(l => /^(A|[1-6])/.test(l)), "IAD United Express on A gates: " + lab("GJS4402").join(" "));
+  assert(lab("SWA12").every(l => l.startsWith("B")), "IAD Southwest on B");
+  assert(lab("UAL12").every(l => /^[CDE]/.test(l)), "IAD United on C/D/E");
+  assert(standLabel(I, suggestStand(I, [], operatorFor(I, "SWA12", ""), "SWA12").id).startsWith("B"), "IAD Suggest honours gates");
+  // Proposed departure time.
+  const t0 = Date.UTC(2026, 8, 26, 14, 20, 30);
+  assert(ptimeMs("1430", t0) === Date.UTC(2026, 8, 26, 14, 30), "P-time today");
+  assert(ptimeMs("0010", Date.UTC(2026, 8, 26, 23, 50)) === Date.UTC(2026, 8, 27, 0, 10), "P-time past midnight is tomorrow");
+  assert(ptimeMs("2350", Date.UTC(2026, 8, 27, 0, 10)) === Date.UTC(2026, 8, 26, 23, 50), "P-time just before midnight is yesterday");
+  assert(ptimeMs("0000", t0) === null && ptimeMs("", t0) === null && ptimeMs("2575", t0) === null, "blank or bad P-time is none");
+  const p = ptimeMs("1430", t0);
+  assert(ptimeCountdown(p, t0) === "9", "9 min to go");
+  assert(ptimeCountdown(p, p) === "0", "0 at the time");
+  assert(ptimeCountdown(p, p + 1000) === "+1" && ptimeCountdown(p, p + 181000) === "+4", "counts up once past");
+  const dep = deriveFlights(D, [parkedAt("AAL1", "C29")], emptyState("KDCA"), new Map(), t0)[0];
+  assert(dep.ptime === p, "a departure row carries its filed P-time");
+  assert(deriveFlights(D, [inb("AAL2", 10)], emptyState("KDCA"), new Map(), t0)[0].ptime === null, "an arrival has no P-time");
+}
+{
+  // Demo: departures file times, and a spawn on a proposed gate moves it.
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDCA.json", import.meta.url))));
+  const { createDemoStore } = await import("../shared/ramp-demo.js");
+  const store = createDemoStore(D);
+  store.seed();
+  const memo = new Map();
+  let rs = autoAssignStands(D, deriveFlights(D, store.getPilots(), store.getState(), new Map(), Date.now()), memo);
+  assert(rs.filter(r => r.dep === "KDCA").every(r => r.ptime != null), "demo departures all file a P-time");
+  const r = rs.find(x => x.autoStand);
+  assert(r, "demo has an arrival with a proposed gate");
+  const was = r.stand;
+  assert(store.spawnDeparture(was, "XXX1", "A320", "KATL"), "demo spawn");
+  rs = autoAssignStands(D, deriveFlights(D, store.getPilots(), store.getState(), new Map(), Date.now()), memo);
+  assert(rs.find(x => x.callsign === r.callsign).stand !== was, "demo: the proposal moves off the spawned gate");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);

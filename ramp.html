@@ -22,6 +22,7 @@
     --bldg: #0b1016;
     --empty: #e6edf5;
     --assigned: #3aa0ff;
+    --proposed: #8fb8e0;
     --occupied: #3fcf6a;
     --pushreq: #f5b31c;
     --pushheld: #ef4d4d;
@@ -106,7 +107,7 @@
   #map { touch-action: none; cursor: grab; }
   .mapNote { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: var(--muted-2); }
 
-  #panels { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; padding: 10px; min-height: 0; border-top: 1px solid var(--line); }
+  #panels { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px; min-height: 0; border-top: 1px solid var(--line); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .card > .hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   .card > .hd h2 { margin: 0 6px 0 0; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
@@ -127,6 +128,10 @@
   .badge.warn { background: #4a3710; color: #ffd27a; }
   .badge.bad { background: #4b1717; color: #ff9b9b; }
   .badge.info { background: #10304f; color: #8ec8ff; }
+  .badge.auto { background: #1b2a3a; color: #a9c8e8; border: 1px dashed #5d7fa3; }
+  td.pt .cd { display: inline-block; min-width: 30px; margin-left: 6px; text-align: right; color: var(--muted); }
+  td.pt .cd.due { color: #ffd27a; }
+  td.pt .cd.late { color: #ff9b9b; font-weight: 700; }
   @keyframes rampBlink { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
   .blink { animation: rampBlink 1s linear infinite; }
   .conflictNote { margin: 2px 12px 6px; padding: 6px 9px; border-radius: 6px; font-size: 12px; font-weight: 600;
@@ -241,6 +246,7 @@
       <div class="legend">
         <div><i style="background:var(--empty)"></i>Empty</div>
         <div><i style="background:var(--assigned)"></i>Assigned / reserved</div>
+        <div><i style="background:var(--proposed)"></i>Proposed (airline gate, not yet assigned)</div>
         <div><i style="background:var(--occupied)"></i>Occupied</div>
         <div><i style="background:var(--pushreq)"></i>Push requested</div>
         <div><i style="background:var(--pushheld)"></i>Push held</div>
@@ -268,7 +274,7 @@
         </div>
         <div class="bd">
           <table>
-            <thead><tr><th>Callsign</th><th>Type</th><th>Route</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th></tr></thead>
+            <thead><tr><th>Callsign</th><th>Type</th><th>Route</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th><th title="Filed proposed departure time, and minutes to it (+ once past)">P-Time</th></tr></thead>
             <tbody id="flights"></tbody>
           </table>
           <div class="empty" id="flightsEmpty" hidden>No traffic on the selected ramps right now.</div>
@@ -302,6 +308,7 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
   STATES, PUSH, indexLayout, deriveFlights, standStatuses, standConflicts, airlineFor, queueView, suggestStand,
+  autoAssignStands, ptimeCountdown,
   composeStandTelex, composePushTelex, standLabel, TELEX_MAX,
 } from "./shared/ramp-core.js";
 import { createDemoStore } from "./shared/ramp-demo.js";
@@ -322,7 +329,7 @@ const STATE_COLOR = {
   [STATES.PUSH_REQ]: "var(--pushreq)", [STATES.PUSH_HELD]: "var(--pushheld)", [STATES.PUSH_APPR]: "var(--pushappr)",
   [STATES.PUSHING]: "var(--pushappr)", [STATES.TAXI_OUT]: "var(--taxi)",
 };
-const STAND_COLOR = { empty: "var(--empty)", assigned: "var(--assigned)", occupied: "var(--occupied)", pushreq: "var(--pushreq)", pushheld: "var(--pushheld)" };
+const STAND_COLOR = { empty: "var(--empty)", assigned: "var(--assigned)", proposed: "var(--proposed)", occupied: "var(--occupied)", pushreq: "var(--pushreq)", pushheld: "var(--pushheld)" };
 const STATE_ORDER = [STATES.PUSH_HELD, STATES.PUSH_REQ, STATES.PUSH_APPR, STATES.PUSHING, STATES.TAXI_IN, STATES.INBOUND, STATES.PARKED, STATES.TAXI_OUT];
 const TABS = [
   ["ALL", "All", () => true],
@@ -348,6 +355,10 @@ let store = null;
 let unsub = null;
 let rows = [];
 const memory = new Map();
+/** Proposed airline gates for arrivals not yet assigned: callsign -> stand id. */
+const autoMemo = new Map();
+/** Demo: one pilot spawns on a proposed gate a little after the start, to show the switch. */
+let demoSpawn = { at: 0, done: false };
 
 /* ---------------- mode ---------------- */
 function initialMode() {
@@ -359,6 +370,8 @@ function initialMode() {
 function setMode(mode) {
   if (store) { store.stop(); unsub && unsub(); }
   memory.clear();
+  autoMemo.clear();
+  demoSpawn = { at: Date.now() + 40000, done: false };
   ui.selected = null;
   ui.selSig = "";
   store = mode === "live" ? createLiveStore(L) : createDemoStore(L);
@@ -378,6 +391,8 @@ function scheduleRender() {
 function render() {
   const state = store.getState();
   rows = deriveFlights(L, store.getPilots(), state, memory, Date.now());
+  autoAssignStands(L, rows, autoMemo);
+  if (store.mode === "demo") demoSpawnOnProposed();
   const sel = selectedRamps();
   vrows = rows.filter(r => inSelection(r, sel));
   conflicts = standConflicts(rows);
@@ -387,6 +402,19 @@ function render() {
   renderFlights();
   renderSelected(state);
   renderQueue(state);
+}
+
+/**
+ * Demo: a pilot connects on the gate proposed for the nearest airline arrival,
+ * as happens on VATSIM, so the proposal moves to another gate of that airline.
+ */
+function demoSpawnOnProposed() {
+  if (demoSpawn.done || Date.now() < demoSpawn.at || !store.spawnDeparture) return;
+  const r = rows.filter(x => x.autoStand).sort((a, b) => (a.etaMin ?? 0) - (b.etaMin ?? 0))[0];
+  if (!r) return;
+  demoSpawn.done = true;
+  const cs = r.callsign.slice(0, 3) + (1000 + Math.floor(Math.random() * 8000));
+  store.spawnDeparture(r.stand, cs, r.type, r.dep || "KATL");
 }
 
 /** Flights on the selected ramps: what the table, counters and queue show. */
@@ -633,10 +661,17 @@ function renderMap(state) {
       if (showLabels) {
         h += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="#e6edf5">${esc(s.label || s.id)}</text>`;
       }
-      const who = occ || (st?.key === "assigned" ? rows.find(r => r.callsign === st.callsign) : null);
+      const who = occ || (st?.key === "assigned" || st?.key === "proposed" ? rows.find(r => r.callsign === st.callsign) : null);
+      let dy = 10;
       if (who && (showCs || showTypes)) {
         const t = [showCs ? who.callsign : "", showTypes ? who.type : ""].filter(Boolean).join(" ");
-        h += `<text x="${lx}" y="${ly + 10}" text-anchor="middle" font-size="8.5" fill="${occ ? "#b8c6d4" : "#8ec8ff"}">${esc(t)}</text>`;
+        h += `<text x="${lx}" y="${ly + dy}" text-anchor="middle" font-size="8.5" fill="${occ ? "#b8c6d4" : st?.key === "proposed" ? "#a9c8e8" : "#8ec8ff"}">${esc(t)}</text>`;
+        dy += 9.5;
+      }
+      // Departure on the gate: its filed proposed time and the countdown.
+      if (occ && showPtime(occ)) {
+        const cd = ptimeCountdown(occ.ptime, Date.now());
+        h += `<text x="${lx}" y="${ly + dy}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${cd.startsWith("+") ? "#ff9b9b" : "#ffd27a"}">P${esc(zulu(occ.ptime))} ${esc(cd)}</text>`;
       }
     }
     // Moving aircraft (not on a stand).
@@ -646,6 +681,9 @@ function renderMap(state) {
       if (r.callsign === sel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
       h += `<circle r="13" fill="transparent"/><path d="${PLANE}" transform="rotate(${r.hdg})" fill="${color}" stroke="#05080c" stroke-width=".6"/></g>`;
       if (showCs) h += `<text x="${r.x + 14}" y="${r.y - 8}" font-size="10" font-weight="700" fill="${color}">${esc(r.callsign)}</text>`;
+      if (r.unknownStand && showPtime(r)) {
+        h += `<text x="${r.x + 14}" y="${r.y + 4}" font-size="8.5" font-weight="700" fill="#ffd27a">P${esc(zulu(r.ptime))} ${esc(ptimeCountdown(r.ptime, Date.now()))}</text>`;
+      }
     }
     h += `</g></g>`;
   }
@@ -672,7 +710,10 @@ function renderFlights() {
   $("flights").innerHTML = list.map(r => {
     const e = r.entry;
     let ramp = esc(rampLabel(r));
-    if (!r.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) {
+    if (r.autoStand) ramp += ' <span class="badge auto" title="Proposed from the airline\'s gates. Assign it or send the stand telex to put it on the board.">AUTO</span>';
+    if (r.noGate) {
+      ramp = `<span class="badge bad blink" style="${blinkDelay()}" title="Every ${esc(airlineName(r))} gate is occupied or assigned">NO GATE · ${esc(airlineName(r))} full</span>`;
+    } else if (!r.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) {
       ramp = r.op.group === "?" ? '<span class="badge warn">ramp ?</span>' : `<span class="muted">${esc(r.op.group)} · none</span>`;
     }
     if (r.unknownStand && !r.stand) ramp = '<span class="badge warn" title="Parked, but not within 60 m of a known stand">stand ?</span>';
@@ -688,9 +729,25 @@ function renderFlights() {
       <td class="cs">${esc(r.callsign)}${acarsDot(r.callsign)}</td><td>${esc(r.type)}</td>
       <td>${esc(r.dep || "?")}→${esc(r.arr || "?")}</td><td>${ramp}</td>
       <td><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></td>
-      <td class="mono">${esc(eta)}</td></tr>`;
+      <td class="mono">${esc(eta)}</td><td class="mono pt">${ptimeCell(r)}</td></tr>`;
   }).join("");
   $("flightsEmpty").hidden = list.length > 0;
+}
+
+/** Airline (or operator) name for notes: "United", "DHL". */
+function airlineName(r) {
+  return airlineFor(L, r.callsign)?.name || (r.op.group !== "?" ? r.op.group : "airline");
+}
+
+/** Departures still on the field: filed proposed time and the countdown to it. */
+function showPtime(r) {
+  return r.ptime != null && r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN;
+}
+function ptimeCell(r) {
+  if (!showPtime(r)) return "";
+  const cd = ptimeCountdown(r.ptime, Date.now());
+  const cls = cd.startsWith("+") ? "late" : Number(cd) <= 5 ? "due" : "";
+  return `${zulu(r.ptime)}<span class="cd ${cls}" title="${cd.startsWith("+") ? "Minutes past" : "Minutes to"} the proposed departure time">${esc(cd)}</span>`;
 }
 
 /** Callsign prefix for the field's positions: KIAD -> IAD, as VATSIM callsigns use. */
@@ -754,7 +811,7 @@ function renderSelected(state) {
   const cf = r.stand && conflicts.get(r.stand);
   const myConflict = cf && cf.inbound === r.callsign ? cf : null;
   const airline = airlineFor(L, r.callsign);
-  const sig = JSON.stringify([myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  const sig = JSON.stringify([r.autoStand, r.noGate, myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
 
@@ -771,6 +828,8 @@ function renderSelected(state) {
   const msgs = (e.msgs || []).slice(-6).reverse();
   box.innerHTML = `
     <div class="selHead"><span class="cs">${esc(r.callsign)}</span><span class="chip">${esc(r.type || "?")}</span><span class="chip">${dir}</span><span class="chip">${esc(r.op.group === "?" ? "operator ?" : r.op.group)}</span>${airline ? `<span class="chip">${esc(airline.name)}</span>` : ""}</div>
+    ${r.noGate ? `<div class="conflictNote blink" style="${blinkDelay()}">⚠ No free ${esc(airlineName(r))} gate: every one is occupied or assigned. Pick a stand by hand.</div>` : ""}
+    ${r.autoStand ? `<div class="roNote" style="border-color:#3d5877;color:#a9c8e8;background:#0f1a26">Proposed ${esc(lbl(r.stand))} from the ${esc(airlineName(r))} gates. It moves if someone parks or spawns there. ${me.canWrite ? "Assign it, or send the stand telex, to put it on the board." : ""}</div>` : ""}
     ${myConflict ? `<div class="conflictNote">⚠ Stand ${esc(lbl(r.stand))} is occupied by ${esc(myConflict.occupant)}. Pick another stand, and send the pilot a stand change.</div>` : ""}
     <div class="facts">
       <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>
@@ -811,7 +870,10 @@ function renderSelected(state) {
     <div class="flash ${ui.flash.kind}">${esc(ui.flash.text)}${ui.flash.force && me.canWrite ? ' <button class="btn warn" id="bSendForce" style="margin-left:6px">Send anyway</button>' : ""}</div>
     ${msgs.length ? `<div class="sec">Messages</div><div class="msgs">${msgs.map(m =>
       `<div class="${m.dir}">${zulu(m.t)} ${m.dir === "up" ? "▲" : "▼"} ${esc(m.text)}</div>`).join("")}</div>` : ""}`;
-  $("selStand").value = keep.stand !== undefined ? keep.stand : (e.stand || "");
+  // A proposed gate filled in here follows the proposal when it moves; a stand the controller picked stays.
+  if (keep.stand !== undefined && keep.stand === ui.autoFill) keep.stand = undefined;
+  $("selStand").value = keep.stand !== undefined ? keep.stand : (e.stand || (r.autoStand ? r.stand : ""));
+  ui.autoFill = !e.stand && r.autoStand && $("selStand").value === r.stand ? r.stand : null;
   $("tlxTpl").value = ui.composer.tpl;
   if (!ui.composer.dirty) ui.composer.text = defaultTelex(r, ui.composer.tpl, state);
   $("tlxText").value = ui.composer.text;
@@ -1016,7 +1078,7 @@ $("selected").addEventListener("click", async e => {
   if (!t || t.disabled) return;
   if (t.id === "bSuggest") {
     // The airline's own gates first, then the operator's ramps; inside the selected ramps when any fit.
-    const s = suggestStand(L, rows, r.op, r.callsign, selectedRamps());
+    const s = suggestStand(L, r.autoStand ? rows.filter(x => x.callsign !== r.callsign) : rows, r.op, r.callsign, selectedRamps());
     if (s) {
       $("selStand").value = s.id;
       onStandPicked();
@@ -1036,6 +1098,12 @@ $("selected").addEventListener("click", async e => {
     if (!text) return;
     if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
     t.disabled = true;
+    // Telling the pilot a stand puts it on the board (a proposed gate, or one picked but not assigned).
+    const pick = $("selStand")?.value;
+    if ((ui.composer.tpl === "stand" || ui.composer.tpl === "change") && pick && pick !== r.entry?.stand && store.me.canWrite) {
+      const a = await store.op({ op: "assign", callsign: r.callsign, stand: pick });
+      if (!a.ok) { ui.flash = { text: a.error || "Assign rejected", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    }
     const res = await store.sendTelex(r.callsign, text, { force: t.id === "bSendForce" });
     ui.flash = res.ok ? { text: `Sent ${zulu(Date.now())}${res.dryRun ? " (dry run: not delivered)" : ""}.`, kind: "ok" }
       : { text: res.error || "Send failed", kind: "err", force: !!res.offline };
