@@ -446,7 +446,7 @@ function renderRail(state) {
     p.innerHTML = `Working as <b>${esc(me.callsign)}</b>. ${esc(store.status.text)}`;
   } else {
     p.className = "perm ro";
-    p.innerHTML = `<b>Read-only.</b> ${esc(me.reason || `Only a signed-in controller on position as ${posPrefix()}_RMP, _GND or _TWR can assign stands.`)}` +
+    p.innerHTML = `<b>Read-only.</b> ${esc(me.reason || coverText())}` +
       (store.status.ok ? "" : `<br><span class="muted">${esc(store.status.text)}</span>`);
   }
   const hold = $("holdAll");
@@ -751,6 +751,12 @@ function ptimeCell(r) {
   return `${zulu(r.ptime)}<span class="cd ${cls}" title="${cd.startsWith("+") ? "Minutes past" : "Minutes to"} the proposed departure time">${esc(cd)}</span>`;
 }
 
+/** Who may work this board (the hub decides; this is the fallback wording). */
+function coverText() {
+  return `Only a signed-in controller covering ${L.icao} can assign stands: ${posPrefix()}_RMP, _DEL, _GND, _TWR, _APP or _DEP, ` +
+    "or an approach or center position in its ARTCC (top-down).";
+}
+
 /** Callsign prefix for the field's positions: KIAD -> IAD, as VATSIM callsigns use. */
 function posPrefix() {
   return /^K[A-Z0-9]{3}$/.test(L.icao) ? L.icao.slice(1) : L.icao;
@@ -838,7 +844,7 @@ function renderSelected(state) {
       <div><div class="k">Stand</div><div class="v">${esc(r.stand ? lbl(r.stand) : "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(lbl(r.atStand))}</span>` : ""}</div></div>
       <div><div class="k">Status</div><div class="v"><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></div></div>
     </div>
-    ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || `Only a controller on position as ${posPrefix()}_RMP, _GND or _TWR can assign stands.`)}</div>`}
+    ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || coverText())}</div>`}
     <div class="sec">Stand</div>
     <div class="row">
       <select class="sm" id="selStand" style="width:auto;min-width:130px" ${dis}><option value="">— pick a stand —</option>${standOptions(r)}</select>

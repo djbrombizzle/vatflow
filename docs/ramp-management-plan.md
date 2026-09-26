@@ -31,7 +31,7 @@ It is **shared across controllers**, the same way the IDST runway/SID config is 
 | --- | --- |
 | **vatflow-hub** (Railway, `DEFAULT_HUB_URL`) | Shared ramp state, the permission check, and the Hoppie send path. A browser cannot reach Hoppie directly; that is why the hub exists. |
 | `shared/taxi-config-store.js` pattern | Model for `shared/ramp-store.js`. Synchronous reads against a cache, optimistic writes, hub is the authority, localStorage mirror for reloads and hub outages. |
-| Hub permission model (`/taxi/permissions`) | Same live-position check, but narrower: only a controller on position at the field as **`_RMP`, `_GND`, or `_TWR`** can assign stands or work the queue. There are no ARTCC-editor writes and no company-ops role. Everyone else is read-only. |
+| Hub permission model (`/taxi/permissions`) | Same live-position check, top-down as elsewhere in VATFLOW: a controller on position **at the field** (`_RMP`, `_DEL`, `_GND`, `_TWR`, `_APP`, `_DEP`), or on an **approach or center position in the field's ARTCC** (`_APP`, `_DEP`, `_CTR`, `_FSS`: PCT_APP and DC_CTR for KIAD/KDCA/KRDU, IND_CTR for KCVG), can assign stands or work the queue. A tower at another field does not cover it. There are no ARTCC-editor writes and no company-ops role. Everyone else is read-only. |
 | vUSAlink hub `/hub/send`, `/hub/poll` | Telex uplink of stand assignments, and reading pilot telex requests ("REQ STAND", "REQ PUSH"). |
 | `shared/vusalink-clearance.js` style | DOM-free message composer (`shared/ramp-messages.js`) with the same 220-char Hoppie budget and unit tests. |
 | `shared/taxi-estimate.js` + IDST RDY / FCA | The push queue shows the frozen release time (CFR/EDCT) and a **suggested push time = release − taxi estimate**. |
@@ -254,7 +254,7 @@ Phases 0–1 need no hub changes and can ship first.
 - Amazon B-row stands push onto taxilane C.
 - DHL stands 50–55 push onto DHL 6 or taxi straight out to N.
 - N taxilane (130.375) is worked by DHL Ramp. There is no separate N taxilane position.
-- **Only `_RMP`, `_GND`, and `_TWR` on position may assign stands** or work the push queue. There is no company-ops role. So a ramp with none of those positions online is read-only: the board still shows derived states, but no stands are assigned and no telex is sent.
+- **Only a controller covering the field may assign stands** or work the push queue: `_RMP`, `_DEL`, `_GND`, `_TWR`, `_APP` or `_DEP` at the field, or `_APP`, `_DEP`, `_CTR` or `_FSS` in its ARTCC (top-down, as for the rest of VATFLOW; originally only `_RMP`, `_GND` and `_TWR`). There is no company-ops role. With none of those online the board is read-only: it still shows derived states and proposed gates, but no stands are assigned and no telex is sent.
 - The test telex station is the Hoppie logon `KCVG`.
 - DHL stand 42 pushes onto DHL 3.
 - **No auto-send at launch.** Stand assignments go out only when a controller presses Send.
