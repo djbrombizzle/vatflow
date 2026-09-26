@@ -1,0 +1,1139 @@
+{
+ "icao": "KRDU",
+ "version": 1,
+ "name": "Raleigh-Durham",
+ "subtitle": "Stand assignment and push control for Terminal 2 (C and D gates) and Terminal 1 (A gates)",
+ "source": "RDU terminal area chart (user-supplied). x,y are chart pixels (1628x1099), north up, ~0.86 m/px both ways. The chart's latitude grid is used as printed; its longitude labels are misprinted (they run W078-48.0 to 48.8 increasing east), so longitude is fixed from the runways: both 5L/23R and 5R/23L centrelines fit within a few px, which makes the tick labelled 48.0 W078-47.9, 48.1 47.8, and so on. Each stand is 35% of the way from its gate label (the outer end of the lead-in line) to the pier.",
+ "telexStation": "KRDU",
+ "field": {
+  "lat": 35.8776,
+  "lon": -78.7875,
+  "elevFt": 435,
+  "radiusNm": 3
+ },
+ "charts": {
+  "RDU": {
+   "name": "RDU Terminals",
+   "width": 1628,
+   "height": 1099,
+   "latRef": [
+    {
+     "y": 214,
+     "lat": "N35-52.8"
+    },
+    {
+     "y": 428.6,
+     "lat": "N35-52.7"
+    },
+    {
+     "y": 645,
+     "lat": "N35-52.6"
+    },
+    {
+     "y": 859.5,
+     "lat": "N35-52.5"
+    }
+   ],
+   "lonRef": [
+    {
+     "x": 96.8,
+     "lon": "W078-47.9"
+    },
+    {
+     "x": 272.6,
+     "lon": "W078-47.8"
+    },
+    {
+     "x": 448.5,
+     "lon": "W078-47.7"
+    },
+    {
+     "x": 624.3,
+     "lon": "W078-47.6"
+    },
+    {
+     "x": 800.2,
+     "lon": "W078-47.5"
+    },
+    {
+     "x": 976.0,
+     "lon": "W078-47.4"
+    },
+    {
+     "x": 1151.9,
+     "lon": "W078-47.3"
+    },
+    {
+     "x": 1327.8,
+     "lon": "W078-47.2"
+    },
+    {
+     "x": 1503.6,
+     "lon": "W078-47.1"
+    }
+   ],
+   "note": "Longitude from the runways, not the chart's longitude labels (see source)."
+  }
+ },
+ "views": [
+  {
+   "id": "C",
+   "label": "C gates",
+   "chart": "RDU",
+   "ramps": [
+    "RDU-C"
+   ]
+  },
+  {
+   "id": "D",
+   "label": "D gates",
+   "chart": "RDU",
+   "ramps": [
+    "RDU-D"
+   ]
+  },
+  {
+   "id": "A",
+   "label": "Terminal 1",
+   "chart": "RDU",
+   "ramps": [
+    "RDU-A"
+   ]
+  },
+  {
+   "id": "ALL",
+   "label": "All"
+  }
+ ],
+ "positions": [
+  {
+   "id": "RDU_RMP",
+   "name": "Ramp Tower",
+   "freqs": [
+    "130.175"
+   ],
+   "owns": [
+    "RDU-C",
+    "RDU-D"
+   ],
+   "note": "Terminal 2 aircraft contact Ramp Tower on 130.175 before push."
+  },
+  {
+   "id": "RDU_GND",
+   "name": "Ground",
+   "freqs": [
+    "121.900"
+   ],
+   "owns": [
+    "RDU-A"
+   ],
+   "note": "Terminal 1 aircraft contact Ground Control on 121.9 before push; taxiway A is movement area."
+  }
+ ],
+ "ramps": [
+  {
+   "id": "RDU-C",
+   "name": "Terminal 2 C gates",
+   "group": "Terminal",
+   "chart": "RDU",
+   "polygon": null,
+   "taxilanes": [
+    "NW",
+    "SE"
+   ]
+  },
+  {
+   "id": "RDU-D",
+   "name": "Terminal 2 D gates",
+   "group": "Terminal",
+   "chart": "RDU",
+   "polygon": null,
+   "taxilanes": [
+    "NW",
+    "SE"
+   ]
+  },
+  {
+   "id": "RDU-A",
+   "name": "Terminal 1 A gates",
+   "group": "Terminal",
+   "chart": "RDU",
+   "polygon": null,
+   "taxilanes": [
+    "TA"
+   ]
+  }
+ ],
+ "lanes": [
+  {
+   "id": "NW",
+   "name": "",
+   "chart": "RDU",
+   "pts": [
+    [
+     240,
+     760
+    ],
+    [
+     760,
+     240
+    ]
+   ]
+  },
+  {
+   "id": "SE",
+   "name": "",
+   "chart": "RDU",
+   "pts": [
+    [
+     355,
+     925
+    ],
+    [
+     965,
+     315
+    ]
+   ]
+  },
+  {
+   "id": "TA",
+   "name": "TAXIWAY A",
+   "chart": "RDU",
+   "pts": [
+    [
+     1000,
+     1099
+    ],
+    [
+     1340,
+     760
+    ],
+    [
+     1628,
+     472
+    ]
+   ]
+  },
+  {
+   "id": "F",
+   "chart": "RDU",
+   "pts": [
+    [
+     0,
+     940
+    ],
+    [
+     930,
+     10
+    ]
+   ]
+  },
+  {
+   "id": "B",
+   "chart": "RDU",
+   "pts": [
+    [
+     0,
+     880
+    ],
+    [
+     880,
+     0
+    ]
+   ]
+  }
+ ],
+ "laneSpots": {
+  "RDU": {
+   "NW": [
+    "2",
+    "6"
+   ],
+   "SE": [
+    "1",
+    "7"
+   ]
+  }
+ },
+ "buildings": [
+  {
+   "chart": "RDU",
+   "name": "Terminal 2",
+   "line": [
+    [
+     330,
+     830
+    ],
+    [
+     855,
+     278
+    ]
+   ],
+   "w": 42
+  },
+  {
+   "chart": "RDU",
+   "name": "",
+   "line": [
+    [
+     560,
+     690
+    ],
+    [
+     760,
+     520
+    ]
+   ],
+   "w": 55
+  },
+  {
+   "chart": "RDU",
+   "name": "Terminal 1",
+   "line": [
+    [
+     870,
+     1035
+    ],
+    [
+     1072,
+     830
+    ]
+   ],
+   "w": 26
+  }
+ ],
+ "callSpots": [
+  {
+   "id": "1",
+   "chart": "RDU",
+   "x": 133,
+   "y": 915,
+   "on": "Taxilane B/C, SW end"
+  },
+  {
+   "id": "2",
+   "chart": "RDU",
+   "x": 180,
+   "y": 882,
+   "on": "Taxilane A, SW end"
+  },
+  {
+   "id": "6",
+   "chart": "RDU",
+   "x": 900,
+   "y": 172,
+   "on": "Taxilane A, NE end"
+  },
+  {
+   "id": "7",
+   "chart": "RDU",
+   "x": 937,
+   "y": 128,
+   "on": "Taxilane C, NE end"
+  }
+ ],
+ "deiceSpots": [],
+ "stands": [
+  {
+   "id": "C3",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 593,
+   "y": 499,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C7",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 622,
+   "y": 466,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C9",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 668,
+   "y": 419,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C11",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 701,
+   "y": 390,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C15",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 738,
+   "y": 352,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C17",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 774,
+   "y": 316,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C21",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 812,
+   "y": 284,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C23",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 836,
+   "y": 246,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C25",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 864,
+   "y": 259,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C24",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 894,
+   "y": 283,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C22",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 898,
+   "y": 304,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C20",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 889,
+   "y": 320,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C18",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 870,
+   "y": 344,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C16",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 836,
+   "y": 371,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C14",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 811,
+   "y": 394,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C12",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 792,
+   "y": 417,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C10",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 759,
+   "y": 448,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C8",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 724,
+   "y": 480,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "C1",
+   "ramp": "RDU-C",
+   "chart": "RDU",
+   "x": 554,
+   "y": 531,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D1",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 517,
+   "y": 564,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D3",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 485,
+   "y": 597,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D5",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 441,
+   "y": 644,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D9",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 405,
+   "y": 676,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D11",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 372,
+   "y": 712,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D13",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 336,
+   "y": 745,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D15",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 299,
+   "y": 784,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D17",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 272,
+   "y": 818,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D19",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 286,
+   "y": 845,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D20",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 316,
+   "y": 863,
+   "hdg": null,
+   "pushTo": "NW",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D6",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 552,
+   "y": 666,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D8",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 502,
+   "y": 706,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D10",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 482,
+   "y": 726,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D12",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 452,
+   "y": 758,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D14",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 422,
+   "y": 784,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D16",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 385,
+   "y": 823,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "D18",
+   "ramp": "RDU-D",
+   "chart": "RDU",
+   "x": 352,
+   "y": 849,
+   "hdg": null,
+   "pushTo": "SE",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A9",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 1105,
+   "y": 851,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A8",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 1095,
+   "y": 870,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A7",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 1064,
+   "y": 882,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A6",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 1032,
+   "y": 932,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A5",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 1009,
+   "y": 968,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A4",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 965,
+   "y": 1012,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A3",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 905,
+   "y": 1041,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A2",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 895,
+   "y": 1069,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  },
+  {
+   "id": "A1",
+   "ramp": "RDU-A",
+   "chart": "RDU",
+   "x": 866,
+   "y": 1068,
+   "hdg": null,
+   "pushTo": "TA",
+   "lat": null,
+   "lon": null,
+   "maxCode": null,
+   "blocks": []
+  }
+ ],
+ "operators": {
+  "Terminal": {
+   "match": [],
+   "remarks": [],
+   "ramps": [
+    "RDU-C",
+    "RDU-D",
+    "RDU-A"
+   ]
+  }
+ },
+ "airlines": [
+  {
+   "name": "Delta",
+   "match": [
+    "DAL",
+    "EDV"
+   ],
+   "ramps": [
+    "RDU-C",
+    "RDU-D"
+   ]
+  },
+  {
+   "name": "American",
+   "match": [
+    "AAL",
+    "ENY",
+    "PDT",
+    "JIA"
+   ],
+   "ramps": [
+    "RDU-D",
+    "RDU-C"
+   ]
+  },
+  {
+   "name": "United",
+   "match": [
+    "UAL",
+    "GJS",
+    "ASH"
+   ],
+   "ramps": [
+    "RDU-D",
+    "RDU-C"
+   ]
+  },
+  {
+   "name": "Republic / SkyWest (flies for AA, DL, UA)",
+   "match": [
+    "RPA",
+    "SKW"
+   ],
+   "ramps": [
+    "RDU-D",
+    "RDU-C"
+   ]
+  },
+  {
+   "name": "JetBlue, Air Canada, Frontier, Allegiant and international",
+   "match": [
+    "JBU",
+    "ACA",
+    "JZA",
+    "FFT",
+    "AAY",
+    "AFR",
+    "ICE",
+    "AMX",
+    "CMP",
+    "BHS"
+   ],
+   "ramps": [
+    "RDU-D",
+    "RDU-C"
+   ]
+  },
+  {
+   "name": "Terminal 1 carriers",
+   "match": [
+    "SWA",
+    "ASA",
+    "QXE",
+    "VXP",
+    "MXY",
+    "NKS",
+    "SCX"
+   ],
+   "ramps": [
+    "RDU-A"
+   ]
+  }
+ ],
+ "airlinesSource": "Terminal split from rdu.com and airport guides: Terminal 1 (A1-A9) Southwest, Alaska, Avelo, Breeze, Spirit, Sun Country; Terminal 2 (C1-C25, D1-D20) American, Delta, United, JetBlue, Air Canada and the international carriers. Delta on C gates, United and American on D gates, per airport guides.",
+ "notes": [
+  "Terminal 2 aircraft contact Ramp Tower on 130.175 before push.",
+  "Terminal 1 aircraft contact Ground Control on 121.9 before push. Taxiway A is movement area: contact Ground 121.9.",
+  "Numbered taxi transition spots (1, 2, 6, 7): from the apron, contact Ground Control 121.9.",
+  "TDG class V (dangerous goods) aircraft on taxiway A: 15 MPH taxi speed limit."
+ ],
+ "assignRoles": [
+  "RMP",
+  "GND",
+  "TWR"
+ ],
+ "demo": {
+  "holdSpots": {
+   "Terminal": "6"
+  },
+  "fleet": [
+   {
+    "cs": "DAL1402",
+    "type": "A321",
+    "dep": "KRDU",
+    "arr": "KATL",
+    "stand": "C9",
+    "push": "REQ",
+    "callAgo": 90
+   },
+   {
+    "cs": "AAL2203",
+    "type": "A321",
+    "dep": "KRDU",
+    "arr": "KCLT",
+    "stand": "D5",
+    "push": "HELD",
+    "callAgo": 200
+   },
+   {
+    "cs": "UAL1811",
+    "type": "B738",
+    "dep": "KRDU",
+    "arr": "KEWR",
+    "stand": "D12"
+   },
+   {
+    "cs": "JBU1270",
+    "type": "A320",
+    "dep": "KRDU",
+    "arr": "KBOS",
+    "stand": "D16"
+   },
+   {
+    "cs": "EDV5310",
+    "type": "CRJ9",
+    "dep": "KRDU",
+    "arr": "KLGA",
+    "stand": "C14"
+   },
+   {
+    "cs": "SWA1945",
+    "type": "B38M",
+    "dep": "KRDU",
+    "arr": "KBWI",
+    "stand": "A5",
+    "push": "REQ",
+    "callAgo": 40
+   },
+   {
+    "cs": "NKS811",
+    "type": "A20N",
+    "dep": "KRDU",
+    "arr": "KFLL",
+    "stand": "A2"
+   },
+   {
+    "cs": "PDT5690",
+    "type": "E145",
+    "dep": "KRDU",
+    "arr": "KDCA",
+    "stand": "D18",
+    "offHoppie": true
+   },
+   {
+    "cs": "DAL2290",
+    "type": "B739",
+    "dep": "KMSP",
+    "arr": "KRDU",
+    "stand": "C20"
+   },
+   {
+    "cs": "AAL1575",
+    "type": "A319",
+    "dep": "KDFW",
+    "arr": "KRDU",
+    "distNm": 8,
+    "brg": 225,
+    "assigned": "D9"
+   },
+   {
+    "cs": "SWA2771",
+    "type": "B737",
+    "dep": "KMDW",
+    "arr": "KRDU",
+    "distNm": 30,
+    "brg": 300
+   },
+   {
+    "cs": "DAL1188",
+    "type": "A320",
+    "dep": "KATL",
+    "arr": "KRDU",
+    "distNm": 60,
+    "brg": 230
+   },
+   {
+    "cs": "AFR44",
+    "type": "B772",
+    "dep": "LFPG",
+    "arr": "KRDU",
+    "distNm": 140,
+    "brg": 40
+   }
+  ]
+ }
+}

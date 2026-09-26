@@ -137,6 +137,13 @@ All of this goes in a DOM-free module, `shared/ramp-state.js`, and is unit-teste
 - **Manual reorder** is allowed (drag), but it is logged ("moved by KCVG_RMP") and shown with an icon, so call order is never changed silently.
 - The queue lives on the hub, so a ground controller and a ramp controller at the same field work the same list.
 
+### 5.1 Proposed arrival gates and departure times
+
+- **Proposed gates.** Every airline arrival with no stand on the board gets a proposed gate from its airline's gates (the airport file's `airlines`: `ramps` in order of preference, optionally narrowed by `gates` label prefixes such as IAD's A gates). Cargo at CVG goes by operator: DHL by callsign, Amazon by `OPR/AMAZON` in remarks. General aviation gets none; nor do carriers that fly for more than one operator with no remarks to tell which.
+- The nearest arrivals are served first, and a proposal keeps its gate between refreshes. If an aircraft parks or spawns on it, or it is assigned to someone else, the proposal moves to the next free gate **of the same airline**. With none free, the row flashes red: **NO GATE · <airline> full**.
+- A proposal belongs to the page. Each viewer works it out from the same traffic, and it is never written to the shared board. It goes on the board when a controller on position clicks Assign or sends the stand telex; sending the telex assigns the stand first. Positions and writes stay gated as before.
+- **Proposed departure time.** A departure's filed `deptime` shows on its gate's map datablock (`P1435Z 12`) and in the flights table's P-Time column: the minutes to go, then counting up `+1`, `+2`... once past. A blank time (`0000`) shows nothing.
+
 ---
 
 ## 6. Hoppie delivery (stand assignments to pilots)

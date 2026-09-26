@@ -39,7 +39,7 @@ Download or test via this link here https://vatflow.io/vatflow-tbfm%20v2.html (a
 | **Restrictions** | Shared free-form restriction entries (requesting, providing, restriction, start/stop). |
 | **Departures** | Single tower field view with recommended delay (info only). |
 | **Taxi Monitor** | Monitor up to 5 departure fields at once; taxi times sync live via Firebase for all visitors. View-only — adding/removing fields is TMU (controller password) access only. |
-| **Ramp Management** | Stand assignment, a call-order push queue with holds, and stand telex to pilots through Hoppie, per airport (pick it from the dropdown): KCVG (terminal plus the Amazon and DHL cargo ramps) KIAD (midfield concourses A-E and the R ramp) and KDCA (Terminal 2 B-E, Terminal 1 A1-A9, South Hangars). Airports are layout files in `data/ramp/` listed in `data/ramp/index.json`. Demo mode runs simulated traffic; live mode shares state through vUSAlink-hub. |
+| **Ramp Management** | Stand assignment, a call-order push queue with holds, and stand telex to pilots through Hoppie, per airport (pick it from the dropdown): KCVG (terminal plus the Amazon and DHL cargo ramps) KIAD (midfield concourses A-E and the R ramp) KDCA (Terminal 2 B-E, Terminal 1 A1-A9, South Hangars) and KRDU (Terminal 2 C/D, Terminal 1 A). Airports are layout files in `data/ramp/` listed in `data/ramp/index.json`. Airline arrivals get a proposed gate from their airline's gates (moved if someone spawns there, flashing red when the airline is full), and departures show their filed proposed time with a countdown. Demo mode runs simulated traffic; live mode shares state through vUSAlink-hub. |
 
 ---
 

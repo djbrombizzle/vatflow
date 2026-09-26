@@ -69,9 +69,18 @@ export function createDemoStore(L) {
   let timer = null;
   let nextCallAt = t0 + 40000;
 
+  /** Filed departure time (HHMM Z) `min` minutes from the demo start. */
+  function hhmm(min) {
+    const d = new Date(Math.floor((t0 + min * 60000) / 60000) * 60000);
+    return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0");
+  }
+
   function seed() {
-    for (const f of FLEET) {
+    FLEET.forEach((f, i) => {
       const ac = { ...f, phase: "parked", x: 0, y: 0, chart: null, gs: 0, moveHdg: 0, path: [], air: null };
+      // Departures file a proposed time: those calling for push are about due
+      // (some a few minutes late), the rest from 6 to 50 minutes out.
+      if (f.dep === L.icao) ac.deptime = hhmm(f.ptimeMin ?? (f.push ? [-3, 1, -1][i % 3] : 6 + ((i * 11) % 45)));
       if (f.stand) {
         const s = L.standById.get(f.stand);
         Object.assign(ac, { chart: s.chart, x: s.x, y: s.y, moveHdg: s.noseHdg || 0 });
@@ -87,7 +96,7 @@ export function createDemoStore(L) {
         if (f.assigned) applyOp(state, { op: "assign", callsign: f.cs, stand: f.assigned }, "DEMO", t0);
       }
       planes.set(f.cs, ac);
-    }
+    });
     state.log = [];
     addLog(`Demo started: ${L.icao}, ${FLEET.length} aircraft`);
   }
@@ -225,7 +234,7 @@ export function createDemoStore(L) {
       out.push({
         callsign: ac.cs, latitude: lat, longitude: lon, altitude: alt, heading: hdg,
         groundspeed: ac.phase === "air" ? ac.air.gs : ac.gs,
-        flight_plan: { departure: ac.dep, arrival: ac.arr, aircraft_short: ac.type, remarks: ac.rmk || "" },
+        flight_plan: { departure: ac.dep, arrival: ac.arr, aircraft_short: ac.type, remarks: ac.rmk || "", deptime: ac.deptime || "" },
       });
     }
     return out;
@@ -260,6 +269,19 @@ export function createDemoStore(L) {
     },
     /** One simulation step; the page runs it on a timer, tests call it directly. */
     tick,
+    /**
+     * A pilot connects already parked on `standId` as a departure, as happens
+     * on VATSIM when someone spawns on a gate given to an arrival.
+     */
+    spawnDeparture(standId, cs, type, arr) {
+      const s = L.standById.get(standId);
+      if (!s || planes.has(cs)) return false;
+      planes.set(cs, { cs, type, dep: L.icao, arr, stand: standId, phase: "parked", chart: s.chart, x: s.x, y: s.y,
+        gs: 0, moveHdg: s.noseHdg || 0, path: [], air: null, deptime: hhmm((Date.now() - t0) / 60000 + 35) });
+      addLog(`${cs} connected at ${s.label || s.id}`);
+      emit();
+      return true;
+    },
     async op(o) {
       const res = applyOp(state, o, ME, Date.now());
       emit();

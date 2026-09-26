@@ -4410,6 +4410,80 @@
    ]
   }
  },
+ "airlines": [
+  {
+   "name": "Delta",
+   "match": [
+    "DAL",
+    "EDV"
+   ],
+   "ramps": [
+    "PAX-B"
+   ]
+  },
+  {
+   "name": "SkyWest / Republic (Delta Connection here)",
+   "match": [
+    "SKW",
+    "RPA"
+   ],
+   "ramps": [
+    "PAX-B",
+    "PAX-A"
+   ]
+  },
+  {
+   "name": "American",
+   "match": [
+    "AAL",
+    "ENY",
+    "PDT",
+    "JIA"
+   ],
+   "ramps": [
+    "PAX-A"
+   ]
+  },
+  {
+   "name": "United",
+   "match": [
+    "UAL",
+    "ASH",
+    "GJS"
+   ],
+   "ramps": [
+    "PAX-A"
+   ]
+  },
+  {
+   "name": "Southwest",
+   "match": [
+    "SWA"
+   ],
+   "ramps": [
+    "PAX-A"
+   ]
+  },
+  {
+   "name": "Other Concourse A carriers",
+   "match": [
+    "FFT",
+    "NKS",
+    "AAY",
+    "JBU",
+    "ASA",
+    "ACA",
+    "JZA",
+    "WJA",
+    "MXY",
+    "BRE"
+   ],
+   "ramps": [
+    "PAX-A"
+   ]
+  }
+ ],
+ "airlinesSource": "Terminal split from cvgairport.com and airport guides: Concourse B is Delta and Delta Connection; Concourse A has American, United, Southwest, Frontier, Allegiant, Alaska, Air Canada, Breeze and the other carriers. Cargo parks by operator (DHL by callsign, Amazon by OPR/AMAZON in remarks); ABX, ATN, GTI and other carriers flying for both need the remarks to tell which ramp. Remote parking is not given out automatically.",
  "assignRoles": [
   "RMP",
   "GND",
@@ -4565,7 +4639,7 @@
     "type": "A321",
     "dep": "KCVG",
     "arr": "KATL",
-    "stand": "A12",
+    "stand": "B12",
     "push": "REQ",
     "callAgo": 90
    },
@@ -4574,42 +4648,42 @@
     "type": "CRJ9",
     "dep": "KCVG",
     "arr": "KLGA",
-    "stand": "A7"
+    "stand": "B7"
    },
    {
     "cs": "FFT1122",
     "type": "A20N",
     "dep": "KCVG",
     "arr": "KDEN",
-    "stand": "B20A"
+    "stand": "T-A10"
    },
    {
     "cs": "AAY501",
     "type": "A320",
     "dep": "KCVG",
     "arr": "KSFB",
-    "stand": "B11"
+    "stand": "A11"
    },
    {
     "cs": "SWA2231",
     "type": "B38M",
     "dep": "KCVG",
     "arr": "KBWI",
-    "stand": "B15"
+    "stand": "A13"
    },
    {
     "cs": "UAL1557",
     "type": "B738",
     "dep": "KCVG",
     "arr": "KORD",
-    "stand": "B24"
+    "stand": "A15"
    },
    {
     "cs": "ENY3302",
     "type": "E175",
     "dep": "KDFW",
     "arr": "KCVG",
-    "stand": "B8A"
+    "stand": "A4"
    },
    {
     "cs": "DAE201",
@@ -4673,7 +4747,7 @@
     "arr": "KCVG",
     "distNm": 18,
     "brg": 330,
-    "assigned": "A18"
+    "assigned": "B18"
    },
    {
     "cs": "SKW5140",

@@ -2737,6 +2737,108 @@
    ]
   }
  },
+ "airlines": [
+  {
+   "name": "United",
+   "match": [
+    "UAL"
+   ],
+   "ramps": [
+    "IAD-CD-N",
+    "IAD-CD-S",
+    "IAD-E"
+   ]
+  },
+  {
+   "name": "United Express",
+   "match": [
+    "GJS",
+    "ASH",
+    "SKW",
+    "RPA",
+    "CPZ"
+   ],
+   "ramps": [
+    "IAD-AB-N",
+    "IAD-AB-S"
+   ],
+   "gates": [
+    "A",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ]
+  },
+  {
+   "name": "Other US and Canadian carriers",
+   "match": [
+    "AAL",
+    "ENY",
+    "DAL",
+    "EDV",
+    "JBU",
+    "SWA",
+    "FFT",
+    "NKS",
+    "AAY",
+    "MXY",
+    "ASA",
+    "QXE",
+    "ACA",
+    "JZA"
+   ],
+   "ramps": [
+    "IAD-AB-N",
+    "IAD-AB-S"
+   ],
+   "gates": [
+    "B"
+   ]
+  },
+  {
+   "name": "International carriers",
+   "match": [
+    "BAW",
+    "DLH",
+    "AFR",
+    "KLM",
+    "UAE",
+    "QTR",
+    "ETD",
+    "SWR",
+    "AUA",
+    "SAS",
+    "TAP",
+    "IBE",
+    "ETH",
+    "THY",
+    "ANA",
+    "KAL",
+    "CPA",
+    "AIC",
+    "VIR",
+    "AVA",
+    "TAI",
+    "CMP",
+    "AMX",
+    "ICE"
+   ],
+   "ramps": [
+    "IAD-AB-S",
+    "IAD-AB-N",
+    "IAD-E"
+   ],
+   "gates": [
+    "B",
+    "A",
+    "E"
+   ]
+  }
+ ],
+ "airlinesSource": "Approximate, from flydulles.com and airport guides: United mainline on C and D (then E); United Express on the A gates and the A1-A6 regional pads (1A-6E here); other US carriers on B; international carriers on B and A, then E. \"gates\" narrows a ramp to gate labels starting with those letters. The R ramp is not given out automatically.",
  "notes": [
   "Calling for the push: give callsign, terminal and gate, and first departure fix (\"XYZ 898, A6D, Blues\").",
   "Calling for ramp entry: remain with FAA Ground until switched to ramp. On first contact give callsign, position (taxiway and taxilane approaching) and assigned gate (\"XYZ 898, Kilo approaching Bravo, AIC\").",
