@@ -3,7 +3,7 @@
  "version": 1,
  "name": "Washington Dulles",
  "subtitle": "Stand assignment and push control for the Dulles midfield concourses, E concourse and the R ramp",
- "source": "Dulles midfield terminal ramp chart (user-supplied). x,y are chart pixels (1792x1125), north up. The chart is evenly gridded (~125.8 px per 0.1' lon, ~161 px per 0.1' lat, ~1.15 m/px both ways) and RWY 1C/19C lands within ~10 m of published, so stand lat/lon come from the grid. Gate points are ~12 px past the jet-bridge tip; regional stem gates (1A-6E) and R ramp stands sit at their labels.",
+ "source": "Dulles midfield terminal ramp chart (user-supplied). x,y are chart pixels (1792x1125), north up. The chart is evenly gridded (~125.8 px per 0.1' lon, ~161 px per 0.1' lat, ~1.15 m/px both ways) and RWY 1C/19C lands within ~10 m of published, so stand lat/lon come from the grid. Gate points are ~12 px past the jet-bridge tip; regional stem gates (A1A-A6E) sit at their labels. Checked against VATSIM Radar's gate positions (rms ~20 m); the R ramp rows were moved south to match it (R22-R28 by 43 m, R3-R19 by 26 m), as the chart's R labels sit north of the stands.",
  "telexStation": "KIAD",
  "field": {
   "lat": 38.9445,
@@ -1090,7 +1090,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A5B"
   },
   {
    "id": "5C",
@@ -1103,7 +1104,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A5C"
   },
   {
    "id": "5D",
@@ -1116,7 +1118,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A5D"
   },
   {
    "id": "5A",
@@ -1129,7 +1132,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A5A"
   },
   {
    "id": "3B",
@@ -1142,7 +1146,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A3B"
   },
   {
    "id": "3C",
@@ -1155,7 +1160,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A3C"
   },
   {
    "id": "3A",
@@ -1168,7 +1174,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A3A"
   },
   {
    "id": "1C",
@@ -1181,7 +1188,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A1C"
   },
   {
    "id": "1B",
@@ -1194,7 +1202,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A1B"
   },
   {
    "id": "1D",
@@ -1207,7 +1216,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A1D"
   },
   {
    "id": "1A",
@@ -1220,7 +1230,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A1A"
   },
   {
    "id": "1G",
@@ -1233,7 +1244,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A1G"
   },
   {
    "id": "2G",
@@ -1246,7 +1258,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A2G"
   },
   {
    "id": "6A",
@@ -1259,7 +1272,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A6A"
   },
   {
    "id": "6E",
@@ -1272,7 +1286,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A6E"
   },
   {
    "id": "6B",
@@ -1285,7 +1300,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A6B"
   },
   {
    "id": "6C",
@@ -1298,7 +1314,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A6C"
   },
   {
    "id": "4F",
@@ -1311,7 +1328,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A4F"
   },
   {
    "id": "4E",
@@ -1324,7 +1342,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A4E"
   },
   {
    "id": "4A",
@@ -1337,7 +1356,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A4A"
   },
   {
    "id": "4B",
@@ -1350,7 +1370,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A4B"
   },
   {
    "id": "4C",
@@ -1363,7 +1384,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A4C"
   },
   {
    "id": "2F",
@@ -1376,7 +1398,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A2F"
   },
   {
    "id": "2E",
@@ -1389,7 +1412,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A2E"
   },
   {
    "id": "2A",
@@ -1402,7 +1426,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A2A"
   },
   {
    "id": "2C",
@@ -1415,7 +1440,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A2C"
   },
   {
    "id": "2B",
@@ -1428,7 +1454,8 @@
    "lat": null,
    "lon": null,
    "maxCode": null,
-   "blocks": []
+   "blocks": [],
+   "label": "A2B"
   },
   {
    "id": "D29",
@@ -2475,7 +2502,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 450,
-   "y": 882,
+   "y": 919,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2488,7 +2515,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 512,
-   "y": 882,
+   "y": 919,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2501,7 +2528,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 575,
-   "y": 882,
+   "y": 919,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2514,7 +2541,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 637,
-   "y": 882,
+   "y": 919,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2566,7 +2593,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 596,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2579,7 +2606,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 670,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2592,7 +2619,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 745,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2605,7 +2632,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 822,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2618,7 +2645,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 887,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2631,7 +2658,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 955,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2644,7 +2671,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 1026,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2657,7 +2684,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 1107,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2670,7 +2697,7 @@
    "ramp": "IAD-R",
    "chart": "IAD",
    "x": 1178,
-   "y": 1103,
+   "y": 1125,
    "hdg": null,
    "pushTo": "F",
    "lat": null,
@@ -2763,13 +2790,7 @@
     "IAD-AB-S"
    ],
    "gates": [
-    "A",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6"
+    "A"
    ]
   },
   {
@@ -2838,7 +2859,7 @@
    ]
   }
  ],
- "airlinesSource": "Approximate, from flydulles.com and airport guides: United mainline on C and D (then E); United Express on the A gates and the A1-A6 regional pads (1A-6E here); other US carriers on B; international carriers on B and A, then E. \"gates\" narrows a ramp to gate labels starting with those letters. The R ramp is not given out automatically.",
+ "airlinesSource": "Approximate, from flydulles.com and airport guides: United mainline on C and D (then E); United Express on the A gates and the A1-A6 regional pads (A1A-A6E); other US carriers on B; international carriers on B and A, then E. \"gates\" narrows a ramp to gate labels starting with those letters. The R ramp is not given out automatically.",
  "notes": [
   "Calling for the push: give callsign, terminal and gate, and first departure fix (\"XYZ 898, A6D, Blues\").",
   "Calling for ramp entry: remain with FAA Ground until switched to ramp. On first contact give callsign, position (taxiway and taxilane approaching) and assigned gate (\"XYZ 898, Kilo approaching Bravo, AIC\").",
