@@ -496,7 +496,9 @@ function inSelection(r, sel = selectedRamps()) {
   const st = L.standById.get(r.atStand || r.stand || "");
   if (st) return sel.has(st.ramp);
   if (r.chart) return L.ramps.some(x => x.chart === r.chart && sel.has(x.id));
-  return (r.op.ramps || []).some(id => sel.has(id));
+  // An inbound with no stand: the airline's own gates when the airport lists them, else its operator's ramps.
+  const al = airlineFor(L, r.callsign);
+  return ((al && al.ramps) || r.op.ramps || []).some(id => sel.has(id));
 }
 
 /** [chart, dx, dy, box]: the selected views' charts side by side, each cropped to its selected ramps. */

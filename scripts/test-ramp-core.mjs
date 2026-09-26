@@ -224,7 +224,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA", "index lists KCVG, KIAD and KDCA");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU", "index lists KCVG, KIAD, KDCA and KRDU");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -359,5 +359,21 @@ console.log(`test-ramp-core: ${passed} passed`);
     r = deriveFlights(D, [pl], s4, m5, 2000 + 181000)[0];
     assert(r.atStand === "B21", "after 3 minutes there it counts as parked");
   }
+}
+/* ---------- KRDU ---------- */
+{
+  const R = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KRDU.json", import.meta.url))));
+  assert(R.stands.length === 45, "KRDU 45 stands (C 19, D 17, A 9)");
+  // Longitude comes from the runways, not the chart's misprinted labels. 5L/23R fixed the scale; 5R/23L is the
+  // independent check: its centreline crosses the chart's bottom edge (y 1099) at x ~1311.
+  const g = R.proj.RDU.toLatLon(1311, 1099);
+  const t = (g.lat - 35.8646) / (35.8792 - 35.8646);
+  near(g.lon, -78.7973 + t * (-78.7794 + 78.7973), 0.0002, "KRDU 5R/23L lines up");
+  assert(composeStandTelex(R, "C9") === "KRDU RAMP TOWER: PARK STAND C9. ENTER AT SPOT 6. CTC RAMP TOWER 130.175 AT SPOT 6.", "KRDU T2 telex: " + composeStandTelex(R, "C9"));
+  assert(composeStandTelex(R, "A5") === "KRDU GROUND: PARK STAND A5. ENTER VIA TAXIWAY A. CTC GROUND 121.9.", "KRDU T1 telex: " + composeStandTelex(R, "A5"));
+  const want = { DAL1: "RDU-C", AAL1: "RDU-D", UAL1: "RDU-D", SWA1: "RDU-A", NKS1: "RDU-A" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(R, [], operatorFor(R, cs, ""), cs).ramp === ramp, `KRDU ${cs} on ${ramp}`);
+  assert(operatorFor(R, "DAL1402", "").group === "Terminal", "an airline match sets the operator group (no 'operator ?')");
+  assert(operatorFor(R, "N123AB", "").group === "?", "unknown callsigns stay '?'");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);

@@ -264,6 +264,12 @@ export function operatorFor(L, callsign, remarks) {
       return name === "shared" ? { group: "?", ramps: o.ramps || [] } : { group: name, ramps: o.ramps || [] };
     }
   }
+  // No operator match, but the airport's airline list knows the callsign: its ramps' group.
+  const al = airlineFor(L, callsign);
+  const grp = al && (L.ramps || []).find(r => r.id === al.ramps[0])?.group;
+  if (grp) {
+    return { group: grp, ramps: al.ramps.slice() };
+  }
   return { group: "?", ramps: (L.ramps || []).map(r => r.id) };
 }
 
@@ -635,7 +641,9 @@ export function composeStandTelex(L, standId, { change = false } = {}) {
   const pos = positionForRamp(L, s.ramp);
   // A lane can carry its chart name ("RAMP 3 TAXILANE") and its own frequency (Ramp 3 is 130.375).
   const laneObj = findLane(L, s.chart, s.pushTo);
-  const lane = laneObj?.name || (s.pushTo ? (/^[A-Z0-9]$/.test(s.pushTo) ? `TAXILANE ${s.pushTo}` : s.pushTo) : "");
+  // A lane named "" on purpose (the chart gives it no name) adds no VIA.
+  const lane = laneObj && typeof laneObj.name === "string" ? laneObj.name
+    : (s.pushTo ? (/^[A-Z0-9]$/.test(s.pushTo) ? `TAXILANE ${s.pushTo}` : s.pushTo) : "");
   const freq = laneObj?.freq || pos?.freqs[0];
   const name = s.label || s.id;
   const parts = [`${rampPrefix(L, s)}:`, change ? `STAND CHANGE. NEW STAND ${name}.` : `PARK STAND ${name}.`];
