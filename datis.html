@@ -154,11 +154,13 @@ mountVatflowNav(document.getElementById("vatflowAppNav"), "datis");
 
 const API = "https://datis.clowd.io/api/";
 // The API does not always send CORS headers, so fall back to public CORS proxies
-// (same ones winds-aloft / ERIDS use). The last route that worked is tried first.
+// (allorigins as winds-aloft uses, then codetabs; corsproxy.io last since it now wants an API key).
+// The last route that worked is tried first.
 const ROUTES = [
   { name: "direct", url: u => u },
-  { name: "corsproxy.io", url: u => "https://corsproxy.io/?url=" + encodeURIComponent(u) },
   { name: "allorigins", url: u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) },
+  { name: "codetabs", url: u => "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(u) },
+  { name: "corsproxy.io", url: u => "https://corsproxy.io/?url=" + encodeURIComponent(u) },
 ];
 const FETCH_TIMEOUT_MS = 8000;
 let goodRoute = 0;
@@ -177,20 +179,23 @@ async function fetchJson(url) {
   }
 }
 
+// Errors that come from a proxy (API key, quota, blocked) rather than from the D-ATIS API.
+const PROXY_ERROR_RE = /api key|corsproxy|proxy|rate.?limit|quota|forbidden|unauthori[sz]ed|too many/i;
+
 /** D-ATIS array for an airport, trying direct then the proxies. */
 async function fetchDatis(icao) {
   const target = API + encodeURIComponent(icao);
   const order = [goodRoute, ...ROUTES.keys()].filter((v, i, a) => a.indexOf(v) === i);
-  let apiError = null;
   for (const i of order) {
     let r;
     try { r = await fetchJson(ROUTES[i].url(target)); } catch { continue; }
     if (Array.isArray(r.data) && r.data.length) { goodRoute = i; return r.data; }
-    // The API answered but has nothing for this airport — no point trying other routes.
-    if (r.data && r.data.error) { apiError = r.data.error; goodRoute = i; break; }
+    const err = r.data && typeof r.data.error === "string" ? r.data.error : null;
+    // The D-ATIS API answered but has nothing for this airport — no point trying other routes.
+    // A proxy's own error (e.g. corsproxy.io wanting an API key) just moves on to the next route.
+    if (err && !PROXY_ERROR_RE.test(err)) { goodRoute = i; throw new Error(`No D-ATIS for ${icao} (${err})`); }
   }
-  if (apiError) throw new Error(`No D-ATIS for ${icao} (${apiError})`);
-  throw new Error("Could not reach the D-ATIS API (direct and proxies failed)");
+  throw new Error("Could not reach the D-ATIS API (direct and all proxies failed)");
 }
 const REFRESH_MS = 120000;
 
