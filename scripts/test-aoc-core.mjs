@@ -11,6 +11,7 @@ import {
   createRouteResolver, routeMetrics, routeLength, distToSegmentNm,
 } from "../shared/aoc-core.js";
 import { seedNavData, preferredRoute } from "../shared/route-engine.js";
+import { demoOfpJson, fetchOfp, matchOfp, parseOfp, simbriefUrl } from "../shared/aoc-simbrief.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -297,6 +298,67 @@ function pilot(over) {
   assert(!rows[0].alerts.some(a => a.key === "route") && rows[0].alerts.some(a => a.key === "div-KBHM"), "diverting: no off-route alert");
   const bad = resolve({ ...FP, route: "NOTAFIX J999 ZZZZZ" });
   assert(bad.unresolved.length > 0, "unknown tokens reported");
+}
+
+/* ---------- SimBrief OFP ---------- */
+{
+  assert(simbriefUrl("jsmith") === "https://www.simbrief.com/api/xml.fetcher.php?username=jsmith&json=1", "username URL");
+  assert(simbriefUrl(" 123456 ").includes("userid=123456"), "numeric pilot ID uses userid");
+  assert(parseOfp({ fetch: { status: "Error: Unknown UserID" } }).error === "SimBrief has no user by that name or ID.", "unknown user");
+  assert(parseOfp({ fetch: { status: "Error: No flight plan on file for the specified user" } }).error === "That SimBrief user has no flight plan on file.", "no plan on file");
+  // A SimBrief-shaped reply: strings for numbers, one-element lists as bare objects, epoch-second times.
+  const raw = {
+    fetch: { status: "Success" },
+    params: { request_id: "123", time_generated: "1790000000", units: "kgs" },
+    general: { icao_airline: "DAL", flight_number: "401", route: "AKUNA9 MLC", initial_altitude: "36000", costindex: "25", route_distance: "712" },
+    atc: { callsign: "DAL401" },
+    origin: { icao_code: "KDFW", plan_rwy: "17R" }, destination: { icao_code: "KATL", plan_rwy: "26R" },
+    alternate: { icao_code: "KBHM" },
+    aircraft: { icaocode: "A321", reg: "N301DN" },
+    fuel: { plan_ramp: "12400", taxi: "200", enroute_burn: "7100", contingency: "360", alternate_burn: "1500", reserve: "1400", extra: "", min_takeoff: "12200", plan_landing: "5100" },
+    weights: { pax_count: "180", cargo: "2100", est_zfw: "68300", est_tow: "80500", est_ldw: "73400", max_tow: "93500" },
+    times: { sched_out: "1790003600", sched_in: "1790012000", est_time_enroute: "6300" },
+    navlog: { fix: { ident: "MLC", pos_lat: "34.8", pos_long: "-95.7", time_total: "2400", fuel_plan_onboard: "9000" } },
+    tlr: {
+      takeoff: { conditions: { planned_runway: "17R", planned_weight: "80500" },
+        runway: [{ identifier: "13L", speeds_v1: "130" }, { identifier: "17R", flap_setting: "CONF 1+F", thrust_setting: "FLEX", flex_temperature: "48", speeds_v1: "141", speeds_vr: "143", speeds_v2: "147" }] },
+      landing: { conditions: { planned_runway: "26R", planned_weight: "73400" }, distance_dry: { flap_setting: "CONF FULL", speeds_vref: "134", factored_distance: "5600" } },
+    },
+  };
+  const o = parseOfp(raw);
+  assert(o.ok && o.units === "KGS" && o.callsign === "DAL401", "parsed header and units");
+  assert(o.fuel.ramp === 12400 && o.fuel.trip === 7100 && o.fuel.extra === null, "fuel numbers; blank is null");
+  assert(o.weights.pax === 180 && o.weights.tow === 80500, "weights");
+  assert(o.times.schedOut === 1790003600000 && o.times.eetMin === 105, "epoch seconds to ms, EET in minutes");
+  assert(o.navlog.length === 1 && o.navlog[0].ident === "MLC" && o.navlog[0].timeTotal === 2400, "single navlog fix as an object");
+  assert(o.altn === "KBHM" && o.type === "A321" && o.reg === "N301DN", "alternate and aircraft");
+  assert(o.tlr.takeoff.runway === "17R" && o.tlr.takeoff.v1 === 141 && o.tlr.takeoff.flex === 48, "takeoff data for the planned runway");
+  assert(o.tlr.landing.runway === "26R" && o.tlr.landing.vref === 134, "landing data");
+  assert(parseOfp({ ...raw, tlr: undefined }).tlr === null, "no TLR without runway analysis");
+  // Match against the live flight.
+  const row = { callsign: "DAL401", dep: "KDFW", arr: "KATL", type: "A321" };
+  assert(matchOfp(o, row, 1790000000000 + 3600000).ok, "matching OFP");
+  const mm = matchOfp(o, { ...row, callsign: "DAL402", arr: "KMCO" }, 1790000000000 + 30 * 3600000);
+  assert(!mm.ok && mm.issues.length === 3, `callsign, destination and age flagged (${mm.issues.join("; ")})`);
+  // Telex from the OFP.
+  const W2 = makeWatch(OPS, "DAL");
+  const ls = composeTelex("loadsheet", W2, row, { ofp: o });
+  assert(ls === "DAL OPS: LOADSHEET DAL401 KDFW-KATL A321 N301DN. PAX 180. ZFW 68.3 TOW 80.5 LDW 73.4. BLOCK FUEL 12.4 TRIP 7.1. KGS X1000. CI 25.", `loadsheet text: ${ls}`);
+  const to = composeTelex("todata", W2, row, { ofp: o });
+  assert(to === "DAL OPS: T/O DATA KDFW RWY 17R. TOW 80.5. CONF 1+F. FLEX 48. V1 141 VR 143 V2 147. FROM SIMBRIEF, VERIFY.", `takeoff text: ${to}`);
+  assert(composeTelex("lddata", W2, row, { ofp: o }) === "DAL OPS: LDG DATA KATL RWY 26R. LDW 73.4. CONF FULL. VREF 134. FROM SIMBRIEF, VERIFY.", "landing text");
+  assert(/RUNWAY ANALYSIS OFF/.test(composeTelex("todata", W2, row, { ofp: parseOfp({ ...raw, tlr: undefined }) })), "says when there is no TLR");
+  for (const id of ["loadsheet", "todata", "lddata"]) assert(composeTelex(id, W2, { ...row, callsign: "DAL4011" }, { ofp: o }).length <= TELEX_MAX, `${id} fits`);
+  // Demo OFP round-trips through the same parser.
+  const d = parseOfp(demoOfpJson({ callsign: "AAL100", dep: "KDFW", arr: "KATL", altn: "KBHM", type: "A321", distTotal: 700, filedAlt: 36000, std: 1790000000000 }));
+  assert(d.ok && d.callsign === "AAL100" && d.tlr.takeoff.v1 && d.fuel.ramp > d.fuel.trip && d.weights.tow > d.weights.zfw, "demo OFP");
+  assert(d.weights.zfw < d.weights.maxZfw && d.weights.tow < d.weights.maxTow && d.weights.ldw < d.weights.maxLdw, "demo OFP within its limits");
+  // fetchOfp: network error and HTTP 400 handled.
+  const e1 = await fetchOfp("x", async () => { throw new Error("offline"); });
+  assert(!e1.ok && /could not be reached/.test(e1.error), "network error");
+  const e2 = await fetchOfp("x", async () => ({ status: 400, json: async () => ({ fetch: { status: "Error: Unknown UserID" } }) }));
+  assert(!e2.ok && /no user/.test(e2.error), "unknown user over HTTP");
+  assert(!(await fetchOfp("  ")).ok, "blank username");
 }
 
 console.log(`test-aoc-core: ${passed} checks passed`);
