@@ -193,6 +193,12 @@
   .flash.err { color: #ff9b9b; }
   .flash.ok { color: #9fe8bd; }
   .hoppieLine { font-size: 11.5px; padding: 0 12px 4px; }
+  .ofp { padding: 2px 12px 6px; font-size: 12px; }
+  .ofp .g { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 10px; margin: 4px 0 6px; }
+  .ofp .k { font-size: 10.5px; color: var(--muted); }
+  .ofp .v { font-weight: 650; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+  .ofp .v.over { color: #ff9b9b; }
+  .ofp .h { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
   .roNote { margin: 2px 12px 4px; padding: 6px 9px; border-radius: 6px; font-size: 11.5px; border: 1px solid #6a5320; color: #f0cf85; background: #1f190b; }
 
   /* messages */
@@ -347,6 +353,7 @@ import { createDemoStore, AIR_ACCEL } from "./shared/aoc-demo.js";
 import { createLiveStore } from "./shared/aoc-live.js";
 import { getNavMeta, isNavReady, loadNavData, preferredRoute } from "./shared/route-engine.js";
 import { fetchMetar as fetchMetarText } from "./shared/erids-data.js";
+import { demoOfpJson, fetchOfp, matchOfp, parseOfp } from "./shared/aoc-simbrief.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
 
@@ -415,6 +422,13 @@ let readAt = {};
 let routeFor = () => null;
 let navState = "loading";
 const metarCache = new Map();
+/**
+ * SimBrief per callsign: {user, ofp, error, loading, at}. The username is kept in
+ * this browser only (vatflow.aoc.sb.<CODE>), never sent to the hub.
+ */
+const sb = new Map();
+let sbRev = 0;
+let sbUsers = {};
 
 /* ---------------- map ---------------- */
 const map = L.map("map", { zoomControl: true, worldCopyJump: true, minZoom: 2, attributionControl: true, preferCanvas: false })
@@ -742,7 +756,86 @@ function defaultTelex(r, tpl, arg) {
     if (!c) { fetchMetar(icao); return composeTelex("wx", W, r, { icao, metar: `${icao} METAR LOADING...` }); }
     return composeTelex("wx", W, r, { icao, metar: c.text });
   }
-  return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg) });
+  return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg), ofp: sb.get(r.callsign)?.ofp || null });
+}
+
+/* ---------------- SimBrief ---------------- */
+async function loadOfp(r, user) {
+  user = String(user || "").trim();
+  const cs = r.callsign;
+  const cur = { ...(sb.get(cs) || {}), user, loading: true, error: "" };
+  sb.set(cs, cur);
+  sbRev++;
+  sbUsers[cs] = user;
+  LS.set(`vatflow.aoc.sb.${W.code}`, JSON.stringify(sbUsers));
+  ui.selSig = "";
+  scheduleRender();
+  // Demo flights have no SimBrief account: "DEMO" makes a plan from the flight itself.
+  const res = store.mode === "demo" && /^demo$/i.test(user)
+    ? parseOfp(demoOfpJson(r))
+    : await fetchOfp(user);
+  sb.set(cs, { user, loading: false, ofp: res.ok ? res : null, error: res.ok ? "" : res.error, at: Date.now() });
+  sbRev++;
+  if (!ui.composer.dirty) ui.composer.text = "";
+  ui.selSig = "";
+  scheduleRender();
+}
+
+const n0 = v => (v == null ? "—" : Math.round(v).toLocaleString("en-US"));
+const hm = min => (min == null ? "—" : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`);
+
+function ofpSection(r) {
+  const e = sb.get(r.callsign) || { user: sbUsers[r.callsign] || "" };
+  const o = e.ofp;
+  const hint = store.mode === "demo" ? "try DEMO" : "SimBrief username or ID";
+  let body = "";
+  if (e.loading) body = '<div class="muted">Fetching the latest OFP…</div>';
+  else if (e.error) body = `<div style="color:#ff9b9b">${esc(e.error)}</div>`;
+  else if (o) {
+    const m = matchOfp(o, r);
+    const w = o.weights, f = o.fuel, t = o.times, tl = o.tlr;
+    const over = (v, max) => (v != null && max != null && v > max ? " over" : "");
+    body = `
+      ${m.ok ? "" : `<div class="alertRow warn" style="margin:2px 0 6px">⚠ May be another flight's plan: ${esc(m.issues.join("; "))}</div>`}
+      <div class="muted">Generated ${o.generated ? zulu(o.generated) : "?"} · ${esc([o.callsign, `${o.orig}-${o.dest}`, o.type, o.reg].filter(Boolean).join(" · "))}
+        ${o.costIndex ? ` · CI ${esc(o.costIndex)}` : ""}${o.initialAlt ? ` · FL${String(Math.round(o.initialAlt / 100)).padStart(3, "0")}` : ""}${o.distance ? ` · ${n0(o.distance)} nm` : ""}</div>
+      <div class="h">Fuel (${o.units})</div>
+      <div class="g">
+        <div><div class="k">Block</div><div class="v">${n0(f.ramp)}</div></div>
+        <div><div class="k">Trip</div><div class="v">${n0(f.trip)}</div></div>
+        <div><div class="k">Taxi</div><div class="v">${n0(f.taxi)}</div></div>
+        <div><div class="k">Min T/O</div><div class="v">${n0(f.minTakeoff)}</div></div>
+        <div><div class="k">Cont</div><div class="v">${n0(f.contingency)}</div></div>
+        <div><div class="k">Altn${o.altn ? " " + esc(o.altn) : ""}</div><div class="v">${n0(f.alternate)}</div></div>
+        <div><div class="k">Reserve</div><div class="v">${n0(f.reserve)}</div></div>
+        <div><div class="k">Extra</div><div class="v">${n0(f.extra)}</div></div>
+      </div>
+      <div class="h">Weights (${o.units})</div>
+      <div class="g">
+        <div><div class="k">Pax / cargo</div><div class="v">${n0(w.pax)} / ${n0(w.cargo)}</div></div>
+        <div><div class="k">ZFW</div><div class="v${over(w.zfw, w.maxZfw)}">${n0(w.zfw)}</div></div>
+        <div><div class="k">TOW${w.maxTow ? ` (max ${n0(w.maxTow)})` : ""}</div><div class="v${over(w.tow, w.maxTow)}">${n0(w.tow)}</div></div>
+        <div><div class="k">LDW${w.maxLdw ? ` (max ${n0(w.maxLdw)})` : ""}</div><div class="v${over(w.ldw, w.maxLdw)}">${n0(w.ldw)}</div></div>
+      </div>
+      <div class="h">Times</div>
+      <div class="g">
+        <div><div class="k">Sched out</div><div class="v">${t.schedOut ? zulu(t.schedOut) : "—"}</div></div>
+        <div><div class="k">Sched in</div><div class="v">${t.schedIn ? zulu(t.schedIn) : "—"}</div></div>
+        <div><div class="k">Air time</div><div class="v">${hm(t.eetMin)}</div></div>
+        <div><div class="k">Block time</div><div class="v">${hm(t.blockMin)}</div></div>
+      </div>
+      ${tl ? `<div class="h">Runway analysis</div><div class="g">
+        ${tl.takeoff ? `<div style="grid-column:span 2"><div class="k">Takeoff ${esc(o.orig)} ${esc(tl.takeoff.runway)}</div><div class="v">${esc(tl.takeoff.flaps || "")}${tl.takeoff.flex != null ? " FLEX " + tl.takeoff.flex : ""} · ${tl.takeoff.v1 ?? "-"}/${tl.takeoff.vr ?? "-"}/${tl.takeoff.v2 ?? "-"}</div></div>` : ""}
+        ${tl.landing ? `<div style="grid-column:span 2"><div class="k">Landing ${esc(o.dest)} ${esc(tl.landing.runway || "")}</div><div class="v">${esc(tl.landing.flaps || "")} · VREF ${tl.landing.vref ?? "-"}</div></div>` : ""}
+      </div>` : '<div class="muted" style="margin-top:4px">No takeoff/landing data: the pilot had SimBrief\'s Runway Analysis off.</div>'}`;
+  }
+  return `<div class="sec">SimBrief OFP</div>
+    <div class="row">
+      <input class="arg" id="sbUser" placeholder="${hint}" style="width:170px;text-transform:none" value="${esc(e.user || "")}" autocomplete="off" spellcheck="false">
+      <button class="btn" id="bSbFetch" ${e.loading ? "disabled" : ""}>${o ? "Refresh" : "Fetch latest"}</button>
+      ${e.at ? `<span class="muted" style="font-size:11px">fetched ${zulu(e.at)}</span>` : ""}
+    </div>
+    <div class="ofp">${body}</div>`;
 }
 
 /**
@@ -791,7 +884,7 @@ function renderSelected(state) {
   // Rebuild only when something shown changes (keeps typing and focus).
   const sig = JSON.stringify([r.callsign, r.phase, r.dep, r.arr, r.altn, fmtT(r.eta), r.delay, r.out, r.off, r.on, r.in, Math.round(r.alt / 500),
     Math.round(r.gs / 10), r.squawk, r.nextFix, !!r.routeAnchors, Math.round(r.xtNm || 0), navState, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
-    e.note, (e.msgs || []).length, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
+    e.note, (e.msgs || []).length, sbRev, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
   const keep = { focus: document.activeElement?.id, selStart: document.activeElement?.selectionStart, note: $("noteText")?.value,
@@ -825,13 +918,14 @@ function renderSelected(state) {
       <div><div class="k">To go</div><div class="v">${r.distToGo != null && !r.on ? Math.round(r.distToGo) + " nm" : "—"}${r.squawk ? ` <span class="muted" style="font-weight:500;font-size:11px">sq ${esc(r.squawk)}</span>` : ""}</div></div>
     </div>
     ${routeSection(r)}
+    ${ofpSection(r)}
     <div class="sec">Dispatcher note</div>
     <div class="row"><textarea class="note" id="noteText" maxlength="500" placeholder="Shared with every dispatcher on ${esc(W.code)}" ${dis}></textarea></div>
     <div class="row"><button class="btn" id="bNote" ${dis}>Save note</button></div>
     ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || "Sending telex needs the dispatcher role for this operator.")}</div>`}
     <div class="sec">Telex via Hoppie</div>
     <div class="row">
-      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join("")}</select>
+      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}"${t.ofp && !sb.get(r.callsign)?.ofp ? " disabled" : ""}>${esc(t.label)}</option>`).join("")}</select>
       ${argLabel ? `<input class="arg" id="tlxArg" placeholder="${argLabel}" maxlength="6" ${dis}>` : ""}
       <span class="count" id="tlxCount"></span>
     </div>
@@ -979,15 +1073,23 @@ $("selected").addEventListener("input", e => {
       $("tlxText").value = ui.composer.text;
       updateCount();
     }
+  } else if (e.target.id === "sbUser") {
+    const cur = sb.get(ui.selected) || {};
+    sb.set(ui.selected, { ...cur, user: e.target.value });
   } else if (e.target.id === "noteText") {
     ui.noteDirty = true;
   }
+});
+$("selected").addEventListener("keydown", e => {
+  if (e.target.id === "sbUser" && e.key === "Enter") $("bSbFetch")?.click();
 });
 $("selected").addEventListener("click", async e => {
   const r = rows.find(x => x.callsign === ui.selected);
   const t = e.target.closest("button");
   if (!r || !t || t.disabled) return;
-  if (t.id === "bLocate") {
+  if (t.id === "bSbFetch") {
+    await loadOfp(r, $("sbUser").value);
+  } else if (t.id === "bLocate") {
     map.setView([r.lat, r.lon], Math.max(map.getZoom(), 7));
   } else if (t.dataset.ack) {
     await doOp({ op: "ack", callsign: r.callsign, key: t.dataset.ack }, "Alert acknowledged.");
@@ -998,6 +1100,11 @@ $("selected").addEventListener("click", async e => {
     const text = ($("tlxText").value || "").trim().toUpperCase();
     if (!text || text === `${W.code} OPS:`) { ui.flash = { text: "Write a message first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
     if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    if (/NO SIMBRIEF OFP LOADED|RUNWAY ANALYSIS OFF/.test(text)) {
+      ui.flash = { text: "Fetch the pilot's SimBrief OFP first (with Runway Analysis on for takeoff or landing data).", kind: "err" };
+      ui.selSig = "";
+      return scheduleRender();
+    }
     if (/METAR LOADING\.\.\.|ENTER A 4-LETTER ICAO|METAR NOT AVAILABLE/.test(text)) {
       ui.flash = { text: /LOADING/.test(text) ? "The METAR is still loading." : "No METAR to send: check the ICAO, or try again in a moment.", kind: "err" };
       ui.selSig = "";
@@ -1119,6 +1226,7 @@ function setMode(mode) {
   ui.selected = null;
   ui.selSig = "";
   ui.msgSig = "";
+  sb.clear();
   ui.flash = { text: "", kind: "" };
   for (const m of markers.values()) acLayer.removeLayer(m.marker);
   markers.clear();
@@ -1166,6 +1274,8 @@ function loadOperator(code, callsigns) {
   LS.set(`vatflow.aoc.watch.${code}`, JSON.stringify([...W.callsigns]));
   LS.set("vatflow.aoc.recent", JSON.stringify([code, ...recentOps().filter(c => c !== code)].slice(0, 8)));
   readAt = jsonLS(`vatflow.aoc.read.${code}`, {});
+  sbUsers = jsonLS(`vatflow.aoc.sb.${code}`, {});
+  sb.clear();
   $("opCode").value = code;
   $("ttlCode").textContent = code;
   $("ttlSub").textContent = W.known ? `${W.name} · ${W.telephony}` : "Custom operator: flights whose callsign starts with " + code;
