@@ -272,3 +272,29 @@ Real airlines do this by the crew sending weights over ACARS and a performance s
 Suggested order: SimBrief (done), then a SET-style fuel estimate for flights without an OFP, then OpenAP on the hub only if the estimate isn't good enough.
 
 Sources: [Navigraph: fetching OFP data](https://developers.navigraph.com/docs/simbrief/fetching-ofp-data) · [Navigraph forum: XML fetching TLR](https://forum.navigraph.com/t/xml-fetching-tlr/17004) · [SimBrief performance calculators](https://fsnews.eu/simbrief-performance-calculators-released/) · [EUROCONTROL SET](https://www.eurocontrol.int/tool/small-emitters-tool-set) · [Boeing Cascade: fuel burn (SET formula)](https://docs.cascade.boeing.com/docs/baseCalculations/fuelBurnEnergyEmissions.html) · [ICAO calculator methodology v13.1](https://icec.icao.int/Documents/Methodology%20ICAO%20Carbon%20Emissions%20Calculator_v13_Final.pdf) · [OpenAP](https://github.com/junzis/openap) · [FlyByWire flyPad performance](https://docs.flybywiresim.com/aircraft/common/flypados3/performance/) · [FlyByWire aircraft (GPL-3)](https://github.com/flybywiresim/aircraft) · [Flex Calculator TS](https://github.com/jbud/Flex-Calculator-TS)
+
+---
+
+## 14. Airport boards (all airlines at one field) and the ICAO fuel estimate
+
+### 14.1 Airport board
+
+For events: the rail's **Watch** switch has **Airline** and **Airport**. An airport board (`aoc.html?apt=KDFW&dir=both`) shows every airline's flights to or from that field, with an **Arrivals / Departures / Both** toggle. Each row names the airline (from `operators.json`, regional partners included) and says outbound or inbound. An arrival that diverts elsewhere stays on the board ("was inbound, now KOKC"), with its diversion alert.
+
+- Telex goes out from `<FAA id>OPS` for US airports (**DFWOPS**, text `DFW OPS: ...`), `<ICAO>OPS` elsewhere (`PANCOPS`, `EGLLOPS`).
+- Dispatcher role: grant the airport's ICAO code (`KDFW`) on Admin Access, or `*`. An airline code does not cover an airport board, nor the reverse.
+- Hub: `/hub/aoc/*` takes `airport: "KDFW"` instead of `op`. The board is kept as `@KDFW`, apart from any airline board.
+- The browser keeps each board's memory, watch list, telex read marks and SimBrief usernames apart (`AAL` and `@KDFW`).
+- Demo: an airport board flies 36 flights across all the airlines in `operators.json`, each starting or ending at the field.
+
+### 14.2 Fuel estimate for flights with no SimBrief OFP
+
+`data/aoc/icao-fuel.json` holds ICAO's published fuel table: the ICAO Carbon Emissions Calculator methodology v13.1, Appendix C, which gives fuel burned (kg) for 327 equivalent aircraft types at 125 to 8,500 nm. `scripts/build-icao-fuel.mjs` extracts it from the PDF and maps 104 ICAO designators to it (A20N → 32N, B38M → 7M8, E75L → E75...). It is the same idea as EUROCONTROL's SET (fuel from type and distance, straight lines between points), with data that is published openly.
+
+`shared/aoc-fuel.js`:
+- distance: the filed route's length when the route could be drawn; otherwise great circle plus ICAO's allowance (+50 km under 550 km, +100 km to 5,500 km, +125 km beyond);
+- trip = the table at that distance; alternate = the table at destination → alternate (great circle + allowance); reserve = 45 min at the cruise burn the table implies; **min fuel** = trip + alternate + reserve. No contingency;
+- shown in the SimBrief section when no OFP is loaded, in LBS or KGS (a switch, remembered per browser), with a **Fuel estimate (ICAO table)** telex:
+  `DFW OPS: FUEL EST KLAX-KDFW A320 1071NM. TRIP 8.2 ALTN 2.6 RES 45MIN 2.1. MIN FUEL 12.9 KGS X1000. ESTIMATE, VERIFY.`
+
+Checks: every mapped type's row rises with distance; 737-800 DFW–ATL comes out at about 5.8 t with a cruise burn near 2.9 t/h. The table's short-distance values include take-off and landing, so short legs (and the alternate) run on the high side: conservative for a sanity check.

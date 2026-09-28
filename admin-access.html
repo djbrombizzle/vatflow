@@ -61,12 +61,13 @@
       <h2>Dispatch Center dispatchers</h2>
       <p class="muted">
         Dispatchers send company telex and shared notes on the <a href="aoc.html" style="color:#8ab4ff">Airline Ops</a> page
-        for the operator codes listed (AAL, DAL, a virtual airline's own code), or <b>*</b> for all. This is separate
+        for the codes listed: an airline (AAL, DAL, a virtual airline's own code), an airport board for events
+        (KDFW: every airline in and out of it, telex DFWOPS), or <b>*</b> for all. This is separate
         from ARTCC access: it grants nothing else. Global admins can dispatch any code.
       </p>
       <div class="row">
         <input id="dspCid" inputmode="numeric" maxlength="9" placeholder="VATSIM CID">
-        <input id="dspOps" placeholder="Operator codes, e.g. AAL, DAL or *" style="text-transform:uppercase;min-width:200px">
+        <input id="dspOps" placeholder="Codes, e.g. AAL, DAL, KDFW or *" style="text-transform:uppercase;min-width:200px">
         <input id="dspNote" placeholder="Note (optional)" style="flex:1;min-width:140px">
         <button id="dspAdd">Add / Update</button>
       </div>
