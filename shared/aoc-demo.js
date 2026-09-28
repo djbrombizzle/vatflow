@@ -5,7 +5,9 @@
  * It produces VATSIM-feed-shaped pilots and prefiles, so the page derives
  * phases exactly as it does from the live feed, and keeps the shared state
  * with the same applyOp() reducer the hub mirrors. Flights push, taxi, fly
- * great circles (time in the air runs AIR_ACCEL times faster), land, park and
+ * their filed routes (FAA preferred routes where the pair has one, expanded
+ * like any live flight plan; else a great circle; time in the air runs
+ * AIR_ACCEL times faster), land, park and
  * turn around. One holds, one diverts, one squawks 7700, one drops off the
  * network for two minutes, and two are not on Hoppie. Simulated pilots send
  * requests and answer telex that ask for a reply. Nothing leaves the browser.
@@ -38,8 +40,9 @@ function minToHhmm(min) {
  * @param W watch (makeWatch)
  * @param info the operator's entry in operators.json, or null
  * @param A icao -> {lat, lon} | null
+ * @param routes optional {text(dep, arr) -> route string or "", path(dep, arr, route) -> [[lat, lon]…] or null}
  */
-export function createDemoStore(W, info, A) {
+export function createDemoStore(W, info, A, routes = null) {
   const code = W.code || "DMO";
   const hubs = ((info && info.hubs) || []).filter(A);
   const hubList = hubs.length ? hubs : US_AIRPORTS.filter(A).slice(0, 8);
@@ -116,16 +119,36 @@ export function createDemoStore(W, info, A) {
     return dist < 300 ? 24000 : dist < 600 ? 32000 : pick([34000, 36000, 38000]);
   }
 
+  /** Filed route for a pair, and the leg's length along it. */
+  function filedRoute(dep, arr) {
+    const route = (routes && routes.text(dep, arr)) || "DCT";
+    const pts = routePts(dep, arr, route);
+    return { route, dist: pathLen(pts) };
+  }
+
+  function routePts(dep, arr, route) {
+    const p = routes && route !== "DCT" ? routes.path(dep, arr, route) : null;
+    return p && p.length >= 2 ? p : [[A(dep).lat, A(dep).lon], [A(arr).lat, A(arr).lon]];
+  }
+
+  function pathLen(pts) {
+    let d = 0;
+    for (let i = 1; i < pts.length; i++) d += distNm(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
+    return d;
+  }
+
   function makeAc(i) {
     const { cs, reg, rmk } = newCallsign(i);
-    const { dep, arr, dist } = pickRoute(reg);
+    const pr = pickRoute(reg);
+    const { dep, arr } = pr;
+    const { route, dist } = filedRoute(dep, arr);
     const type = pick(reg ? fleet.regional || fleet.mainline : fleet.mainline);
     const eetMin = (dist / 440) * 60 + 20;
     return {
-      cs, cid: 1500000 + i, type, dep, arr, altn: altnFor(arr), cruise: cruiseFor(dist), dist,
+      cs, cid: 1500000 + i, type, dep, arr, route, altn: altnFor(arr), cruise: cruiseFor(dist), dist,
       rmk: `/V/ ${rmk}`.trim(), eet: minToHhmm(eetMin), fuel: minToHhmm(eetMin + 75), deptime: "",
       stage: "gate", until: 0, lat: A(dep).lat, lon: A(dep).lon, hdg: 0, alt: 500, gs: 0, sq: String(1000 + Math.floor(rnd(0, 6000))).replace(/[89]/g, "1"),
-      from: null, to: null, d: 0, total: 0, hidden: 0, special: "",
+      pts: null, cum: null, d: 0, total: 0, hidden: 0, special: "",
     };
   }
 
@@ -134,19 +157,41 @@ export function createDemoStore(W, info, A) {
     ac.lat = p.lat; ac.lon = p.lon; ac.gs = 0; ac.alt = 500; ac.hdg = Math.floor(rnd(0, 360));
   }
 
-  function setLeg(ac, dist = null) {
-    ac.from = { lat: ac.lat, lon: ac.lon };
-    ac.to = A(ac.arr);
+  /**
+   * The leg to fly: `pts` ([[lat, lon]…]), or straight from where the aircraft
+   * is to its arrival (a diversion, or leaving a hold).
+   */
+  function setLeg(ac, pts = null) {
+    ac.pts = pts || [[ac.lat, ac.lon], [A(ac.arr).lat, A(ac.arr).lon]];
+    ac.cum = [0];
+    for (let i = 1; i < ac.pts.length; i++) ac.cum.push(ac.cum[i - 1] + distNm(ac.pts[i - 1][0], ac.pts[i - 1][1], ac.pts[i][0], ac.pts[i][1]));
     ac.d = 0;
-    ac.total = dist ?? distNm(ac.lat, ac.lon, ac.to.lat, ac.to.lon);
+    ac.total = ac.cum[ac.cum.length - 1];
+  }
+
+  /** The filed route, from where the aircraft is now (the end of its takeoff roll). */
+  function setFiledLeg(ac) {
+    const pts = routePts(ac.dep, ac.arr, ac.route).slice();
+    pts[0] = [ac.lat, ac.lon];
+    setLeg(ac, pts);
+  }
+
+  function posAt(ac, d) {
+    d = Math.max(0, Math.min(ac.total, d));
+    let i = 1;
+    while (i < ac.cum.length - 1 && ac.cum[i] < d) i++;
+    const seg = ac.cum[i] - ac.cum[i - 1];
+    const f = seg > 0 ? (d - ac.cum[i - 1]) / seg : 1;
+    const a = ac.pts[i - 1], b = ac.pts[i];
+    return gcPoint({ lat: a[0], lon: a[1] }, { lat: b[0], lon: b[1] }, f);
   }
 
   /** Put an airborne flight a fraction f of the way along its leg, with a matching altitude and speed. */
   function placeAirborne(ac, f) {
     ac.lat = A(ac.dep).lat; ac.lon = A(ac.dep).lon;
-    setLeg(ac);
+    setFiledLeg(ac);
     ac.d = ac.total * f;
-    const p = gcPoint(ac.from, ac.to, f);
+    const p = posAt(ac, ac.d);
     ac.lat = p.lat; ac.lon = p.lon;
     ac.alt = targetAlt(ac);
     ac.gs = targetGs(ac);
@@ -167,8 +212,8 @@ export function createDemoStore(W, info, A) {
   }
 
   function headingOn(ac) {
-    const a = gcPoint(ac.from, ac.to, Math.min(1, ac.d / ac.total));
-    const b = gcPoint(ac.from, ac.to, Math.min(1, (ac.d + 2) / ac.total));
+    const a = posAt(ac, ac.d);
+    const b = posAt(ac, ac.d + 2);
     return Math.round(bearing(a.lat, a.lon, b.lat, b.lon)) || ac.hdg;
   }
 
@@ -288,7 +333,7 @@ export function createDemoStore(W, info, A) {
           ac.stage = "air";
           ac.gs = 160;
           ac.alt = 900;
-          setLeg(ac);
+          setFiledLeg(ac);
         }
         break;
       }
@@ -346,7 +391,7 @@ export function createDemoStore(W, info, A) {
     ac.alt += Math.max(-rate, Math.min(rate, want - ac.alt));
     const gsWant = targetGs(ac);
     ac.gs += Math.max(-6 * dt, Math.min(6 * dt, gsWant - ac.gs));
-    const p = gcPoint(ac.from, ac.to, ac.total ? ac.d / ac.total : 1);
+    const p = posAt(ac, ac.d);
     ac.lat = p.lat; ac.lon = p.lon;
     ac.hdg = headingOn(ac);
     const frac = ac.total ? 1 - r / ac.total : 1;
@@ -360,6 +405,7 @@ export function createDemoStore(W, info, A) {
       ac.special = "";
       ac.arr = ac.altn;
       ac.altn = "";
+      ac.route = "DCT";
       setLeg(ac);
       replies.push({ at: now + 2000, cs: ac.cs, text: `DIVERTING TO ${ac.arr} MEDICAL ON BOARD` });
       return;
@@ -381,7 +427,9 @@ export function createDemoStore(W, info, A) {
     ac.dep = ac.arr;
     ac.arr = back;
     ac.altn = altnFor(ac.arr);
-    ac.dist = distNm(A(ac.dep).lat, A(ac.dep).lon, A(ac.arr).lat, A(ac.arr).lon);
+    const fr = filedRoute(ac.dep, ac.arr);
+    ac.route = fr.route;
+    ac.dist = fr.dist;
     ac.cruise = cruiseFor(ac.dist);
     const eetMin = (ac.dist / 440) * 60 + 20;
     ac.eet = minToHhmm(eetMin);
@@ -397,7 +445,7 @@ export function createDemoStore(W, info, A) {
     return {
       flight_rules: "I", aircraft_short: ac.type, departure: ac.dep, arrival: ac.arr, alternate: ac.altn || "",
       deptime: ac.deptime, enroute_time: ac.eet, fuel_time: ac.fuel, altitude: String(ac.cruise),
-      route: "DCT", remarks: ac.rmk,
+      route: ac.route, remarks: ac.rmk,
     };
   }
 
@@ -447,6 +495,7 @@ export function createDemoStore(W, info, A) {
       ac.arr = div[1];
       ac.stage = "air";
       ac.special = "";
+      ac.route = "DCT";
       setLeg(ac);
       const eta = now + ((ac.total / Math.max(200, ac.gs)) * 3600000) / AIR_ACCEL;
       return `WILCO DIVERTING ${ac.arr} ETA ${zulu(eta)} FUEL ${rnd(5, 9).toFixed(1)}`;

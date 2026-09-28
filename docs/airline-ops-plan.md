@@ -15,7 +15,7 @@ A new page, **Airline Ops** (`aoc.html?op=AAL`), under a new **Dispatch Center**
 | --- | --- |
 | **Header** | Operator name, DEMO / LIVE, counters, feed/hub pill, Zulu clock. |
 | **Counters** | Scheduled · Ground · Enroute · Arriving · Arrived (last 2 h) · Alerts, the same groups as the board's tabs. |
-| **Ops map** | World/regional Leaflet map on the existing dark basemap (`shared/vatflow-basemap.js`). Every flight as a heading-rotated icon coloured by phase, with a short datablock (callsign, FL, GS). The selected flight shows its flown track, its remaining great-circle (or filed route, where `route-engine.js` can expand it) and its destination. Hubs are marked. |
+| **Ops map** | World/regional Leaflet map on the existing dark basemap (`shared/vatflow-basemap.js`). Every flight as a heading-rotated icon coloured by phase, with a short datablock (callsign, FL, GS). The selected flight shows its flown track, its whole filed route (faint), what is left of it (dashed, from the aircraft), its fixes coloured by kind as in FCA builder, and the next fix labelled. Hubs are marked. |
 | **Status board** (the "Flights" card) | One row per flight: callsign, type, reg (if filed in remarks), DEP→ARR, phase, **OOOI** times (Out/Off/On/In), STD/ETD, ETA, delay, FL/GS, ACARS dot, last telex. Tabs: All · Scheduled · Ground · Enroute · Arriving · Arrived · Alerts. Search. |
 | **Selected flight** | Facts (route, filed vs. actual times, remaining distance, ETA), alerts, a TELEX composer with templates, and that flight's message log. |
 | **TELEX / Messages** (third card, where Ramp has the push queue) | The ops station's inbox and outbox across all flights, newest first. Unread downlinks flash. Click one to select the flight. |
@@ -35,7 +35,7 @@ Read-only for everyone. Only dispatchers the hub authorises (see §6) can send t
 | `composeStandTelex` / `parseDownlink` pattern in `ramp-core.js` | DOM-free `shared/aoc-messages.js`: templates with the same 220-char budget, downlink classifier, unit tests. |
 | `shared/vatflow-basemap.js` + Leaflet | The ops map. |
 | `data/nav/runways.json` | Airport reference points worldwide (runway thresholds → centroid) for great-circle distance, ETA and "at the airport" checks, with no new data file. |
-| `shared/route-engine.js` | Expanding a filed route into points for the route line (US routes; elsewhere fall back to great circle). |
+| `shared/route-engine.js` | The FCA builder's route expander (FAA NASR fixes, navaids, airways, SIDs/STARs, preferred routes; `data/nav`). The page uses it unchanged through `createRouteResolver()` in `aoc-core.js` (cached per dep/arr/route). Outside US nav data it runs to the last US fix, then a great circle; unknown tokens are skipped and listed. |
 | `data/ramp/*.json` + Ramp board state | At a Ramp airport (KCVG, KIAD, KDCA, KRDU) the AOC shows the arrival's assigned or proposed gate, and can telex it. See §7. |
 | `shared/vatflow-auth.js` + whitelist | Sign-in, and a new `dispatcher` role scoped to operators (see §6). |
 | `record-vatsim-feed.mjs` | Recording real feeds for the demo and for tests. |
@@ -92,7 +92,7 @@ SCHEDULED (prefile) ─ connects ─► AT GATE ─ moves >5 kt ─► TAXI OUT 
 ```
 
 - **Airport elevation** comes from the runways file (thresholds carry elevation) so "on ground" works at KDEN as well as KMIA; fall back to `gs < 40` alone.
-- **ETA** = now + remaining great-circle distance ÷ ground speed, smoothed. Before departure: ETD + filed enroute time. Shown with the filed ETA so a late arrival stands out.
+- **ETA** = now + remaining distance **along the filed route** ÷ ground speed, smoothed (great circle when the route cannot be drawn). Before departure: ETD + filed enroute time. Shown with the filed ETA so a late arrival stands out.
 - **Delay** = OUT − STD (departure) and IN − (STD + filed EET) (arrival). Green ≤ 5 min, amber ≤ 15, red after.
 - **Memory**: OOOI times need history. Phase 1 keeps them in the page (and `localStorage` per operator, as a convenience). Phase 2 moves them to the hub, which already polls the feed, so every dispatcher sees the same OOOI times even if they opened the page mid-flight.
 - **Arrived** flights stay on the board for 2 h, then drop off. A pilot who disconnects is kept as **LOST** for 15 min (alert), in case they reconnect.
@@ -221,6 +221,7 @@ Phases 0–1 need no hub changes and can ship first.
 - One page, one operator at a time (`?op=`). Leaflet geographic map, not a schematic like Ramp.
 - Regionals shown under the brand only when they are not shared carriers, or the remarks say so.
 - No auto-reply at launch. Arrived flights stay 2 h. Live mode is the default (the board works from the feed without the hub).
-- Map routes are great circles for now; filed-route expansion with `route-engine.js` is later work.
+- Filed routes are expanded with FCA builder's `route-engine.js`: the map line, the Next column, distance to go and ETA along the route, and an **Off filed route** alert (more than 25 nm off, over 50 nm from both airports, only when every route token resolved, not for international routes past the last US fix, and not while diverting). Against the live feed, flights on fully resolved US routes sat 0–11 nm off them.
+- The demo fleet files FAA preferred routes where the city pair has one and flies them. `route-engine.js` gained an additive `preferredRoute(dep, arr)` export for that: the preferred-route table is keyed by FAA ids (`ATL|DFW`), so its own fallback for DCT-filed plans never matches ICAO codes (`KATL|KDFW`). That fallback is left as it is here, because changing it would change FCA builder's and EDST's route lines.
 
-**Next:** vUSAlink-hub `aoc.py` (§5.4) and the dispatcher role in the whitelist and `admin-access.html` (phase 2), then the telex station poll (phase 3).
+**Hub side:** nothing for routes. Parsing runs in the browser from the static `data/nav` files. The hub work is unchanged: vUSAlink-hub `aoc.py` (§5.4) and the dispatcher role in the whitelist and `admin-access.html` (phase 2), then the telex station poll (phase 3).

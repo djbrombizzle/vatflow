@@ -8,10 +8,15 @@
  * - flight phase and OOOI times (Out / Off / On / In) from feed snapshots,
  *   with a per-flight memory the page keeps between snapshots
  * - ETA, delay and alerts
+ * - progress along the filed route (anchors from shared/route-engine.js, the
+ *   same FAA NASR expansion FCA builder uses): distance to go, next fix,
+ *   off-route alert
  * - the shared ops state reducer (notes, acknowledged alerts, telex log),
  *   which the hub mirrors
  * - telex templates (220-character Hoppie budget) and the downlink classifier
  */
+
+import { bindAirports, buildRouteAnchors, isNavReady, routeProgressIndex } from "./route-engine.js";
 
 export const PHASE = {
   SCHED: "SCHED",
@@ -71,6 +76,9 @@ export const REPLY_WAIT_MS = 10 * 60000;
 export const TRACK_EVERY_MS = 60000;
 export const TRACK_MAX = 300;
 export const TELEX_MAX = 220;
+/** Off the filed route by more than this, clear of both airports: an alert. */
+export const OFF_ROUTE_NM = 25;
+export const OFF_ROUTE_CLEAR_NM = 50;
 
 /* ---------------- geometry ---------------- */
 
@@ -255,6 +263,72 @@ export function zulu(t) {
   if (t == null) return "";
   const d = new Date(t);
   return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "Z";
+}
+
+/* ---------------- filed route ---------------- */
+
+/**
+ * A cached filed-route expander for deriveFlights (ctx.routeFor): flight plan
+ * -> {anchors, unresolved, truncated, text} from shared/route-engine.js, or
+ * null until the nav data (data/nav) is loaded. `A` is the airport lookup
+ * (icao -> {lat, lon}); it also resolves airports named in a route.
+ */
+export function createRouteResolver(A, max = 3000) {
+  const ll = icao => { const a = A(icao); return a ? [a.lat, a.lon] : null; };
+  bindAirports(ll, icao => !!A(icao));
+  const cache = new Map();
+  return fp => {
+    if (!fp || !isNavReady()) return null;
+    const dep = String(fp.departure || "").toUpperCase(), arr = String(fp.arrival || "").toUpperCase();
+    const origin = ll(dep), destination = ll(arr);
+    if (!origin || !destination) return null;
+    const key = `${dep}|${arr}|${fp.route || ""}`;
+    let v = cache.get(key);
+    if (!v) {
+      const r = buildRouteAnchors({ dep, arr, route: fp.route || "" }, { origin, destination });
+      v = { anchors: r.anchors, unresolved: r.unresolved || [], truncated: !!r.truncatedInternational, text: r.expandedRoute || "" };
+      if (cache.size >= max) cache.delete(cache.keys().next().value);
+      cache.set(key, v);
+    }
+    return v;
+  };
+}
+
+/** Length of a route (anchors: [{name, ll: [lat, lon], kind}]) in nm. */
+export function routeLength(anchors) {
+  let d = 0;
+  for (let i = 1; i < (anchors || []).length; i++) d += distNm(anchors[i - 1].ll[0], anchors[i - 1].ll[1], anchors[i].ll[0], anchors[i].ll[1]);
+  return d;
+}
+
+/** Distance (nm) from a point to the great-circle segment a-b. */
+export function distToSegmentNm(lat, lon, a, b) {
+  const d12 = distNm(a[0], a[1], b[0], b[1]);
+  const d13 = distNm(a[0], a[1], lat, lon);
+  if (d12 < 0.01) return d13;
+  const t13 = bearing(a[0], a[1], lat, lon) * RAD, t12 = bearing(a[0], a[1], b[0], b[1]) * RAD;
+  const xt = Math.asin(Math.max(-1, Math.min(1, Math.sin(d13 / R_NM) * Math.sin(t13 - t12)))) * R_NM;
+  const at = Math.acos(Math.max(-1, Math.min(1, Math.cos(d13 / R_NM) / Math.cos(xt / R_NM)))) * R_NM;
+  // Behind the start, or past the end: distance to that end.
+  if (Math.cos(t13 - t12) < 0) return d13;
+  if (at > d12) return distNm(lat, lon, b[0], b[1]);
+  return Math.abs(xt);
+}
+
+/**
+ * Where an aircraft is along its filed route: {next (first fix ahead), idx,
+ * remainingNm (to the destination along the route), totalNm, xtNm (distance
+ * off the route)}, or null for a route of fewer than two points.
+ */
+export function routeMetrics(anchors, lat, lon, hdg) {
+  if (!anchors || anchors.length < 2 || lat == null || lon == null) return null;
+  // Never "ahead" of the departure airport once airborne.
+  const idx = Math.max(1, Math.min(anchors.length - 1, routeProgressIndex(anchors, lat, lon, hdg)));
+  let rem = distNm(lat, lon, anchors[idx].ll[0], anchors[idx].ll[1]);
+  for (let i = idx + 1; i < anchors.length; i++) rem += distNm(anchors[i - 1].ll[0], anchors[i - 1].ll[1], anchors[i].ll[0], anchors[i].ll[1]);
+  let xt = Infinity;
+  for (let i = 1; i < anchors.length; i++) xt = Math.min(xt, distToSegmentNm(lat, lon, anchors[i - 1].ll, anchors[i].ll));
+  return { idx, next: anchors[idx].name, remainingNm: rem, totalNm: routeLength(anchors), xtNm: xt };
 }
 
 /* ---------------- flight memory ---------------- */
@@ -478,8 +552,14 @@ function buildRow(ctx, m, p, fp, match, phase, now, connected, csOverride) {
   const lat = p ? +p.latitude : dep ? dep.lat : null;
   const lon = p ? +p.longitude : dep ? dep.lon : null;
   const gs = p ? +p.groundspeed || 0 : 0;
-  const distTotal = dep && arr ? distNm(dep.lat, dep.lon, arr.lat, arr.lon) : null;
-  const distToGo = arr && lat != null ? distNm(lat, lon, arr.lat, arr.lon) : null;
+  // The filed route, expanded by the caller (route-engine anchors), when it has one.
+  const rt = ctx.routeFor ? ctx.routeFor(fp) : null;
+  const anchors = rt && rt.anchors && rt.anchors.length >= 2 ? rt.anchors : null;
+  const inFlight = !!(m && m.wasAir && !m.on && p);
+  const rm = anchors && inFlight ? routeMetrics(anchors, lat, lon, p ? +p.heading : null) : null;
+  const gcToGo = arr && lat != null ? distNm(lat, lon, arr.lat, arr.lon) : null;
+  const distTotal = anchors ? routeLength(anchors) : dep && arr ? distNm(dep.lat, dep.lon, arr.lat, arr.lon) : null;
+  const distToGo = rm ? rm.remainingNm : gcToGo;
   const filedEta = std != null && eet != null ? std + eet * 60000 : null;
 
   let eta = null;
@@ -506,7 +586,6 @@ function buildRow(ctx, m, p, fp, match, phase, now, connected, csOverride) {
     dep: fp.departure || "",
     arr: fp.arrival || "",
     altn: fp.alternate || "",
-    route: fp.route || "",
     remarks: fp.remarks || "",
     filedAlt: parseFiledAlt(fp.altitude),
     lat, lon,
@@ -521,6 +600,16 @@ function buildRow(ctx, m, p, fp, match, phase, now, connected, csOverride) {
     out: m ? m.out : null, off: m ? m.off : null, on: m ? m.on : null, in: m ? m.in : null,
     landedAt: m ? m.landedAt : null,
     distTotal, distToGo,
+    distFromDep: dep && lat != null ? distNm(lat, lon, dep.lat, dep.lon) : null,
+    gcToGo,
+    route: fp.route || "",
+    routeText: rt ? rt.text || "" : "",
+    routeAnchors: anchors,
+    routeUnresolved: rt ? rt.unresolved || [] : [],
+    routeTruncated: !!(rt && rt.truncated),
+    nextFix: rm ? rm.next : null,
+    nextIdx: rm ? rm.idx : null,
+    xtNm: rm ? rm.xtNm : null,
     track: m ? m.track : [],
     alerts: [],
   };
@@ -546,6 +635,11 @@ export function alertsFor(r, m, now) {
   }
   if (m && m.wasAir && !m.on && r.alt < HOLD_MAX_ALT && isHolding(m.hdgs, now)) {
     out.push({ key: "hold", level: "warn", text: "Holding" });
+  }
+  // Off the filed route: only where the route is fully known, clear of both airports, and not diverting.
+  if (m && m.wasAir && !m.on && r.xtNm != null && r.xtNm > OFF_ROUTE_NM && !r.routeUnresolved.length && !r.routeTruncated &&
+      (!m.arrAtOff || m.arrAtOff === r.arr) && (r.distFromDep ?? 0) > OFF_ROUTE_CLEAR_NM && (r.gcToGo ?? 0) > OFF_ROUTE_CLEAR_NM) {
+    out.push({ key: "route", level: "warn", text: `Off filed route by ${Math.round(r.xtNm)} nm` });
   }
   if (m && m.off && r.fuel != null && r.eta != null && !m.on) {
     const reserve = Math.round((m.off + r.fuel * 60000 - r.eta) / 60000);

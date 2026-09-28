@@ -235,6 +235,19 @@ function maybePreferredRoute(p) {
   return p.route || "";
 }
 
+/**
+ * FAA preferred route for a city pair, or "". The table is keyed by FAA ids
+ * (ATL|DFW); ICAO codes of US airports (KATL) are tried without the K.
+ */
+export function preferredRoute(dep, arr) {
+  const faa = c => {
+    const u = String(c || "").toUpperCase();
+    return /^K[A-Z0-9]{3}$/.test(u) ? u.slice(1) : u;
+  };
+  const a = String(dep || "").toUpperCase(), b = String(arr || "").toUpperCase();
+  return preferred[`${a}|${b}`] || preferred[`${faa(a)}|${faa(b)}`] || "";
+}
+
 function bearingDeg(la1, lo1, la2, lo2) {
   const y = Math.sin((lo2 - lo1) * Math.PI / 180) * Math.cos(la2 * Math.PI / 180);
   const x = Math.cos(la1 * Math.PI / 180) * Math.sin(la2 * Math.PI / 180)

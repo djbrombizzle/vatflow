@@ -308,7 +308,7 @@
               <th title="Scheduled departure: the filed departure time">STD</th>
               <th title="Out: left the gate">Out</th><th title="Off: took off">Off</th><th title="On: landed">On</th><th title="In: at the gate">In</th>
               <th title="Estimated arrival">ETA</th><th title="Minutes late (+) or early (−): departure until airborne, then arrival">Delay</th>
-              <th>Alt / GS</th>
+              <th>Alt / GS</th><th title="Next fix on the filed route">Next</th>
             </tr></thead>
             <tbody id="flights"></tbody>
           </table>
@@ -341,10 +341,11 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
   PHASE, PHASE_GROUP, TEMPLATES, TELEX_MAX, airportIndex, allMessages, classifyDownlink, composeTelex, deriveFlights,
-  gcLine, loadMemory, makeWatch, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
+  createRouteResolver, distNm, gcLine, loadMemory, makeWatch, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
 } from "./shared/aoc-core.js";
 import { createDemoStore, AIR_ACCEL } from "./shared/aoc-demo.js";
 import { createLiveStore } from "./shared/aoc-live.js";
+import { getNavMeta, isNavReady, loadNavData, preferredRoute } from "./shared/route-engine.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
 
@@ -409,6 +410,9 @@ let memory = new Map();
 let rows = [];
 let vrows = [];
 let readAt = {};
+/** Filed-route expander (shared/route-engine.js, FAA NASR, as in FCA builder); great circles until data/nav loads. */
+let routeFor = () => null;
+let navState = "loading";
 const metarCache = new Map();
 
 /* ---------------- map ---------------- */
@@ -480,14 +484,31 @@ function renderMap() {
   const note = [];
   if (store.mode === "demo") note.push(`Demo: time in the air runs ${AIR_ACCEL}× faster`);
   else if (store.feedStatus) note.push(store.feedStatus.text);
+  if (navState === "loading") note.push("Loading route data…");
+  else if (navState === "failed") note.push("Route data unavailable: great circles only");
   $("mapNote").textContent = note.join(" · ");
   $("mapNote").hidden = !note.length;
+}
+
+/** Fix dots by kind, as FCA builder colours them. */
+const FIX_COLOR = { nav: "#a3e635", fix: "#7dd3a8", awy: "#e8a838", star: "#c084fc", sid: "#c084fc", apt: "#8ab4ff" };
+
+/** [[lat, lon]…] through route points, each leg drawn as a great circle. */
+function routeCoords(lls) {
+  const out = [];
+  for (let i = 1; i < lls.length; i++) {
+    const a = { lat: lls[i - 1][0], lon: lls[i - 1][1] }, b = { lat: lls[i][0], lon: lls[i][1] };
+    const n = Math.max(1, Math.ceil(distNm(a.lat, a.lon, b.lat, b.lon) / 60));
+    const seg = gcLine(a, b, n);
+    out.push(...(i > 1 ? seg.slice(1) : seg));
+  }
+  return out;
 }
 
 let selLayerSig = "";
 function renderSelLayer() {
   const r = rows.find(x => x.callsign === ui.selected);
-  const sig = r ? `${r.callsign}|${r.lat?.toFixed(3)}|${r.lon?.toFixed(3)}|${r.arr}|${r.track.length}|${$("optTrack").checked}` : "";
+  const sig = r ? `${r.callsign}|${r.lat?.toFixed(3)}|${r.lon?.toFixed(3)}|${r.arr}|${r.track.length}|${$("optTrack").checked}|${r.routeAnchors ? r.routeAnchors.length : 0}|${r.nextIdx}|${r.phase}` : "";
   if (sig === selLayerSig) return;
   selLayerSig = sig;
   selLayer.clearLayers();
@@ -496,7 +517,23 @@ function renderSelLayer() {
   if ($("optTrack").checked && r.track.length) {
     L.polyline([...r.track, [r.lat, r.lon]], { color: PHASE_HEX[r.phase], weight: 2.2, opacity: .9, interactive: false }).addTo(selLayer);
   }
-  if (arr && PHASE_GROUP[r.phase] !== "arrived") {
+  const done = PHASE_GROUP[r.phase] === "arrived";
+  const air = r.nextIdx != null;
+  if (r.routeAnchors) {
+    const an = r.routeAnchors;
+    // The whole filed route, faint; what is left of it, dashed from the aircraft on.
+    L.polyline(routeCoords(an.map(a => a.ll)), { color: "#5d7fa3", weight: 1.6, opacity: .55, interactive: false }).addTo(selLayer);
+    if (!done) {
+      const rest = air ? [[r.lat, r.lon], ...an.slice(r.nextIdx).map(a => a.ll)] : an.map(a => a.ll);
+      L.polyline(routeCoords(rest), { color: "#c9d6e3", weight: 1.6, opacity: .85, dashArray: "5 6", interactive: false }).addTo(selLayer);
+    }
+    an.forEach((a, i) => {
+      if (a.kind === "apt") return;
+      const isNext = air && i === r.nextIdx;
+      L.circleMarker(a.ll, { radius: isNext ? 4 : 2.6, color: FIX_COLOR[a.kind] || FIX_COLOR.fix, weight: isNext ? 2 : 1.4, fillColor: "#0a1017", fillOpacity: 1 })
+        .bindTooltip(a.name, { permanent: isNext, direction: "top", className: "hubTip", offset: [0, -4] }).addTo(selLayer);
+    });
+  } else if (arr && !done) {
     L.polyline(gcLine({ lat: r.lat, lon: r.lon }, arr, 48), { color: "#c9d6e3", weight: 1.4, opacity: .7, dashArray: "5 6", interactive: false }).addTo(selLayer);
   }
   for (const [a, lab] of [[dep, r.dep], [arr, r.arr]]) {
@@ -536,7 +573,7 @@ function scheduleRender() {
 function render() {
   const state = store.getState();
   const now = Date.now();
-  rows = deriveFlights({ W, A, idx: IDX, regionals: $("optRegionals").checked }, store.getFeed(), memory, now);
+  rows = deriveFlights({ W, A, idx: IDX, routeFor, regionals: $("optRegionals").checked }, store.getFeed(), memory, now);
   // Alerts from the telex log, then split by acknowledged.
   for (const r of rows) {
     const e = state.flights[r.callsign];
@@ -663,7 +700,8 @@ function renderFlights() {
       <td class="t${r.in ? " set" : ""}">${fmtT(r.in)}</td>
       <td class="t set">${r.on ? "—" : fmtT(r.eta)}</td>
       <td>${dly}</td>
-      <td>${altGs(r)}</td></tr>`;
+      <td>${altGs(r)}</td>
+      <td class="mono">${esc(r.nextFix || "")}</td></tr>`;
   }).join("");
   const empty = $("flightsEmpty");
   empty.hidden = list.length > 0;
@@ -679,7 +717,7 @@ function renderFlights() {
 function shortAlert(a) {
   if (a.key.startsWith("sq")) return a.key.slice(2);
   if (a.key.startsWith("div") || a.key.startsWith("ldg")) return "DIVERT";
-  return { lost: "LOST", late: "LATE", hold: "HOLD", fuel: "FUEL" }[a.key] || (a.key.startsWith("reply") ? "NO REPLY" : a.key.startsWith("dn") ? "PILOT" : "!");
+  return { lost: "LOST", late: "LATE", hold: "HOLD", fuel: "FUEL", route: "ROUTE" }[a.key] || (a.key.startsWith("reply") ? "NO REPLY" : a.key.startsWith("dn") ? "PILOT" : "!");
 }
 
 /* ---------------- selected flight ---------------- */
@@ -734,7 +772,7 @@ function renderSelected(state) {
   if (!ui.composer.dirty) ui.composer.text = defaultTelex(r, ui.composer.tpl, ui.composer.arg);
   // Rebuild only when something shown changes (keeps typing and focus).
   const sig = JSON.stringify([r.callsign, r.phase, r.dep, r.arr, r.altn, fmtT(r.eta), r.delay, r.out, r.off, r.on, r.in, Math.round(r.alt / 500),
-    Math.round(r.gs / 10), r.squawk, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
+    Math.round(r.gs / 10), r.squawk, r.nextFix, !!r.routeAnchors, Math.round(r.xtNm || 0), navState, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
     e.note, (e.msgs || []).length, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
@@ -768,7 +806,7 @@ function renderSelected(state) {
       <div><div class="k">Alt / GS</div><div class="v">${altGs(r)}</div></div>
       <div><div class="k">To go</div><div class="v">${r.distToGo != null && !r.on ? Math.round(r.distToGo) + " nm" : "—"}${r.squawk ? ` <span class="muted" style="font-weight:500;font-size:11px">sq ${esc(r.squawk)}</span>` : ""}</div></div>
     </div>
-    ${r.route ? `<div class="route" title="${esc(r.route)}">${esc(r.route)}</div>` : ""}
+    ${routeSection(r)}
     <div class="sec">Dispatcher note</div>
     <div class="row"><textarea class="note" id="noteText" maxlength="500" placeholder="Shared with every dispatcher on ${esc(W.code)}" ${dis}></textarea></div>
     <div class="row"><button class="btn" id="bNote" ${dis}>Save note</button></div>
@@ -799,6 +837,27 @@ function renderSelected(state) {
     $(keep.focus).focus({ preventScroll: true });
     if (keep.selStart != null && $(keep.focus).setSelectionRange) try { $(keep.focus).setSelectionRange(keep.selStart, keep.selStart); } catch (_) {}
   }
+}
+
+function routeSection(r) {
+  const filed = String(r.route || "").trim();
+  const used = String(r.routeText || "").trim();
+  const bits = [];
+  if (r.nextFix) bits.push(`Next <b>${esc(r.nextFix)}</b>`);
+  if (r.routeAnchors && r.distTotal != null) {
+    const dep = A(r.dep), arr = A(r.arr);
+    const gc = dep && arr ? Math.round(distNm(dep.lat, dep.lon, arr.lat, arr.lon)) : null;
+    bits.push(`Route ${Math.round(r.distTotal)} nm${gc != null ? ` <span class="muted">(direct ${gc})</span>` : ""}`);
+  }
+  if (r.xtNm != null && r.xtNm >= 3) bits.push(`<span style="color:${r.xtNm > 25 ? "#ffd27a" : "inherit"}">${Math.round(r.xtNm)} nm off route</span>`);
+  const meta = getNavMeta();
+  return `<div class="sec">Route${meta?.nasrCycleDate ? ` <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· FAA NASR ${esc(meta.nasrCycleDate)}</span>` : ""}</div>
+    ${filed ? `<div class="route" title="${esc(filed)}">${esc(filed)}</div>` : '<div class="route">No route filed.</div>'}
+    ${used && used !== filed ? `<div class="route" style="color:#a9c8e8" title="${esc(used)}">Preferred route drawn: ${esc(used)}</div>` : ""}
+    ${bits.length ? `<div class="route" style="font-family:inherit;color:var(--text)">${bits.join(" · ")}</div>` : ""}
+    ${r.routeUnresolved.length ? `<div class="route" style="color:#ffd27a">Not in NASR (skipped): ${esc(r.routeUnresolved.join(" "))}</div>` : ""}
+    ${r.routeTruncated ? '<div class="route">Outside US nav data: great circle after the last US fix.</div>' : ""}
+    ${!r.routeAnchors && navState === "ready" && filed ? '<div class="route">Route could not be drawn (unknown airport): great circle shown.</div>' : ""}`;
 }
 
 function updateCount() {
@@ -1030,7 +1089,10 @@ function initialMode() {
 function setMode(mode) {
   if (store) { store.stop(); unsub && unsub(); }
   memory = mode === "live" ? loadMemory(jsonLS(`vatflow.aoc.mem.${W.code}`, {}), Date.now()) : new Map();
-  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, OPS[W.code] || null, A);
+  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, OPS[W.code] || null, A, {
+    text: (dep, arr) => (isNavReady() ? preferredRoute(dep, arr) : ""),
+    path: (dep, arr, route) => routeFor({ departure: dep, arrival: arr, route })?.anchors.map(a => a.ll) || null,
+  });
   ui.selected = null;
   ui.selSig = "";
   ui.msgSig = "";
@@ -1139,6 +1201,12 @@ try {
 } catch (err) {
   $("mapNote").textContent = `Could not load airport positions: ${err.message || err}`;
 }
+routeFor = createRouteResolver(A);
+// The NASR route data (~5 MB) loads alongside; the demo waits for it so its fleet files real routes.
+const navLoad = loadNavData()
+  .then(() => { navState = "ready"; ui.selSig = ""; scheduleRender(); })
+  .catch(err => { console.warn("VATFLOW: nav data failed:", err); navState = "failed"; scheduleRender(); });
+if (initialMode() === "demo") await Promise.race([navLoad, new Promise(r => setTimeout(r, 10000))]);
 {
   const want = normCode(new URLSearchParams(location.search).get("op") || LS.get("vatflow.aoc.op", "") || "AAL");
   loadOperator(want || "AAL");

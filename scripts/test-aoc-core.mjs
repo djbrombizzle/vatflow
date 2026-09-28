@@ -6,9 +6,11 @@
 import { readFileSync } from "node:fs";
 import {
   PHASE, TELEX_MAX, TEMPLATES, airportIndex, allMessages, applyOp, classifyDownlink, composeTelex, deriveFlights,
-  distNm, emptyState, gcPoint, hhmmToMin, isHolding, loadMemory, makeWatch, matchFlight, movePoint, nearestAirport,
+  distNm, bearing, emptyState, gcPoint, hhmmToMin, isHolding, loadMemory, makeWatch, matchFlight, movePoint, nearestAirport,
   parseFiledAlt, pendingReply, primeMemory, saveMemory, stdMs, ARRIVED_DWELL_MS, LOST_MS, KEEP_ARRIVED_MS,
+  createRouteResolver, routeMetrics, routeLength, distToSegmentNm,
 } from "../shared/aoc-core.js";
+import { seedNavData, preferredRoute } from "../shared/route-engine.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -242,6 +244,51 @@ function pilot(over) {
   assert(c("DIVERTING TO KBHM FUEL").kind === "divert" && c("DIVERTING TO KBHM").icao === "KBHM", "divert");
   assert(c("DELAY 20 MIN MX").kind === "delay", "delay");
   assert(c("hello there").kind === "other", "other");
+}
+
+/* ---------- filed route (route-engine, FAA NASR) ---------- */
+{
+  const nav = f => JSON.parse(readFileSync(new URL(`../data/nav/${f}.json`, import.meta.url)));
+  const resolve0 = createRouteResolver(A);
+  assert(resolve0({ departure: "KDFW", arrival: "KATL", route: "DCT" }) === null, "no route before nav data loads");
+  seedNavData({ meta: nav("meta"), fixes: nav("fixes"), navaids: nav("navaids"), airways: nav("airways"), procedures: nav("procedures"), preferred: nav("preferred") });
+  const pref = preferredRoute("KDFW", "KATL");
+  assert(/AKUNA\d/.test(pref) && pref === preferredRoute("DFW", "ATL"), "preferred route by ICAO or FAA id");
+  assert(preferredRoute("KDFW", "EGLL") === "", "no preferred route");
+  const resolve = createRouteResolver(A);
+  const fpR = { ...FP, route: pref };
+  const rt = resolve(fpR);
+  assert(rt && rt.anchors.length >= 6 && !rt.unresolved.length, `route expands (${rt && rt.anchors.map(a => a.name).join(" ")})`);
+  assert(rt.anchors[0].name === "KDFW" && rt.anchors[rt.anchors.length - 1].name === "KATL", "route runs airport to airport");
+  assert(resolve(fpR) === rt, "cached");
+  const gc = distNm(dfw.lat, dfw.lon, atl.lat, atl.lon);
+  const len = routeLength(rt.anchors);
+  assert(len > gc && len < gc * 1.3, `route longer than great circle (${Math.round(len)} vs ${Math.round(gc)})`);
+  // On the route, over a fix in the middle.
+  const k = Math.floor(rt.anchors.length / 2);
+  const fix = rt.anchors[k];
+  const nxt = rt.anchors[k + 1];
+  const hdg = bearing(fix.ll[0], fix.ll[1], nxt.ll[0], nxt.ll[1]);
+  const mm = routeMetrics(rt.anchors, fix.ll[0], fix.ll[1], hdg);
+  near(mm.xtNm, 0, 1, "on the route: no cross-track");
+  assert(mm.remainingNm < len && mm.remainingNm > distNm(fix.ll[0], fix.ll[1], atl.lat, atl.lon) - 1, "remaining along the route");
+  assert(rt.anchors.slice(k).some(a => a.name === mm.next), "next fix is ahead");
+  near(distToSegmentNm(fix.ll[0] + 1, fix.ll[1], [fix.ll[0], fix.ll[1] - 2], [fix.ll[0], fix.ll[1] + 2]), 60, 2, "cross-track of a point 1 deg north");
+  // Through deriveFlights: ETA from route distance, next fix, off-route alert.
+  const rctx = { W, A, idx, routeFor: resolve };
+  const mem = new Map();
+  primeMemory(mem, { AAL100: { leg: "KDFW-KATL", out: T0 - 3e6, off: T0 - 2.8e6, arr: "KATL" } }, T0);
+  let rows = deriveFlights(rctx, { pilots: [pilot({ flight_plan: fpR, groundspeed: 450, altitude: 36000, heading: hdg, latitude: fix.ll[0], longitude: fix.ll[1] })] }, mem, T0);
+  assert(rows[0].nextFix && rows[0].routeAnchors === rt.anchors, "row carries route and next fix");
+  near(rows[0].distToGo, mm.remainingNm, 0.5, "distance to go follows the route");
+  assert(!rows[0].alerts.some(a => a.key === "route"), "on route: no alert");
+  const off = movePoint(fix.ll[0], fix.ll[1], (hdg + 90) % 360, 60);
+  rows = deriveFlights(rctx, { pilots: [pilot({ flight_plan: fpR, groundspeed: 450, altitude: 36000, heading: hdg, latitude: off.lat, longitude: off.lon })] }, mem, T0 + 15000);
+  assert(rows[0].alerts.some(a => a.key === "route"), `60 nm off route: alert (xt ${Math.round(rows[0].xtNm)})`);
+  rows = deriveFlights(rctx, { pilots: [pilot({ flight_plan: { ...fpR, arrival: "KBHM" }, groundspeed: 450, altitude: 36000, heading: hdg, latitude: off.lat, longitude: off.lon })] }, mem, T0 + 30000);
+  assert(!rows[0].alerts.some(a => a.key === "route") && rows[0].alerts.some(a => a.key === "div-KBHM"), "diverting: no off-route alert");
+  const bad = resolve({ ...FP, route: "NOTAFIX J999 ZZZZZ" });
+  assert(bad.unresolved.length > 0, "unknown tokens reported");
 }
 
 console.log(`test-aoc-core: ${passed} checks passed`);
