@@ -1,0 +1,226 @@
+# Airline Operations Center (AOC) — plan
+
+**Status:** plan only, nothing built yet. The section "Decisions and open questions" at the end lists the choices that need an answer before phase 2.
+**Origin:** follows on from Ramp Management (`ramp.html`, [plan](ramp-management-plan.md)). Ramp watches **one airport** and all its operators. The AOC watches **one operator** (AAL, DAL, UAL…) wherever its flights are in the world.
+
+> Track every VATSIM callsign for a given operator. An operations map shows who is flying and where, a status board shows the state of each flight, and a TELEX panel talks to the pilot over the Hoppie network. Same look as the Ramp Management page, built for an airline ops desk.
+
+---
+
+## 1. What we are building
+
+A new page, **Airline Ops** (`aoc.html?op=AAL`). It is a dispatcher's view of one airline on the VATSIM network.
+
+| Area (same frame as Ramp) | What it does |
+| --- | --- |
+| **Header** | Operator picker (logo-free: ICAO code + name), DEMO / LIVE, counters, hub pill, Zulu clock. |
+| **Counters** | Scheduled · At gate · Taxi · Airborne · Arrived (last 2 h) · Alerts. |
+| **Ops map** | World/regional Leaflet map on the existing dark basemap (`shared/vatflow-basemap.js`). Every flight as a heading-rotated icon coloured by phase, with a short datablock (callsign, FL, GS). The selected flight shows its flown track, its remaining great-circle (or filed route, where `route-engine.js` can expand it) and its destination. Hubs are marked. |
+| **Status board** (the "Flights" card) | One row per flight: callsign, type, reg (if filed in remarks), DEP→ARR, phase, **OOOI** times (Out/Off/On/In), STD/ETD, ETA, delay, FL/GS, ACARS dot, last telex. Tabs: All · Scheduled · Ground · Enroute · Arriving · Arrived · Alerts. Search. |
+| **Selected flight** | Facts (route, filed vs. actual times, remaining distance, ETA), alerts, a TELEX composer with templates, and that flight's message log. |
+| **TELEX / Messages** (third card, where Ramp has the push queue) | The ops station's inbox and outbox across all flights, newest first. Unread downlinks flash. Click one to select the flight. |
+| **Left rail** | Operator, fleet/subsidiary filter (mainline, regional partners), hub filter, display toggles (tracks, labels, routes, ARTCC/FIR boundaries), legend, permission box, activity log. |
+
+Read-only for everyone. Only dispatchers the hub authorises (see §6) can send telex or change shared state.
+
+---
+
+## 2. What it reuses
+
+| Existing piece | Reused for |
+| --- | --- |
+| `ramp.html` layout and CSS tokens | The same frame: header counters, left rail, map on top, three cards below with the draggable split, same colours, same mobile layout. Shared CSS goes in `shared/ops-ui.css` so the two pages don't drift. |
+| `shared/ramp-live.js` / `ramp-demo.js` store interface | `shared/aoc-live.js` and `shared/aoc-demo.js` expose the same `getState / getPilots / subscribe / start / stop / op / sendTelex` shape. |
+| vUSAlink-hub (Railway) | Shared AOC state, the permission check, the Hoppie telex send / poll, and the Hoppie "is this callsign connected" ping that Ramp already uses for its ACARS dot. |
+| `composeStandTelex` / `parseDownlink` pattern in `ramp-core.js` | DOM-free `shared/aoc-messages.js`: templates with the same 220-char budget, downlink classifier, unit tests. |
+| `shared/vatflow-basemap.js` + Leaflet | The ops map. |
+| `data/nav/runways.json` | Airport reference points worldwide (runway thresholds → centroid) for great-circle distance, ETA and "at the airport" checks, with no new data file. |
+| `shared/route-engine.js` | Expanding a filed route into points for the route line (US routes; elsewhere fall back to great circle). |
+| `data/ramp/*.json` + Ramp board state | At a Ramp airport (KCVG, KIAD, KDCA, KRDU) the AOC shows the arrival's assigned or proposed gate, and can telex it. See §7. |
+| `shared/vatflow-auth.js` + whitelist | Sign-in, and a new `dispatcher` role scoped to operators (see §6). |
+| `record-vatsim-feed.mjs` | Recording real feeds for the demo and for tests. |
+| `shared/vatflow-nav.js` | New nav group entry. Either **Airport TMU → Airline Ops** next to Ramp, or a new **Airline** group. |
+
+---
+
+## 3. Which flights belong to an operator
+
+### 3.1 Operator file — `data/aoc/operators.json`
+
+```jsonc
+{
+  "AAL": {
+    "name": "American Airlines", "telephony": "AMERICAN",
+    "hubs": ["KDFW", "KCLT", "KORD", "KPHL", "KMIA", "KPHX", "KDCA", "KLAX", "KJFK"],
+    "family": {                       // regional partners flying the brand
+      "ENY": "Envoy", "PDT": "Piedmont", "PSA": "PSA",
+      "RPA": { "name": "Republic", "shared": true },   // flies for AA, DL and UA
+      "SKW": { "name": "SkyWest",  "shared": true }
+    },
+    "remarks": ["AMERICAN EAGLE", "OPR/AAL", "OPR/AMERICAN"],
+    "station": "AALOPS"               // Hoppie telex station, see §5.1
+  }
+}
+```
+
+### 3.2 Matching order (same idea as Ramp's operator mapping)
+
+1. **Callsign prefix**: `^AAL\d` is AAL mainline. Prefix + digits + optional letter, so `AAL1A` matches and `AALX` does not.
+2. **Family prefix** that is not `shared`: `ENY`, `PDT`, `PSA` → AAL (shown as "Envoy for American").
+3. **Shared carriers** (RPA, SKW, GJS…): only when the remarks say so (`AMERICAN EAGLE`, `OPR/AAL`, `DL CONNECTION`…). Otherwise they appear under their own code only.
+4. **Any code** typed in the picker works, even one not in the file (virtual airlines with their own codes). It just gets no family, hubs or station.
+
+Default filter: mainline + non-shared family on. A rail toggle hides the regionals.
+
+### 3.3 Prefiles and "scheduled" flights
+
+The VATSIM feed has a `prefiles` array (flight plans filed by pilots not yet connected). Those, plus connected pilots who are on the ground with a plan and not moving, are the **Scheduled** list. VATSIM has no real schedule, so STD = the filed `deptime`.
+
+---
+
+## 4. Flight phase and OOOI
+
+All derived from the feed, in a DOM-free `shared/aoc-core.js` (unit-tested like `ramp-core.js`).
+
+```
+SCHEDULED (prefile) ─ connects ─► AT GATE ─ moves >5 kt ─► TAXI OUT (OUT time)
+   ─ gs >40 kt and climbing / alt > field+200 ─► DEPARTED (OFF time)
+   ─► CLIMB ─► CRUISE (within 1500 ft of filed alt or level 5 min) ─► DESCENT
+   ─► APPROACH (<40 nm to dest and < 12 000 ft AGL)
+   ─ on ground at dest, gs <40 ─► LANDED (ON time) ─► TAXI IN ─ stopped 2 min ─► ARRIVED (IN time)
+```
+
+- **Airport elevation** comes from the runways file (thresholds carry elevation) so "on ground" works at KDEN as well as KMIA; fall back to `gs < 40` alone.
+- **ETA** = now + remaining great-circle distance ÷ ground speed, smoothed. Before departure: ETD + filed enroute time. Shown with the filed ETA so a late arrival stands out.
+- **Delay** = OUT − STD (departure) and IN − (STD + filed EET) (arrival). Green ≤ 5 min, amber ≤ 15, red after.
+- **Memory**: OOOI times need history. Phase 1 keeps them in the page (and `localStorage` per operator, as a convenience). Phase 2 moves them to the hub, which already polls the feed, so every dispatcher sees the same OOOI times even if they opened the page mid-flight.
+- **Arrived** flights stay on the board for 2 h, then drop off. A pilot who disconnects is kept as **LOST** for 15 min (alert), in case they reconnect.
+
+### 4.1 Alerts
+
+Shown as badges on the row, counted in the header, listed under the Alerts tab:
+
+| Alert | Rule |
+| --- | --- |
+| **Emergency squawk** | 7500 / 7600 / 7700 |
+| **Diversion** | Flight plan arrival changed in flight, or landed somewhere other than the filed destination / alternate |
+| **Lost contact** | Disconnected while airborne |
+| **Late departure** | Still at gate > 15 min after STD |
+| **Holding** | Heading changed through 360° within ~8 min below FL200 near dest |
+| **Unanswered telex** | Uplink with a response template (e.g. `REPLY WILCO`) not answered in 10 min |
+| **Low fuel** (optional) | Remaining EET vs filed endurance (`fuel_time` in the flight plan) under 45 min |
+
+---
+
+## 5. TELEX over Hoppie
+
+### 5.1 Station
+
+- Each operator gets its own Hoppie **telex station** (the "from" callsign), e.g. **`AALOPS`**, held by the hub. Dispatchers never see a logon code, same as Ramp and vUSAlink.
+- Telex is company messaging, not CPDLC. The pilot only needs to be connected to Hoppie with an ACARS client (Hoppie ACARS, most 3rd-party FMCs, vPilot plugin), not logged on to any ATC CPDLC unit.
+- The ACARS dot uses the hub's existing Hoppie ping. A telex to a pilot who isn't on Hoppie is refused unless sent anyway (same as Ramp).
+
+### 5.2 Uplink templates (`shared/aoc-messages.js`, 220 chars max)
+
+| Template | Example |
+| --- | --- |
+| Free text | `AAL OPS: ...` |
+| Gate assignment | `AAL OPS: ARR GATE D24 KDFW. REPLY WILCO.` (at a Ramp airport, the gate the ramp assigned or proposed; see §7) |
+| Destination weather | `AAL OPS: KDFW METAR 281753Z 18012KT 10SM FEW040 31/18 A2995.` (METAR fetched from `metar.vatsim.net`) |
+| Delay / flow advisory | `AAL OPS: KORD GDP IN EFFECT. EXPECT EDCT 1845Z. ADVISE IF UNABLE.` |
+| Reroute / diversion | `AAL OPS: DIVERT KSTL. ADVISE FUEL REMAINING.` |
+| Connections / ops normal | `AAL OPS: 23 PAX CONNECTING. GATE HOLD NOT AUTHORIZED.` (flavour, not data we have) |
+| Loadsheet (optional) | Short `LOADSHEET` block from the filed type; phase 4, and only if pilots ask for it |
+
+Uplinks that expect an answer end with `REPLY WILCO` / `REPLY UNABLE` and start the unanswered-telex timer.
+
+### 5.3 Downlink
+
+The hub polls each active operator station. Pilot → ops messages go to the Messages card and the flight's log. `aoc-messages.js` classifies common requests:
+
+- `REQ GATE`, `GATE?` → gate request flag (and a suggested reply at Ramp airports)
+- `REQ WX <ICAO>`, `METAR <ICAO>` → one-click reply with the METAR
+- `DELAY`, `DLA 20`, `MX`, `DIVERT`, `DIVERTING <ICAO>` → alert
+- `WILCO` / `UNABLE` / `ROGER` → closes the pending uplink
+- anything else → plain message
+
+**Auto-reply is off at launch.** The page suggests a reply; a dispatcher presses Send. (Ramp made the same call.)
+
+### 5.4 Hub work (vUSAlink-hub, outside this repo)
+
+- `POST /hub/aoc/state {op}` → `{state, me, station, dryRun, hoppie}` (read; anyone)
+- `POST /hub/aoc/op {op, cid, vatflowToken, ...}` → notes, flight "owner" dispatcher, acknowledge alert (writes, permission-checked)
+- `POST /hub/aoc/telex {op, to, text, force?}` → send, rate-limited per station and per aircraft
+- Hoppie poll for active operator stations only (an ops page open in the last N min), to keep poll volume low
+- Server-side feed tracker for OOOI times (phase 2)
+- **Confirm with Hoppie's owner** that one telex station per operator and the expected volume are OK. The KUSA approval covered CPDLC, and Ramp's covered per-field stations.
+
+---
+
+## 6. Who can do what
+
+Ramp could tie writes to a controller on position at the field. An airline desk has no VATSIM position to check, so this needs a new rule. Proposal:
+
+| Who | Can |
+| --- | --- |
+| Anyone | Open any operator, see map, board, alerts. Message **text is hidden** (only "3 messages") unless signed in. |
+| Signed-in VATFLOW user | Same, plus message text. |
+| **Dispatcher** (new whitelist role, scoped to operator codes, granted by global admin or by a new "operator staff" role) | Send telex from that operator's station, add notes, acknowledge alerts. |
+| Global admin | Everything, appoint dispatchers. |
+
+The whitelist already scopes roles by ARTCC (`ACCESS-AND-ADMIN.md`); this adds `operators: ["AAL"]` to an entry. `admin-access.html` gets an Operators field.
+
+---
+
+## 7. Tie-in with Ramp Management
+
+- At a Ramp airport, the arrival row shows the **ramp's gate** (assigned on the board, or the proposed airline gate) and a "Gate" column links to `ramp.html?icao=…`.
+- The gate template fills from that. If the ramp has already sent the stand telex, the AOC row shows `STAND SENT BY KIAD RAMP` so the pilot doesn't get two.
+- The AOC never writes to the ramp board. Assigning gates stays with the controllers covering the field.
+- Later, Ramp can show "AOC: gate request" when a pilot asked their ops for a gate.
+
+---
+
+## 8. Demo mode
+
+`aoc.html?op=AAL&mode=demo`: ~40 scripted AAL + regional flights in all phases across the hubs, moving in real time, plus two alerts (a 7700 and a diversion) and a pilot that telexes `REQ GATE` and `REQ WX KDFW`. Built like `ramp-demo.js`. Telex in demo mode go to a local log, never the network.
+
+---
+
+## 9. Tests (`scripts/test-aoc-*.mjs`)
+
+- callsign/operator matching (prefix, family, shared-with-remarks, custom code)
+- phase machine and OOOI from recorded feed snapshots (`record-vatsim-feed.mjs`), including a go-around, a diversion and a reconnect
+- ETA / delay maths
+- template length budget, downlink classifier
+
+---
+
+## 10. Phases
+
+| Phase | Scope | Result |
+| --- | --- | --- |
+| **0 — Data & core** | `operators.json` (AAL, DAL, UAL, SWA, JBU, ASA, FDX, UPS to start), `aoc-core.js` matching + phases + OOOI, tests | Flights grouped and phased from a feed |
+| **1 — Read-only page** | `aoc.html`, Leaflet map, status board, selected flight, alerts, demo mode, nav entry | A useful ops picture with no hub changes |
+| **2 — Hub & permissions** | `/hub/aoc/*`, server-side OOOI tracking, dispatcher role, notes / acknowledge | Shared ops desk |
+| **3 — TELEX** | Station per operator, uplink templates, downlink poll + classifier, Messages card, rate limits | Two-way telex with pilots |
+| **4 — Integrations** | Ramp gate tie-in, METAR/flow (FCA EDCT) in templates, loadsheet, public read endpoint | One picture across VATFLOW |
+
+Phases 0–1 need no hub changes and can ship first.
+
+---
+
+## 11. Decisions and open questions
+
+**Proposed (confirm or change):**
+- One page, one operator at a time (`?op=`). Multi-operator view later if asked for.
+- Leaflet geographic map, not a schematic like Ramp.
+- Regionals shown under the brand only when they are not shared carriers, or the remarks say so.
+- No auto-reply at launch.
+- Arrived flights stay 2 h.
+
+**Open:**
+1. **Who may send telex?** Proposed: a new operator-scoped `dispatcher` whitelist role. Alternative: any signed-in user, with rate limits.
+2. **Station names.** `AALOPS` style for each operator, or one shared `VATFLOW` station that prefixes the airline in the text? Real virtual airlines (e.g. a Delta VA) may already run Hoppie stations under those names; we need to check before claiming them.
+3. **Nav placement.** Under Airport TMU next to Ramp, or a new "Airline" group.
+4. **Which operators first.** Proposed: the US majors plus FDX/UPS. Any non-US ones (BAW, DLH…) in phase 0?
