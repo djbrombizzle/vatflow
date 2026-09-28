@@ -1,0 +1,89 @@
+{
+  "_comment": "Dispatch Center operators. family: regional partners by ICAO prefix; shared ones (flying for several brands) count only when the flight plan remarks name the brand. station: Hoppie telex station the hub sends from. fleet: types the demo uses. Any other code typed on the page still works, with no family, hubs or station name.",
+  "AAL": {
+    "name": "American Airlines", "telephony": "AMERICAN", "station": "AALOPS",
+    "hubs": ["KDFW", "KCLT", "KORD", "KPHL", "KMIA", "KPHX", "KDCA", "KLAX", "KJFK"],
+    "family": { "ENY": "Envoy", "PDT": "Piedmont", "JIA": "PSA", "AWI": "Air Wisconsin",
+      "RPA": { "name": "Republic", "shared": true }, "SKW": { "name": "SkyWest", "shared": true } },
+    "remarks": ["AMERICAN EAGLE", "AA EAGLE", "OPR/AMERICAN"],
+    "fleet": { "mainline": ["A321", "B738", "A319", "B38M", "B772", "B789"], "regional": ["E175", "CRJ9", "CRJ7"] }
+  },
+  "DAL": {
+    "name": "Delta Air Lines", "telephony": "DELTA", "station": "DALOPS",
+    "hubs": ["KATL", "KDTW", "KMSP", "KSLC", "KSEA", "KLAX", "KJFK", "KLGA", "KBOS"],
+    "family": { "EDV": "Endeavor",
+      "RPA": { "name": "Republic", "shared": true }, "SKW": { "name": "SkyWest", "shared": true } },
+    "remarks": ["DELTA CONNECTION", "DL CONNECTION", "OPR/DELTA"],
+    "fleet": { "mainline": ["A321", "B739", "A21N", "A320", "B752", "A339", "A359"], "regional": ["CRJ9", "E175", "CRJ7"] }
+  },
+  "UAL": {
+    "name": "United Airlines", "telephony": "UNITED", "station": "UALOPS",
+    "hubs": ["KORD", "KDEN", "KIAH", "KSFO", "KEWR", "KIAD", "KLAX"],
+    "family": { "UCA": "CommuteAir", "ASH": "Mesa", "GJS": "GoJet",
+      "RPA": { "name": "Republic", "shared": true }, "SKW": { "name": "SkyWest", "shared": true } },
+    "remarks": ["UNITED EXPRESS", "UA EXPRESS", "OPR/UNITED"],
+    "fleet": { "mainline": ["B39M", "A320", "B739", "B38M", "B772", "B789", "B753"], "regional": ["E175", "CRJ5", "E145"] }
+  },
+  "SWA": {
+    "name": "Southwest Airlines", "telephony": "SOUTHWEST", "station": "SWAOPS",
+    "hubs": ["KDAL", "KHOU", "KMDW", "KBWI", "KLAS", "KDEN", "KPHX", "KMCO", "KOAK", "KBNA"],
+    "fleet": { "mainline": ["B737", "B38M", "B737", "B38M"] }
+  },
+  "JBU": {
+    "name": "JetBlue", "telephony": "JETBLUE", "station": "JBUOPS",
+    "hubs": ["KJFK", "KBOS", "KFLL", "KMCO", "TJSJ"],
+    "fleet": { "mainline": ["A320", "A321", "A21N", "BCS3"] }
+  },
+  "ASA": {
+    "name": "Alaska Airlines", "telephony": "ALASKA", "station": "ASAOPS",
+    "hubs": ["KSEA", "KPDX", "KSFO", "KLAX", "PANC"],
+    "family": { "QXE": "Horizon", "SKW": { "name": "SkyWest", "shared": true } },
+    "remarks": ["ALASKA HORIZON", "OPR/ALASKA"],
+    "fleet": { "mainline": ["B739", "B39M", "B738"], "regional": ["E175", "DH8D"] }
+  },
+  "HAL": {
+    "name": "Hawaiian Airlines", "telephony": "HAWAIIAN", "station": "HALOPS",
+    "hubs": ["PHNL", "PHOG", "KLAX", "KSEA"],
+    "fleet": { "mainline": ["A332", "A21N", "B712", "B789"] }
+  },
+  "NKS": {
+    "name": "Spirit Airlines", "telephony": "SPIRIT WINGS", "station": "NKSOPS",
+    "hubs": ["KFLL", "KLAS", "KMCO", "KDTW", "KEWR"],
+    "fleet": { "mainline": ["A320", "A20N", "A321", "A319"] }
+  },
+  "FFT": {
+    "name": "Frontier Airlines", "telephony": "FRONTIER FLIGHT", "station": "FFTOPS",
+    "hubs": ["KDEN", "KMCO", "KLAS", "KPHL", "KATL"],
+    "fleet": { "mainline": ["A20N", "A21N", "A320"] }
+  },
+  "AAY": {
+    "name": "Allegiant Air", "telephony": "ALLEGIANT", "station": "AAYOPS",
+    "hubs": ["KLAS", "KSFB", "KPIE", "KIWA", "KBLI"],
+    "fleet": { "mainline": ["A320", "A319", "B38M"] }
+  },
+  "SCX": {
+    "name": "Sun Country Airlines", "telephony": "SUN COUNTRY", "station": "SCXOPS",
+    "hubs": ["KMSP"],
+    "fleet": { "mainline": ["B738", "B737"] }
+  },
+  "MXY": {
+    "name": "Breeze Airways", "telephony": "MOXY", "station": "MXYOPS",
+    "hubs": ["KTPA", "KCHS", "KPVD", "KMCO", "KSFB"],
+    "fleet": { "mainline": ["BCS3", "E190", "E195"] }
+  },
+  "FDX": {
+    "name": "FedEx Express", "telephony": "FEDEX", "station": "FDXOPS",
+    "hubs": ["KMEM", "KIND", "KOAK", "KAFW", "PANC", "KEWR"],
+    "fleet": { "mainline": ["B77L", "MD11", "B763", "A306", "B752"] }
+  },
+  "UPS": {
+    "name": "UPS Airlines", "telephony": "UPS", "station": "UPSOPS",
+    "hubs": ["KSDF", "KONT", "KPHL", "KRFD", "KDFW", "PANC"],
+    "fleet": { "mainline": ["B763", "B744", "MD11", "B752", "A306", "B748"] }
+  },
+  "GTI": {
+    "name": "Atlas Air", "telephony": "GIANT", "station": "GTIOPS",
+    "hubs": ["KCVG", "KMIA", "KORD", "PANC", "KONT"],
+    "fleet": { "mainline": ["B744", "B748", "B763", "B77L"] }
+  }
+}

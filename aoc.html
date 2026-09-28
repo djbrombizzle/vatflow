@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dispatch Center — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --vatflow-nav-h: 28px;
+    --bg: #070b11;
+    --panel: #0d141d;
+    --panel-2: #111a25;
+    --line: #1d2a38;
+    --line-2: #2a3a4d;
+    --text: #d6e0ea;
+    --muted: #8796a8;
+    --muted-2: #5d6b7b;
+    --accent: #2f8cff;
+    --ok: #3fcf6a;
+    --warn: #f5b31c;
+    --bad: #ef4d4d;
+    --ph-sched: #8796a8;
+    --ph-gate: #e6edf5;
+    --ph-taxi: #b58cff;
+    --ph-climb: #36d0d0;
+    --ph-cruise: #3aa0ff;
+    --ph-descent: #7f9cff;
+    --ph-approach: #ff8fd0;
+    --ph-landed: #3fcf6a;
+    --ph-lost: #ef4d4d;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.35 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 1100; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .45; }
+  .mono { font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace; }
+
+  #app { position: fixed; top: var(--vatflow-nav-h); left: 0; right: 0; bottom: 0;
+    display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .ttl h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: .2px; }
+  .ttl .sub { color: var(--muted); font-size: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
+  .seg button { background: transparent; border: 0; padding: 6px 12px; color: var(--muted); font-weight: 600; font-size: 12px; }
+  .seg button + button { border-left: 1px solid var(--line-2); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .counters { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .ctr { display: flex; align-items: center; gap: 9px; padding: 6px 10px; min-width: 96px;
+    border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); }
+  .ctr .ic { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px; font-weight: 800; }
+  .ctr .lab { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .ctr .val { font-size: 19px; font-weight: 650; line-height: 1.1; }
+  .ctr.hot { border-color: #7a2626; }
+  .ctr.hot .val { color: #ff9b9b; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted-2); }
+  .pill.ok .dot { background: var(--ok); }
+  .pill.bad .dot { background: var(--bad); }
+  .pill.warn .dot { background: var(--warn); }
+  .clock { font-size: 15px; font-weight: 600; }
+
+  /* ---------- body ---------- */
+  #body { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: minmax(260px, 1fr) minmax(240px, 36vh); min-height: 0; }
+  #rail { grid-row: 1 / span 2; border-right: 1px solid var(--line); background: var(--panel); padding: 12px; overflow: auto; }
+  #rail h3 { margin: 14px 0 7px; font-size: 11px; font-weight: 650; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  #rail h3:first-child { margin-top: 0; }
+  .opRow { display: flex; gap: 5px; }
+  .opRow input { flex: 1; min-width: 0; padding: 6px 9px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 7px;
+    font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .opRow input.sm { font-size: 12.5px; font-weight: 600; padding: 5px 8px; }
+  .opRow button { padding: 5px 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; font-size: 12px; }
+  .hint { font-size: 11px; color: var(--muted-2); margin-top: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .chips button { padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 11px; color: var(--muted); }
+  .chips button.on { border-color: var(--accent); color: #fff; background: #13263d; }
+  .chips .x { margin-left: 4px; color: var(--muted-2); }
+  .tgl { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; font-size: 13px; gap: 8px; }
+  .tgl input[type=checkbox] { width: 34px; height: 18px; flex: none; appearance: none; background: var(--line-2); border-radius: 9px; position: relative; cursor: pointer; }
+  .tgl input[type=checkbox]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .tgl input[type=checkbox]:checked { background: var(--accent); }
+  .tgl input[type=checkbox]:checked::after { left: 18px; }
+  .tgl input[type=checkbox]:disabled { opacity: .4; cursor: not-allowed; }
+  select.sm { padding: 5px 6px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; }
+  .legend div { display: flex; align-items: center; gap: 9px; padding: 3px 0; font-size: 12.5px; }
+  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .perm { margin-top: 12px; padding: 8px 10px; border-radius: 7px; font-size: 12px; border: 1px solid var(--line-2); color: var(--muted); }
+  .perm.ok { border-color: #22583a; color: #9fe0b5; }
+  .perm.ro { border-color: #6a5320; color: #f0cf85; }
+  .activity { font-size: 11.5px; color: var(--muted); }
+  .activity div { padding: 3px 0; border-bottom: 1px solid var(--line); }
+
+  #mapWrap { position: relative; min-height: 0; overflow: hidden; background: #0a1017; }
+  #map { position: absolute; inset: 0; background: #0a1017; }
+  .leaflet-container { font: inherit; }
+  .mapNote { position: absolute; left: 12px; bottom: 22px; z-index: 500; font-size: 11px; color: var(--muted); pointer-events: none;
+    background: rgba(7, 11, 17, .7); padding: 2px 6px; border-radius: 4px; }
+  .acIcon { background: none; border: 0; }
+  .acm { position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; cursor: pointer; }
+  .acm svg { width: 22px; height: 22px; display: block; overflow: visible; }
+  .acl { position: absolute; left: 13px; top: -9px; white-space: nowrap; pointer-events: none;
+    font: 650 10.5px/1.15 "Cascadia Mono", Consolas, monospace; color: #d6e0ea;
+    text-shadow: 0 0 3px #05080c, 0 0 3px #05080c, 0 0 2px #05080c; }
+  .acl .l2 { color: var(--muted); font-weight: 500; }
+  .acl.bad { color: #ffb4b4; }
+  .hubTip { background: transparent; border: 0; box-shadow: none; color: #9fb3c8; font: 700 10px "Cascadia Mono", Consolas, monospace;
+    text-shadow: 0 0 3px #05080c, 0 0 3px #05080c; padding: 0; }
+  .hubTip::before { display: none; }
+  .leaflet-control-zoom a { background: var(--panel); color: var(--text); border-color: var(--line-2); }
+  .leaflet-control-attribution { background: rgba(7, 11, 17, .7) !important; color: var(--muted-2); }
+  .leaflet-control-attribution a { color: var(--muted); }
+
+  #split { position: absolute; left: 0; right: 0; top: -6px; height: 12px; cursor: row-resize; z-index: 6; touch-action: none; }
+  #split::after { content: ""; display: block; width: 56px; height: 4px; margin: 4px auto; border-radius: 2px; background: var(--line-2); }
+  #split:hover::after, #split.on::after { background: var(--accent); }
+  #panels td { font-size: var(--list-fs, 12.5px); }
+  #panels { position: relative; display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, .9fr); gap: 10px; padding: 10px; min-height: 0; border-top: 1px solid var(--line); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .card > .hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .card > .hd h2 { margin: 0 6px 0 0; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+  .card > .bd { overflow: auto; min-height: 0; flex: 1; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button { padding: 3px 9px; font-size: 11.5px; border-radius: 5px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--muted); }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tabs button .n { opacity: .75; margin-left: 3px; }
+  .search { margin-left: auto; padding: 4px 8px; width: 170px; max-width: 100%; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--panel); text-align: left; font-size: 10.5px; font-weight: 650; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12.5px; }
+  td.t { font-family: "Cascadia Mono", Consolas, monospace; font-size: .95em; color: var(--muted); }
+  td.t.set { color: var(--text); }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #121c28; }
+  tbody tr.sel { background: #13263d; box-shadow: inset 3px 0 0 var(--accent); }
+  tbody tr.off { opacity: .72; }
+  td.cs { font-weight: 650; }
+  td.cs .sub { display: block; font-weight: 500; font-size: 10.5px; color: var(--muted); }
+  .ph { display: inline-block; min-width: 70px; text-align: center; padding: 2px 6px; border-radius: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #06101a; }
+  .badge { display: inline-block; padding: 1px 6px; margin: 0 3px 0 0; border-radius: 4px; font-size: 10px; font-weight: 700; vertical-align: 1px; }
+  .badge.warn { background: #4a3710; color: #ffd27a; }
+  .badge.bad { background: #4b1717; color: #ff9b9b; }
+  .badge.info { background: #10304f; color: #8ec8ff; }
+  .badge.acked { background: #1b2430; color: #6f8196; text-decoration: line-through; }
+  .dly.ok { color: #9fe8bd; }
+  .dly.warn { color: #ffd27a; }
+  .dly.bad { color: #ff9b9b; font-weight: 700; }
+  .acars { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; vertical-align: 2px; }
+  .acars.on { background: var(--ok); }
+  .acars.off { background: transparent; box-shadow: inset 0 0 0 1.5px #8796a8; }
+  .unread { display: inline-block; width: 8px; height: 8px; margin-left: 5px; border-radius: 50%; background: var(--warn); vertical-align: 1px; }
+  @keyframes aocBlink { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+  .blink { animation: aocBlink 1s linear infinite; }
+  .muted { color: var(--muted); }
+  .empty { padding: 18px; color: var(--muted); text-align: center; font-size: 12.5px; }
+
+  /* selected flight */
+  .selHead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 10px 12px 2px; }
+  .selHead .cs { font-size: 21px; font-weight: 700; }
+  .chip { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--muted); }
+  .alertRow { display: flex; align-items: center; gap: 8px; margin: 3px 12px; padding: 5px 9px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .alertRow.bad { border: 1px solid #7a2626; color: #ffb4b4; background: #2a0f0f; }
+  .alertRow.warn { border: 1px solid #6a5320; color: #f0cf85; background: #1f190b; }
+  .alertRow.acked { border: 1px solid var(--line-2); color: var(--muted); background: transparent; font-weight: 500; }
+  .alertRow button { margin-left: auto; }
+  .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 10px; padding: 8px 12px; }
+  .facts .k { font-size: 10.5px; color: var(--muted); }
+  .facts .v { font-size: 13.5px; font-weight: 650; }
+  .route { padding: 0 12px 4px; font-size: 11px; color: var(--muted); font-family: "Cascadia Mono", Consolas, monospace; white-space: normal; word-break: break-word; max-height: 3.6em; overflow: hidden; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 12px; }
+  .btn { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; font-weight: 600; }
+  .btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.warn { background: #3d2c0b; border-color: #6b4f15; color: #ffd27a; }
+  .btn.sm { padding: 2px 7px; font-size: 11px; }
+  .sec { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; padding: 8px 12px 2px; }
+  textarea { width: 100%; min-height: 54px; resize: vertical; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line-2); background: #0a1119; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; text-transform: uppercase; }
+  textarea.note { text-transform: none; font-family: inherit; min-height: 38px; }
+  input.arg { width: 90px; padding: 5px 7px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; text-transform: uppercase; }
+  .count { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .count.over { color: var(--bad); }
+  .msgs { padding: 2px 12px 10px; font-size: 11.5px; }
+  .msgs div { padding: 2px 0; font-family: "Cascadia Mono", Consolas, monospace; white-space: normal; }
+  .up { color: #8ec8ff; }
+  .dn { color: #ffd27a; }
+  .flash { padding: 0 12px; font-size: 12px; min-height: 16px; }
+  .flash.err { color: #ff9b9b; }
+  .flash.ok { color: #9fe8bd; }
+  .hoppieLine { font-size: 11.5px; padding: 0 12px 4px; }
+  .roNote { margin: 2px 12px 4px; padding: 6px 9px; border-radius: 6px; font-size: 11.5px; border: 1px solid #6a5320; color: #f0cf85; background: #1f190b; }
+
+  /* messages */
+  .mlist .m { padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .mlist .m:hover { background: #121c28; }
+  .mlist .m.new { background: #1f190b; box-shadow: inset 3px 0 0 var(--warn); }
+  .mlist .mh { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
+  .mlist .mh b { font-size: 12.5px; }
+  .mlist .mt { font-family: "Cascadia Mono", Consolas, monospace; font-size: 11.5px; white-space: normal; margin-top: 2px; }
+  .mlist .mh .btn { margin-left: auto; }
+
+  @media (max-width: 1180px) {
+    #panels { grid-template-columns: 1fr 1fr; }
+    #panels .card:first-child { grid-column: 1 / span 2; }
+  }
+  @media (max-width: 860px) {
+    #app { position: static; display: block; padding-top: var(--vatflow-nav-h); }
+    #body { display: flex; flex-direction: column; }
+    #mapWrap { order: 1; height: 60vh; }
+    #panels { order: 2; grid-template-columns: 1fr; }
+    #panels .card:first-child { grid-column: auto; }
+    #rail { order: 3; border-right: 0; border-top: 1px solid var(--line); }
+    #split { display: none; }
+    .card > .bd { max-height: 60vh; }
+    .counters { margin-left: 0; }
+    .ctr { min-width: 0; flex: 1 1 28%; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div id="app">
+  <header>
+    <div class="ttl">
+      <h1><span id="ttlCode">…</span> Dispatch Center</h1>
+      <div class="sub" id="ttlSub">Airline operations</div>
+    </div>
+    <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+      <button data-mode="demo">DEMO</button>
+      <button data-mode="live">LIVE</button>
+    </div>
+    <div class="counters">
+      <div class="ctr"><div class="ic" style="background:#1b2430;color:#a9b8c8">≡</div><div><div class="lab">Scheduled</div><div class="val" id="cSched">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#241a3d;color:#d2b8ff">◦</div><div><div class="lab">Ground</div><div class="val" id="cGround">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#12304f;color:#8ec8ff">✈</div><div><div class="lab">Enroute</div><div class="val" id="cAir">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#3a1733;color:#ffb8e2">↘</div><div><div class="lab">Arriving</div><div class="val" id="cArg">0</div></div></div>
+      <div class="ctr"><div class="ic" style="background:#113a24;color:#9fe8bd">✓</div><div><div class="lab">Arrived</div><div class="val" id="cArr">0</div></div></div>
+      <div class="ctr" id="ctrAlerts"><div class="ic" style="background:#3b1414;color:#ffaaaa">!</div><div><div class="lab">Alerts</div><div class="val" id="cAlerts">0</div></div></div>
+    </div>
+    <span class="pill" id="connPill"><span class="dot"></span><span id="connText">…</span></span>
+    <span class="clock mono" id="clock">--:--:--Z</span>
+  </header>
+
+  <div id="body">
+    <aside id="rail">
+      <h3>Operator</h3>
+      <form class="opRow" id="opForm" autocomplete="off">
+        <input id="opCode" list="opList" maxlength="4" placeholder="AAL" aria-label="Operator code" spellcheck="false">
+        <button type="submit">Watch</button>
+      </form>
+      <datalist id="opList"></datalist>
+      <div class="hint" id="opHint">Any airline code works, including virtual airlines: type the callsign prefix (e.g. XYZ for XYZ123).</div>
+      <div class="chips" id="opChips"></div>
+
+      <h3>Also watch callsigns</h3>
+      <form class="opRow" id="watchForm" autocomplete="off">
+        <input class="sm" id="watchCs" placeholder="N123AB, XYZ42" aria-label="Callsign to watch" spellcheck="false">
+        <button type="submit">Add</button>
+      </form>
+      <div class="chips" id="watchChips"></div>
+
+      <h3>Filter</h3>
+      <label class="tgl" id="regRow">Regional partners <input type="checkbox" id="optRegionals" checked></label>
+      <div class="tgl">Hub
+        <select class="sm" id="hubSel" style="width:auto;min-width:100px"></select>
+      </div>
+
+      <h3>Display</h3>
+      <label class="tgl">Map labels <input type="checkbox" id="optLabels" checked></label>
+      <label class="tgl">Aircraft on the ground <input type="checkbox" id="optGround" checked></label>
+      <label class="tgl">Hubs <input type="checkbox" id="optHubs" checked></label>
+      <label class="tgl">Flown track (selected) <input type="checkbox" id="optTrack" checked></label>
+      <div class="tgl">List text
+        <select class="sm" id="listSize" style="width:auto">
+          <option value="11.5px">small</option><option value="12.5px">normal</option><option value="14px">large</option><option value="15.5px">x-large</option>
+        </select>
+      </div>
+
+      <h3>Legend</h3>
+      <div class="legend" id="legend"></div>
+      <div class="perm" id="perm"></div>
+      <h3>Activity</h3>
+      <div class="activity" id="activity"></div>
+    </aside>
+
+    <div id="mapWrap">
+      <div id="map" aria-label="Operations map"></div>
+      <div class="mapNote" id="mapNote"></div>
+    </div>
+
+    <div id="panels">
+      <div id="split" title="Drag to size the map and the lists. Double-click to reset."></div>
+      <section class="card">
+        <div class="hd">
+          <h2>Flights</h2>
+          <div class="tabs" id="fTabs"></div>
+          <input class="search" id="search" placeholder="Search callsign, type, airport…" autocomplete="off">
+        </div>
+        <div class="bd">
+          <table>
+            <thead><tr>
+              <th>Flight</th><th>Type</th><th>Route</th><th>Phase</th><th>Alerts</th>
+              <th title="Scheduled departure: the filed departure time">STD</th>
+              <th title="Out: left the gate">Out</th><th title="Off: took off">Off</th><th title="On: landed">On</th><th title="In: at the gate">In</th>
+              <th title="Estimated arrival">ETA</th><th title="Minutes late (+) or early (−): departure until airborne, then arrival">Delay</th>
+              <th>Alt / GS</th>
+            </tr></thead>
+            <tbody id="flights"></tbody>
+          </table>
+          <div class="empty" id="flightsEmpty" hidden></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="hd"><h2>Selected flight</h2></div>
+        <div class="bd" id="selected"><div class="empty">Select a flight in the table or on the map.</div></div>
+      </section>
+
+      <section class="card">
+        <div class="hd">
+          <h2>Telex</h2>
+          <span class="muted" style="font-size:11.5px" id="msgNote"></span>
+          <button class="btn sm" id="markRead" style="margin-left:auto" hidden>Mark all read</button>
+        </div>
+        <div class="bd mlist" id="messages"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import {
+  PHASE, PHASE_GROUP, TEMPLATES, TELEX_MAX, airportIndex, allMessages, classifyDownlink, composeTelex, deriveFlights,
+  gcLine, loadMemory, makeWatch, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
+} from "./shared/aoc-core.js";
+import { createDemoStore, AIR_ACCEL } from "./shared/aoc-demo.js";
+import { createLiveStore } from "./shared/aoc-live.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+};
+const jsonLS = (k, d) => { try { return JSON.parse(LS.get(k, "")) ?? d; } catch (_) { return d; } };
+
+const PHASE_COLOR = {
+  [PHASE.SCHED]: "var(--ph-sched)", [PHASE.GATE]: "var(--ph-gate)", [PHASE.TAXI_OUT]: "var(--ph-taxi)",
+  [PHASE.CLIMB]: "var(--ph-climb)", [PHASE.CRUISE]: "var(--ph-cruise)", [PHASE.DESCENT]: "var(--ph-descent)",
+  [PHASE.APPROACH]: "var(--ph-approach)", [PHASE.LANDED]: "var(--ph-landed)", [PHASE.TAXI_IN]: "var(--ph-taxi)",
+  [PHASE.ARRIVED]: "var(--ph-landed)", [PHASE.LOST]: "var(--ph-lost)",
+};
+/** Map colours (Leaflet paths cannot read CSS variables). */
+const PHASE_HEX = {
+  [PHASE.SCHED]: "#8796a8", [PHASE.GATE]: "#e6edf5", [PHASE.TAXI_OUT]: "#b58cff", [PHASE.CLIMB]: "#36d0d0",
+  [PHASE.CRUISE]: "#3aa0ff", [PHASE.DESCENT]: "#7f9cff", [PHASE.APPROACH]: "#ff8fd0", [PHASE.LANDED]: "#3fcf6a",
+  [PHASE.TAXI_IN]: "#b58cff", [PHASE.ARRIVED]: "#3fcf6a", [PHASE.LOST]: "#ef4d4d",
+};
+const LEGEND = [
+  [PHASE.SCHED, "Scheduled (filed, not connected)"], [PHASE.GATE, "At gate"], [PHASE.TAXI_OUT, "Taxiing"],
+  [PHASE.CLIMB, "Climbing"], [PHASE.CRUISE, "Cruise"], [PHASE.DESCENT, "Descending"], [PHASE.APPROACH, "Approach"],
+  [PHASE.ARRIVED, "Landed / arrived"], [PHASE.LOST, "Lost contact"],
+];
+/** Board order: what needs looking at first. */
+const GROUP_ORDER = { arriving: 0, enroute: 1, ground: 2, sched: 3, arrived: 4 };
+const TABS = [
+  ["ALL", "All", () => true],
+  ["SCH", "Scheduled", r => PHASE_GROUP[r.phase] === "sched"],
+  ["GND", "Ground", r => PHASE_GROUP[r.phase] === "ground"],
+  ["ENR", "Enroute", r => PHASE_GROUP[r.phase] === "enroute"],
+  ["ARG", "Arriving", r => PHASE_GROUP[r.phase] === "arriving"],
+  ["ARR", "Arrived", r => PHASE_GROUP[r.phase] === "arrived"],
+  ["ALR", "Alerts", r => r.alertsOpen.length > 0],
+];
+const PLANE = "M0,-11 L1.6,-8 L1.6,-3 L10,2 L10,4 L1.6,1.5 L1.2,7 L4,9.5 L4,11 L0,10 L-4,11 L-4,9.5 L-1.2,7 L-1.6,1.5 L-10,4 L-10,2 L-1.6,-3 L-1.6,-8 Z";
+
+const ui = {
+  tab: "ALL",
+  search: "",
+  hub: "",
+  selected: null,
+  composer: { cs: null, tpl: "free", text: "", arg: "", dirty: false },
+  flash: { text: "", kind: "" },
+  selSig: "",
+  msgSig: "",
+  noteDirty: false,
+  fitted: false,
+};
+
+let OPS = {};
+let IDX = new Map();
+const A = icao => IDX.get(icao) || null;
+let W = null;
+let store = null;
+let unsub = null;
+let memory = new Map();
+let rows = [];
+let vrows = [];
+let readAt = {};
+const metarCache = new Map();
+
+/* ---------------- map ---------------- */
+const map = L.map("map", { zoomControl: true, worldCopyJump: true, minZoom: 2, attributionControl: true, preferCanvas: false })
+  .setView([38, -96], 4);
+if (typeof addVatflowBasemap === "function") addVatflowBasemap(map, "VATSIM data");
+const hubLayer = L.layerGroup().addTo(map);
+const selLayer = L.layerGroup().addTo(map);
+const acLayer = L.layerGroup().addTo(map);
+const markers = new Map();
+map.on("zoomend", () => scheduleRender());
+
+function planeHtml(r, sel) {
+  const bad = r.alertsOpen.some(a => a.level === "bad");
+  const col = PHASE_HEX[r.phase] || "#8796a8";
+  const ring = sel ? `<circle r="15" fill="none" stroke="#fff" stroke-width="1.6"/>` : bad ? `<circle r="15" fill="none" stroke="#ef4d4d" stroke-width="2" class="blink"/>` : "";
+  // Zoomed out: callsign only, and none for aircraft on the ground (hubs pile up).
+  const z = map.getZoom();
+  const ground = PHASE_GROUP[r.phase] === "ground" || r.phase === PHASE.ARRIVED || r.phase === PHASE.TAXI_IN || r.phase === PHASE.LANDED;
+  const show = sel || bad || ($("optLabels").checked && (z >= 6 || !ground));
+  const lbl = show
+    ? `<div class="acl${bad ? " bad" : ""}">${esc(r.callsign)}${z >= 5 || sel ? `<br><span class="l2">${esc(mapLine2(r))}</span>` : ""}</div>` : "";
+  return `<div class="acm" data-cs="${esc(r.callsign)}"><svg viewBox="-12 -12 24 24">${ring}` +
+    `<path d="${PLANE}" transform="rotate(${Math.round(r.hdg)})" fill="${col}" stroke="#05080c" stroke-width="1.1" opacity="${r.connected ? 1 : 0.55}"/></svg></div>${lbl}`;
+}
+
+function mapLine2(r) {
+  if (r.phase === PHASE.GATE || r.phase === PHASE.ARRIVED) return `${r.phase} ${r.phase === PHASE.GATE ? r.dep : r.arr}`;
+  if (r.phase === PHASE.TAXI_OUT || r.phase === PHASE.TAXI_IN || r.phase === PHASE.LANDED) return r.phase;
+  if (r.phase === PHASE.LOST) return "LOST";
+  const fl = r.alt >= 18000 ? `FL${String(Math.round(r.alt / 100)).padStart(3, "0")}` : `${Math.round(r.alt / 100) * 100}`;
+  return `${fl} ${Math.round(r.gs)} ${r.arr}`;
+}
+
+function onMapRow(r) {
+  if (r.lat == null || r.phase === PHASE.SCHED) return false;
+  const ground = r.phase === PHASE.GATE || r.phase === PHASE.ARRIVED || r.phase === PHASE.TAXI_OUT || r.phase === PHASE.TAXI_IN;
+  return !ground || $("optGround").checked || r.callsign === ui.selected;
+}
+
+function renderMap() {
+  const want = new Map(vrows.filter(onMapRow).map(r => [r.callsign, r]));
+  for (const [cs, m] of markers) {
+    if (!want.has(cs)) { acLayer.removeLayer(m.marker); markers.delete(cs); }
+  }
+  for (const [cs, r] of want) {
+    const sel = cs === ui.selected;
+    const html = planeHtml(r, sel);
+    let m = markers.get(cs);
+    if (!m) {
+      const marker = L.marker([r.lat, r.lon], {
+        icon: L.divIcon({ className: "acIcon", html, iconSize: [0, 0] }),
+        zIndexOffset: sel ? 1000 : 0, keyboard: false,
+      }).addTo(acLayer);
+      marker.on("click", () => select(cs));
+      m = { marker, html };
+      markers.set(cs, m);
+    } else {
+      m.marker.setLatLng([r.lat, r.lon]);
+      if (m.html !== html) {
+        const el = m.marker.getElement();
+        if (el) el.innerHTML = html;
+        m.html = html;
+      }
+      m.marker.setZIndexOffset(sel ? 1000 : 0);
+    }
+  }
+  renderSelLayer();
+  const note = [];
+  if (store.mode === "demo") note.push(`Demo: time in the air runs ${AIR_ACCEL}× faster`);
+  else if (store.feedStatus) note.push(store.feedStatus.text);
+  $("mapNote").textContent = note.join(" · ");
+  $("mapNote").hidden = !note.length;
+}
+
+let selLayerSig = "";
+function renderSelLayer() {
+  const r = rows.find(x => x.callsign === ui.selected);
+  const sig = r ? `${r.callsign}|${r.lat?.toFixed(3)}|${r.lon?.toFixed(3)}|${r.arr}|${r.track.length}|${$("optTrack").checked}` : "";
+  if (sig === selLayerSig) return;
+  selLayerSig = sig;
+  selLayer.clearLayers();
+  if (!r || r.lat == null) return;
+  const dep = A(r.dep), arr = A(r.arr);
+  if ($("optTrack").checked && r.track.length) {
+    L.polyline([...r.track, [r.lat, r.lon]], { color: PHASE_HEX[r.phase], weight: 2.2, opacity: .9, interactive: false }).addTo(selLayer);
+  }
+  if (arr && PHASE_GROUP[r.phase] !== "arrived") {
+    L.polyline(gcLine({ lat: r.lat, lon: r.lon }, arr, 48), { color: "#c9d6e3", weight: 1.4, opacity: .7, dashArray: "5 6", interactive: false }).addTo(selLayer);
+  }
+  for (const [a, lab] of [[dep, r.dep], [arr, r.arr]]) {
+    if (!a) continue;
+    L.circleMarker([a.lat, a.lon], { radius: 5, color: "#fff", weight: 1.5, fillColor: "#0a1017", fillOpacity: 1, interactive: false })
+      .bindTooltip(lab, { permanent: true, direction: "right", className: "hubTip", offset: [6, 0] }).addTo(selLayer);
+  }
+}
+
+function renderHubs() {
+  hubLayer.clearLayers();
+  if (!$("optHubs").checked) return;
+  for (const h of W.hubs) {
+    const a = A(h);
+    if (!a) continue;
+    L.circleMarker([a.lat, a.lon], { radius: 4, color: "#5d7fa3", weight: 1.2, fillColor: "#13263d", fillOpacity: .9, interactive: false })
+      .bindTooltip(h, { permanent: true, direction: "right", className: "hubTip", offset: [5, 0] }).addTo(hubLayer);
+  }
+}
+
+function fitView() {
+  const pts = W.hubs.map(A).filter(Boolean).map(a => [a.lat, a.lon]);
+  const flying = rows.filter(r => r.lat != null && r.phase !== PHASE.SCHED).map(r => [r.lat, r.lon]);
+  const use = pts.length >= 2 ? pts : flying.length ? flying : null;
+  if (use) {
+    map.fitBounds(L.latLngBounds(use).pad(0.15), { maxZoom: 7 });
+    ui.fitted = true;
+  }
+}
+
+/* ---------------- render ---------------- */
+let raf = 0;
+function scheduleRender() {
+  if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); });
+}
+
+function render() {
+  const state = store.getState();
+  const now = Date.now();
+  rows = deriveFlights({ W, A, idx: IDX, regionals: $("optRegionals").checked }, store.getFeed(), memory, now);
+  // Alerts from the telex log, then split by acknowledged.
+  for (const r of rows) {
+    const e = state.flights[r.callsign];
+    const extra = [];
+    const pend = pendingReply(e, now);
+    if (pend) extra.push(pend);
+    const lastDn = (e?.msgs || []).filter(m => m.dir === "dn").slice(-1)[0];
+    if (lastDn && now - lastDn.t < 30 * 60000) {
+      const k = classifyDownlink(lastDn.text).kind;
+      if (k === "delay" || k === "divert") extra.push({ key: `dn-${lastDn.t}`, level: "warn", text: `Pilot: ${lastDn.text}` });
+    }
+    r.alerts = [...r.alerts, ...extra];
+    r.alertsOpen = r.alerts.filter(a => !(e?.ack || {})[a.key]);
+    r.entry = e || null;
+  }
+  vrows = ui.hub ? rows.filter(r => r.dep === ui.hub || r.arr === ui.hub || r.callsign === ui.selected) : rows;
+  if (!ui.fitted && rows.length && W.hubs.length < 2) fitView();
+  renderHeader();
+  renderRail(state);
+  renderMap();
+  renderFlights();
+  renderSelected(state);
+  renderMessages(state);
+  saveMemorySoon();
+}
+
+function renderHeader() {
+  const c = g => vrows.filter(r => g.includes(PHASE_GROUP[r.phase])).length;
+  $("cSched").textContent = c(["sched"]);
+  $("cGround").textContent = c(["ground"]);
+  $("cAir").textContent = c(["enroute"]);
+  $("cArg").textContent = c(["arriving"]);
+  $("cArr").textContent = c(["arrived"]);
+  const al = vrows.filter(r => r.alertsOpen.length).length;
+  $("cAlerts").textContent = al;
+  $("ctrAlerts").classList.toggle("hot", al > 0);
+  const hubOk = store.status.ok;
+  const feedOk = store.mode === "demo" || store.feedStatus?.ok;
+  $("connPill").className = "pill " + (store.mode === "demo" ? "ok" : !feedOk ? "bad" : hubOk ? "ok" : "warn");
+  $("connText").textContent = store.mode === "demo" ? "Demo mode" : !feedOk ? "Feed offline" : hubOk ? "Feed + hub" : "Feed only";
+  $("connPill").title = [store.feedStatus?.text, store.status.text].filter(Boolean).join(" · ");
+}
+
+function renderRail(state) {
+  const me = store.me;
+  const p = $("perm");
+  if (store.mode === "demo") {
+    p.className = "perm ok";
+    p.innerHTML = "<b>Demo.</b> A simulated fleet. Telex stays in this browser and simulated pilots answer. Try a Divert.";
+  } else if (me.canWrite) {
+    p.className = "perm ok";
+    p.innerHTML = `Dispatching as <b>${esc(me.callsign)}</b>. ${esc(store.status.text)}`;
+  } else {
+    p.className = "perm ro";
+    p.innerHTML = `<b>Read-only.</b> ${esc(me.reason || "Sending telex needs the dispatcher role for this operator.")}`;
+  }
+  $("activity").innerHTML = (state.log || []).slice(-7).reverse()
+    .map(l => `<div><span class="mono">${zulu(l.t)}</span> ${esc(l.text)} <span class="muted">· ${esc(l.by)}</span></div>`).join("") ||
+    '<div class="muted">Nothing yet.</div>';
+}
+
+function fmtT(t) {
+  return t == null ? "—" : zulu(t).slice(0, 4);
+}
+
+function delayHtml(d) {
+  if (d == null) return '<span class="muted">—</span>';
+  const cls = d <= 5 ? "ok" : d <= 15 ? "warn" : "bad";
+  return `<span class="dly ${cls}">${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d)}</span>`;
+}
+
+function altGs(r) {
+  if (!r.connected && r.phase !== PHASE.LOST) return '<span class="muted">offline</span>';
+  if (r.gs < 50) return `<span class="muted">${r.gs ? r.gs + " kt" : "—"}</span>`;
+  const fl = r.alt >= 18000 ? `FL${String(Math.round(r.alt / 100)).padStart(3, "0")}` : `${Math.round(r.alt / 100) * 100}`;
+  return `${fl} <span class="muted">${Math.round(r.gs)}</span>`;
+}
+
+function unreadFor(cs, e) {
+  const last = (e?.msgs || []).filter(m => m.dir === "dn").slice(-1)[0];
+  return !!last && last.t > (readAt[cs] || 0);
+}
+
+function sortRows(list) {
+  return list.sort((a, b) => {
+    const ab = a.alertsOpen.some(x => x.level === "bad") ? 0 : 1, bb = b.alertsOpen.some(x => x.level === "bad") ? 0 : 1;
+    if (ab !== bb) return ab - bb;
+    const g = GROUP_ORDER[PHASE_GROUP[a.phase]] - GROUP_ORDER[PHASE_GROUP[b.phase]];
+    if (g) return g;
+    const ta = PHASE_GROUP[a.phase] === "arrived" ? -(a.in || a.on || 0) : (PHASE_GROUP[a.phase] === "sched" || PHASE_GROUP[a.phase] === "ground") ? a.std ?? 9e15 : a.eta ?? 9e15;
+    const tb = PHASE_GROUP[b.phase] === "arrived" ? -(b.in || b.on || 0) : (PHASE_GROUP[b.phase] === "sched" || PHASE_GROUP[b.phase] === "ground") ? b.std ?? 9e15 : b.eta ?? 9e15;
+    return ta - tb || a.callsign.localeCompare(b.callsign);
+  });
+}
+
+function renderFlights() {
+  $("fTabs").innerHTML = TABS.map(([id, label, f]) =>
+    `<button data-tab="${id}" class="${ui.tab === id ? "on" : ""}">${label}<span class="n">${vrows.filter(f).length}</span></button>`).join("");
+  const f = TABS.find(t => t[0] === ui.tab) || TABS[0];
+  const q = ui.search.trim().toUpperCase();
+  const list = sortRows(vrows.filter(f[2]).filter(r => !q ||
+    [r.callsign, r.type, r.dep, r.arr, r.carrier].some(v => String(v || "").toUpperCase().includes(q))));
+  const hop = store.getHoppie();
+  $("flights").innerHTML = list.map(r => {
+    const h = hop[r.callsign];
+    const acars = h === true ? '<span class="acars on" title="ACARS on Hoppie"></span>' : h === false ? '<span class="acars off" title="Not on Hoppie"></span>' : "";
+    const sub = r.carrier ? `${r.carrier}${r.via === "remarks" ? " (remarks)" : ""}` : r.via === "watch" ? "watched" : "";
+    const unread = unreadFor(r.callsign, r.entry) ? '<span class="unread blink" title="Unread telex"></span>' : "";
+    const alerts = r.alerts.map(a => {
+      const acked = !r.alertsOpen.includes(a);
+      return `<span class="badge ${acked ? "acked" : a.level}" title="${esc(a.text)}">${esc(shortAlert(a))}</span>`;
+    }).join("");
+    const dly = PHASE_GROUP[r.phase] === "sched" && r.delay != null && r.delay <= 0 ? '<span class="muted">—</span>' : delayHtml(r.delay);
+    return `<tr data-cs="${esc(r.callsign)}" class="${r.callsign === ui.selected ? "sel" : ""}${r.connected || r.phase === PHASE.SCHED ? "" : " off"}">
+      <td class="cs">${esc(r.callsign)}${acars}${unread}${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</td>
+      <td>${esc(r.type || "?")}</td>
+      <td class="mono">${esc(r.dep || "?")}<span class="muted">→</span>${esc(r.arr || "?")}</td>
+      <td><span class="ph" style="background:${PHASE_COLOR[r.phase]}">${esc(r.phase)}</span></td>
+      <td>${alerts}</td>
+      <td class="t set">${fmtT(r.std)}</td>
+      <td class="t${r.out ? " set" : ""}">${fmtT(r.out)}</td>
+      <td class="t${r.off ? " set" : ""}">${fmtT(r.off)}</td>
+      <td class="t${r.on ? " set" : ""}">${fmtT(r.on)}</td>
+      <td class="t${r.in ? " set" : ""}">${fmtT(r.in)}</td>
+      <td class="t set">${r.on ? "—" : fmtT(r.eta)}</td>
+      <td>${dly}</td>
+      <td>${altGs(r)}</td></tr>`;
+  }).join("");
+  const empty = $("flightsEmpty");
+  empty.hidden = list.length > 0;
+  if (!list.length) {
+    empty.textContent = !rows.length
+      ? store.mode === "live"
+        ? `No ${W.code} flights on VATSIM right now${W.callsigns.size ? " (or watched callsigns)" : ""}. Try DEMO to see how the board works.`
+        : "Starting the demo…"
+      : "No flights match this filter.";
+  }
+}
+
+function shortAlert(a) {
+  if (a.key.startsWith("sq")) return a.key.slice(2);
+  if (a.key.startsWith("div") || a.key.startsWith("ldg")) return "DIVERT";
+  return { lost: "LOST", late: "LATE", hold: "HOLD", fuel: "FUEL" }[a.key] || (a.key.startsWith("reply") ? "NO REPLY" : a.key.startsWith("dn") ? "PILOT" : "!");
+}
+
+/* ---------------- selected flight ---------------- */
+function argDefault(r, tpl) {
+  if (tpl === "wx") return r.arr || "";
+  if (tpl === "divert") return r.altn || "";
+  return "";
+}
+
+function defaultTelex(r, tpl, arg) {
+  if (tpl === "wx") {
+    const icao = normCode(arg) || r.arr;
+    const c = metarCache.get(icao);
+    if (!c) { fetchMetar(icao); return composeTelex("wx", W, r, { icao, metar: `${icao} METAR LOADING...` }); }
+    return composeTelex("wx", W, r, { icao, metar: c.text });
+  }
+  return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg) });
+}
+
+async function fetchMetar(icao) {
+  if (!/^[A-Z0-9]{3,4}$/.test(icao) || metarCache.has(icao)) return;
+  metarCache.set(icao, { text: `${icao} METAR LOADING...`, t: Date.now(), loading: true });
+  let text = `${icao} METAR NOT AVAILABLE.`;
+  try {
+    const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(icao)}`, { cache: "no-store" });
+    const t = (await res.text()).trim().split("\n")[0];
+    if (res.ok && t) text = t.startsWith(icao) ? t : `${icao} ${t}`;
+  } catch (_) {}
+  metarCache.set(icao, { text, t: Date.now() });
+  setTimeout(() => metarCache.delete(icao), 10 * 60000);
+  if (ui.composer.tpl === "wx" && !ui.composer.dirty) { ui.selSig = ""; scheduleRender(); }
+}
+
+function renderSelected(state) {
+  const box = $("selected");
+  const r = rows.find(x => x.callsign === ui.selected);
+  if (!r) {
+    if (ui.selSig !== "none") {
+      box.innerHTML = '<div class="empty">Select a flight in the table or on the map.</div>';
+      ui.selSig = "none";
+    }
+    return;
+  }
+  const e = r.entry || {};
+  const me = store.me;
+  const hop = store.getHoppie()[r.callsign];
+  if (ui.composer.cs !== r.callsign) {
+    const tpl = PHASE_GROUP[r.phase] === "ground" || r.phase === PHASE.SCHED ? "release" : "free";
+    ui.composer = { cs: r.callsign, tpl, text: "", arg: argDefault(r, tpl), dirty: false };
+    ui.noteDirty = false;
+  }
+  if (!ui.composer.dirty) ui.composer.text = defaultTelex(r, ui.composer.tpl, ui.composer.arg);
+  // Rebuild only when something shown changes (keeps typing and focus).
+  const sig = JSON.stringify([r.callsign, r.phase, r.dep, r.arr, r.altn, fmtT(r.eta), r.delay, r.out, r.off, r.on, r.in, Math.round(r.alt / 500),
+    Math.round(r.gs / 10), r.squawk, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
+    e.note, (e.msgs || []).length, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
+  if (sig === ui.selSig) return;
+  ui.selSig = sig;
+  const keep = { focus: document.activeElement?.id, selStart: document.activeElement?.selectionStart, note: $("noteText")?.value,
+    scroll: box.dataset.cs === r.callsign ? box.scrollTop : 0 };
+  box.dataset.cs = r.callsign;
+  const dis = me.canWrite ? "" : "disabled";
+  const msgs = (e.msgs || []).slice(-8).reverse();
+  const argLabel = { gate: "Gate", wx: "ICAO", divert: "ICAO" }[ui.composer.tpl];
+  const fl = r.filedAlt ? `FL${String(Math.round(r.filedAlt / 100)).padStart(3, "0")}` : "—";
+  box.innerHTML = `
+    <div class="selHead"><span class="cs">${esc(r.callsign)}</span><span class="chip">${esc(r.type || "?")}</span>
+      ${r.carrier ? `<span class="chip">${esc(r.carrier)}</span>` : ""}
+      <span class="ph" style="background:${PHASE_COLOR[r.phase]}">${esc(r.phase)}</span>
+      ${r.lat != null && r.phase !== PHASE.SCHED ? '<button class="btn sm" id="bLocate" style="margin-left:auto">Show on map</button>' : ""}</div>
+    ${r.alerts.map(a => {
+      const open = r.alertsOpen.includes(a);
+      return `<div class="alertRow ${open ? a.level : "acked"}">${open ? "⚠" : "✓"} ${esc(a.text)}${open ? `<button class="btn sm" data-ack="${esc(a.key)}" ${dis}>Acknowledge</button>` : ""}</div>`;
+    }).join("")}
+    <div class="facts">
+      <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>
+      <div><div class="k">To</div><div class="v">${esc(r.arr || "?")}</div></div>
+      <div><div class="k">Alternate</div><div class="v">${esc(r.altn || "—")}</div></div>
+      <div><div class="k">Filed</div><div class="v">${fl}</div></div>
+      <div><div class="k">STD</div><div class="v mono">${fmtT(r.std)}</div></div>
+      <div><div class="k">Filed ETA</div><div class="v mono">${fmtT(r.filedEta)}</div></div>
+      <div><div class="k">${r.on ? "Landed" : "ETA"}</div><div class="v mono">${fmtT(r.on || r.eta)}</div></div>
+      <div><div class="k">Delay</div><div class="v">${delayHtml(r.delay)}</div></div>
+      <div><div class="k">Out / Off</div><div class="v mono">${fmtT(r.out)} ${fmtT(r.off)}</div></div>
+      <div><div class="k">On / In</div><div class="v mono">${fmtT(r.on)} ${fmtT(r.in)}</div></div>
+      <div><div class="k">Alt / GS</div><div class="v">${altGs(r)}</div></div>
+      <div><div class="k">To go</div><div class="v">${r.distToGo != null && !r.on ? Math.round(r.distToGo) + " nm" : "—"}${r.squawk ? ` <span class="muted" style="font-weight:500;font-size:11px">sq ${esc(r.squawk)}</span>` : ""}</div></div>
+    </div>
+    ${r.route ? `<div class="route" title="${esc(r.route)}">${esc(r.route)}</div>` : ""}
+    <div class="sec">Dispatcher note</div>
+    <div class="row"><textarea class="note" id="noteText" maxlength="500" placeholder="Shared with every dispatcher on ${esc(W.code)}" ${dis}></textarea></div>
+    <div class="row"><button class="btn" id="bNote" ${dis}>Save note</button></div>
+    ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || "Sending telex needs the dispatcher role for this operator.")}</div>`}
+    <div class="sec">Telex via Hoppie</div>
+    <div class="row">
+      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join("")}</select>
+      ${argLabel ? `<input class="arg" id="tlxArg" placeholder="${argLabel}" maxlength="6" ${dis}>` : ""}
+      <span class="count" id="tlxCount"></span>
+    </div>
+    <div class="row"><textarea id="tlxText" maxlength="${TELEX_MAX}" spellcheck="false" ${dis}></textarea></div>
+    <div class="row"><button class="btn pri" id="bSend" ${dis || (r.connected ? "" : "disabled")}>Send to ${esc(r.callsign)}</button>
+      <span class="muted" style="font-size:11px">${store.mode === "demo" ? "Demo: stays in this browser" : `From ${esc(store.station || W.station)}${store.dryRun ? " · hub dry run" : ""}`}</span></div>
+    <div class="hoppieLine">${!r.connected ? '<span class="muted">Not connected to VATSIM: nothing can be sent.</span>'
+      : hop === true ? '<span class="acars on" style="margin:0 5px 0 0"></span>ACARS on Hoppie'
+      : hop === false ? '<span class="acars off" style="margin:0 5px 0 0"></span><span style="color:#ffd27a">Not on Hoppie: a telex will not reach them.</span>'
+      : '<span class="muted">Hoppie connection not checked</span>'}</div>
+    <div class="flash ${ui.flash.kind}">${esc(ui.flash.text)}${ui.flash.force && me.canWrite ? ' <button class="btn warn" id="bSendForce" style="margin-left:6px">Send anyway</button>' : ""}</div>
+    ${msgs.length ? `<div class="sec">Messages</div><div class="msgs">${msgs.map(m =>
+      `<div class="${m.dir}">${zulu(m.t)} ${m.dir === "up" ? "▲" : "▼"} ${esc(m.text)}</div>`).join("")}</div>` : ""}`;
+  $("noteText").value = ui.noteDirty && keep.note != null ? keep.note : e.note || "";
+  $("tlxTpl").value = ui.composer.tpl;
+  if ($("tlxArg")) $("tlxArg").value = ui.composer.arg;
+  $("tlxText").value = ui.composer.text;
+  updateCount();
+  box.scrollTop = keep.scroll;
+  if (keep.focus && $(keep.focus)) {
+    $(keep.focus).focus({ preventScroll: true });
+    if (keep.selStart != null && $(keep.focus).setSelectionRange) try { $(keep.focus).setSelectionRange(keep.selStart, keep.selStart); } catch (_) {}
+  }
+}
+
+function updateCount() {
+  const n = ($("tlxText")?.value || "").length;
+  const c = $("tlxCount");
+  if (!c) return;
+  c.textContent = `${n}/${TELEX_MAX}`;
+  c.className = "count" + (n > TELEX_MAX ? " over" : "");
+}
+
+/* ---------------- telex list ---------------- */
+function renderMessages(state) {
+  const all = allMessages(state).slice(0, 80);
+  const newCount = new Set(all.filter(m => m.dir === "dn" && m.t > (readAt[m.callsign] || 0)).map(m => m.callsign)).size;
+  const sig = JSON.stringify([all.length, all[0]?.t, newCount, ui.selected, store.me.canWrite]);
+  $("msgNote").textContent = newCount ? `${newCount} unread` : all.length ? "" : "";
+  $("markRead").hidden = !newCount;
+  if (sig === ui.msgSig) return;
+  ui.msgSig = sig;
+  $("messages").innerHTML = all.map(m => {
+    const isNew = m.dir === "dn" && m.t > (readAt[m.callsign] || 0);
+    const k = m.dir === "dn" ? classifyDownlink(m.text) : null;
+    const tpl = k && replyTemplateFor(k.kind);
+    return `<div class="m${isNew ? " new" : ""}" data-cs="${esc(m.callsign)}">
+      <div class="mh"><span class="mono muted">${zulu(m.t)}</span><b>${esc(m.callsign)}</b><span class="${m.dir}">${m.dir === "up" ? "▲ to pilot" : "▼ from pilot"}</span>
+      ${tpl && store.me.canWrite ? `<button class="btn sm" data-reply="${tpl}" data-arg="${esc(k.icao || "")}">Reply</button>` : ""}</div>
+      <div class="mt ${m.dir}">${esc(m.text)}</div></div>`;
+  }).join("") || `<div class="empty">${store.mode === "live" && !store.status.ok ? "Telex needs the hub's Dispatch Center update." : `No telex yet. Pilots can message ${esc(store.station || W.station)} on Hoppie.`}</div>`;
+}
+
+function markRead(cs) {
+  const e = store.getState().flights[cs];
+  const last = (e?.msgs || []).filter(m => m.dir === "dn").slice(-1)[0];
+  if (last && last.t > (readAt[cs] || 0)) {
+    readAt[cs] = last.t;
+    LS.set(`vatflow.aoc.read.${W.code}`, JSON.stringify(readAt));
+  }
+}
+
+/* ---------------- actions ---------------- */
+function select(cs) {
+  ui.selected = cs;
+  ui.flash = { text: "", kind: "" };
+  ui.selSig = "";
+  markRead(cs);
+  scheduleRender();
+}
+
+async function doOp(o, okText) {
+  const res = await store.op(o);
+  ui.flash = res.ok ? { text: okText || "", kind: "ok" } : { text: res.error || "Rejected", kind: "err" };
+  ui.selSig = "";
+  scheduleRender();
+  return res;
+}
+
+function setTemplate(tpl, arg) {
+  const r = rows.find(x => x.callsign === ui.selected);
+  ui.composer.tpl = tpl;
+  ui.composer.arg = arg ?? (r ? argDefault(r, tpl) : "");
+  ui.composer.dirty = false;
+  ui.selSig = "";
+  scheduleRender();
+}
+
+$("flights").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-cs]");
+  if (tr) select(tr.dataset.cs);
+});
+$("fTabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]");
+  if (b) { ui.tab = b.dataset.tab; scheduleRender(); }
+});
+$("search").addEventListener("input", e => { ui.search = e.target.value; scheduleRender(); });
+$("messages").addEventListener("click", e => {
+  const m = e.target.closest("[data-cs]");
+  if (!m) return;
+  select(m.dataset.cs);
+  const b = e.target.closest("button[data-reply]");
+  if (b) setTemplate(b.dataset.reply, b.dataset.arg || undefined);
+});
+$("markRead").addEventListener("click", () => {
+  for (const cs of Object.keys(store.getState().flights)) markRead(cs);
+  ui.msgSig = "";
+  scheduleRender();
+});
+$("selected").addEventListener("change", e => {
+  if (e.target.id === "tlxTpl") setTemplate(e.target.value);
+});
+$("selected").addEventListener("input", e => {
+  if (e.target.id === "tlxText") {
+    ui.composer.text = e.target.value;
+    ui.composer.dirty = true;
+    updateCount();
+  } else if (e.target.id === "tlxArg") {
+    ui.composer.arg = e.target.value.toUpperCase();
+    ui.composer.dirty = false;
+    const r = rows.find(x => x.callsign === ui.selected);
+    if (r) {
+      ui.composer.text = defaultTelex(r, ui.composer.tpl, ui.composer.arg);
+      $("tlxText").value = ui.composer.text;
+      updateCount();
+    }
+  } else if (e.target.id === "noteText") {
+    ui.noteDirty = true;
+  }
+});
+$("selected").addEventListener("click", async e => {
+  const r = rows.find(x => x.callsign === ui.selected);
+  const t = e.target.closest("button");
+  if (!r || !t || t.disabled) return;
+  if (t.id === "bLocate") {
+    map.setView([r.lat, r.lon], Math.max(map.getZoom(), 7));
+  } else if (t.dataset.ack) {
+    await doOp({ op: "ack", callsign: r.callsign, key: t.dataset.ack }, "Alert acknowledged.");
+  } else if (t.id === "bNote") {
+    ui.noteDirty = false;
+    await doOp({ op: "note", callsign: r.callsign, note: $("noteText").value.trim() }, "Note saved.");
+  } else if (t.id === "bSend" || t.id === "bSendForce") {
+    const text = ($("tlxText").value || "").trim().toUpperCase();
+    if (!text || text === `${W.code} OPS:`) { ui.flash = { text: "Write a message first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    t.disabled = true;
+    const res = await store.sendTelex(r.callsign, text, { force: t.id === "bSendForce" });
+    ui.flash = res.ok ? { text: `Sent ${zulu(Date.now())}${res.dryRun && store.mode !== "demo" ? " (dry run: not delivered)" : ""}.`, kind: "ok" }
+      : { text: res.error || "Send failed", kind: "err", force: !!res.offline };
+    if (res.ok) { ui.composer.dirty = false; ui.composer.tpl = "free"; ui.composer.arg = ""; }
+    ui.selSig = "";
+    scheduleRender();
+  }
+});
+
+["optLabels", "optGround"].forEach(id => $(id).addEventListener("change", () => {
+  for (const m of markers.values()) m.html = "";
+  savePrefs();
+  scheduleRender();
+}));
+$("optTrack").addEventListener("change", () => { selLayerSig = ""; savePrefs(); scheduleRender(); });
+$("optHubs").addEventListener("change", () => { renderHubs(); savePrefs(); });
+$("optRegionals").addEventListener("change", () => { savePrefs(); scheduleRender(); });
+$("hubSel").addEventListener("change", e => {
+  ui.hub = e.target.value;
+  const a = A(ui.hub);
+  if (a) map.setView([a.lat, a.lon], Math.max(map.getZoom(), 6));
+  scheduleRender();
+});
+
+function savePrefs() {
+  LS.set("vatflow.aoc.prefs", JSON.stringify({
+    labels: $("optLabels").checked, ground: $("optGround").checked, hubs: $("optHubs").checked,
+    track: $("optTrack").checked, regionals: $("optRegionals").checked,
+  }));
+}
+{
+  const p = jsonLS("vatflow.aoc.prefs", {});
+  for (const [k, id] of [["labels", "optLabels"], ["ground", "optGround"], ["hubs", "optHubs"], ["track", "optTrack"], ["regionals", "optRegionals"]]) {
+    if (typeof p[k] === "boolean") $(id).checked = p[k];
+  }
+  $("legend").innerHTML = LEGEND.map(([ph, label]) => `<div><i style="background:${PHASE_COLOR[ph]}"></i>${esc(label)}</div>`).join("");
+}
+
+/* Map / lists split (saved per browser); double-click resets. */
+const SPLIT_KEY = "vatflow.aoc.panelsH";
+function applySplit(h) {
+  $("body").style.gridTemplateRows = h ? `minmax(140px, 1fr) ${h}px` : "";
+  setTimeout(() => map.invalidateSize(), 0);
+}
+{
+  let sdrag = null;
+  const sp = $("split");
+  sp.addEventListener("pointerdown", e => {
+    sdrag = { top: $("body").getBoundingClientRect() };
+    sp.setPointerCapture(e.pointerId);
+    sp.classList.add("on");
+    e.preventDefault();
+  });
+  sp.addEventListener("pointermove", e => {
+    if (!sdrag) return;
+    const b = sdrag.top;
+    const h = Math.round(Math.max(160, Math.min(b.height - 140, b.bottom - e.clientY)));
+    sdrag.h = h;
+    applySplit(h);
+  });
+  const end = () => {
+    if (!sdrag) return;
+    if (sdrag.h) LS.set(SPLIT_KEY, String(sdrag.h));
+    sdrag = null;
+    sp.classList.remove("on");
+  };
+  sp.addEventListener("pointerup", end);
+  sp.addEventListener("pointercancel", end);
+  sp.addEventListener("dblclick", () => { LS.set(SPLIT_KEY, ""); applySplit(0); });
+  const saved = Number(LS.get(SPLIT_KEY, ""));
+  if (saved > 0) applySplit(saved);
+}
+{
+  const ls = $("listSize");
+  ls.value = LS.get("vatflow.aoc.listSize", "12.5px");
+  document.documentElement.style.setProperty("--list-fs", ls.value);
+  ls.addEventListener("change", () => {
+    document.documentElement.style.setProperty("--list-fs", ls.value);
+    LS.set("vatflow.aoc.listSize", ls.value);
+  });
+}
+new ResizeObserver(() => map.invalidateSize()).observe($("mapWrap"));
+
+setInterval(() => {
+  const d = new Date();
+  $("clock").textContent = [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()].map(n => String(n).padStart(2, "0")).join(":") + "Z";
+}, 1000);
+// Dwell timers, delays and "lost" countdowns move even when the feed is quiet.
+setInterval(scheduleRender, 1000);
+
+/* ---------------- memory ---------------- */
+let memSaveAt = 0;
+function saveMemorySoon() {
+  if (store.mode !== "live" || Date.now() - memSaveAt < 30000) return;
+  memSaveAt = Date.now();
+  LS.set(`vatflow.aoc.mem.${W.code}`, JSON.stringify(saveMemory(memory, Date.now())));
+}
+
+/* ---------------- mode and operator ---------------- */
+function initialMode() {
+  const q = new URLSearchParams(location.search).get("mode");
+  if (q === "demo" || q === "live") return q;
+  return LS.get("vatflow.aoc.mode", "live");
+}
+
+function setMode(mode) {
+  if (store) { store.stop(); unsub && unsub(); }
+  memory = mode === "live" ? loadMemory(jsonLS(`vatflow.aoc.mem.${W.code}`, {}), Date.now()) : new Map();
+  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, OPS[W.code] || null, A);
+  ui.selected = null;
+  ui.selSig = "";
+  ui.msgSig = "";
+  ui.flash = { text: "", kind: "" };
+  for (const m of markers.values()) acLayer.removeLayer(m.marker);
+  markers.clear();
+  selLayerSig = "";
+  unsub = store.subscribe(scheduleRender);
+  store.start();
+  primeMemory(memory, store.getHistory(), Date.now());
+  LS.set("vatflow.aoc.mode", mode);
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  setUrl();
+  scheduleRender();
+}
+
+$("modeSeg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-mode]");
+  if (b && b.dataset.mode !== store.mode) setMode(b.dataset.mode);
+});
+
+function watchedCallsigns(code) {
+  const q = new URLSearchParams(location.search).get("watch");
+  const saved = jsonLS(`vatflow.aoc.watch.${code}`, []);
+  const list = q != null ? q.split(",") : Array.isArray(saved) ? saved : [];
+  return [...new Set(list.map(normCallsign).filter(Boolean))];
+}
+
+function setUrl() {
+  const u = new URL(location.href);
+  u.searchParams.set("op", W.code);
+  if (W.callsigns.size) u.searchParams.set("watch", [...W.callsigns].join(","));
+  else u.searchParams.delete("watch");
+  if (store) u.searchParams.set("mode", store.mode);
+  history.replaceState(null, "", u);
+}
+
+function recentOps() {
+  const r = jsonLS("vatflow.aoc.recent", []);
+  return Array.isArray(r) ? r.filter(c => /^[A-Z0-9]{2,4}$/.test(c)) : [];
+}
+
+function loadOperator(code, callsigns) {
+  code = normCode(code).slice(0, 4);
+  if (!code) return;
+  W = makeWatch(OPS, code, callsigns ?? watchedCallsigns(code));
+  LS.set("vatflow.aoc.op", code);
+  LS.set(`vatflow.aoc.watch.${code}`, JSON.stringify([...W.callsigns]));
+  LS.set("vatflow.aoc.recent", JSON.stringify([code, ...recentOps().filter(c => c !== code)].slice(0, 8)));
+  readAt = jsonLS(`vatflow.aoc.read.${code}`, {});
+  $("opCode").value = code;
+  $("ttlCode").textContent = code;
+  $("ttlSub").textContent = W.known ? `${W.name} · ${W.telephony}` : "Custom operator: flights whose callsign starts with " + code;
+  document.title = `${code} Dispatch Center — VATFLOW`;
+  $("regRow").hidden = !W.family.size;
+  $("hubSel").innerHTML = `<option value="">All</option>` + W.hubs.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join("");
+  $("hubSel").parentElement.hidden = !W.hubs.length;
+  ui.hub = "";
+  ui.search = "";
+  $("search").value = "";
+  ui.fitted = false;
+  renderChips();
+  renderHubs();
+  fitView();
+  setMode(store ? store.mode : initialMode());
+}
+
+function renderChips() {
+  $("opChips").innerHTML = recentOps().map(c => `<button data-op="${esc(c)}" class="${c === W.code ? "on" : ""}">${esc(c)}</button>`).join("");
+  $("watchChips").innerHTML = [...W.callsigns].map(c => `<button data-rm="${esc(c)}" title="Stop watching ${esc(c)}">${esc(c)}<span class="x">×</span></button>`).join("") ||
+    '<span class="hint">Single callsigns from any operator (a GA tail, a charter, a friend).</span>';
+}
+
+$("opForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const code = normCode($("opCode").value);
+  if (code.length < 2) { $("opHint").textContent = "Type an operator code of 2 to 4 letters, e.g. AAL."; return; }
+  if (code !== W.code) loadOperator(code);
+});
+$("opChips").addEventListener("click", e => {
+  const b = e.target.closest("button[data-op]");
+  if (b && b.dataset.op !== W.code) loadOperator(b.dataset.op);
+});
+$("watchForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const add = $("watchCs").value.split(/[\s,]+/).map(normCallsign).filter(Boolean);
+  if (!add.length) return;
+  $("watchCs").value = "";
+  loadOperator(W.code, [...W.callsigns, ...add]);
+});
+$("watchChips").addEventListener("click", e => {
+  const b = e.target.closest("button[data-rm]");
+  if (b) loadOperator(W.code, [...W.callsigns].filter(c => c !== b.dataset.rm));
+});
+
+/* ---------------- boot ---------------- */
+try {
+  OPS = await (await fetch("data/aoc/operators.json", { cache: "no-cache" })).json();
+  delete OPS._comment;
+} catch (_) {
+  OPS = {};
+}
+$("opList").innerHTML = Object.entries(OPS).map(([c, o]) => `<option value="${esc(c)}">${esc(o.name)}</option>`).join("");
+try {
+  IDX = airportIndex(await (await fetch("data/nav/runways.json")).json());
+} catch (err) {
+  $("mapNote").textContent = `Could not load airport positions: ${err.message || err}`;
+}
+{
+  const want = normCode(new URLSearchParams(location.search).get("op") || LS.get("vatflow.aoc.op", "") || "AAL");
+  loadOperator(want || "AAL");
+}
+</script>
+</body>
+</html>
