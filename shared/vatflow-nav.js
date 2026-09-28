@@ -31,6 +31,13 @@ const NAV_ITEMS = [
     ],
   },
   {
+    id: "dispatch",
+    label: "Dispatch Center",
+    children: [
+      { id: "aoc", href: "aoc.html", label: "Airline Ops" },
+    ],
+  },
+  {
     id: "center",
     label: "Center",
     children: [
