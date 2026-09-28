@@ -346,6 +346,7 @@ import {
 import { createDemoStore, AIR_ACCEL } from "./shared/aoc-demo.js";
 import { createLiveStore } from "./shared/aoc-live.js";
 import { getNavMeta, isNavReady, loadNavData, preferredRoute } from "./shared/route-engine.js";
+import { fetchMetar as fetchMetarText } from "./shared/erids-data.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
 
@@ -736,6 +737,7 @@ function argDefault(r, tpl) {
 function defaultTelex(r, tpl, arg) {
   if (tpl === "wx") {
     const icao = normCode(arg) || r.arr;
+    if (!/^[A-Z]{4}$/.test(icao)) return composeTelex("wx", W, r, { icao, metar: "ENTER A 4-LETTER ICAO." });
     const c = metarCache.get(icao);
     if (!c) { fetchMetar(icao); return composeTelex("wx", W, r, { icao, metar: `${icao} METAR LOADING...` }); }
     return composeTelex("wx", W, r, { icao, metar: c.text });
@@ -743,17 +745,27 @@ function defaultTelex(r, tpl, arg) {
   return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg) });
 }
 
+/**
+ * METAR for the weather telex. aviationweather.gov sends no CORS header, so a
+ * browser cannot read it directly: this goes through the vUSAlink hub's
+ * /hub/metar (then a CORS proxy), the same path ERIDS uses. A METAR is kept
+ * 5 min; a failed lookup only 30 s, so the next try asks again.
+ */
 async function fetchMetar(icao) {
-  if (!/^[A-Z0-9]{3,4}$/.test(icao) || metarCache.has(icao)) return;
+  if (!/^[A-Z]{4}$/.test(icao) || metarCache.has(icao)) return;
   metarCache.set(icao, { text: `${icao} METAR LOADING...`, t: Date.now(), loading: true });
   let text = `${icao} METAR NOT AVAILABLE.`;
+  let ok = false;
   try {
-    const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(icao)}`, { cache: "no-store" });
-    const t = (await res.text()).trim().split("\n")[0];
-    if (res.ok && t) text = t.startsWith(icao) ? t : `${icao} ${t}`;
-  } catch (_) {}
-  metarCache.set(icao, { text, t: Date.now() });
-  setTimeout(() => metarCache.delete(icao), 10 * 60000);
+    const m = await fetchMetarText(icao);
+    // "METAR KDFW 281553Z ..." -> "KDFW 281553Z ..." (the telex already says what it is).
+    text = String(m.text || "").replace(/^(METAR|SPECI)\s+/, "").trim() || text;
+    ok = text !== `${icao} METAR NOT AVAILABLE.`;
+  } catch (err) {
+    console.warn("VATFLOW: METAR", icao, err && err.message);
+  }
+  metarCache.set(icao, { text, t: Date.now(), failed: !ok });
+  setTimeout(() => metarCache.delete(icao), ok ? 5 * 60000 : 30000);
   if (ui.composer.tpl === "wx" && !ui.composer.dirty) { ui.selSig = ""; scheduleRender(); }
 }
 
@@ -986,6 +998,11 @@ $("selected").addEventListener("click", async e => {
     const text = ($("tlxText").value || "").trim().toUpperCase();
     if (!text || text === `${W.code} OPS:`) { ui.flash = { text: "Write a message first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
     if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    if (/METAR LOADING\.\.\.|ENTER A 4-LETTER ICAO|METAR NOT AVAILABLE/.test(text)) {
+      ui.flash = { text: /LOADING/.test(text) ? "The METAR is still loading." : "No METAR to send: check the ICAO, or try again in a moment.", kind: "err" };
+      ui.selSig = "";
+      return scheduleRender();
+    }
     t.disabled = true;
     const res = await store.sendTelex(r.callsign, text, { force: t.id === "bSendForce" });
     ui.flash = res.ok ? { text: `Sent ${zulu(Date.now())}${res.dryRun && store.mode !== "demo" ? " (dry run: not delivered)" : ""}.`, kind: "ok" }
