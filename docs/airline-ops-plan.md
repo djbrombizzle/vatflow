@@ -235,3 +235,40 @@ Phases 0–1 need no hub changes and can ship first.
 4. Grant yourself or a tester a code on Admin Access, open `aoc.html?op=<CODE>&mode=live`, and check "Dispatching as <CODE>OPS/<cid>". Then drop `VEDST_AOC_DRYRUN` to send for real.
 
 Checked end to end locally, with all three running (vatflow-hub, the vUSAlink-hub handler with a stubbed Hoppie and a real VATSIM feed snapshot, and this page in Chromium): the live role grant, ACARS dots from the Hoppie ping, a telex sent from AALOPS, the offline refusal and "Send anyway", a saved note, a pilot downlink with its Reply button, and read-only for a signed-in non-dispatcher.
+
+---
+
+## 13. SimBrief OFP (built) and dispatcher performance numbers (research)
+
+### 13.1 Pilot's latest SimBrief OFP
+
+The selected-flight panel has a **SimBrief OFP** section: type the pilot's SimBrief username (or numeric pilot ID), **Fetch latest**. The page calls SimBrief's public fetcher straight from the browser (`https://www.simbrief.com/api/xml.fetcher.php?username=<name>&json=1`; no API key, CORS open). `shared/aoc-simbrief.js` parses it:
+
+- fuel: block, trip, taxi, min takeoff, contingency, alternate, reserve, extra (in the OFP's units, LBS or KGS);
+- weights: pax, cargo, ZFW / TOW / LDW against the aircraft maximums (over a maximum shows red);
+- times: scheduled out / in, air time, block time; route, cruise level, cost index, distance, registration;
+- **runway analysis** (the TLR): takeoff runway, flaps, flex, V1/VR/V2, and landing runway, flaps, VREF, but only when the pilot had SimBrief's *Runway Analysis* option on.
+
+It is the pilot's **latest** plan, so the panel checks it against the live flight (callsign, origin, destination, generated more than 18 h ago) and warns when it may be another flight's. The username stays in the dispatcher's browser (`vatflow.aoc.sb.<CODE>`), never on the hub. In demo mode the username `DEMO` makes a plan from the demo flight.
+
+New telex templates, enabled once an OFP is loaded: **Loadsheet**, **Takeoff data** and **Landing data**, e.g.
+`AAL OPS: T/O DATA KDFW RWY 17R. TOW 80.5. CONF 1+F. FLEX 48. V1 141 VR 143 V2 147. FROM SIMBRIEF, VERIFY.`
+
+Not done yet: the pre-filled SimBrief planning link (deferred), and using the OFP's planned times for the board's ETA and delay.
+
+### 13.2 How a dispatcher could produce fuel and performance numbers
+
+| Option | What it gives | Fit for VATFLOW |
+| --- | --- | --- |
+| **SimBrief OFP + TLR** (above) | The pilot's own planned fuel, weights, and (with Runway Analysis on) V-speeds, flex, flaps, VREF for 100+ types | **Best first step.** Real numbers for the pilot's own aircraft profile and the flight they planned. SimBrief's calculators can't be re-run through the API with other inputs (another runway or weight); the pilot has to regenerate. |
+| **EUROCONTROL Small Emitters Tool (SET)** | Trip fuel by aircraft type and distance: three straight-line segments per type, `fuel = a·d + b`, fitted to real flight data (Boeing's Cascade uses it, with +51 nm for routing) | A quick **fuel estimate with no OFP**, e.g. "trip ~9.8k lb" for a filed flight. Needs the per-type coefficient table from EUROCONTROL's SET (an Excel tool; check its terms before copying the coefficients). |
+| **ICAO Carbon Emissions Calculator** | Fuel burn vs great-circle distance for ~300 equivalent types | Same kind of distance table as SET, published in the methodology PDF; coarser. |
+| **OpenAP** (TU Delft, LGPL-3, Python) | Physics-based fuel flow per phase from mass, speed and altitude for common airliners | Could run on the vUSAlink hub (Python) as a `/hub/aoc/fuel` endpoint for climb/cruise/descent burn; more precise than SET, more work. BADA is the licensed alternative. |
+| **FlyByWire flyPad** calculators (GPL-3) | A320neo takeoff (V1/VR/V2, flex) and landing distance from runway, weather, weight | Open code, but one type, and GPL-3 applies to anything that includes it. The FBW team call their flex numbers estimates. |
+| **Flex Calculator TS** and similar web tools | A320-family / A220 / A330 takeoff numbers | Per-type community tools; useful references, not something to build on. |
+
+Real airlines do this by the crew sending weights over ACARS and a performance server uplinking takeoff data (TOLD) to the FMC. Over Hoppie the nearest thing is a telex with the numbers, which is what the SimBrief templates send, marked "FROM SIMBRIEF, VERIFY".
+
+Suggested order: SimBrief (done), then a SET-style fuel estimate for flights without an OFP, then OpenAP on the hub only if the estimate isn't good enough.
+
+Sources: [Navigraph: fetching OFP data](https://developers.navigraph.com/docs/simbrief/fetching-ofp-data) · [Navigraph forum: XML fetching TLR](https://forum.navigraph.com/t/xml-fetching-tlr/17004) · [SimBrief performance calculators](https://fsnews.eu/simbrief-performance-calculators-released/) · [EUROCONTROL SET](https://www.eurocontrol.int/tool/small-emitters-tool-set) · [Boeing Cascade: fuel burn (SET formula)](https://docs.cascade.boeing.com/docs/baseCalculations/fuelBurnEnergyEmissions.html) · [ICAO calculator methodology v13.1](https://icec.icao.int/Documents/Methodology%20ICAO%20Carbon%20Emissions%20Calculator_v13_Final.pdf) · [OpenAP](https://github.com/junzis/openap) · [FlyByWire flyPad performance](https://docs.flybywiresim.com/aircraft/common/flypados3/performance/) · [FlyByWire aircraft (GPL-3)](https://github.com/flybywiresim/aircraft) · [Flex Calculator TS](https://github.com/jbud/Flex-Calculator-TS)

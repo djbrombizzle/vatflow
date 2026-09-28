@@ -739,7 +739,16 @@ export const TEMPLATES = [
   { id: "eta", label: "Request ETA / fuel" },
   { id: "delay", label: "Arrival delays" },
   { id: "divert", label: "Divert" },
+  // From the pilot's SimBrief OFP (shared/aoc-simbrief.js); need x.ofp.
+  { id: "loadsheet", label: "Loadsheet (SimBrief)", ofp: true },
+  { id: "todata", label: "Takeoff data (SimBrief)", ofp: true },
+  { id: "lddata", label: "Landing data (SimBrief)", ofp: true },
 ];
+
+/** 158900 -> "158.9": loadsheet weights in thousands. */
+function k1(n) {
+  return n == null ? "-" : (Math.round(n / 100) / 10).toFixed(1);
+}
 
 function fl(ft) {
   return ft ? `FL${String(Math.round(ft / 100)).padStart(3, "0")}` : "";
@@ -778,6 +787,35 @@ export function composeTelex(tpl, W, r, x = {}) {
     case "delay":
       t = `${P} EXPECT ARRIVAL DELAYS AT ${r.arr}. ADVISE FUEL REMAINING.`;
       break;
+    case "loadsheet": {
+      const o = x.ofp, w = (o && o.weights) || {}, f = (o && o.fuel) || {};
+      if (!o) { t = `${P} NO SIMBRIEF OFP LOADED.`; break; }
+      t = `${P} LOADSHEET ${r.callsign} ${o.orig || r.dep}-${o.dest || r.arr} ${o.type || r.type}${o.reg ? " " + o.reg : ""}.` +
+        (w.pax != null ? ` PAX ${w.pax}.` : "") +
+        ` ZFW ${k1(w.zfw)} TOW ${k1(w.tow)} LDW ${k1(w.ldw)}.` +
+        ` BLOCK FUEL ${k1(f.ramp)} TRIP ${k1(f.trip)}.` +
+        ` ${o.units} X1000.` + (o.costIndex ? ` CI ${o.costIndex}.` : "");
+      break;
+    }
+    case "todata": {
+      const to = x.ofp && x.ofp.tlr && x.ofp.tlr.takeoff;
+      if (!to) { t = `${P} NO TAKEOFF DATA IN THE SIMBRIEF OFP (RUNWAY ANALYSIS OFF).`; break; }
+      t = `${P} T/O DATA ${x.ofp.orig || r.dep} RWY ${to.runway}.` +
+        (to.weight ? ` TOW ${k1(to.weight)}.` : "") +
+        (to.flaps ? ` ${to.flaps}.` : "") +
+        (to.flex != null ? ` FLEX ${to.flex}.` : to.thrust ? ` ${to.thrust}.` : "") +
+        ` V1 ${to.v1 ?? "-"} VR ${to.vr ?? "-"} V2 ${to.v2 ?? "-"}. FROM SIMBRIEF, VERIFY.`;
+      break;
+    }
+    case "lddata": {
+      const ld = x.ofp && x.ofp.tlr && x.ofp.tlr.landing;
+      if (!ld) { t = `${P} NO LANDING DATA IN THE SIMBRIEF OFP (RUNWAY ANALYSIS OFF).`; break; }
+      t = `${P} LDG DATA ${x.ofp.dest || r.arr} RWY ${ld.runway || "-"}.` +
+        (ld.weight ? ` LDW ${k1(ld.weight)}.` : "") +
+        (ld.flaps ? ` ${ld.flaps}.` : "") +
+        ` VREF ${ld.vref ?? "-"}. FROM SIMBRIEF, VERIFY.`;
+      break;
+    }
     case "divert":
       t = `${P} DIVERT ${x.icao || r.altn || "___"}. ADVISE ETA AND FUEL. REPLY WILCO.`;
       break;
