@@ -1,6 +1,6 @@
 # Airline Operations Center (AOC) — plan
 
-**Status:** phases 0–1 built: `aoc.html` (demo + live, read-only from the VATSIM feed), `shared/aoc-core.js`, `shared/aoc-demo.js`, `shared/aoc-live.js`, `data/aoc/operators.json`, tests in `scripts/test-aoc-core.mjs`. Nav: new **Dispatch Center → Airline Ops** menu. The page's telex, notes and alert acknowledgements are wired to the hub endpoints in §5.4, which are not deployed yet (vUSAlink-hub `aoc.py`, phase 2–3); until then live mode is read-only and says so.
+**Status:** phases 0–1 built: `aoc.html` (demo + live, read-only from the VATSIM feed), `shared/aoc-core.js`, `shared/aoc-demo.js`, `shared/aoc-live.js`, `data/aoc/operators.json`, tests in `scripts/test-aoc-core.mjs`. Nav: new **Dispatch Center → Airline Ops** menu. Filed routes via FCA builder's `route-engine.js`. **Phases 2–3 are written, not yet deployed:** vUSAlink-hub `aoc.py` (`/hub/aoc/*`, branch `claude/dispatch-center`, `AOC.md`) and the dispatcher role in vatflow-hub (`dispatch-access.js`, branch `claude/dispatch-center`), plus the Admin Access **Dispatch Center dispatchers** card here. Until both hubs are deployed, live mode is read-only and says so. See §12 for the deploy order.
 **Origin:** follows on from Ramp Management (`ramp.html`, [plan](ramp-management-plan.md)). Ramp watches **one airport** and all its operators. The AOC watches **one operator** (AAL, DAL, UAL…) wherever its flights are in the world.
 
 > Track every VATSIM callsign for a given operator. An operations map shows who is flying and where, a status board shows the state of each flight, and a TELEX panel talks to the pilot over the Hoppie network. Same look as the Ramp Management page, built for an airline ops desk.
@@ -165,12 +165,12 @@ Ramp could tie writes to a controller on position at the field. An airline desk 
 
 | Who | Can |
 | --- | --- |
-| Anyone | Open any operator, see map, board, alerts. Message **text is hidden** (only "3 messages") unless signed in. |
-| Signed-in VATFLOW user | Same, plus message text. |
-| **Dispatcher** (new whitelist role, scoped to operator codes, granted by global admin) | Send telex from that operator's station, add notes, acknowledge alerts. |
-| Global admin | Everything, appoint dispatchers. |
+| Anyone | Open any operator, see map, board, alerts, notes. Telex **text reads "(SIGN IN TO READ)"** unless signed in. |
+| Signed-in VATFLOW user | Same, plus telex text. |
+| **Dispatcher** (granted by a global admin, scoped to operator codes or `*`) | Send telex from that operator's station, save notes, acknowledge alerts. |
+| Global admin | Everything, for any code; appoints dispatchers. |
 
-The whitelist already scopes roles by ARTCC (`ACCESS-AND-ADMIN.md`); this adds `role: "dispatcher"` with `operators: ["AAL"]` (or `["*"]`) to an entry. `admin-access.html` gets an Operators field (phase 2, with the hub check).
+Built as a separate `dispatchers` list in vatflow-hub's access file, **not** a whitelist role: whitelist entries grant full (editor) access, and a dispatcher should get nothing but the Airline Ops page. Claims carry `dispatchOps`. vUSAlink-hub checks it live at vatflow-hub `/auth/session` (60 s cache), so grants and revokes apply at once; a token vatflow-hub refuses (signed out) is refused; if vatflow-hub is unreachable it falls back to the signed JWT's claims. There is no VATSIM position check: an airline desk is not a position.
 
 ---
 
@@ -204,8 +204,8 @@ The whitelist already scopes roles by ARTCC (`ACCESS-AND-ADMIN.md`); this adds `
 | --- | --- | --- |
 | **0 — Data & core** | `operators.json` (15 US operators: AAL, DAL, UAL, SWA, JBU, ASA, HAL, NKS, FFT, AAY, SCX, MXY, FDX, UPS, GTI), `aoc-core.js` matching + phases + OOOI, tests | Flights grouped and phased from a feed · **built** |
 | **1 — Read-only page** | `aoc.html`, Leaflet map, status board, selected flight, alerts, demo mode, nav entry | A useful ops picture with no hub changes · **built** |
-| **2 — Hub & permissions** | `/hub/aoc/*`, server-side OOOI tracking, dispatcher role, notes / acknowledge | Shared ops desk |
-| **3 — TELEX** | Station per operator, uplink templates, downlink poll + classifier, Messages card, rate limits | Two-way telex with pilots |
+| **2 — Hub & permissions** | `/hub/aoc/*`, dispatcher role, notes / acknowledge | Shared ops desk · **written, awaiting deploy** (server-side gate/air times still to do) |
+| **3 — TELEX** | Station per operator, uplink templates, downlink peek + classifier, Messages card, rate limits | Two-way telex with pilots · **written, awaiting deploy** |
 | **4 — Integrations** | Ramp gate tie-in, METAR/flow (FCA EDCT) in templates, loadsheet, public read endpoint | One picture across VATFLOW |
 
 Phases 0–1 need no hub changes and can ship first.
@@ -224,4 +224,15 @@ Phases 0–1 need no hub changes and can ship first.
 - Filed routes are expanded with FCA builder's `route-engine.js`: the map line, the Next column, distance to go and ETA along the route, and an **Off filed route** alert (more than 25 nm off, over 50 nm from both airports, only when every route token resolved, not for international routes past the last US fix, and not while diverting). Against the live feed, flights on fully resolved US routes sat 0–11 nm off them.
 - The demo fleet files FAA preferred routes where the city pair has one and flies them. `route-engine.js` gained an additive `preferredRoute(dep, arr)` export for that: the preferred-route table is keyed by FAA ids (`ATL|DFW`), so its own fallback for DCT-filed plans never matches ICAO codes (`KATL|KDFW`). That fallback is left as it is here, because changing it would change FCA builder's and EDST's route lines.
 
-**Hub side:** nothing for routes. Parsing runs in the browser from the static `data/nav` files. The hub work is unchanged: vUSAlink-hub `aoc.py` (§5.4) and the dispatcher role in the whitelist and `admin-access.html` (phase 2), then the telex station poll (phase 3).
+**Hub side:** nothing for routes. Parsing runs in the browser from the static `data/nav` files.
+
+---
+
+## 12. Deploying phases 2–3
+
+1. **vatflow-hub** (`claude/dispatch-center`): merge and deploy. No new variables. Admin Access then shows the Dispatchers card to global admins; `/auth/session` carries `dispatchOps`.
+2. **vUSAlink-hub** (`claude/dispatch-center`): merge and deploy with `VEDST_AOC_DRYRUN=1` for the first test. Optional: `VEDST_AOC_STATE_FILE` on the volume, `VEDST_AOC_STATIONS` overrides, `VATFLOW_AUTH_URL` (defaults to the production vatflow-hub). It needs the existing `VATFLOW_JWT_SIGNING_KEY`, which must match vatflow-hub's `JWT_SIGNING_KEY`.
+3. **This site**: merge the Dispatch Center PR.
+4. Grant yourself or a tester a code on Admin Access, open `aoc.html?op=<CODE>&mode=live`, and check "Dispatching as <CODE>OPS/<cid>". Then drop `VEDST_AOC_DRYRUN` to send for real.
+
+Checked end to end locally, with all three running (vatflow-hub, the vUSAlink-hub handler with a stubbed Hoppie and a real VATSIM feed snapshot, and this page in Chromium): the live role grant, ACARS dots from the Hoppie ping, a telex sent from AALOPS, the offline refusal and "Send anyway", a saved note, a pilot downlink with its Reply button, and read-only for a signed-in non-dispatcher.

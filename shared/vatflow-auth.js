@@ -45,8 +45,25 @@ function claimsToSession(claims) {
     isAdmin: !!claims.isAdmin,
     accessRole: claims.accessRole || null,
     artccs: normalizeArtccs(claims.artccs),
+    dispatchOps: normalizeOps(claims.dispatchOps),
     exp: claims.exp,
   };
+}
+
+/** Dispatch Center operator codes from a session ("*" = all). */
+function normalizeOps(list) {
+  return Array.isArray(list) ? list.map(x => String(x).toUpperCase()).filter(x => x === "*" || /^[A-Z0-9]{2,4}$/.test(x)) : [];
+}
+
+/**
+ * May this user dispatch (telex, notes) for an operator code on the Airline Ops
+ * page? The hub decides; this only shapes the page (e.g. hints).
+ */
+export function canDispatch(code) {
+  if (!isSignedIn()) return false;
+  if (_session.isAdmin) return true;
+  const ops = _session.dispatchOps || [];
+  return ops.includes("*") || ops.includes(String(code || "").toUpperCase());
 }
 
 export function getStoredToken() {
@@ -194,6 +211,7 @@ export async function refreshSession() {
       isAdmin: !!data.isAdmin,
       accessRole: data.accessRole || null,
       artccs: normalizeArtccs(data.artccs),
+      dispatchOps: normalizeOps(data.dispatchOps),
       exp: data.exp,
     };
     emitAuthChange();
