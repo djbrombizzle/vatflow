@@ -256,11 +256,6 @@ export function createDemoStore(W, info, A, routes = null) {
         if (i === 16) ac.sq = "7700";
         if (i === 17) ac.special = "lost";
         if (i === 18 || i === 24) ac.offHoppie = true;
-        if (i === 19) {
-          // Tight on fuel.
-          const fuelMin = ((now - off) + (ac.total - ac.d) / ac.gs * 3600000) / 60000 + 35;
-          ac.fuel = minToHhmm(fuelMin);
-        }
       } else if (i < 33) {
         ac.stage = "taxiin";
         ac.lat = A(ac.arr).lat + rnd(-0.01, 0.01); ac.lon = A(ac.arr).lon + rnd(-0.01, 0.01);

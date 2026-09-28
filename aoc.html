@@ -724,7 +724,7 @@ function renderFlights() {
 function shortAlert(a) {
   if (a.key.startsWith("sq")) return a.key.slice(2);
   if (a.key.startsWith("div") || a.key.startsWith("ldg")) return "DIVERT";
-  return { lost: "LOST", late: "LATE", hold: "HOLD", fuel: "FUEL", route: "ROUTE" }[a.key] || (a.key.startsWith("reply") ? "NO REPLY" : a.key.startsWith("dn") ? "PILOT" : "!");
+  return { lost: "LOST", late: "LATE", hold: "HOLD", route: "ROUTE" }[a.key] || (a.key.startsWith("reply") ? "NO REPLY" : a.key.startsWith("dn") ? "PILOT" : "!");
 }
 
 /* ---------------- selected flight ---------------- */
