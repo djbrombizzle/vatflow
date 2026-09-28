@@ -92,7 +92,7 @@ SCHEDULED (prefile) ─ connects ─► AT GATE ─ moves >5 kt ─► TAXI OUT 
 ```
 
 - **Airport elevation** comes from the runways file (thresholds carry elevation) so "on ground" works at KDEN as well as KMIA; fall back to `gs < 40` alone.
-- **ETA** = now + remaining distance **along the filed route** ÷ ground speed, smoothed (great circle when the route cannot be drawn). Before departure: ETD + filed enroute time. Shown with the filed ETA so a late arrival stands out.
+- **ETA** before departure: STD (or now, if later) + taxi + filed EET. **From takeoff until cruise: OFF + filed EET** (ground speed in the climb says nothing about the rest of the flight; if takeoff wasn't seen, the filed ETA). **From cruise on** (within 1,500 ft of the filed altitude, level in the flight levels below it, or descending): now + remaining distance **along the filed route** ÷ ground speed, smoothed (great circle when the route cannot be drawn). After landing: the ON time. Shown with the filed ETA so a late arrival stands out.
 - **Delay** = OUT − STD (departure) and IN − (STD + filed EET) (arrival). Green ≤ 5 min, amber ≤ 15, red after.
 - **Memory**: OOOI times need history. Phase 1 keeps them in the page (and `localStorage` per operator, as a convenience). Phase 2 moves them to the hub, which already polls the feed, so every dispatcher sees the same OOOI times even if they opened the page mid-flight.
 - **Arrived** flights stay on the board for 2 h, then drop off. A pilot who disconnects is kept as **LOST** for 15 min (alert), in case they reconnect.
@@ -109,7 +109,6 @@ Shown as badges on the row, counted in the header, listed under the Alerts tab:
 | **Late departure** | Still at gate > 15 min after STD |
 | **Holding** | Heading changed through 360° within ~8 min below FL200 near dest |
 | **Unanswered telex** | Uplink with a response template (e.g. `REPLY WILCO`) not answered in 10 min |
-| **Low fuel** (optional) | Remaining EET vs filed endurance (`fuel_time` in the flight plan) under 45 min |
 
 ---
 
