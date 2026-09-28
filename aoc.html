@@ -363,6 +363,9 @@ import { getNavMeta, isNavReady, loadNavData, preferredRoute } from "./shared/ro
 import { fetchMetar as fetchMetarText } from "./shared/erids-data.js";
 import { demoOfpJson, fetchOfp, matchOfp, parseOfp } from "./shared/aoc-simbrief.js";
 import { estimateFuel, toUnits } from "./shared/aoc-fuel.js";
+import {
+  ADVISORY_TTL_MS, autoAdvisoryTargets, composeTmiTelex, demoAdvisory, demoBoard, edctReason, restrictionsFor, tmiAlerts, tmiIndex,
+} from "./shared/aoc-tmi.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
 
@@ -438,6 +441,13 @@ const metarCache = new Map();
 const sb = new Map();
 let sbRev = 0;
 let sbUsers = {};
+/**
+ * VATUSA OIS traffic management (shared/aoc-tmi.js): the public board, and the
+ * per-flight advisory for the selected flight and a capped few ground flights
+ * bound for a metered airport. Live: through the hub; demo: made up from the demo fleet.
+ */
+const tmi = { board: null, index: null, at: 0, loading: false, error: "", stale: false, adv: new Map(), inflight: 0, rev: 0 };
+const TMI_BOARD_MS = 60000;
 /** ICAO fuel table (data/aoc/icao-fuel.json) for the estimate on flights with no OFP. */
 let FUEL = null;
 /** Callsign prefix -> airline name (operators.json, with regional partners), for airport boards. */
@@ -617,10 +627,12 @@ function render() {
       const k = classifyDownlink(lastDn.text).kind;
       if (k === "delay" || k === "divert") extra.push({ key: `dn-${lastDn.t}`, level: "warn", text: `Pilot: ${lastDn.text}` });
     }
+    extra.push(...tmiAlerts(tmi.index, r, tmi.adv.get(r.callsign)?.adv || null));
     r.alerts = [...r.alerts, ...extra];
     r.alertsOpen = r.alerts.filter(a => !(e?.ack || {})[a.key]);
     r.entry = e || null;
   }
+  refreshTmi(now);
   if (store.setPing) {
     // Selected flight first, then airborne before ground: the hub pings at most 60.
     const on = rows.filter(r => r.connected);
@@ -764,6 +776,7 @@ function airlineName(cs) {
 function shortAlert(a) {
   if (a.key.startsWith("sq")) return a.key.slice(2);
   if (a.key.startsWith("div") || a.key.startsWith("ldg")) return "DIVERT";
+  if (a.key.startsWith("tmi-")) return { gs: "GS", edct: "EDCT", gdp: "GDP", aar: "AAR" }[a.key.split("-")[1]] || "TMI";
   return { lost: "LOST", late: "LATE", hold: "HOLD", route: "ROUTE" }[a.key] || (a.key.startsWith("reply") ? "NO REPLY" : a.key.startsWith("dn") ? "PILOT" : "!");
 }
 
@@ -783,7 +796,8 @@ function defaultTelex(r, tpl, arg) {
     return composeTelex("wx", W, r, { icao, metar: c.text });
   }
   return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg), ofp: sb.get(r.callsign)?.ofp || null,
-    fuel: { est: fuelEstimateFor(r), units: ui.fuelUnits } });
+    fuel: { est: fuelEstimateFor(r), units: ui.fuelUnits },
+    tmiText: tmi.index ? composeTmiTelex(opsPrefix(W), r, tmi.adv.get(r.callsign)?.adv || null, tmi.index) : "" });
 }
 
 /* ---------------- SimBrief ---------------- */
@@ -809,6 +823,97 @@ async function loadOfp(r, user) {
 }
 
 const n0 = v => (v == null ? "—" : Math.round(v).toLocaleString("en-US"));
+
+/* ---------------- VATUSA OIS TMIs ---------------- */
+/** Keep the board fresh (60 s) and the advisories for the selected + auto-watched flights (2 min). */
+function refreshTmi(now) {
+  // Demo: the board is made from the demo fleet, so wait for it.
+  if (store.mode === "demo" && !rows.length) return;
+  if (!tmi.loading && now - tmi.at >= TMI_BOARD_MS) loadTmiBoard();
+  if (!tmi.index) return;
+  const want = [...new Set([ui.selected, ...autoAdvisoryTargets(tmi.index, rows)].filter(Boolean))];
+  for (const cs of want) {
+    const cur = tmi.adv.get(cs);
+    if (tmi.inflight >= 2) break;
+    if (cur && (cur.loading || now - cur.at < ADVISORY_TTL_MS)) continue;
+    if (!rows.some(r => r.callsign === cs && r.connected)) continue;
+    loadTmiAdvisory(cs);
+  }
+  // Forget advisories for flights no longer on the board.
+  for (const cs of tmi.adv.keys()) if (!rows.some(r => r.callsign === cs)) tmi.adv.delete(cs);
+}
+
+async function loadTmiBoard() {
+  tmi.loading = true;
+  const res = store.mode === "demo" ? { ok: true, board: demoBoard(rows) } : store.tmiBoard ? await store.tmiBoard() : { ok: false, error: "" };
+  tmi.loading = false;
+  tmi.at = Date.now();
+  if (res.ok && res.board) {
+    tmi.board = res.board;
+    tmi.index = tmiIndex(res.board);
+    tmi.error = "";
+    tmi.stale = !!res.stale;
+  } else {
+    tmi.error = res.error || "OIS board unavailable";
+  }
+  tmi.rev++;
+  ui.selSig = "";
+  scheduleRender();
+}
+
+async function loadTmiAdvisory(cs) {
+  tmi.inflight++;
+  tmi.adv.set(cs, { ...(tmi.adv.get(cs) || {}), loading: true });
+  const row = rows.find(r => r.callsign === cs);
+  const res = store.mode === "demo" ? { ok: true, advisory: demoAdvisory(row, tmi.board) } : await store.tmiFlight(cs);
+  tmi.inflight--;
+  tmi.adv.set(cs, res.ok ? { adv: res.advisory, at: Date.now(), loading: false, stale: !!res.stale }
+    : { ...(tmi.adv.get(cs) || {}), at: Date.now(), loading: false, error: res.error });
+  tmi.rev++;
+  if (cs === ui.selected) ui.selSig = "";
+  scheduleRender();
+}
+
+function tmiSection(r) {
+  const head = `<div class="sec">TMI <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· VATUSA OIS${tmi.board ? ` · board ${zulu(Date.parse(tmi.board.as_of) || tmi.at)}${tmi.stale ? " (cached)" : ""}` : ""}${store.mode === "demo" ? " · demo data" : ""}</span>
+    <button class="btn sm" id="bTmiRefresh" style="margin-left:8px">Refresh</button></div>`;
+  if (!tmi.index) {
+    return head + `<div class="ofp"><div class="muted">${tmi.loading || !tmi.at ? "Loading the OIS board…" : esc(tmi.error || "OIS board unavailable.")}</div></div>`;
+  }
+  const lines = [];
+  for (const [role, icao] of [["Departure", r.dep], ["Arrival", r.arr]]) {
+    const a = icao && tmi.index.byAirport.get(icao);
+    if (!a) continue;
+    if (a.groundStop) lines.push(`<div><b>${esc(icao)}</b> ground stop${a.groundStop.until ? ` until ${esc(a.groundStop.until)}Z` : ""}${String(a.groundStop.scope || "").trim() ? ` · scope ${esc(a.groundStop.scope)}` : " · field-wide"}</div>`);
+    if (a.gdp) lines.push(`<div><b>${esc(icao)}</b> GDP ${esc(a.gdp.start_time)}-${esc(a.gdp.end_time)}Z · AAR ${a.gdp.aar} · ${a.gdp.controlled} controlled, avg ${a.gdp.avg_delay_min} / max ${a.gdp.max_delay_min} min</div>`);
+    if (a.program) lines.push(`<div><b>${esc(icao)}</b> rate program · AAR ${a.program.aar} · ${a.program.demand_60min} inbound next hour${a.program.over_capacity ? ' <span style="color:#ffd27a">over capacity</span>' : ""}</div>`);
+    void role;
+  }
+  const rs = [...restrictionsFor(tmi.index, r.dep), ...restrictionsFor(tmi.index, r.arr)];
+  for (const x of [...new Map(rs.map(x => [x.id, x])).values()]) {
+    lines.push(`<div class="mono" style="font-size:11px">${esc(x.requesting)}→${esc(x.providing)} ${esc(x.decoded || x.restriction)}</div>`);
+  }
+  const st = tmi.adv.get(r.callsign);
+  const adv = st && st.adv;
+  let advHtml = "";
+  if (st && st.loading && !adv) advHtml = '<div class="muted">Checking this flight…</div>';
+  else if (st && st.error && !adv) advHtml = `<div style="color:#ff9b9b">${esc(st.error)}</div>`;
+  else if (adv && !adv.found) advHtml = '<div class="muted">OIS does not see this flight in the feed yet.</div>';
+  else if (adv) {
+    const t = x => (x ? zulu(Date.parse(x)) : "—");
+    const bits = [];
+    if (adv.edct) bits.push(`<div><b style="color:#ffd27a">EDCT ${t(adv.edct)}</b> · ${esc(edctReason(adv))}${adv.total_delay_min ? ` · +${adv.total_delay_min} min` : ""}</div>`);
+    else bits.push(`<div>No EDCT${adv.total_delay_min ? ` · predicted delay +${adv.total_delay_min} min` : ""}</div>`);
+    if (adv.gdp) bits.push(`<div>GDP ${esc(adv.gdp.airport)}: ${adv.gdp.controlled ? `slot EDCT ${t(adv.gdp.edct)}, CTA ${t(adv.gdp.cta)}, +${adv.gdp.delay_min} min` : "not controlled"}</div>`);
+    if (adv.rate_program) bits.push(`<div>Metering ${esc(adv.rate_program.airport)} (AAR ${adv.rate_program.aar}): +${adv.rate_program.delay_min} min${adv.rate_program.sta ? `, STA ${t(adv.rate_program.sta)}` : ""}${adv.rate_program.cfr ? `, CFR ${t(adv.rate_program.cfr)}` : ""}</div>`);
+    for (const f of adv.fcas || []) bits.push(`<div>FCA <span style="color:${esc(/^#[0-9a-f]{3,8}$/i.test(f.color) ? f.color : "#8796a8")}">■</span> ${esc(f.fca_name)}: cross ${t(f.cross_time)}${f.seq != null ? ` #${f.seq}` : ""}${f.delay_min ? `, +${f.delay_min} min` : ""}${f.edct ? `, EDCT ${t(f.edct)}` : ""}</div>`);
+    advHtml = bits.join("") + `<div class="muted" style="font-size:11px">Checked ${t(new Date(st.at).toISOString())}${st.stale ? " (cached)" : ""}</div>`;
+  } else {
+    advHtml = '<div class="muted">Not checked yet.</div>';
+  }
+  return head + `<div class="ofp">${lines.length ? lines.join("") : '<div class="muted">No initiatives at the departure or arrival airport.</div>'}
+    <div class="h">This flight</div>${advHtml}</div>`;
+}
 
 /** ICAO-table fuel estimate (shared/aoc-fuel.js) for a flight. */
 function fuelEstimateFor(r) {
@@ -940,7 +1045,7 @@ function renderSelected(state) {
   // Rebuild only when something shown changes (keeps typing and focus).
   const sig = JSON.stringify([r.callsign, r.phase, r.dep, r.arr, r.altn, fmtT(r.eta), r.delay, r.out, r.off, r.on, r.in, Math.round(r.alt / 500),
     Math.round(r.gs / 10), r.squawk, r.nextFix, !!r.routeAnchors, Math.round(r.xtNm || 0), navState, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
-    e.note, (e.msgs || []).length, sbRev, ui.fuelUnits, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
+    e.note, (e.msgs || []).length, sbRev, ui.fuelUnits, tmi.rev, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
   const keep = { focus: document.activeElement?.id, selStart: document.activeElement?.selectionStart, note: $("noteText")?.value,
@@ -974,6 +1079,7 @@ function renderSelected(state) {
       <div><div class="k">To go</div><div class="v">${r.distToGo != null && !r.on ? Math.round(r.distToGo) + " nm" : "—"}${r.squawk ? ` <span class="muted" style="font-weight:500;font-size:11px">sq ${esc(r.squawk)}</span>` : ""}</div></div>
     </div>
     ${routeSection(r)}
+    ${tmiSection(r)}
     ${ofpSection(r)}
     <div class="sec">Dispatcher note</div>
     <div class="row"><textarea class="note" id="noteText" maxlength="500" placeholder="Shared with every dispatcher on ${esc(W.code)}" ${dis}></textarea></div>
@@ -981,7 +1087,7 @@ function renderSelected(state) {
     ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || "Sending telex needs the dispatcher role for this operator.")}</div>`}
     <div class="sec">Telex via Hoppie</div>
     <div class="row">
-      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}"${(t.ofp && !sb.get(r.callsign)?.ofp) || (t.est && !fuelEstimateFor(r).ok) ? " disabled" : ""}>${esc(t.label)}</option>`).join("")}</select>
+      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}"${(t.ofp && !sb.get(r.callsign)?.ofp) || (t.est && !fuelEstimateFor(r).ok) || (t.tmi && !tmi.index) ? " disabled" : ""}>${esc(t.label)}</option>`).join("")}</select>
       ${argLabel ? `<input class="arg" id="tlxArg" placeholder="${argLabel}" maxlength="6" ${dis}>` : ""}
       <span class="count" id="tlxCount"></span>
     </div>
@@ -1151,7 +1257,11 @@ $("selected").addEventListener("click", async e => {
   const r = rows.find(x => x.callsign === ui.selected);
   const t = e.target.closest("button");
   if (!r || !t || t.disabled) return;
-  if (t.id === "bSbFetch") {
+  if (t.id === "bTmiRefresh") {
+    tmi.at = 0;
+    tmi.adv.delete(r.callsign);
+    scheduleRender();
+  } else if (t.id === "bSbFetch") {
     await loadOfp(r, $("sbUser").value);
   } else if (t.id === "bLocate") {
     map.setView([r.lat, r.lon], Math.max(map.getZoom(), 7));
@@ -1164,6 +1274,11 @@ $("selected").addEventListener("click", async e => {
     const text = ($("tlxText").value || "").trim().toUpperCase();
     if (!text || text === opsPrefix(W)) { ui.flash = { text: "Write a message first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
     if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    if (/NO TMI DATA FOR THIS FLIGHT/.test(text)) {
+      ui.flash = { text: "No OIS data yet for this flight.", kind: "err" };
+      ui.selSig = "";
+      return scheduleRender();
+    }
     if (/NO FUEL ESTIMATE FOR THIS FLIGHT/.test(text)) {
       ui.flash = { text: "No fuel estimate for this flight (unknown type or airport).", kind: "err" };
       ui.selSig = "";
@@ -1301,6 +1416,8 @@ function setMode(mode) {
   ui.selSig = "";
   ui.msgSig = "";
   sb.clear();
+  Object.assign(tmi, { board: null, index: null, at: 0, loading: false, error: "", stale: false, inflight: 0 });
+  tmi.adv.clear();
   ui.flash = { text: "", kind: "" };
   for (const m of markers.values()) acLayer.removeLayer(m.marker);
   markers.clear();

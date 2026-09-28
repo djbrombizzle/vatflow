@@ -298,3 +298,29 @@ For events: the rail's **Watch** switch has **Airline** and **Airport**. An airp
   `DFW OPS: FUEL EST KLAX-KDFW A320 1071NM. TRIP 8.2 ALTN 2.6 RES 45MIN 2.1. MIN FUEL 12.9 KGS X1000. ESTIMATE, VERIFY.`
 
 Checks: every mapped type's row rises with distance; 737-800 DFW–ATL comes out at about 5.8 t with a cruise burn near 2.9 t/h. The table's short-distance values include take-off and landing, so short legs (and the alternate) run on the high side: conservative for a sanity check.
+
+---
+
+## 15. TMIs from VATUSA OIS
+
+[VATUSA OIS](https://github.com/VATUSA/OIS) runs VATUSA's traffic management (ground stops, GDPs, rate programs, NTML restrictions, FCA metering). The Dispatch Center reads two of its **public** endpoints, through the vUSAlink hub (`ois.py`), which caches them. OIS only allows its own origins from a browser, and the per-flight lookup is expensive:
+
+| Hub | OIS | Cache |
+| --- | --- | --- |
+| `POST /hub/aoc/tmi/board` | `GET /api/v1/public/board`: every active ground stop, GDP, NTML restriction, rate program (with live demand vs AAR) | 60 s |
+| `POST /hub/aoc/tmi/flight {callsign}` | `GET /api/v1/public/flight/{callsign}`: the flight's GDP slot (EDCT, CTA), ground stop, rate-program delay, FCA crossings, worst delay, latest EDCT | 90 s; at most 30 OIS lookups a minute |
+
+When OIS is down, the hub serves the last good answer (up to 10 min, marked cached). No API key is needed. `VEDST_OIS_API_KEY` (optional, a personal `ois_pat_...` token) is sent as a bearer token when set, for the key-gated TMU views later (per-airport departures and flow).
+
+On the page (`shared/aoc-tmi.js`):
+- **Board alerts:**
+  - **GS**: ground stop at the destination, flight not yet airborne.
+  - **EDCT**: from the flight's advisory. A changed EDCT is a new alert, so an old acknowledgement doesn't hide it.
+  - **GDP**: destination under a GDP, EDCT not known yet.
+  - **AAR**: destination rate program over capacity.
+- **Advisory lookups:** only for the selected flight, plus up to 8 ground flights bound for an airport with an initiative (soonest STD first), each refreshed every 2 min.
+- **Selected flight, TMI section:** initiatives at the departure and arrival airports, NTML restrictions naming either, and this flight's EDCT, GDP slot, metering delay and FCA crossings.
+- **Telex template "TMI / EDCT (VATUSA OIS)":** ground stop, else EDCT, else rate-program delay, e.g. `AAL OPS: EDCT 1845Z (GDP KDFW +23 MIN). CTA 2010Z. PLAN PUSH ACCORDINGLY.`
+- **Demo:** a made-up board (a GDP at the busiest destination, a ground stop at the next, a rate program at the third) and matching advisories.
+
+Next (needs the API key on the hub): `/tmu/departures/{airport}` and `/tmu/flow/{icao}` for airport boards, with every departure's and arrival's EDCT, sequence and delay in one call each.

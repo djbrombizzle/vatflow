@@ -787,6 +787,8 @@ export const TEMPLATES = [
   { id: "lddata", label: "Landing data (SimBrief)", ofp: true },
   // ICAO-table estimate (shared/aoc-fuel.js) for a flight with no OFP; needs x.fuel.
   { id: "fuelest", label: "Fuel estimate (ICAO table)", est: true },
+  // EDCT / ground stop / delay from VATUSA OIS (shared/aoc-tmi.js composes it; passed as x.tmiText).
+  { id: "tmi", label: "TMI / EDCT (VATUSA OIS)", tmi: true },
 ];
 
 /** 158900 -> "158.9": loadsheet weights in thousands. */
@@ -869,6 +871,9 @@ export function composeTelex(tpl, W, r, x = {}) {
         (e.altnKg ? ` ALTN ${m(e.altnKg)}` : "") + ` RES 45MIN ${m(e.reserveKg)}. MIN FUEL ${m(e.totalKg)} ${u} X1000. ESTIMATE, VERIFY.`;
       break;
     }
+    case "tmi":
+      t = x.tmiText || `${P} NO TMI DATA FOR THIS FLIGHT.`;
+      break;
     case "divert":
       t = `${P} DIVERT ${x.icao || r.altn || "___"}. ADVISE ETA AND FUEL. REPLY WILCO.`;
       break;

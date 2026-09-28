@@ -13,6 +13,8 @@
  *   POST /hub/aoc/state {op | airport, watch, ping, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
  *   POST /hub/aoc/op    {op, cid, vatflowToken, o: {op: "note"|"ack", ...}}
  *   POST /hub/aoc/telex {op, cid, vatflowToken, to, text, force?}
+ *   POST /hub/aoc/tmi/board  {}         -> {ok, board, stale?}      VATUSA OIS public board (hub-cached)
+ *   POST /hub/aoc/tmi/flight {callsign} -> {ok, advisory, stale?}   OIS per-flight advisory (hub-cached)
  *
  * `hoppie` is {callsign: connected} from the hub's Hoppie ping of `ping`, the
  * connected flights the page is showing (the hub pings them only while a
@@ -56,6 +58,8 @@ export function createLiveStore(W) {
     stop,
     op,
     sendTelex,
+    tmiBoard,
+    tmiFlight,
     /** Callsigns to check on Hoppie (the page's connected flights, most relevant first). */
     setPing(list) {
       ping = (list || []).slice(0, 60);
@@ -150,6 +154,25 @@ export function createLiveStore(W) {
     clearInterval(stateTimer);
     clearInterval(feedTimer);
     stateTimer = feedTimer = null;
+  }
+
+  /** VATUSA OIS TMIs through the hub: {ok, board | advisory, stale?, error?}. */
+  async function tmiBoard() {
+    try {
+      const d = await post("/hub/aoc/tmi/board", {});
+      return d.ok ? { ok: true, board: d.board, stale: !!d.stale } : { ok: false, error: d.error || "OIS board unavailable" };
+    } catch (e) {
+      return { ok: false, error: e.noEndpoints ? "The hub has no OIS endpoints yet." : e.message || String(e) };
+    }
+  }
+
+  async function tmiFlight(callsign) {
+    try {
+      const d = await post("/hub/aoc/tmi/flight", { callsign });
+      return d.ok ? { ok: true, advisory: d.advisory, stale: !!d.stale } : { ok: false, error: d.error || "OIS lookup failed" };
+    } catch (e) {
+      return { ok: false, error: e.noEndpoints ? "The hub has no OIS endpoints yet." : e.message || String(e) };
+    }
   }
 
   async function op(o) {
