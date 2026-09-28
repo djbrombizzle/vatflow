@@ -74,6 +74,8 @@
   #rail h3 { margin: 14px 0 7px; font-size: 11px; font-weight: 650; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   #rail h3:first-child { margin-top: 0; }
   .opRow { display: flex; gap: 5px; }
+  .seg.wide { display: flex; margin-bottom: 7px; }
+  .seg.wide button { flex: 1; padding: 5px 6px; }
   .opRow input { flex: 1; min-width: 0; padding: 6px 9px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 7px;
     font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
   .opRow input.sm { font-size: 12.5px; font-weight: 600; padding: 5px 8px; }
@@ -254,13 +256,19 @@
 
   <div id="body">
     <aside id="rail">
-      <h3>Operator</h3>
+      <h3>Watch</h3>
+      <div class="seg wide" id="kindSeg" role="group" aria-label="Watch an airline or an airport">
+        <button data-kind="op">Airline</button><button data-kind="apt">Airport</button>
+      </div>
       <form class="opRow" id="opForm" autocomplete="off">
         <input id="opCode" list="opList" maxlength="4" placeholder="AAL" aria-label="Operator code" spellcheck="false">
         <button type="submit">Watch</button>
       </form>
       <datalist id="opList"></datalist>
-      <div class="hint" id="opHint">Any airline code works, including virtual airlines: type the callsign prefix (e.g. XYZ for XYZ123).</div>
+      <div class="hint" id="opHint"></div>
+      <div class="seg wide" id="dirSeg" role="group" aria-label="Arrivals, departures or both" style="margin-top:7px" hidden>
+        <button data-dir="arr">Arrivals</button><button data-dir="dep">Departures</button><button data-dir="both">Both</button>
+      </div>
       <div class="chips" id="opChips"></div>
 
       <h3>Also watch callsigns</h3>
@@ -270,7 +278,7 @@
       </form>
       <div class="chips" id="watchChips"></div>
 
-      <h3>Filter</h3>
+      <h3 id="filterHd">Filter</h3>
       <label class="tgl" id="regRow">Regional partners <input type="checkbox" id="optRegionals" checked></label>
       <div class="tgl">Hub
         <select class="sm" id="hubSel" style="width:auto;min-width:100px"></select>
@@ -347,13 +355,14 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
   PHASE, PHASE_GROUP, TEMPLATES, TELEX_MAX, airportIndex, allMessages, classifyDownlink, composeTelex, deriveFlights,
-  createRouteResolver, distNm, gcLine, loadMemory, makeWatch, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
+  createRouteResolver, distNm, gcLine, loadMemory, makeAirportWatch, makeWatch, opsPrefix, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
 } from "./shared/aoc-core.js";
 import { createDemoStore, AIR_ACCEL } from "./shared/aoc-demo.js";
 import { createLiveStore } from "./shared/aoc-live.js";
 import { getNavMeta, isNavReady, loadNavData, preferredRoute } from "./shared/route-engine.js";
 import { fetchMetar as fetchMetarText } from "./shared/erids-data.js";
 import { demoOfpJson, fetchOfp, matchOfp, parseOfp } from "./shared/aoc-simbrief.js";
+import { estimateFuel, toUnits } from "./shared/aoc-fuel.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
 
@@ -429,6 +438,13 @@ const metarCache = new Map();
 const sb = new Map();
 let sbRev = 0;
 let sbUsers = {};
+/** ICAO fuel table (data/aoc/icao-fuel.json) for the estimate on flights with no OFP. */
+let FUEL = null;
+/** Callsign prefix -> airline name (operators.json, with regional partners), for airport boards. */
+const AIRLINE_NAMES = new Map();
+ui.kind = "op";
+ui.dir = "both";
+ui.fuelUnits = "LBS";
 
 /* ---------------- map ---------------- */
 const map = L.map("map", { zoomControl: true, worldCopyJump: true, minZoom: 2, attributionControl: true, preferCanvas: false })
@@ -588,7 +604,8 @@ function scheduleRender() {
 function render() {
   const state = store.getState();
   const now = Date.now();
-  rows = deriveFlights({ W, A, idx: IDX, routeFor, regionals: $("optRegionals").checked }, store.getFeed(), memory, now);
+  rows = deriveFlights({ W, A, idx: IDX, routeFor, regionals: $("optRegionals").checked, dir: W.kind === "airport" ? ui.dir : "both" },
+    store.getFeed(), memory, now);
   // Alerts from the telex log, then split by acknowledged.
   for (const r of rows) {
     const e = state.flights[r.callsign];
@@ -701,7 +718,9 @@ function renderFlights() {
   $("flights").innerHTML = list.map(r => {
     const h = hop[r.callsign];
     const acars = h === true ? '<span class="acars on" title="ACARS on Hoppie"></span>' : h === false ? '<span class="acars off" title="Not on Hoppie"></span>' : "";
-    const sub = r.carrier ? `${r.carrier}${r.via === "remarks" ? " (remarks)" : ""}` : r.via === "watch" ? "watched" : "";
+    const sub = W.kind === "airport"
+      ? [airlineName(r.callsign), r.via === "dep" ? "outbound" : r.via === "arr" ? (r.arr === W.airport ? "inbound" : `was inbound, now ${r.arr}`) : "watched"].filter(Boolean).join(" · ")
+      : r.carrier ? `${r.carrier}${r.via === "remarks" ? " (remarks)" : ""}` : r.via === "watch" ? "watched" : "";
     const unread = unreadFor(r.callsign, r.entry) ? '<span class="unread blink" title="Unread telex"></span>' : "";
     const alerts = r.alerts.map(a => {
       const acked = !r.alertsOpen.includes(a);
@@ -729,10 +748,17 @@ function renderFlights() {
   if (!list.length) {
     empty.textContent = !rows.length
       ? store.mode === "live"
-        ? `No ${W.code} flights on VATSIM right now${W.callsigns.size ? " (or watched callsigns)" : ""}. Try DEMO to see how the board works.`
+        ? W.kind === "airport"
+          ? `No flights ${{ arr: "arriving at", dep: "departing", both: "in or out of" }[ui.dir]} ${W.airport} on VATSIM right now. Try DEMO to see how the board works.`
+          : `No ${W.code} flights on VATSIM right now${W.callsigns.size ? " (or watched callsigns)" : ""}. Try DEMO to see how the board works.`
         : "Starting the demo…"
       : "No flights match this filter.";
   }
+}
+
+function airlineName(cs) {
+  const m = String(cs || "").match(/^([A-Z]{3})\d/);
+  return m ? AIRLINE_NAMES.get(m[1]) || "" : "";
 }
 
 function shortAlert(a) {
@@ -756,7 +782,8 @@ function defaultTelex(r, tpl, arg) {
     if (!c) { fetchMetar(icao); return composeTelex("wx", W, r, { icao, metar: `${icao} METAR LOADING...` }); }
     return composeTelex("wx", W, r, { icao, metar: c.text });
   }
-  return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg), ofp: sb.get(r.callsign)?.ofp || null });
+  return composeTelex(tpl, W, r, { gate: normCode(arg), icao: normCode(arg), ofp: sb.get(r.callsign)?.ofp || null,
+    fuel: { est: fuelEstimateFor(r), units: ui.fuelUnits } });
 }
 
 /* ---------------- SimBrief ---------------- */
@@ -767,7 +794,7 @@ async function loadOfp(r, user) {
   sb.set(cs, cur);
   sbRev++;
   sbUsers[cs] = user;
-  LS.set(`vatflow.aoc.sb.${W.code}`, JSON.stringify(sbUsers));
+  LS.set(`vatflow.aoc.sb.${wkey()}`, JSON.stringify(sbUsers));
   ui.selSig = "";
   scheduleRender();
   // Demo flights have no SimBrief account: "DEMO" makes a plan from the flight itself.
@@ -782,6 +809,34 @@ async function loadOfp(r, user) {
 }
 
 const n0 = v => (v == null ? "—" : Math.round(v).toLocaleString("en-US"));
+
+/** ICAO-table fuel estimate (shared/aoc-fuel.js) for a flight. */
+function fuelEstimateFor(r) {
+  const dep = A(r.dep), arr = A(r.arr), alt = A(r.altn);
+  return estimateFuel(FUEL, {
+    type: r.type,
+    gcNm: dep && arr ? distNm(dep.lat, dep.lon, arr.lat, arr.lon) : null,
+    routeNm: r.routeAnchors ? r.distTotal : null,
+    altnGcNm: arr && alt ? distNm(arr.lat, arr.lon, alt.lat, alt.lon) : null,
+  });
+}
+
+function fuelSection(r) {
+  const e = fuelEstimateFor(r);
+  const u = ui.fuelUnits;
+  const v = kg => n0(toUnits(kg, u));
+  const unitSel = `<select class="sm" id="fuelUnits" style="padding:1px 4px;font-size:11px"><option${u === "LBS" ? " selected" : ""}>LBS</option><option${u === "KGS" ? " selected" : ""}>KGS</option></select>`;
+  if (!e.ok) return `<div class="h">Fuel estimate</div><div class="muted">${esc(e.reason)}</div>`;
+  return `<div class="h">Fuel estimate (ICAO table, ${unitSel})</div>
+    <div class="g">
+      <div><div class="k">Trip</div><div class="v">${v(e.tripKg)}</div></div>
+      <div><div class="k">Altn${r.altn ? " " + esc(r.altn) : ""}</div><div class="v">${e.altnKg ? v(e.altnKg) : "—"}</div></div>
+      <div><div class="k">Reserve 45 min</div><div class="v">${v(e.reserveKg)}</div></div>
+      <div><div class="k">Min fuel</div><div class="v">${v(e.totalKg)}</div></div>
+    </div>
+    <div class="muted">${Math.round(e.distNm).toLocaleString("en-US")} nm ${e.basis === "route" ? "along the filed route" : "great circle + ICAO allowance"} · ~${v(e.burnKgPerHour)} ${u}/h in cruise · ${esc(r.type)} as ICAO type ${esc(e.eq)}${e.beyond ? ' · <span style="color:#ffd27a">past the range ICAO lists for this type</span>' : ""}.
+      Fuel burned by ICAO's formula for this type and distance, plus alternate and a 45-minute reserve; no contingency. A sanity check, not a flight plan.</div>`;
+}
 const hm = min => (min == null ? "—" : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`);
 
 function ofpSection(r) {
@@ -829,6 +884,7 @@ function ofpSection(r) {
         ${tl.landing ? `<div style="grid-column:span 2"><div class="k">Landing ${esc(o.dest)} ${esc(tl.landing.runway || "")}</div><div class="v">${esc(tl.landing.flaps || "")} · VREF ${tl.landing.vref ?? "-"}</div></div>` : ""}
       </div>` : '<div class="muted" style="margin-top:4px">No takeoff/landing data: the pilot had SimBrief\'s Runway Analysis off.</div>'}`;
   }
+  if (!o && !e.loading) body += `<div style="margin-top:${e.error ? 6 : 0}px">${fuelSection(r)}</div>`;
   return `<div class="sec">SimBrief OFP</div>
     <div class="row">
       <input class="arg" id="sbUser" placeholder="${hint}" style="width:170px;text-transform:none" value="${esc(e.user || "")}" autocomplete="off" spellcheck="false">
@@ -884,7 +940,7 @@ function renderSelected(state) {
   // Rebuild only when something shown changes (keeps typing and focus).
   const sig = JSON.stringify([r.callsign, r.phase, r.dep, r.arr, r.altn, fmtT(r.eta), r.delay, r.out, r.off, r.on, r.in, Math.round(r.alt / 500),
     Math.round(r.gs / 10), r.squawk, r.nextFix, !!r.routeAnchors, Math.round(r.xtNm || 0), navState, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
-    e.note, (e.msgs || []).length, sbRev, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
+    e.note, (e.msgs || []).length, sbRev, ui.fuelUnits, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
   const keep = { focus: document.activeElement?.id, selStart: document.activeElement?.selectionStart, note: $("noteText")?.value,
@@ -925,7 +981,7 @@ function renderSelected(state) {
     ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || "Sending telex needs the dispatcher role for this operator.")}</div>`}
     <div class="sec">Telex via Hoppie</div>
     <div class="row">
-      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}"${t.ofp && !sb.get(r.callsign)?.ofp ? " disabled" : ""}>${esc(t.label)}</option>`).join("")}</select>
+      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}"${(t.ofp && !sb.get(r.callsign)?.ofp) || (t.est && !fuelEstimateFor(r).ok) ? " disabled" : ""}>${esc(t.label)}</option>`).join("")}</select>
       ${argLabel ? `<input class="arg" id="tlxArg" placeholder="${argLabel}" maxlength="6" ${dis}>` : ""}
       <span class="count" id="tlxCount"></span>
     </div>
@@ -1005,7 +1061,7 @@ function markRead(cs) {
   const last = (e?.msgs || []).filter(m => m.dir === "dn").slice(-1)[0];
   if (last && last.t > (readAt[cs] || 0)) {
     readAt[cs] = last.t;
-    LS.set(`vatflow.aoc.read.${W.code}`, JSON.stringify(readAt));
+    LS.set(`vatflow.aoc.read.${wkey()}`, JSON.stringify(readAt));
   }
 }
 
@@ -1057,6 +1113,14 @@ $("markRead").addEventListener("click", () => {
   scheduleRender();
 });
 $("selected").addEventListener("change", e => {
+  if (e.target.id === "fuelUnits") {
+    ui.fuelUnits = e.target.value === "KGS" ? "KGS" : "LBS";
+    LS.set("vatflow.aoc.fuelUnits", ui.fuelUnits);
+    if (!ui.composer.dirty) ui.composer.text = "";
+    ui.selSig = "";
+    scheduleRender();
+    return;
+  }
   if (e.target.id === "tlxTpl") setTemplate(e.target.value);
 });
 $("selected").addEventListener("input", e => {
@@ -1098,8 +1162,13 @@ $("selected").addEventListener("click", async e => {
     await doOp({ op: "note", callsign: r.callsign, note: $("noteText").value.trim() }, "Note saved.");
   } else if (t.id === "bSend" || t.id === "bSendForce") {
     const text = ($("tlxText").value || "").trim().toUpperCase();
-    if (!text || text === `${W.code} OPS:`) { ui.flash = { text: "Write a message first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    if (!text || text === opsPrefix(W)) { ui.flash = { text: "Write a message first.", kind: "err" }; ui.selSig = ""; return scheduleRender(); }
     if (text.length > TELEX_MAX) { ui.flash = { text: `Too long (${text.length}/${TELEX_MAX}).`, kind: "err" }; ui.selSig = ""; return scheduleRender(); }
+    if (/NO FUEL ESTIMATE FOR THIS FLIGHT/.test(text)) {
+      ui.flash = { text: "No fuel estimate for this flight (unknown type or airport).", kind: "err" };
+      ui.selSig = "";
+      return scheduleRender();
+    }
     if (/NO SIMBRIEF OFP LOADED|RUNWAY ANALYSIS OFF/.test(text)) {
       ui.flash = { text: "Fetch the pilot's SimBrief OFP first (with Runway Analysis on for takeoff or landing data).", kind: "err" };
       ui.selSig = "";
@@ -1206,7 +1275,12 @@ let memSaveAt = 0;
 function saveMemorySoon() {
   if (store.mode !== "live" || Date.now() - memSaveAt < 30000) return;
   memSaveAt = Date.now();
-  LS.set(`vatflow.aoc.mem.${W.code}`, JSON.stringify(saveMemory(memory, Date.now())));
+  LS.set(`vatflow.aoc.mem.${wkey()}`, JSON.stringify(saveMemory(memory, Date.now())));
+}
+
+/** Storage key of the board: the airline code (AAL), or @ + airport (@KDFW). */
+function wkey(w = W) {
+  return w.kind === "airport" ? "@" + w.airport : w.code;
 }
 
 /* ---------------- mode and operator ---------------- */
@@ -1218,8 +1292,8 @@ function initialMode() {
 
 function setMode(mode) {
   if (store) { store.stop(); unsub && unsub(); }
-  memory = mode === "live" ? loadMemory(jsonLS(`vatflow.aoc.mem.${W.code}`, {}), Date.now()) : new Map();
-  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, OPS[W.code] || null, A, {
+  memory = mode === "live" ? loadMemory(jsonLS(`vatflow.aoc.mem.${wkey()}`, {}), Date.now()) : new Map();
+  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, W.kind === "airport" ? OPS : OPS[W.code] || null, A, {
     text: (dep, arr) => (isNavReady() ? preferredRoute(dep, arr) : ""),
     path: (dep, arr, route) => routeFor({ departure: dep, arrival: arr, route })?.anchors.map(a => a.ll) || null,
   });
@@ -1254,7 +1328,15 @@ function watchedCallsigns(code) {
 
 function setUrl() {
   const u = new URL(location.href);
-  u.searchParams.set("op", W.code);
+  if (W.kind === "airport") {
+    u.searchParams.delete("op");
+    u.searchParams.set("apt", W.airport);
+    u.searchParams.set("dir", ui.dir);
+  } else {
+    u.searchParams.delete("apt");
+    u.searchParams.delete("dir");
+    u.searchParams.set("op", W.code);
+  }
   if (W.callsigns.size) u.searchParams.set("watch", [...W.callsigns].join(","));
   else u.searchParams.delete("watch");
   if (store) u.searchParams.set("mode", store.mode);
@@ -1263,26 +1345,39 @@ function setUrl() {
 
 function recentOps() {
   const r = jsonLS("vatflow.aoc.recent", []);
-  return Array.isArray(r) ? r.filter(c => /^[A-Z0-9]{2,4}$/.test(c)) : [];
+  return Array.isArray(r) ? r.filter(c => /^@?[A-Z0-9]{2,4}$/.test(c)) : [];
 }
 
-function loadOperator(code, callsigns) {
-  code = normCode(code).slice(0, 4);
+/**
+ * Load a board: an airline ("AAL", any 2-4 character code) or, with a leading
+ * "@", an airport ("@KDFW": every airline in and out of it).
+ */
+function loadOperator(key, callsigns) {
+  const apt = String(key || "").startsWith("@");
+  const code = normCode(key).slice(0, 4);
   if (!code) return;
-  W = makeWatch(OPS, code, callsigns ?? watchedCallsigns(code));
-  LS.set("vatflow.aoc.op", code);
-  LS.set(`vatflow.aoc.watch.${code}`, JSON.stringify([...W.callsigns]));
-  LS.set("vatflow.aoc.recent", JSON.stringify([code, ...recentOps().filter(c => c !== code)].slice(0, 8)));
-  readAt = jsonLS(`vatflow.aoc.read.${code}`, {});
-  sbUsers = jsonLS(`vatflow.aoc.sb.${code}`, {});
+  const k = apt ? "@" + code : code;
+  W = apt ? makeAirportWatch(code, callsigns ?? watchedCallsigns(k)) : makeWatch(OPS, code, callsigns ?? watchedCallsigns(k));
+  ui.kind = apt ? "apt" : "op";
+  LS.set("vatflow.aoc.op", k);
+  LS.set(apt ? "vatflow.aoc.lastApt" : "vatflow.aoc.lastOp", code);
+  LS.set(`vatflow.aoc.watch.${k}`, JSON.stringify([...W.callsigns]));
+  LS.set("vatflow.aoc.recent", JSON.stringify([k, ...recentOps().filter(c => c !== k)].slice(0, 8)));
+  readAt = jsonLS(`vatflow.aoc.read.${k}`, {});
+  sbUsers = jsonLS(`vatflow.aoc.sb.${k}`, {});
   sb.clear();
   $("opCode").value = code;
   $("ttlCode").textContent = code;
-  $("ttlSub").textContent = W.known ? `${W.name} · ${W.telephony}` : "Custom operator: flights whose callsign starts with " + code;
+  $("ttlSub").textContent = apt
+    ? `Every airline in and out of ${code} · telex ${W.station} ("${W.label} OPS")`
+    : W.known ? `${W.name} · ${W.telephony}` : "Custom operator: flights whose callsign starts with " + code;
   document.title = `${code} Dispatch Center — VATFLOW`;
-  $("regRow").hidden = !W.family.size;
+  syncKindUi();
+  $("regRow").hidden = apt || !W.family.size;
   $("hubSel").innerHTML = `<option value="">All</option>` + W.hubs.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join("");
-  $("hubSel").parentElement.hidden = !W.hubs.length;
+  $("hubSel").parentElement.hidden = apt || !W.hubs.length;
+  $("filterHd").hidden = $("regRow").hidden && $("hubSel").parentElement.hidden;
+  if (apt && A(code)) map.setView([A(code).lat, A(code).lon], 5);
   ui.hub = "";
   ui.search = "";
   $("search").value = "";
@@ -1293,8 +1388,21 @@ function loadOperator(code, callsigns) {
   setMode(store ? store.mode : initialMode());
 }
 
+function syncKindUi() {
+  const apt = ui.kind === "apt";
+  document.querySelectorAll("#kindSeg button").forEach(b => b.classList.toggle("on", b.dataset.kind === ui.kind));
+  document.querySelectorAll("#dirSeg button").forEach(b => b.classList.toggle("on", b.dataset.dir === ui.dir));
+  $("dirSeg").hidden = !apt;
+  $("opCode").placeholder = apt ? "KDFW" : "AAL";
+  if (apt) $("opCode").removeAttribute("list");
+  else $("opCode").setAttribute("list", "opList");
+  $("opHint").textContent = apt
+    ? `Every airline to or from one airport: type its ICAO code (KDFW). Telex goes out as ${W && W.kind === "airport" ? W.station : "DFWOPS"}.`
+    : "Any airline code works, including virtual airlines: type the callsign prefix (e.g. XYZ for XYZ123).";
+}
+
 function renderChips() {
-  $("opChips").innerHTML = recentOps().map(c => `<button data-op="${esc(c)}" class="${c === W.code ? "on" : ""}">${esc(c)}</button>`).join("");
+  $("opChips").innerHTML = recentOps().map(c => `<button data-op="${esc(c)}" class="${c === wkey() ? "on" : ""}" title="${c.startsWith("@") ? "Airport" : "Airline"}">${c.startsWith("@") ? "✈ " + esc(c.slice(1)) : esc(c)}</button>`).join("");
   $("watchChips").innerHTML = [...W.callsigns].map(c => `<button data-rm="${esc(c)}" title="Stop watching ${esc(c)}">${esc(c)}<span class="x">×</span></button>`).join("") ||
     '<span class="hint">Single callsigns from any operator (a GA tail, a charter, a friend).</span>';
 }
@@ -1302,23 +1410,44 @@ function renderChips() {
 $("opForm").addEventListener("submit", e => {
   e.preventDefault();
   const code = normCode($("opCode").value);
+  if (ui.kind === "apt") {
+    if (!A(code)) { $("opHint").textContent = `${code || "That"} is not an airport VATFLOW knows: type a 4-letter ICAO code, e.g. KDFW.`; return; }
+    if ("@" + code !== wkey()) loadOperator("@" + code);
+    return;
+  }
   if (code.length < 2) { $("opHint").textContent = "Type an operator code of 2 to 4 letters, e.g. AAL."; return; }
-  if (code !== W.code) loadOperator(code);
+  if (code !== wkey()) loadOperator(code);
 });
 $("opChips").addEventListener("click", e => {
   const b = e.target.closest("button[data-op]");
-  if (b && b.dataset.op !== W.code) loadOperator(b.dataset.op);
+  if (b && b.dataset.op !== wkey()) loadOperator(b.dataset.op);
+});
+$("kindSeg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-kind]");
+  if (!b || b.dataset.kind === ui.kind) return;
+  // Switch to the last airline or airport used.
+  loadOperator(b.dataset.kind === "apt" ? "@" + LS.get("vatflow.aoc.lastApt", "KDFW") : LS.get("vatflow.aoc.lastOp", "AAL"));
+});
+$("dirSeg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-dir]");
+  if (!b || b.dataset.dir === ui.dir) return;
+  ui.dir = b.dataset.dir;
+  LS.set("vatflow.aoc.dir", ui.dir);
+  syncKindUi();
+  setUrl();
+  ui.selSig = "";
+  scheduleRender();
 });
 $("watchForm").addEventListener("submit", e => {
   e.preventDefault();
   const add = $("watchCs").value.split(/[\s,]+/).map(normCallsign).filter(Boolean);
   if (!add.length) return;
   $("watchCs").value = "";
-  loadOperator(W.code, [...W.callsigns, ...add]);
+  loadOperator(wkey(), [...W.callsigns, ...add]);
 });
 $("watchChips").addEventListener("click", e => {
   const b = e.target.closest("button[data-rm]");
-  if (b) loadOperator(W.code, [...W.callsigns].filter(c => c !== b.dataset.rm));
+  if (b) loadOperator(wkey(), [...W.callsigns].filter(c => c !== b.dataset.rm));
 });
 
 /* ---------------- boot ---------------- */
@@ -1329,6 +1458,18 @@ try {
   OPS = {};
 }
 $("opList").innerHTML = Object.entries(OPS).map(([c, o]) => `<option value="${esc(c)}">${esc(o.name)}</option>`).join("");
+for (const [c, o] of Object.entries(OPS)) {
+  AIRLINE_NAMES.set(c, o.name);
+  for (const [pfx, f] of Object.entries(o.family || {})) {
+    if (!AIRLINE_NAMES.has(pfx)) AIRLINE_NAMES.set(pfx, typeof f === "string" ? `${f} (${c})` : f.name);
+  }
+}
+try {
+  FUEL = await (await fetch("data/aoc/icao-fuel.json")).json();
+} catch (_) {
+  FUEL = null;
+}
+ui.fuelUnits = LS.get("vatflow.aoc.fuelUnits", "LBS") === "KGS" ? "KGS" : "LBS";
 try {
   IDX = airportIndex(await (await fetch("data/nav/runways.json")).json());
 } catch (err) {
@@ -1341,8 +1482,13 @@ const navLoad = loadNavData()
   .catch(err => { console.warn("VATFLOW: nav data failed:", err); navState = "failed"; scheduleRender(); });
 if (initialMode() === "demo") await Promise.race([navLoad, new Promise(r => setTimeout(r, 10000))]);
 {
-  const want = normCode(new URLSearchParams(location.search).get("op") || LS.get("vatflow.aoc.op", "") || "AAL");
-  loadOperator(want || "AAL");
+  const q = new URLSearchParams(location.search);
+  const dir = q.get("dir") || LS.get("vatflow.aoc.dir", "both");
+  ui.dir = ["arr", "dep", "both"].includes(dir) ? dir : "both";
+  const apt = normCode(q.get("apt") || "");
+  const want = apt ? "@" + apt : (q.get("op") ? normCode(q.get("op")) : LS.get("vatflow.aoc.op", "") || "AAL");
+  // Not if a board was already picked while the route data loaded.
+  if (!W) loadOperator(want || "AAL");
 }
 </script>
 </body>

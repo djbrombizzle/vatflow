@@ -10,7 +10,7 @@
  * is read-only.
  *
  * Endpoints (vUSAlink-hub aoc.py; see docs/airline-ops-plan.md §5.4):
- *   POST /hub/aoc/state {op, watch, ping, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
+ *   POST /hub/aoc/state {op | airport, watch, ping, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
  *   POST /hub/aoc/op    {op, cid, vatflowToken, o: {op: "note"|"ack", ...}}
  *   POST /hub/aoc/telex {op, cid, vatflowToken, to, text, force?}
  *
@@ -79,7 +79,8 @@ export function createLiveStore(W) {
     const res = await fetch(rampHubBase() + path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ op: W.code, watch: [...W.callsigns], ...authBody(), ...body }),
+      // An airport board (every airline at one field) is keyed by `airport`, an airline's by `op`.
+      body: JSON.stringify({ ...(W.kind === "airport" ? { airport: W.airport } : { op: W.code }), watch: [...W.callsigns], ...authBody(), ...body }),
     });
     let data = null;
     try {

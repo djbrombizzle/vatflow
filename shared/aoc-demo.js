@@ -38,16 +38,20 @@ function minToHhmm(min) {
 
 /**
  * @param W watch (makeWatch)
- * @param info the operator's entry in operators.json, or null
+ * @param info the operator's entry in operators.json, or null; for an airport
+ *   watch (W.kind "airport"), the whole operators.json, to fly many airlines
  * @param A icao -> {lat, lon} | null
  * @param routes optional {text(dep, arr) -> route string or "", path(dep, arr, route) -> [[lat, lon]…] or null}
  */
 export function createDemoStore(W, info, A, routes = null) {
   const code = W.code || "DMO";
-  const hubs = ((info && info.hubs) || []).filter(A);
+  // Airport watch: every flight starts or ends at the field, flown by many airlines.
+  const airportMode = W.kind === "airport";
+  const carriers = airportMode ? Object.entries(info || {}).filter(([c, o]) => /^[A-Z]{3}$/.test(c) && o && o.fleet) : [];
+  const hubs = airportMode ? [W.airport].filter(A) : ((info && info.hubs) || []).filter(A);
   const hubList = hubs.length ? hubs : US_AIRPORTS.filter(A).slice(0, 8);
   const pool = [...new Set([...hubList, ...US_AIRPORTS.filter(A)])];
-  const fleet = (info && info.fleet) || GENERIC_FLEET;
+  const fleet = (!airportMode && info && info.fleet) || GENERIC_FLEET;
   const regionals = [...W.family].filter(([, f]) => !f.shared).map(([p]) => p);
   const sharedRegional = [...W.family].find(([, f]) => f.shared);
 
@@ -87,6 +91,10 @@ export function createDemoStore(W, info, A, routes = null) {
   /* ---------- fleet ---------- */
 
   function newCallsign(i) {
+    if (airportMode && carriers.length) {
+      const [c, o] = carriers[i % carriers.length];
+      return { cs: `${c}${100 + ((i * 137) % 2900) + Math.floor(rnd(0, 30))}`, reg: false, rmk: "", fleet: o.fleet.mainline };
+    }
     // A few flights on the regional partners, the rest mainline.
     if (regionals.length && i % 5 === 3) return { cs: `${pick(regionals)}${3000 + Math.floor(rnd(0, 2000))}`, reg: true, rmk: "" };
     if (sharedRegional && i === 8) return { cs: `${sharedRegional[0]}${5000 + Math.floor(rnd(0, 900))}`, reg: true, rmk: `OPR/${code}` };
@@ -138,11 +146,11 @@ export function createDemoStore(W, info, A, routes = null) {
   }
 
   function makeAc(i) {
-    const { cs, reg, rmk } = newCallsign(i);
+    const { cs, reg, rmk, fleet: own } = newCallsign(i);
     const pr = pickRoute(reg);
     const { dep, arr } = pr;
     const { route, dist } = filedRoute(dep, arr);
-    const type = pick(reg ? fleet.regional || fleet.mainline : fleet.mainline);
+    const type = pick(own || (reg ? fleet.regional || fleet.mainline : fleet.mainline));
     const eetMin = (dist / 440) * 60 + 20;
     return {
       cs, cid: 1500000 + i, type, dep, arr, route, altn: altnFor(arr), cruise: cruiseFor(dist), dist,
