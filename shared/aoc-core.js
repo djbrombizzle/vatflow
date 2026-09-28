@@ -68,7 +68,8 @@ export const KEEP_ARRIVED_MS = 2 * 3600000;
 /** Parked or taxiing flights that disconnect drop off after this. */
 export const KEEP_GROUND_MS = 3 * 60000;
 export const LATE_DEP_MIN = 15;
-export const LOW_FUEL_MIN = 45;
+/** Level within this of the filed altitude: at cruise, so the ETA can come from distance and speed. */
+export const CRUISE_BAND_FT = 1500;
 export const HOLD_WINDOW_MS = 8 * 60000;
 export const HOLD_TURN_DEG = 300;
 export const HOLD_MAX_ALT = 20000;
@@ -339,7 +340,7 @@ function newMemo(leg, now) {
     out: null, off: null, on: null, in: null,
     seenGround: false, wasAir: false, gatePos: null, stopSince: null, moved: false,
     arrAtOff: null, landedAt: null, connectedAtDest: false,
-    prev: null, vs: null, hdgs: [], track: [], trackT: 0, eta: null, snap: null,
+    prev: null, vs: null, hdgs: [], track: [], trackT: 0, eta: null, atCruise: false, snap: null,
   };
 }
 
@@ -562,13 +563,29 @@ function buildRow(ctx, m, p, fp, match, phase, now, connected, csOverride) {
   const distToGo = rm ? rm.remainingNm : gcToGo;
   const filedEta = std != null && eet != null ? std + eet * 60000 : null;
 
+  // At cruise yet? Within CRUISE_BAND_FT of the filed altitude; level in the flight levels
+  // below it (a lower cruise than filed); or already descending. It stays set for the leg.
+  if (m && m.wasAir && !m.on && p && !m.atCruise) {
+    const alt = +p.altitude || 0;
+    const filedAlt = parseFiledAlt(fp.altitude);
+    if ((filedAlt && alt >= filedAlt - CRUISE_BAND_FT) ||
+        (phase === PHASE.CRUISE && alt >= Math.max(18000, (filedAlt || 0) - 6000)) ||
+        phase === PHASE.DESCENT || phase === PHASE.APPROACH) m.atCruise = true;
+  }
+
+  // ETA. Climbing, ground speed says nothing about the rest of the flight, so until
+  // cruise it is OFF + filed EET. From cruise on: distance to go (along the route) over
+  // ground speed, smoothed. Before takeoff: STD (or now, if later) + taxi + EET.
   let eta = null;
   if (m && m.on) eta = m.on;
-  else if (m && m.wasAir && distToGo != null && gs > 80) {
+  else if (m && m.wasAir && m.atCruise && distToGo != null && gs > 80) {
     const raw = now + (distToGo / gs) * 3600000;
     // Smooth it: ground speed jumps with wind and turns.
     m.eta = m.eta == null ? raw : m.eta * 0.7 + raw * 0.3;
     eta = m.eta;
+  } else if (m && m.wasAir) {
+    // Climbing. Takeoff not seen (connected in the air): the filed ETA until cruise.
+    eta = m.off && eet != null ? m.off + eet * 60000 : filedEta;
   } else if (eet != null) {
     const offAt = (m && m.off) || Math.max(std ?? now, now) + (m && m.out ? 0 : 10 * 60000);
     eta = offAt + eet * 60000;
@@ -640,10 +657,6 @@ export function alertsFor(r, m, now) {
   if (m && m.wasAir && !m.on && r.xtNm != null && r.xtNm > OFF_ROUTE_NM && !r.routeUnresolved.length && !r.routeTruncated &&
       (!m.arrAtOff || m.arrAtOff === r.arr) && (r.distFromDep ?? 0) > OFF_ROUTE_CLEAR_NM && (r.gcToGo ?? 0) > OFF_ROUTE_CLEAR_NM) {
     out.push({ key: "route", level: "warn", text: `Off filed route by ${Math.round(r.xtNm)} nm` });
-  }
-  if (m && m.off && r.fuel != null && r.eta != null && !m.on) {
-    const reserve = Math.round((m.off + r.fuel * 60000 - r.eta) / 60000);
-    if (reserve < LOW_FUEL_MIN) out.push({ key: "fuel", level: reserve < 30 ? "bad" : "warn", text: `Fuel ~${Math.max(0, reserve)} min at ETA` });
   }
   return out;
 }

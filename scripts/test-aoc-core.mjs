@@ -114,10 +114,17 @@ function pilot(over) {
   // Takeoff.
   rows = step({ groundspeed: 160, altitude: 1200, latitude: dfw.lat + 0.02 });
   assert(rows[0].off === t && rows[0].phase !== PHASE.GATE, "OFF at first airborne snapshot");
+  const off = t;
+  assert(rows[0].eta === off + 120 * 60000, "just airborne at 160 kt: ETA = OFF + filed EET, not distance / GS");
+  assert(rows[0].delay === Math.round((off - rows[0].std) / 60000), "delay in the climb = how late it took off");
   rows = step({ groundspeed: 280, altitude: 9000, latitude: dfw.lat + 0.2 });
   assert(rows[0].phase === PHASE.CLIMB, "climbing");
+  assert(rows[0].eta === off + 120 * 60000, "still climbing: OFF + EET");
   rows = step({ groundspeed: 280, altitude: 9000, latitude: dfw.lat + 0.2 }, 6000);
   assert(rows[0].phase === PHASE.CLIMB, "same snapshot re-derived between feeds: still climbing");
+  rows = step({ groundspeed: 380, altitude: 24000, latitude: dfw.lat + 0.4 });
+  rows = step({ groundspeed: 385, altitude: 24010, latitude: dfw.lat + 0.45 });
+  assert(rows[0].eta === off + 120 * 60000, "level at FL240 with FL360 filed (a temporary level-off): still OFF + EET");
   // Cruise.
   const mid = gcPoint(dfw, atl, 0.5);
   rows = step({ groundspeed: 460, altitude: 36000, latitude: mid.lat, longitude: mid.lon }, 20 * 60000);
@@ -125,6 +132,7 @@ function pilot(over) {
   rows = step({ groundspeed: 460, altitude: 36010, latitude: mid.lat, longitude: mid.lon + 0.2 });
   assert(rows[0].phase === PHASE.CRUISE, "cruise when level");
   assert(rows[0].eta > t && rows[0].distToGo > 250 && rows[0].distToGo < 400, "ETA from distance and speed");
+  near(rows[0].eta, t + (rows[0].distToGo / 460) * 3600000, 3 * 60000, "at cruise: ETA = now + distance to go / GS");
   assert(rows[0].track.length >= 2, "track recorded");
   // Descent and approach.
   const late = gcPoint(dfw, atl, 0.85);
@@ -187,7 +195,7 @@ function pilot(over) {
   assert(rows[0].phase === PHASE.GATE && rows[0].out == null, "next leg starts at the gate");
 }
 {
-  // Squawk 7700; connected at the destination; fuel.
+  // Squawk 7700; connected at the destination; no fuel alert.
   const mem = new Map();
   let rows = deriveFlights(ctx, { pilots: [pilot({ transponder: "7700", groundspeed: 400, altitude: 30000, latitude: 33, longitude: -90 })] }, mem, T0);
   assert(rows[0].alerts.some(a => a.key === "sq7700" && a.level === "bad"), "7700 alert");
@@ -198,7 +206,7 @@ function pilot(over) {
   primeMemory(m3, { AAL100: { leg: "KDFW-KATL", out: T0 - 4.2 * 36e5, off: T0 - 4 * 36e5 } }, T0);
   const far = gcPoint(dfw, atl, 0.5);
   rows = deriveFlights(ctx, { pilots: [pilot({ groundspeed: 450, altitude: 36000, latitude: far.lat, longitude: far.lon })] }, m3, T0);
-  assert(rows[0].alerts.some(a => a.key === "fuel"), "low fuel: 4 h endurance, 4 h flown, 40 min to go");
+  assert(!rows[0].alerts.some(a => a.key === "fuel"), "no fuel alerts (4 h endurance, 4 h flown, 40 min to go)");
 }
 {
   // Holding.
