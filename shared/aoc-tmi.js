@@ -24,8 +24,9 @@ export const AUTO_ADVISORY_MAX = 8;
 /** An advisory older than this is refetched. */
 export const ADVISORY_TTL_MS = 120000;
 
-const ms = t => {
-  const n = t ? Date.parse(t) : NaN;
+/** RFC 3339 -> epoch ms. OIS sends nanoseconds ("…08.470366082Z"); trim to milliseconds, which every browser parses. */
+export const tmiTime = t => {
+  const n = t ? Date.parse(String(t).replace(/(\.\d{3})\d+/, "$1")) : NaN;
   return Number.isFinite(n) ? n : null;
 };
 
@@ -40,7 +41,7 @@ export function tmiIndex(board) {
   for (const g of (board && board.gdps) || []) at(g.airport).gdp = g;
   for (const s of (board && board.ground_stops) || []) at(s.airport).groundStop = s;
   for (const p of (board && board.programs) || []) at(p.icao).program = p;
-  return { byAirport, restrictions: (board && board.restrictions) || [], asOf: ms(board && board.as_of) };
+  return { byAirport, restrictions: (board && board.restrictions) || [], asOf: tmiTime(board && board.as_of) };
 }
 
 /** US ICAO -> FAA id, for matching NTML text ("KDFW" is written "DFW"). */
@@ -78,7 +79,7 @@ export function tmiAlerts(index, row, adv) {
     out.push({ key: `tmi-gs-${row.arr}`, level: "bad",
       text: `Ground stop ${row.arr}${s.until ? ` until ${s.until}Z` : ""}${String(s.scope || "").trim() ? ` (${s.scope.trim()})` : ""}` });
   }
-  const edct = adv && adv.found ? ms(adv.edct) : null;
+  const edct = adv && adv.found ? tmiTime(adv.edct) : null;
   if (edct && onGround(row)) {
     out.push({ key: `tmi-edct-${adv.edct}`, level: "warn",
       text: `EDCT ${zulu(edct)}${adv.total_delay_min ? ` (+${adv.total_delay_min} min)` : ""} · ${edctReason(adv)}` });
@@ -125,15 +126,15 @@ export function composeTmiTelex(prefix, row, adv, index) {
   if (gs && (!row || !row.off)) {
     return `${prefix} GROUND STOP ${gs.airport}${gs.until ? ` UNTIL ${gs.until}Z` : ""}. HOLD AT GATE, EXPECT UPDATE.`;
   }
-  const edct = adv && adv.found ? ms(adv.edct) : null;
+  const edct = adv && adv.found ? tmiTime(adv.edct) : null;
   if (edct) {
-    const cta = adv.gdp && ms(adv.gdp.cta);
+    const cta = adv.gdp && tmiTime(adv.gdp.cta);
     return `${prefix} EDCT ${zulu(edct)} (${edctReason(adv).toUpperCase()}${adv.total_delay_min ? ` +${adv.total_delay_min} MIN` : ""}).` +
       (cta ? ` CTA ${zulu(cta)}.` : "") + " PLAN PUSH ACCORDINGLY.";
   }
   const rp = adv && adv.rate_program;
   if (rp && rp.delay_min > 0) {
-    return `${prefix} EXPECT ARRIVAL DELAY ${rp.airport} ~${rp.delay_min} MIN (AAR ${rp.aar}).` + (rp.sta ? ` STA ${zulu(ms(rp.sta))}.` : "");
+    return `${prefix} EXPECT ARRIVAL DELAY ${rp.airport} ~${rp.delay_min} MIN (AAR ${rp.aar}).` + (rp.sta ? ` STA ${zulu(tmiTime(rp.sta))}.` : "");
   }
   return `${prefix} NO TMI AFFECTING ${row.callsign}.`;
 }
