@@ -364,7 +364,7 @@ import { fetchMetar as fetchMetarText } from "./shared/erids-data.js";
 import { demoOfpJson, fetchOfp, matchOfp, parseOfp } from "./shared/aoc-simbrief.js";
 import { estimateFuel, toUnits } from "./shared/aoc-fuel.js";
 import {
-  ADVISORY_TTL_MS, autoAdvisoryTargets, composeTmiTelex, demoAdvisory, demoBoard, edctReason, restrictionsFor, tmiAlerts, tmiIndex,
+  ADVISORY_TTL_MS, autoAdvisoryTargets, tmiTime, composeTmiTelex, demoAdvisory, demoBoard, edctReason, restrictionsFor, tmiAlerts, tmiIndex,
 } from "./shared/aoc-tmi.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "aoc");
@@ -875,7 +875,7 @@ async function loadTmiAdvisory(cs) {
 }
 
 function tmiSection(r) {
-  const head = `<div class="sec">TMI <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· VATUSA OIS${tmi.board ? ` · board ${zulu(Date.parse(tmi.board.as_of) || tmi.at)}${tmi.stale ? " (cached)" : ""}` : ""}${store.mode === "demo" ? " · demo data" : ""}</span>
+  const head = `<div class="sec">TMI <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">· VATUSA OIS${tmi.board ? ` · board ${zulu(tmiTime(tmi.board.as_of) || tmi.at)}${tmi.stale ? " (cached)" : ""}` : ""}${store.mode === "demo" ? " · demo data" : ""}</span>
     <button class="btn sm" id="bTmiRefresh" style="margin-left:8px">Refresh</button></div>`;
   if (!tmi.index) {
     return head + `<div class="ofp"><div class="muted">${tmi.loading || !tmi.at ? "Loading the OIS board…" : esc(tmi.error || "OIS board unavailable.")}</div></div>`;
@@ -900,7 +900,7 @@ function tmiSection(r) {
   else if (st && st.error && !adv) advHtml = `<div style="color:#ff9b9b">${esc(st.error)}</div>`;
   else if (adv && !adv.found) advHtml = '<div class="muted">OIS does not see this flight in the feed yet.</div>';
   else if (adv) {
-    const t = x => (x ? zulu(Date.parse(x)) : "—");
+    const t = x => (x && tmiTime(x) ? zulu(tmiTime(x)) : "—");
     const bits = [];
     if (adv.edct) bits.push(`<div><b style="color:#ffd27a">EDCT ${t(adv.edct)}</b> · ${esc(edctReason(adv))}${adv.total_delay_min ? ` · +${adv.total_delay_min} min` : ""}</div>`);
     else bits.push(`<div>No EDCT${adv.total_delay_min ? ` · predicted delay +${adv.total_delay_min} min` : ""}</div>`);

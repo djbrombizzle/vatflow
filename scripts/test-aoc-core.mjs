@@ -449,6 +449,7 @@ function opsPrefixOf(w) { return composeTelex("free", w, {}).trim(); }
   const ix = tmiIndex(board);
   assert(ix.byAirport.get("KDFW").gdp.aar === 40 && ix.byAirport.get("KATL").groundStop.until === "1900" && ix.byAirport.get("KORD").program.aar === 60, "board indexed by airport");
   assert(ix.asOf === Date.parse("2026-09-28T18:00:00Z"), "as_of parsed");
+  assert(tmiIndex({ ...board, as_of: "2026-09-28T20:00:08.470366082Z" }).asOf === Date.parse("2026-09-28T20:00:08.470Z"), "OIS nanosecond timestamps (as the live API sends them)");
   assert(restrictionsFor(ix, "KDFW").map(r => r.id).join() === "r1" && restrictionsFor(ix, "KEWR").map(r => r.id).join() === "r2", "NTML text matched by FAA id");
   assert(!restrictionsFor(ix, "KDF").length, "whole words only");
   const gate = { callsign: "AAL100", dep: "KMIA", arr: "KDFW", phase: "AT GATE", connected: true, std: 1790000000000, off: null, on: null };
