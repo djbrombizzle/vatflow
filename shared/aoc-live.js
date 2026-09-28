@@ -96,6 +96,7 @@ export function createLiveStore(W) {
       throw e;
     }
     if (!data) throw new Error(`hub HTTP ${res.status}`);
+    data._status = res.status;
     return data;
   }
 
@@ -105,10 +106,13 @@ export function createLiveStore(W) {
     try {
       const d = await post("/hub/aoc/state", { ping });
       if (!d.ok) {
-        // A hub without aoc.py refuses the unknown path (403 sign-in, or 404) before routing it.
-        // Once deployed, the state read answers everyone, signed in or not (as /hub/ramp/state does).
-        const e = new Error(`The hub has no Dispatch Center endpoints yet (${d.error || "refused"}).`);
-        e.noEndpoints = true;
+        // A hub without aoc.py refuses the unknown path before routing it (403 "VATSIM CID
+        // required"). Once deployed, the state read answers everyone, signed in or not, so any
+        // other refusal is the hub's own reason (e.g. an older aoc.py without airport boards).
+        const old = d._status === 403 && /CID required|sign-in required/i.test(d.error || "");
+        const e = new Error(old ? `The hub has no Dispatch Center endpoints yet (${d.error}).` : `Hub refused this board: ${d.error || `HTTP ${d._status}`}`);
+        e.noEndpoints = old;
+        e.hubReason = old ? "" : d.error || "";
         throw e;
       }
       noEndpoints = false;
@@ -125,7 +129,9 @@ export function createLiveStore(W) {
         canWrite: false, callsign: "",
         reason: noEndpoints
           ? "Telex, notes and alert acknowledgements arrive with the hub's Dispatch Center update. The board and map work from the VATSIM feed."
-          : "Hub unreachable. The board and map still work from the VATSIM feed.",
+          : e.hubReason
+            ? `The hub refused this board: "${e.hubReason}". ${W.kind === "airport" ? "Airport boards need the hub's airport-board update. " : ""}The board and map still work from the VATSIM feed.`
+            : "Hub unreachable. The board and map still work from the VATSIM feed.",
       };
     }
     emit();
