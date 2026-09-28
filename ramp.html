@@ -577,6 +577,82 @@ function rampBoxes(chart) {
   return out;
 }
 
+/**
+ * Lay out map text. Each label is a block of lines (gate, callsign, P-time)
+ * for one aircraft or gate. Blocks go in priority order (selected, conflicts,
+ * departures due, occupied, assigned, then empty gate names) to the first
+ * spot around their aircraft that hits no other block, aircraft or call spot.
+ * Blocks that must show and find no clear spot take the least crowded one;
+ * empty gate names are dropped. A block set away from its aircraft gets a
+ * leader line. k: chart units per screen pixel; view: the drawn crop, which
+ * blocks stay inside.
+ */
+function placeLabels(labels, obstacles, k, view) {
+  const F = 11 * k, f = 9.5 * k, pad = 1.5 * k;
+  const placed = [];
+  const hitBox = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const hitCirc = (b, o) => {
+    const cx = Math.max(b.x0, Math.min(o.x, b.x1)), cy = Math.max(b.y0, Math.min(o.y, b.y1));
+    return (cx - o.x) ** 2 + (cy - o.y) ** 2 < o.r * o.r;
+  };
+  let lead = "", text = "";
+  labels.sort((a, b) => a.pri - b.pri);
+  for (const L0 of labels) {
+    // Aircraft outside the drawn view (another ramp's gates) get no label.
+    if (view && (L0.x < view.x0 || L0.x > view.x1 || L0.y < view.y0 || L0.y > view.y1)) continue;
+    const sizes = L0.lines.map(l => (l.small ? f : F));
+    const w = Math.max(...L0.lines.map((l, i) => String(l.t).length * sizes[i] * 0.6)) + pad * 2;
+    const hgt = sizes.reduce((a, b) => a + b * 1.12, 0) + pad;
+    // Candidate centres: out along the nose first, then turned either way, then behind.
+    const cands = [];
+    const gap = 14;
+    for (const ring of L0.must ? [0, 1, 2, 3, 4] : [0, 1, 2]) {
+      for (const turn of [0, 35, -35, 70, -70, 110, -110, 180]) {
+        const a = Math.atan2(L0.uy, L0.ux) + (turn * Math.PI) / 180;
+        const ux = Math.cos(a), uy = Math.sin(a);
+        // Distance so the block's near edge clears the aircraft, then further out per ring.
+        const reach = Math.abs(ux) * w / 2 + Math.abs(uy) * hgt / 2;
+        const d = gap + reach + ring * (hgt + 4 * k);
+        cands.push({ cx: L0.x + ux * d, cy: L0.y + uy * d, ring, turn });
+      }
+    }
+    let best = null, bestScore = Infinity;
+    for (const c of cands) {
+      const b = { x0: c.cx - w / 2, x1: c.cx + w / 2, y0: c.cy - hgt / 2, y1: c.cy + hgt / 2 };
+      let score = 0;
+      // Inside the drawn view, or it is cut off.
+      if (view && (b.x0 < view.x0 || b.x1 > view.x1 || b.y0 < view.y0 || b.y1 > view.y1)) score += 20;
+      for (const p of placed) if (hitBox(b, p)) score += 10;
+      for (const o of obstacles) {
+        if (o.box ? hitBox(b, o.box) : hitCirc(b, o)) score += o.soft ? 0.6 : o.box ? 2 : 3;
+      }
+      score += c.ring * 0.5 + Math.abs(c.turn) / 400;
+      if (score < bestScore) { bestScore = score; best = { ...c, b }; }
+      if (score < 1) break;
+    }
+    if (bestScore >= 3 && !L0.must) { ui.dropped = (ui.dropped || 0) + (L0.pri < 9 ? 1 : 0); continue; }
+    placed.push(best.b);
+    if (best.ring > 0 || Math.abs(best.turn) > 70) {
+      // Leader from the aircraft's edge to the block's nearest edge, with a dot on the aircraft.
+      const ex = Math.max(best.b.x0, Math.min(L0.x, best.b.x1)), ey = Math.max(best.b.y0, Math.min(L0.y, best.b.y1));
+      const dd = Math.hypot(ex - L0.x, ey - L0.y) || 1;
+      const sx = L0.x + ((ex - L0.x) / dd) * 9, sy = L0.y + ((ey - L0.y) / dd) * 9;
+      lead += `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="#c9d6e3" stroke-width="${1.1 * k}" stroke-opacity=".75"/>` +
+        `<circle cx="${sx}" cy="${sy}" r="${1.8 * k}" fill="#c9d6e3"/>`;
+    }
+    let y = best.b.y0 + pad / 2;
+    for (let i = 0; i < L0.lines.length; i++) {
+      const l = L0.lines[i];
+      y += sizes[i];
+      text += `<text x="${best.cx}" y="${y - sizes[i] * 0.18}" text-anchor="middle" font-size="${sizes[i]}" font-weight="${l.w || 600}" ` +
+        `fill="${l.fill}" stroke="#0a0f15" stroke-width="${sizes[i] * 0.3}" stroke-linejoin="round" paint-order="stroke"` +
+        `${l.blink ? ` class="blink" style="${blinkDelay()}"` : ""}>${esc(l.t)}</text>`;
+      y += sizes[i] * 0.12;
+    }
+  }
+  return lead + text;
+}
+
 function renderMap(state) {
   const svg = $("map");
   const views = chartsForView();
@@ -585,6 +661,12 @@ function renderMap(state) {
   ui.fit = { x: 0, y: 0, w: W, h: H };
   const vb = ui.vb || ui.fit;
   svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  // Chart units per screen pixel: map text stays the same size on screen at any zoom.
+  const box = svg.getBoundingClientRect();
+  const upp = box.width > 0 ? Math.max(vb.w / box.width, vb.h / box.height) : 1;
+  ui.fontK = upp;
+  // Zoomed well out: only gates with traffic keep their name.
+  ui.farOut = upp > 1.6;
   const statuses = standStatuses(L, rows);
   const byStand = new Map(rows.filter(r => r.atStand).map(r => [r.atStand, r]));
   const showLabels = $("optLabels").checked;
@@ -637,7 +719,12 @@ function renderMap(state) {
     for (const s of L.callSpots.filter(s => s.chart === chart)) {
       h += `<circle cx="${s.x}" cy="${s.y}" r="10" fill="#05080c" stroke="#e6edf5" stroke-width="1.5"/><text x="${s.x}" y="${s.y + 3.5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">${esc(s.id)}</text>`;
     }
-    // Stands, and the aircraft parked on them.
+    // Stands, and the aircraft parked on them. Text is laid out afterwards (placeLabels)
+    // so it never sits under an aircraft or on another label.
+    const labels = [];
+    const obstacles = [];
+    if (chart === views[0][0]) ui.dropped = 0;
+    const now = Date.now();
     for (const s of L.stands.filter(s => s.chart === chart)) {
       const st = statuses.get(s.id);
       const occ = byStand.get(s.id);
@@ -650,47 +737,65 @@ function renderMap(state) {
       if (isSel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
       const cf = conflicts.get(s.id);
       if (cf) {
-        h += `<g class="blink" style="${blinkDelay()}"><circle r="20" fill="rgba(239,77,77,.18)" stroke="#ef4d4d" stroke-width="2.5"/>` +
-          `<text y="-24" text-anchor="middle" font-size="11" font-weight="800" fill="#ff8080">⚠ ${esc(cf.occupant)}</text></g>`;
+        h += `<g class="blink" style="${blinkDelay()}"><circle r="20" fill="rgba(239,77,77,.18)" stroke="#ef4d4d" stroke-width="2.5"/></g>`;
       }
       h += `<circle r="13" fill="transparent"/>`;
       h += `<path d="${PLANE}" transform="rotate(${rot})" fill="${color}" fill-opacity="${opacity}" stroke="#05080c" stroke-width=".6"/>`;
-      h += `</g>`;
-      const rad = (rot * Math.PI) / 180;
-      const lx = s.x + Math.sin(rad) * 22;
-      const ly = s.y - Math.cos(rad) * 22 + 3.5;
-      if (showLabels) {
-        h += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="10" font-weight="600" fill="#e6edf5">${esc(s.label || s.id)}</text>`;
-      }
+      // An empty gate's faded icon may be written over; an aircraft may not.
+      obstacles.push({ x: s.x, y: s.y, r: occ || st ? 12 : 8, soft: !(occ || st) });
       const who = occ || (st?.key === "assigned" || st?.key === "proposed" ? rows.find(r => r.callsign === st.callsign) : null);
-      let dy = 10;
+      const lines = [];
+      if (cf) lines.push({ t: `⚠ ${cf.occupant}`, fill: "#ff8080", w: 800, blink: true });
+      if (showLabels && (who || !ui.farOut)) lines.push({ t: s.label || s.id, fill: "#e6edf5", w: 650 });
       if (who && (showCs || showTypes)) {
-        const t = [showCs ? who.callsign : "", showTypes ? who.type : ""].filter(Boolean).join(" ");
-        h += `<text x="${lx}" y="${ly + dy}" text-anchor="middle" font-size="8.5" fill="${occ ? "#b8c6d4" : st?.key === "proposed" ? "#a9c8e8" : "#8ec8ff"}">${esc(t)}</text>`;
-        dy += 9.5;
+        lines.push({ t: [showCs ? who.callsign : "", showTypes ? who.type : ""].filter(Boolean).join(" "), small: true, w: 500,
+          fill: occ ? "#c3d0dd" : st?.key === "proposed" ? "#a9c8e8" : "#8ec8ff" });
       }
       // Departure on the gate: its filed proposed time and the countdown.
+      let due = false;
       if (occ && showPtime(occ)) {
-        const cd = ptimeCountdown(occ.ptime, Date.now());
-        h += `<text x="${lx}" y="${ly + dy}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${cd.startsWith("+") ? "#ff9b9b" : "#ffd27a"}">P${esc(zulu(occ.ptime))} ${esc(cd)}</text>`;
+        const cd = ptimeCountdown(occ.ptime, now);
+        due = cd.startsWith("+") || Number(cd) <= 10;
+        lines.push({ t: `P${zulu(occ.ptime)} ${cd}`, small: true, w: 700, fill: cd.startsWith("+") ? "#ff9b9b" : "#ffd27a" });
       }
+      // Hover shows the whole block, labelled on the map or not.
+      h += lines.length ? `<title>${esc(lines.map(l => l.t).join(" · "))}</title></g>` : `</g>`;
+      if (!lines.length) continue;
+      const rad = (rot * Math.PI) / 180;
+      const pri = isSel ? 0 : cf ? 1 : due ? 2 : occ ? 3 : who ? 4 : 9;
+      // Labels never overlap: the selected flight, conflicts and late departures
+      // always show; the rest show where they fit (the map note counts the others).
+      const late = occ && showPtime(occ) && ptimeCountdown(occ.ptime, now).startsWith("+");
+      labels.push({ x: s.x, y: s.y, ux: Math.sin(rad), uy: -Math.cos(rad), lines, pri, must: pri <= 1 || late });
     }
     // Moving aircraft (not on a stand).
     for (const r of rows.filter(r => r.chart === chart && !r.atStand)) {
       const color = STATE_COLOR[r.state] || "var(--taxi)";
       h += `<g class="ac" data-cs="${esc(r.callsign)}" transform="translate(${r.x},${r.y})">`;
       if (r.callsign === sel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
-      h += `<circle r="13" fill="transparent"/><path d="${PLANE}" transform="rotate(${r.hdg})" fill="${color}" stroke="#05080c" stroke-width=".6"/></g>`;
-      if (showCs) h += `<text x="${r.x + 14}" y="${r.y - 8}" font-size="10" font-weight="700" fill="${color}">${esc(r.callsign)}</text>`;
+      h += `<circle r="13" fill="transparent"/><path d="${PLANE}" transform="rotate(${r.hdg})" fill="${color}" stroke="#05080c" stroke-width=".6"/>` +
+        `<title>${esc([r.callsign, r.type, r.state].filter(Boolean).join(" · "))}</title></g>`;
+      obstacles.push({ x: r.x, y: r.y, r: 12 });
+      const lines = [];
+      if (showCs) lines.push({ t: r.callsign, fill: color, w: 750 });
       if (r.unknownStand && showPtime(r)) {
-        h += `<text x="${r.x + 14}" y="${r.y + 4}" font-size="8.5" font-weight="700" fill="#ffd27a">P${esc(zulu(r.ptime))} ${esc(ptimeCountdown(r.ptime, Date.now()))}</text>`;
+        lines.push({ t: `P${zulu(r.ptime)} ${ptimeCountdown(r.ptime, now)}`, small: true, w: 700, fill: "#ffd27a" });
       }
+      if (lines.length) labels.push({ x: r.x, y: r.y, ux: 0.7, uy: -0.7, lines, must: !ui.farOut || r.callsign === sel, pri: r.callsign === sel ? 0 : 2 });
     }
+    for (const sp of L.callSpots.filter(sp => sp.chart === chart)) obstacles.push({ x: sp.x, y: sp.y, r: 11 });
+    // Ramp titles: keep gate labels off them.
+    for (const rb of rampBoxes(chart)) {
+      const tw = rb.r.name.length * 12 * 0.6;
+      obstacles.push({ box: { x0: (rb.x0 + rb.x1) / 2 - tw / 2, x1: (rb.x0 + rb.x1) / 2 + tw / 2, y0: rb.y0 - 18, y1: rb.y0 - 2 } });
+    }
+    h += placeLabels(labels, obstacles, ui.fontK, { x0: c.x0, y0: c.y0, x1: c.x0 + c.w, y1: c.y0 + c.h });
     h += `</g></g>`;
   }
   svg.innerHTML = h;
   const offMap = vrows.filter(r => r.state === STATES.INBOUND).length;
-  $("mapNote").textContent = offMap ? `${offMap} inbound not yet on the ramp` : "";
+  $("mapNote").textContent = [offMap ? `${offMap} inbound not yet on the ramp` : "",
+    ui.dropped ? `${ui.dropped} label${ui.dropped === 1 ? "" : "s"} hidden: hover an aircraft, zoom in or pick a ramp` : ""].filter(Boolean).join(" · ");
 }
 
 /* ---------------- flights ---------------- */

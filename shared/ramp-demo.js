@@ -72,7 +72,9 @@ export function createDemoStore(L) {
   /** Filed departure time (HHMM Z) `min` minutes from the demo start. */
   function hhmm(min) {
     const d = new Date(Math.floor((t0 + min * 60000) / 60000) * 60000);
-    return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0");
+    const t = String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0");
+    // "0000" reads as a blank time (ptimeMs), so a demo flight due at midnight files 0001.
+    return t === "0000" ? "0001" : t;
   }
 
   function seed() {
