@@ -203,9 +203,39 @@ export function positionForRamp(L, rampId) {
  * end (Dulles: 72 west, 73 east on taxilane B) lists both, and the stand gets
  * the nearer one.
  */
-export function entrySpotFor(L, stand) {
-  const map = (L.laneSpots || {})[stand.chart] || {};
-  const ids = [].concat(map[stand.pushTo] || []);
+export function entrySpotFor(L, stand, flow) {
+  return nearestSpot(L, stand, spotsFor(L, stand, flow, "laneSpots"));
+}
+
+/**
+ * Exit spot for a departure: the flow's "exitSpots" for its push lane, then the
+ * airport's, then the entry spot.
+ */
+export function exitSpotFor(L, stand, flow) {
+  const ids = spotsFor(L, stand, flow, "exitSpots");
+  return (ids.length ? nearestSpot(L, stand, ids) : null) || entrySpotFor(L, stand, flow);
+}
+
+/** Airport flows ({id, label, laneSpots?, exitSpots?}) from the layout file, or []. */
+export function flowsOf(L) {
+  return Array.isArray(L.flows) ? L.flows : [];
+}
+
+/**
+ * Spot ids for a stand's push lane from `key` (laneSpots | exitSpots): the
+ * selected flow's override first, then the airport's own. Flows change which
+ * spot a ramp is entered or left by (north vs south flow).
+ */
+function spotsFor(L, stand, flow, key) {
+  const f = flow ? flowsOf(L).find(x => x.id === flow) : null;
+  const pick = src => {
+    const v = ((src || {})[stand.chart] || {})[stand.pushTo];
+    return v == null ? null : [].concat(v);
+  };
+  return pick(f && f[key]) || pick(L[key]) || [];
+}
+
+function nearestSpot(L, stand, ids) {
   let best = null;
   for (const id of ids) {
     const sp = L.spotById.get(id);
@@ -278,7 +308,7 @@ export function operatorFor(L, callsign, remarks) {
 /* ------------------------------------------------------------------ */
 
 export function emptyState(icao) {
-  return { icao, rev: 0, settings: { holdAll: false, spacingSec: 0 }, flights: {}, log: [], logSeq: 0 };
+  return { icao, rev: 0, settings: { holdAll: false, spacingSec: 0, flow: "" }, flights: {}, log: [], logSeq: 0 };
 }
 
 function entry(state, cs) {
@@ -376,7 +406,14 @@ export function applyOp(state, o, by, now) {
         if (!(n >= 0 && n <= 900)) return { ok: false, error: "spacing must be 0-900 s" };
         state.settings.spacingSec = n;
       }
-      addLog(state, now, by, `ramp ${state.settings.holdAll ? "HOLD ALL" : "open"}, spacing ${state.settings.spacingSec}s`);
+      if (o.flow != null) {
+        // Airport flow (north/south...): which entry and exit spots the ramp uses. "" = default.
+        const f = String(o.flow).toUpperCase();
+        if (f && !/^[A-Z0-9]{1,8}$/.test(f)) return { ok: false, error: "bad flow" };
+        state.settings.flow = f;
+      }
+      addLog(state, now, by, `ramp ${state.settings.holdAll ? "HOLD ALL" : "open"}, spacing ${state.settings.spacingSec}s` +
+        `${state.settings.flow ? `, flow ${state.settings.flow}` : ""}`);
       break;
     }
     case "remove": {
@@ -749,23 +786,22 @@ function freqShort(f) {
 }
 
 /** Stand assignment telex. */
-export function composeStandTelex(L, standId, { change = false } = {}) {
+export function composeStandTelex(L, standId, { change = false, flow = "" } = {}) {
   const s = L.standById.get(standId);
   if (!s) return "";
-  const spot = entrySpotFor(L, s);
+  const spot = entrySpotFor(L, s, flow);
   const pos = positionForRamp(L, s.ramp);
   // A lane can carry its chart name ("RAMP 3 TAXILANE") and its own frequency (Ramp 3 is 130.375).
   const laneObj = findLane(L, s.chart, s.pushTo);
-  // A lane named "" on purpose (the chart gives it no name) adds no VIA.
-  const lane = laneObj && typeof laneObj.name === "string" ? laneObj.name
-    : (s.pushTo ? (/^[A-Z0-9]$/.test(s.pushTo) ? `TAXILANE ${s.pushTo}` : s.pushTo) : "");
   const freq = laneObj?.freq || pos?.freqs[0];
   const name = s.label || s.id;
   const parts = [`${rampPrefix(L, s)}:`, change ? `STAND CHANGE. NEW STAND ${name}.` : `PARK STAND ${name}.`];
-  if (spot) parts.push(`ENTER AT SPOT ${spot.id}${lane ? ` VIA ${lane}` : ""}.`);
+  // With a spot: enter there and call ramp, who gives the taxi to the stand (no VIA lane).
+  // Without one: the lane in, as the chart names it.
+  if (spot) parts.push(`ENTER AT SPOT ${spot.id}.`);
   else if (laneObj?.name) parts.push(`ENTER VIA ${laneObj.name}.`);
   // No CTC line when the chart gives the ramp no frequency (e.g. KDCA).
-  if (pos && freq) parts.push(`CTC ${pos.name.replace(/\s+CONTROL$/i, "").toUpperCase()} ${freqShort(freq)}${spot ? ` AT SPOT ${spot.id}` : ""}.`);
+  if (pos && freq) parts.push(`CTC ${pos.name.replace(/\s+CONTROL$/i, "").toUpperCase()} ${freqShort(freq)}${spot ? ` AT SPOT ${spot.id} FOR TAXI` : ""}.`);
   return parts.join(" ");
 }
 

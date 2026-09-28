@@ -107,7 +107,11 @@
   #map { touch-action: none; cursor: grab; }
   .mapNote { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: var(--muted-2); }
 
-  #panels { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px; min-height: 0; border-top: 1px solid var(--line); }
+  #split { position: absolute; left: 0; right: 0; top: -6px; height: 12px; cursor: row-resize; z-index: 6; touch-action: none; }
+  #split::after { content: ""; display: block; width: 56px; height: 4px; margin: 4px auto; border-radius: 2px; background: var(--line-2); }
+  #split:hover::after, #split.on::after { background: var(--accent); }
+  #panels td { font-size: var(--list-fs, 12.5px); }
+  #panels { position: relative; display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px; min-height: 0; border-top: 1px solid var(--line); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .card > .hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   .card > .hd h2 { margin: 0 6px 0 0; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
@@ -120,6 +124,7 @@
   th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10.5px; font-weight: 650; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12.5px; }
   tbody tr { cursor: pointer; }
+  tbody tr.far { cursor: default; opacity: .8; }
   tbody tr:hover { background: #121c28; }
   tbody tr.sel { background: #13263d; box-shadow: inset 3px 0 0 var(--accent); }
   td.cs { font-weight: 650; }
@@ -194,6 +199,7 @@
     #mapWrap { height: 70vh; }
     #panels { grid-template-columns: 1fr; }
     #panels .card:first-child { grid-column: auto; }
+    #split { display: none; }
     .card > .bd { max-height: 60vh; }
     .counters { margin-left: 0; }
     .ctr { min-width: 0; flex: 1 1 40%; }
@@ -233,6 +239,11 @@
       <label class="tgl">Stand labels <input type="checkbox" id="optLabels" checked></label>
       <label class="tgl">Callsigns <input type="checkbox" id="optCallsigns" checked></label>
       <label class="tgl">Aircraft types <input type="checkbox" id="optTypes"></label>
+      <div class="tgl" style="gap:8px">List text
+        <select class="sm" id="listSize" style="width:auto">
+          <option value="11.5px">small</option><option value="12.5px">normal</option><option value="14px">large</option><option value="15.5px">x-large</option>
+        </select>
+      </div>
       <h3>Ramp control</h3>
       <label class="tgl">Hold all pushes <input type="checkbox" id="holdAll"></label>
       <div class="tgl" style="gap:8px">Push spacing
@@ -240,6 +251,9 @@
           <option value="0">none</option><option value="60">1 min</option><option value="90">90 s</option>
           <option value="120">2 min</option><option value="180">3 min</option><option value="300">5 min</option>
         </select>
+      </div>
+      <div class="tgl" style="gap:8px" id="flowRow" hidden>Airport flow
+        <select class="sm" id="flow" style="width:auto" title="Which entry and exit spots the ramps use"></select>
       </div>
       <div id="notesBox" hidden><h3>Local procedures</h3><ul class="notes" id="notes"></ul></div>
       <h3>Legend</h3>
@@ -266,6 +280,7 @@
     </div>
 
     <div id="panels">
+      <div id="split" title="Drag to size the map and the lists. Double-click to reset."></div>
       <section class="card">
         <div class="hd">
           <h2>Flights</h2>
@@ -308,7 +323,7 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
   STATES, PUSH, indexLayout, deriveFlights, standStatuses, standConflicts, airlineFor, queueView, suggestStand,
-  autoAssignStands, ptimeCountdown,
+  autoAssignStands, ptimeCountdown, distNm, INBOUND_MAX_NM, flowsOf, entrySpotFor, exitSpotFor,
   composeStandTelex, composePushTelex, standLabel, TELEX_MAX,
 } from "./shared/ramp-core.js";
 import { createDemoStore } from "./shared/ramp-demo.js";
@@ -455,6 +470,16 @@ function renderRail(state) {
   const sp = $("spacing");
   if (document.activeElement !== sp) sp.value = String(state.settings.spacingSec || 0);
   sp.disabled = !me.canWrite;
+  // Airport flow: only for airports whose file lists flows; shared by everyone on the board.
+  const flows = flowsOf(L);
+  $("flowRow").hidden = !flows.length;
+  const fl = $("flow");
+  if (flows.length && document.activeElement !== fl) {
+    const opts = `<option value="">default</option>` + flows.map(f => `<option value="${esc(f.id)}">${esc(f.label || f.id)}</option>`).join("");
+    if (fl.dataset.sig !== opts) { fl.innerHTML = opts; fl.dataset.sig = opts; }
+    fl.value = state.settings.flow || "";
+  }
+  fl.disabled = !me.canWrite;
   $("activity").innerHTML = state.log.slice(-7).reverse()
     .map(l => `<div><span class="mono">${zulu(l.t)}</span> ${esc(l.text)} <span class="muted">· ${esc(l.by)}</span></div>`).join("") ||
     '<div class="muted">Nothing yet.</div>';
@@ -524,7 +549,11 @@ function inSelection(r, sel = selectedRamps()) {
   if (!sel) return true;
   const st = L.standById.get(r.atStand || r.stand || "");
   if (st) return sel.has(st.ramp);
-  if (r.chart) return L.ramps.some(x => x.chart === r.chart && sel.has(x.id));
+  // An arrival belongs to the ramps it is going to, not the chart it is crossing: one that
+  // landed on a runway drawn on another ramp's chart must not drop off the list until it
+  // taxis onto its own (KCVG: 18C/36C is on the Amazon chart).
+  const arriving = r.state === STATES.INBOUND || r.state === STATES.TAXI_IN;
+  if (r.chart && !arriving) return L.ramps.some(x => x.chart === r.chart && sel.has(x.id));
   // An inbound with no stand: the airline's own gates when the airport lists them, else its operator's ramps.
   const al = airlineFor(L, r.callsign);
   return ((al && al.ramps) || r.op.ramps || []).some(id => sel.has(id));
@@ -811,7 +840,9 @@ function renderFlights() {
     `<button data-tab="${id}" class="${ui.tab === id ? "on" : ""}">${label} (${vrows.filter(fn).length})</button>`).join("");
   const q = ui.search.trim().toUpperCase();
   const tabFn = TABS.find(t => t[0] === ui.tab)[2];
-  const list = vrows.filter(tabFn).filter(r => !q || [r.callsign, r.type, r.stand, r.dep, r.arr, r.atStand].some(v => String(v || "").includes(q)))
+  const hit = r => [r.callsign, r.type, r.stand, r.dep, r.arr, r.atStand].some(v => String(v || "").includes(q));
+  // A search looks through every flight at the field, whatever ramp or tab is selected.
+  const list = (q ? rows.filter(hit) : vrows.filter(tabFn))
     .sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.callsign.localeCompare(b.callsign));
   $("flights").innerHTML = list.map(r => {
     const e = r.entry;
@@ -836,8 +867,41 @@ function renderFlights() {
       <td>${esc(r.dep || "?")}→${esc(r.arr || "?")}</td><td>${ramp}</td>
       <td><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></td>
       <td class="mono">${esc(eta)}</td><td class="mono pt">${ptimeCell(r)}</td></tr>`;
-  }).join("");
-  $("flightsEmpty").hidden = list.length > 0;
+  }).join("") + (q ? farInbounds(q) : "");
+  $("flightsEmpty").hidden = list.length > 0 || !!q;
+}
+
+/**
+ * Search only: flights filed to arrive here that are too far out to track yet
+ * (over INBOUND_MAX_NM), from the whole feed. Listed, not selectable.
+ */
+function farInbounds(q) {
+  const have = new Set(rows.map(r => r.callsign));
+  const out = [];
+  for (const p of store.getPilots() || []) {
+    const fp = p.flight_plan || {};
+    const cs = String(p.callsign || "").toUpperCase();
+    if (have.has(cs) || String(fp.arrival || "").toUpperCase() !== L.icao) continue;
+    const type = String(fp.aircraft_short || fp.aircraft || "").split("/")[0].toUpperCase();
+    const dep = String(fp.departure || "").toUpperCase();
+    if (![cs, type, dep].some(v => v.includes(q))) continue;
+    const d = Number.isFinite(+p.latitude) ? distNm(+p.latitude, +p.longitude, L.field.lat, L.field.lon) : null;
+    out.push({ cs, type, dep, d, eta: d != null && p.groundspeed > 40 ? Math.round((d / p.groundspeed) * 60) : null });
+  }
+  return out.sort((a, b) => (a.d ?? 1e9) - (b.d ?? 1e9)).map(f =>
+    `<tr class="far" title="Too far out to track yet: shows on the ramp within ${INBOUND_MAX_NM} nm">
+      <td class="cs muted">${esc(f.cs)}</td><td class="muted">${esc(f.type)}</td><td class="muted">${esc(f.dep || "?")}→${esc(L.icao)}</td>
+      <td class="muted">—</td><td><span class="st" style="background:#3a4a5c;color:#c9d6e3">EN ROUTE</span></td>
+      <td class="mono muted">${f.eta != null ? `${f.eta >= 60 ? `${Math.floor(f.eta / 60)}h${String(f.eta % 60).padStart(2, "0")}` : `${f.eta} min`}` : f.d != null ? `${Math.round(f.d)} nm` : "–"}</td><td></td></tr>`).join("");
+}
+
+/** "· spot 54": where an arrival enters, or a departure leaves, in the current airport flow. */
+function spotNote(r, state) {
+  const st = L.standById.get(r.atStand || r.stand || "");
+  if (!st) return "";
+  const arriving = r.state === STATES.INBOUND || r.state === STATES.TAXI_IN;
+  const sp = arriving ? entrySpotFor(L, st, state.settings.flow) : exitSpotFor(L, st, state.settings.flow);
+  return sp ? ` <span class="muted" style="font-size:11px" title="${arriving ? "Entry" : "Exit"} spot${state.settings.flow ? `, ${esc(state.settings.flow)} flow` : ""}">· ${arriving ? "in" : "out"} spot ${esc(sp.id)}</span>` : "";
 }
 
 /** Airline (or operator) name for notes: "United", "DHL". */
@@ -898,7 +962,7 @@ function standOptions(r) {
 
 function defaultTelex(r, tpl, state) {
   const stand = document.getElementById("selStand")?.value || r.stand;
-  if (tpl === "stand" || tpl === "change") return stand ? composeStandTelex(L, stand, { change: tpl === "change" }) : "";
+  if (tpl === "stand" || tpl === "change") return stand ? composeStandTelex(L, stand, { change: tpl === "change", flow: state.settings.flow }) : "";
   if (tpl === "push") {
     const pos = queueView(state, Date.now()).find(q => q.callsign === r.callsign)?.pos;
     return pos ? composePushTelex(L, r.stand, pos) : "";
@@ -923,7 +987,7 @@ function renderSelected(state) {
   const cf = r.stand && conflicts.get(r.stand);
   const myConflict = cf && cf.inbound === r.callsign ? cf : null;
   const airline = airlineFor(L, r.callsign);
-  const sig = JSON.stringify([r.autoStand, r.noGate, myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  const sig = JSON.stringify([state.settings.flow, r.autoStand, r.noGate, myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
 
@@ -946,7 +1010,7 @@ function renderSelected(state) {
     <div class="facts">
       <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>
       <div><div class="k">To</div><div class="v">${esc(r.arr || "?")}</div></div>
-      <div><div class="k">Stand</div><div class="v">${esc(r.stand ? lbl(r.stand) : "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(lbl(r.atStand))}</span>` : ""}</div></div>
+      <div><div class="k">Stand</div><div class="v">${esc(r.stand ? lbl(r.stand) : "—")}${r.wrongStand ? ` <span class="badge bad">at ${esc(lbl(r.atStand))}</span>` : ""}${spotNote(r, state)}</div></div>
       <div><div class="k">Status</div><div class="v"><span class="st" style="background:${STATE_COLOR[r.state]}">${esc(r.state)}</span></div></div>
     </div>
     ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || coverText())}</div>`}
@@ -1154,6 +1218,51 @@ $("zFit").addEventListener("click", () => { ui.vb = null; scheduleRender(); });
 
 $("holdAll").addEventListener("change", e => doOp({ op: "settings", holdAll: e.target.checked }));
 $("spacing").addEventListener("change", e => doOp({ op: "settings", spacingSec: Number(e.target.value) }));
+/* Map / lists split: drag the bar above the lists (saved per browser); double-click resets. */
+const SPLIT_KEY = "vatflow.ramp.panelsH";
+function applySplit(h) {
+  $("body").style.gridTemplateRows = h ? `minmax(140px, 1fr) ${h}px` : "";
+  scheduleRender();
+}
+{
+  let sdrag = null;
+  const sp = $("split");
+  sp.addEventListener("pointerdown", e => {
+    sdrag = { top: $("body").getBoundingClientRect() };
+    sp.setPointerCapture(e.pointerId);
+    sp.classList.add("on");
+    e.preventDefault();
+  });
+  sp.addEventListener("pointermove", e => {
+    if (!sdrag) return;
+    const b = sdrag.top;
+    const h = Math.round(Math.max(160, Math.min(b.height - 140, b.bottom - e.clientY)));
+    sdrag.h = h;
+    applySplit(h);
+  });
+  const end = () => {
+    if (!sdrag) return;
+    if (sdrag.h) LS.set(SPLIT_KEY, String(sdrag.h));
+    sdrag = null;
+    sp.classList.remove("on");
+  };
+  sp.addEventListener("pointerup", end);
+  sp.addEventListener("pointercancel", end);
+  sp.addEventListener("dblclick", () => { LS.set(SPLIT_KEY, ""); applySplit(0); });
+  const saved = Number(LS.get(SPLIT_KEY, ""));
+  if (saved > 0) applySplit(saved);
+}
+/* List text size (saved per browser). */
+{
+  const ls = $("listSize");
+  ls.value = LS.get("vatflow.ramp.listSize", "12.5px");
+  document.documentElement.style.setProperty("--list-fs", ls.value);
+  ls.addEventListener("change", () => {
+    document.documentElement.style.setProperty("--list-fs", ls.value);
+    LS.set("vatflow.ramp.listSize", ls.value);
+  });
+}
+$("flow").addEventListener("change", e => doOp({ op: "settings", flow: e.target.value }));
 $("resort").addEventListener("click", () => doOp({ op: "resort" }));
 
 function onStandPicked() {

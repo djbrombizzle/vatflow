@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import {
   airlineFor, applyOp, composeStandTelex, deriveFlights, entrySpotFor, standConflicts, emptyState, indexLayout, locateOnChart,
   nearestStand, operatorFor, parseDm, parseDownlink, queueOrder, queueView, standStatuses,
-  suggestStand, STATES, PUSH, TELEX_MAX, autoAssignStands, airlineStands, ptimeMs, ptimeCountdown, standLabel,
+  suggestStand, STATES, PUSH, TELEX_MAX, exitSpotFor, autoAssignStands, airlineStands, ptimeMs, ptimeCountdown, standLabel,
 } from "../shared/ramp-core.js";
 
 let passed = 0;
@@ -70,14 +70,14 @@ assert(operatorFor(L, "DAL1234", "").group === "Terminal", "DAL parks at the ter
 /* ---------- telex ---------- */
 {
   const t = composeStandTelex(L, "C07");
-  assert(t === "KCVG AMAZON RAMP: PARK STAND C07. ENTER AT SPOT 74 VIA TAXILANE C. CTC AMAZON RAMP 130.5 AT SPOT 74.", "C07 telex: " + t);
+  assert(t === "KCVG AMAZON RAMP: PARK STAND C07. ENTER AT SPOT 74. CTC AMAZON RAMP 130.5 AT SPOT 74 FOR TAXI.", "C07 telex: " + t);
   const d = composeStandTelex(L, "21");
-  assert(d === "KCVG DHL RAMP: PARK STAND 21. ENTER AT SPOT 56 VIA DHL 2. CTC DHL RAMP 129.475 AT SPOT 56.", "21 telex: " + d);
+  assert(d === "KCVG DHL RAMP: PARK STAND 21. ENTER AT SPOT 56. CTC DHL RAMP 129.475 AT SPOT 56 FOR TAXI.", "21 telex: " + d);
   assert(L.stands.every(s => composeStandTelex(L, s.id).length <= TELEX_MAX), "every stand telex fits the budget");
   const ta10 = composeStandTelex(L, "T-A10");
   const b15 = composeStandTelex(L, "B15");
-  assert(b15 === "KCVG RAMP: PARK STAND B15. ENTER AT SPOT 5 VIA RAMP 3 TAXILANE. CTC RAMP 130.375 AT SPOT 5.", "Ramp 3 taxilane frequency: " + b15);
-  assert(ta10 === "KCVG RAMP: PARK STAND A10. ENTER AT SPOT 2 VIA RAMP 1S TAXILANE. CTC RAMP 130.9 AT SPOT 2.", "terminal telex uses the chart name: " + ta10);
+  assert(b15 === "KCVG RAMP: PARK STAND B15. ENTER AT SPOT 5. CTC RAMP 130.375 AT SPOT 5 FOR TAXI.", "Ramp 3 taxilane frequency: " + b15);
+  assert(ta10 === "KCVG RAMP: PARK STAND A10. ENTER AT SPOT 2. CTC RAMP 130.9 AT SPOT 2 FOR TAXI.", "terminal telex uses the chart name: " + ta10);
 }
 assert(parseDownlink("REQ PUSH") === "push", "REQ PUSH");
 assert(parseDownlink("ready for pushback") === "push", "ready for pushback");
@@ -245,7 +245,7 @@ console.log(`test-ramp-core: ${passed} passed`);
   near(I.standById.get("C4").noseHdg, 0, 1, "C/D south gates nose north, away from taxilane E");
   assert(entrySpotFor(I, I.standById.get("B79")).id === "72" && entrySpotFor(I, I.standById.get("A15")).id === "73", "nearer spot on the lane");
   const t = composeStandTelex(I, "C4");
-  assert(t === "KIAD SOUTH AREA RAMP: PARK STAND C4. ENTER AT SPOT 83 VIA TAXILANE E. CTC SOUTH AREA RAMP 130.55 AT SPOT 83.", "KIAD telex: " + t);
+  assert(t === "KIAD SOUTH AREA RAMP: PARK STAND C4. ENTER AT SPOT 83. CTC SOUTH AREA RAMP 130.55 AT SPOT 83 FOR TAXI.", "KIAD telex: " + t);
   const n = composeStandTelex(I, "B41");
   assert(n.includes("NORTH AREA RAMP") && n.includes("119.12") && n.includes("SPOT 72"), "north ramp telex: " + n);
   assert(operatorFor(I, "UAL924", "").group === "Terminal", "UAL at the terminal");
@@ -275,7 +275,7 @@ console.log(`test-ramp-core: ${passed} passed`);
   near(D.proj.DCA.toXY(38 + 51.5 / 60, -77.0405).x, 510, 8, "KDCA 15/33 at 51.5'");
   assert(entrySpotFor(D, D.standById.get("D38")).id === "5" && entrySpotFor(D, D.standById.get("E55")).id === "9" && entrySpotFor(D, D.standById.get("E53")).id === "10", "nearest reporting point on the alley");
   const t = composeStandTelex(D, "C30");
-  assert(t === "KDCA RAMP: PARK STAND C30. ENTER AT SPOT 1 VIA B/C ALLEY.", "KDCA telex has no CTC line without a frequency: " + t);
+  assert(t === "KDCA RAMP: PARK STAND C30. ENTER AT SPOT 1.", "KDCA telex has no CTC line without a frequency: " + t);
   assert(composeStandTelex(D, "A5") === "KDCA RAMP: PARK STAND A5. ENTER VIA TAXIWAY K.", "A gates: via K, no spot, no frequency: " + composeStandTelex(D, "A5"));
   assert(operatorFor(D, "AAL1846", "").group === "Terminal" && !operatorFor(D, "AAL1", "").ramps.includes("DCA-SH"), "airlines stay off the hangar ramp");
 
@@ -369,7 +369,7 @@ console.log(`test-ramp-core: ${passed} passed`);
   const g = R.proj.RDU.toLatLon(1311, 1099);
   const t = (g.lat - 35.8646) / (35.8792 - 35.8646);
   near(g.lon, -78.7973 + t * (-78.7794 + 78.7973), 0.0002, "KRDU 5R/23L lines up");
-  assert(composeStandTelex(R, "C9") === "KRDU RAMP TOWER: PARK STAND C9. ENTER AT SPOT 6. CTC RAMP TOWER 130.175 AT SPOT 6.", "KRDU T2 telex: " + composeStandTelex(R, "C9"));
+  assert(composeStandTelex(R, "C9") === "KRDU RAMP TOWER: PARK STAND C9. ENTER AT SPOT 6. CTC RAMP TOWER 130.175 AT SPOT 6 FOR TAXI.", "KRDU T2 telex: " + composeStandTelex(R, "C9"));
   assert(composeStandTelex(R, "A5") === "KRDU GROUND: PARK STAND A5. ENTER VIA TAXIWAY A. CTC GROUND 121.9.", "KRDU T1 telex: " + composeStandTelex(R, "A5"));
   const want = { DAL1: "RDU-C", AAL1: "RDU-D", UAL1: "RDU-D", SWA1: "RDU-A", NKS1: "RDU-A" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(R, [], operatorFor(R, cs, ""), cs).ramp === ramp, `KRDU ${cs} on ${ramp}`);
@@ -460,5 +460,32 @@ console.log(`test-ramp-core: ${passed} passed`);
   assert(store.spawnDeparture(was, "XXX1", "A320", "KATL"), "demo spawn");
   rs = autoAssignStands(D, deriveFlights(D, store.getPilots(), store.getState(), new Map(), Date.now()), memo);
   assert(rs.find(x => x.callsign === r.callsign).stand !== was, "demo: the proposal moves off the spawned gate");
+}
+/* ---------- tester feedback: DHL 50-55 heading, telex wording, airport flows ---------- */
+{
+  const C = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.json", import.meta.url))));
+  for (const id of ["50", "51", "52", "53", "54", "55"]) {
+    const h = C.standById.get(id).noseHdg;
+    assert(h != null && (h < 30 || h > 330), `DHL ${id} faces north (nose toward DHL 6, pushes onto N): ${h}`);
+  }
+  assert(!/ VIA /.test(composeStandTelex(C, "50")) && / FOR TAXI\.$/.test(composeStandTelex(C, "50")),
+    "stand telex: enter at the spot and call ramp there, no VIA lane: " + composeStandTelex(C, "50"));
+  // Flows: an airport flow can move a lane's entry and exit spots.
+  const raw = JSON.parse(readFileSync(new URL("../data/ramp/KCVG.json", import.meta.url)));
+  raw.flows = [{ id: "S", label: "South flow", laneSpots: { DHL: { N: "65" } }, exitSpots: { DHL: { N: "58" } } }];
+  const F = indexLayout(raw);
+  const s50 = F.standById.get("50");
+  const base = entrySpotFor(F, s50).id;
+  assert(entrySpotFor(F, s50, "S").id === "65" && base !== "65", `south flow enters DHL 50 at 65 (default ${base})`);
+  assert(exitSpotFor(F, s50, "S").id === "58", "south flow exits by 58");
+  assert(exitSpotFor(F, s50).id === base, "no exit spots listed: exit = entry spot");
+  assert(entrySpotFor(F, s50, "X").id === base, "unknown flow: default spots");
+  assert(composeStandTelex(F, "50", { flow: "S" }).includes("ENTER AT SPOT 65."), "telex uses the flow's spot");
+  assert(entrySpotFor(F, F.standById.get("21"), "S").id === entrySpotFor(F, F.standById.get("21")).id, "lanes the flow does not list keep their spot");
+  const st = emptyState("KCVG");
+  assert(st.settings.flow === "", "boards start in the default flow");
+  assert(applyOp(st, { op: "settings", flow: "s" }, "T", 1).ok && st.settings.flow === "S", "flow is a shared board setting");
+  assert(!applyOp(st, { op: "settings", flow: "no way" }, "T", 1).ok, "bad flow ids are refused");
+  assert(applyOp(st, { op: "settings", flow: "" }, "T", 1).ok && st.settings.flow === "", "flow back to default");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);

@@ -269,6 +269,8 @@ Phases 0–1 need no hub changes and can ship first.
    - `charts`: each chart image's size and its lat/lon grid ticks (`latRef` / `lonRef`, in chart pixels). If the chart is drawn to scale, stand coordinates come from the grid.
    - `positions`: ramp positions, their frequencies and the ramps they own. `ramps`: groups of stands.
    - `lanes`: taxilanes as chart-pixel polylines, with an optional `name` and `freq`. `laneSpots`: the call spot or spots at each lane.
+   - `flows` (optional): airport flows whose entry or exit spots differ, e.g. `[{"id": "S", "label": "South flow", "laneSpots": {"DHL": {"N": "65"}}, "exitSpots": {"DHL": {"N": "58"}}}]`. Each flow overrides only the lanes it lists. `exitSpots` (optional, also at the top level) are the spots departures leave by; without them a departure leaves by its entry spot. The flow in use is a board setting (`settings.flow`), chosen in the side panel by a controller who can write and shared with everyone on the board.
+   - Stand telex: `PARK STAND 51. ENTER AT SPOT 54. CTC DHL RAMP 129.475 AT SPOT 54 FOR TAXI.` Ramp gives the taxi to the stand from the spot, so the telex names no lane. With no spot it says `ENTER VIA <lane>`, and with no ramp frequency it has no CTC line.
    - `stands`: `id`, `ramp`, `x`/`y` at the aircraft, `pushTo` lane, and an optional `label` when two ramps share a name.
    - `callSpots`, `deiceSpots`, `buildings`, `operators`, `views`, `notes` and a `demo` fleet.
 2. Add it to `data/ramp/index.json`.
