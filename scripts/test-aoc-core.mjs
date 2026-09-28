@@ -13,6 +13,7 @@ import {
 import { seedNavData, preferredRoute } from "../shared/route-engine.js";
 import { demoOfpJson, fetchOfp, matchOfp, parseOfp, simbriefUrl } from "../shared/aoc-simbrief.js";
 import { equivalentType, estimateFuel, gcdAllowanceNm, tableFuelKg, KG_TO_LB } from "../shared/aoc-fuel.js";
+import { autoAdvisoryTargets, composeTmiTelex, demoAdvisory, demoBoard, restrictionsFor, tmiAlerts, tmiIndex, AUTO_ADVISORY_MAX } from "../shared/aoc-tmi.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -431,6 +432,62 @@ function opsPrefixOf(w) { return composeTelex("free", w, {}).trim(); }
   const u = rows.find(r => r.callsign === "UAL1");
   assert(u && u.alerts.some(a => a.key === "div-KOKC"), "diverted away from KDFW: still on the board, with the alert");
   assert(composeTelex("free", AW, u) === "DFW OPS: ", "telex prefix DFW OPS");
+}
+
+/* ---------- VATUSA OIS TMIs ---------- */
+{
+  // Shapes as OIS serializes them (backend/src/models: PublicBoard, FlightAdvisory; snake_case, RFC 3339).
+  const board = {
+    ground_stops: [{ id: "g1", airport: "KATL", scope: "ZTL ZJX", until: "1900" }],
+    gdps: [{ id: "d1", airport: "KDFW", aar: 40, scope: "", start_time: "1700", end_time: "2100", max_enroute_min: null,
+      exempt_airborne: true, controlled: 12, avg_delay_min: 25, max_delay_min: 51, demand_60min: 55, over_capacity: true }],
+    restrictions: [{ id: "r1", requesting: "ZFW", providing: "ZME", restriction: "DFW VIA BOOVE 20MIT", decoded: null, start_time: "2026-09-28T17:00:00Z", stop_time: null },
+      { id: "r2", requesting: "ZNY", providing: "ZDC", restriction: "EWR 15MIT", decoded: null, start_time: "2026-09-28T17:00:00Z", stop_time: null }],
+    programs: [{ icao: "KORD", aar: 60, trail: 0, mit: 0, gates: [], exclude_wake: [], exclude_types: [], jets_only: false, active_until: null, demand_60min: 71, over_capacity: true }],
+    as_of: "2026-09-28T18:00:00Z",
+  };
+  const ix = tmiIndex(board);
+  assert(ix.byAirport.get("KDFW").gdp.aar === 40 && ix.byAirport.get("KATL").groundStop.until === "1900" && ix.byAirport.get("KORD").program.aar === 60, "board indexed by airport");
+  assert(ix.asOf === Date.parse("2026-09-28T18:00:00Z"), "as_of parsed");
+  assert(restrictionsFor(ix, "KDFW").map(r => r.id).join() === "r1" && restrictionsFor(ix, "KEWR").map(r => r.id).join() === "r2", "NTML text matched by FAA id");
+  assert(!restrictionsFor(ix, "KDF").length, "whole words only");
+  const gate = { callsign: "AAL100", dep: "KMIA", arr: "KDFW", phase: "AT GATE", connected: true, std: 1790000000000, off: null, on: null };
+  let al = tmiAlerts(ix, gate, null);
+  assert(al.length === 1 && al[0].key === "tmi-gdp-d1" && al[0].level === "warn", "GDP at the destination, no EDCT known yet");
+  const adv = { callsign: "AAL100", found: true, dep: "KMIA", arr: "KDFW", status: "ground",
+    gdp: { airport: "KDFW", aar: 40, start_time: "1700", end_time: "2100", controlled: true, edct: "2026-09-28T18:45:00Z", cta: "2026-09-28T20:10:00Z", delay_min: 23 },
+    ground_stop: null, rate_program: null,
+    fcas: [{ fca_id: "f1", fca_name: "ZFW WEST", color: "#f59e0b", cross_time: "2026-09-28T19:40:00Z", delay_min: 9, edct: null, seq: 4 }],
+    total_delay_min: 23, edct: "2026-09-28T18:45:00Z" };
+  al = tmiAlerts(ix, gate, adv);
+  assert(al.length === 1 && al[0].key === "tmi-edct-2026-09-28T18:45:00Z" && /EDCT 1845Z \(\+23 min\) · GDP KDFW/.test(al[0].text), `EDCT alert: ${al[0] && al[0].text}`);
+  const moved = tmiAlerts(ix, gate, { ...adv, edct: "2026-09-28T18:55:00Z" });
+  assert(moved[0].key !== al[0].key, "a changed EDCT is a new alert (not covered by an old acknowledgement)");
+  assert(!tmiAlerts(ix, { ...gate, phase: "CRUISE", off: 1 }, adv).some(a => /edct|gdp/.test(a.key)), "no EDCT/GDP alert once airborne");
+  const atl = { ...gate, callsign: "DAL5", arr: "KATL" };
+  assert(tmiAlerts(ix, atl, null)[0].level === "bad" && /Ground stop KATL until 1900Z \(ZTL ZJX\)/.test(tmiAlerts(ix, atl, null)[0].text), "ground stop");
+  assert(!tmiAlerts(ix, { ...atl, phase: "CRUISE", off: 1 }, null).length, "ground stop: airborne flights not flagged");
+  assert(tmiAlerts(ix, { ...gate, arr: "KORD", phase: "CRUISE", off: 1 }, null)[0].key === "tmi-aar-KORD", "rate program over capacity, airborne too");
+  assert(!tmiAlerts(ix, { ...gate, arr: "KLAX" }, null).length && !tmiAlerts(null, gate, null).length, "nothing for an unaffected airport or without a board");
+  // Automatic lookups: ground flights bound for a TMI airport, soonest first, capped.
+  const many = Array.from({ length: 12 }, (_, i) => ({ ...gate, callsign: "AAL" + (200 + i), std: 1790000000000 + (12 - i) * 60000 }));
+  const tg = autoAdvisoryTargets(ix, [...many, { ...gate, callsign: "UAL1", arr: "KLAX" }, { ...gate, callsign: "UAL2", phase: "CRUISE", off: 1 }]);
+  assert(tg.length === AUTO_ADVISORY_MAX && tg[0] === "AAL211" && !tg.includes("UAL1") && !tg.includes("UAL2"), "auto lookups capped, soonest first, only affected ground flights");
+  // Telex.
+  const P = "AAL OPS:";
+  assert(composeTmiTelex(P, gate, adv, ix) === "AAL OPS: EDCT 1845Z (GDP KDFW +23 MIN). CTA 2010Z. PLAN PUSH ACCORDINGLY.", "EDCT telex");
+  assert(composeTmiTelex(P, atl, null, ix) === "AAL OPS: GROUND STOP KATL UNTIL 1900Z. HOLD AT GATE, EXPECT UPDATE.", "ground stop telex");
+  const rp = { ...adv, gdp: null, edct: null, rate_program: { airport: "KORD", aar: 60, delay_min: 12, sta: "2026-09-28T20:30:00Z", cfr: null } };
+  assert(composeTmiTelex(P, { ...gate, arr: "KORD" }, rp, ix) === "AAL OPS: EXPECT ARRIVAL DELAY KORD ~12 MIN (AAR 60). STA 2030Z.", "rate program telex");
+  assert(composeTmiTelex(P, { ...gate, arr: "KLAX" }, { found: true, fcas: [] }, ix) === "AAL OPS: NO TMI AFFECTING AAL100.", "no TMI");
+  assert(composeTelex("tmi", makeWatch(OPS, "AAL"), gate, { tmiText: "AAL OPS: X" }) === "AAL OPS: X", "template passes the text through");
+  // Demo board/advisory: same shapes, consistent with each other.
+  const rows = [["KDFW", 5], ["KATL", 3], ["KORD", 2]].flatMap(([arr, n]) => Array.from({ length: n }, (_, i) => ({ ...gate, callsign: arr.slice(1) + i, arr })));
+  const db = demoBoard(rows, 1790000000000);
+  assert(db.gdps[0].airport === "KDFW" && db.ground_stops[0].airport === "KATL" && db.programs[0].icao === "KORD", "demo board picks the busiest destinations");
+  const da = demoAdvisory(rows[0], db, 1790000000000);
+  assert(da.found && da.edct && da.gdp.controlled && da.total_delay_min > 0, "demo advisory has an EDCT");
+  assert(tmiAlerts(tmiIndex(db), rows[0], da)[0].key.startsWith("tmi-edct-"), "demo advisory drives an EDCT alert");
 }
 
 console.log(`test-aoc-core: ${passed} checks passed`);
