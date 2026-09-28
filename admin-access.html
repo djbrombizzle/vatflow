@@ -57,6 +57,25 @@
         <tbody id="wlBody"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
       </table>
     </div>
+    <div class="card" id="dispatchCard" style="display:none">
+      <h2>Dispatch Center dispatchers</h2>
+      <p class="muted">
+        Dispatchers send company telex and shared notes on the <a href="aoc.html" style="color:#8ab4ff">Airline Ops</a> page
+        for the operator codes listed (AAL, DAL, a virtual airline's own code), or <b>*</b> for all. This is separate
+        from ARTCC access: it grants nothing else. Global admins can dispatch any code.
+      </p>
+      <div class="row">
+        <input id="dspCid" inputmode="numeric" maxlength="9" placeholder="VATSIM CID">
+        <input id="dspOps" placeholder="Operator codes, e.g. AAL, DAL or *" style="text-transform:uppercase;min-width:200px">
+        <input id="dspNote" placeholder="Note (optional)" style="flex:1;min-width:140px">
+        <button id="dspAdd">Add / Update</button>
+      </div>
+      <div id="dspStatus" class="status"></div>
+      <table>
+        <thead><tr><th>CID</th><th>Operators</th><th>Note</th><th>Added</th><th></th></tr></thead>
+        <tbody id="dspBody"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
   </main>
   <script type="module">
     import { mountVatflowNav } from "./shared/vatflow-nav.js";
@@ -75,6 +94,10 @@
     const globalCheck = document.getElementById("globalCheck");
     const globalRow = document.getElementById("globalRow");
     const artccPicker = document.getElementById("artccPicker");
+
+    const dispatchCard = document.getElementById("dispatchCard");
+    const dspStatus = document.getElementById("dspStatus");
+    const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
     let managedArtccs = [];
     let canPromoteStaff = false;
@@ -161,6 +184,54 @@
       });
     }
 
+    function renderDispatchers(list) {
+      const body = document.getElementById("dspBody");
+      if (!list.length) { body.innerHTML = '<tr><td colspan="5" class="muted">No dispatchers yet.</td></tr>'; return; }
+      body.innerHTML = list.map(row => `
+        <tr>
+          <td>${esc(row.cid)}</td>
+          <td>${(row.operators || []).map(o => `<span class="chip">${esc(o)}</span>`).join("")}</td>
+          <td>${esc(row.note || "—")}</td>
+          <td>${esc((row.addedAt || "").slice(0, 10))}</td>
+          <td><button type="button" data-dsp-rm="${esc(row.cid)}">Remove</button></td>
+        </tr>`).join("");
+    }
+
+    async function loadDispatchers() {
+      const data = await api("/auth/admin/dispatchers");
+      if (!data || !data.ok) {
+        document.getElementById("dspBody").innerHTML =
+          '<tr><td colspan="5" class="muted">Could not load dispatchers (the auth hub may need its Dispatch Center update).</td></tr>';
+        return;
+      }
+      renderDispatchers(data.dispatchers || []);
+    }
+
+    document.getElementById("dspBody").addEventListener("click", async e => {
+      const cid = e.target.getAttribute && e.target.getAttribute("data-dsp-rm");
+      if (!cid) return;
+      const res = await api("/auth/admin/dispatchers", { method: "POST", body: JSON.stringify({ cid, remove: true }) });
+      dspStatus.textContent = res && res.ok ? `Removed ${cid}.` : `Failed: ${(res && res.error) || "unknown"}`;
+      if (res && res.ok) renderDispatchers(res.dispatchers || []);
+    });
+
+    document.getElementById("dspAdd").addEventListener("click", async () => {
+      const cid = document.getElementById("dspCid").value.replace(/\D/g, "");
+      const operators = document.getElementById("dspOps").value.toUpperCase().split(/[\s,]+/).filter(Boolean);
+      const note = document.getElementById("dspNote").value.trim();
+      if (!cid) { dspStatus.textContent = "Enter a valid CID."; return; }
+      if (!operators.length) { dspStatus.textContent = "Enter at least one operator code, or * for all."; return; }
+      const res = await api("/auth/admin/dispatchers", { method: "POST", body: JSON.stringify({ cid, operators, note }) });
+      const saved = res && res.ok && (res.dispatchers || []).find(d => d.cid === cid);
+      dspStatus.textContent = saved
+        ? `Saved ${cid}: ${saved.operators.join(", ")}. Applies on their next Airline Ops refresh.`
+        : `Failed: ${(res && res.error) || "unknown"}`;
+      if (res && res.ok) {
+        ["dspCid", "dspOps", "dspNote"].forEach(id => { document.getElementById(id).value = ""; });
+        renderDispatchers(res.dispatchers || []);
+      }
+    });
+
     async function refreshAdminUi() {
       await initVatflowAuth();
       if (!isSignedIn()) {
@@ -185,6 +256,8 @@
       }
       whitelistCard.style.display = "";
       loadWhitelist();
+      dispatchCard.style.display = isAdmin() ? "" : "none";
+      if (isAdmin()) loadDispatchers();
     }
 
     globalCheck.addEventListener("change", syncGlobalUi);

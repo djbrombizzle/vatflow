@@ -10,12 +10,14 @@
  * is read-only.
  *
  * Endpoints (vUSAlink-hub aoc.py; see docs/airline-ops-plan.md §5.4):
- *   POST /hub/aoc/state {op, watch, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
+ *   POST /hub/aoc/state {op, watch, ping, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
  *   POST /hub/aoc/op    {op, cid, vatflowToken, o: {op: "note"|"ack", ...}}
  *   POST /hub/aoc/telex {op, cid, vatflowToken, to, text, force?}
  *
- * `hoppie` is {callsign: connected} from the hub's Hoppie ping of the
- * operator's online flights. A telex to a callsign Hoppie says is not
+ * `hoppie` is {callsign: connected} from the hub's Hoppie ping of `ping`, the
+ * connected flights the page is showing (the hub pings them only while a
+ * dispatcher has the board open). Telex text in `state` reads "(SIGN IN TO
+ * READ)" for a viewer who is not signed in to VATFLOW. A telex to a callsign Hoppie says is not
  * connected is refused (409, offline) unless sent with force.
  */
 import { emptyState } from "./aoc-core.js";
@@ -33,6 +35,7 @@ export function createLiveStore(W) {
   let feed = { pilots: [], prefiles: [] };
   let hoppie = {};
   let noEndpoints = false;
+  let ping = [];
   const listeners = new Set();
   const store = {
     mode: "live",
@@ -53,6 +56,10 @@ export function createLiveStore(W) {
     stop,
     op,
     sendTelex,
+    /** Callsigns to check on Hoppie (the page's connected flights, most relevant first). */
+    setPing(list) {
+      ping = (list || []).slice(0, 60);
+    },
   };
   let stateTimer = null;
   let feedTimer = null;
@@ -91,7 +98,7 @@ export function createLiveStore(W) {
     if (noEndpoints && Date.now() - lastStatePull < NO_HUB_MS) return;
     lastStatePull = Date.now();
     try {
-      const d = await post("/hub/aoc/state", {});
+      const d = await post("/hub/aoc/state", { ping });
       if (!d.ok) {
         // A hub without aoc.py refuses the unknown path (403 sign-in, or 404) before routing it.
         // Once deployed, the state read answers everyone, signed in or not (as /hub/ramp/state does).

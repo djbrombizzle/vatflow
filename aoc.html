@@ -589,6 +589,12 @@ function render() {
     r.alertsOpen = r.alerts.filter(a => !(e?.ack || {})[a.key]);
     r.entry = e || null;
   }
+  if (store.setPing) {
+    // Selected flight first, then airborne before ground: the hub pings at most 60.
+    const on = rows.filter(r => r.connected);
+    on.sort((a, b) => (b.callsign === ui.selected) - (a.callsign === ui.selected) || (b.gs >= 50) - (a.gs >= 50));
+    store.setPing(on.map(r => r.callsign));
+  }
   vrows = ui.hub ? rows.filter(r => r.dep === ui.hub || r.arr === ui.hub || r.callsign === ui.selected) : rows;
   if (!ui.fitted && rows.length && W.hubs.length < 2) fitView();
   renderHeader();
