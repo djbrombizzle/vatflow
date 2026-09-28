@@ -6,12 +6,13 @@
 import { readFileSync } from "node:fs";
 import {
   PHASE, TELEX_MAX, TEMPLATES, airportIndex, allMessages, applyOp, classifyDownlink, composeTelex, deriveFlights,
-  distNm, bearing, emptyState, gcPoint, hhmmToMin, isHolding, loadMemory, makeWatch, matchFlight, movePoint, nearestAirport,
+  distNm, bearing, emptyState, makeAirportWatch, airportLabel, gcPoint, hhmmToMin, isHolding, loadMemory, makeWatch, matchFlight, movePoint, nearestAirport,
   parseFiledAlt, pendingReply, primeMemory, saveMemory, stdMs, ARRIVED_DWELL_MS, LOST_MS, KEEP_ARRIVED_MS,
   createRouteResolver, routeMetrics, routeLength, distToSegmentNm,
 } from "../shared/aoc-core.js";
 import { seedNavData, preferredRoute } from "../shared/route-engine.js";
 import { demoOfpJson, fetchOfp, matchOfp, parseOfp, simbriefUrl } from "../shared/aoc-simbrief.js";
+import { equivalentType, estimateFuel, gcdAllowanceNm, tableFuelKg, KG_TO_LB } from "../shared/aoc-fuel.js";
 
 let passed = 0;
 function assert(cond, msg) {
@@ -359,6 +360,77 @@ function pilot(over) {
   const e2 = await fetchOfp("x", async () => ({ status: 400, json: async () => ({ fetch: { status: "Error: Unknown UserID" } }) }));
   assert(!e2.ok && /no user/.test(e2.error), "unknown user over HTTP");
   assert(!(await fetchOfp("  ")).ok, "blank username");
+}
+
+/* ---------- ICAO fuel estimate ---------- */
+{
+  const FD = JSON.parse(readFileSync(new URL("../data/aoc/icao-fuel.json", import.meta.url)));
+  assert(FD.distancesNm.length === 20 && Object.keys(FD.types).length > 300, "table loaded");
+  for (const [icao, eq] of Object.entries(FD.icaoTypes)) {
+    const r = FD.types[eq];
+    assert(r && r.every((v, i) => i === 0 || v > r[i - 1]), `${icao} (${eq}) row rises with distance`);
+  }
+  assert(equivalentType(FD, "a20n") === "32N" && equivalentType(FD, "B738/L") === "738" && equivalentType(FD, "C172") === null, "type mapping");
+  // Straight lines between the table's distances.
+  assert(tableFuelKg(FD, "738", 750).kg === 6221, "on a table point");
+  near(tableFuelKg(FD, "738", 875).kg, (6221 + 7749) / 2, 0.5, "halfway between 750 and 1000 nm");
+  assert(tableFuelKg(FD, "E75", 2000).beyond, "past the type's listed range is flagged");
+  // ICAO allowance: +50 km under 550 km, +100 km to 5,500 km, +125 km beyond.
+  near(gcdAllowanceNm(200), 50 / 1.852, 0.01, "short");
+  near(gcdAllowanceNm(1000), 100 / 1.852, 0.01, "medium");
+  near(gcdAllowanceNm(4000), 125 / 1.852, 0.01, "long");
+  const e = estimateFuel(FD, { type: "B738", gcNm: 632, altnGcNm: 120 });
+  assert(e.ok && e.basis === "gcd", "estimate from great circle");
+  near(e.distNm, 632 + 100 / 1.852, 0.01, "distance with allowance");
+  assert(e.tripKg > 5000 && e.tripKg < 7000, `737-800 DFW-ATL burn in a sane range (${Math.round(e.tripKg)} kg)`);
+  assert(e.burnKgPerHour > 2000 && e.burnKgPerHour < 3500, `737-800 cruise burn per hour sane (${Math.round(e.burnKgPerHour)})`);
+  near(e.totalKg, e.tripKg + e.altnKg + e.reserveKg, 0.01, "total = trip + alternate + reserve");
+  const er = estimateFuel(FD, { type: "B738", gcNm: 632, routeNm: 700 });
+  assert(er.basis === "route" && er.distNm === 700 && er.altnKg === 0, "filed route length used when drawn; no alternate given");
+  assert(!estimateFuel(FD, { type: "C172", gcNm: 100 }).ok, "unknown type");
+  assert(!estimateFuel(FD, { type: "B738" }).ok, "no distance");
+  const W3 = makeWatch(OPS, "AAL");
+  const r3 = { callsign: "AAL100", dep: "KDFW", arr: "KATL", type: "B738" };
+  const tx = composeTelex("fuelest", W3, r3, { fuel: { est: e, units: "LBS" } });
+  assert(tx.startsWith("AAL OPS: FUEL EST KDFW-KATL B738 686NM. TRIP ") && tx.length <= TELEX_MAX, `fuel telex: ${tx}`);
+  near(Number(tx.match(/TRIP ([\d.]+)/)[1]), (e.tripKg * KG_TO_LB) / 1000, 0.06, "telex in thousands of lbs");
+  assert(/KGS X1000/.test(composeTelex("fuelest", W3, r3, { fuel: { est: e, units: "KGS" } })), "kg option");
+  assert(/NO FUEL ESTIMATE/.test(composeTelex("fuelest", W3, r3, {})), "no estimate");
+}
+
+function opsPrefixOf(w) { return composeTelex("free", w, {}).trim(); }
+
+/* ---------- airport watch (all airlines at one field) ---------- */
+{
+  assert(airportLabel("KDFW") === "DFW" && airportLabel("PANC") === "PANC" && airportLabel("EGLL") === "EGLL", "telex label");
+  const AW = makeAirportWatch("kdfw", ["n123ab"]);
+  assert(AW.kind === "airport" && AW.station === "DFWOPS" && opsPrefixOf(AW) === "DFW OPS:", "station and prefix");
+  const fpD = { departure: "KDFW", arrival: "KATL" }, fpA = { departure: "KORD", arrival: "KDFW" }, fpX = { departure: "KORD", arrival: "KATL" };
+  assert(matchFlight(AW, "UAL1", "", {}, fpA)?.via === "arr" && matchFlight(AW, "SWA2", "", {}, fpD)?.via === "dep", "any airline, both ways");
+  assert(!matchFlight(AW, "UAL1", "", {}, fpX), "not this airport");
+  assert(!matchFlight(AW, "UAL1", "", { dir: "dep" }, fpA) && matchFlight(AW, "SWA2", "", { dir: "dep" }, fpD), "departures only");
+  assert(!matchFlight(AW, "SWA2", "", { dir: "arr" }, fpD) && matchFlight(AW, "UAL1", "", { dir: "arr" }, fpA), "arrivals only");
+  assert(matchFlight(AW, "UAL1", "", { prevArr: "KDFW" }, { departure: "KORD", arrival: "KOKC" })?.via === "arr", "diverted away: still shown");
+  assert(matchFlight(AW, "N123AB", "", {}, fpX)?.via === "watch", "watched callsign");
+  // Through deriveFlights: mixed airlines and a diversion away from the field.
+  const mem = new Map();
+  const dfwA = A("KDFW"), ord = A("KORD");
+  const mid = gcPoint(ord, dfwA, 0.5);
+  const feed = { pilots: [
+    { callsign: "UAL1", latitude: mid.lat, longitude: mid.lon, altitude: 36000, groundspeed: 450, heading: 200, transponder: "1200", flight_plan: { ...fpA, deptime: "1300", enroute_time: "0200" } },
+    { callsign: "SWA2", latitude: dfwA.lat, longitude: dfwA.lon, altitude: 600, groundspeed: 0, heading: 0, transponder: "1200", flight_plan: fpD },
+    { callsign: "DAL3", latitude: 40, longitude: -100, altitude: 36000, groundspeed: 450, heading: 90, transponder: "1200", flight_plan: fpX },
+  ] };
+  primeMemory(mem, { UAL1: { leg: "KORD-KDFW", out: T0 - 4e6, off: T0 - 3.8e6, arr: "KDFW" } }, T0);
+  let rows = deriveFlights({ W: AW, A, idx }, feed, mem, T0);
+  assert(rows.map(r => r.callsign).sort().join() === "SWA2,UAL1", "board: flights in and out of KDFW, any airline");
+  rows = deriveFlights({ W: AW, A, idx, dir: "arr" }, feed, mem, T0 + 15000);
+  assert(rows.map(r => r.callsign).join() === "UAL1", "arrivals toggle");
+  feed.pilots[0].flight_plan = { ...feed.pilots[0].flight_plan, arrival: "KOKC" };
+  rows = deriveFlights({ W: AW, A, idx }, feed, mem, T0 + 30000);
+  const u = rows.find(r => r.callsign === "UAL1");
+  assert(u && u.alerts.some(a => a.key === "div-KOKC"), "diverted away from KDFW: still on the board, with the alert");
+  assert(composeTelex("free", AW, u) === "DFW OPS: ", "telex prefix DFW OPS");
 }
 
 console.log(`test-aoc-core: ${passed} checks passed`);

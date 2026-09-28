@@ -199,6 +199,38 @@ export function makeWatch(operators, code, callsigns = []) {
   };
 }
 
+/**
+ * US airports telex as their FAA id (KDFW -> DFW); the rest as their ICAO code.
+ * Also Alaska / Hawaii / territories keep their 4 letters (PANC, TJSJ).
+ */
+export function airportLabel(icao) {
+  const a = normCode(icao);
+  return /^K[A-Z0-9]{3}$/.test(a) ? a.slice(1) : a;
+}
+
+/**
+ * Watch every airline in and out of one airport: the Dispatch Center for an
+ * event field. Station <label>OPS (DFWOPS), messages "DFW OPS: ...".
+ */
+export function makeAirportWatch(icao, callsigns = []) {
+  const airport = normCode(icao);
+  const label = airportLabel(airport);
+  return {
+    kind: "airport",
+    code: airport,
+    airport,
+    label,
+    known: true,
+    name: "",
+    telephony: "",
+    hubs: [airport],
+    family: new Map(),
+    remarks: [],
+    station: `${label}OPS`.slice(0, 8),
+    callsigns: new Set(callsigns.map(normCallsign).filter(Boolean)),
+  };
+}
+
 function prefixMatch(cs, pfx) {
   return pfx && cs.length > pfx.length && cs.startsWith(pfx) && /^\d[A-Z0-9]*$/.test(cs.slice(pfx.length));
 }
@@ -208,10 +240,17 @@ function prefixMatch(cs, pfx) {
  * via: "mainline" | "family" | "remarks" (a shared regional whose remarks name
  * the brand) | "watch" (a callsign added by hand).
  */
-export function matchFlight(W, callsign, remarks, { regionals = true } = {}) {
+export function matchFlight(W, callsign, remarks, { regionals = true, dir = "both", prevArr = "" } = {}, fp = null) {
   const cs = normCallsign(callsign);
   if (!cs) return null;
   if (W.callsigns.has(cs)) return { via: "watch", carrier: "" };
+  if (W.kind === "airport") {
+    // Every airline. An arrival that diverted away (prevArr) stays on the board.
+    const dep = String((fp && fp.departure) || "").toUpperCase(), arr = String((fp && fp.arrival) || "").toUpperCase();
+    if (dir !== "arr" && dep === W.airport) return { via: "dep", carrier: "" };
+    if (dir !== "dep" && (arr === W.airport || prevArr === W.airport)) return { via: "arr", carrier: "" };
+    return null;
+  }
   if (prefixMatch(cs, W.code)) return { via: "mainline", carrier: "" };
   if (!regionals) return null;
   for (const [pfx, f] of W.family) {
@@ -477,13 +516,14 @@ export function isHolding(hdgs, now) {
  * is kept by the caller between snapshots.
  */
 export function deriveFlights(ctx, feed, memory, now) {
-  const { W, A = () => null, idx = new Map(), regionals = true } = ctx;
+  const { W, A = () => null, idx = new Map(), regionals = true, dir = "both" } = ctx;
   const rows = [];
   const seen = new Set();
 
   for (const p of feed.pilots || []) {
     const fp = p.flight_plan || {};
-    const match = matchFlight(W, p.callsign, fp.remarks, { regionals });
+    const prevArr = (memory.get(normCallsign(p.callsign)) || {}).arrAtOff || "";
+    const match = matchFlight(W, p.callsign, fp.remarks, { regionals, dir, prevArr }, fp);
     if (!match) continue;
     const cs = normCallsign(p.callsign);
     seen.add(cs);
@@ -514,9 +554,11 @@ export function deriveFlights(ctx, feed, memory, now) {
     rows.push(row);
   }
 
-  // Watched flights no longer in the feed.
+  // Watched flights no longer in the feed. One still connected but no longer matching
+  // (a filter changed, or it refiled elsewhere) is simply not shown.
+  const inFeed = new Set((feed.pilots || []).map(p => normCallsign(p.callsign)));
   for (const [cs, m] of memory) {
-    if (seen.has(cs)) continue;
+    if (seen.has(cs) || inFeed.has(cs)) continue;
     const gone = now - m.lastSeen;
     const s = m.snap;
     if (!s) { if (gone > KEEP_ARRIVED_MS) memory.delete(cs); continue; }
@@ -536,7 +578,7 @@ export function deriveFlights(ctx, feed, memory, now) {
     const fp = pf.flight_plan || {};
     const cs = normCallsign(pf.callsign);
     if (seen.has(cs) || rows.some(r => r.callsign === cs)) continue;
-    const match = matchFlight(W, cs, fp.remarks, { regionals });
+    const match = matchFlight(W, cs, fp.remarks, { regionals, dir }, fp);
     if (!match) continue;
     rows.push(buildRow(ctx, null, null, fp, match, PHASE.SCHED, now, false, cs));
   }
@@ -728,7 +770,7 @@ export function pendingReply(e, now) {
 /* ---------------- telex ---------------- */
 
 export function opsPrefix(W) {
-  return `${W.code || "OPS"} OPS:`;
+  return `${W.label || W.code || "OPS"} OPS:`;
 }
 
 export const TEMPLATES = [
@@ -743,6 +785,8 @@ export const TEMPLATES = [
   { id: "loadsheet", label: "Loadsheet (SimBrief)", ofp: true },
   { id: "todata", label: "Takeoff data (SimBrief)", ofp: true },
   { id: "lddata", label: "Landing data (SimBrief)", ofp: true },
+  // ICAO-table estimate (shared/aoc-fuel.js) for a flight with no OFP; needs x.fuel.
+  { id: "fuelest", label: "Fuel estimate (ICAO table)", est: true },
 ];
 
 /** 158900 -> "158.9": loadsheet weights in thousands. */
@@ -814,6 +858,15 @@ export function composeTelex(tpl, W, r, x = {}) {
         (ld.weight ? ` LDW ${k1(ld.weight)}.` : "") +
         (ld.flaps ? ` ${ld.flaps}.` : "") +
         ` VREF ${ld.vref ?? "-"}. FROM SIMBRIEF, VERIFY.`;
+      break;
+    }
+    case "fuelest": {
+      const e = x.fuel && x.fuel.est;
+      if (!e || !e.ok) { t = `${P} NO FUEL ESTIMATE FOR THIS FLIGHT.`; break; }
+      const u = x.fuel.units === "KGS" ? "KGS" : "LBS";
+      const m = kg => k1(u === "KGS" ? kg : kg * 2.20462);
+      t = `${P} FUEL EST ${r.dep}-${r.arr} ${r.type} ${Math.round(e.distNm)}NM. TRIP ${m(e.tripKg)}` +
+        (e.altnKg ? ` ALTN ${m(e.altnKg)}` : "") + ` RES 45MIN ${m(e.reserveKg)}. MIN FUEL ${m(e.totalKg)} ${u} X1000. ESTIMATE, VERIFY.`;
       break;
     }
     case "divert":
