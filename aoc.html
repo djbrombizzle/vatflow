@@ -1087,7 +1087,14 @@ function renderSelected(state) {
     ${me.canWrite ? "" : `<div class="roNote"><b>Read-only.</b> ${esc(me.reason || "Sending telex needs the dispatcher role for this operator.")}</div>`}
     <div class="sec">Telex via Hoppie</div>
     <div class="row">
-      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => `<option value="${t.id}"${(t.ofp && !sb.get(r.callsign)?.ofp) || (t.est && !fuelEstimateFor(r).ok) || (t.tmi && !tmi.index) ? " disabled" : ""}>${esc(t.label)}</option>`).join("")}</select>
+      <select class="sm" id="tlxTpl" ${dis}>${TEMPLATES.map(t => {
+        // Say why a template is unavailable, rather than just greying it out.
+        const why = t.ofp && !sb.get(r.callsign)?.ofp ? "fetch the pilot's SimBrief OFP above"
+          : t.est && !fuelEstimateFor(r).ok ? "no ICAO data for this type"
+          : t.tmi && !tmi.index ? (tmi.error ? "OIS unavailable" : "OIS loading")
+          : "";
+        return `<option value="${t.id}"${why ? " disabled" : ""}>${esc(t.label)}${why ? ` (${esc(why)})` : ""}</option>`;
+      }).join("")}</select>
       ${argLabel ? `<input class="arg" id="tlxArg" placeholder="${argLabel}" maxlength="6" ${dis}>` : ""}
       <span class="count" id="tlxCount"></span>
     </div>
