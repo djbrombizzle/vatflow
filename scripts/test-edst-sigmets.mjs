@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * EDST SIGMET filtering: 150 NM range, stale NWS rows, WMO hazard URLs,
+ * EDST SIGMET filtering: 125 NM range, own-FIR-only international SIGMETs, stale NWS rows, WMO hazard URLs,
  * multi-FIR isigmets, and ICAO series supersession.
  * Usage: node scripts/test-edst-sigmets.mjs
  */
@@ -165,25 +165,116 @@ assert(
   "CHARLIE 3 relevant to ZMA via raw FIR / geometry"
 );
 assert(
-  EdstSigmets._isigmetRelevant(india3, "ZMA"),
-  "INDIA 3 relevant to ZMA via 150 NM (NY Oceanic, firId KZWY)"
+  !EdstSigmets._isigmetRelevant(india3, "ZMA"),
+  "INDIA 3 (KZWY only) not shown to ZMA even though it is in range"
+);
+assert(
+  !EdstSigmets._isigmetRelevant(india3, "ZNY"),
+  "INDIA 3 not shown to ZNY — KZWY is a different FIR"
+);
+assert(
+  EdstSigmets._isigmetRelevant(
+    Object.assign({}, india3, { rawSigmet: india3.rawSigmet + "\nKZMA KZWY" }),
+    "ZMA"
+  ),
+  "KZWY SIGMET that names KZMA anywhere in the text is shown to ZMA"
+);
+// Havana right off the Keys — foreign FIR, never shown
+const mufh = {
+  seriesId: "ALFA 2",
+  firId: "MUFH",
+  coords: [
+    { lon: -82.0, lat: 23.5 },
+    { lon: -80.5, lat: 23.5 },
+    { lon: -80.5, lat: 22.5 },
+    { lon: -82.0, lat: 22.5 },
+    { lon: -82.0, lat: 23.5 },
+  ],
+  rawSigmet: "MUFH SIGMET A2 VALID 291900/292300 MUHA-\nMUFH HABANA FIR EMBD TS",
+};
+assert(
+  EdstSigmets._geometryNearArtcc("ZMA", mufh.coords) === true,
+  "Havana SIGMET geometry is within range of ZMA"
+);
+assert(!EdstSigmets._isigmetRelevant(mufh, "ZMA"), "Havana (MUFH) SIGMET never shown");
+assert(
+  !EdstSigmets._isigmetRelevant(
+    Object.assign({}, charlie3, { rawSigmet: "ZMA ZHU SIGMET CHARLIE 3" , firId: "KZHU" }),
+    "ZMA"
+  ),
+  "a bare ZMA (no K) is not a FIR designator"
+);
+// Our own FIR's product, but far from the sector (Atlantic east of 60W)
+const farOwn = {
+  seriesId: "KILO 1",
+  firId: "KZMA",
+  coords: [
+    { lon: -62.0, lat: 22.0 },
+    { lon: -60.0, lat: 22.0 },
+    { lon: -60.0, lat: 20.0 },
+    { lon: -62.0, lat: 20.0 },
+    { lon: -62.0, lat: 22.0 },
+  ],
+  rawSigmet: "KZMA SIGMET KILO 1",
+};
+assert(
+  !EdstSigmets._isigmetRelevant(farOwn, "ZMA"),
+  "own-FIR SIGMET beyond 125 NM not shown"
+);
+assert(
+  EdstSigmets._isigmetRelevant(
+    { seriesId: "ECHO 3", firId: "KZAK", coords: farPacific.coords, rawSigmet: "KZAK SIGMET ECHO 3" },
+    "ZAK"
+  ),
+  "own-FIR SIGMET shown when the facility has no boundary to measure against"
+);
+
+// --- NWS polygons arrive [lat, lon]; decode either order ---
+const nwsGulf = EdstSigmets._coordsFromNwsGeometry({
+  type: "Polygon",
+  coordinates: [[[28.71, -85.24], [24.07, -83.15], [23.97, -81.52], [28.71, -85.24]]],
+});
+assert(nwsGulf[0].lat === 28.71 && nwsGulf[0].lon === -85.24, "NWS [lat, lon] decoded");
+const geoGulf = EdstSigmets._coordsFromNwsGeometry({
+  type: "Polygon",
+  coordinates: [[[-85.24, 28.71], [-83.15, 24.07], [-81.52, 23.97], [-85.24, 28.71]]],
+});
+assert(geoGulf[0].lat === 28.71 && geoGulf[0].lon === -85.24, "GeoJSON [lon, lat] decoded");
+assert(
+  EdstSigmets._geometryTouchesArtcc("ZMA", nwsGulf),
+  "NWS 50E-style Gulf polygon is in range of ZMA once decoded"
+);
+
+// --- NWS rows: issuer decides domestic vs international ---
+assert(!EdstSigmets._nwsIsInternational({ atsu: "KKCI", fir: "KZMA" }, "50E"), "KKCI convective is domestic");
+assert(!EdstSigmets._nwsIsInternational({ atsu: "KKCI", fir: "KZDV" }, "NOVEMBER 1"), "KKCI non-convective is domestic");
+assert(!EdstSigmets._nwsIsInternational({ atsu: "ANC" }, "0000"), "WFO-issued (ANC) is domestic");
+assert(EdstSigmets._nwsIsInternational({ atsu: "KZMA", fir: "KZMA" }, "MIKE 13"), "FIR-issued is international");
+assert(EdstSigmets._nwsIsInternational({}, "MIKE 13"), "no issuer + ICAO series is international");
+assert(
+  EdstSigmets._namesArtcc(["KZMA", "KZMA"], "KZMA KZHU SIGMET MIKE 13", "ZHU"),
+  "NWS MIKE 13 tagged KZMA still reaches ZHU through the AWC text"
+);
+assert(
+  !EdstSigmets._namesArtcc(["KZWY", "KZWY"], "", "ZMA"),
+  "NWS KZWY row not shown to ZMA"
 );
 assert(
   !EdstSigmets._isigmetRelevant(farPacific, "ZMA"),
   "Hawaii SIGMET not relevant to ZMA"
 );
 
-// --- 150 NM vs intersection-only ---
+// --- 125 NM vs intersection-only ---
 assert(
-  EdstSigmets._geometryNearArtcc("ZMA", india3.coords, 150) === true,
-  "INDIA 3 within 150 NM of ZMA"
+  EdstSigmets._geometryNearArtcc("ZMA", india3.coords) === true,
+  "INDIA 3 within 125 NM of ZMA"
 );
 assert(
   EdstSigmets._geometryNearArtcc("ZMA", india3.coords, 0) === false,
   "INDIA 3 does not intersect ZMA (0 NM)"
 );
 
-// Convective analogue of 25E/26E: just outside ZMA, inside 150 NM (33E-like)
+// Convective analogue of 25E/26E: just outside ZMA, inside 125 NM (33E-like)
 const gulfNear = [
   { lat: 29.543, lon: -89.854 },
   { lat: 29.168, lon: -86.68 },
@@ -192,8 +283,8 @@ const gulfNear = [
   { lat: 29.543, lon: -89.854 },
 ];
 assert(
-  EdstSigmets._geometryNearArtcc("ZMA", gulfNear, 150) === true,
-  "western Gulf convective within 150 NM of ZMA"
+  EdstSigmets._geometryNearArtcc("ZMA", gulfNear) === true,
+  "western Gulf convective within 125 NM of ZMA"
 );
 assert(
   EdstSigmets._geometryNearArtcc("ZMA", gulfNear, 0) === false,
@@ -207,11 +298,11 @@ const virginiaFar = [
   { lat: 37.965, lon: -77.076 },
 ];
 assert(
-  EdstSigmets._geometryNearArtcc("ZMA", virginiaFar, 150) === false,
-  "VA convective (~365 NM) outside 150 NM"
+  EdstSigmets._geometryNearArtcc("ZMA", virginiaFar) === false,
+  "VA convective (~365 NM) outside 125 NM"
 );
 
-assert(EdstSigmets._SIGMET_PROXIMITY_NM === 150, "proximity default is 150 NM");
+assert(EdstSigmets._SIGMET_PROXIMITY_NM === 125, "proximity default is 125 NM");
 
 // --- stale NWS vs current AWC ---
 const airIdx = {

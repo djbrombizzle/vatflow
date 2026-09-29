@@ -2,13 +2,17 @@
  * EDST SIG — SIGMETs for the controller's FIR/ARTCC.
  *
  * Sources:
- *   1. AWC airsigmet (US convective / domestic) — polygon within 150 NM of the
+ *   1. AWC airsigmet (US convective / domestic) — polygon within 125 NM of the
  *      ARTCC boundary (NWS FIR tags often omit KZJX etc.; convective products
  *      are issued by KKCI)
- *   2. AWC isigmet — international SIGMETs for this FIR (firId, raw FIR list,
- *      or geometry within 150 NM). AWC assigns a single firId even when the
- *      bulletin covers multiple FIRs (e.g. CHARLIE 3 as KZHU while KZMA is listed).
- *   3. NWS Aviation SIGMET GeoJSON — FIR-tagged rows, used to fill gaps.
+ *   2. AWC isigmet — international SIGMETs, only those naming this facility's
+ *      FIR (KZMA anywhere in the bulletin, or firId) AND within 125 NM. Foreign
+ *      FIRs (MUFH, MMEX, …) and US oceanic FIRs other than ours are never shown,
+ *      however close. AWC assigns a single firId even when the bulletin covers
+ *      multiple FIRs (e.g. CHARLIE 3 as KZHU while KZMA is listed).
+ *   3. NWS Aviation SIGMET GeoJSON — used to fill gaps, same rules: domestic
+ *      rows (issued by KKCI / a WFO) by range, international rows (issued by a
+ *      FIR) only for ours.
  *      NWS `start=` is a 6-hour lookback and still returns superseded / previous-
  *      hour products; those are dropped when AWC's current list is available.
  *
@@ -37,7 +41,7 @@
   var FETCH_TIMEOUT_MS = 6000;
   var HUB_TIMEOUT_MS = 5000;
   /** Include SIGMETs whose geometry comes this close to the FIR/ARTCC boundary. */
-  var SIGMET_PROXIMITY_NM = 150;
+  var SIGMET_PROXIMITY_NM = 125;
   var EARTH_NM = 3440.065;
 
   /** ARTCC id (ZJX) -> rings of [lon, lat] */
@@ -597,19 +601,55 @@
     return geometryNearArtcc(artcc, coords, SIGMET_PROXIMITY_NM);
   }
 
+  /**
+   * Range check for a SIGMET already known to be our FIR's own product. With
+   * no geometry, or no boundary for the facility (oceanic ZWY/ZAK), there is
+   * nothing to measure — trust the FIR tag rather than drop it.
+   */
+  function ownFirProductInRange(artcc, coords) {
+    var rings = artccPolys && artccPolys[bareArtcc(artcc)];
+    if (!rings || !rings.length) return true;
+    if (!coordsToRing(coords).length) return true;
+    return geometryTouchesArtcc(artcc, coords);
+  }
+
+  /**
+   * NWS sigmet polygons are not GeoJSON order: they arrive as [lat, lon]
+   * (e.g. [28.71, -85.24] for the Gulf). Decide per feature — a value past
+   * ±90 can only be a longitude; failing that, US airspace is north/west, so
+   * [+, −] is [lat, lon] — so a fix on their side does not break us.
+   */
   function coordsFromNwsGeometry(geom) {
     if (!geom || !geom.coordinates) return [];
-    var out = [];
-    function walk(node, depth) {
+    var pairs = [];
+    function walk(node) {
       if (!Array.isArray(node) || !node.length) return;
       if (typeof node[0] === "number" && typeof node[1] === "number") {
-        out.push({ lon: node[0], lat: node[1] });
+        pairs.push(node);
         return;
       }
-      for (var i = 0; i < node.length; i++) walk(node[i], depth + 1);
+      for (var i = 0; i < node.length; i++) walk(node[i]);
     }
-    walk(geom.coordinates, 0);
-    return out;
+    walk(geom.coordinates);
+    var latFirst = true;
+    var decided = false;
+    for (var i = 0; i < pairs.length && !decided; i++) {
+      if (Math.abs(pairs[i][1]) > 90) decided = true;
+      else if (Math.abs(pairs[i][0]) > 90) {
+        latFirst = false;
+        decided = true;
+      }
+    }
+    for (i = 0; i < pairs.length && !decided; i++) {
+      if (pairs[i][0] > 0 && pairs[i][1] < 0) decided = true;
+      else if (pairs[i][0] < 0 && pairs[i][1] > 0) {
+        latFirst = false;
+        decided = true;
+      }
+    }
+    return pairs.map(function (c) {
+      return latFirst ? { lat: c[0], lon: c[1] } : { lon: c[0], lat: c[1] };
+    });
   }
 
   function indexAwcBySeries(list) {
@@ -796,34 +836,70 @@
     };
   }
 
-  /** FIR ids listed on an international SIGMET (header "KZMA KZHU SIGMET …"). */
-  function firsFromIsigmet(item) {
+  /** Bare ARTCC id for a US FIR id: KZMA -> ZMA, PAZA -> ZAN. */
+  function artccForFir(fir) {
+    var id = bareArtcc(String(fir || "").trim());
+    if (ARTCC_ID_ALIASES[id]) id = ARTCC_ID_ALIASES[id];
+    return /^Z[A-Z]{2}$/.test(id) ? id : "";
+  }
+
+  /**
+   * US FIRs a SIGMET names: its tagged FIR ids plus every ICAO FIR id in the
+   * text ("KZMA KZHU SIGMET …"). Only K-prefixed (or PAZA/PHZH/TJZS) ids
+   * count — a bare "ZMA" is not a FIR designator.
+   */
+  function usFirsNamed(tags, raw) {
     var out = [];
     function add(s) {
-      var b = bareArtcc(s);
-      if (b && /^Z[A-Z]{2}$/.test(b) && out.indexOf(b) < 0) out.push(b);
+      var a = artccForFir(s);
+      if (a && out.indexOf(a) < 0) out.push(a);
     }
-    add(item && item.firId);
-    var raw = String(
-      (item && (item.rawSigmet || item.rawOb || item.raw)) || ""
-    ).toUpperCase();
-    raw.split(/\n/).forEach(function (line) {
-      if (!/\bSIGMET\b/.test(line)) return;
-      var re = /\b(K?Z[A-Z]{2})\b/g;
-      var m;
-      while ((m = re.exec(line))) add(m[1]);
+    (tags || []).forEach(function (t) {
+      var t2 = String(t || "").trim().toUpperCase();
+      if (/^(KZ[A-Z]{2}|PAZA|PHZH|TJZS)$/.test(t2)) add(t2);
     });
+    var re = /\b(KZ[A-Z]{2}|PAZA|PHZH|TJZS)\b/g;
+    var text = String(raw || "").toUpperCase();
+    var m;
+    while ((m = re.exec(text))) add(m[1]);
     return out;
   }
 
+  function namesArtcc(tags, raw, artcc) {
+    var a = artccForFir(artcc) || bareArtcc(artcc);
+    return !!a && usFirsNamed(tags, raw).indexOf(a) >= 0;
+  }
+
+  /** FIR ids listed on an international SIGMET (header "KZMA KZHU SIGMET …"). */
+  function firsFromIsigmet(item) {
+    return usFirsNamed(
+      [item && item.firId],
+      item && (item.rawSigmet || item.rawOb || item.raw)
+    );
+  }
+
+  /**
+   * International SIGMETs are not read to aircraft outside the issuing FIR, so
+   * only our own FIR's products count, and only when they are within range.
+   */
   function isigmetRelevant(item, artcc) {
     if (!item) return false;
-    var a = bareArtcc(artcc);
-    var firs = firsFromIsigmet(item);
-    for (var i = 0; i < firs.length; i++) {
-      if (firs[i] === a) return true;
-    }
-    return geometryTouchesArtcc(artcc, item.coords || []);
+    if (firsFromIsigmet(item).indexOf(artccForFir(artcc) || bareArtcc(artcc)) < 0)
+      return false;
+    return ownFirProductInRange(artcc, item.coords || []);
+  }
+
+  /**
+   * NWS rows carry no text; the issuer tells them apart. Domestic products come
+   * from KKCI (convective, CONUS) or a WFO (HNL/ANC/FAI/JNU); a 4-letter ATSU is
+   * a FIR issuing an international SIGMET.
+   */
+  function nwsIsInternational(props, seq) {
+    var atsu = String((props && props.atsu) || "").trim().toUpperCase();
+    if (atsu === "KKCI") return false;
+    if (/^[A-Z]{4}$/.test(atsu)) return true;
+    if (atsu) return false;
+    return !isConvectiveSeq(seq) && !!parseIntlSeries(seq);
   }
 
   /**
@@ -976,7 +1052,7 @@
         entries.push(entry);
       }
 
-      // 1) AWC domestic / convective — within 150 NM of staffed ARTCC
+      // 1) AWC domestic / convective — within 125 NM of staffed ARTCC
       (Array.isArray(airIdx.list) ? airIdx.list : []).forEach(function (item) {
         if (!item) return;
         var coords = item.coords || [];
@@ -984,13 +1060,13 @@
         pushEntry(fromAirsigmet(item, artcc));
       });
 
-      // 2) AWC international — FIR on the bulletin (not just firId) or 150 NM
+      // 2) AWC international — our FIR named on the bulletin, and within 125 NM
       (Array.isArray(isigIdx.list) ? isigIdx.list : []).forEach(function (item) {
         if (!isigmetRelevant(item, artcc)) return;
         pushEntry(fromIsigmet(item, artcc));
       });
 
-      // 3) NWS features — FIR tag or geometry; skip products AWC already replaced
+      // 3) NWS features — same rules as AWC; skip products AWC already replaced
       var nwsFeatures = Array.isArray(nws.features) ? nws.features : [];
       nwsFeatures.forEach(function (f) {
         var props = (f && f.properties) || {};
@@ -1001,12 +1077,16 @@
         var fir = String(props.fir || "")
           .trim()
           .toUpperCase();
-        var byFir = firMatches(fir, artcc);
-        var byGeom = geometryTouchesArtcc(
-          artcc,
-          coordsFromNwsGeometry(f && f.geometry)
-        );
-        if (!byFir && !byGeom) return;
+        var coords = coordsFromNwsGeometry(f && f.geometry);
+        if (nwsIsInternational(props, seq)) {
+          var hit = seq && isigIdx.bySeries[seq];
+          if (!namesArtcc([fir, props.atsu], hit && hit._rawText, artcc)) return;
+          if (!ownFirProductInRange(artcc, coords)) return;
+        } else {
+          var byGeom = geometryTouchesArtcc(artcc, coords);
+          var byFir = !coords.length && firMatches(fir, artcc);
+          if (!byGeom && !byFir) return;
+        }
         pushEntry(fromNwsFeature(f, airIdx, isigIdx));
       });
 
@@ -1044,6 +1124,9 @@
     _ingestBoundaries: ingestBoundaries,
     _seedArtccPolys: seedArtccPolys,
     _isigmetRelevant: isigmetRelevant,
+    _nwsIsInternational: nwsIsInternational,
+    _coordsFromNwsGeometry: coordsFromNwsGeometry,
+    _namesArtcc: namesArtcc,
     _firsFromIsigmet: firsFromIsigmet,
     _dropSupersededIntl: dropSupersededIntl,
     _sortSigmetEntries: sortSigmetEntries,
