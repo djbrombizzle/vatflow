@@ -5,10 +5,18 @@ Pre-processed US enroute navigation data for route expansion in FCA Builder and 
 ## Rebuild
 
 ```bash
-node scripts/build-nav-data.mjs --faa-cycle 2026-08-06
+node scripts/build-nav-data.mjs --faa-cycle 2026-10-01
 ```
 
-Uses FAA FIX/NAV/PFR CSV for the requested cycle (AIRAC 2608 effective 6 Aug 2026) and @squawk airways/procedures for enroute SID/STAR/airway geometry (56-day CIFP package).
+Current data: AIRAC 2610, effective 1 Oct 2026. Fixes, navaids and preferred
+routes come from the FAA NASR CSV for the requested cycle; enroute airways and
+SID/STAR procedures come from the same-cycle FAA CIFP
+(`https://aeronav.faa.gov/Upload_313-d/cifp/CIFP_YYMMDD.zip`, parsed by
+`scripts/lib/cifp.mjs`). If that CIFP is not published yet the build falls
+back to @squawk airways/procedures. Use `--cifp /path/to/FAACIFP18` to build
+from a local CIFP file.
+
+Next cycles: 2611 = 2026-10-29, 2612 = 2026-11-26.
 
 Fallback (prior @squawk-only snapshot):
 
@@ -28,7 +36,7 @@ Include `FIX_BASE.csv` or `FIX.csv`, `NAV_BASE.csv` or `NAV.csv`, `AWY_BASE.csv`
 
 | File | Purpose |
 |------|---------|
-| `meta.json` | NASR cycle date, counts, CONUS bbox |
+| `meta.json` | NASR/CIFP cycle dates, AIRAC cycle, counts, CONUS bbox |
 | `fixes.json` | Named fixes → `[[lat, lon], ...]` (multiple candidates when duplicated) |
 | `navaids.json` | Navaid identifiers → coordinates |
 | `airways.json` | Airway designation → ordered waypoint chain |
