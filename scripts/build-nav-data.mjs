@@ -51,7 +51,8 @@ function addCandidate(map, id, lat, lon) {
   const pt = [roundCoord(lat), roundCoord(lon)];
   if (!map.has(key)) map.set(key, []);
   const arr = map.get(key);
-  if (!arr.some(p => p[0] === pt[0] && p[1] === pt[1])) arr.push(pt);
+  // NASR and CIFP can differ in the last rounded digit; treat <0.001° (~0.06 NM) as the same point
+  if (!arr.some(p => Math.abs(p[0] - pt[0]) < 1e-3 && Math.abs(p[1] - pt[1]) < 1e-3)) arr.push(pt);
 }
 
 async function fetchGzJson(url) {
