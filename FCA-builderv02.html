@@ -687,7 +687,7 @@ function setSectorPanelsVisible(on){
   const wrap=document.getElementById("sectorArtccWrap");
   const load=document.getElementById("sectorLoadWrap");
   if(wrap) wrap.style.display=on?"block":"none";
-  if(load) load.style.display=on?"block":"none";
+  if(load) load.style.display="none";   // traffic-load counting disabled; sectors are a boundary overlay only
 }
 function loadSectorThresholds(){
   try{
@@ -909,6 +909,8 @@ function renderSectorThresholdList(){
   });
 }
 function renderSectors(){
+  // Boundary overlay only — no traffic counting / load colors, and non-interactive
+  // so clicks fall through to the map (FCA drawing, measure, etc.).
   sectorLayer.clearLayers();
   if(!state.layers.sectors) return;
   const stratum=state.layers.artccStratum||"HIGH";
@@ -919,48 +921,23 @@ function renderSectors(){
   }
   const filter=state.layers.sectorArtcc||"ALL";
   const single=filter!=="ALL";
-  const loadOn=!!state.layers.sectorLoad;
-  updateSectorCounts();
   let shown=0;
   (gj.features||[]).forEach(f=>{
     const p=f.properties||{};
     const artcc=(p.artcc||"").toUpperCase();
     if(filter!=="ALL"&&artcc!==filter) return;
     const label=p.label||p.id||artcc+(p.sector||"");
-    const sid=(p.id||label).toUpperCase();
-    const count=state.sectorCounts[sid]||0;
-    const th=getSectorThreshold(sid, artcc);
-    const cls=loadOn?loadClassForCount(count,th):null;
-    const style=cls?SECTOR_LOAD_STYLE[cls]:SECTOR_STYLE;
-    const altBand=stratumAltHint(stratum).split("·")[1]?.trim()||"";
-    const tip=label+" · "+stratum+(loadOn?" · "+count+" ac · "+cls.toUpperCase()+(altBand?" · "+altBand:""):"")+" · click for list";
-    L.geoJSON(f,{
-      style,
-      onEachFeature:(feature,layer)=>{
-        layer.bindTooltip(tip,{sticky:true,className:"artcc-label",direction:"center"});
-        layer.on("click",e=>{
-          L.DomEvent.stopPropagation(e);
-          openSectorPanel(sid);
-        });
-        if(layer.setStyle) layer.options.className="sector-poly-hit";
-      }
-    }).addTo(sectorLayer);
+    L.geoJSON(f,{ style:SECTOR_STYLE, interactive:false }).addTo(sectorLayer);
     if(single){
       const c=L.geoJSON(f).getBounds().getCenter();
-      const html=loadOn?`${label}<span style="opacity:.75"> (${count})</span>`:label;
-      const mk=L.marker([c.lat,c.lng],{
-        icon:L.divIcon({className:"artcc-label sector-label-hit",html,iconSize:[loadOn?48:36,10]})
+      L.marker([c.lat,c.lng],{
+        interactive:false, keyboard:false,
+        icon:L.divIcon({className:"artcc-label",html:label,iconSize:[36,10]})
       }).addTo(sectorLayer);
-      mk.on("click",e=>{
-        L.DomEvent.stopPropagation(e);
-        openSectorPanel(sid);
-      });
     }
     shown++;
   });
   if(!shown) toast("No "+stratum+" sectors for "+filter+".",2600);
-  syncThresholdInputs();
-  if(state.openSectorId) renderSectorPanel();
 }
 function loadBoundaries(){
   const files={ LOW:"data/artcc-boundaries-low.geojson", HIGH:"data/artcc-boundaries-high.geojson",
@@ -1168,9 +1145,6 @@ function afterData(){
   invalidateSequences();
   renderTraffic();
   renderFcaList();           // demand numbers depend on traffic
-  if(state.layers.sectors) renderSectors();
-  else if(state.openSectorId) renderSectorPanel();
-  else syncThresholdInputs();
   if(state.selectedId) scheduleRenderSequence();
 }
 
@@ -2164,7 +2138,7 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
     if(key==="sectors"){
       setSectorPanelsVisible(on);
       on?map.addLayer(sectorLayer):map.removeLayer(sectorLayer);
-      if(on){ syncThresholdInputs(); renderSectors(); }
+      if(on) renderSectors();
     }
     if(key==="sectorLoad"&&state.layers.sectors) renderSectors();
     if(key==="labels") on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
