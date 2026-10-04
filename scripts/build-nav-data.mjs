@@ -4,12 +4,14 @@
  *
  * Primary source: @squawk/* NASR snapshots (FIX, NAV, AWY, procedures).
  * Optional: local NASR CSV directory via --nasr-dir (FIX.csv, NAV.csv, AWY.csv).
- * Optional: --faa-cycle YYYY-MM-DD downloads FAA FIX/NAV/PFR CSV zips and merges
- *   with @squawk airways/procedures (enroute CIFP/airways from the prior 56-day package).
+ * Optional: --faa-cycle YYYY-MM-DD downloads FAA FIX/NAV/PFR CSV zips and the
+ *   same-cycle FAA CIFP (airways + SID/STAR). Falls back to @squawk
+ *   airways/procedures if that CIFP is not published.
+ *   --cifp /path/to/FAACIFP18 uses a local CIFP file instead of downloading.
  *
  * Usage:
  *   node scripts/build-nav-data.mjs
- *   node scripts/build-nav-data.mjs --faa-cycle 2026-08-06
+ *   node scripts/build-nav-data.mjs --faa-cycle 2026-10-01
  *   node scripts/build-nav-data.mjs --nasr-dir /path/to/CSV
  */
 
@@ -20,6 +22,7 @@ import { execFileSync } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cifpCycle, parseCifp, readCifpLines } from "./lib/cifp.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -28,10 +31,10 @@ const OUT_DIR = join(ROOT, "data", "nav");
 const CONUS = { minLat: 23.5, maxLat: 51.5, minLon: -130, maxLon: -63 };
 
 const SQUAWK = {
-  fixes: "https://unpkg.com/@squawk/fix-data@0.6.10/data/fixes.json.gz",
-  navaids: "https://unpkg.com/@squawk/navaid-data@0.6.10/data/navaids.json.gz",
-  airways: "https://unpkg.com/@squawk/airway-data@0.5.10/data/airways.json.gz",
-  procedures: "https://unpkg.com/@squawk/procedure-data@0.7.8/data/procedures.json.gz",
+  fixes: "https://unpkg.com/@squawk/fix-data@0.7.0/data/fixes.json.gz",
+  navaids: "https://unpkg.com/@squawk/navaid-data@0.7.0/data/navaids.json.gz",
+  airways: "https://unpkg.com/@squawk/airway-data@0.6.0/data/airways.json.gz",
+  procedures: "https://unpkg.com/@squawk/procedure-data@0.8.0/data/procedures.json.gz",
 };
 
 function inConus(lat, lon) {
@@ -359,71 +362,145 @@ function assembleNavData({ meta, fixes, navaids, airways, procedures, preferred 
   };
 }
 
-async function buildFromFaaCycle(isoDate) {
+function cifpZipUrl(isoDate) {
+  const [y, m, d] = isoDate.split("-");
+  return `https://aeronav.faa.gov/Upload_313-d/cifp/CIFP_${y.slice(2)}${m}${d}.zip`;
+}
+
+/** Download (or read via --cifp) the FAA CIFP for a cycle; null if unavailable. */
+async function loadCifp(isoDate, localPath) {
+  if (localPath) return { lines: readCifpLines(localPath), source: localPath };
+  const url = cifpZipUrl(isoDate);
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.warn(`CIFP not available (${url}: HTTP ${res.status}) — falling back to @squawk`);
+    return null;
+  }
+  const dir = mkdtempSync(join(tmpdir(), "vatflow-cifp-"));
+  try {
+    const zipPath = join(dir, "cifp.zip");
+    writeFileSync(zipPath, Buffer.from(await res.arrayBuffer()));
+    execFileSync("unzip", ["-o", zipPath, "FAACIFP18", "-d", dir], { stdio: "pipe" });
+    console.log(`  CIFP: ${url}`);
+    return { lines: readCifpLines(join(dir, "FAACIFP18")), source: url };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** CIFP airways/procedures in data/nav format (CONUS-filtered, fixes merged). */
+function navFromCifp(lines, fixes, navaids) {
+  const lookup = id => (navaids.get(id) || fixes.get(id) || [])[0] || null;
+  const parsed = parseCifp(lines, lookup);
+  const keep = (arr) => {
+    const out = [];
+    for (const [id, lat, lon] of arr) {
+      if (!inConus(lat, lon)) continue;
+      out.push([id, roundCoord(lat), roundCoord(lon)]);
+      addCandidate(fixes, id, lat, lon);
+    }
+    return out;
+  };
+  const airways = {};
+  for (const [des, pts] of Object.entries(parsed.airways)) {
+    const w = keep(pts);
+    if (w.length >= 2) airways[des] = { t: des.charAt(0), w };
+  }
+  const procedures = {};
+  for (const [id, p] of Object.entries(parsed.procedures)) {
+    if (id.length < 4) continue;
+    const common = keep(p.common);
+    const transitions = {};
+    for (const [name, legs] of Object.entries(p.transitions)) {
+      const t = keep(legs);
+      if (t.length >= 2) transitions[name] = t;
+    }
+    if (common.length < 2 && !Object.keys(transitions).length) continue;
+    procedures[id] = { type: p.type, apt: p.apt, common, transitions };
+  }
+  for (const id of Object.keys(procedures)) {
+    const base = id.replace(/\d+[A-Z]?$/, "");
+    if (base.length >= 4 && !procedures[base]) procedures[base] = procedures[id];
+  }
+  return { airways, procedures, cycle: cifpCycle(lines) };
+}
+
+async function buildFromFaaCycle(isoDate, cifpPath) {
   const csvDir = await fetchFaaCycleCsvs(isoDate);
   try {
-    console.log("Fetching @squawk airways/procedures (enroute data from prior 56-day cycle)…");
-    const [awyPack, procPack] = await Promise.all([
-      fetchGzJson(SQUAWK.airways),
-      fetchGzJson(SQUAWK.procedures),
-    ]);
-
     const fixRows = await readCsvFromDir(csvDir, "FIX_BASE.csv", "FIX.csv");
     const navRows = await readCsvFromDir(csvDir, "NAV_BASE.csv", "NAV.csv");
     const fixes = buildFixesFromRows(fixRows);
     const navaids = buildNavaidsFromRows(navRows);
 
-    const airways = {};
-    for (const a of awyPack.records || []) {
-      const des = (a.designation || "").toUpperCase();
-      if (!des) continue;
-      const wps = [];
-      for (const w of a.waypoints || []) {
-        const lat = w.lat, lon = w.lon;
-        if (!isFinite(lat) || !isFinite(lon) || !inConus(lat, lon)) continue;
-        const id = (w.identifier || w.name || "").toUpperCase();
-        wps.push([id, roundCoord(lat), roundCoord(lon)]);
-        if (id) addCandidate(fixes, id, lat, lon);
+    const cifp = await loadCifp(isoDate, cifpPath);
+    let airways, procedures, procMeta;
+    if (cifp) {
+      let cycle;
+      ({ airways, procedures, cycle } = navFromCifp(cifp.lines, fixes, navaids));
+      procMeta = { cifpCycleDate: isoDate, enrouteCycleDate: isoDate, cifpCycle: cycle, airwaySource: "FAA CIFP" };
+    } else {
+      console.log("Fetching @squawk airways/procedures…");
+      const [awyPack, procPack] = await Promise.all([
+        fetchGzJson(SQUAWK.airways),
+        fetchGzJson(SQUAWK.procedures),
+      ]);
+      airways = {};
+      procedures = {};
+      for (const a of awyPack.records || []) {
+        const des = (a.designation || "").toUpperCase();
+        if (!des) continue;
+        const wps = [];
+        for (const w of a.waypoints || []) {
+          const lat = w.lat, lon = w.lon;
+          if (!isFinite(lat) || !isFinite(lon) || !inConus(lat, lon)) continue;
+          const id = (w.identifier || w.name || "").toUpperCase();
+          wps.push([id, roundCoord(lat), roundCoord(lon)]);
+          if (id) addCandidate(fixes, id, lat, lon);
+        }
+        if (wps.length >= 2) {
+          airways[des] = { t: des.charAt(0), w: wps };
+        }
       }
-      if (wps.length >= 2) {
-        airways[des] = { t: des.charAt(0), w: wps };
+      for (const p of procPack.records || []) {
+        const typ = (p.type || "").toUpperCase();
+        if (typ !== "SID" && typ !== "STAR") continue;
+        const id = (p.identifier || p.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (!id || id.length < 4) continue;
+        const pushLeg = (arr, leg) => {
+          if (!leg || !isFinite(leg.lat) || !isFinite(leg.lon)) return;
+          if (!inConus(leg.lat, leg.lon)) return;
+          const fix = (leg.fixIdentifier || "").toUpperCase();
+          arr.push([fix, roundCoord(leg.lat), roundCoord(leg.lon)]);
+          if (fix) addCandidate(fixes, fix, leg.lat, leg.lon);
+        };
+        const common = [];
+        for (const route of p.commonRoutes || []) {
+          for (const leg of route.legs || []) pushLeg(common, leg);
+        }
+        const transitions = {};
+        for (const tr of p.transitions || []) {
+          const tname = (tr.name || tr.identifier || "").toUpperCase();
+          if (!tname) continue;
+          const tlegs = [];
+          for (const leg of tr.legs || []) pushLeg(tlegs, leg);
+          if (tlegs.length >= 2) transitions[tname] = tlegs;
+        }
+        if (common.length < 2 && !Object.keys(transitions).length) continue;
+        procedures[id] = {
+          type: typ,
+          apt: (p.airports || []).map(a => a.toUpperCase()),
+          common,
+          transitions,
+        };
+        const base = id.replace(/\d+[A-Z]?$/, "");
+        if (base.length >= 4 && !procedures[base]) procedures[base] = procedures[id];
       }
-    }
-
-    const procedures = {};
-    for (const p of procPack.records || []) {
-      const typ = (p.type || "").toUpperCase();
-      if (typ !== "SID" && typ !== "STAR") continue;
-      const id = (p.identifier || p.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-      if (!id || id.length < 4) continue;
-      const pushLeg = (arr, leg) => {
-        if (!leg || !isFinite(leg.lat) || !isFinite(leg.lon)) return;
-        if (!inConus(leg.lat, leg.lon)) return;
-        const fix = (leg.fixIdentifier || "").toUpperCase();
-        arr.push([fix, roundCoord(leg.lat), roundCoord(leg.lon)]);
-        if (fix) addCandidate(fixes, fix, leg.lat, leg.lon);
+      procMeta = {
+        cifpCycleDate: procPack.meta?.cifpCycleDate || null,
+        enrouteCycleDate: awyPack.meta?.nasrCycleDate || null,
+        airwaySource: "@squawk",
       };
-      const common = [];
-      for (const route of p.commonRoutes || []) {
-        for (const leg of route.legs || []) pushLeg(common, leg);
-      }
-      const transitions = {};
-      for (const tr of p.transitions || []) {
-        const tname = (tr.name || tr.identifier || "").toUpperCase();
-        if (!tname) continue;
-        const tlegs = [];
-        for (const leg of tr.legs || []) pushLeg(tlegs, leg);
-        if (tlegs.length >= 2) transitions[tname] = tlegs;
-      }
-      if (common.length < 2 && !Object.keys(transitions).length) continue;
-      procedures[id] = {
-        type: typ,
-        apt: (p.airports || []).map(a => a.toUpperCase()),
-        common,
-        transitions,
-      };
-      const base = id.replace(/\d+[A-Z]?$/, "");
-      if (base.length >= 4 && !procedures[base]) procedures[base] = procedures[id];
     }
 
     const pfrRows = await readCsvFromDir(csvDir, "PFR_BASE.csv", "PFR.csv");
@@ -431,10 +508,11 @@ async function buildFromFaaCycle(isoDate) {
 
     return assembleNavData({
       meta: {
-        source: `FAA NASR ${isoDate} (FIX/NAV/PFR) + @squawk airways/procedures`,
+        source: `FAA NASR ${isoDate} (FIX/NAV/PFR) + ${procMeta.airwaySource} airways/procedures`,
         nasrCycleDate: isoDate,
-        cifpCycleDate: procPack.meta?.cifpCycleDate || null,
-        enrouteCycleDate: awyPack.meta?.nasrCycleDate || null,
+        cifpCycleDate: procMeta.cifpCycleDate,
+        enrouteCycleDate: procMeta.enrouteCycleDate,
+        ...(procMeta.cifpCycle ? { airacCycle: procMeta.cifpCycle } : {}),
       },
       fixes,
       navaids,
@@ -497,11 +575,13 @@ async function main() {
   const nasrIdx = process.argv.indexOf("--nasr-dir");
   const nasrDir = nasrIdx >= 0 ? process.argv[nasrIdx + 1] : null;
   const cycleIdx = process.argv.indexOf("--faa-cycle");
-  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-08-06";
+  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-10-01";
+  const cifpIdx = process.argv.indexOf("--cifp");
+  const cifpPath = cifpIdx >= 0 ? process.argv[cifpIdx + 1] : null;
   const data = nasrDir
     ? await buildFromNasrCsv(nasrDir)
     : cycleIdx >= 0
-      ? await buildFromFaaCycle(faaCycle)
+      ? await buildFromFaaCycle(faaCycle, cifpPath)
       : await buildFromSquawk();
   writeOutputs(data);
 }
