@@ -574,8 +574,16 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   assert(composeStandTelex(M, "240A") === "KMCO CHARLIE RAMP: PARK STAND 240A. ENTER AT SPOT 1. CTC CHARLIE RAMP 129.65 AT SPOT 1 FOR TAXI.",
     "Terminal C telex: " + composeStandTelex(M, "240A"));
   assert(exitSpotFor(M, M.standById.get("252A")).id === "2", "Charlie Ramp departures leave by transition point 2");
-  const want = { SWA1: "MCO-A1", DAL1: "MCO-A4", AAL1: "MCO-A2", UAL1: "MCO-A3", JBU1: "MCO-C", BAW1: "MCO-C" };
+  // Where airlines park, from flymco.com/airlines.
+  const want = { VXP1: "MCO-A1", MXY1: "MCO-A1", FFT1: "MCO-A1", AAL1: "MCO-A3", UAL1: "MCO-A3", ASA1: "MCO-A3",
+    SWA1: "MCO-A4", DAL1: "MCO-A4", ACA1: "MCO-A4", WJA1: "MCO-A4", JBU1: "MCO-C", BAW1: "MCO-C", VIR1: "MCO-C" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(M, [], operatorFor(M, cs, ""), cs).ramp === ramp, `KMCO ${cs} on ${ramp}`);
+  const gatesOf = cs => airlineStands(M, { callsign: cs, op: operatorFor(M, cs, "") });
+  assert(gatesOf("ASA1").every(id => /^3\d$/.test(id)), "Alaska: gates 30-39 only");
+  assert(gatesOf("JBU1").every(id => /^23[0-8]/.test(id)), "JetBlue: C230-C238 only");
+  assert(gatesOf("BAW1").every(id => /^24[0-5]/.test(id)), "British Airways: C240-C245 only");
+  assert(gatesOf("VIR1").some(id => id.startsWith("238")) && gatesOf("VIR1").every(id => /^(238|24[0-5])/.test(id)), "Virgin Atlantic: C238-C245");
+  assert(gatesOf("SWA1").some(id => M.standById.get(id).ramp === "MCO-A2"), "Southwest also on Airside 2 (100-129)");
   // Hardstands and RON spots are never proposed automatically.
   assert(airlineStands(M, { callsign: "JBU1", op: operatorFor(M, "JBU1", "") }).every(id => M.standById.get(id).ramp === "MCO-C"), "JetBlue proposals stay on the Terminal C gates");
   // Demo: an airside arrival (no entry spot on its lane) lands, taxis in and parks.
