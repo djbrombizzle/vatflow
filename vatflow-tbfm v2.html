@@ -7261,7 +7261,7 @@ const RATE_CALC_POSITIONS = [
 ];
 const rateCalc = {
   icao: "", tier: "hub", maxAar: 120, fullStaff: 6, onDuty: 2,
-  usePositions: false, advancedOpen: false,
+  usePositions: false, advancedOpen: false, mitAarSource: "calc",
   positions: { app: true, twr: true, gnd: false, del: false, sup: false, atis: false }
 };
 try {
@@ -7276,6 +7276,7 @@ try {
       if (+p.onDuty != null) rateCalc.onDuty = +p.onDuty;
       if (p.usePositions) rateCalc.usePositions = true;
       if (p.advancedOpen) rateCalc.advancedOpen = true;
+      if (p.mitAarSource === "program") rateCalc.mitAarSource = "program";
       if (p.positions && typeof p.positions === "object") {
         for (const k in p.positions) if (k in rateCalc.positions) rateCalc.positions[k] = !!p.positions[k];
       }
@@ -7288,6 +7289,7 @@ function saveRateCalc() {
       icao: rateCalc.icao, tier: rateCalc.tier, maxAar: rateCalc.maxAar,
       fullStaff: rateCalc.fullStaff, onDuty: rateCalc.onDuty,
       usePositions: rateCalc.usePositions, advancedOpen: rateCalc.advancedOpen,
+      mitAarSource: rateCalc.mitAarSource,
       positions: rateCalc.positions
     }));
   } catch (e) {}
@@ -7333,6 +7335,24 @@ function calcRecommendedAar({ maxAar, fullStaff, onDuty, exponent, positions, us
     else aar = clamped;
   }
   return { aar, factor, pct: Math.round(factor * 100), limitedBy, warning };
+}
+/* MIT per arrival gate to hold the airport at its AAR. Each gate gets the slice
+   of the AAR matching its share of live metered traffic (unassigned flights
+   still count toward the total, since they use AAR slots too), and that gate
+   rate becomes a time gap converted to miles at the nominal arrival speed. */
+const GATE_MIT_FLOOR_NM = 5;   /* below this, standard separation already covers it */
+function calcGateMit(aar, gateCounts, unassigned, kt) {
+  const speed = kt || MIT_NOMINAL_KT;
+  const total = gateCounts.reduce((n, [, c]) => n + c, 0) + (unassigned || 0);
+  if (!(aar > 0) || total < 1) return { total, rows: [] };
+  const rows = gateCounts.map(([gate, count]) => {
+    const share = count / total;
+    const gateRate = aar * share;                     /* arrivals/hr this gate may feed */
+    const minutes = 60 / gateRate;                     /* in-trail gap, minutes */
+    const mit = Math.ceil(speed / gateRate);           /* round up so the gate never overfeeds */
+    return { gate, count, share, gateRate, minutes, mit, belowFloor: mit < GATE_MIT_FLOOR_NM, overMax: mit > 300 };
+  });
+  return { total, rows };
 }
 
 function renderTMU() {
@@ -7539,14 +7559,72 @@ function renderTMURateCalc() {
   } else if (!ctl && validIcao && result.aar > 0) {
     h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">View only \u2014 unlock control to apply this rate to a program.</div>';
   }
-  h += '</div>' +
-    '<div class="helpcard" style="margin-top:14px;"><h3>How it works</h3>' +
+  h += '</div>';
+  h += renderGateMitCard(result.aar, validIcao);
+  h += '<div class="helpcard" style="margin-top:14px;"><h3>How it works</h3>' +
     '<ul class="helplist" style="font-size:13px;">' +
     '<li>Select an <b>airport tier</b> to pre-fill max AAR and full staffing, or enter your own values.</li>' +
     '<li><b>Recommended AAR</b> = max AAR \u00D7 (controllers on duty / full staffing).</li>' +
     '<li>Example: a hub at 120/hr with 6 full positions and 2 on duty \u2192 <b>40/hr</b>.</li>' +
     '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
+    '<li><b>MIT per gate</b>: each arrival gate gets the part of the AAR that matches its share of live inbound traffic. ' +
+    'MIT = ' + MIT_NOMINAL_KT + ' kt \u00F7 (AAR \u00D7 gate share), rounded up. ' +
+    'Example: AAR 40, a gate carrying 25% \u2192 10/hr \u2192 <b>36 MIT</b>.</li>' +
     '</ul></div></div>';
+  return h;
+}
+
+function renderGateMitCard(calcAar, validIcao) {
+  let h = '<div class="helpcard" style="margin-top:14px;"><h3>MIT PER GATE</h3>';
+  if (!validIcao) {
+    return h + '<div class="calcdetail">Enter an airport above to see the miles-in-trail each arrival gate needs to hold the AAR.</div></div>';
+  }
+  const code = rateCalc.icao;
+  const prog = tmuRates[code];
+  const useProgram = !!prog && rateCalc.mitAarSource === "program";
+  const aar = useProgram ? prog.aar : calcAar;
+  if (prog) {
+    h += '<div class="tmuform" style="border-bottom:none;padding:0 0 8px;">' +
+      '<span class="lbl">AAR</span><select data-ratecalc-field="mitAarSource">' +
+      '<option value="calc"' + (useProgram ? '' : ' selected') + '>Recommended (' + calcAar + '/hr)</option>' +
+      '<option value="program"' + (useProgram ? ' selected' : '') + '>Active program (' + prog.aar + '/hr)</option>' +
+      '</select></div>';
+  }
+  if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div></div>';
+  const flow = computeFlow(code);
+  if (!flow) return h + '<div class="calcdetail">Waiting for the VATSIM feed.</div></div>';
+  const metered = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f));
+  const unassigned = metered.filter(f => f.gate === "\u2014").length;
+  const calc = calcGateMit(aar, flow.allGates, unassigned, MIT_NOMINAL_KT);
+  if (!calc.rows.length) {
+    return h + '<div class="calcdetail">No metered IFR inbounds to ' + esc(code) + ' with a recognizable arrival gate right now.</div></div>';
+  }
+  h += '<div class="calcdetail">' + calc.total + ' metered inbound' + (calc.total === 1 ? '' : 's') + ' to ' + esc(code) +
+    ' at ' + aar + '/hr' + (unassigned ? ' \u00B7 ' + unassigned + ' with no arrival gate (counted in the total, no MIT)' : '') + '</div>';
+  if (calc.total < 6) {
+    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the feed, so these shares can swing a lot.</div>';
+  }
+  const aarMs = (3600 / Math.max(aar, 1)) * 1000;
+  h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
+    '<th>GATE</th><th>FLIGHTS</th><th>SHARE</th><th>GATE RATE</th><th>MIT REQUIRED</th>' +
+    (prog ? '<th>PROGRAM NOW</th>' : '') + '</tr></thead><tbody>';
+  for (const r of calc.rows) {
+    const mitTxt = r.overMax ? '&gt;300 MIT'
+      : r.belowFloor ? '<span class="cell-dim">none needed</span>'
+      : '<b>' + r.mit + ' MIT</b>';
+    let nowTxt = "";
+    if (prog) {
+      const rule = (prog.gates || []).find(x => x.name && x.name === r.gate);
+      const src = rule && (rule.mit > 0 || rule.trail > 0) ? "gate rule" : "airport-wide";
+      nowTxt = '<td>' + Math.round(requiredSpacingNm(prog, aarMs, r.gate)) + ' nm <span class="cell-dim">' + src + '</span></td>';
+    }
+    h += '<tr><td class="cell-strong">' + esc(r.gate) + '</td><td>' + r.count + '</td>' +
+      '<td>' + Math.round(r.share * 100) + '%</td><td>' + r.gateRate.toFixed(1) + '/hr</td>' +
+      '<td>' + mitTxt + ' <span class="cell-dim">(' + r.minutes.toFixed(1) + ' min)</span></td>' + nowTxt + '</tr>';
+  }
+  h += '</tbody></table></div>' +
+    '<div class="calcformula">MIT = ' + MIT_NOMINAL_KT + ' kt \u00F7 (' + aar + '/hr \u00D7 gate share), rounded up. ' +
+    'Gates come from the last STAR or fix in each filed route; ' + GATE_MIT_FLOOR_NM + ' nm or less needs no MIT.</div></div>';
   return h;
 }
 
@@ -8829,6 +8907,8 @@ contentEl.addEventListener("change", e => {
       rateCalc.onDuty = v; rcField.value = v;
     } else if (f === "usePositions") {
       rateCalc.usePositions = rcField.checked;
+    } else if (f === "mitAarSource") {
+      rateCalc.mitAarSource = rcField.value === "program" ? "program" : "calc";
     }
     saveRateCalc(); renderContent();
     return;
