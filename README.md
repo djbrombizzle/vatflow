@@ -53,12 +53,17 @@ On the **TMU** page, enter an airport and set its **AAR** (arrivals per hour). O
 - **Route Trail** — minutes-in-trail spacing.
 - **MIT** — miles-in-trail (overrides minutes when set).
 - **Gate restrictions** — up to 10 per program, each with its own spacing (e.g. `JJEDI4` at 20 MIT, `OZZZI2` at 10 MIT).
+- **Expected demand** — your prediction of arrivals per hour over each gate for an event (e.g. `GRNCH` 30/hr, `SNFLD` 20/hr). MIT per gate, the FCA Builder's MIT Monitor and the Apt Dashboard gate timeline use whichever is higher, the prediction or the live count. Remove it when the push is over.
+
+Gates match on the STAR without its revision number, so a rule on `OZZZI2` also covers pilots who filed `OZZZI1` from older navdata.
 
 Programs apply everywhere as **monitoring**: the dashboards, recommended delay, and the departures view. They do not issue a release time.
 
 ### 2. Watch the arrivals (Apt Dashboard)
 
 Enter the airport code to view its arrival flow. The table is sortable and filterable, and the arrival ladder on the right shows the sequence on a timeline (adjustable in 30-minute steps).
+
+**Demand vs AAR** also shows demand by arrival gate in 15-minute bins for the next two hours. Each bin splits the AAR across gates like MIT per gate does: red cells have more arrivals than that gate's slice, amber cells need MIT.
 
 > Rates are set only on the TMU page. The Apt Dashboard is for viewing.
 

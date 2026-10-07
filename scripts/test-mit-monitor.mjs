@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import {
-  arrivalGate, calcGateMit, programGateMitNm, gateMitAction, normPrograms,
+  arrivalGate, gateKey, calcGateMit, programGateMitNm, gateMitAction, normPrograms,
   isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, NO_GATE,
 } from "../shared/mit-monitor.js";
 
@@ -13,10 +13,22 @@ let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
 
 t("arrivalGate takes the last STAR or fix", () => {
-  assert.equal(arrivalGate("KATL DCT BANNG Q85 LPERD GTOUT1 KMCO", "KMCO"), "GTOUT1");
+  assert.equal(arrivalGate("KATL DCT BANNG Q85 LPERD GTOUT1 KMCO", "KMCO"), "GTOUT");
   assert.equal(arrivalGate("SPA DCT OMN", "KMCO"), "OMN");
   assert.equal(arrivalGate("DCT", "KMCO"), NO_GATE);
   assert.equal(arrivalGate("", "KMCO"), NO_GATE);
+});
+
+t("gate rules match any STAR revision", () => {
+  assert.equal(gateKey("OZZZI1"), "OZZZI");
+  assert.equal(gateKey("ozzzi2"), "OZZZI");
+  assert.equal(gateKey("OMN"), "OMN");
+  assert.equal(gateKey("LPERD"), "LPERD");
+  assert.equal(arrivalGate("KBHM DCT OZZZI1 KATL", "KATL"), arrivalGate("KBHM DCT OZZZI2 KATL", "KATL"));
+  const prog = normPrograms({ KATL: { aar: 40, gates: [{ name: "OZZZI2", mit: 25 }] } }).KATL;
+  assert.equal(prog.gates[0].name, "OZZZI");
+  assert.deepEqual(programGateMitNm(prog, arrivalGate("KBHM DCT OZZZI1 KATL", "KATL")), { nm: 25, gateRule: true });
+  assert.deepEqual(programGateMitNm(prog, "OZZZI3"), { nm: 25, gateRule: true });
 });
 
 t("calcGateMit: AAR 40, one quiet gate → 30 MIT on the busy three", () => {
@@ -92,7 +104,26 @@ t("buildMitMonitor: filters to the airport, counts next-hour demand per gate", (
   assert.equal(omn.demand60, 2); assert.equal(omn.reqMit, 20); assert.equal(omn.reqGateRule, true);
   assert.equal(m.demand, 3); assert.equal(m.over, true);
   assert.equal(omn.spacing.length, 2);
-  assert.ok(m.colors.OMN && m.colors.GTOUT1 && m.colors.OMN !== m.colors.GTOUT1);
+  assert.ok(m.colors.OMN && m.colors.GTOUT && m.colors.OMN !== m.colors.GTOUT);
+});
+
+t("buildMitMonitor: expected demand wins where it is higher than live", () => {
+  const apt = [28.43, -81.31];
+  const now = Date.UTC(2026, 9, 7, 20, 0);
+  const prog = normPrograms({ KMCO: { aar: 40, expect: [{ gate: "GRNCH5", rate: 30 }, { gate: "SNFLD", rate: 20 }, { gate: "OMN", rate: 1 }] } }).KMCO;
+  assert.deepEqual(prog.expect.map(x => x.gate), ["GRNCH", "SNFLD", "OMN"]);
+  const pilots = [
+    { callsign: "AAL1", lat: 29.3, lon: -81.1, gs: 300, phase: "air", arr: "KMCO", dep: "KJFK", type: "B738", route: "X OMN" },
+    { callsign: "AAL2", lat: 29.6, lon: -81.0, gs: 300, phase: "air", arr: "KMCO", dep: "KJFK", type: "B738", route: "X OMN" },
+    { callsign: "DAL3", lat: 30.0, lon: -83.5, gs: 300, phase: "air", arr: "KMCO", dep: "KATL", type: "A321", route: "X GRNCH4" },
+  ];
+  const m = buildMitMonitor({ airport: "KMCO", aptLL: apt, prog, pilots, now });
+  const g = name => m.gates.find(x => x.name === name);
+  assert.equal(g("GRNCH").demand60, 1); assert.equal(g("GRNCH").expected, 30);
+  assert.equal(g("SNFLD").expected, 20);                    // listed with no live traffic
+  assert.equal(g("OMN").expected, 0);                       // live 2 beats expected 1
+  assert.equal(m.demand, 52); assert.equal(m.over, true);
+  assert.ok(g("GRNCH").recMit > 0 && g("SNFLD").recMit > 0 && !g("OMN").recMit);
 });
 
 console.log(`\n${passed} passed`);
