@@ -127,6 +127,26 @@
   #plotRoute{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font:400 11px var(--mono);padding:6px 8px;outline:none;resize:vertical;min-height:44px}
   #plotRoute:focus{border-color:var(--amber)}
+  .cdr-row{display:flex;gap:6px;margin-bottom:6px}
+  .cdr-row input{flex:1;min-width:0;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+    padding:6px 8px;font-family:var(--mono);font-size:11px;text-transform:uppercase;outline:none}
+  .cdr-row input:focus{border-color:var(--amber)}
+  .cdr-row .btn{flex:0 0 auto}
+  .cdr-status{font-family:var(--mono);font-size:10px;color:var(--muted);margin:2px 0 4px;line-height:1.5}
+  .cdr-status .warn{color:var(--amber)}
+  .cdr-list{max-height:220px;overflow-y:auto}
+  .cdr-item{display:flex;gap:7px;align-items:flex-start;padding:5px 6px;border:1px solid transparent;border-radius:5px;cursor:pointer;
+    font-family:var(--mono);font-size:10px;line-height:1.45}
+  .cdr-item:hover{background:#121a24}
+  .cdr-item.on{border-color:var(--line-2);background:#121a24}
+  .cdr-item.dim{opacity:.4}
+  .cdr-item .sw{flex:0 0 10px;height:10px;border-radius:2px;margin-top:2px}
+  .cdr-item b{color:var(--text);letter-spacing:.04em}
+  .cdr-item .rt{color:var(--muted);word-break:break-word}
+  .cdr-item .warn{color:var(--amber)}
+  .cdr-label{font-family:var(--mono);font-size:10px;font-weight:700;color:#0a0e14;border-radius:4px;padding:1px 6px;
+    border:none;box-shadow:0 0 8px rgba(0,0,0,.6);white-space:nowrap}
+  .cdr-label::before{display:none}
   .fld input{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font-family:var(--mono);font-size:12px;padding:7px 9px}
   .fld input:focus{outline:none;border-color:var(--amber)}
@@ -375,6 +395,26 @@
     </div>
 
     <div class="layers" style="margin-top:14px">
+      <div class="lh">CDR ROUTES <span style="color:var(--muted-2);letter-spacing:.04em">· FAA coded departure routes</span></div>
+      <div class="cdr-row">
+        <input id="cdrCode" placeholder="IAHMCO1L" maxlength="8" autocomplete="off" spellcheck="false">
+        <button class="btn primary" id="cdrCodeBtn">PLOT CDR</button>
+      </div>
+      <div class="cdr-row">
+        <input id="cdrOrig" placeholder="ORIG" maxlength="4" autocomplete="off" spellcheck="false">
+        <input id="cdrDest" placeholder="DEST" maxlength="4" autocomplete="off" spellcheck="false">
+        <button class="btn primary" id="cdrPairBtn">SHOW ALL</button>
+      </div>
+      <div id="cdrStatus" class="cdr-status"></div>
+      <div id="cdrList" class="cdr-list"></div>
+      <div class="toolbar" id="cdrTools" style="margin:6px 0 4px;display:none">
+        <button class="btn" id="cdrShowAllBtn" style="flex:1">SHOW ALL ROUTES</button>
+        <button class="btn" id="cdrClearBtn">CLEAR</button>
+      </div>
+      <div class="empty" style="text-align:left;border:none;padding:2px 0 0;color:var(--muted-2)">Same CDR database vUSAlink uses for clearances. Click a route on the map or in the list to isolate it.</div>
+    </div>
+
+    <div class="layers" style="margin-top:14px">
       <div class="lh">SYNC</div>
       <div class="stat" style="padding:2px 0 4px"><span class="dot" id="syncDot"></span><span id="syncTxt" style="color:var(--text)">local — saved on this device</span></div>
       <div class="empty" style="text-align:left;border:none;padding:4px 0 0;color:var(--muted-2)">FCAs shared live with everyone on this site when sync is set up. See SUPABASE-SETUP.html.</div>
@@ -498,6 +538,7 @@ import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-a
 import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
 import { parseZuluHhmm } from "./shared/time-parse.js";
 import * as VFRefresh from "./shared/vatflow-refresh.js";
+import { createCdrStore, describeCdr } from "./shared/vusalink-clearance.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -568,6 +609,7 @@ const trafficLayer= L.layerGroup().addTo(map);
 const fcaLayer    = L.layerGroup().addTo(map);
 const seqLayer    = L.layerGroup().addTo(map);   // projected crossing dots + vertex handles
 const routeLayer  = L.layerGroup().addTo(map);   // clicked-aircraft plotted route
+const cdrLayer    = L.layerGroup().addTo(map);   // FAA CDR routes (sidebar CDR section)
 const measureLayer= L.layerGroup().addTo(map);   // ctrl+click ruler
 
 /* ============================================================
@@ -1919,6 +1961,8 @@ window.addEventListener("keydown",e=>{
     if(state.drawing){ cancelDrawing(); return; }
     if(state.measure.points.length){ clearMeasure(); return; }
     if(state.routeCallsign){ clearRoute(); return; }
+    if(cdrState.selected && cdrState.routes.length>1){ cdrSelect(null); return; }
+    if(cdrState.routes.length){ cdrClear(); return; }
     if(state.openSectorId){ closeSectorPanel(); return; }
   }
   if(state.drawing && e.key==="Enter") finishDrawing();
@@ -2056,6 +2100,165 @@ document.getElementById("plotClearBtn").addEventListener("click",()=>{
   document.getElementById("plotRoute").value="";
   if(state.routeCallsign==="PLOT") clearRoute();
   state.plotPilot=null;
+});
+
+/* ---------- FAA coded departure routes (CDR) ----------
+   Same sharded database vUSAlink's clearance tab uses (data/cdr). Either one
+   RCode ("IAHMCO1L") or every CDR for an origin/destination pair is drawn on
+   cdrLayer; clicking a route (map or list) hides the others and names it. */
+const cdrStore=createCdrStore({ base:"data/cdr/" });
+const CDR_COLORS=["#38bdf8","#f472b6","#a3e635","#fb923c","#c084fc","#facc15","#2dd4bf","#f87171","#818cf8","#4ade80"];
+const cdrState={ routes:[], selected:null, token:0 };   // routes: [{cdr, color, coords, dist}]
+function cdrFit(coords){
+  if(coords.length<2) return;
+  const sb=document.getElementById("sidebar");
+  const left=sb && !sb.classList.contains("hidden") ? sb.getBoundingClientRect().right+20 : 40;
+  map.fitBounds(L.latLngBounds(coords),{paddingTopLeft:[left,90],paddingBottomRight:[40,40],maxZoom:8});
+}
+function cdrIcao(s){
+  s=(s||"").trim().toUpperCase();
+  return /^[A-Z0-9]{3}$/.test(s) ? "K"+s : s;   // FAA 3-letter ids → contiguous-US ICAO
+}
+function cdrPilot(c){
+  // representative jet profile, same as the pasted-route plotter, so the FCA check behaves
+  return { callsign:c.code, phase:"gnd", lat:null, lon:null, gs:0, dep:c.orig, arr:c.dest,
+    type:"CDR", tas:450, fpAlt:35000, deptime:"", route:c.route };
+}
+function cdrSetStatus(html){ document.getElementById("cdrStatus").innerHTML=html||""; }
+function cdrDescHtml(c){
+  const d=describeCdr(c);
+  return escapeHtml(d.text)+(d.warn?` · <span class="warn">${escapeHtml(d.warn)}</span>`:"");
+}
+function cdrShow(cdrs, fit){
+  cdrState.routes=cdrs.map((cdr,i)=>{
+    const {coords,dist}=routeCoords(cdrPilot(cdr));
+    return { cdr, color:CDR_COLORS[i%CDR_COLORS.length], coords, dist };
+  });
+  cdrState.selected=cdrs.length===1 ? cdrs[0].code : null;
+  cdrRender();
+  if(fit){
+    cdrFit(cdrState.routes.flatMap(r=>r.coords));
+  }
+}
+function cdrRender(){
+  cdrLayer.clearLayers();
+  const sel=cdrState.selected;
+  cdrState.routes.forEach(r=>{
+    if(sel && r.cdr.code!==sel) return;
+    if(r.coords.length<2) return;
+    // wide transparent hit line so thin routes are easy to click
+    const hit=L.polyline(r.coords,{color:r.color,weight:12,opacity:0,interactive:true});
+    const line=L.polyline(r.coords,{color:r.color,weight:sel?3:2,opacity:.9,interactive:false});
+    hit.bindTooltip(r.cdr.code,{className:"cdr-label",sticky:true,direction:"top"});
+    hit.on("click",e=>{
+      if(state.drawing) return;           // let FCA drawing clicks through
+      L.DomEvent.stopPropagation(e);
+      cdrSelect(sel===r.cdr.code && cdrState.routes.length>1 ? null : r.cdr.code);
+    });
+    line.addTo(cdrLayer); hit.addTo(cdrLayer);
+    if(sel){
+      const mid=r.coords[Math.floor(r.coords.length/2)];
+      L.tooltip({permanent:true,className:"cdr-label",direction:"center"})
+        .setLatLng(mid).setContent(r.cdr.code).addTo(cdrLayer);
+      routeAnchors(cdrPilot(r.cdr)).forEach(a=>{
+        L.circleMarker(a.ll,{radius:a.kind==="apt"?4:3,color:r.color,fillColor:"#0a0e14",fillOpacity:1,weight:2})
+          .bindTooltip(a.name,{className:"artcc-label",direction:"top"}).addTo(cdrLayer);
+      });
+    }
+  });
+  cdrRenderList();
+  if(sel){
+    const r=cdrState.routes.find(x=>x.cdr.code===sel);
+    if(r){
+      renderRouteInfo(cdrPilot(r.cdr), r.dist);
+      const x=document.getElementById("riX"); if(x) x.addEventListener("click",cdrClear);
+    }
+  } else if(!state.routeCallsign){
+    document.getElementById("routeInfo").classList.remove("show");
+  }
+}
+function cdrRenderList(){
+  const el=document.getElementById("cdrList"), sel=cdrState.selected;
+  el.innerHTML=cdrState.routes.map(r=>{
+    const c=r.cdr, cls=sel===c.code?"on":(sel?"dim":"");
+    return `<div class="cdr-item ${cls}" data-code="${escapeHtml(c.code)}">`+
+      `<span class="sw" style="background:${r.color}"></span><div>`+
+      `<b>${escapeHtml(c.code)}</b> <span style="color:var(--muted-2)">${Math.round(r.dist)} NM</span><br>`+
+      `<span class="rt">${escapeHtml(c.route)}</span><br>`+
+      `<span style="color:var(--muted-2)">${cdrDescHtml(c)}</span>`+
+      (r.coords.length<2?` <span class="warn">· not plottable</span>`:"")+
+      `</div></div>`;
+  }).join("");
+  el.querySelectorAll(".cdr-item").forEach(it=>it.addEventListener("click",()=>{
+    const code=it.getAttribute("data-code");
+    cdrSelect(sel===code && cdrState.routes.length>1 ? null : code);
+  }));
+  document.getElementById("cdrTools").style.display=cdrState.routes.length?"flex":"none";
+  document.getElementById("cdrShowAllBtn").style.display=(sel && cdrState.routes.length>1)?"":"none";
+}
+function cdrSelect(code){
+  cdrState.selected=code;
+  cdrRender();
+  const r=code && cdrState.routes.find(x=>x.cdr.code===code);
+  if(r) cdrFit(r.coords);
+  const n=cdrState.routes.length;
+  if(n>1) cdrSetStatus(code ? `${escapeHtml(code)} · 1 of ${n} shown` : `${n} CDRs shown — click one to isolate it`);
+}
+function cdrClear(){
+  cdrState.token++;
+  cdrState.routes=[]; cdrState.selected=null;
+  cdrLayer.clearLayers();
+  document.getElementById("cdrList").innerHTML="";
+  document.getElementById("cdrTools").style.display="none";
+  cdrSetStatus("");
+  if(!state.routeCallsign) document.getElementById("routeInfo").classList.remove("show");
+}
+async function cdrPlotCode(){
+  const code=(document.getElementById("cdrCode").value||"").trim().toUpperCase();
+  if(!/^[A-Z0-9]{8}$/.test(code)){ toast("Enter an 8-character CDR code — e.g. IAHMCO1L",2600); return; }
+  const tok=++cdrState.token;
+  cdrSetStatus("looking up "+escapeHtml(code)+"…");
+  const c=await cdrStore.lookup(code);
+  if(tok!==cdrState.token) return;
+  if(!c){ cdrClearRoutesOnly(); cdrSetStatus(`<span class="warn">No CDR named ${escapeHtml(code)}.</span>`); return; }
+  if(state.routeCallsign) clearRoute();
+  cdrShow([c],true);
+  cdrSetStatus(`${escapeHtml(c.code)} · ${cdrDescHtml(c)}`);
+}
+async function cdrPlotPair(){
+  const orig=cdrIcao(document.getElementById("cdrOrig").value);
+  const dest=cdrIcao(document.getElementById("cdrDest").value);
+  if(!orig||!dest){ toast("Enter both an origin and a destination — e.g. IAH MCO",2600); return; }
+  const tok=++cdrState.token;
+  cdrSetStatus(`loading CDRs ${escapeHtml(orig)} → ${escapeHtml(dest)}…`);
+  const list=await cdrStore.forPair(orig,dest);
+  if(tok!==cdrState.token) return;
+  if(!list.length){
+    cdrClearRoutesOnly();
+    const shard=await cdrStore.loadOrigin(orig);
+    cdrSetStatus(`<span class="warn">${shard?`No CDRs from ${escapeHtml(orig)} to ${escapeHtml(dest)}.`:`No CDRs published for ${escapeHtml(orig)}.`}</span>`);
+    return;
+  }
+  if(state.routeCallsign) clearRoute();
+  cdrShow(list,true);
+  cdrSetStatus(list.length===1 ? `${escapeHtml(list[0].code)} · ${cdrDescHtml(list[0])}`
+    : `${list.length} CDRs ${escapeHtml(orig)} → ${escapeHtml(dest)} — click one to isolate it`);
+}
+function cdrClearRoutesOnly(){
+  cdrState.routes=[]; cdrState.selected=null; cdrLayer.clearLayers();
+  document.getElementById("cdrList").innerHTML="";
+  document.getElementById("cdrTools").style.display="none";
+}
+document.getElementById("cdrCodeBtn").addEventListener("click",cdrPlotCode);
+document.getElementById("cdrPairBtn").addEventListener("click",cdrPlotPair);
+document.getElementById("cdrCode").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); cdrPlotCode(); } });
+["cdrOrig","cdrDest"].forEach(id=>document.getElementById(id).addEventListener("keydown",e=>{
+  if(e.key==="Enter"){ e.preventDefault(); cdrPlotPair(); }
+}));
+document.getElementById("cdrShowAllBtn").addEventListener("click",()=>cdrSelect(null));
+document.getElementById("cdrClearBtn").addEventListener("click",()=>{
+  ["cdrCode","cdrOrig","cdrDest"].forEach(id=>document.getElementById(id).value="");
+  cdrClear();
 });
 
 /* ---------- FCA list filter ---------- */

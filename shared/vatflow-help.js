@@ -103,6 +103,7 @@ export const FCA_HELP = {
       items: [
         "<b>Click an aircraft</b> to plot its filed route through FAA NASR fixes, airways, and SID/STAR when known. Press Esc to clear.",
         "<b>Ctrl/⌘ + click</b> two points to measure distance in NM.",
+        "<b>CDR ROUTES</b> (sidebar) — type an FAA coded departure route (e.g. <b>IAHMCO1L</b>) to draw it, or an origin + destination to draw every CDR for that pair. Click a route on the map or in the list to hide the others and see its name; Esc shows all again.",
         "Click a sector label or polygon (when sectors layer is on) to list aircraft inside.",
         "Use layer toggles for ARTCC boundaries, traffic, demo mode, and sector load colors.",
       ],
