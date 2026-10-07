@@ -455,6 +455,7 @@
     <section class="acc" data-sec="layers">
       <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">MAP LAYERS</span><span class="acc-badge" id="accLayerCount"></span></button>
       <div class="acc-b">
+      <div class="toggle" data-layer="fcas"><span>FCAs</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="artcc"><span>ARTCC boundaries</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div style="margin:6px 0 10px">
         <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">ARTCC stratum</div>
@@ -615,7 +616,7 @@ const state = {
   pilots: [],              // connected aircraft (air + ground)
   prefiles: [],            // prefiled flight plans (not yet connected)
   feed: "init",            // init | live | demo | dead
-  layers: { artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"HIGH", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
+  layers: { fcas:true, artcc:true, labels:true, traffic:true, demo:false, edct:true, artccStratum:"HIGH", sectors:false, sectorArtcc:"ALL", sectorLoad:true },
   sectorThScope: "GLOBAL",
   sectorCounts: {},
   sectorAircraft: {},
@@ -1310,6 +1311,8 @@ function renderFcaLines(){
   state.fcas.forEach(f=>{
     if(!f.enabled||f.points.length<2) return;
     const isSel=f.id===state.selectedId;
+    // FCA layer off: hide every line except the one selected or being edited
+    if(!state.layers.fcas&&!isSel&&!(state.editing&&state.editing.id===f.id)) return;
     L.polyline(f.points,{color:f.color,weight:isSel?4:2.5,opacity:isSel?1:.8,
       dashArray:isSel?null:"2 6"}).addTo(fcaLayer);
     // endpoint caps
@@ -2424,6 +2427,7 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
     if(key==="labels") on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
     if(key==="traffic") renderTraffic();
     if(key==="edct") renderAll();
+    if(key==="fcas") renderFcaLines();
     updateLayerCount();
     if(key==="demo"){
       if(on){ setFeed("demo"); stepDemo(); }
