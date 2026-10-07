@@ -209,8 +209,9 @@ console.log(`test-ramp-core: ${passed} passed`);
     assert(d.getHoppie().GTI1890 === true && d.getHoppie().GTI408 === false, "demo Hoppie status");
     const off = await d.sendTelex("GTI408", "KCVG AMAZON RAMP: TEST");
     assert(!off.ok && off.offline, "telex to a callsign not on Hoppie is refused");
-    // Only uplinks count: the simulator may have had GTI408 call for push by now.
-    const ups = () => (d.getState().flights.GTI408?.msgs || []).filter(m => m.dir === "up").length;
+    // Only controller uplinks count: the simulator may have had GTI408 call for push by now,
+    // and the automatic push acknowledgement (by AUTO) is an uplink too.
+    const ups = () => (d.getState().flights.GTI408?.msgs || []).filter(m => m.dir === "up" && m.by !== "AUTO").length;
     const downs = () => (d.getState().flights.GTI408?.msgs || []).filter(m => m.dir === "dn").length;
     assert(ups() === 0, "nothing sent when refused");
     const before = downs();
@@ -224,7 +225,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU", "index lists KCVG, KIAD, KDCA and KRDU");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO", "index lists KCVG, KIAD, KDCA, KRDU and KMCO");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -487,5 +488,47 @@ console.log(`test-ramp-core: ${passed} passed`);
   assert(applyOp(st, { op: "settings", flow: "s" }, "T", 1).ok && st.settings.flow === "S", "flow is a shared board setting");
   assert(!applyOp(st, { op: "settings", flow: "no way" }, "T", 1).ok, "bad flow ids are refused");
   assert(applyOp(st, { op: "settings", flow: "" }, "T", 1).ok && st.settings.flow === "", "flow back to default");
+}
+/* ---------- KMCO ---------- */
+{
+  const M = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KMCO.json", import.meta.url))));
+  const count = r => M.stands.filter(s => s.ramp === r).length;
+  assert(M.stands.length === 192 && count("MCO-A1") === 24 && count("MCO-A3") === 27 && count("MCO-A2") === 31 &&
+    count("MCO-A4") === 38 && count("MCO-C") === 37 && count("MCO-CH") === 25 && count("MCO-RON") === 10,
+    "KMCO 192 stands: Airsides 1-4, South Terminal C gates and hardstands, Airside 2 RON");
+  assert(M.stands.every(s => !s.approx), "every KMCO stand carries real coordinates");
+  assert(M.stands.filter(s => s.ramp !== "MCO-RON").every(s => s.noseHdg != null), "every KMCO gate has a heading");
+  // The generated frame round-trips exactly: a stand's x,y is its lat/lon.
+  const s12 = M.standById.get("12");
+  const g = M.proj.MCO.toLatLon(s12.x, s12.y);
+  assert(Math.abs(g.lat - s12.lat) < 2e-6 && Math.abs(g.lon - s12.lon) < 2e-6, "KMCO frame is exact");
+  assert(composeStandTelex(M, "12") === "KMCO GROUND: PARK STAND 12. CTC GROUND 121.8.", "Airside 1 telex: " + composeStandTelex(M, "12"));
+  assert(composeStandTelex(M, "104") === "KMCO GROUND: PARK STAND 104. CTC GROUND 126.4.", "Airside 2 telex: " + composeStandTelex(M, "104"));
+  assert(composeStandTelex(M, "80") === "KMCO AIRSIDE 4 RAMP: PARK STAND 80. CTC AIRSIDE 4 RAMP 131.85.", "Airside 4 telex: " + composeStandTelex(M, "80"));
+  assert(composeStandTelex(M, "240A") === "KMCO CHARLIE RAMP: PARK STAND 240A. ENTER AT SPOT 1. CTC CHARLIE RAMP 129.65 AT SPOT 1 FOR TAXI.",
+    "Terminal C telex: " + composeStandTelex(M, "240A"));
+  assert(exitSpotFor(M, M.standById.get("252A")).id === "2", "Charlie Ramp departures leave by transition point 2");
+  const want = { SWA1: "MCO-A1", DAL1: "MCO-A4", AAL1: "MCO-A2", UAL1: "MCO-A3", JBU1: "MCO-C", BAW1: "MCO-C" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(M, [], operatorFor(M, cs, ""), cs).ramp === ramp, `KMCO ${cs} on ${ramp}`);
+  // Hardstands and RON spots are never proposed automatically.
+  assert(airlineStands(M, { callsign: "JBU1", op: operatorFor(M, "JBU1", "") }).every(id => M.standById.get(id).ramp === "MCO-C"), "JetBlue proposals stay on the Terminal C gates");
+  // Demo: an airside arrival (no entry spot on its lane) lands, taxis in and parks.
+  const { createDemoStore } = await import("../shared/ramp-demo.js");
+  let now = Date.parse("2026-10-07T15:00:00Z");
+  const realNow = Date.now, realTimeout = globalThis.setTimeout;
+  Date.now = () => now;
+  globalThis.setTimeout = fn => { fn(); return 0; };
+  try {
+    const d = createDemoStore(M);
+    d.seed();
+    await d.op({ op: "assign", callsign: "SWA3307", stand: "7" });
+    const mem = new Map();
+    let r = null;
+    for (let i = 0; i < 900 && !(r && r.atStand); i++) { now += 1000; d.tick(); r = deriveFlights(M, d.getPilots(), d.getState(), mem, now).find(x => x.callsign === "SWA3307"); }
+    assert(r && r.atStand === "7" && r.state === STATES.PARKED, `demo airside arrival parks at its gate (got ${r?.state} ${r?.atStand})`);
+  } finally {
+    Date.now = realNow;
+    globalThis.setTimeout = realTimeout;
+  }
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);

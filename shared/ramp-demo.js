@@ -21,9 +21,15 @@ const TAXI_PX = 12;
 const AIR_ACCEL = 8;
 
 function lanePath(L, stand) {
-  const spot = entrySpotFor(L, stand);
   const lane = findLane(L, stand.chart, stand.pushTo);
-  if (!spot || !lane) return null;
+  if (!lane) return null;
+  // No entry spot on the lane (KMCO airsides): enter at its far end.
+  let spot = entrySpotFor(L, stand);
+  if (!spot) {
+    const [p, q] = [lane.pts[0], lane.pts[lane.pts.length - 1]];
+    const far = Math.hypot(p[0] - stand.x, p[1] - stand.y) > Math.hypot(q[0] - stand.x, q[1] - stand.y) ? p : q;
+    spot = { id: null, chart: stand.chart, x: far[0], y: far[1] };
+  }
   const a = projectOnPolyline(lane.pts, stand.x, stand.y);
   const b = projectOnPolyline(lane.pts, spot.x, spot.y);
   // Walk the lane polyline between the two projections.
@@ -141,10 +147,10 @@ export function createDemoStore(L) {
         if (ac.air.dist <= 0) {
           // Landed: roll to the entry spot for its ramp and wait for a stand.
           const stand = e?.stand ? L.standById.get(e.stand) : null;
-          const spotId = stand ? (entrySpotFor(L, stand) || {}).id : HOLD_SPOT[operatorFor(L, ac.cs, ac.rmk).group] || FALLBACK_SPOT;
-          const spot = L.spotById.get(spotId);
-          Object.assign(ac, { phase: "spot", chart: spot.chart, x: spot.x, y: spot.y, gs: 0 });
-          addLog(`${ac.cs} landed, at spot ${spot.id}`);
+          const lp = stand ? lanePath(L, stand) : null;
+          const spot = lp ? lp.spot : L.spotById.get(HOLD_SPOT[operatorFor(L, ac.cs, ac.rmk).group] || FALLBACK_SPOT);
+          Object.assign(ac, { phase: "spot", chart: spot.chart || stand.chart, x: spot.x, y: spot.y, gs: 0 });
+          addLog(`${ac.cs} landed, ${spot.id ? `at spot ${spot.id}` : "entering the ramp"}`);
         }
       } else if (ac.phase === "spot") {
         ac.gs = 0;

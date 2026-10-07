@@ -106,6 +106,8 @@
   .zoom button { width: 30px; height: 28px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); font-size: 15px; font-weight: 700; }
   #map { touch-action: none; cursor: grab; }
   .mapNote { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: var(--muted-2); }
+  .mapAttr { position: absolute; right: 56px; bottom: 12px; font-size: 10.5px; color: var(--muted-2); }
+  .mapAttr a { color: inherit; }
 
   #split { position: absolute; left: 0; right: 0; top: -6px; height: 12px; cursor: row-resize; z-index: 6; touch-action: none; }
   #split::after { content: ""; display: block; width: 56px; height: 4px; margin: 4px auto; border-radius: 2px; background: var(--line-2); }
@@ -275,6 +277,7 @@
     <div id="mapWrap">
       <svg id="map" preserveAspectRatio="xMidYMid meet" aria-label="Ramp map"></svg>
       <div class="mapNote" id="mapNote"></div>
+      <div class="mapAttr" id="mapAttr"></div>
       <div class="zoom"><button id="zIn" title="Zoom in">+</button><button id="zOut" title="Zoom out">−</button><button id="zFit" title="Fit (or double-click the map)">⤢</button></div>
       <div class="northArrow">▲<br>N</div>
     </div>
@@ -707,8 +710,13 @@ function renderMap(state) {
   for (const [chart, ox, oy, c] of views) {
     h += `<g transform="translate(${ox},${oy})"><clipPath id="clip${chart}"><rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" rx="8"/></clipPath><g clip-path="url(#clip${chart})">`;
     h += `<rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" fill="#0c131c"/>`;
-    for (const b of rampBoxes(chart)) {
-      h += `<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${b.y1 - b.y0}" rx="10" fill="var(--pave)"/>`;
+    // Aprons as mapped (KMCO, from OpenStreetMap); airports without them get a box around each ramp's stands.
+    const aprons = (L.aprons || []).filter(a => a.chart === chart);
+    for (const a of aprons) h += `<polygon points="${a.pts.map(p => p.join(",")).join(" ")}" fill="var(--pave)"/>`;
+    if (!aprons.length) {
+      for (const b of rampBoxes(chart)) {
+        h += `<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${b.y1 - b.y0}" rx="10" fill="var(--pave)"/>`;
+      }
     }
     for (const lane of L.lanes.filter(l => l.chart === chart)) {
       const pts = lane.pts.map(p => p.join(",")).join(" ");
@@ -730,6 +738,15 @@ function renderMap(state) {
         }
         continue;
       }
+      if (b.poly) {
+        // A building outline (KMCO airsides and terminal, from OpenStreetMap).
+        h += `<polygon points="${b.poly.map(p => p.join(",")).join(" ")}" fill="var(--bldg)" stroke="#2b3a4c"/>`;
+        if (b.name) {
+          const cx = b.poly.reduce((a, p) => a + p[0], 0) / b.poly.length, cy = b.poly.reduce((a, p) => a + p[1], 0) / b.poly.length;
+          h += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="#9fb0c2">${esc(b.name)}</text>`;
+        }
+        continue;
+      }
       const [x, y, w, hh] = b.rect;
       h += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="3" fill="var(--bldg)" stroke="#2b3a4c"/>`;
       if (b.name) h += `<text x="${x + w / 2}" y="${y + hh / 2 + 4}" text-anchor="middle" font-size="11" fill="#9fb0c2">${esc(b.name)}</text>`;
@@ -737,10 +754,10 @@ function renderMap(state) {
     for (const b of rampBoxes(chart)) {
       h += `<text x="${(b.x0 + b.x1) / 2}" y="${b.y0 - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="#c4d2e0">${esc(b.r.name)}</text>`;
     }
-    // Lane names at the lane start.
-    for (const lane of L.lanes.filter(l => l.chart === chart)) {
+    // Lane names at the lane start ("label": "" for an unnamed apron lane, or a second piece of a taxiway).
+    for (const lane of L.lanes.filter(l => l.chart === chart && l.label !== "")) {
       const [x, y] = lane.pts[lane.pts.length > 2 ? 1 : 0];
-      h += `<text x="${x + 6}" y="${y + 14}" font-size="9.5" fill="#d8b64a" opacity=".8">${esc(lane.id)}</text>`;
+      h += `<text x="${x + 6}" y="${y + 14}" font-size="9.5" fill="#d8b64a" opacity=".8">${esc(lane.label ?? lane.id)}</text>`;
     }
     for (const d of L.deiceSpots.filter(d => d.chart === chart)) {
       h += `<rect x="${d.x - 15}" y="${d.y - 7}" width="30" height="14" rx="2" fill="#0a1017" stroke="#6f8196"/><text x="${d.x}" y="${d.y + 3.5}" text-anchor="middle" font-size="8.5" fill="#b4c3d3">${esc(d.id)}</text>`;
@@ -823,6 +840,9 @@ function renderMap(state) {
   }
   svg.innerHTML = h;
   const offMap = vrows.filter(r => r.state === STATES.INBOUND).length;
+  // Credit for map data the airport file takes from elsewhere (KMCO: OpenStreetMap, ODbL).
+  $("mapAttr").innerHTML = L.attribution
+    ? `<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${esc(L.attribution)}</a>` : "";
   $("mapNote").textContent = [offMap ? `${offMap} inbound not yet on the ramp` : "",
     ui.dropped ? `${ui.dropped} label${ui.dropped === 1 ? "" : "s"} hidden: hover an aircraft, zoom in or pick a ramp` : ""].filter(Boolean).join(" · ");
 }
