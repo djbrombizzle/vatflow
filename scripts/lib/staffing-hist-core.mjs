@@ -492,8 +492,39 @@ function histReason(dep, arr) {
   return "traffic";
 }
 
+/*
+ * Event history for the Event planner: per airport, its busiest single clock
+ * hours of arrivals (past events show up as spikes), where all its arrivals came
+ * from, and where arrivals came from during its busy hours (at least half its
+ * busiest hour). Only fields with 100+ arrivals in the period, top 25 origins.
+ */
+const EVENT_PEAK_COUNT = 6;
+const EVENT_ORIGIN_COUNT = 25;
+function topEntries(counts, n) {
+  return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);
+}
+export function addEventHistory(byAirport, arrHours) {
+  for (const [icao, hours] of Object.entries(arrHours)) {
+    const apt = byAirport[icao];
+    if (!apt || apt.totalArr < 100) continue;
+    const list = [...hours.entries()].sort((a, b) => b[1].n - a[1].n || a[0] - b[0]);
+    apt.peaks = list.slice(0, EVENT_PEAK_COUNT).map(([key, v]) => ({ t: key * 3600000, arr: v.n }));
+    const all = {}, busy = {};
+    const busyMin = Math.max(4, Math.ceil(list[0][1].n / 2));
+    for (const [, v] of list) {
+      for (const [o, n] of Object.entries(v.origins)) {
+        all[o] = (all[o] || 0) + n;
+        if (v.n >= busyMin) busy[o] = (busy[o] || 0) + n;
+      }
+    }
+    apt.origins = topEntries(all, EVENT_ORIGIN_COUNT);
+    apt.peakOrigins = topEntries(busy, EVENT_ORIGIN_COUNT);
+  }
+}
+
 export function aggregateStatsimHistorical(flights) {
   const byAirport = {};
+  const arrHours = {};
   let used = 0;
   for (const f of flights) {
     const targets = [];
@@ -512,7 +543,15 @@ export function aggregateStatsimHistorical(flights) {
       apt.days[dow][hour][t.type]++;
       if (t.type === "dep") apt.totalDep++; else apt.totalArr++;
     }
+    if (f.kind === "arr" && isUsStaffingAirport(f.dest)) {
+      const h = arrHours[f.dest] || (arrHours[f.dest] = new Map());
+      const key = Math.floor(f.timeMs / 3600000);
+      const slot = h.get(key) || h.set(key, { n: 0, origins: {} }).get(key);
+      slot.n++;
+      if (f.origin) slot.origins[f.origin] = (slot.origins[f.origin] || 0) + 1;
+    }
   }
+  addEventHistory(byAirport, arrHours);
 
   const towerSlots = [];
   const centerMap = {};

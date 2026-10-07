@@ -26,6 +26,10 @@ window.VF_StaffingAtcStore = StaffingAtcStore;
 import * as StaffingAtcHours from "./shared/staffing-atc-hours.js";
 window.VF_StaffingAtc = StaffingAtcHours;
 </script>
+<script type="module">
+import * as EventPlanner from "./shared/event-planner.js";
+window.VF_EventPlan = EventPlanner;
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 import * as FcaStore from "./shared/fca-store.js";
@@ -1443,7 +1447,7 @@ const tmuRates = {};        // ICAO -> { aar, trail }  (TMU programs, shared by 
 const restrictions = [];    // Current Restrictions entries (shared)
 const restrictFilters = { requesting: "", providing: "" };
 let restrictSub = "restr";  // restrictions page sub-tab: restr | gs
-let tmuSub = "programs";  // TMU page sub-tab: programs | calc
+let tmuSub = "programs";  // TMU page sub-tab: programs | calc | event
 let meterSub = "summary";  // Apt Dashboard sub-tab: summary | map | aircraft | ladder | demand
 let staffingSub = "live";  // ATC Staffing sub-tab: live | historical | lookup
 /* ---- controller access: VATSIM Connect OAuth (full tier = ARTCC whitelist) ---- */
@@ -7590,12 +7594,284 @@ function gateMitAction(recNm, nowNm) {
   return { kind: "hold", txt: "Hold" };
 }
 
+/* ===================== EVENT PLANNER =====================
+   Field + event window in, TMI recommendation out. Demand comes from this field's
+   history (precomputed StatSim, staffing_hist "thisyear") plus an event peak, scaled
+   by calendar, incentives, competing events and weather; capacity is the AAR you
+   enter, cut for the field's TAF. Logic lives in shared/event-planner.js. */
+function nextFridayYmd() {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + ((5 - d.getUTCDay() + 7) % 7 || 7));
+  return d.toISOString().slice(0, 10);
+}
+const evPlan = {
+  icao: "", date: nextFridayYmd(), start: "2300", end: "0300", type: "fno", aar: 0, peak: 0,
+  incentives: {}, status: "idle", msg: "", result: null
+};
+try {
+  const p = JSON.parse(localStorage.getItem("vatflow_event_plan") || "null");
+  if (p && typeof p === "object") {
+    for (const k of ["icao", "date", "start", "end", "type"]) if (typeof p[k] === "string") evPlan[k] = p[k];
+    if (+p.aar) evPlan.aar = +p.aar;
+    if (+p.peak) evPlan.peak = +p.peak;
+    if (p.incentives && typeof p.incentives === "object") evPlan.incentives = p.incentives;
+  }
+} catch (e) {}
+function saveEventPlan() {
+  try {
+    localStorage.setItem("vatflow_event_plan", JSON.stringify({
+      icao: evPlan.icao, date: evPlan.date, start: evPlan.start, end: evPlan.end, type: evPlan.type,
+      aar: evPlan.aar, peak: evPlan.peak, incentives: evPlan.incentives
+    }));
+  } catch (e) {}
+}
+function evWindow() {
+  const m = String(evPlan.date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const s = String(evPlan.start || "").replace(/\D/g, ""), e = String(evPlan.end || "").replace(/\D/g, "");
+  if (!m || s.length !== 4 || e.length !== 4) return null;
+  const startMs = Date.UTC(+m[1], +m[2] - 1, +m[3], +s.slice(0, 2), +s.slice(2));
+  let endMs = Date.UTC(+m[1], +m[2] - 1, +m[3], +e.slice(0, 2), +e.slice(2));
+  if (!isFinite(startMs) || !isFinite(endMs) || +s.slice(0, 2) > 23 || +e.slice(0, 2) > 23) return null;
+  if (endMs <= startMs) endMs += 86400000;            /* 2300-0300Z runs past midnight */
+  return { startMs, endMs };
+}
+function fmtLocalHm(ms) {
+  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function fmtZL(ms) { return fmtZ(ms) + 'z <span class="cell-dim">' + esc(fmtLocalHm(ms)) + '</span>'; }
+let evHistCache = null;
+async function evLoadHist() {
+  if (evHistCache) return evHistCache;
+  const h = await window.VF_StaffingHist.loadStaffingHist("thisyear");
+  evHistCache = h;
+  return h;
+}
+function evLoadProcs() {
+  if (mitProcs) return Promise.resolve(mitProcs);
+  airportStars("KATL");                               /* starts the shared procedures load */
+  return (mitStarLoad || Promise.resolve()).then(() => mitProcs);
+}
+/* NWS gridpoint forecast for a point (api.weather.gov sends CORS headers; US only, ~7 days) */
+async function evNwsGrid(ll) {
+  const get = async url => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 20000);
+    try {
+      const r = await fetch(url, { signal: ctl.signal, headers: { Accept: "application/geo+json" } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally { clearTimeout(timer); }
+  };
+  const pt = await get("https://api.weather.gov/points/" + ll[0].toFixed(4) + "," + ll[1].toFixed(4));
+  const url = pt && pt.properties && pt.properties.forecastGridData;
+  if (!url) throw new Error("no forecast grid");
+  const g = await get(url);
+  return g.properties;
+}
+const EV_WX_RING_NM = 350;                            /* regional forecast ring, inside ~2 hours' flight */
+
+async function runEventPlan() {
+  const EP = window.VF_EventPlan;
+  const icao = String(evPlan.icao || "").toUpperCase();
+  const fieldLL = lookup(icao);
+  const win = evWindow();
+  if (!EP) { evPlan.status = "error"; evPlan.msg = "Planner still loading, try again in a moment."; renderContent(); return; }
+  if (!fieldLL) { evPlan.status = "error"; evPlan.msg = "Unknown airport " + icao + "."; renderContent(); return; }
+  if (!win) { evPlan.status = "error"; evPlan.msg = "Enter a date and start/end times as HHMM (Zulu)."; renderContent(); return; }
+  const prog = tmuRates[icao];
+  const aar = evPlan.aar || (prog && prog.aar) || 0;
+  if (!(aar > 0)) { evPlan.status = "error"; evPlan.msg = "Enter the field's AAR (arrivals per hour it can take in good weather)."; renderContent(); return; }
+  evPlan.status = "loading"; evPlan.msg = "Loading history, STARs, events and forecasts…"; renderContent();
+
+  const notes = [];
+  const ring = EP.ringPoints(fieldLL, EV_WX_RING_NM);
+  const [histR, procsR, eventsR, fieldGridR, ...ringR] = await Promise.allSettled([
+    evLoadHist(),
+    evLoadProcs(),
+    fetchVatsimNetworkEvents(),
+    evNwsGrid(fieldLL),
+    ...ring.map(p => evNwsGrid(p.ll))
+  ]);
+  const hist = histR.status === "fulfilled" ? histR.value : null;
+  if (!hist) notes.push("Traffic history didn’t load, so normal traffic counts as zero.");
+  const byAirport = hist ? hist.result.byAirport : {};
+  const apt = byAirport[icao] || null;
+  const yearStart = hist && hist.computedAt ? Date.UTC(new Date(hist.computedAt).getUTCFullYear(), 0, 1) : 0;
+  const weeks = hist && hist.computedAt ? Math.max(1, (Date.parse(hist.computedAt) - yearStart) / (7 * 86400000)) : 0;
+
+  /* peak and modifiers */
+  const peakInfo = evPlan.peak > 0
+    ? { value: evPlan.peak, source: "Your number." }
+    : EP.expectedPeak(evPlan.type, apt && apt.peaks);
+  const mods = [];
+  const season = EP.seasonPct(win.startMs);
+  if (season) mods.push({ pct: season, why: season > 0 ? "Northern winter: the network is busier" : "Summer: the network is quieter" });
+  const hol = EP.holidayPeriod(win.startMs);
+  if (hol) mods.push({ pct: 10, why: hol + ": more pilots online" });
+  for (const inc of EP.INCENTIVES) if (evPlan.incentives[inc.id]) mods.push({ pct: inc.pct, why: inc.label });
+
+  /* events: is this field on the calendar, and what else competes */
+  let evMatch = null, competing = [];
+  if (eventsR.status === "fulfilled") {
+    for (const ev of eventsR.value) {
+      if (ev.endMs <= win.startMs || ev.startMs >= win.endMs) continue;
+      if (ev.airports.some(a => a.icao === icao)) { evMatch = ev; continue; }
+      if (ev.airports.some(a => a.lat > 15 && a.lat < 72 && a.lon > -170 && a.lon < -50)) competing.push(ev);
+    }
+    if (competing.length) mods.push({ pct: -Math.min(20, 5 * competing.length), why: competing.length + " other North American event" + (competing.length > 1 ? "s" : "") + " at the same time" });
+  } else notes.push("VATSIM events calendar didn’t load, so competing events aren’t counted.");
+
+  /* weather: the field's forecast for capacity, a ring around it for routing */
+  let fieldWx = null, wxNote = "";
+  const regionWx = [];
+  if (fieldGridR.status !== "fulfilled") wxNote = "No NWS forecast for " + icao + " (US fields only, or api.weather.gov didn’t answer).";
+  else {
+    fieldWx = EP.gridWindow(fieldGridR.value, win.startMs, win.endMs);
+    if (!fieldWx) wxNote = "The NWS forecast reaches about 7 days ahead, so there’s no forecast for the event yet.";
+  }
+  ringR.forEach((res, i) => {
+    if (res.status !== "fulfilled") return;
+    const w = EP.gridWindow(res.value, win.startMs, win.endMs);
+    if (w) regionWx.push({ brg: ring[i].brg, dir: EP.compassName(ring[i].brg), lat: ring[i].ll[0], lon: ring[i].ll[1], w });
+  });
+  if (fieldWx && (fieldWx.cat === "IFR" || fieldWx.cat === "LIFR" || fieldWx.gust >= 25)) {
+    mods.push({ pct: 5, why: "Challenging weather forecast at " + icao + " draws pilots" });
+  }
+  const wxAar = EP.weatherAarFactor(fieldWx);
+  const capacity = Math.max(1, Math.round(aar * wxAar.factor));
+  const multiplier = Math.max(0.2, 1 + mods.reduce((a, m) => a + m.pct, 0) / 100);
+
+  /* gates */
+  const procs = procsR.status === "fulfilled" ? procsR.value : null;
+  const entries = procs ? EP.starEntries(procs, icao, fieldLL) : [];
+  if (!entries.length) notes.push("No STARs for " + icao + " in navdata, so there’s no gate split.");
+  const mix = EP.originMix({ hist: apt, fieldIcao: icao, fieldLL, airportLL: lookup, byAirport });
+  const gs = EP.gateSharesFromOrigins(mix.list, entries, fieldLL, lookup);
+  for (const r of regionWx) r.gate = EP.gateForOrigin(entries, fieldLL, [r.lat, r.lon]);
+
+  const hours = EP.demandCurve({ startMs: win.startMs, endMs: win.endMs, peak: peakInfo.value, multiplier,
+    baselineFn: EP.baselineFromHist(apt, weeks) });
+  const rec = EP.recommendTmis({ hours, aar: capacity, shares: gs.shares });
+
+  evPlan.result = { icao, win, aar, capacity, wxAar, peakInfo, mods, multiplier, evMatch, competing, fieldWx, regionWx, wxNote,
+    mix, gs, rec, notes, histInfo: hist ? { computedAt: hist.computedAt, weeks, hasPeaks: !!(apt && apt.peaks) } : null };
+  evPlan.status = "ok"; evPlan.msg = "";
+  renderContent();
+}
+
+function renderEventPlanner() {
+  const EP = window.VF_EventPlan;
+  const ctl = canControl();
+  if (!EP) return '<div class="calcdetail" style="margin:14px 20px;">Loading the event planner…</div>';
+  const types = EP ? EP.EVENT_TYPES : {};
+  let h = '<div class="helpcard" style="margin:14px 20px;"><h3>EVENT PLANNER</h3>' +
+    '<div class="calcdetail">Enter an event and VATFLOW forecasts arrival demand and recommends TMIs. Staffing is assumed full. ' +
+    'Demand comes from this field’s traffic history, an event peak, the time of year, incentives and competing events; capacity is your AAR cut for the forecast weather.</div>' +
+    '<div class="tmuform" style="border-bottom:none;padding:8px 0;flex-wrap:wrap;">' +
+    '<span class="lbl">AIRPORT</span><input data-evp="icao" data-keep="evpIcao" maxlength="4" placeholder="ICAO" value="' + esc(evPlan.icao) + '" style="width:70px;">' +
+    '<span class="lbl">DATE (Z)</span><input type="date" data-evp="date" data-keep="evpDate" value="' + esc(evPlan.date) + '">' +
+    '<span class="lbl">START</span><input data-evp="start" data-keep="evpStart" maxlength="4" inputmode="numeric" placeholder="HHMM" value="' + esc(evPlan.start) + '" style="width:60px;">' +
+    '<span class="lbl">END</span><input data-evp="end" data-keep="evpEnd" maxlength="4" inputmode="numeric" placeholder="HHMM" value="' + esc(evPlan.end) + '" style="width:60px;">' +
+    '<span class="lbl">AAR</span><input class="aarinput" type="number" min="1" max="200" data-evp="aar" data-keep="evpAar" placeholder="' +
+      (tmuRates[evPlan.icao] ? tmuRates[evPlan.icao].aar : "/hr") + '" value="' + (evPlan.aar || "") + '">' +
+    '</div><div class="tmuform" style="border-bottom:none;padding:0 0 8px;flex-wrap:wrap;">' +
+    '<span class="lbl">EVENT</span><select data-evp="type">' +
+      Object.entries(types).map(([k, t]) => '<option value="' + k + '"' + (evPlan.type === k ? ' selected' : '') + '>' + esc(t.label) + '</option>').join("") +
+    '</select>' +
+    '<span class="lbl">PEAK /HR</span><input class="aarinput" type="number" min="0" max="300" data-evp="peak" data-keep="evpPeak" placeholder="auto" value="' + (evPlan.peak || "") + '">' +
+    '<span class="form-note">Leave blank to estimate it. Times are Zulu' + (evWindow() ? ' (' + esc(fmtLocalHm(evWindow().startMs)) + '–' + esc(fmtLocalHm(evWindow().endMs)) + ' your time)' : '') + '.</span>' +
+    '</div><div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11px;color:#c9d6df;margin-bottom:10px;">' +
+    (EP ? EP.INCENTIVES.map(inc => '<label style="display:inline-flex;gap:5px;align-items:center;cursor:pointer;"><input type="checkbox" data-evp-inc="' + inc.id + '"' +
+      (evPlan.incentives[inc.id] ? ' checked' : '') + '> ' + esc(inc.label) + ' <span class="cell-dim">+' + inc.pct + '%</span></label>').join("") : '') +
+    '</div><button data-evp-run' + (evPlan.status === "loading" ? ' disabled' : '') + '>PLAN EVENT</button>';
+  if (evPlan.msg) h += '<div class="calcdetail" style="margin-top:8px;' + (evPlan.status === "error" ? 'color:var(--warn);' : '') + '">' + esc(evPlan.msg) + '</div>';
+  h += '</div>';
+  const r = evPlan.result;
+  if (!r || evPlan.status !== "ok") return h;
+  const rec = r.rec;
+  const cls = rec.tier.id === "none" ? "tmu-ok" : rec.tier.id === "mit" ? "cell-warn" : "tmu-over";
+  h += '<div class="helpcard" style="margin:14px 20px;"><h3>' + esc(r.icao) + ' · ' + fmtZ(r.win.startMs) + '–' + fmtZ(r.win.endMs) + 'z</h3>' +
+    '<div style="font-size:18px;margin:4px 0 6px;" class="' + cls + '"><b>' + esc(rec.tier.label) + '</b></div>' +
+    '<div class="calcdetail">' + esc(rec.tier.what) + '</div>' +
+    '<div class="calcdetail">Peak demand <b>' + rec.peak.demand + '</b>/hr at ' + fmtZL(rec.peak.t) + ' vs capacity <b>' + r.capacity + '</b>/hr' +
+      (r.capacity !== r.aar ? ' (AAR ' + r.aar + ', cut for weather)' : '') + '. ' +
+      (rec.maxDelay ? 'Longest queue about <b>' + rec.maxDelay + ' min</b>.' : 'No queue expected.') +
+      (rec.window ? ' Run TMIs from <b>' + fmtZL(rec.window.startMs) + '</b> to <b>' + fmtZL(rec.window.endMs) + '</b>.' : '') + '</div>';
+  if (r.evMatch) h += '<div class="calcdetail">On the VATSIM calendar: <a href="' + esc(r.evMatch.link) + '" target="_blank" rel="noopener" style="color:#5ba8c9;">' + esc(r.evMatch.name) + '</a>' +
+    (r.evMatch.airports.length > 1 ? ' with ' + r.evMatch.airports.length + ' fields (' + esc(r.evMatch.airports.map(a => a.icao).join(", ")) + ')' +
+      (evPlan.type === "fno" ? '. Traffic splits between them, so consider “FNO, one of 2-3 featured fields”' : '') : '') + '.</div>';
+  if (ctl && rec.gateDemand.length && canEditApt(r.icao)) {
+    h += '<div style="margin:8px 0;"><button data-evp-apply>APPLY GATE FORECAST TO ' + esc(r.icao) + ' PROGRAM</button> ' +
+      '<span class="form-note">Sets the program’s expected demand to the peak-hour gate numbers below' + (tmuRates[r.icao] ? '' : ' and creates the program at AAR ' + r.aar) + '.</span></div>';
+  }
+  /* hourly */
+  h += '<div class="tablewrap tablewrap--short"><table><thead><tr><th>HOUR</th><th>NORMAL</th><th>EVENT</th><th>DEMAND</th><th>CAPACITY</th><th>OVER</th><th>QUEUE</th><th>QUEUE DELAY</th></tr></thead><tbody>';
+  for (const x of rec.rows) {
+    h += '<tr><td>' + fmtZL(x.t) + '</td><td>' + x.base.toFixed(1) + '</td><td>' + x.event.toFixed(1) + '</td><td><b>' + x.demand + '</b></td><td>' + r.capacity + '</td>' +
+      '<td class="' + (x.over > 0 ? 'tmu-over' : 'cell-dim') + '">' + (x.over > 0 ? '+' + x.over : x.over) + '</td>' +
+      '<td>' + (x.backlog || '<span class="cell-dim">0</span>') + '</td><td>' + (x.delayMin ? x.delayMin + ' min' : '<span class="cell-dim">—</span>') + '</td></tr>';
+  }
+  h += '</tbody></table></div>';
+  /* gates */
+  if (rec.gates) {
+    const tsGate = {};
+    for (const w of r.regionWx) if (w.gate && w.w.thunderPct >= EP.THUNDER_POSSIBLE) (tsGate[w.gate] = tsGate[w.gate] || []).push(w.dir + " " + w.w.thunderPct + "%");
+    h += '<h3 style="margin-top:16px;">GATES AT PEAK</h3><div class="tablewrap tablewrap--short"><table><thead><tr>' +
+      '<th>GATE</th><th>SHARE</th><th>DEMAND /HR</th><th>' + (rec.gates.metered ? 'DELIVERED /HR' : 'SLICE OF ' + r.capacity) + '</th><th>MIT</th><th>WEATHER ON THIS SIDE</th></tr></thead><tbody>';
+    for (const g of rec.gates.rows) {
+      h += '<tr><td class="cell-strong">' + esc(g.gate) + '</td><td>' + Math.round(g.share * 100) + '%</td><td>' + g.demand + '</td><td>' + g.slice.toFixed(1) + '</td>' +
+        '<td>' + (g.limited ? '<b>' + g.mit + ' MIT</b>' : '<span class="cell-dim">none</span>') + '</td>' +
+        '<td>' + (tsGate[g.gate] ? '<span class="cell-warn">Thunderstorms ' + esc(tsGate[g.gate].join(", ")) + '</span>' : '<span class="cell-dim">—</span>') + '</td></tr>';
+    }
+    h += '</tbody></table></div><div class="calcformula">Gate split from ' + esc(r.mix.source) + ', each origin assigned to the STAR whose entry is closest in bearing. ' +
+      (rec.gates.metered
+        ? 'With ground delays holding the flow to ' + r.capacity + '/hr, each gate delivers its share of that, so MIT spaces the gates still running 4 or more an hour and the rest need none.'
+        : 'MIT uses the same fair split as MIT per gate.' + (rec.gates.rows.some(g => g.mit >= 60) ? ' MIT of 60 nm or more won’t hold in the air: ground delays carry the rest.' : '')) + '</div>';
+  }
+  /* origins */
+  const orgs = r.gs.origins.slice(0, 12);
+  if (orgs.length) {
+    h += '<h3 style="margin-top:16px;">BIGGEST FEEDERS</h3><div class="calcdetail">If you run ground delays, these origins carry the most traffic. Closer ones (under about 2 hours) are where an EDCT helps most.</div>' +
+      '<div class="tablewrap tablewrap--short"><table><thead><tr><th>ORIGIN</th><th>DISTANCE</th><th>GATE</th><th>SHARE</th><th>AT PEAK /HR</th></tr></thead><tbody>' +
+      orgs.map(o => '<tr><td class="cell-strong">' + esc(o.icao) + '</td><td>' + o.nm + ' nm</td><td>' + esc(o.gate) + '</td><td>' + Math.round(o.share * 100) + '%</td><td>' +
+        (rec.peak.demand * o.share).toFixed(1) + '</td></tr>').join("") + '</tbody></table></div>';
+  }
+  /* weather */
+  h += '<h3 style="margin-top:16px;">WEATHER</h3>';
+  if (r.fieldWx) {
+    const w = r.fieldWx;
+    h += '<div class="calcdetail">' + esc(r.icao) + ' during the event, worst case: <b>' + w.cat + '</b>' +
+      (w.ceilFt != null ? ', ceiling ' + w.ceilFt + ' ft' : '') + (w.visSm != null && w.visSm < 6 ? ', visibility ' + w.visSm + ' sm' : '') +
+      (w.wspd ? ', wind ' + w.wspd + ' kt' : '') + (w.gust ? ' gusting ' + w.gust : '') +
+      (w.thunderPct ? ', <span class="' + (w.thunderPct >= EP.THUNDER_LIKELY ? 'tmu-over' : w.thunderPct >= EP.THUNDER_POSSIBLE ? 'cell-warn' : 'cell-dim') + '">thunderstorms ' + w.thunderPct + '%</span>' : '') + '. ' +
+      (r.wxAar.reasons.length ? 'Capacity cut: ' + esc(r.wxAar.reasons.join(", ")) + '.' : 'No capacity cut.') + '</div>';
+  } else h += '<div class="calcdetail">' + esc(r.wxNote) + '</div>';
+  if (r.regionWx.length) {
+    const ts = r.regionWx.filter(x => x.w.thunderPct >= EP.THUNDER_POSSIBLE);
+    h += '<div class="calcdetail">' + EV_WX_RING_NM + ' nm out: ' + esc(r.regionWx.map(x => x.dir + ' ' + x.w.cat + (x.w.thunderPct ? ' TS ' + x.w.thunderPct + '%' : '')).join(" · ")) + '.' +
+      (ts.length ? ' <span class="cell-warn">Thunderstorms on the ' + esc(ts.map(x => x.dir + (x.gate ? ' (' + x.gate + ')' : '')).join(", ")) + ' side: expect reroutes and more MIT on those gates.</span>' : '') + '</div>';
+  }
+  /* assumptions */
+  h += '<h3 style="margin-top:16px;">HOW THIS WAS WORKED OUT</h3><ul class="calcdetail" style="margin:0;padding-left:18px;">' +
+    '<li>Event peak: <b>' + r.peakInfo.value + '</b>/hr. ' + esc(r.peakInfo.source) + '</li>' +
+    (r.mods.length
+      ? '<li>Adjustments (×' + r.multiplier.toFixed(2) + '): ' + esc(r.mods.map(m => (m.pct > 0 ? '+' : '') + m.pct + '% ' + m.why).join("; ")) + '</li>'
+      : '<li>No calendar, incentive or competing-event adjustments.</li>') +
+    '<li>Shape: arrivals build from an hour before the start (25% of peak), reach the peak in the 2nd and 3rd hours, then tail off for two hours after the end. Normal traffic for each hour is added at half weight.</li>' +
+    (r.histInfo ? '<li>Normal traffic: this field’s average arrivals for that weekday and hour over ' + Math.round(r.histInfo.weeks) + ' weeks (history computed ' + esc(String(r.histInfo.computedAt).slice(0, 10)) + ').' +
+      (r.histInfo.hasPeaks ? '' : ' Event history (busiest hours and origins) appears after the next weekly data run.') + '</li>' : '') +
+    r.notes.map(n => '<li>' + esc(n) + '</li>').join("") + '</ul></div>';
+  return h;
+}
+
 function renderTMU() {
   const subBar = '<div class="subtabs">' +
     '<span class="subtab' + (tmuSub === "programs" ? " active" : "") + '" data-tmusub="programs">Programs</span>' +
     '<span class="subtab' + (tmuSub === "calc" ? " active" : "") + '" data-tmusub="calc">Rate calculator</span>' +
+    '<span class="subtab' + (tmuSub === "event" ? " active" : "") + '" data-tmusub="event">Event planner</span>' +
     '</div>';
   if (tmuSub === "calc") { contentEl.innerHTML = subBar + renderTMURateCalc(); return; }
+  if (tmuSub === "event") { contentEl.innerHTML = subBar + renderEventPlanner(); return; }
   contentEl.innerHTML = subBar + renderTMUPrograms();
 }
 
@@ -7948,7 +8224,7 @@ function renderGateMitCard(calcAar, validIcao) {
 
 /* STAR names per airport from bundled navdata (data/nav/procedures.json),
    loaded on first use of Plan so the page doesn't pay for it otherwise */
-let mitStarIndex = null, mitStarLoad = null;
+let mitStarIndex = null, mitStarLoad = null, mitProcs = null;
 function airportStars(icao) {
   if (mitStarIndex) return mitStarIndex[icao] || [];
   if (!mitStarLoad) {
@@ -7965,6 +8241,7 @@ function airportStars(icao) {
           .sort();
       }
       mitStarIndex = idx;
+      mitProcs = procs;
       renderContent();
     }).catch(() => { mitStarLoad = null; });
   }
@@ -8685,6 +8962,18 @@ contentEl.addEventListener("click", e => {
   /* ---- TMU page sub-tabs ---- */
   const tmuSubBtn = e.target.closest("[data-tmusub]");
   if (tmuSubBtn) { tmuSub = tmuSubBtn.dataset.tmusub; renderContent(); return; }
+  if (e.target.closest("[data-evp-run]")) { runEventPlan(); return; }
+  if (e.target.closest("[data-evp-apply]")) {
+    const r = evPlan.result;
+    if (!r || !canEditApt(r.icao)) return;
+    const expect = r.rec.gateDemand.slice(0, 10).map(([gate, rate]) => ({ gate, rate }));
+    if (tmuRates[r.icao]) tmuRates[r.icao].expect = expect;
+    else tmuRates[r.icao] = normRate({ aar: r.aar, gates: [], expect });
+    pushSync(); ensurePolling();
+    evPlan.msg = "Expected demand set on the " + r.icao + " program: " + expect.map(x => x.gate + " " + x.rate + "/hr").join(", ") + ".";
+    renderContent();
+    return;
+  }
   /* ---- Apt Dashboard sub-tabs ---- */
   const meterSubBtn = e.target.closest("[data-metersub]");
   if (meterSubBtn) {
@@ -9134,6 +9423,23 @@ contentEl.addEventListener("change", e => {
   if (gt) {
     const r = tmuRates[gt.dataset.tmugatetrail]; const i = +gt.dataset.idx;
     if (r && r.gates[i]) { r.gates[i].trail = +gt.value; r.gates[i].mit = 0; pushSync(); renderContent(); }
+    return;
+  }
+  const evp = e.target.closest("[data-evp]");
+  if (evp) {
+    const k = evp.dataset.evp;
+    if (k === "icao") evPlan.icao = evp.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    else if (k === "aar") evPlan.aar = parseAar(evp.value) || 0;
+    else if (k === "peak") evPlan.peak = Math.max(0, Math.min(300, Math.round(+evp.value) || 0));
+    else if (k === "start" || k === "end") evPlan[k] = evp.value.replace(/\D/g, "").slice(0, 4);
+    else evPlan[k] = evp.value;
+    saveEventPlan(); renderContent();
+    return;
+  }
+  const evInc = e.target.closest("input[data-evp-inc]");
+  if (evInc) {
+    evPlan.incentives[evInc.dataset.evpInc] = evInc.checked;
+    saveEventPlan(); renderContent();
     return;
   }
   const eg = e.target.closest("input[data-tmuexpgate]");

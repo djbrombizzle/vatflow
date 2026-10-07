@@ -59,6 +59,15 @@ Gates match on the STAR without its revision number, so a rule on `OZZZI2` also 
 
 Programs apply everywhere as **monitoring**: the dashboards, recommended delay, and the departures view. They do not issue a release time.
 
+### Plan an event (TMU → Event planner)
+
+Enter the field, the event date and start/end times (Zulu), the AAR and the event type, and VATFLOW forecasts arrival demand hour by hour and recommends TMIs: none, MIT per gate, MIT plus FCA ground delays, or a ground delay program, with the hours to run them. It also shows the gate split at the peak with MIT for each gate, the biggest feeder origins, and the weather. Staffing is assumed full.
+
+- **Demand:** this field's normal traffic for that weekday and hour (precomputed StatSim history), plus an event peak. The peak comes from this field's busiest past hours when the weekly data job has computed them, otherwise from a default for the event type, or from your own number. It's adjusted for the time of year, US holiday periods, the incentives you tick, and competing North American events on the VATSIM calendar.
+- **Gates:** origins (past arrivals in busy hours, or an estimate from airports' departures and distance) are mapped to the STAR whose entry is closest in bearing.
+- **Weather:** NWS gridpoint forecasts (api.weather.gov, US only, about 7 days ahead) at the field cut capacity for IFR, thunderstorms and gusts. A ring 350 nm out flags thunderstorms on each gate's side.
+- **Apply** writes the peak-hour gate numbers into the program's expected demand.
+
 ### 2. Watch the arrivals (Apt Dashboard)
 
 Enter the airport code to view its arrival flow. The table is sortable and filterable, and the arrival ladder on the right shows the sequence on a timeline (adjustable in 30-minute steps).
