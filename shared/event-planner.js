@@ -61,6 +61,37 @@ export function expectedPeak(type, peaks) {
   return { value: et.defaultPeak, source: "Default estimate for this event type; no event history for this field yet." };
 }
 
+/* ---------------- past events (StatSim, data/event-history.json) ---------------- */
+
+/** A past event is usable as a basis when it has real arrivals and few featured fields. */
+export const usableEvent = ev => ev && ev.peakArr >= 5 && (ev.fields || []).length <= 5;
+
+/** Event length within half to double the planned one (an 11-hour marathon isn't a 4-hour FNO). */
+const similarLength = (ev, durMs) => !durMs || ((ev.endMs - ev.startMs) <= durMs * 2 && (ev.endMs - ev.startMs) >= durMs / 2);
+
+/**
+ * The past event to base the forecast on: the one the controller picked, else the
+ * field's most recent usable event (busy enough, 5 or fewer featured fields) of a
+ * similar length, else its most recent usable event of any length.
+ */
+export function pickBasisEvent(events, pickedId, durationMs) {
+  const list = (events || []).slice().sort((a, b) => b.startMs - a.startMs);
+  if (pickedId) {
+    const ev = list.find(e => String(e.id) === String(pickedId));
+    if (ev) return ev;
+  }
+  return list.find(e => usableEvent(e) && similarLength(e, durationMs)) || list.find(usableEvent) || null;
+}
+/** Peak from a past event: its busiest hour of landings, +15% (landings cap at what ATC achieved). */
+export function peakFromEvent(ev) {
+  const value = Math.round(ev.peakArr * 1.15);
+  return {
+    value, fromEvent: true,
+    source: "From " + ev.name + " (" + new Date(ev.startMs).toISOString().slice(0, 10) + "): busiest hour " + ev.peakArr +
+      " landings, +15% because landings cap at what ATC achieved.",
+  };
+}
+
 /* ---------------- calendar modifiers ---------------- */
 
 function nthWeekday(y, m, dow, n) {           // n >= 1, or -1 for last
@@ -213,10 +244,11 @@ export function gateForOrigin(entries, fieldLL, originLL) {
  * all its origins) when the weekly job has computed it; otherwise a gravity model:
  * each US airport's departures weighted by distance (events draw mostly 1-3 hr flights).
  */
-export function originMix({ hist, fieldIcao, fieldLL, airportLL, byAirport }) {
+export function originMix({ hist, event, fieldIcao, fieldLL, airportLL, byAirport }) {
   const pick = list => (list || []).filter(([o, n]) => o !== fieldIcao && n > 0);
-  const peak = pick(hist && hist.peakOrigins), all = pick(hist && hist.origins);
+  const peak = pick(hist && hist.peakOrigins), all = pick(hist && hist.origins), ev = pick(event && event.origins);
   const sum = l => l.reduce((a, [, n]) => a + n, 0);
+  if (sum(ev) >= 15) return { list: ev, source: "origins of arrivals during " + event.name };
   if (sum(peak) >= 20) return { list: peak, source: "origins of past arrivals in this field’s busiest hours" };
   if (sum(all) >= 20) return { list: all, source: "origins of past arrivals to this field" };
   const out = [];
