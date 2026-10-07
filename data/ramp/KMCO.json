@@ -20521,23 +20521,52 @@
  },
  "airlines": [
   {
-   "name": "Southwest",
+   "name": "Avelo",
    "match": [
-    "SWA"
+    "VXP"
    ],
    "ramps": [
-    "MCO-A1",
-    "MCO-A3"
+    "MCO-A1"
    ]
   },
   {
-   "name": "Delta",
+   "name": "Breeze",
    "match": [
-    "DAL",
-    "EDV"
+    "MXY"
    ],
    "ramps": [
-    "MCO-A4",
+    "MCO-A1"
+   ]
+  },
+  {
+   "name": "Frontier",
+   "match": [
+    "FFT"
+   ],
+   "ramps": [
+    "MCO-A1",
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "Alaska",
+   "match": [
+    "ASA",
+    "QXE"
+   ],
+   "ramps": [
+    "MCO-A3"
+   ],
+   "gates": [
+    "3"
+   ]
+  },
+  {
+   "name": "Allegiant",
+   "match": [
+    "AAY"
+   ],
+   "ramps": [
     "MCO-A3"
    ]
   },
@@ -20550,7 +20579,7 @@
     "JIA"
    ],
    "ramps": [
-    "MCO-A2"
+    "MCO-A3"
    ]
   },
   {
@@ -20561,89 +20590,168 @@
     "ASH"
    ],
    "ramps": [
-    "MCO-A3",
-    "MCO-A1"
+    "MCO-A3"
    ]
   },
   {
-   "name": "Republic / SkyWest (flies for AA, DL, UA)",
+   "name": "Republic / SkyWest (fly for AA, UA and DL)",
    "match": [
     "RPA",
     "SKW"
    ],
    "ramps": [
     "MCO-A3",
-    "MCO-A2",
     "MCO-A4"
    ]
   },
   {
-   "name": "Spirit, Frontier",
+   "name": "Southwest",
    "match": [
-    "NKS",
-    "FFT"
+    "SWA"
    ],
    "ramps": [
-    "MCO-A3",
-    "MCO-A1"
+    "MCO-A4",
+    "MCO-A2"
    ]
   },
   {
-   "name": "Alaska, Sun Country, Air Canada, WestJet",
+   "name": "Delta",
    "match": [
-    "ASA",
-    "QXE",
-    "SCX",
+    "DAL",
+    "EDV"
+   ],
+   "ramps": [
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "Air Canada",
+   "match": [
     "ACA",
     "JZA",
-    "WJA",
     "ROU"
    ],
    "ramps": [
-    "MCO-A2",
     "MCO-A4"
    ]
   },
   {
-   "name": "JetBlue, Breeze and international (South Terminal C)",
+   "name": "WestJet, Flair",
    "match": [
-    "JBU",
-    "MXY",
-    "BAW",
-    "VIR",
-    "DLH",
-    "EIN",
-    "AFR",
-    "KLM",
-    "UAE",
+    "WJA",
+    "FLE"
+   ],
+   "ramps": [
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "Sun Country",
+   "match": [
+    "SCX"
+   ],
+   "ramps": [
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "LATAM",
+   "match": [
     "LAN",
-    "LPE",
     "TAM",
-    "AVA",
-    "CMP",
-    "AMX",
+    "ARE",
+    "LPE"
+   ],
+   "ramps": [
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "Volaris, Viva",
+   "match": [
     "VOI",
-    "VIV",
-    "BHS",
-    "CAY",
-    "TSC",
-    "GLO",
-    "AZU",
-    "ARG",
-    "IBE",
-    "AEA",
-    "EDW",
-    "CFG",
-    "TOM",
-    "ICE",
-    "SWG"
+    "VIV"
+   ],
+   "ramps": [
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "Bahamasair",
+   "match": [
+    "BHS"
+   ],
+   "ramps": [
+    "MCO-A4"
+   ]
+  },
+  {
+   "name": "JetBlue",
+   "match": [
+    "JBU"
    ],
    "ramps": [
     "MCO-C"
+   ],
+   "gates": [
+    "23"
+   ]
+  },
+  {
+   "name": "Porter",
+   "match": [
+    "POE"
+   ],
+   "ramps": [
+    "MCO-C"
+   ],
+   "gates": [
+    "23",
+    "24"
+   ]
+  },
+  {
+   "name": "Virgin Atlantic",
+   "match": [
+    "VIR"
+   ],
+   "ramps": [
+    "MCO-C"
+   ],
+   "gates": [
+    "238",
+    "24"
+   ]
+  },
+  {
+   "name": "International (C240-C245)",
+   "match": [
+    "EIN",
+    "AMX",
+    "AFR",
+    "AVA",
+    "AZU",
+    "BAW",
+    "BWA",
+    "CMP",
+    "OCN",
+    "UAE",
+    "GLO",
+    "IBE",
+    "ICE",
+    "NBT",
+    "TZP",
+    "TAP"
+   ],
+   "ramps": [
+    "MCO-C"
+   ],
+   "gates": [
+    "24"
    ]
   }
  ],
- "airlinesSource": "Approximate, from flymco.com and airport guides: Southwest on Airsides 1 and 3; Delta on Airside 4; American on Airside 2; United, Spirit and Frontier on Airside 3; JetBlue, Breeze and most international carriers at South Terminal C. Worth checking against current use. Charlie Ramp hardstands (239, 254) and the RON spots are not given out automatically.",
+ "airlinesSource": "From flymco.com/airlines (October 2026). Gates 1-29 are Airside 1, 30-59 Airside 3, 70-99 Airside 4, 100-129 Airside 2, C230-C254 South Terminal C. Avelo, Breeze and Frontier 1-29 (Frontier also 70-99); Alaska 30-39; Allegiant, American and United 30-59; Southwest 70-99 and 100-129; Delta, Air Canada and Rouge, WestJet, Flair, Sun Country, LATAM, Volaris, Viva and Bahamasair 70-99; JetBlue C230-C238; Porter C230-C245; Virgin Atlantic C238-C245; the other international carriers (Aer Lingus, Aeromexico, Air France, Avianca, Azul, British Airways, Caribbean, Copa, Discover, Emirates, GOL, Iberia, Icelandair, Norse, Zipair; TAP to be decided) C240-C245. BermudAir (70-99) has no ICAO match listed. Republic and SkyWest fly for American, United and Delta, so they take Airside 3, then 4. \"gates\" narrows an airline to gate ids starting with those digits. Charlie Ramp hardstands (239, 254) and the RON spots are not given out automatically.",
  "notes": [
   "Departures from Airsides 1 and 3 (gates 1-59): Ground Control 121.8 on initial contact, unless advised by ATIS.",
   "Departures from Airsides 2 and 4 (gates 60 and higher): Ground Control 126.4 on initial contact, unless advised by ATIS.",
@@ -20672,7 +20780,7 @@
     "type": "B38M",
     "dep": "KMCO",
     "arr": "KBWI",
-    "stand": "12",
+    "stand": "93",
     "push": "REQ",
     "callAgo": 120
    },
@@ -20681,7 +20789,7 @@
     "type": "B737",
     "dep": "KMCO",
     "arr": "KMDW",
-    "stand": "5"
+    "stand": "110"
    },
    {
     "cs": "DAL1544",
@@ -20704,7 +20812,7 @@
     "type": "A321",
     "dep": "KMCO",
     "arr": "KCLT",
-    "stand": "104",
+    "stand": "41",
     "push": "REQ",
     "callAgo": 60
    },
@@ -20713,22 +20821,29 @@
     "type": "B738",
     "dep": "KMCO",
     "arr": "KDFW",
-    "stand": "121"
+    "stand": "47"
    },
    {
     "cs": "UAL1890",
     "type": "B739",
     "dep": "KMCO",
     "arr": "KEWR",
-    "stand": "41"
+    "stand": "52"
    },
    {
-    "cs": "NKS381",
+    "cs": "FFT381",
     "type": "A20N",
     "dep": "KMCO",
-    "arr": "KFLL",
-    "stand": "55",
+    "arr": "KDEN",
+    "stand": "12",
     "offHoppie": true
+   },
+   {
+    "cs": "MXY412",
+    "type": "BCS3",
+    "dep": "KMCO",
+    "arr": "KPVD",
+    "stand": "5"
    },
    {
     "cs": "JBU1092",
