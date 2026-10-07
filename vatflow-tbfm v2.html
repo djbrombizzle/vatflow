@@ -7336,23 +7336,57 @@ function calcRecommendedAar({ maxAar, fullStaff, onDuty, exponent, positions, us
   }
   return { aar, factor, pct: Math.round(factor * 100), limitedBy, warning };
 }
-/* MIT per arrival gate to hold the airport at its AAR. Each gate gets the slice
-   of the AAR matching its share of live metered traffic (unassigned flights
-   still count toward the total, since they use AAR slots too), and that gate
-   rate becomes a time gap converted to miles at the nominal arrival speed. */
-const GATE_MIT_FLOOR_NM = 5;   /* below this, standard separation already covers it */
-function calcGateMit(aar, gateCounts, unassigned, kt) {
+/* Live MIT per arrival gate to hold the airport at its AAR.
+   Uses each gate's demand over the next hour (metered inbounds by ETA).
+   Flights with no recognizable gate can't be restricted, so their demand comes
+   off the AAR first. The rest is shared max-min fair: a gate feeding less than
+   an even slice keeps what it needs with no MIT, and its spare slots go to the
+   busier gates. A gate whose demand exceeds its slice gets the MIT that holds
+   it to that slice, rounded up to the next 5 nm. */
+const GATE_MIT_STEP_NM = 5;
+const GATE_MIT_MAX_NM = 300;
+function calcGateMit(aar, gateDemand, unassignedDemand, kt) {
   const speed = kt || MIT_NOMINAL_KT;
-  const total = gateCounts.reduce((n, [, c]) => n + c, 0) + (unassigned || 0);
-  if (!(aar > 0) || total < 1) return { total, rows: [] };
-  const rows = gateCounts.map(([gate, count]) => {
-    const share = count / total;
-    const gateRate = aar * share;                     /* arrivals/hr this gate may feed */
-    const minutes = 60 / gateRate;                     /* in-trail gap, minutes */
-    const mit = Math.ceil(speed / gateRate);           /* round up so the gate never overfeeds */
-    return { gate, count, share, gateRate, minutes, mit, belowFloor: mit < GATE_MIT_FLOOR_NM, overMax: mit > 300 };
+  const demand = gateDemand.reduce((n, [, d]) => n + d, 0) + (unassignedDemand || 0);
+  const over = demand > aar;
+  let cap = Math.max(0, aar - (unassignedDemand || 0));
+  const order = gateDemand.map(([gate, d]) => ({ gate, demand: d })).sort((x, y) => x.demand - y.demand);
+  let left = order.length;
+  for (const r of order) {
+    const fair = cap / left;
+    r.slice = Math.min(r.demand, fair);
+    cap -= r.slice; left--;
+  }
+  const rows = gateDemand.map(([gate]) => {
+    const r = order.find(x => x.gate === gate);
+    const limited = over && r.demand > r.slice + 1e-9;
+    let mit = 0;
+    if (limited) {
+      mit = r.slice > 0
+        ? Math.ceil(speed / r.slice / GATE_MIT_STEP_NM) * GATE_MIT_STEP_NM
+        : GATE_MIT_MAX_NM;
+      mit = Math.min(GATE_MIT_MAX_NM, Math.max(GATE_MIT_STEP_NM, mit));
+    }
+    return { gate, demand: r.demand, share: demand ? r.demand / demand : 0, slice: r.slice, limited, mit };
   });
-  return { total, rows };
+  return { demand, over, rows };
+}
+/* MIT (nm) a program holds a gate to today: its own gate rule, else the
+   airport-wide MIT/trail; 0 = no in-trail restriction beyond the AAR */
+function programGateMitNm(prog, gate) {
+  const rule = (prog.gates || []).find(x => x.name && x.name === gate);
+  const src = rule && (rule.mit > 0 || rule.trail > 0) ? rule : prog;
+  if (src.mit > 0) return { nm: src.mit, gateRule: src === rule };
+  if (src.trail > 0) return { nm: Math.round(src.trail * MIT_NOMINAL_KT / 60), gateRule: src === rule };
+  return { nm: 0, gateRule: false };
+}
+/* tighten / relax / hold, with a 5 nm dead band so it doesn't churn every feed update */
+function gateMitAction(recNm, nowNm) {
+  if (recNm === nowNm) return { kind: "hold", txt: "Hold" };
+  if (!recNm) return { kind: "relax", txt: "Remove MIT" };
+  if (recNm > nowNm) return { kind: "tighten", txt: "Tighten to " + recNm };
+  if (nowNm - recNm >= GATE_MIT_STEP_NM) return { kind: "relax", txt: "Relax to " + recNm };
+  return { kind: "hold", txt: "Hold" };
 }
 
 function renderTMU() {
@@ -7567,9 +7601,9 @@ function renderTMURateCalc() {
     '<li><b>Recommended AAR</b> = max AAR \u00D7 (controllers on duty / full staffing).</li>' +
     '<li>Example: a hub at 120/hr with 6 full positions and 2 on duty \u2192 <b>40/hr</b>.</li>' +
     '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
-    '<li><b>MIT per gate</b>: each arrival gate gets the part of the AAR that matches its share of live inbound traffic. ' +
-    'MIT = ' + MIT_NOMINAL_KT + ' kt \u00F7 (AAR \u00D7 gate share), rounded up. ' +
-    'Example: AAR 40, a gate carrying 25% \u2192 10/hr \u2192 <b>36 MIT</b>.</li>' +
+    '<li><b>MIT per gate</b> looks at the next hour of arrivals. If demand is over the AAR, gates feeding more than an even share ' +
+    'get the MIT that holds them to their slice (' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to 5 nm). ' +
+    'Example: AAR 40, four gates, one quiet gate needs 4/hr \u2192 the other three get 12/hr each \u2192 <b>30 MIT</b>.</li>' +
     '</ul></div></div>';
   return h;
 }
@@ -7593,38 +7627,56 @@ function renderGateMitCard(calcAar, validIcao) {
   if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div></div>';
   const flow = computeFlow(code);
   if (!flow) return h + '<div class="calcdetail">Waiting for the VATSIM feed.</div></div>';
-  const metered = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f));
-  const unassigned = metered.filter(f => f.gate === "\u2014").length;
-  const calc = calcGateMit(aar, flow.allGates, unassigned, MIT_NOMINAL_KT);
+  const horizon = flow.now + 3600000;
+  const gateDemand = {};
+  let unassigned = 0;
+  for (const f of flow.flights) {
+    if (f.status === "ARRIVED" || !isMetered(f) || f.eta >= horizon) continue;
+    if (f.gate === "\u2014") unassigned++;
+    else gateDemand[f.gate] = (gateDemand[f.gate] || 0) + 1;
+  }
+  const entries = Object.entries(gateDemand).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+  const calc = calcGateMit(aar, entries, unassigned, MIT_NOMINAL_KT);
   if (!calc.rows.length) {
-    return h + '<div class="calcdetail">No metered IFR inbounds to ' + esc(code) + ' with a recognizable arrival gate right now.</div></div>';
+    return h + '<div class="calcdetail">No metered IFR arrivals into ' + esc(code) + ' in the next 60 minutes with a recognizable arrival gate.</div></div>';
   }
-  h += '<div class="calcdetail">' + calc.total + ' metered inbound' + (calc.total === 1 ? '' : 's') + ' to ' + esc(code) +
-    ' at ' + aar + '/hr' + (unassigned ? ' \u00B7 ' + unassigned + ' with no arrival gate (counted in the total, no MIT)' : '') + '</div>';
-  if (calc.total < 6) {
-    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the feed, so these shares can swing a lot.</div>';
+  h += '<div class="calcdetail">Next 60 min: <b>' + calc.demand + '</b> arrivals vs AAR <b>' + aar + '</b> \u2014 ' +
+    (calc.over
+      ? '<span class="tmu-over">over by ' + (calc.demand - aar) + '</span>, MIT needed on the gates feeding more than their slice'
+      : '<span class="tmu-ok">within AAR</span>, no gate MIT needed') +
+    (unassigned ? ' \u00B7 ' + unassigned + ' with no arrival gate (they use AAR slots but can\u2019t be restricted)' : '') +
+    '</div>';
+  if (calc.demand < 6) {
+    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the next hour, so these numbers can swing between updates.</div>';
   }
-  const aarMs = (3600 / Math.max(aar, 1)) * 1000;
   h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
-    '<th>GATE</th><th>FLIGHTS</th><th>SHARE</th><th>GATE RATE</th><th>MIT REQUIRED</th>' +
-    (prog ? '<th>PROGRAM NOW</th>' : '') + '</tr></thead><tbody>';
+    '<th>GATE</th><th>NEXT 60 MIN</th><th>SLICE OF AAR</th><th>RECOMMENDED</th>' +
+    (prog ? '<th>PROGRAM NOW</th><th>ACTION</th>' : '') + '</tr></thead><tbody>';
   for (const r of calc.rows) {
-    const mitTxt = r.overMax ? '&gt;300 MIT'
-      : r.belowFloor ? '<span class="cell-dim">none needed</span>'
-      : '<b>' + r.mit + ' MIT</b>';
-    let nowTxt = "";
+    const recTxt = !r.limited ? '<span class="cell-dim">none</span>'
+      : r.slice < 0.05 ? '<b>' + r.mit + ' MIT</b> <span class="cell-dim">(no slots left)</span>'
+      : '<b>' + r.mit + ' MIT</b> <span class="cell-dim">(' + (60 / r.slice).toFixed(1) + ' min)</span>';
+    let progCells = "";
     if (prog) {
-      const rule = (prog.gates || []).find(x => x.name && x.name === r.gate);
-      const src = rule && (rule.mit > 0 || rule.trail > 0) ? "gate rule" : "airport-wide";
-      nowTxt = '<td>' + Math.round(requiredSpacingNm(prog, aarMs, r.gate)) + ' nm <span class="cell-dim">' + src + '</span></td>';
+      const now = programGateMitNm(prog, r.gate);
+      const act = gateMitAction(r.limited ? r.mit : 0, now.nm);
+      const cls = act.kind === "tighten" ? "tmu-over" : act.kind === "relax" ? "cell-warn" : "cell-dim";
+      progCells = '<td>' + (now.nm ? now.nm + ' MIT <span class="cell-dim">' + (now.gateRule ? 'gate rule' : 'airport-wide') + '</span>'
+          : '<span class="cell-dim">none</span>') + '</td>' +
+        '<td class="' + cls + '">' + esc(act.txt) + '</td>';
     }
-    h += '<tr><td class="cell-strong">' + esc(r.gate) + '</td><td>' + r.count + '</td>' +
-      '<td>' + Math.round(r.share * 100) + '%</td><td>' + r.gateRate.toFixed(1) + '/hr</td>' +
-      '<td>' + mitTxt + ' <span class="cell-dim">(' + r.minutes.toFixed(1) + ' min)</span></td>' + nowTxt + '</tr>';
+    h += '<tr><td class="cell-strong">' + esc(r.gate) + '</td>' +
+      '<td>' + r.demand + ' <span class="cell-dim">(' + Math.round(r.share * 100) + '%)</span></td>' +
+      '<td>' + r.slice.toFixed(1) + '/hr</td><td>' + recTxt + '</td>' + progCells + '</tr>';
   }
-  h += '</tbody></table></div>' +
-    '<div class="calcformula">MIT = ' + MIT_NOMINAL_KT + ' kt \u00F7 (' + aar + '/hr \u00D7 gate share), rounded up. ' +
-    'Gates come from the last STAR or fix in each filed route; ' + GATE_MIT_FLOOR_NM + ' nm or less needs no MIT.</div></div>';
+  h += '</tbody></table></div>';
+  if (calc.rows.some(r => r.limited && r.mit >= 60)) {
+    h += '<div class="calcdetail" style="color:var(--warn);">MIT of 60 nm or more is hard to hold in the air. ' +
+      'Ground delays (EDCTs from an FCA) are usually the better tool at this level of demand.</div>';
+  }
+  h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in the next 60 minutes; ' +
+    'gates come from the last STAR or fix in each filed route. Gates under an even share keep what they need; ' +
+    'busier gates split what\u2019s left, and MIT = ' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to ' + GATE_MIT_STEP_NM + ' nm.</div></div>';
   return h;
 }
 
