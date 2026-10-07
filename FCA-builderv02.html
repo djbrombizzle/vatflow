@@ -202,11 +202,28 @@
   .toolbar{display:flex;gap:8px;margin-bottom:12px}
   .toolbar .btn{flex:1;text-align:center}
 
-  .layers{border-top:1px solid var(--line);margin-top:6px;padding-top:12px}
-  .layers .lh{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);margin-bottom:9px}
-  .layers select{width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
+  /* collapsible sidebar sections */
+  .acc{border-top:1px solid var(--line)}
+  .acc:last-child{border-bottom:1px solid var(--line)}
+  .acc-h{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:8px;padding:10px 2px;cursor:pointer;
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);user-select:none}
+  .acc-h:hover{color:var(--text)}
+  .acc-h:focus-visible{outline:1px solid var(--amber);outline-offset:-1px;border-radius:4px}
+  .acc-chev{display:inline-block;width:10px;font-size:10px;color:var(--muted-2);transition:transform .15s}
+  .acc.open .acc-chev{transform:rotate(90deg);color:var(--amber)}
+  .acc.open .acc-t{color:var(--amber)}
+  .acc-t{flex:none}
+  .acc-sub{flex:1;min-width:0;color:var(--muted-2);letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acc-badge{margin-left:auto;font:700 9px var(--mono);letter-spacing:.04em;color:var(--muted-2);background:#162030;
+    border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+  .acc-badge:empty{display:none}
+  .acc-sub + .acc-badge{margin-left:0}
+  .acc-dot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--muted-2)}
+  .acc-b{display:none;padding:2px 0 12px}
+  .acc.open .acc-b{display:block}
+  .acc-b select:not(#fcaArtccFilter){width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font-family:var(--mono);font-size:11px;padding:6px 8px;margin-top:4px}
-  .layers select:focus{outline:none;border-color:var(--amber)}
+  .acc-b select:focus{outline:none;border-color:var(--amber)}
   .sector-th-panel{margin:8px 0 4px;padding:10px;border:1px solid var(--line-2);border-radius:6px;background:#0a0e14}
   .sector-th-panel .sub{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
   .sector-th-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-family:var(--mono);font-size:10px;color:var(--text)}
@@ -369,7 +386,10 @@
 <aside class="sidebar" id="sidebar">
   <div class="side-head">
     <h2>FLOW CONSTRAINED AREAS</h2>
-    <button class="btn ghost sm" id="hideSide">‹</button>
+    <div style="display:flex;gap:6px">
+      <button class="btn ghost sm" id="accAllBtn" title="Expand all sections">⊞</button>
+      <button class="btn ghost sm" id="hideSide">‹</button>
+    </div>
   </div>
   <div class="side-scroll">
     <div class="toolbar">
@@ -380,22 +400,31 @@
     </div>
 
     <div id="editorMount"></div>
+
+    <section class="acc" data-sec="fcas">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">FCAs</span><span class="acc-badge" id="accFcaCount"></span></button>
+      <div class="acc-b">
     <select id="fcaArtccFilter" title="Show only FCAs tagged to one ARTCC"><option value="ALL">ALL ARTCCs</option></select>
     <input id="fcaFilter" placeholder="filter FCAs — name, airport, fix…" autocomplete="off">
     <div id="fcaList"></div>
+      </div>
+    </section>
 
-    <div class="layers" style="margin-top:14px">
-      <div class="lh">ROUTE PLOTTER</div>
+    <section class="acc" data-sec="plot">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">ROUTE PLOTTER</span></button>
+      <div class="acc-b">
       <textarea id="plotRoute" rows="3" spellcheck="false" placeholder="KMIA CUTZZ LAIRI Q85 SPA GVE PUCKY1 KJFK&#10;first + last tokens = airports"></textarea>
       <div class="toolbar" style="margin:6px 0 4px">
         <button class="btn primary" id="plotBtn" style="flex:1">PLOT ROUTE</button>
         <button class="btn" id="plotClearBtn">CLEAR</button>
       </div>
       <div class="empty" style="text-align:left;border:none;padding:2px 0 0;color:var(--muted-2)">Draws with the same style as clicking an aircraft — including the metering check against the selected FCA.</div>
-    </div>
+      </div>
+    </section>
 
-    <div class="layers" style="margin-top:14px">
-      <div class="lh">CDR ROUTES <span style="color:var(--muted-2);letter-spacing:.04em">· FAA coded departure routes</span></div>
+    <section class="acc" data-sec="cdr">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">CDR ROUTES</span><span class="acc-sub">FAA coded departure routes</span></button>
+      <div class="acc-b">
       <div class="cdr-row">
         <input id="cdrCode" placeholder="IAHMCO1L" maxlength="8" autocomplete="off" spellcheck="false">
         <button class="btn primary" id="cdrCodeBtn">PLOT CDR</button>
@@ -412,16 +441,20 @@
         <button class="btn" id="cdrClearBtn">CLEAR</button>
       </div>
       <div class="empty" style="text-align:left;border:none;padding:2px 0 0;color:var(--muted-2)">Same CDR database vUSAlink uses for clearances. Click a route on the map or in the list to isolate it.</div>
-    </div>
+      </div>
+    </section>
 
-    <div class="layers" style="margin-top:14px">
-      <div class="lh">SYNC</div>
+    <section class="acc" data-sec="sync">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">SYNC</span><span class="acc-dot" id="accSyncDot"></span></button>
+      <div class="acc-b">
       <div class="stat" style="padding:2px 0 4px"><span class="dot" id="syncDot"></span><span id="syncTxt" style="color:var(--text)">local — saved on this device</span></div>
       <div class="empty" style="text-align:left;border:none;padding:4px 0 0;color:var(--muted-2)">FCAs shared live with everyone on this site when sync is set up. See SUPABASE-SETUP.html.</div>
-    </div>
+      </div>
+    </section>
 
-    <div class="layers">
-      <div class="lh">MAP LAYERS</div>
+    <section class="acc" data-sec="layers">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">MAP LAYERS</span><span class="acc-badge" id="accLayerCount"></span></button>
+      <div class="acc-b">
       <div class="toggle" data-layer="artcc"><span>ARTCC boundaries</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div style="margin:6px 0 10px">
         <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">ARTCC stratum</div>
@@ -469,16 +502,19 @@
       <div class="toggle" data-layer="traffic"><span>Live traffic</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="edct"><span>Ground flights (CFR)</span><div class="sw-track on"><div class="sw-knob"></div></div></div>
       <div class="toggle" data-layer="demo"><span>Demo traffic (offline)</span><div class="sw-track"><div class="sw-knob"></div></div></div>
-    </div>
+      </div>
+    </section>
 
-    <div class="layers">
-      <div class="lh">TIPS</div>
+    <section class="acc" data-sec="tips">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">TIPS</span></button>
+      <div class="acc-b">
       <div class="empty" style="text-align:left;border:none;padding:0;color:var(--muted-2);line-height:1.7">
         <b style="color:var(--cyan);letter-spacing:0">Ctrl/⌘ + click</b> two points to measure distance in NM.<br>
         <b style="color:#8ab4ff;letter-spacing:0">Click an aircraft</b> to plot its route. Esc clears either.<br>
         <b style="color:var(--amber);letter-spacing:0">⧉ in the sequence panel</b> copies the CFR list for coordination.
       </div>
-    </div>
+      </div>
+    </section>
   </div>
 </aside>
 
@@ -1351,6 +1387,8 @@ function gapMinLabel(gapMin,isLeader){
    ============================================================ */
 function renderFcaList(){
   const wrap=document.getElementById("fcaList");
+  const cnt=document.getElementById("accFcaCount");
+  if(cnt) cnt.textContent=state.fcas.length?String(state.fcas.length):"";
   if(!state.fcas.length && !state.editing){
     wrap.innerHTML=`<div class="empty"><b>NO FCAs YET</b>Click <span style="color:var(--amber)">＋ New FCA</span>, then click points on the map to draw a metering line across the flow.</div>`;
     return;
@@ -2073,6 +2111,45 @@ function fallbackCopy(txt,done){
   ta.remove();
 }
 
+// sidebar sections — collapsible; which ones are open is remembered per device
+const LS_SIDE_OPEN="fca.sideOpen";
+function sideSections(){ return [...document.querySelectorAll("#sidebar .acc")]; }
+function setSection(sec,open){
+  sec.classList.toggle("open",open);
+  sec.querySelector(".acc-h").setAttribute("aria-expanded",String(open));
+}
+function saveSections(){
+  const open=sideSections().filter(s=>s.classList.contains("open")).map(s=>s.dataset.sec);
+  try{ localStorage.setItem(LS_SIDE_OPEN, JSON.stringify(open)); }catch(_){}
+  updateAccAllBtn();
+}
+function updateAccAllBtn(){
+  const b=document.getElementById("accAllBtn"); if(!b) return;
+  const allOpen=sideSections().every(s=>s.classList.contains("open"));
+  b.textContent=allOpen?"⊟":"⊞"; b.title=allOpen?"Collapse all sections":"Expand all sections";
+}
+function updateLayerCount(){
+  const el=document.getElementById("accLayerCount"); if(!el) return;
+  const n=[...document.querySelectorAll('#sidebar .acc[data-sec="layers"] .toggle[data-layer]')]
+    .filter(t=>t.getAttribute("data-layer")!=="sectorLoad"&&t.querySelector(".sw-track.on")).length;
+  el.textContent=n+" on";
+}
+(function initSections(){
+  let open=["fcas"];
+  try{ const v=JSON.parse(localStorage.getItem(LS_SIDE_OPEN)||"null"); if(Array.isArray(v)) open=v; }catch(_){}
+  sideSections().forEach(sec=>{
+    setSection(sec,open.includes(sec.dataset.sec));
+    sec.querySelector(".acc-h").addEventListener("click",()=>{
+      setSection(sec,!sec.classList.contains("open")); saveSections();
+    });
+  });
+  document.getElementById("accAllBtn").addEventListener("click",()=>{
+    const allOpen=sideSections().every(s=>s.classList.contains("open"));
+    sideSections().forEach(s=>setSection(s,!allOpen)); saveSections();
+  });
+  updateAccAllBtn(); updateLayerCount();
+})();
+
 // sidebar collapse
 function setSide(open){ document.getElementById("sidebar").classList.toggle("hidden",!open);
   document.getElementById("floatSide").style.display=open?"none":"flex"; }
@@ -2347,6 +2424,7 @@ document.querySelectorAll(".toggle[data-layer]").forEach(t=>{
     if(key==="labels") on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
     if(key==="traffic") renderTraffic();
     if(key==="edct") renderAll();
+    updateLayerCount();
     if(key==="demo"){
       if(on){ setFeed("demo"); stepDemo(); }
       else { demoFleet=[]; demoGround=[]; fetchLive(); }   // drop stale demo prefiles too
@@ -2512,6 +2590,8 @@ function setSyncStatus(s,extra){
   const map={ local:["","local — saved on this device"], connecting:["demo","connecting…"],
     connected:["live","synced · live"], error:["dead","sync error — see setup guide"] };
   const m=map[s]||map.local; dot.className="dot"+(m[0]?" "+m[0]:""); txt.textContent=extra||m[1];
+  const accDot=document.getElementById("accSyncDot");
+  if(accDot){ accDot.className="acc-dot dot"+(m[0]?" "+m[0]:""); accDot.title=txt.textContent; }
 }
 function upsertLocalFca(fca){
   const i=state.fcas.findIndex(f=>f.id===fca.id);
