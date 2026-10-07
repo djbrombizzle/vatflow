@@ -7259,9 +7259,18 @@ const RATE_CALC_POSITIONS = [
   { key: "sup", label: "Coordinator (SUP)", weight: 0.05 },
   { key: "atis", label: "ATIS / other", weight: 0.03 }
 ];
+/* planned gate demand rows for MIT planning without live traffic */
+const MIT_PLAN_MAX_ROWS = 10;
+function normMitPlan(rows) {
+  return (rows || []).filter(r => r && typeof r === "object").slice(0, MIT_PLAN_MAX_ROWS).map(r => ({
+    gate: String(r.gate || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8),
+    rate: Math.max(0, Math.min(200, Math.round(+r.rate) || 0))
+  }));
+}
 const rateCalc = {
   icao: "", tier: "hub", maxAar: 120, fullStaff: 6, onDuty: 2,
   usePositions: false, advancedOpen: false, mitAarSource: "calc",
+  mitMode: "live", mitPlanAar: 0, mitPlan: [],
   positions: { app: true, twr: true, gnd: false, del: false, sup: false, atis: false }
 };
 try {
@@ -7277,6 +7286,9 @@ try {
       if (p.usePositions) rateCalc.usePositions = true;
       if (p.advancedOpen) rateCalc.advancedOpen = true;
       if (p.mitAarSource === "program") rateCalc.mitAarSource = "program";
+      if (p.mitMode === "plan") rateCalc.mitMode = "plan";
+      if (+p.mitPlanAar) rateCalc.mitPlanAar = parseAar(p.mitPlanAar) || 0;
+      if (Array.isArray(p.mitPlan)) rateCalc.mitPlan = normMitPlan(p.mitPlan);
       if (p.positions && typeof p.positions === "object") {
         for (const k in p.positions) if (k in rateCalc.positions) rateCalc.positions[k] = !!p.positions[k];
       }
@@ -7290,6 +7302,7 @@ function saveRateCalc() {
       fullStaff: rateCalc.fullStaff, onDuty: rateCalc.onDuty,
       usePositions: rateCalc.usePositions, advancedOpen: rateCalc.advancedOpen,
       mitAarSource: rateCalc.mitAarSource,
+      mitMode: rateCalc.mitMode, mitPlanAar: rateCalc.mitPlanAar, mitPlan: rateCalc.mitPlan,
       positions: rateCalc.positions
     }));
   } catch (e) {}
@@ -7604,53 +7617,14 @@ function renderTMURateCalc() {
     '<li><b>MIT per gate</b> looks at the next hour of arrivals. If demand is over the AAR, gates feeding more than an even share ' +
     'get the MIT that holds them to their slice (' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to 5 nm). ' +
     'Example: AAR 40, four gates, one quiet gate needs 4/hr \u2192 the other three get 12/hr each \u2192 <b>30 MIT</b>.</li>' +
+    '<li>Switch MIT per gate to <b>Plan</b> to work out MIT ahead of time from your own gate list and expected arrivals per hour, with no live traffic needed.</li>' +
     '</ul></div></div>';
   return h;
 }
 
-function renderGateMitCard(calcAar, validIcao) {
-  let h = '<div class="helpcard" style="margin-top:14px;"><h3>MIT PER GATE</h3>';
-  if (!validIcao) {
-    return h + '<div class="calcdetail">Enter an airport above to see the miles-in-trail each arrival gate needs to hold the AAR.</div></div>';
-  }
-  const code = rateCalc.icao;
-  const prog = tmuRates[code];
-  const useProgram = !!prog && rateCalc.mitAarSource === "program";
-  const aar = useProgram ? prog.aar : calcAar;
-  if (prog) {
-    h += '<div class="tmuform" style="border-bottom:none;padding:0 0 8px;">' +
-      '<span class="lbl">AAR</span><select data-ratecalc-field="mitAarSource">' +
-      '<option value="calc"' + (useProgram ? '' : ' selected') + '>Recommended (' + calcAar + '/hr)</option>' +
-      '<option value="program"' + (useProgram ? ' selected' : '') + '>Active program (' + prog.aar + '/hr)</option>' +
-      '</select></div>';
-  }
-  if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div></div>';
-  const flow = computeFlow(code);
-  if (!flow) return h + '<div class="calcdetail">Waiting for the VATSIM feed.</div></div>';
-  const horizon = flow.now + 3600000;
-  const gateDemand = {};
-  let unassigned = 0;
-  for (const f of flow.flights) {
-    if (f.status === "ARRIVED" || !isMetered(f) || f.eta >= horizon) continue;
-    if (f.gate === "\u2014") unassigned++;
-    else gateDemand[f.gate] = (gateDemand[f.gate] || 0) + 1;
-  }
-  const entries = Object.entries(gateDemand).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
-  const calc = calcGateMit(aar, entries, unassigned, MIT_NOMINAL_KT);
-  if (!calc.rows.length) {
-    return h + '<div class="calcdetail">No metered IFR arrivals into ' + esc(code) + ' in the next 60 minutes with a recognizable arrival gate.</div></div>';
-  }
-  h += '<div class="calcdetail">Next 60 min: <b>' + calc.demand + '</b> arrivals vs AAR <b>' + aar + '</b> \u2014 ' +
-    (calc.over
-      ? '<span class="tmu-over">over by ' + (calc.demand - aar) + '</span>, MIT needed on the gates feeding more than their slice'
-      : '<span class="tmu-ok">within AAR</span>, no gate MIT needed') +
-    (unassigned ? ' \u00B7 ' + unassigned + ' with no arrival gate (they use AAR slots but can\u2019t be restricted)' : '') +
-    '</div>';
-  if (calc.demand < 6) {
-    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the next hour, so these numbers can swing between updates.</div>';
-  }
-  h += '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
-    '<th>GATE</th><th>NEXT 60 MIN</th><th>SLICE OF AAR</th><th>RECOMMENDED</th>' +
+function renderGateMitTable(calc, prog, demandLabel) {
+  let h = '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
+    '<th>GATE</th><th>' + demandLabel + '</th><th>SLICE OF AAR</th><th>RECOMMENDED</th>' +
     (prog ? '<th>PROGRAM NOW</th><th>ACTION</th>' : '') + '</tr></thead><tbody>';
   for (const r of calc.rows) {
     const recTxt = !r.limited ? '<span class="cell-dim">none</span>'
@@ -7674,9 +7648,144 @@ function renderGateMitCard(calcAar, validIcao) {
     h += '<div class="calcdetail" style="color:var(--warn);">MIT of 60 nm or more is hard to hold in the air. ' +
       'Ground delays (EDCTs from an FCA) are usually the better tool at this level of demand.</div>';
   }
+  return h;
+}
+function gateMitSummary(calc, aar, what) {
+  return '<div class="calcdetail">' + what + ': <b>' + calc.demand + '</b> arrivals vs AAR <b>' + aar + '</b> — ' +
+    (calc.over
+      ? '<span class="tmu-over">over by ' + (calc.demand - aar) + '</span>, MIT needed on the gates feeding more than their slice'
+      : '<span class="tmu-ok">within AAR</span>, no gate MIT needed') + '</div>';
+}
+/* next-hour metered demand per gate from the live feed; null when no feed */
+function liveGateDemand(code) {
+  const flow = computeFlow(code);
+  if (!flow) return null;
+  const horizon = flow.now + 3600000;
+  const gates = {};
+  let unassigned = 0;
+  for (const f of flow.flights) {
+    if (f.status === "ARRIVED" || !isMetered(f) || f.eta >= horizon) continue;
+    if (f.gate === "—") unassigned++;
+    else gates[f.gate] = (gates[f.gate] || 0) + 1;
+  }
+  const entries = Object.entries(gates).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+  return { entries, unassigned };
+}
+const GATE_MIT_FORMULA = 'Gates under an even share keep what they need; busier gates split what’s left, and MIT = ' +
+  MIT_NOMINAL_KT + ' kt ÷ slice, rounded up to ' + GATE_MIT_STEP_NM + ' nm.';
+
+function renderGateMitCard(calcAar, validIcao) {
+  const plan = rateCalc.mitMode === "plan";
+  let h = '<div class="helpcard" style="margin-top:14px;"><h3>MIT PER GATE</h3>' +
+    '<div class="subtabs" style="margin:0 0 10px;">' +
+    '<span class="subtab' + (plan ? '' : ' active') + '" data-ratecalc-mitmode="live">Live traffic</span>' +
+    '<span class="subtab' + (plan ? ' active' : '') + '" data-ratecalc-mitmode="plan">Plan</span></div>';
+  const code = validIcao ? rateCalc.icao : "";
+  const prog = code ? tmuRates[code] : null;
+  if (plan) return h + renderGateMitPlan(calcAar, code, prog) + '</div>';
+  if (!validIcao) {
+    return h + '<div class="calcdetail">Enter an airport above to see the miles-in-trail each arrival gate needs to hold the AAR, ' +
+      'or switch to Plan to work it out from your own numbers.</div></div>';
+  }
+  const useProgram = !!prog && rateCalc.mitAarSource === "program";
+  const aar = useProgram ? prog.aar : calcAar;
+  if (prog) {
+    h += '<div class="tmuform" style="border-bottom:none;padding:0 0 8px;">' +
+      '<span class="lbl">AAR</span><select data-ratecalc-field="mitAarSource">' +
+      '<option value="calc"' + (useProgram ? '' : ' selected') + '>Recommended (' + calcAar + '/hr)</option>' +
+      '<option value="program"' + (useProgram ? ' selected' : '') + '>Active program (' + prog.aar + '/hr)</option>' +
+      '</select></div>';
+  }
+  if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div></div>';
+  const live = liveGateDemand(code);
+  if (!live) return h + '<div class="calcdetail">Waiting for the VATSIM feed.</div></div>';
+  const calc = calcGateMit(aar, live.entries, live.unassigned, MIT_NOMINAL_KT);
+  if (!calc.rows.length) {
+    return h + '<div class="calcdetail">No metered IFR arrivals into ' + esc(code) + ' in the next 60 minutes with a recognizable arrival gate.</div></div>';
+  }
+  h += gateMitSummary(calc, aar, 'Next 60 min');
+  if (live.unassigned) {
+    h += '<div class="calcdetail">' + live.unassigned + ' with no arrival gate (they use AAR slots but can’t be restricted)</div>';
+  }
+  if (calc.demand < 6) {
+    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the next hour, so these numbers can swing between updates.</div>';
+  }
+  h += renderGateMitTable(calc, prog, 'NEXT 60 MIN');
   h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in the next 60 minutes; ' +
-    'gates come from the last STAR or fix in each filed route. Gates under an even share keep what they need; ' +
-    'busier gates split what\u2019s left, and MIT = ' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to ' + GATE_MIT_STEP_NM + ' nm.</div></div>';
+    'gates come from the last STAR or fix in each filed route. ' + GATE_MIT_FORMULA + '</div></div>';
+  return h;
+}
+
+/* STAR names per airport from bundled navdata (data/nav/procedures.json),
+   loaded on first use of Plan so the page doesn't pay for it otherwise */
+let mitStarIndex = null, mitStarLoad = null;
+function airportStars(icao) {
+  if (mitStarIndex) return mitStarIndex[icao] || [];
+  if (!mitStarLoad) {
+    mitStarLoad = fetch("data/nav/procedures.json").then(r => r.json()).then(procs => {
+      const idx = {};
+      for (const [name, pr] of Object.entries(procs || {})) {
+        if (!pr || pr.type !== "STAR") continue;
+        for (const apt of pr.apt || []) (idx[apt] || (idx[apt] = [])).push(name);
+      }
+      /* navdata also lists each STAR under its bare name (OZZZI beside OZZZI2); keep the numbered one */
+      for (const k in idx) {
+        const names = idx[k];
+        idx[k] = names.filter(n => /\d[A-Z]?$/.test(n) || !names.some(m => m !== n && m.startsWith(n) && /^\d[A-Z]?$/.test(m.slice(n.length))))
+          .sort();
+      }
+      mitStarIndex = idx;
+      renderContent();
+    }).catch(() => { mitStarLoad = null; });
+  }
+  return null;
+}
+
+function renderGateMitPlan(calcAar, code, prog) {
+  const aar = rateCalc.mitPlanAar || calcAar;
+  let h = '<div class="tmuform" style="border-bottom:none;padding:0 0 8px;">' +
+    '<span class="lbl">PLAN AAR</span>' +
+    '<input class="aarinput" type="number" min="1" max="200" data-ratecalc-field="mitPlanAar" data-keep="rateCalcMitPlanAar" ' +
+    'placeholder="' + calcAar + '" value="' + (rateCalc.mitPlanAar || "") + '">' +
+    '<span class="form-note">Blank uses the recommended AAR (' + calcAar + '/hr).</span></div>';
+  const stars = code ? airportStars(code) : [];
+  if (stars && stars.length) {
+    h += '<datalist id="rateCalcPlanStars">' + stars.map(n => '<option value="' + esc(n) + '">').join("") + '</datalist>';
+  }
+  h += '<div class="calcdetail">Enter up to ' + MIT_PLAN_MAX_ROWS + ' arrival gates and the arrivals per hour you expect over each. ' +
+    (!code ? 'Enter an airport above to pick from its STARs.'
+      : stars === null ? 'Loading ' + esc(code) + ' STARs\u2026'
+      : stars.length ? 'Type or pick from ' + esc(code) + '\u2019s ' + stars.length + ' STARs.'
+      : 'No STARs for ' + esc(code) + ' in navdata, so type any gate name.') + '</div>' +
+    '<div class="tablewrap tablewrap--short"><table><thead><tr><th>GATE</th><th>EXPECTED /HR</th><th></th></tr></thead><tbody>';
+  rateCalc.mitPlan.forEach((r, i) => {
+    h += '<tr><td><input class="gateinput" maxlength="8" placeholder="e.g. OZZZI1" list="rateCalcPlanStars" data-ratecalc-plangate="' + i + '" ' +
+      'data-keep="rateCalcPlanGate-' + i + '" value="' + esc(r.gate) + '"></td>' +
+      '<td><input class="mitinput" type="number" min="0" max="200" data-ratecalc-planrate="' + i + '" ' +
+      'data-keep="rateCalcPlanRate-' + i + '" value="' + (r.rate || "") + '"></td>' +
+      '<td><span class="tmuact rm" data-ratecalc-planrm="' + i + '">✕ remove</span></td></tr>';
+  });
+  h += '</tbody></table></div><div style="margin:-10px 0 12px;">';
+  if (rateCalc.mitPlan.length < MIT_PLAN_MAX_ROWS) h += '<span class="gateadd" data-ratecalc-planadd>+ ADD GATE</span>';
+  if (stars && stars.length) {
+    h += '<span class="gateadd" data-ratecalc-planstars style="margin-left:14px;">LOAD ' + esc(code) + ' STARS' +
+      (stars.length > MIT_PLAN_MAX_ROWS ? ' (FIRST ' + MIT_PLAN_MAX_ROWS + ')' : '') + '</span>';
+  }
+  if (code && vatsim) {
+    h += '<span class="gateadd" data-ratecalc-plancopy style="margin-left:14px;">COPY NEXT-HOUR DEMAND FROM ' + esc(code) + '</span>';
+  }
+  if (rateCalc.mitPlan.length) h += '<span class="tmuact rm" data-ratecalc-planclear style="margin-left:14px;">CLEAR</span>';
+  h += '</div>';
+  if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div>';
+  /* merge duplicate gate names; skip empty rows */
+  const sum = {};
+  for (const r of rateCalc.mitPlan) if (r.gate && r.rate > 0) sum[r.gate] = (sum[r.gate] || 0) + r.rate;
+  const entries = Object.entries(sum);
+  if (!entries.length) return h + '<div class="calcdetail">Add at least one gate with expected arrivals to see MIT.</div>';
+  const calc = calcGateMit(aar, entries, 0, MIT_NOMINAL_KT);
+  h += gateMitSummary(calc, aar, 'Planned');
+  h += renderGateMitTable(calc, prog, 'PLANNED /HR');
+  h += '<div class="calcformula">' + GATE_MIT_FORMULA + '</div>';
   return h;
 }
 
@@ -8484,6 +8593,49 @@ contentEl.addEventListener("click", e => {
     pushSync(); ensurePolling(); tmuSub = "programs"; renderContent();
     return;
   }
+  const mitMode = e.target.closest("[data-ratecalc-mitmode]");
+  if (mitMode) {
+    rateCalc.mitMode = mitMode.dataset.ratecalcMitmode === "plan" ? "plan" : "live";
+    if (rateCalc.mitMode === "plan" && !rateCalc.mitPlan.length) rateCalc.mitPlan.push({ gate: "", rate: 0 });
+    saveRateCalc(); renderContent();
+    return;
+  }
+  if (e.target.closest("[data-ratecalc-planadd]")) {
+    if (rateCalc.mitPlan.length < MIT_PLAN_MAX_ROWS) rateCalc.mitPlan.push({ gate: "", rate: 0 });
+    saveRateCalc(); renderContent();
+    return;
+  }
+  const planRm = e.target.closest("[data-ratecalc-planrm]");
+  if (planRm) {
+    rateCalc.mitPlan.splice(+planRm.dataset.ratecalcPlanrm, 1);
+    saveRateCalc(); renderContent();
+    return;
+  }
+  if (e.target.closest("[data-ratecalc-planclear]")) {
+    rateCalc.mitPlan = [{ gate: "", rate: 0 }];
+    saveRateCalc(); renderContent();
+    return;
+  }
+  if (e.target.closest("[data-ratecalc-planstars]")) {
+    const stars = /^[A-Z0-9]{4}$/.test(rateCalc.icao) ? airportStars(rateCalc.icao) : null;
+    if (stars && stars.length) {
+      const prev = {};
+      for (const r of rateCalc.mitPlan) if (r.gate) prev[r.gate] = r.rate;
+      rateCalc.mitPlan = normMitPlan(stars.map(gate => ({ gate, rate: prev[gate] || 0 })));
+      saveRateCalc();
+    }
+    renderContent();
+    return;
+  }
+  if (e.target.closest("[data-ratecalc-plancopy]")) {
+    const live = /^[A-Z0-9]{4}$/.test(rateCalc.icao) ? liveGateDemand(rateCalc.icao) : null;
+    if (live && live.entries.length) {
+      rateCalc.mitPlan = normMitPlan(live.entries.map(([gate, n]) => ({ gate, rate: n })));
+      saveRateCalc();
+    }
+    renderContent();
+    return;
+  }
   const adv = e.target.closest("[data-ratecalc-adv]");
   if (adv) {
     rateCalc.advancedOpen = adv.dataset.ratecalcAdv === "1";
@@ -8826,6 +8978,20 @@ contentEl.addEventListener("input", e => {
   if (e.target.id === "mydashArtcc") { e.target.value = normArtcc(e.target.value); return; }
   if (e.target.id === "mydashApproach") { e.target.value = normApproachSector(e.target.value); return; }
   /* rate calculator fields */
+  const planGate = e.target.closest("input[data-ratecalc-plangate]");
+  if (planGate) {
+    const r = rateCalc.mitPlan[+planGate.dataset.ratecalcPlangate];
+    if (r) r.gate = planGate.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    saveRateCalc(); renderContent();
+    return;
+  }
+  const planRate = e.target.closest("input[data-ratecalc-planrate]");
+  if (planRate) {
+    const r = rateCalc.mitPlan[+planRate.dataset.ratecalcPlanrate];
+    if (r) r.rate = Math.max(0, Math.min(200, Math.round(+planRate.value) || 0));
+    saveRateCalc(); renderContent();
+    return;
+  }
   const rcPos = e.target.closest("input[data-ratecalc-pos]");
   if (rcPos) {
     rateCalc.positions[rcPos.dataset.ratecalcPos] = rcPos.checked;
@@ -8961,6 +9127,9 @@ contentEl.addEventListener("change", e => {
       rateCalc.usePositions = rcField.checked;
     } else if (f === "mitAarSource") {
       rateCalc.mitAarSource = rcField.value === "program" ? "program" : "calc";
+    } else if (f === "mitPlanAar") {
+      rateCalc.mitPlanAar = rcField.value === "" ? 0 : (parseAar(rcField.value) || rateCalc.mitPlanAar);
+      rcField.value = rateCalc.mitPlanAar || "";
     }
     saveRateCalc(); renderContent();
     return;
