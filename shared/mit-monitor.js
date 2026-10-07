@@ -35,7 +35,10 @@ export function normRate(o) {
     aar: +o.aar || 0, trail: +o.trail || 0, mit: +o.mit || 0,
     gates: (Array.isArray(o.gates) ? o.gates : [])
       .filter(g => g && g.name)
-      .map(g => ({ name: String(g.name).toUpperCase(), trail: +g.trail || 0, mit: +g.mit || 0 })),
+      .map(g => ({ name: gateKey(g.name), trail: +g.trail || 0, mit: +g.mit || 0 })),
+    expect: (Array.isArray(o.expect) ? o.expect : [])
+      .filter(x => x && x.gate && +x.rate > 0)
+      .map(x => ({ gate: gateKey(x.gate), rate: Math.min(200, Math.round(+x.rate)) })),
     excludeWake: normList(o.excludeWake, /^[LMHJ]$/),
     excludeTypes: normList(o.excludeTypes, /^[A-Z0-9]{2,4}$/),
     includeTypes: normList(o.includeTypes, /^[A-Z0-9]{2,4}$/),
@@ -92,7 +95,14 @@ export function isExcludedFromProgram(f, rate) {
 
 /* ---------------- gates and MIT ---------------- */
 
-/** Arrival gate = last STAR or fix in the filed route (same rule as Airport TMU). */
+/** Gate key: a STAR without its revision (OZZZI1 / OZZZI2 → OZZZI), else the fix as written. */
+export function gateKey(name) {
+  const s = String(name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const m = s.match(/^([A-Z]{3,5})\d[A-Z]?$/);
+  return m ? m[1] : s;
+}
+
+/** Arrival gate = last STAR (as its gate key) or fix in the filed route (same rule as Airport TMU). */
 export function arrivalGate(route, arr) {
   if (!route) return NO_GATE;
   const toks = route.toUpperCase().split(/\s+/).map(t => t.split("/")[0].replace(/[^A-Z0-9]/g, ""));
@@ -101,7 +111,7 @@ export function arrivalGate(route, arr) {
     if (!t || t === "DCT" || t === arr) continue;
     if (/^[A-Z]{5}$/.test(t)) return t;
     if (/^[A-Z]{3}$/.test(t)) return t;
-    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(t)) return t;
+    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(t)) return gateKey(t);
   }
   return NO_GATE;
 }
@@ -136,7 +146,7 @@ export function calcGateMit(aar, gateDemand, unassignedDemand, kt) {
 
 /** MIT (nm) the program holds a gate to now: its gate rule, else the airport-wide MIT/trail. */
 export function programGateMitNm(prog, gate) {
-  const rule = (prog.gates || []).find(x => x.name && x.name === gate);
+  const rule = (prog.gates || []).find(x => x.name && gateKey(x.name) === gateKey(gate));
   const src = rule && (rule.mit > 0 || rule.trail > 0) ? rule : prog;
   if (src.mit > 0) return { nm: src.mit, gateRule: src === rule };
   if (src.trail > 0) return { nm: Math.round(src.trail * MIT_NOMINAL_KT / 60), gateRule: src === rule };
@@ -203,13 +213,20 @@ export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = 
     if (f.gate === NO_GATE) unassigned++;
     else counts[f.gate] = (counts[f.gate] || 0) + 1;
   }
-  const entries = Object.entries(counts).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+  // the program's expected demand (a controller's event prediction) wins where it is higher
+  const demand = { ...counts };
+  const expected = new Set();
+  for (const x of prog.expect || []) {
+    if (x.rate > (demand[x.gate] || 0)) { demand[x.gate] = x.rate; expected.add(x.gate); }
+  }
+  const entries = Object.entries(demand).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
   const calc = calcGateMit(prog.aar, entries, unassigned, MIT_NOMINAL_KT);
 
   // every gate with an inbound (not only next-hour demand) plus gates the program names
   const gateNames = new Set(flights.filter(f => f.gate !== NO_GATE && f.status !== "ARRIVED").map(f => f.gate));
   (prog.gates || []).forEach(g => gateNames.add(g.name));
-  const order = [...gateNames].sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || a.localeCompare(b));
+  expected.forEach(g => gateNames.add(g));
+  const order = [...gateNames].sort((a, b) => (demand[b] || 0) - (demand[a] || 0) || a.localeCompare(b));
 
   const gates = order.map((name, i) => {
     const row = calc.rows.find(r => r.gate === name);
@@ -221,6 +238,7 @@ export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = 
       name,
       color: GATE_PALETTE[i % GATE_PALETTE.length],
       demand60: counts[name] || 0,
+      expected: expected.has(name) ? demand[name] : 0,
       slice: row ? row.slice : 0,
       limited: !!(row && row.limited),
       recMit: recNm,

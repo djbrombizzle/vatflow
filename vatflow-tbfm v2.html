@@ -731,6 +731,18 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
   padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px;
 }
 
+/* ---------- gate demand timeline ---------- */
+.gate-tl { margin-top: 16px; }
+.gate-tl table { border-collapse: separate; border-spacing: 3px; width: 100%; font-family: var(--font-data); font-size: 12px; }
+.gate-tl th { color: #7d8b95; font-weight: 500; font-size: 10px; text-align: center; padding: 0 2px; }
+.gate-tl th.g, .gate-tl td.g { text-align: left; white-space: nowrap; padding-right: 8px; }
+.gate-tl td.c { text-align: center; padding: 5px 2px; border-radius: 3px; background: #121922; color: #c9d6df; min-width: 34px; }
+.gate-tl td.c.z { color: #3a4750; }
+.gate-tl td.c.need { background: rgba(212,146,58,.22); color: #f2c27a; }
+.gate-tl td.c.over { background: rgba(212,92,92,.35); color: #ffd0d0; font-weight: 600; }
+.gate-tl td.t { text-align: right; color: #9aa8b5; white-space: nowrap; padding-left: 6px; }
+.gate-tl .exp { color: #5ba8c9; font-size: 10px; margin-left: 4px; }
+
 /* ---------- apt dashboard traffic map ---------- */
 details.meter-map-acc {
   border-bottom: 1px solid var(--border); background: var(--surface);
@@ -1831,6 +1843,7 @@ function normTypeList(v) {
 function normRate(o) {
   return {
     aar: o.aar, trail: +o.trail || 0, mit: +o.mit || 0, gates: normGates(o.gates),
+    expect: normExpect(o.expect),
     excludeWake: normExcludeWake(o.excludeWake),
     excludeTypes: normTypeList(o.excludeTypes),
     includeTypes: normTypeList(o.includeTypes),
@@ -1884,14 +1897,29 @@ function normGates(g) {
   if (!g) return [];
   const arr = Array.isArray(g) ? g : Object.values(g);
   return arr.filter(x => x && (x.name != null))
-    .map(x => ({ name: String(x.name).toUpperCase().replace(/[^A-Z0-9]/g, ""),
+    .map(x => ({ name: gateKey(x.name),
                  trail: +x.trail || 0, mit: +x.mit || 0 }))
     .slice(0, 10);
+}
+/* controller's expected arrivals/hr per gate for an event (≤10, gate keys, 0-200).
+   Rows still being typed keep a blank name or 0 so the editor doesn't lose them. */
+function normExpect(e) {
+  if (!e) return [];
+  const arr = Array.isArray(e) ? e : Object.values(e);
+  return arr.filter(x => x && typeof x === "object")
+    .map(x => ({ gate: gateKey(x.gate), rate: Math.max(0, Math.min(200, Math.round(+x.rate) || 0)) }))
+    .slice(0, 10);
+}
+/* expected/hr by gate key from a program; empty when none */
+function programExpect(prog) {
+  const out = {};
+  for (const x of (prog && prog.expect) || []) if (x.gate && x.rate > 0) out[gateKey(x.gate)] = (out[gateKey(x.gate)] || 0) + x.rate;
+  return out;
 }
 /* spacing for a SPECIFIC arrival gate: a matching per-gate rule wins, else the program-wide trail/MIT */
 function gateSpacingFor(rate, spacing, gate) {
   if (gate && gate !== "\u2014" && rate.gates && rate.gates.length) {
-    const g = rate.gates.find(x => x.name && x.name === gate);
+    const g = rate.gates.find(x => x.name && gateKey(x.name) === gate);
     if (g) return routeSpacingMs({ trail: g.trail || 0, mit: g.mit || 0 }, spacing);
   }
   return routeSpacingMs(rate, spacing);
@@ -2261,6 +2289,14 @@ function showGsPopup(gs) {
   showGsPopup._t = setTimeout(() => { el.classList.add("hidden"); el.style.display = "none"; }, 30000);
 }
 /* ===================== end ground stops ===================== */
+/* Gate key: a STAR without its revision (OZZZI1 / OZZZI2 → OZZZI), else the fix
+   as written. Pilots on an older AIRAC file superseded revisions, so gate demand,
+   gate rules and in-trail spacing all compare on this key. */
+function gateKey(name) {
+  const s = String(name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const m = s.match(/^([A-Z]{3,5})\d[A-Z]?$/);
+  return m ? m[1] : s;
+}
 function arrivalGate(route, arr) {
   if (!route) return "\u2014";
   const toks = route.toUpperCase().split(/\s+/).map(t => t.split("/")[0].replace(/[^A-Z0-9]/g, ""));
@@ -2269,7 +2305,7 @@ function arrivalGate(route, arr) {
     if (!t || t === "DCT" || t === arr) continue;
     if (/^[A-Z]{5}$/.test(t)) return t;
     if (/^[A-Z]{3}$/.test(t)) return t;
-    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(t)) return t;
+    if (/^[A-Z]{3,5}\d[A-Z]?$/.test(t)) return gateKey(t);
   }
   return "\u2014";
 }
@@ -3474,6 +3510,76 @@ function renderMeterLadderView(flow) {
   return h;
 }
 
+/* Per-gate demand in the same 15-minute bins. Each bin splits the AAR across gates
+   (calcGateMit fair split, hourly-scaled) using the higher of the bin's live count
+   and the program's expected demand, then colors the cell against that gate's slice:
+   over = more arrivals than its slice, need = the gate needs MIT in that bin. */
+function buildGateTimeline(flow, aar, prog) {
+  const step = DEMAND_BIN_MIN, n = DEMAND_BIN_COUNT, perHr = 60 / step;
+  const rows = {}, unassigned = new Array(n).fill(0);
+  const row = g => rows[g] || (rows[g] = { gate: g, counts: new Array(n).fill(0), air: new Array(n).fill(0), gnd: new Array(n).fill(0), pro: new Array(n).fill(0), total: 0 });
+  for (const f of flow.flights) {
+    if (f.status === "ARRIVED" || !isMetered(f)) continue;
+    const b = Math.floor((f.eta - flow.now) / (step * 60000));
+    if (b < 0 || b >= n) continue;
+    if (f.gate === "\u2014") { unassigned[b]++; continue; }
+    const r = row(f.gate);
+    r.counts[b]++; r.total++;
+    if (f.status === "AIRBORNE") r.air[b]++; else if (f.status === "GROUND") r.gnd[b]++; else r.pro[b]++;
+  }
+  const exp = programExpect(prog);
+  for (const g in exp) row(g);
+  const list = Object.values(rows).sort((a, b) => b.total - a.total || (exp[b.gate] || 0) - (exp[a.gate] || 0) || a.gate.localeCompare(b.gate));
+  for (const r of list) { r.cap = new Array(n).fill(null); r.need = new Array(n).fill(false); r.expected = exp[r.gate] || 0; }
+  if (aar > 0) {
+    for (let b = 0; b < n; b++) {
+      const entries = list.map(r => [r.gate, Math.max(r.counts[b] * perHr, r.expected)]).filter(e => e[1] > 0);
+      if (!entries.length) continue;
+      const calc = calcGateMit(aar, entries, unassigned[b] * perHr, MIT_NOMINAL_KT);
+      for (const c of calc.rows) {
+        const r = list.find(x => x.gate === c.gate);
+        r.cap[b] = c.slice / perHr;
+        r.need[b] = c.limited;
+      }
+    }
+  }
+  return { rows: list, unassigned, binMin: step, binCount: n, now: flow.now };
+}
+function renderGateTimeline(flow, aar, prog) {
+  const tl = buildGateTimeline(flow, aar, prog);
+  if (!tl.rows.length) return "";
+  const binStart = b => tl.now + b * tl.binMin * 60000;
+  let h = '<div class="meter-demand-chart gate-tl"><div class="meter-demand-title">DEMAND BY ARRIVAL GATE \u2014 15 MIN BINS</div>' +
+    '<div class="tablewrap"><table><thead><tr><th class="g">GATE</th>';
+  for (let b = 0; b < tl.binCount; b++) h += '<th>+' + (b * tl.binMin) + '<br>' + fmtZ(binStart(b)) + 'z</th>';
+  h += '<th></th></tr></thead><tbody>';
+  for (const r of tl.rows) {
+    const color = flow.gateColors[r.gate] || "#c9d6df";
+    h += '<tr><td class="g" style="color:' + color + ';">' + esc(r.gate) + '</td>';
+    for (let b = 0; b < tl.binCount; b++) {
+      const n = r.counts[b], cap = r.cap[b];
+      const over = cap != null && r.need[b] && n > cap + 1e-9;
+      const cls = over ? " over" : r.need[b] ? " need" : n ? "" : " z";
+      const tip = r.gate + ' ' + fmtZ(binStart(b)) + '\u2013' + fmtZ(binStart(b + 1)) + 'z: ' + n + ' arrival' + (n === 1 ? '' : 's') +
+        (n ? ' (' + r.air[b] + ' airborne, ' + r.gnd[b] + ' on ground, ' + r.pro[b] + ' prefiled)' : '') +
+        (cap != null ? '. Slice of AAR: ' + cap.toFixed(1) + ' per ' + tl.binMin + ' min' : '') +
+        (r.need[b] ? (over ? '. Over its slice.' : '. Needs MIT in this bin.') : '');
+      h += '<td class="c' + cls + '" title="' + esc(tip) + '">' + (n || "\u00b7") + '</td>';
+    }
+    h += '<td class="t">' + r.total + (r.expected ? '<span class="exp" title="Program expected demand">exp ' + r.expected + '/hr</span>' : '') + '</td></tr>';
+  }
+  if (tl.unassigned.some(Boolean)) {
+    h += '<tr><td class="g" style="color:#7d8b95;">NO GATE</td>' +
+      tl.unassigned.map(n => '<td class="c' + (n ? '' : ' z') + '">' + (n || "\u00b7") + '</td>').join("") +
+      '<td class="t">' + tl.unassigned.reduce((a, b) => a + b, 0) + '</td></tr>';
+  }
+  h += '</tbody></table></div>' +
+    '<div class="meter-demand-hint">Arrivals by gate and runway ETA. Each bin splits the AAR (' + aar + '/hr) across gates the same way as MIT per gate. ' +
+    '<span style="color:#ffd0d0;">Red</span>: more arrivals than the gate\u2019s slice. <span style="color:#f2c27a;">Amber</span>: the gate needs MIT in that bin. ' +
+    'Hover a cell for airborne / ground / prefiled. Expected demand from the TMU program counts where it is higher than the live count.</div></div>';
+  return h;
+}
+
 function renderMeterDemandView(flow) {
   const mRate = getRate(icao);
   const bins = buildDemandBins(flow, mRate.aar, DEMAND_BIN_MIN, DEMAND_BIN_COUNT);
@@ -3487,11 +3593,12 @@ function renderMeterDemandView(flow) {
   } else {
     h += renderDemandChartSvg(bins);
   }
+  const gateTl = renderGateTimeline(flow, mRate.aar, tmuRates[icao]);
   h += '</div>' +
     '<div class="meter-demand-hint">Bars = arrivals by ETA in each 15-minute bin. ' +
     'Olive is at or below capacity (' + bins.binCap + '/bin from AAR ' + mRate.aar +
     '/hr). Red is over capacity. Window: next ' +
-    (DEMAND_BIN_COUNT * DEMAND_BIN_MIN) + ' minutes.</div></div>';
+    (DEMAND_BIN_COUNT * DEMAND_BIN_MIN) + ' minutes.</div>' + gateTl + '</div>';
   return h;
 }
 
@@ -7468,7 +7575,7 @@ function calcGateRateFromMit(aar, gateMit, kt) {
 /* MIT (nm) a program holds a gate to today: its own gate rule, else the
    airport-wide MIT/trail; 0 = no in-trail restriction beyond the AAR */
 function programGateMitNm(prog, gate) {
-  const rule = (prog.gates || []).find(x => x.name && x.name === gate);
+  const rule = (prog.gates || []).find(x => x.name && gateKey(x.name) === gateKey(gate));
   const src = rule && (rule.mit > 0 || rule.trail > 0) ? rule : prog;
   if (src.mit > 0) return { nm: src.mit, gateRule: src === rule };
   if (src.trail > 0) return { nm: Math.round(src.trail * MIT_NOMINAL_KT / 60), gateRule: src === rule };
@@ -7590,6 +7697,36 @@ function renderTMUPrograms() {
           (gateRules.length ? ' \u2014 gates listed above use their own spacing; everything else uses the airport-wide default' : '') +
           '</span></td></tr>';
       }
+      /* controller's expected demand per gate (event prediction) */
+      const exp = r.expect || [];
+      if (ctl) {
+        const stars = exp.length ? airportStars(code) : null;
+        if (stars && stars.length) {
+          h += '<datalist id="tmuStars-' + esc(code) + '">' + stars.map(n => '<option value="' + esc(n) + '">').join("") + '</datalist>';
+        }
+        exp.forEach((x, i) => {
+          h += '<tr class="gaterow"><td style="text-align:right;color:#3a4750;">\u21B3</td>' +
+            '<td colspan="9"><span class="gatelbl">EXPECT</span> ' +
+            '<input class="gateinput" placeholder="e.g. GRNCH" maxlength="8" list="tmuStars-' + esc(code) + '" data-tmuexpgate="' + esc(code) +
+            '" data-idx="' + i + '" data-keep="egate-' + esc(code) + '-' + i + '" value="' + esc(x.gate || "") + '"> ' +
+            '<input class="mitinput" type="text" inputmode="numeric" maxlength="3" placeholder="/hr" data-tmuexprate="' + esc(code) +
+            '" data-idx="' + i + '" data-keep="erate-' + esc(code) + '-' + i + '" value="' + (x.rate || "") + '">' +
+            '<span style="color:#7d8b95;font-size:11px;margin-left:4px;">arrivals/hr</span>' +
+            '<span class="tmuact rm" data-tmuexprm="' + esc(code) + '" data-idx="' + i + '" style="margin-left:10px;">\u2715 remove</span>' +
+            '</td></tr>';
+        });
+        if (exp.length < 10) {
+          h += '<tr class="gaterow"><td></td><td colspan="9">' +
+            '<span class="gateadd" data-tmuexpadd="' + esc(code) + '">+ ADD EXPECTED DEMAND</span>' +
+            '<span style="color:#3a4750;font-size:10px;margin-left:10px;">Your prediction per gate for the event. ' +
+            'MIT per gate, the MIT Monitor and the gate timeline use whichever is higher, this or the live count. Remove it when the push is over.</span>' +
+            '</td></tr>';
+        }
+      } else if (exp.some(x => x.gate && x.rate > 0)) {
+        h += '<tr class="gaterow"><td style="text-align:right;color:#3a4750;">\u21B3</td><td colspan="9"><span class="gatelbl">EXPECT</span> ' +
+          exp.filter(x => x.gate && x.rate > 0).map(x => '<b style="color:#9fdcff;">' + esc(x.gate) + '</b> ' + x.rate + '/hr').join(' \u00b7 ') +
+          '</td></tr>';
+      }
       /* aircraft exclusion rules */
       const exclL = (r.excludeWake || []).includes("L");
       const exclTypesStr = (r.excludeTypes || []).join(",");
@@ -7705,7 +7842,7 @@ function renderTMURateCalc() {
   return h;
 }
 
-function renderGateMitTable(calc, prog, demandLabel) {
+function renderGateMitTable(calc, prog, demandLabel, expected) {
   let h = '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
     '<th>GATE</th><th>' + demandLabel + '</th><th>SLICE OF AAR</th><th>RECOMMENDED</th>' +
     (prog ? '<th>PROGRAM NOW</th><th>ACTION</th>' : '') + '</tr></thead><tbody>';
@@ -7723,7 +7860,8 @@ function renderGateMitTable(calc, prog, demandLabel) {
         '<td class="' + cls + '">' + esc(act.txt) + '</td>';
     }
     h += '<tr><td class="cell-strong">' + esc(r.gate) + '</td>' +
-      '<td>' + r.demand + ' <span class="cell-dim">(' + Math.round(r.share * 100) + '%)</span></td>' +
+      '<td>' + r.demand + (expected && expected.has(r.gate) ? ' <span class="cell-info" title="Your expected demand, higher than the live count">exp</span>' : '') +
+      ' <span class="cell-dim">(' + Math.round(r.share * 100) + '%)</span></td>' +
       '<td>' + r.slice.toFixed(1) + '/hr</td><td>' + recTxt + '</td>' + progCells + '</tr>';
   }
   h += '</tbody></table></div>';
@@ -7739,8 +7877,10 @@ function gateMitSummary(calc, aar, what) {
       ? '<span class="tmu-over">over by ' + (calc.demand - aar) + '</span>, MIT needed on the gates feeding more than their slice'
       : '<span class="tmu-ok">within AAR</span>, no gate MIT needed') + '</div>';
 }
-/* next-hour metered demand per gate from the live feed; null when no feed */
-function liveGateDemand(code) {
+/* next-hour metered demand per gate from the live feed; null when no feed.
+   With a program's expected demand, each gate takes the higher of the two and
+   `expected` lists the gates where the prediction won. */
+function liveGateDemand(code, prog) {
   const flow = computeFlow(code);
   if (!flow) return null;
   const horizon = flow.now + 3600000;
@@ -7751,8 +7891,11 @@ function liveGateDemand(code) {
     if (f.gate === "—") unassigned++;
     else gates[f.gate] = (gates[f.gate] || 0) + 1;
   }
+  const expected = new Set();
+  const exp = programExpect(prog);
+  for (const g in exp) if (exp[g] > (gates[g] || 0)) { gates[g] = exp[g]; expected.add(g); }
   const entries = Object.entries(gates).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
-  return { entries, unassigned };
+  return { entries, unassigned, expected };
 }
 const GATE_MIT_FORMULA = 'Gates under an even share keep what they need; busier gates split what’s left, and MIT = ' +
   MIT_NOMINAL_KT + ' kt ÷ slice, rounded up to ' + GATE_MIT_STEP_NM + ' nm.';
@@ -7780,7 +7923,7 @@ function renderGateMitCard(calcAar, validIcao) {
       '</select></div>';
   }
   if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div></div>';
-  const live = liveGateDemand(code);
+  const live = liveGateDemand(code, prog);
   if (!live) return h + '<div class="calcdetail">Waiting for the VATSIM feed.</div></div>';
   const calc = calcGateMit(aar, live.entries, live.unassigned, MIT_NOMINAL_KT);
   if (!calc.rows.length) {
@@ -7793,7 +7936,11 @@ function renderGateMitCard(calcAar, validIcao) {
   if (calc.demand < 6) {
     h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the next hour, so these numbers can swing between updates.</div>';
   }
-  h += renderGateMitTable(calc, prog, 'NEXT 60 MIN');
+  if (live.expected.size) {
+    h += '<div class="calcdetail">Using the program\u2019s expected demand on ' + esc([...live.expected].join(", ")) +
+      ' (marked exp), where it is higher than the live count.</div>';
+  }
+  h += renderGateMitTable(calc, prog, 'NEXT 60 MIN', live.expected);
   h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in the next 60 minutes; ' +
     'gates come from the last STAR or fix in each filed route. ' + GATE_MIT_FORMULA + '</div></div>';
   return h;
@@ -7872,7 +8019,7 @@ function renderGateMitPlan(calcAar, code, prog) {
   if (solveRate) return h + renderGateRatePlan(aar);
   /* merge duplicate gate names; skip empty rows */
   const sum = {};
-  for (const r of rateCalc.mitPlan) if (r.gate && r.rate > 0) sum[r.gate] = (sum[r.gate] || 0) + r.rate;
+  for (const r of rateCalc.mitPlan) if (r.gate && r.rate > 0) sum[gateKey(r.gate)] = (sum[gateKey(r.gate)] || 0) + r.rate;
   const entries = Object.entries(sum);
   if (!entries.length) return h + '<div class="calcdetail">Add at least one gate with expected arrivals to see MIT.</div>';
   const calc = calcGateMit(aar, entries, 0, MIT_NOMINAL_KT);
@@ -7887,8 +8034,9 @@ function renderGateRatePlan(aar) {
   const byGate = {}, noMit = [];
   for (const r of rateCalc.mitPlan) {
     if (!r.gate) continue;
-    if (r.mit > 0) byGate[r.gate] = byGate[r.gate] ? Math.max(byGate[r.gate], r.mit) : r.mit;
-    else if (!noMit.includes(r.gate)) noMit.push(r.gate);
+    const g = gateKey(r.gate);
+    if (r.mit > 0) byGate[g] = byGate[g] ? Math.max(byGate[g], r.mit) : r.mit;
+    else if (!noMit.includes(g)) noMit.push(g);
   }
   const entries = Object.entries(byGate);
   if (!entries.length) return '<div class="calcdetail">Add at least one gate with an MIT to see arrivals per hour.</div>';
@@ -8717,6 +8865,7 @@ contentEl.addEventListener("click", e => {
       trail: existing ? existing.trail : 0,
       mit: existing ? existing.mit : 0,
       gates: existing && existing.gates ? existing.gates : [],
+      expect: existing && existing.expect ? existing.expect : [],
       excludeWake: existing ? (existing.excludeWake || []) : [],
       excludeTypes: existing ? (existing.excludeTypes || []) : [],
       includeTypes: existing ? (existing.includeTypes || []) : [],
@@ -8821,6 +8970,26 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
+  /* add / remove an expected-demand row */
+  const eAdd = e.target.closest("[data-tmuexpadd]");
+  if (eAdd) {
+    const code = eAdd.dataset.tmuexpadd;
+    if (!canEditApt(code)) return;
+    const r = tmuRates[code];
+    if (r) {
+      r.expect = r.expect || [];
+      if (r.expect.length < 10) { r.expect.push({ gate: "", rate: 0 }); pushSync(); renderContent(); }
+    }
+    return;
+  }
+  const eRm = e.target.closest("[data-tmuexprm]");
+  if (eRm) {
+    const code = eRm.dataset.tmuexprm, idx = +eRm.dataset.idx;
+    if (!canEditApt(code)) return;
+    const r = tmuRates[code];
+    if (r && r.expect) { r.expect.splice(idx, 1); pushSync(); renderContent(); }
+    return;
+  }
   /* remove a gate restriction */
   const gRm = e.target.closest("[data-tmugaterm]");
   if (gRm) {
@@ -8850,6 +9019,7 @@ contentEl.addEventListener("click", e => {
   tmuRates[v] = normRate({
     aar: a, trail: +contentEl.querySelector("#tmuTrail").value, mit: mit == null ? 0 : mit,
     gates: (prev && prev.gates) || [],
+    expect: (prev && prev.expect) || [],
     excludeWake: exclLight && exclLight.checked ? ["L"] : [],
     excludeTypes: exclTypesEl ? exclTypesEl.value : "",
     includeTypes: prev ? prev.includeTypes : [],
@@ -8964,6 +9134,22 @@ contentEl.addEventListener("change", e => {
   if (gt) {
     const r = tmuRates[gt.dataset.tmugatetrail]; const i = +gt.dataset.idx;
     if (r && r.gates[i]) { r.gates[i].trail = +gt.value; r.gates[i].mit = 0; pushSync(); renderContent(); }
+    return;
+  }
+  const eg = e.target.closest("input[data-tmuexpgate]");
+  if (eg) {
+    const code = eg.dataset.tmuexpgate, r = tmuRates[code], i = +eg.dataset.idx;
+    if (r && r.expect && r.expect[i] && canEditApt(code)) { r.expect[i].gate = gateKey(eg.value); pushSync(); renderContent(); }
+    return;
+  }
+  const er = e.target.closest("input[data-tmuexprate]");
+  if (er) {
+    const code = er.dataset.tmuexprate, r = tmuRates[code], i = +er.dataset.idx;
+    if (r && r.expect && r.expect[i] && canEditApt(code)) {
+      const v = er.value.trim() === "" ? 0 : parseAar(er.value);
+      if (v == null) { er.value = r.expect[i].rate || ""; return; }
+      r.expect[i].rate = v; pushSync(); renderContent();
+    }
     return;
   }
   const gm = e.target.closest("input[data-tmugatemit]");

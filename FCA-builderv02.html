@@ -2257,6 +2257,7 @@ function mitGatePopupHtml(g){
     `<div class="kv"><span>Recommended MIT</span><span>${rec}</span></div>`+
     `<div class="kv"><span>Action</span><span class="${actCls}">${escapeHtml(g.action.txt)}</span></div>`+
     `<div class="kv"><span>Aircraft next 60 min</span><span><b>${g.demand60}</b>/hr</span></div>`+
+    (g.expected?`<div class="kv"><span>Expected (program)</span><span><b>${g.expected}</b>/hr</span></div>`:"")+
     `<div class="kv"><span>Slice of AAR ${m.prog.aar}</span><span>${fmtMitRate(g.slice)}</span></div>`+
     `<div class="kv"><span>Rate at required MIT</span><span>${fmtMitRate(g.ratePerHrAtReq)}</span></div>`+
     `<div class="kv"><span>Inbound</span><span>${g.inbound} <span class="dim">(${g.airborne} airborne)</span></span></div>`+
@@ -2309,7 +2310,7 @@ function renderMit(){
       const p=m.prog;
       const wide=p.mit>0?`${p.mit} MIT`:p.trail>0?`${p.trail} min trail`:"no airport-wide MIT";
       let h=`<div class="mit-sum"><b>${escapeHtml(m.airport)}</b> · AAR <b>${p.aar}</b> · ${escapeHtml(wide)}<br>`+
-        `Next 60 min: <b>${m.demand}</b> arrivals — `+
+        `Next 60 min: <b>${m.demand}</b> arrivals${m.gates.some(g=>g.expected)?" (with expected demand)":""} — `+
         (m.over?`<span class="over">over by ${m.demand-p.aar}</span>`:`<span class="ok">within AAR</span>`)+
         (m.unassigned?` · ${m.unassigned} with no gate`:"")+`</div>`;
       if(!m.gates.length){
@@ -2318,7 +2319,7 @@ function renderMit(){
         h+=`<table class="mit-tbl"><thead><tr><th>GATE</th><th>60 MIN</th><th>REQ</th><th>REC</th></tr></thead><tbody>`+
           m.gates.map(g=>`<tr class="g" data-mitgate="${escapeHtml(g.name)}">`+
             `<td><span class="sw" style="background:${g.color}"></span>${escapeHtml(g.name)}${g.tight?` <span class="warn" title="aircraft under MIT in trail">▲${g.tight}</span>`:""}</td>`+
-            `<td>${g.demand60}</td>`+
+            `<td>${g.demand60}${g.expected?` <span class="dim" title="Program's expected demand, used for MIT">exp ${g.expected}</span>`:""}</td>`+
             `<td>${g.reqMit?g.reqMit:'<span class="dim">—</span>'}</td>`+
             `<td class="${g.action.kind==="tighten"?"warn":""}">${g.recMit?g.recMit:'<span class="dim">—</span>'}</td></tr>`).join("")+
           `</tbody></table>`;
