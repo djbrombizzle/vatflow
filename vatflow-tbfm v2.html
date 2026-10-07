@@ -5013,7 +5013,15 @@ function histFacilityQueryMatch(row, q) {
   }
   return false;
 }
-function staffingHistHeatHtml(icao) {
+function staffingHistHeatHtml(icao, opts) {
+  const local = !!(opts && opts.local);
+  /* Local mode: shift each cell to the UTC bucket it falls in at today's offset. */
+  const offMin = local ? new Date().getTimezoneOffset() : 0;
+  const toUtc = (dow, hr) => {
+    const t = (((dow * 1440 + hr * 60 + offMin) % 10080) + 10080) % 10080;
+    return { dow: Math.floor(t / 1440), hr: Math.floor((t % 1440) / 60) };
+  };
+  const hrLbl = local ? "" : "Z";
   const res = staffingHist.result;
   if (!res || !res.byAirport[icao]) return "";
   const apt = res.byAirport[icao];
@@ -5022,20 +5030,22 @@ function staffingHistHeatHtml(icao) {
     const hm = apt.days[dow] || {};
     for (let h = 0; h < 24; h++) max = Math.max(max, histScore(hm[h] || histEmptyBucket()));
   }
-  let h = '<div class="staffsec">Hourly pattern \u00b7 ' + esc(icao) + ' <span>UTC</span></div>';
+  let h = '<div class="staffsec">Hourly pattern \u00b7 ' + esc(icao) + ' <span>' +
+    (local ? esc(histLocalTzAbbr()) + " (local)" : "UTC") + "</span></div>";
   h += '<div class="staffheat"><div class="hd"></div>';
   for (let hr = 0; hr < 24; hr++) h += '<div class="hh">' + String(hr).padStart(2, "0") + "</div>";
   for (let dow = 0; dow < 7; dow++) {
     h += '<div class="hd">' + STAFFING_HIST_DOW[dow] + "</div>";
-    const hm = apt.days[dow] || {};
     for (let hr = 0; hr < 24; hr++) {
-      const sc = histScore(hm[hr] || histEmptyBucket());
+      const u = toUtc(dow, hr);
+      const hm = apt.days[u.dow] || {};
+      const sc = histScore(hm[u.hr] || histEmptyBucket());
       const t = sc / max;
       const bg = sc
         ? "rgba(232,168,56," + (0.12 + t * 0.75).toFixed(2) + ")"
         : "var(--elevated)";
-      const title = STAFFING_HIST_DOW[dow] + " " + String(hr).padStart(2, "0") + "Z \u00b7 " + sc +
-        " (dep " + ((hm[hr] && hm[hr].dep) || 0) + " / arr " + ((hm[hr] && hm[hr].arr) || 0) + ")";
+      const title = STAFFING_HIST_DOW[dow] + " " + String(hr).padStart(2, "0") + hrLbl + " \u00b7 " + sc +
+        " (dep " + ((hm[u.hr] && hm[u.hr].dep) || 0) + " / arr " + ((hm[u.hr] && hm[u.hr].arr) || 0) + ")";
       h += '<div class="hc' + (sc ? " on" : "") + '" title="' + esc(title) + '" style="background:' + bg + '"></div>';
     }
   }
@@ -5107,6 +5117,47 @@ function histFmtEventListItem(ev) {
   const name = String(ev.name || "Event");
   const short = name.length > 28 ? name.slice(0, 26) + "\u2026" : name;
   return when ? (when + " \u00b7 " + short) : short;
+}
+/* ---- Browser-local formatting (used by "When should I control?") ---- */
+function histLocalTzAbbr(ms) {
+  try {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+      .formatToParts(new Date(ms != null ? ms : Date.now()));
+    const tz = parts.find((p) => p.type === "timeZoneName");
+    if (tz && tz.value) return tz.value;
+  } catch (e) { /* fall through */ }
+  return "local";
+}
+function histLocalHHMM(ms) {
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2, "0") + String(d.getMinutes()).padStart(2, "0");
+}
+function histFmtLocalRange(startMs, endMs) {
+  return histLocalHHMM(startMs) + "\u2013" + histLocalHHMM(endMs) + " " + histLocalTzAbbr(startMs);
+}
+function histFmtLocalDate(ms) {
+  const d = new Date(ms);
+  return STAFFING_HIST_DOW[d.getDay()] + " " + d.getDate() + " " + STAFFING_HIST_MONTHS[d.getMonth()];
+}
+function histFmtLocalEventListItem(ev) {
+  const when = ev && isFinite(ev.startMs) ? histFmtLocalDate(ev.startMs) : "";
+  const name = String(ev.name || "Event");
+  const short = name.length > 28 ? name.slice(0, 26) + "\u2026" : name;
+  return when ? (when + " \u00b7 " + short) : short;
+}
+/** Concrete occurrence of a UTC DOW/hour window (next one, else the nearest within a week). */
+function histUtcWindowOccurrence(dow, startHour, endHour, nowMs) {
+  const now = nowMs != null ? nowMs : Date.now();
+  const base = new Date(now);
+  for (let add = 0; add < 7; add++) {
+    const dayStart = Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + add);
+    if (new Date(dayStart).getUTCDay() !== dow) continue;
+    return {
+      startMs: dayStart + Math.max(0, startHour) * 3600000,
+      endMs: dayStart + (Math.min(23, endHour) + 1) * 3600000
+    };
+  }
+  return null;
 }
 /**
  * Events that overlap the specific Staff-next UTC window only.
@@ -5191,6 +5242,12 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
   const artcc = histSlotArtcc(slot);
   const upcomingLabel = histFmtUpcomingLabel(win, staffLabel);
   const eventItems = upcomingEvents.slice(0, 2).map(histFmtEventListItem);
+  const localOcc = win || histUtcWindowOccurrence(slot.dow, staffWin.startHour, staffWin.endHour, nowMs);
+  const localDow = localOcc ? new Date(localOcc.startMs).getDay() : slot.dow;
+  const localWindowLabel = localOcc ? histFmtLocalRange(localOcc.startMs, localOcc.endMs) : staffLabel;
+  const localUpcomingLabel = win
+    ? histFmtLocalDate(win.startMs) + " \u00b7 " + localWindowLabel
+    : "Outside next 7 days";
   /* Keep legacy score fields for any leftover list UI / sorting compat. */
   const histScoreVal = avgOps;
   const score = eventCount ? predOps : avgOps;
@@ -5222,7 +5279,12 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
     upcomingEndMs: win ? win.endMs : 0,
     upcomingLabel,
     upcomingEvents,
-    eventText: eventItems.filter(Boolean).join(" \u00b7 ")
+    eventText: eventItems.filter(Boolean).join(" \u00b7 "),
+    localDow,
+    localDowLabel: STAFFING_HIST_DOW[localDow],
+    localWindowLabel,
+    localUpcomingLabel,
+    localEventText: upcomingEvents.slice(0, 2).map(histFmtLocalEventListItem).filter(Boolean).join(" \u00b7 ")
   };
 }
 function buildStaffingHistTableRows(result) {
@@ -5266,7 +5328,7 @@ function histLookupPasses(row) {
     if (hay.indexOf(art) === -1) return false;
   }
   if (day) {
-    const dayHay = (row.dowLabel + " " + row.dow).toUpperCase();
+    const dayHay = String(row.localDowLabel || row.dowLabel).toUpperCase();
     if (dayHay.indexOf(day) === -1) return false;
   }
   return true;
@@ -5341,17 +5403,17 @@ function renderStaffingHistLookupPanel(result) {
   }
 
   const best = rows[0];
-  const bestWin = best.staffWindowLabel || best.windowLabel || "";
+  const bestWin = best.localWindowLabel || best.staffWindowLabel || best.windowLabel || "";
   h += '<div class="staffhist-lookup-best">';
   h += '<div class="lbl">Best match</div>';
   h += '<div class="pick">' + esc(best.id) + " " + esc(best.type) +
-    " \u00b7 " + esc(best.dowLabel) + " " + esc(bestWin) + "</div>";
+    " \u00b7 " + esc(best.localDowLabel || best.dowLabel) + " " + esc(bestWin) + "</div>";
   h += '<div class="detail">Typical <b>' + best.avgOps + "</b> ops in that window" +
     (best.upcomingStartMs < Number.POSITIVE_INFINITY
-      ? " \u00b7 next opportunity <b>" + esc(best.upcomingLabel) + "</b> (pred <b>" + best.predOps + "</b>)"
+      ? " \u00b7 next opportunity <b>" + esc(best.localUpcomingLabel) + "</b> (pred <b>" + best.predOps + "</b>)"
       : "") +
     (best.artcc ? " \u00b7 " + esc(best.artcc) : "") +
-    (best.eventText ? " \u00b7 " + esc(best.eventText) : "") +
+    (best.localEventText ? " \u00b7 " + esc(best.localEventText) : "") +
     "</div></div>";
 
   h += '<div class="staffhist-count">Top ' + rows.length + " matches ranked by predicted ops, then avg ops</div>";
@@ -5371,13 +5433,14 @@ function renderStaffingHistLookupPanel(result) {
       '<td class="cell-strong">' + esc(r.id) + "</td>" +
       "<td>" + esc(r.type) + "</td>" +
       "<td>" + esc(r.artcc || "\u2014") + "</td>" +
-      "<td>" + esc(r.dowLabel) + "</td>" +
-      '<td title="' + esc(r.reason || "") + '">' + esc(r.staffWindowLabel || r.windowLabel) +
+      "<td>" + esc(r.localDowLabel) + "</td>" +
+      '<td title="' + esc((r.staffWindowLabel || r.windowLabel) + " UTC \u00b7 " + (r.reason || "")) + '">' +
+      esc(r.localWindowLabel) +
       ' <span class="cell-muted">' + esc(r.reason || "") + "</span></td>" +
       "<td>" + r.avgOps + "</td>" +
-      '<td class="hist-upcoming">' + esc(r.upcomingLabel || "\u2014") + "</td>" +
+      '<td class="hist-upcoming">' + esc(r.localUpcomingLabel || "\u2014") + "</td>" +
       "<td>" + predCell + "</td>" +
-      '<td class="hist-events">' + (r.eventText ? esc(r.eventText) : '<span class="cell-muted">\u2014</span>') +
+      '<td class="hist-events">' + (r.localEventText ? esc(r.localEventText) : '<span class="cell-muted">\u2014</span>') +
       "</td></tr>";
   }
   h += "</tbody></table></div></div>";
@@ -6434,9 +6497,10 @@ function renderStaffingHistLookup() {
   restoreStaffingHistoricalCache();
   const res = staffingHist.result;
   let h = renderStaffingHistPeriodControls({ showLive: false });
-  h += '<div class="staffsub" style="margin-bottom:8px">Uses the same StatSim USA period as Historical Data. Times are UTC.</div>';
+  h += '<div class="staffsub" style="margin-bottom:8px">Uses the same StatSim USA period as Historical Data. Times are in your local time (' +
+    esc(histLocalTzAbbr()) + ").</div>";
   h += renderStaffingHistLookupPanel(res);
-  if (res && staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport);
+  if (res && staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport, { local: true });
   h += '<div class="staffnote">This search ranks matching facilities by <b>Pred. ops</b> (next 7 days with event uplift), ' +
     "then <b>Avg ops</b> for the historical 2\u20134hr staff-up window. " +
     "Open <b>Historical Data</b> for the full filterable table.</div>";
