@@ -170,8 +170,13 @@ export function indexLayout(raw) {
       const p = projectOnPolyline(lane.pts, s.x, s.y);
       st.laneX = p.x;
       st.laneY = p.y;
+    }
+    if (typeof s.noseHdg === "number") {
+      // Given in the file (KMCO: from the stand's lead-in line in OpenStreetMap).
+      st.noseHdg = s.noseHdg;
+    } else if (lane) {
       // Nose-in: the aircraft points away from the lane it pushes onto.
-      st.noseHdg = chartHeading(p.x, p.y, s.x, s.y);
+      st.noseHdg = chartHeading(st.laneX, st.laneY, s.x, s.y);
     } else {
       st.noseHdg = null;
     }
