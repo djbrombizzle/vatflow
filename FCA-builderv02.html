@@ -220,6 +220,42 @@
   .acc-sub + .acc-badge{margin-left:0}
   .acc-dot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--muted-2)}
   .acc-b{display:none;padding:2px 0 12px}
+
+  /* MIT monitor */
+  .mit-status{font:400 10px var(--mono);color:var(--muted-2);margin:0 0 8px;display:flex;align-items:center;gap:6px}
+  .mit-progs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+  .mit-prog{font:700 10px var(--mono);letter-spacing:.04em;padding:4px 8px;border:1px solid var(--line-2);border-radius:5px;
+    color:var(--text);background:#0f151e;cursor:pointer;user-select:none}
+  .mit-prog span{color:var(--muted-2);font-weight:400;margin-left:4px}
+  .mit-prog:hover{border-color:var(--amber)}
+  .mit-prog.on{background:var(--amber);border-color:var(--amber);color:#1a1205}
+  .mit-prog.on span{color:#1a1205}
+  .mit-sum{font:400 10px var(--mono);color:var(--muted);line-height:1.6;margin:2px 0 8px}
+  .mit-sum b{color:var(--text)}
+  .mit-sum .over{color:var(--red)} .mit-sum .ok{color:var(--green)}
+  .mit-tbl{width:100%;border-collapse:collapse;font:400 10px var(--mono)}
+  .mit-tbl th{color:var(--muted-2);font-weight:400;text-align:right;padding:3px 4px;border-bottom:1px solid var(--line);letter-spacing:.06em}
+  .mit-tbl th:first-child,.mit-tbl td:first-child{text-align:left}
+  .mit-tbl td{padding:5px 4px;text-align:right;border-bottom:1px solid var(--line);color:var(--text)}
+  .mit-tbl tr.g{cursor:pointer}
+  .mit-tbl tr.g:hover td{background:#141c27}
+  .mit-tbl .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+  .mit-tbl .dim{color:var(--muted-2)}
+  .mit-tbl .warn{color:var(--red)}
+  .mit-gate{display:flex;align-items:center;gap:4px;font:700 10px var(--mono);white-space:nowrap;cursor:pointer;
+    text-shadow:0 0 4px #000,0 0 4px #000}
+  .mit-gate i{width:12px;height:12px;flex:none;border-radius:3px;transform:rotate(45deg);border:2px solid currentColor;
+    background:rgba(10,14,20,.85);box-shadow:0 0 8px currentColor}
+  .mit-pop .leaflet-popup-content-wrapper{background:rgba(15,21,30,.97);color:var(--text);border:1px solid var(--line-2);
+    border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+  .mit-pop .leaflet-popup-tip{background:rgba(15,21,30,.97)}
+  .mit-pop .leaflet-popup-content{margin:10px 12px;font:400 11px var(--mono);line-height:1.55;min-width:220px}
+  .mit-pop a.leaflet-popup-close-button{color:var(--muted-2)}
+  .mit-pop h4{margin:0 0 6px;font:700 12px var(--mono);letter-spacing:.06em}
+  .mit-pop .kv{display:flex;justify-content:space-between;gap:12px}
+  .mit-pop .kv span{color:var(--muted)}
+  .mit-pop .warn{color:var(--red)} .mit-pop .ok{color:var(--green)} .mit-pop .dim{color:var(--muted-2)}
+  .mit-pop .sp{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);max-height:150px;overflow-y:auto}
   .acc.open .acc-b{display:block}
   .acc-b select:not(#fcaArtccFilter){width:100%;background:#0a0e14;border:1px solid var(--line-2);border-radius:5px;color:var(--text);
     font-family:var(--mono);font-size:11px;padding:6px 8px;margin-top:4px}
@@ -410,6 +446,16 @@
       </div>
     </section>
 
+    <section class="acc" data-sec="mit">
+      <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">MIT MONITOR</span><span class="acc-sub" id="accMitSub"></span><span class="acc-badge" id="accMitCount"></span></button>
+      <div class="acc-b">
+        <div class="mit-status" id="mitStatus">connecting to Airport TMU…</div>
+        <div class="mit-progs" id="mitPrograms"></div>
+        <div id="mitDetail"></div>
+        <div class="empty" style="text-align:left;border:none;padding:6px 0 0;color:var(--muted-2)">Active programs from the Airport TMU page. Pick an airport to show only its arrivals, colored by arrival gate. Click a gate on the map for its MIT and rate.</div>
+      </div>
+    </section>
+
     <section class="acc" data-sec="plot">
       <button type="button" class="acc-h" aria-expanded="false"><span class="acc-chev">▸</span><span class="acc-t">ROUTE PLOTTER</span></button>
       <div class="acc-b">
@@ -576,6 +622,9 @@ import { fetchArtccBoundaries } from "./shared/artcc-scope.js";
 import { parseZuluHhmm } from "./shared/time-parse.js";
 import * as VFRefresh from "./shared/vatflow-refresh.js";
 import { createCdrStore, describeCdr } from "./shared/vusalink-clearance.js";
+import { resolveToken } from "./shared/route-engine.js";
+import { getAccessApiBase } from "./shared/vatflow-access-api.js";
+import { normPrograms, wakeFromFp, buildMitMonitor, MIT_NOMINAL_KT, NO_GATE } from "./shared/mit-monitor.js";
 
 /* ============================================================
    >>> SUPABASE SYNC SETTINGS — paste your two values here <<<
@@ -648,6 +697,7 @@ const seqLayer    = L.layerGroup().addTo(map);   // projected crossing dots + ve
 const routeLayer  = L.layerGroup().addTo(map);   // clicked-aircraft plotted route
 const cdrLayer    = L.layerGroup().addTo(map);   // FAA CDR routes (sidebar CDR section)
 const measureLayer= L.layerGroup().addTo(map);   // ctrl+click ruler
+const mitLayer    = L.layerGroup().addTo(map);   // MIT monitor arrival-gate markers
 
 /* ============================================================
    ARTCC BOUNDARIES  (FAA ERAM ground LOW + NASR HIGH/UTA)
@@ -1067,6 +1117,7 @@ function loadAirportsLocal(){
     if(!n) toast("Airport DB empty — CFR for prefiles limited.",3000);
     loadNavData().then(m=>{
       updateNavStatus(m);
+      renderMit();               // gate markers need fix / STAR positions
       if(state.selectedId) renderAll();
       if(state.routeCallsign){
         const p=state.pilots.find(x=>x.callsign===state.routeCallsign)||state.prefiles.find(x=>x.callsign===state.routeCallsign);
@@ -1121,12 +1172,12 @@ function fetchLive(){
         .filter(p=>typeof p.latitude==="number"&&typeof p.longitude==="number")
         .map(p=>{ const f=fpFieldsLocal(p.flight_plan); const gs=p.groundspeed||0;
           return { callsign:p.callsign, lat:p.latitude, lon:p.longitude, alt:p.altitude||0,
-            gs, hdg:p.heading||0, phase: gs<50 ? "gnd":"air", ...f }; });
+            gs, hdg:p.heading||0, phase: gs<50 ? "gnd":"air", wake:wakeFromFp(p.flight_plan), ...f }; });
       const connected=new Set(pilots.map(p=>p.callsign));
       const prefiles=(d.prefiles||[])
         .filter(p=>p.flight_plan && !connected.has(p.callsign))
         .map(p=>{ const f=fpFieldsLocal(p.flight_plan);
-          return { callsign:p.callsign, lat:null, lon:null, alt:0, gs:0, hdg:0, phase:"gnd", prefile:true, ...f }; });
+          return { callsign:p.callsign, lat:null, lon:null, alt:0, gs:0, hdg:0, phase:"gnd", prefile:true, wake:wakeFromFp(p.flight_plan), ...f }; });
       state.pilots=pilots; state.prefiles=prefiles; setFeed("live"); afterData();
     })
     .catch(err=>{
@@ -1222,7 +1273,9 @@ function startFeedLoop(){
 function afterData(){
   document.getElementById("acCount").textContent=state.pilots.length;
   invalidateSequences();
+  computeMitMonitor();
   renderTraffic();
+  renderMit();
   renderFcaList();           // demand numbers depend on traffic
   if(state.selectedId) scheduleRenderSequence();
 }
@@ -1277,18 +1330,25 @@ function renderTraffic(){
   // who is in the selected FCA's sequence (for highlight + number)
   let seqMap=new Map();
   if(sel){ const s=getSequence(sel); s.items.forEach((c,i)=>seqMap.set(c.p.callsign,{n:i+1,color:sel.color})); }
+  // MIT monitor: only that airport's arrivals, colored by arrival gate
+  const mon=mit.monitor;
+  const monFlights=mon?new Map(mon.flights.map(f=>[f.callsign,f])):null;
   let shown=0;
   for(const p of state.pilots){
     if(p.lat==null||p.lon==null) continue;
+    if(monFlights&&!monFlights.has(p.callsign)) continue;
     if(!b.contains([p.lat,p.lon])) continue;
     if(shown>900) break;
-    const hit=seqMap.get(p.callsign);
-    const color=hit?hit.color:(p.phase==="gnd"?"#5e7184":"#49d3e6");
+    const hit=monFlights?null:seqMap.get(p.callsign);
+    const mf=monFlights&&monFlights.get(p.callsign);
+    const color=mf ? mitFlightColor(mf)
+      : hit?hit.color:(p.phase==="gnd"?"#5e7184":"#49d3e6");
     const m=L.marker([p.lat,p.lon],{icon:planeIcon(color,p.hdg||0,!!hit,hit?hit.n:null),
       keyboard:false, riseOnHover:true});
     m.bindTooltip(
       `<b style="color:${color}">${escapeHtml(p.callsign)}</b>  ${escapeHtml(p.type||"")}<br>`+
-      `${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")}<br>`+
+      `${escapeHtml(p.dep||"????")} → ${escapeHtml(p.arr||"????")}`+
+      (mf?`  ·  gate <span style="color:${color}">${escapeHtml(mf.gate)}</span>${mf.excluded?" (excluded)":""}`:"")+`<br>`+
       `FL${String(Math.round((p.alt||0)/100)).padStart(3,"0")}  ${p.gs||0}kt`,
       {className:"artcc-label",direction:"top",offset:[0,-6]});
     m.on("click",()=>{ if(state.drawing) return; showRoute(p); });
@@ -2114,6 +2174,173 @@ function fallbackCopy(txt,done){
   ta.remove();
 }
 
+/* ============================================================
+   MIT MONITOR — watch an Airport TMU program's arrival gates.
+   Programs are read (never written) from the shared hub the
+   Airport TMU page syncs to.
+   ============================================================ */
+const LS_MIT_APT="fca.mitAirport";
+const mit={
+  programs:{}, hub:"connecting", ws:null, retry:0,
+  airport:(()=>{ try{ return localStorage.getItem(LS_MIT_APT)||null; }catch(_){ return null; } })(),
+  monitor:null,
+  gateMarkers:{},     // gate name → Leaflet marker (for opening its popup from the sidebar)
+  openGate:null,      // gate whose popup is open, so refreshes keep it open
+};
+const MIT_GREY="#6b7a89";
+function mitFlightColor(f){
+  if(f.excluded||f.gate===NO_GATE) return MIT_GREY;
+  return (mit.monitor&&mit.monitor.colors[f.gate])||MIT_GREY;
+}
+function connectMitHub(){
+  let ws;
+  try{ ws=new WebSocket(getAccessApiBase().replace(/^http/,"ws")); }
+  catch(_){ mit.hub="error"; renderMit(); return; }
+  mit.ws=ws;
+  ws.onopen=()=>{ mit.retry=0; };
+  ws.onmessage=ev=>{
+    let m; try{ m=JSON.parse(ev.data); }catch(_){ return; }
+    if(m.type!=="state") return;
+    mit.programs=normPrograms(m.rates);
+    mit.hub="live";
+    computeMitMonitor(); renderTraffic(); renderMit();
+  };
+  ws.onclose=()=>{
+    mit.ws=null; mit.hub="connecting"; renderMit();
+    mit.retry=Math.min(mit.retry+1,6);
+    setTimeout(connectMitHub, 2000*mit.retry);
+  };
+  ws.onerror=()=>{ try{ ws.close(); }catch(_){} };
+}
+function computeMitMonitor(){
+  const apt=mit.airport, prog=apt&&mit.programs[apt];
+  const aptLL=apt&&getAirport(apt);
+  mit.monitor = prog&&aptLL
+    ? buildMitMonitor({ airport:apt, aptLL, prog, pilots:state.pilots, prefiles:state.prefiles, airportLL:getAirport })
+    : null;
+}
+function setMitAirport(code){
+  mit.airport = code && code!==mit.airport ? code : null;
+  mit.openGate=null;
+  try{ mit.airport?localStorage.setItem(LS_MIT_APT,mit.airport):localStorage.removeItem(LS_MIT_APT); }catch(_){}
+  computeMitMonitor(); renderTraffic(); renderMit();
+  if(mit.monitor) fitMitAirport();
+}
+function mitGateLL(name){
+  const aptLL=getAirport(mit.airport);
+  const r=resolveToken(name,{ refLL:aptLL, arr:mit.airport });
+  return r&&r.ll?r.ll:null;
+}
+function fitMitAirport(){
+  const aptLL=getAirport(mit.airport); if(!aptLL) return;
+  const pts=[aptLL, ...mit.monitor.gates.map(g=>mitGateLL(g.name)).filter(Boolean)];
+  const sb=document.getElementById("sidebar");
+  const left=sb&&!sb.classList.contains("hidden")?sb.getBoundingClientRect().right+20:40;
+  if(pts.length>1) map.fitBounds(L.latLngBounds(pts),{paddingTopLeft:[left,60],paddingBottomRight:[40,40],maxZoom:8});
+  else map.setView(aptLL,7);
+}
+function fmtMitRate(n){ return n==null?"—":(n>=10?Math.round(n):n.toFixed(1))+"/hr"; }
+function mitGatePopupHtml(g){
+  const m=mit.monitor;
+  const req=g.reqMit?`<b>${g.reqMit} MIT</b> <span class="dim">${g.reqGateRule?"gate rule":"airport-wide"}</span>`:`<span class="dim">none</span>`;
+  const rec=g.recMit?`<b>${g.recMit} MIT</b>`:`<span class="dim">none needed</span>`;
+  const actCls=g.action.kind==="tighten"?"warn":g.action.kind==="relax"?"ok":"dim";
+  let sp="";
+  if(g.spacing.length){
+    sp=`<div class="sp">`+g.spacing.map(s=>{
+      const gap=s.gap==null?`<span class="dim">lead</span>`:`<span class="${s.tight?"warn":""}">${s.gap.toFixed(0)} nm</span>`;
+      return `<div class="kv"><span>${escapeHtml(s.callsign)} <span class="dim">${Math.round(s.dist)} nm out</span></span>${gap}</div>`;
+    }).join("")+`</div>`;
+  }
+  return `<h4 style="color:${g.color}">◆ ${escapeHtml(g.name)} <span class="dim" style="font-weight:400">· ${escapeHtml(m.airport)}</span></h4>`+
+    `<div class="kv"><span>Required MIT</span><span>${req}</span></div>`+
+    `<div class="kv"><span>Recommended MIT</span><span>${rec}</span></div>`+
+    `<div class="kv"><span>Action</span><span class="${actCls}">${escapeHtml(g.action.txt)}</span></div>`+
+    `<div class="kv"><span>Aircraft next 60 min</span><span><b>${g.demand60}</b>/hr</span></div>`+
+    `<div class="kv"><span>Slice of AAR ${m.prog.aar}</span><span>${fmtMitRate(g.slice)}</span></div>`+
+    `<div class="kv"><span>Rate at required MIT</span><span>${fmtMitRate(g.ratePerHrAtReq)}</span></div>`+
+    `<div class="kv"><span>Inbound</span><span>${g.inbound} <span class="dim">(${g.airborne} airborne)</span></span></div>`+
+    (g.tight?`<div class="kv"><span>Under MIT in trail</span><span class="warn">${g.tight}</span></div>`:"")+
+    sp;
+}
+function renderMitGates(){
+  const reopen=mit.openGate;            // clearing the layer closes (and forgets) the open popup
+  mitLayer.clearLayers(); mit.gateMarkers={}; mit.openGate=reopen;
+  const m=mit.monitor; if(!m) return;
+  for(const g of m.gates){
+    const ll=mitGateLL(g.name); if(!ll) continue;
+    const mk=L.marker(ll,{riseOnHover:true,zIndexOffset:500,
+      icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],
+        html:`<div class="mit-gate" style="color:${g.color}"><i></i>${escapeHtml(g.name)}${g.demand60?` · ${g.demand60}`:""}</div>`})});
+    mk.bindPopup(()=>mitGatePopupHtml(g),{className:"mit-pop",maxWidth:300,autoPan:g.name!==reopen});
+    mk.on("popupopen",()=>{ mit.openGate=g.name; });
+    mk.on("popupclose",()=>{ if(mit.openGate===g.name) mit.openGate=null; });
+    mk.addTo(mitLayer);
+    mit.gateMarkers[g.name]=mk;
+  }
+  if(reopen&&mit.gateMarkers[reopen]) mit.gateMarkers[reopen].openPopup();
+}
+function renderMit(){
+  const codes=Object.keys(mit.programs).sort();
+  const cnt=document.getElementById("accMitCount");
+  if(cnt) cnt.textContent=codes.length?String(codes.length):"";
+  const sub=document.getElementById("accMitSub");
+  if(sub) sub.textContent=mit.monitor?"watching "+mit.airport:"";
+  const st=document.getElementById("mitStatus");
+  if(st){
+    st.innerHTML = mit.hub==="live"
+      ? `<span class="dot live"></span>${codes.length?codes.length+" active program"+(codes.length>1?"s":""):"no active programs on Airport TMU"}`
+      : mit.hub==="error" ? `<span class="dot dead"></span>can't reach Airport TMU programs`
+      : `<span class="dot demo"></span>connecting to Airport TMU…`;
+  }
+  const list=document.getElementById("mitPrograms");
+  if(list){
+    list.innerHTML=codes.map(c=>`<span class="mit-prog${c===mit.airport?" on":""}" data-mitapt="${escapeHtml(c)}">${escapeHtml(c)}<span>${mit.programs[c].aar}/hr</span></span>`).join("");
+  }
+  const det=document.getElementById("mitDetail");
+  const m=mit.monitor;
+  if(det){
+    if(mit.airport&&!m){
+      det.innerHTML=mit.hub==="live"&&!mit.programs[mit.airport]
+        ? `<div class="mit-sum">No active program at <b>${escapeHtml(mit.airport)}</b> right now.</div>` : "";
+    } else if(!m){
+      det.innerHTML="";
+    } else {
+      const p=m.prog;
+      const wide=p.mit>0?`${p.mit} MIT`:p.trail>0?`${p.trail} min trail`:"no airport-wide MIT";
+      let h=`<div class="mit-sum"><b>${escapeHtml(m.airport)}</b> · AAR <b>${p.aar}</b> · ${escapeHtml(wide)}<br>`+
+        `Next 60 min: <b>${m.demand}</b> arrivals — `+
+        (m.over?`<span class="over">over by ${m.demand-p.aar}</span>`:`<span class="ok">within AAR</span>`)+
+        (m.unassigned?` · ${m.unassigned} with no gate`:"")+`</div>`;
+      if(!m.gates.length){
+        h+=`<div class="mit-sum">No IFR arrivals with a recognizable gate yet.</div>`;
+      } else {
+        h+=`<table class="mit-tbl"><thead><tr><th>GATE</th><th>60 MIN</th><th>REQ</th><th>REC</th></tr></thead><tbody>`+
+          m.gates.map(g=>`<tr class="g" data-mitgate="${escapeHtml(g.name)}">`+
+            `<td><span class="sw" style="background:${g.color}"></span>${escapeHtml(g.name)}${g.tight?` <span class="warn" title="aircraft under MIT in trail">▲${g.tight}</span>`:""}</td>`+
+            `<td>${g.demand60}</td>`+
+            `<td>${g.reqMit?g.reqMit:'<span class="dim">—</span>'}</td>`+
+            `<td class="${g.action.kind==="tighten"?"warn":""}">${g.recMit?g.recMit:'<span class="dim">—</span>'}</td></tr>`).join("")+
+          `</tbody></table>`;
+      }
+      h+=`<div class="toolbar" style="margin:8px 0 0"><button class="btn" id="mitFitBtn">ZOOM TO ${escapeHtml(m.airport)}</button><button class="btn" id="mitStopBtn">STOP</button></div>`;
+      det.innerHTML=h;
+    }
+  }
+  renderMitGates();
+}
+document.getElementById("mitPrograms").addEventListener("click",e=>{
+  const el=e.target.closest("[data-mitapt]"); if(el) setMitAirport(el.dataset.mitapt);
+});
+document.getElementById("mitDetail").addEventListener("click",e=>{
+  if(e.target.closest("#mitStopBtn")){ setMitAirport(null); return; }
+  if(e.target.closest("#mitFitBtn")){ fitMitAirport(); return; }
+  const row=e.target.closest("[data-mitgate]"); if(!row) return;
+  const mk=mit.gateMarkers[row.dataset.mitgate];
+  if(mk){ map.panTo(mk.getLatLng()); mk.openPopup(); }
+  else toast(`Can't place gate ${row.dataset.mitgate} on the map (not in the nav database).`,2800);
+});
+
 // sidebar sections — collapsible; which ones are open is remembered per device
 const LS_SIDE_OPEN="fca.sideOpen";
 function sideSections(){ return [...document.querySelectorAll("#sidebar .acc")]; }
@@ -2707,6 +2934,7 @@ syncThresholdInputs();
 renderAll();
 startFeedLoop();
 initSync();
+connectMitHub();
 // zulu clock
 (function tickClock(){
   const el=document.getElementById("zClock");
