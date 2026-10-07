@@ -7606,7 +7606,7 @@ function nextFridayYmd() {
 }
 const evPlan = {
   icao: "", date: nextFridayYmd(), start: "2300", end: "0300", type: "fno", aar: 0, peak: 0,
-  incentives: {}, status: "idle", msg: "", result: null
+  incentives: {}, status: "idle", msg: "", result: null, inputs: null, basisId: ""
 };
 try {
   const p = JSON.parse(localStorage.getItem("vatflow_event_plan") || "null");
@@ -7646,6 +7646,14 @@ async function evLoadHist() {
   evHistCache = h;
   return h;
 }
+let evPastCache = null;
+async function evLoadPastEvents() {
+  if (evPastCache) return evPastCache;
+  const r = await fetch("data/event-history.json", { cache: "no-store" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  evPastCache = await r.json();
+  return evPastCache;
+}
 function evLoadProcs() {
   if (mitProcs) return Promise.resolve(mitProcs);
   airportStars("KATL");                               /* starts the shared procedures load */
@@ -7681,17 +7689,27 @@ async function runEventPlan() {
   const prog = tmuRates[icao];
   const aar = evPlan.aar || (prog && prog.aar) || 0;
   if (!(aar > 0)) { evPlan.status = "error"; evPlan.msg = "Enter the field's AAR (arrivals per hour it can take in good weather)."; renderContent(); return; }
-  evPlan.status = "loading"; evPlan.msg = "Loading history, STARs, events and forecasts…"; renderContent();
+  evPlan.status = "loading"; evPlan.msg = "Loading history, past events, STARs, the VATSIM calendar and forecasts…"; renderContent();
 
-  const notes = [];
   const ring = EP.ringPoints(fieldLL, EV_WX_RING_NM);
-  const [histR, procsR, eventsR, fieldGridR, ...ringR] = await Promise.allSettled([
+  const [histR, procsR, eventsR, pastR, fieldGridR, ...ringR] = await Promise.allSettled([
     evLoadHist(),
     evLoadProcs(),
     fetchVatsimNetworkEvents(),
+    evLoadPastEvents(),
     evNwsGrid(fieldLL),
     ...ring.map(p => evNwsGrid(p.ll))
   ]);
+  if (evPlan.inputs && evPlan.inputs.icao !== icao) evPlan.basisId = "";
+  evPlan.inputs = { icao, fieldLL, win, aar, ring, histR, procsR, eventsR, pastR, fieldGridR, ringR };
+  computeEventPlan();
+}
+
+/* the forecast from fetched inputs; re-run without fetching when the basis event changes */
+function computeEventPlan() {
+  const EP = window.VF_EventPlan;
+  const { icao, fieldLL, win, aar, ring, histR, procsR, eventsR, pastR, fieldGridR, ringR } = evPlan.inputs;
+  const notes = [];
   const hist = histR.status === "fulfilled" ? histR.value : null;
   if (!hist) notes.push("Traffic history didn’t load, so normal traffic counts as zero.");
   const byAirport = hist ? hist.result.byAirport : {};
@@ -7699,9 +7717,14 @@ async function runEventPlan() {
   const yearStart = hist && hist.computedAt ? Date.UTC(new Date(hist.computedAt).getUTCFullYear(), 0, 1) : 0;
   const weeks = hist && hist.computedAt ? Math.max(1, (Date.parse(hist.computedAt) - yearStart) / (7 * 86400000)) : 0;
 
-  /* peak and modifiers */
+  /* peak: your number, else a past StatSim event at this field, else history / a default */
+  const pastFile = pastR.status === "fulfilled" ? pastR.value : null;
+  if (!pastFile) notes.push("Past event history (data/event-history.json) didn\u2019t load.");
+  const pastEvents = ((pastFile && pastFile.airports && pastFile.airports[icao]) || []).slice().sort((a, b) => b.startMs - a.startMs);
+  const basis = evPlan.type === "none" ? null : EP.pickBasisEvent(pastEvents, evPlan.basisId, win.endMs - win.startMs);
   const peakInfo = evPlan.peak > 0
     ? { value: evPlan.peak, source: "Your number." }
+    : basis ? EP.peakFromEvent(basis)
     : EP.expectedPeak(evPlan.type, apt && apt.peaks);
   const mods = [];
   const season = EP.seasonPct(win.startMs);
@@ -7745,7 +7768,7 @@ async function runEventPlan() {
   const procs = procsR.status === "fulfilled" ? procsR.value : null;
   const entries = procs ? EP.starEntries(procs, icao, fieldLL) : [];
   if (!entries.length) notes.push("No STARs for " + icao + " in navdata, so there’s no gate split.");
-  const mix = EP.originMix({ hist: apt, fieldIcao: icao, fieldLL, airportLL: lookup, byAirport });
+  const mix = EP.originMix({ hist: apt, event: basis, fieldIcao: icao, fieldLL, airportLL: lookup, byAirport });
   const gs = EP.gateSharesFromOrigins(mix.list, entries, fieldLL, lookup);
   for (const r of regionWx) r.gate = EP.gateForOrigin(entries, fieldLL, [r.lat, r.lon]);
 
@@ -7754,7 +7777,7 @@ async function runEventPlan() {
   const rec = EP.recommendTmis({ hours, aar: capacity, shares: gs.shares });
 
   evPlan.result = { icao, win, aar, capacity, wxAar, peakInfo, mods, multiplier, evMatch, competing, fieldWx, regionWx, wxNote,
-    mix, gs, rec, notes, histInfo: hist ? { computedAt: hist.computedAt, weeks, hasPeaks: !!(apt && apt.peaks) } : null };
+    mix, gs, rec, notes, pastEvents, basis, pastComputedAt: pastFile && pastFile.computed_at, histInfo: hist ? { computedAt: hist.computedAt, weeks, hasPeaks: !!(apt && apt.peaks) } : null };
   evPlan.status = "ok"; evPlan.msg = "";
   renderContent();
 }
@@ -7803,6 +7826,21 @@ function renderEventPlanner() {
   if (ctl && rec.gateDemand.length && canEditApt(r.icao)) {
     h += '<div style="margin:8px 0;"><button data-evp-apply>APPLY GATE FORECAST TO ' + esc(r.icao) + ' PROGRAM</button> ' +
       '<span class="form-note">Sets the program’s expected demand to the peak-hour gate numbers below' + (tmuRates[r.icao] ? '' : ' and creates the program at AAR ' + r.aar) + '.</span></div>';
+  }
+  /* past events at this field (StatSim) */
+  if (r.pastEvents.length) {
+    h += '<h3 style="margin-top:12px;">PAST EVENTS AT ' + esc(r.icao) + ' <span class="cell-dim" style="font-weight:400;">StatSim, last 12 months</span></h3>' +
+      '<div class="tablewrap tablewrap--short"><table><thead><tr><th>EVENT</th><th>DATE</th><th>FIELDS</th><th>ARRIVALS</th><th>BUSIEST HOUR</th><th></th></tr></thead><tbody>';
+    for (const ev of r.pastEvents) {
+      const used = r.basis && r.basis.id === ev.id && !evPlan.peak;
+      h += '<tr><td><a href="https://statsim.net/events/' + ev.id + '" target="_blank" rel="noopener" style="color:#5ba8c9;">' + esc(ev.name) + '</a></td>' +
+        '<td>' + new Date(ev.startMs).toISOString().slice(0, 10) + '</td><td>' + ev.fields.length + '</td><td>' + ev.arr + '</td><td>' + ev.peakArr + '/hr</td>' +
+        '<td>' + (used ? '<b class="tmu-ok">Basis</b>' : evPlan.peak ? '' : '<span class="tmuact" data-evp-basis="' + ev.id + '">USE</span>') + '</td></tr>';
+    }
+    h += '</tbody></table></div><div class="calcformula">The forecast peak comes from the most recent event with real traffic, 5 or fewer featured fields and a similar length; press USE to base it on another one.' +
+      (r.basis && r.basis.origins ? ' Its arrivals\u2019 origins set the gate split.' : '') + '</div>';
+  } else if (r.pastComputedAt) {
+    h += '<div class="calcdetail">No StatSim events at ' + esc(r.icao) + ' in the last 12 months.</div>';
   }
   /* hourly */
   h += '<div class="tablewrap tablewrap--short"><table><thead><tr><th>HOUR</th><th>NORMAL</th><th>EVENT</th><th>DEMAND</th><th>CAPACITY</th><th>OVER</th><th>QUEUE</th><th>QUEUE DELAY</th></tr></thead><tbody>';
@@ -8963,6 +9001,8 @@ contentEl.addEventListener("click", e => {
   const tmuSubBtn = e.target.closest("[data-tmusub]");
   if (tmuSubBtn) { tmuSub = tmuSubBtn.dataset.tmusub; renderContent(); return; }
   if (e.target.closest("[data-evp-run]")) { runEventPlan(); return; }
+  const evBasis = e.target.closest("[data-evp-basis]");
+  if (evBasis && evPlan.inputs) { evPlan.basisId = evBasis.dataset.evpBasis; computeEventPlan(); return; }
   if (e.target.closest("[data-evp-apply]")) {
     const r = evPlan.result;
     if (!r || !canEditApt(r.icao)) return;

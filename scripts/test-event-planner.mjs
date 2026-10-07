@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import {
   expectedPeak, holidayPeriod, seasonPct, gridWindow, weatherAarFactor, parseValidTime,
   starEntries, gateForOrigin, originMix, gateSharesFromOrigins, demandCurve, baselineFromHist,
-  recommendTmis, ringPoints, compassName,
+  recommendTmis, ringPoints, compassName, pickBasisEvent, peakFromEvent,
 } from "../shared/event-planner.js";
 
 let passed = 0;
@@ -98,6 +98,20 @@ t("ring points and compass", () => {
   assert.equal(r.length, 8);
   assert.ok(Math.abs(r[0].ll[0] - 35) < 0.1);
   assert.equal(compassName(r[3].brg), "SE");
+});
+
+t("past events: most recent usable event of a similar length", () => {
+  const h = 3600000;
+  const evs = [
+    { id: 1, name: "Marathon", startMs: 10 * h * 100, endMs: 10 * h * 100 + 11 * h, fields: ["KTST"], peakArr: 13 },
+    { id: 2, name: "Network-wide", startMs: 9 * h * 100, endMs: 9 * h * 100 + 4 * h, fields: Array(22).fill("K"), peakArr: 4 },
+    { id: 3, name: "Spotlight", startMs: 8 * h * 100, endMs: 8 * h * 100 + 3 * h, fields: ["KTST"], peakArr: 41 },
+  ];
+  assert.equal(pickBasisEvent(evs, "", 4 * h).id, 3);
+  assert.equal(pickBasisEvent(evs, "", 10 * h).id, 1);
+  assert.equal(pickBasisEvent(evs, "2", 4 * h).id, 2);           // the controller's pick wins
+  assert.equal(pickBasisEvent([], "", 4 * h), null);
+  assert.equal(peakFromEvent(evs[2]).value, Math.round(41 * 1.15));
 });
 
 console.log(`\n${passed} passed`);
