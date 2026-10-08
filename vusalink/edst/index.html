@@ -6143,6 +6143,10 @@ const SIG_PENDING_MAX_TRIES=15;          // keep chasing for the whole hold wind
 // A new SIGMET with no bulletin yet is held off the list (no flash) until its
 // text lands, or for this long — after which it shows as TEXT PENDING.
 const SIG_PENDING_HOLD_MS=5*60e3;
+// How long a SIGMET stays "already seen" after it was last listed. A fetch
+// that loses a feed drops products for a poll or two; they must not come
+// back as new.
+const SIG_SEEN_RETAIN_MS=6*3600e3;
 let sigLoading=false;
 let sigCache={artcc:'',entries:[],raw:[],pending:[],error:null,fetchedAt:0};
 const sigPendingSince=new Map();         // key -> first seen (ms) for held text-less SIGMETs
@@ -6151,7 +6155,7 @@ let sigPendingTimer=null;
 let sigPendingTries=0;
 let sigPendingKey='';
 const sigExpanded=new Set();             // entry ids currently showing full text
-const sigSeenIds=new Set();              // keys from last successful fetch
+const sigSeenIds=new Map();              // key -> last listed (ms); kept SIG_SEEN_RETAIN_MS
 const sigNewIds=new Set();               // keys not yet clicked in the SIG menu
 let sigAlert=false;                      // flash SIG button until each new one is clicked
 let sigUnreadCount=0;                    // new SIGMETs not yet acknowledged
@@ -6169,13 +6173,14 @@ function sigArtcc(){
 function sigBareArtcc(id){
   return String(id||'').toUpperCase().replace(/^K(?=Z)/,'');
 }
-// One identity per product across feeds. The text-less NWS row and the AWC row
-// that later replaces it are the same SIGMET, and they carry different ids and
-// time formats — keying on those re-flashed SIG and re-marked an already
-// acknowledged product as new once the bulletin arrived.
+// One identity per product across feeds (series + valid-from, no FIR). The
+// text-less NWS row and the AWC row that later replaces it are the same
+// SIGMET but carry different ids, time formats and FIR tags — keying on those
+// re-flashed SIG and re-marked acknowledged products as new.
 function sigEntryId(entry,idx){
-  const seq=String((entry&&entry.sequence)||'').trim().toUpperCase();
-  if(seq)return sigBareArtcc(entry&&entry.fir)+'|'+seq;
+  const key=(window.EdstSigmets&&typeof EdstSigmets.sigmetKey==='function')
+    ?EdstSigmets.sigmetKey(entry):'';
+  if(key)return key;
   return String((entry&&entry.id)||('sig-'+idx));
 }
 function sigEntryKey(entry,idx){
@@ -6220,7 +6225,12 @@ function clearSigAlert(){
   syncSigButton();
 }
 function syncSigUnreadFromNew(){
-  sigUnreadCount=sigNewIds.size;
+  // Count only unread SIGMETs on the list now; one dropped by a degraded fetch
+  // keeps its NEW mark for when it comes back.
+  const listed=new Set((sigCache.entries||[]).map((e,i)=>sigEntryKey(e,i)));
+  let n=0;
+  sigNewIds.forEach(k=>{if(listed.has(k))n++;});
+  sigUnreadCount=n;
   syncSigButton();
 }
 function ackSigNew(key){
@@ -6240,18 +6250,16 @@ function noteSigEntries(entries,art){
     sigSeenIds.clear();
     clearSigAlert();
   }
+  const now=Date.now();
   if(!sigPrimed){
     sigSeenIds.clear();
-    keys.forEach(k=>sigSeenIds.add(k));
+    EdstSigmets.noteSeenKeys(sigSeenIds,keys,now,SIG_SEEN_RETAIN_MS);
     sigPrimed=true;
     return;
   }
-  const prevSeen=new Set(sigSeenIds);
-  sigSeenIds.clear();
-  keys.forEach(k=>sigSeenIds.add(k));
-  keys.forEach(k=>{if(!prevSeen.has(k))sigNewIds.add(k);});
+  EdstSigmets.noteSeenKeys(sigSeenIds,keys,now,SIG_SEEN_RETAIN_MS)
+    .forEach(k=>sigNewIds.add(k));
   [...sigNewIds].forEach(k=>{if(!sigSeenIds.has(k))sigNewIds.delete(k);});
-  syncSigUnreadFromNew();
 }
 /**
  * Filter out new text-less SIGMETs still inside their hold window. Entries
@@ -6289,7 +6297,7 @@ function sigApplyHold(entries,art){
       noteSigEntries(shown,sigCache.artcc);
       sigCache.entries=shown;
       if(sigMenuOpen())renderSigList();
-      syncSigButton();
+      syncSigUnreadFromNew();
     },Math.max(0,nextDue-now)+50);
   }
   return out;
@@ -6459,7 +6467,7 @@ async function refreshSigmets(force,opts){
   }
   sigLoading=false;
   if(sigMenuOpen())renderSigList();
-  syncSigButton();
+  syncSigUnreadFromNew();
   scheduleSigPendingRetry();
 }
 function scheduleSigPoll(){

@@ -412,6 +412,70 @@ assert(
   "issued-but-not-yet-valid (inbound) SIGMET is listed"
 );
 
+// --- SIGMET identity across feeds (re-flash as new) ---
+{
+  const fromAwc = EdstSigmets._fromAirsigmet(
+    {
+      seriesId: "57E",
+      validTimeFrom: Date.parse("2026-10-08T11:55:00Z") / 1000,
+      validTimeTo: Date.parse("2026-10-08T13:55:00Z") / 1000,
+      rawAirSigmet: "CONVECTIVE SIGMET 57E",
+    },
+    "ZTL"
+  );
+  const fromNws = {
+    fir: "KZJX",
+    sequence: "57E",
+    start: "2026-10-08T11:55:00+00:00",
+    end: "2026-10-08T13:55:00+00:00",
+    source: "nws",
+  };
+  assert(
+    EdstSigmets.sigmetKey(fromAwc) === EdstSigmets.sigmetKey(fromNws),
+    "same SIGMET keys alike from AWC (viewing ARTCC) and NWS (other FIR tag)"
+  );
+  assert(
+    EdstSigmets.sigmetKey(fromNws) !==
+      EdstSigmets.sigmetKey({ ...fromNws, start: "2026-10-09T11:55:00Z" }),
+    "series number reused on a later issuance is a different SIGMET"
+  );
+
+  const seen = new Map();
+  const H = 3600e3;
+  const t0 = Date.parse("2026-10-08T12:00:00Z");
+  EdstSigmets.noteSeenKeys(seen, ["57E|a", "58E|a"], t0, 6 * H);
+  const afterDegraded = EdstSigmets.noteSeenKeys(seen, ["58E|a"], t0 + 90e3, 6 * H);
+  assert(afterDegraded.length === 0, "fetch missing a SIGMET reports nothing new");
+  const back = EdstSigmets.noteSeenKeys(
+    seen,
+    ["57E|a", "58E|a", "60E|b"],
+    t0 + 180e3,
+    6 * H
+  );
+  assert(
+    back.length === 1 && back[0] === "60E|b",
+    "SIGMET back after a degraded fetch is not new; only the new one is"
+  );
+  EdstSigmets.noteSeenKeys(seen, ["60E|b"], t0 + 7 * H, 6 * H);
+  assert(!seen.has("57E|a"), "keys unlisted past the retention window are forgotten");
+}
+
+// --- previous-hour convective SIGMETs on the NWS lookback ---
+{
+  const rows = [
+    { sequence: "54E", issueTime: "2026-10-08T10:55:00Z", source: "nws" },
+    { sequence: "57E", issueTime: "2026-10-08T11:55:00Z", source: "nws" },
+    { sequence: "60E", issueTime: "2026-10-08T12:20:00Z", source: "nws" },
+    { sequence: "12C", issueTime: "2026-10-08T10:55:00Z", source: "nws" },
+    { sequence: "ALFA 1", issueTime: "2026-10-08T09:00:00Z", source: "nws" },
+  ];
+  const kept = EdstSigmets._dropSupersededConvective(rows).map((e) => e.sequence);
+  assert(!kept.includes("54E"), "previous-hour convective SIGMET (54E) dropped");
+  assert(kept.includes("57E") && kept.includes("60E"), "current run and later special kept");
+  assert(kept.includes("12C"), "other region's latest run kept");
+  assert(kept.includes("ALFA 1"), "international SIGMETs untouched");
+}
+
 if (failed) {
   console.error(`\n${failed} failed`);
   process.exit(1);

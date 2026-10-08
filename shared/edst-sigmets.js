@@ -117,6 +117,81 @@
     });
   }
 
+  /**
+   * Convective SIGMETs are reissued for the whole region (E/C/W) every hour at
+   * H+55, and that run supersedes every earlier one in the region. NWS's 6h
+   * lookback still lists the previous runs; with AWC unreachable nothing else
+   * dropped them, so they reappeared on the list and flashed SIG as new.
+   * Specials issued after the latest routine run are kept.
+   */
+  function dropSupersededConvective(entries) {
+    var routine = Object.create(null);
+    function convLetter(e) {
+      var m = String((e && e.sequence) || "")
+        .trim()
+        .toUpperCase()
+        .match(/^\d+([A-Z])$/);
+      return m ? m[1] : "";
+    }
+    function issued(e) {
+      return parseTime(e.issueTime != null ? e.issueTime : entryStart(e));
+    }
+    (entries || []).forEach(function (e) {
+      var letter = convLetter(e);
+      if (!letter) return;
+      var t = issued(e);
+      if (!t || t.getUTCMinutes() !== 55) return;
+      if (routine[letter] == null || t.getTime() > routine[letter])
+        routine[letter] = t.getTime();
+    });
+    return (entries || []).filter(function (e) {
+      var letter = convLetter(e);
+      if (!letter || e.source !== "nws" || routine[letter] == null) return true;
+      var t = issued(e);
+      return !t || t.getTime() >= routine[letter];
+    });
+  }
+
+  /**
+   * One identity per SIGMET across feeds: series plus valid-from minute. The
+   * FIR is left out on purpose: AWC rows carry the viewing ARTCC while NWS rows
+   * carry one of the FIRs the product touches (57E is KZJX on NWS but ZTL from
+   * AWC when ZTL is viewing), so whenever a fetch fell back to NWS every
+   * SIGMET got a new key and flashed as new. The start time keeps a series
+   * number reused later in the day (convective numbers wrap) distinct.
+   */
+  function sigmetKey(entry) {
+    var seq = String((entry && entry.sequence) || "")
+      .trim()
+      .toUpperCase();
+    if (!seq) return "";
+    var t = parseTime(entryStart(entry));
+    return t ? seq + "|" + Math.floor(t.getTime() / 60000) : seq;
+  }
+
+  /**
+   * Record the keys listed by one fetch in `seen` (Map key -> last listed ms)
+   * and return the ones never listed before. A key is remembered for retainMs
+   * after it was last listed, so a SIGMET missing from one degraded fetch is
+   * not "new" when it comes back on the next.
+   */
+  function noteSeenKeys(seen, keys, nowMs, retainMs) {
+    var fresh = [];
+    (keys || []).forEach(function (k) {
+      if (!k) return;
+      if (!seen.has(k) && fresh.indexOf(k) < 0) fresh.push(k);
+      seen.set(k, nowMs);
+    });
+    var drop = [];
+    seen.forEach(function (t, k) {
+      if (nowMs - t > retainMs) drop.push(k);
+    });
+    drop.forEach(function (k) {
+      seen.delete(k);
+    });
+    return fresh;
+  }
+
   /** FAA/US convective & domestic SIGMETs vs ICAO international. */
   function isUsFaaSigmet(entry) {
     if (!entry) return false;
@@ -1090,7 +1165,9 @@
         pushEntry(fromNwsFeature(f, airIdx, isigIdx));
       });
 
-      entries = sortSigmetEntries(dropSupersededIntl(entries));
+      entries = sortSigmetEntries(
+        dropSupersededConvective(dropSupersededIntl(entries))
+      );
 
       return {
         artcc: bareArtcc(artcc),
@@ -1113,6 +1190,8 @@
     firstParagraph: firstParagraph,
     textsFromRaw: textsFromRaw,
     normalizeHazard: normalizeHazard,
+    sigmetKey: sigmetKey,
+    noteSeenKeys: noteSeenKeys,
     // test helpers
     _pointInArtcc: pointInArtcc,
     _loadArtccBoundaries: loadArtccBoundaries,
@@ -1129,6 +1208,7 @@
     _namesArtcc: namesArtcc,
     _firsFromIsigmet: firsFromIsigmet,
     _dropSupersededIntl: dropSupersededIntl,
+    _dropSupersededConvective: dropSupersededConvective,
     _sortSigmetEntries: sortSigmetEntries,
     _isUsFaaSigmet: isUsFaaSigmet,
     _nwsIsStaleAgainstAwc: nwsIsStaleAgainstAwc,
