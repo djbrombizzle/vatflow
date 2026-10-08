@@ -7615,13 +7615,15 @@ try {
     if (+p.aar) evPlan.aar = +p.aar;
     if (+p.peak) evPlan.peak = +p.peak;
     if (p.incentives && typeof p.incentives === "object") evPlan.incentives = p.incentives;
+    if (p.basisId && p.basisIcao === evPlan.icao) evPlan.basisId = String(p.basisId);
   }
 } catch (e) {}
 function saveEventPlan() {
   try {
     localStorage.setItem("vatflow_event_plan", JSON.stringify({
       icao: evPlan.icao, date: evPlan.date, start: evPlan.start, end: evPlan.end, type: evPlan.type,
-      aar: evPlan.aar, peak: evPlan.peak, incentives: evPlan.incentives
+      aar: evPlan.aar, peak: evPlan.peak, incentives: evPlan.incentives,
+      basisId: evPlan.basisId, basisIcao: evPlan.basisId ? evPlan.icao : ""
     }));
   } catch (e) {}
 }
@@ -7700,7 +7702,7 @@ async function runEventPlan() {
     evNwsGrid(fieldLL),
     ...ring.map(p => evNwsGrid(p.ll))
   ]);
-  if (evPlan.inputs && evPlan.inputs.icao !== icao) evPlan.basisId = "";
+  if (evPlan.inputs && evPlan.inputs.icao !== icao) { evPlan.basisId = ""; saveEventPlan(); }
   evPlan.inputs = { icao, fieldLL, win, aar, ring, histR, procsR, eventsR, pastR, fieldGridR, ringR };
   computeEventPlan();
 }
@@ -7743,6 +7745,11 @@ function computeEventPlan() {
     }
     if (competing.length) mods.push({ pct: -Math.min(20, 5 * competing.length), why: competing.length + " other North American event" + (competing.length > 1 ? "s" : "") + " at the same time" });
   } else notes.push("VATSIM events calendar didn’t load, so competing events aren’t counted.");
+  /* past events that look like this one (same series, length, weekday, season), for picking the reference */
+  const planLike = { name: evMatch ? evMatch.name : "", startMs: win.startMs, endMs: win.endMs, fields: evMatch ? evMatch.airports.map(a => a.icao) : [] };
+  const likeness = {};
+  for (const ev of pastEvents) likeness[ev.id] = EP.eventLikeness(ev, planLike);
+  const likely = EP.likelyEvents(pastEvents, planLike);
 
   /* weather: the field's forecast for capacity, a ring around it for routing */
   let fieldWx = null, wxNote = "";
@@ -7777,7 +7784,7 @@ function computeEventPlan() {
   const rec = EP.recommendTmis({ hours, aar: capacity, shares: gs.shares });
 
   evPlan.result = { icao, win, aar, capacity, wxAar, peakInfo, mods, multiplier, evMatch, competing, fieldWx, regionWx, wxNote,
-    mix, gs, rec, notes, pastEvents, basis, pastComputedAt: pastFile && pastFile.computed_at, histInfo: hist ? { computedAt: hist.computedAt, weeks, hasPeaks: !!(apt && apt.peaks) } : null };
+    mix, gs, rec, notes, pastEvents, basis, likeness, likely, picked: !!(basis && String(basis.id) === String(evPlan.basisId)), pastComputedAt: pastFile && pastFile.computed_at, histInfo: hist ? { computedAt: hist.computedAt, weeks, hasPeaks: !!(apt && apt.peaks) } : null };
   evPlan.status = "ok"; evPlan.msg = "";
   renderContent();
 }
@@ -7827,20 +7834,42 @@ function renderEventPlanner() {
     h += '<div style="margin:8px 0;"><button data-evp-apply>APPLY GATE FORECAST TO ' + esc(r.icao) + ' PROGRAM</button> ' +
       '<span class="form-note">Sets the program’s expected demand to the peak-hour gate numbers below' + (tmuRates[r.icao] ? '' : ' and creates the program at AAR ' + r.aar) + '.</span></div>';
   }
-  /* past events at this field (StatSim) */
+  /* past events at this field (StatSim), and the one the forecast is based on */
   if (r.pastEvents.length) {
-    h += '<h3 style="margin-top:12px;">PAST EVENTS AT ' + esc(r.icao) + ' <span class="cell-dim" style="font-weight:400;">StatSim, last 12 months</span></h3>' +
-      '<div class="tablewrap tablewrap--short"><table><thead><tr><th>EVENT</th><th>DATE</th><th>FIELDS</th><th>ARRIVALS</th><th>BUSIEST HOUR</th><th></th></tr></thead><tbody>';
+    const auto = EP.pickBasisEvent(r.pastEvents, "", r.win.endMs - r.win.startMs);
+    const likelyIds = new Set(r.likely.map(x => x.ev.id));
+    const evLabel = ev => new Date(ev.startMs).toISOString().slice(0, 10) + ' · ' + ev.name + ' · ' + ev.peakArr + '/hr';
+    const oldest = r.pastEvents[r.pastEvents.length - 1];
+    h += '<h3 style="margin-top:12px;">PAST EVENTS AT ' + esc(r.icao) + ' <span class="cell-dim" style="font-weight:400;">StatSim, ' + r.pastEvents.length +
+      ' since ' + new Date(oldest.startMs).toISOString().slice(0, 10) + '</span></h3>';
+    if (evPlan.peak) h += '<div class="calcdetail">The forecast uses your PEAK /HR; clear it to base the peak on a past event.</div>';
+    else {
+      h += '<div class="tmuform" style="border-bottom:none;padding:4px 0 8px;flex-wrap:wrap;"><span class="lbl">REFERENCE EVENT</span>' +
+        '<select data-evp-basissel style="max-width:460px;"><option value="">Automatic: ' + esc(auto ? evLabel(auto) : 'none usable') + '</option>' +
+        (r.likely.length ? '<optgroup label="Most like this event">' + r.likely.map(x => '<option value="' + x.ev.id + '"' +
+          (r.picked && r.basis.id === x.ev.id ? ' selected' : '') + '>' + esc(evLabel(x.ev) + ' (' + x.reasons.join(', ') + ')') + '</option>').join("") + '</optgroup>' : '') +
+        '<optgroup label="All past events">' + r.pastEvents.filter(ev => !likelyIds.has(ev.id)).map(ev => '<option value="' + ev.id + '"' +
+          (r.picked && r.basis.id === ev.id ? ' selected' : '') + '>' + esc(evLabel(ev)) + (EP.usableEvent(ev) ? '' : ' (light or many fields)') + '</option>').join("") + '</optgroup>' +
+        '</select>' + (r.picked ? '<span class="tmuact" data-evp-basis="">BACK TO AUTOMATIC</span>' : '') + '</div>';
+      if (r.likely.length && !r.picked && auto && !likelyIds.has(auto.id))
+        h += '<div class="calcdetail">' + esc(r.likely[0].ev.name) + ' (' + new Date(r.likely[0].ev.startMs).toISOString().slice(0, 10) + ') looks more like this event: ' +
+          esc(r.likely[0].reasons.join(', ')) + '. <span class="tmuact" data-evp-basis="' + r.likely[0].ev.id + '">USE IT</span></div>';
+    }
+    h += '<div class="tablewrap tablewrap--short"><table><thead><tr><th>EVENT</th><th>DATE</th><th>FIELDS</th><th>ARRIVALS</th><th>BUSIEST HOUR</th><th>LIKE THIS EVENT</th><th></th></tr></thead><tbody>';
     for (const ev of r.pastEvents) {
       const used = r.basis && r.basis.id === ev.id && !evPlan.peak;
+      const lk = r.likeness[ev.id];
       h += '<tr><td><a href="https://statsim.net/events/' + ev.id + '" target="_blank" rel="noopener" style="color:#5ba8c9;">' + esc(ev.name) + '</a></td>' +
         '<td>' + new Date(ev.startMs).toISOString().slice(0, 10) + '</td><td>' + ev.fields.length + '</td><td>' + ev.arr + '</td><td>' + ev.peakArr + '/hr</td>' +
-        '<td>' + (used ? '<b class="tmu-ok">Basis</b>' : evPlan.peak ? '' : '<span class="tmuact" data-evp-basis="' + ev.id + '">USE</span>') + '</td></tr>';
+        '<td class="' + (likelyIds.has(ev.id) ? 'tmu-ok' : 'cell-dim') + '">' + (lk && lk.reasons.length ? esc(lk.reasons.join(', ')) : '—') + '</td>' +
+        '<td>' + (used ? '<b class="tmu-ok">' + (r.picked ? 'Reference' : 'Basis') + '</b>' : evPlan.peak ? '' : '<span class="tmuact" data-evp-basis="' + ev.id + '">USE</span>') + '</td></tr>';
     }
-    h += '</tbody></table></div><div class="calcformula">The forecast peak comes from the most recent event with real traffic, 5 or fewer featured fields and a similar length; press USE to base it on another one.' +
+    h += '</tbody></table></div><div class="calcformula">Automatically the forecast peak comes from the most recent event with real traffic, 5 or fewer featured fields and a similar length. ' +
+      'Pick a reference event above (or press USE) when another past event is a better match; LIKE THIS EVENT compares each one with the event you\u2019re planning' +
+      (r.evMatch ? ' (' + esc(r.evMatch.name) + ' on the VATSIM calendar)' : '') + '.' +
       (r.basis && r.basis.origins ? ' Its arrivals\u2019 origins set the gate split.' : '') + '</div>';
   } else if (r.pastComputedAt) {
-    h += '<div class="calcdetail">No StatSim events at ' + esc(r.icao) + ' in the last 12 months.</div>';
+    h += '<div class="calcdetail">No StatSim events at ' + esc(r.icao) + ' yet.</div>';
   }
   /* hourly */
   h += '<div class="tablewrap tablewrap--short"><table><thead><tr><th>HOUR</th><th>NORMAL</th><th>EVENT</th><th>DEMAND</th><th>CAPACITY</th><th>OVER</th><th>QUEUE</th><th>QUEUE DELAY</th></tr></thead><tbody>';
@@ -9002,7 +9031,7 @@ contentEl.addEventListener("click", e => {
   if (tmuSubBtn) { tmuSub = tmuSubBtn.dataset.tmusub; renderContent(); return; }
   if (e.target.closest("[data-evp-run]")) { runEventPlan(); return; }
   const evBasis = e.target.closest("[data-evp-basis]");
-  if (evBasis && evPlan.inputs) { evPlan.basisId = evBasis.dataset.evpBasis; computeEventPlan(); return; }
+  if (evBasis && evPlan.inputs) { evPlan.basisId = evBasis.dataset.evpBasis; saveEventPlan(); computeEventPlan(); return; }
   if (e.target.closest("[data-evp-apply]")) {
     const r = evPlan.result;
     if (!r || !canEditApt(r.icao)) return;
@@ -9463,6 +9492,11 @@ contentEl.addEventListener("change", e => {
   if (gt) {
     const r = tmuRates[gt.dataset.tmugatetrail]; const i = +gt.dataset.idx;
     if (r && r.gates[i]) { r.gates[i].trail = +gt.value; r.gates[i].mit = 0; pushSync(); renderContent(); }
+    return;
+  }
+  const evBasisSel = e.target.closest("select[data-evp-basissel]");
+  if (evBasisSel) {
+    if (evPlan.inputs) { evPlan.basisId = evBasisSel.value; saveEventPlan(); computeEventPlan(); }
     return;
   }
   const evp = e.target.closest("[data-evp]");

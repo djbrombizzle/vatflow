@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 /**
  * Build data/event-history.json for the Airport TMU Event planner: each US
- * field's most recent VATSIM events from StatSim (https://statsim.net/events/past),
- * with arrivals per hour from each event's page and, when STATSIM_API_KEY is set,
+ * field's VATSIM events from StatSim (https://statsim.net/events/past), with
+ * arrivals per hour from each event's page and, when STATSIM_API_KEY is set,
  * where those arrivals came from (for the planner's gate split).
+ *
+ * StatSim's past-events page only lists the last 12 months, so events already in
+ * the file that have dropped off it are kept: the history grows past a year.
  *
  * Usage:
  *   node scripts/build-event-history.mjs
  *
  * Env:
  *   STATSIM_API_KEY            optional; adds arrival origins per event (/api/Flights/Icao)
- *   EVENT_HISTORY_PER_FIELD    events kept per field (default 5)
+ *   EVENT_HISTORY_PER_FIELD    events kept per field, newest first (default 40)
+ *   EVENT_HISTORY_ORIGINS_PER_FIELD  newest events per field that get origins (default 10)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,7 +24,8 @@ import { isUsStaffingAirport, fetchStatsimIcaoWindow } from "./lib/staffing-hist
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, "..", "data", "event-history.json");
 const BASE = "https://statsim.net";
-const PER_FIELD = Math.max(1, parseInt(process.env.EVENT_HISTORY_PER_FIELD || "5", 10));
+const PER_FIELD = Math.max(1, parseInt(process.env.EVENT_HISTORY_PER_FIELD || "40", 10));
+const ORIGINS_PER_FIELD = Math.max(0, parseInt(process.env.EVENT_HISTORY_ORIGINS_PER_FIELD || "10", 10));
 const API_KEY = process.env.STATSIM_API_KEY || "";
 const UA = "VATFLOW-event-history/1.0 (+https://vatflow.io)";
 const HOUR = 3600000;
@@ -96,7 +101,32 @@ export function pickRecentByField(events, perField) {
   return byField;
 }
 
+/**
+ * Merge freshly built per-field event lists with the previous file's: new records
+ * win, older events that StatSim no longer lists are kept, origins already fetched
+ * for an event carry over, and each field keeps its newest `perField` events.
+ */
+export function mergeHistory(fresh, previous, perField) {
+  const out = {};
+  for (const icao of new Set([...Object.keys(previous || {}), ...Object.keys(fresh || {})])) {
+    const byId = new Map();
+    for (const ev of (previous && previous[icao]) || []) byId.set(ev.id, ev);
+    for (const ev of (fresh && fresh[icao]) || []) {
+      const old = byId.get(ev.id);
+      byId.set(ev.id, !ev.origins && old && old.origins ? { ...ev, origins: old.origins } : ev);
+    }
+    const list = [...byId.values()].sort((a, b) => b.startMs - a.startMs).slice(0, perField);
+    if (list.length) out[icao] = list;
+  }
+  return out;
+}
+
+function readPrevious() {
+  try { return JSON.parse(fs.readFileSync(OUT, "utf8")).airports || {}; } catch { return {}; }
+}
+
 async function main() {
+  const previous = readPrevious();
   console.log("fetching past events");
   const events = parsePastEvents(await getText(BASE + "/events/past"));
   console.log("past events:", events.length);
@@ -120,14 +150,17 @@ async function main() {
   const airports = {};
   for (const [icao, evs] of Object.entries(byField)) {
     const list = [];
-    for (const ev of evs) {
+    const had = new Map((previous[icao] || []).map(e => [e.id, e]));
+    for (const [n, ev] of evs.entries()) {
       const c = charts[ev.id] && charts[ev.id][icao];
       if (!c) continue;
       const rec = {
         id: ev.id, name: ev.name, startMs: ev.startMs, endMs: ev.endMs,
         fields: ev.airports, arr: c.arr, dep: c.dep, peakArr: c.peakArr, arrByHour: c.arrByHour,
       };
-      if (API_KEY) {
+      const old = had.get(ev.id);
+      if (old && old.origins) rec.origins = old.origins;
+      else if (API_KEY && n < ORIGINS_PER_FIELD) {
         try {
           const rows = await fetchStatsimIcaoWindow(icao, ev.startMs - HOUR, ev.endMs + 2 * HOUR, API_KEY, { timeoutMs: 120000 });
           const origins = {};
@@ -141,15 +174,16 @@ async function main() {
     }
     if (list.length) airports[icao] = list;
   }
+  const merged = mergeHistory(airports, previous, PER_FIELD);
   const out = {
     computed_at: new Date().toISOString(),
     source: BASE + "/events/past",
     per_field: PER_FIELD,
     with_origins: !!API_KEY,
-    airports,
+    airports: merged,
   };
   fs.writeFileSync(OUT, JSON.stringify(out) + "\n");
-  console.log("wrote", OUT, Object.keys(airports).length, "fields");
+  console.log("wrote", OUT, Object.keys(merged).length, "fields,", Object.values(merged).flat().length, "field events");
   console.log("done");
 }
 
