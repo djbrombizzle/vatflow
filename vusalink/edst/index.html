@@ -5726,9 +5726,9 @@ function appendRtFixRow(list,fix){
 function openRouteMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   rtTarget=a;fixSelected=null;rtApd=false;rtDirectMode='NOW';rtWxDir='LEFT';rtReasons.clear();setRtReasonsOpen(false);syncRtReasons();syncRtDirectModeUi();
-  // Open the clearance panel straight away when the aircraft is still on the ground.
+  // The clearance panel starts collapsed; the controller opens it with the CLEARANCE button.
   clncFilledFor='';
-  setClncOpen(!(a.gs>50));
+  setClncOpen(false);
   const af=document.getElementById('rtDirectAtFix');if(af)af.value='';
   const aa=document.getElementById('rtDirectAtAlt');if(aa)aa.value='';
   const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
