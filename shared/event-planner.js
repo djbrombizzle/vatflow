@@ -82,6 +82,46 @@ export function pickBasisEvent(events, pickedId, durationMs) {
   }
   return list.find(e => usableEvent(e) && similarLength(e, durationMs)) || list.find(usableEvent) || null;
 }
+/* words that say nothing about which event series a name belongs to */
+const NAME_STOP = new Set(("the a an and of at in on to for with from vs x fno sno mno wno tno fly flyin fly-in night event " +
+  "events edition annual live part ii iii iv vatsim vatusa artcc center centre tracon approach").split(" "));
+const nameWords = s => String(s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)
+  .filter(w => w.length > 1 && !NAME_STOP.has(w) && !/^\d+(st|nd|rd|th)?$/.test(w));
+
+/**
+ * How much a past event looks like the one being planned, for a controller picking
+ * the reference: { score, reasons }. Counts a shared name (same series, e.g. last
+ * year's Boston Tea Party), a similar length, the same weekday and start hour, the
+ * same season, and a similar set of featured fields.
+ * plan: { name, startMs, endMs, fields }.
+ */
+export function eventLikeness(ev, plan) {
+  const reasons = [];
+  let score = 0;
+  if (!ev || !plan) return { score, reasons };
+  const a = new Set(nameWords(plan.name)), b = nameWords(ev.name);
+  const shared = [...new Set(b.filter(w => a.has(w)))];
+  if (a.size && shared.length && shared.length >= Math.min(2, a.size)) { score += 3; reasons.push("same name"); }
+  const dur = plan.endMs - plan.startMs, evDur = ev.endMs - ev.startMs;
+  if (dur > 0 && Math.abs(evDur - dur) <= HOUR) { score += 1; reasons.push("same length"); }
+  if (plan.startMs) {
+    const p = new Date(plan.startMs), e = new Date(ev.startMs);
+    if (p.getUTCDay() === e.getUTCDay() && Math.abs(p.getUTCHours() - e.getUTCHours()) <= 1) { score += 1; reasons.push("same day and time"); }
+    const months = Math.abs(p.getUTCMonth() - e.getUTCMonth());
+    if (Math.min(months, 12 - months) <= 1) { score += 1; reasons.push("same time of year"); }
+  }
+  const n = (plan.fields || []).length;
+  if (n && Math.abs((ev.fields || []).length - n) <= 1) { score += 1; reasons.push(n === 1 ? "single field" : "similar field count"); }
+  return { score, reasons };
+}
+/** The past events that best resemble the plan (a shared name, or 3+ points), best first. */
+export function likelyEvents(events, plan, max = 3) {
+  return (events || []).filter(usableEvent)
+    .map(ev => ({ ev, ...eventLikeness(ev, plan) }))
+    .filter(x => x.reasons.includes("same name") || x.score >= 3)
+    .sort((x, y) => y.score - x.score || y.ev.startMs - x.ev.startMs)
+    .slice(0, max);
+}
 /** Peak from a past event: its busiest hour of landings, +15% (landings cap at what ATC achieved). */
 export function peakFromEvent(ev) {
   const value = Math.round(ev.peakArr * 1.15);

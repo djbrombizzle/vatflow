@@ -7,8 +7,9 @@ import assert from "node:assert/strict";
 import {
   expectedPeak, holidayPeriod, seasonPct, gridWindow, weatherAarFactor, parseValidTime,
   starEntries, gateForOrigin, originMix, gateSharesFromOrigins, demandCurve, baselineFromHist,
-  recommendTmis, ringPoints, compassName, pickBasisEvent, peakFromEvent,
+  recommendTmis, ringPoints, compassName, pickBasisEvent, peakFromEvent, eventLikeness, likelyEvents,
 } from "../shared/event-planner.js";
+import { mergeHistory } from "./build-event-history.mjs";
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -112,6 +113,33 @@ t("past events: most recent usable event of a similar length", () => {
   assert.equal(pickBasisEvent(evs, "2", 4 * h).id, 2);           // the controller's pick wins
   assert.equal(pickBasisEvent([], "", 4 * h), null);
   assert.equal(peakFromEvent(evs[2]).value, Math.round(41 * 1.15));
+});
+
+t("past events: likeness to the planned event, likely references", () => {
+  const h = 3600000;
+  const plan = { name: "28th Annual Boston Tea Party", startMs: Date.UTC(2026, 7, 1, 16), endMs: Date.UTC(2026, 7, 1, 22), fields: ["KBOS", "KBDL", "KPVD"] };
+  const lastYear = { id: 1, name: "27th Annual Boston Tea Party - Live", startMs: Date.UTC(2025, 7, 2, 16), endMs: Date.UTC(2025, 7, 2, 22), fields: ["KBOS", "KBDL", "KPVD", "KACK"], peakArr: 60 };
+  const fno = { id: 2, name: "Northeast FNO", startMs: Date.UTC(2026, 2, 6, 23), endMs: Date.UTC(2026, 2, 7, 3), fields: ["KBOS", "KJFK", "KPHL", "KDCA", "KBWI", "KIAD", "KEWR"], peakArr: 40 };
+  const sat = { id: 3, name: "Summer Saturday Spotlight", startMs: Date.UTC(2026, 6, 4, 16), endMs: Date.UTC(2026, 6, 4, 22), fields: ["KBOS", "KJFK"], peakArr: 30 };
+  const a = eventLikeness(lastYear, plan);
+  assert.deepEqual(a.reasons, ["same name", "same length", "same day and time", "same time of year", "similar field count"]);
+  assert.equal(eventLikeness(fno, plan).score, 0);
+  assert.deepEqual(eventLikeness(sat, plan).reasons, ["same length", "same day and time", "same time of year", "similar field count"]);
+  assert.deepEqual(likelyEvents([fno, sat, lastYear], plan).map(x => x.ev.id), [1, 3]);
+  // a generic word ("FNO", "Annual") alone isn't a series match
+  assert.ok(!eventLikeness({ ...fno, name: "Annual FNO" }, { ...plan, name: "Southwest FNO" }).reasons.includes("same name"));
+  assert.deepEqual(likelyEvents([fno], { name: "", startMs: 0, endMs: 4 * h }), []);
+});
+
+t("event history: merge keeps events StatSim no longer lists", () => {
+  const prev = { KBOS: [{ id: 1, startMs: 100, origins: [["KJFK", 3]] }, { id: 0, startMs: 50 }], KOLD: [{ id: 9, startMs: 10 }] };
+  const fresh = { KBOS: [{ id: 2, startMs: 200 }, { id: 1, startMs: 100, arr: 5 }] };
+  const m = mergeHistory(fresh, prev, 3);
+  assert.deepEqual(m.KBOS.map(e => e.id), [2, 1, 0]);
+  assert.equal(m.KBOS[1].arr, 5);                                   // fresh record wins
+  assert.deepEqual(m.KBOS[1].origins, [["KJFK", 3]]);               // origins carry over
+  assert.deepEqual(m.KOLD.map(e => e.id), [9]);
+  assert.deepEqual(mergeHistory(fresh, prev, 1).KBOS.map(e => e.id), [2]);
 });
 
 console.log(`\n${passed} passed`);
