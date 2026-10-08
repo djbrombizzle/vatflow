@@ -1330,17 +1330,18 @@ function renderTraffic(){
   // who is in the selected FCA's sequence (for highlight + number)
   let seqMap=new Map();
   if(sel){ const s=getSequence(sel); s.items.forEach((c,i)=>seqMap.set(c.p.callsign,{n:i+1,color:sel.color})); }
-  // MIT monitor: only that airport's arrivals, colored by arrival gate
+  // MIT monitor: only that airport's arrivals, colored by arrival gate.
+  // The selected FCA's sequence stays visible too, so its routes never lose their aircraft.
   const mon=mit.monitor;
   const monFlights=mon?new Map(mon.flights.map(f=>[f.callsign,f])):null;
   let shown=0;
   for(const p of state.pilots){
     if(p.lat==null||p.lon==null) continue;
-    if(monFlights&&!monFlights.has(p.callsign)) continue;
+    const mf=monFlights&&monFlights.get(p.callsign);
+    if(monFlights&&!mf&&!seqMap.has(p.callsign)) continue;
     if(!b.contains([p.lat,p.lon])) continue;
     if(shown>900) break;
-    const hit=monFlights?null:seqMap.get(p.callsign);
-    const mf=monFlights&&monFlights.get(p.callsign);
+    const hit=mf?null:seqMap.get(p.callsign);
     const color=mf ? mitFlightColor(mf)
       : hit?hit.color:(p.phase==="gnd"?"#5e7184":"#49d3e6");
     const m=L.marker([p.lat,p.lon],{icon:planeIcon(color,p.hdg||0,!!hit,hit?hit.n:null),
@@ -2186,6 +2187,7 @@ const mit={
   monitor:null,
   gateMarkers:{},     // gate name → Leaflet marker (for opening its popup from the sidebar)
   openGate:null,      // gate whose popup is open, so refreshes keep it open
+  noticed:false,      // told the user a remembered monitor is filtering traffic
 };
 const MIT_GREY="#6b7a89";
 function mitFlightColor(f){
@@ -2204,6 +2206,11 @@ function connectMitHub(){
     mit.programs=normPrograms(m.rates);
     mit.hub="live";
     computeMitMonitor(); renderTraffic(); renderMit();
+    // a monitor remembered from last visit filters the map while its section sits collapsed: say so once
+    if(mit.monitor&&!mit.noticed){
+      mit.noticed=true;
+      toast(`MIT Monitor is showing only ${mit.airport} arrivals. STOP it in the MIT Monitor section to see all traffic.`,5000);
+    }
   };
   ws.onclose=()=>{
     mit.ws=null; mit.hub="connecting"; renderMit();
@@ -2221,7 +2228,7 @@ function computeMitMonitor(){
 }
 function setMitAirport(code){
   mit.airport = code && code!==mit.airport ? code : null;
-  mit.openGate=null;
+  mit.openGate=null; mit.noticed=true;
   try{ mit.airport?localStorage.setItem(LS_MIT_APT,mit.airport):localStorage.removeItem(LS_MIT_APT); }catch(_){}
   computeMitMonitor(); renderTraffic(); renderMit();
   if(mit.monitor) fitMitAirport();
