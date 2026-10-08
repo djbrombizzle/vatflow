@@ -2342,17 +2342,11 @@ document.getElementById("mitDetail").addEventListener("click",e=>{
   else toast(`Can't place gate ${row.dataset.mitgate} on the map (not in the nav database).`,2800);
 });
 
-// sidebar sections — collapsible; which ones are open is remembered per device
-const LS_SIDE_OPEN="fca.sideOpen";
+// sidebar sections — collapsible; every section starts collapsed on page load
 function sideSections(){ return [...document.querySelectorAll("#sidebar .acc")]; }
 function setSection(sec,open){
   sec.classList.toggle("open",open);
   sec.querySelector(".acc-h").setAttribute("aria-expanded",String(open));
-}
-function saveSections(){
-  const open=sideSections().filter(s=>s.classList.contains("open")).map(s=>s.dataset.sec);
-  try{ localStorage.setItem(LS_SIDE_OPEN, JSON.stringify(open)); }catch(_){}
-  updateAccAllBtn();
 }
 function updateAccAllBtn(){
   const b=document.getElementById("accAllBtn"); if(!b) return;
@@ -2366,17 +2360,16 @@ function updateLayerCount(){
   el.textContent=n+" on";
 }
 (function initSections(){
-  let open=["fcas"];
-  try{ const v=JSON.parse(localStorage.getItem(LS_SIDE_OPEN)||"null"); if(Array.isArray(v)) open=v; }catch(_){}
+  try{ localStorage.removeItem("fca.sideOpen"); }catch(_){}   // open state was remembered before; drop it
   sideSections().forEach(sec=>{
-    setSection(sec,open.includes(sec.dataset.sec));
+    setSection(sec,false);
     sec.querySelector(".acc-h").addEventListener("click",()=>{
-      setSection(sec,!sec.classList.contains("open")); saveSections();
+      setSection(sec,!sec.classList.contains("open")); updateAccAllBtn();
     });
   });
   document.getElementById("accAllBtn").addEventListener("click",()=>{
     const allOpen=sideSections().every(s=>s.classList.contains("open"));
-    sideSections().forEach(s=>setSection(s,!allOpen)); saveSections();
+    sideSections().forEach(s=>setSection(s,!allOpen)); updateAccAllBtn();
   });
   updateAccAllBtn(); updateLayerCount();
 })();
