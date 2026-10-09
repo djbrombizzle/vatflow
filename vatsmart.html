@@ -88,7 +88,7 @@
   .leaflet-container { font-family: var(--mono); }
   .leaflet-tooltip.ac { background: #0e1319ee; color: var(--text); border: 1px solid #2a3644; font-size: 11px; box-shadow: none; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
-  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  .legend i { display: inline-block; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 9px solid currentColor; margin-right: 4px; vertical-align: 0; }
 
   .chart { overflow-x: auto; }
   .chart svg { display: block; width: 100%; min-width: 640px; height: auto; }
@@ -460,6 +460,16 @@ function renderRecs(s) {
 }
 
 /* ---- map ---- */
+/* aircraft symbol pointing along the heading (same arrowhead as the FCA Builder); on the ground it's
+   hollow, and a red ring marks an aircraft inside the MIT behind the one ahead */
+function acIcon(color, hdg, airborne, tight) {
+  const sz = airborne ? 15 : 11;
+  const fill = airborne ? color : "#0a0e14";
+  const ring = tight ? `<div style="position:absolute;inset:-5px;border:1.5px solid #e07070;border-radius:50%"></div>` : "";
+  const html = `<div style="position:relative;width:${sz}px;height:${sz}px">${ring}<div style="transform:rotate(${Math.round(hdg)}deg);width:${sz}px;height:${sz}px">` +
+    `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" style="display:block;filter:drop-shadow(0 0 2px #000)"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${fill}" stroke="${airborne ? "#0a0e14" : color}" stroke-width="${airborne ? 1.2 : 2}" stroke-linejoin="round"/></svg></div></div>`;
+  return L.divIcon({ className: "", html, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+}
 let map = null, layer = null, mapFitted = false;
 function renderMap(s) {
   if (!window.L) return;
@@ -479,13 +489,12 @@ function renderMap(s) {
     if (f.lat == null || f.status === "ARRIVED") continue;
     const col = f.excluded || f.gate === NO_GATE ? "#6b7a89" : colors[f.gate] || "#6b7a89";
     const eta = f.eta ? fmtZ(f.eta) : "";
-    const m = L.circleMarker([f.lat, f.lon], { radius: f.status === "AIRBORNE" ? 4 : 3, color: tightSet.has(f.callsign) ? "#e07070" : col,
-      weight: tightSet.has(f.callsign) ? 2 : 1, fillColor: col, fillOpacity: f.status === "AIRBORNE" ? 0.9 : 0.3 });
+    const m = L.marker([f.lat, f.lon], { icon: acIcon(col, f.hdg || 0, f.status === "AIRBORNE", tightSet.has(f.callsign)), keyboard: false });
     m.bindTooltip(`${esc(f.callsign)} ${esc(f.type || "")}<br>${esc(f.dep || "")} → ${esc(f.gate)} · ETA ${eta}${f.dist != null ? " · " + Math.round(f.dist) + " nm" : ""}${f.status !== "AIRBORNE" ? " · " + f.status.toLowerCase() : ""}`, { className: "ac" });
     m.addTo(layer);
   }
-  $("legend").innerHTML = s.gates.filter(g => g.inbound).slice(0, 8).map(g => `<span><i style="background:${g.color}"></i>${esc(g.name)}</span>`).join("") +
-    `<span><i style="background:#6b7a89"></i>no gate</span>`;
+  $("legend").innerHTML = s.gates.filter(g => g.inbound).slice(0, 8).map(g => `<span><i style="color:${g.color}"></i>${esc(g.name)}</span>`).join("") +
+    `<span><i style="color:#6b7a89"></i>no gate</span>`;
 }
 
 /* ---- rolling demand chart ---- */
