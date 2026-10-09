@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>ZJX Crossings — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  main { max-width: 1100px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 20px) 16px 40px; }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.14em; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 16px; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  select, input[type=text], button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 7px 10px;
+  }
+  input[type=text] { width: 220px; text-transform: uppercase; }
+  button { cursor: pointer; }
+  button:hover, select:hover { border-color: var(--amber); }
+  button.on { border-color: var(--amber); color: var(--amber); }
+  label.chk { font-family: var(--mono); font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .status { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
+  .status.err { color: var(--red); }
+
+  .gate { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; max-width: 520px; }
+  .gate p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  .ac { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .ac-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); }
+  .cs { font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 600; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; }
+  .tag.in { color: var(--green); }
+  .tag.inb { color: var(--cyan); }
+  .tag.gnd { color: var(--muted); }
+  .tag.pre { color: var(--dim); }
+  .route { font-family: var(--mono); font-size: 11px; color: var(--dim); padding: 6px 14px 0; overflow-wrap: anywhere; }
+  .route mark { background: none; color: var(--amber); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: var(--dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .ac table { margin-top: 6px; }
+  td.restr { color: var(--amber); font-weight: 600; white-space: nowrap; }
+  td.hand { white-space: nowrap; }
+  td.hand .arrow { color: var(--dim); }
+  .secname { color: var(--dim); font-size: 10px; }
+  td.secname { white-space: nowrap; }
+  tr.passed td { opacity: 0.45; }
+  tr.partial td.restr::after { content: " ?"; color: var(--dim); }
+  .note { color: var(--muted); font-size: 11px; }
+  .q { font-size: 10px; letter-spacing: 0.06em; }
+  .q.full { color: var(--green); }
+  .q.partial { color: var(--muted); }
+  .dv { padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: var(--cyan); border-top: 1px solid var(--line); }
+  .empty { color: var(--muted); font-size: 13px; padding: 24px 0; }
+  .ref { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+  .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
+
+  .mapwrap { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 10px; height: calc(100vh - var(--vatflow-nav-h) - 225px); min-height: 420px; }
+  #map { border: 1px solid var(--line); border-radius: 8px; background: #0a0e14; min-height: 0; }
+  #map .leaflet-container, #map.leaflet-container { background: #0a0e14; font-family: var(--mono); }
+  .mappanel { overflow-y: auto; min-height: 0; }
+  .mappanel .ac { margin-bottom: 0; }
+  .mappanel thead { display: none; }
+  .mappanel tr { display: block; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .mappanel tr:last-child { border-bottom: none; }
+  .mappanel td { display: block; border: none; padding: 1px 12px; white-space: normal; }
+  .mappanel td.restr { font-size: 13px; }
+  .mappanel .hint { color: var(--muted); font-size: 13px; line-height: 1.5; padding: 12px 4px; }
+  .mappanel .pick { display: block; width: 100%; text-align: left; margin-bottom: 4px; font-size: 12px; }
+  .mappanel .pick .tag { margin-left: 6px; }
+  .fixlbl { font-family: var(--mono); font-size: 10px; line-height: 1.25; color: #0a0e14; background: var(--amber); border-radius: 3px; padding: 1px 4px; white-space: nowrap; box-shadow: 0 0 4px #000; }
+  .fixlbl.partial { background: #b9c3cc; }
+  .fixlbl.passed { opacity: 0.5; }
+  .fixlbl.bdry { background: var(--cyan); }
+  .cslbl { font-family: var(--mono); font-size: 10px; color: var(--text); white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .artcc-label { font-family: var(--mono); font-size: 11px; color: #5c6b78; letter-spacing: 0.1em; }
+  .leaflet-tooltip.cstip { background: #0e1319; color: var(--text); border: 1px solid #2a3644; font-family: var(--mono); font-size: 11px; }
+  @media (max-width: 900px) {
+    .mapwrap { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
+    .mappanel { overflow: visible; }
+  }
+  @media (max-width: 640px) {
+    input[type=text] { width: 100%; }
+    td.hand, td.restr { white-space: normal; }
+  }
+  .seclbl { font-family: var(--mono); font-size: 10px; color: #8197aa; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000; }
+  .mapbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .mapbar .lbl { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .mapbar button { font-size: 12px; padding: 4px 9px; }
+  td.note { color: var(--muted); font-size: 11px; min-width: 160px; }
+  .ref td.restr { white-space: normal; min-width: 130px; }
+  .charts { margin-top: 18px; }
+  .charts summary { cursor: pointer; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .charts .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-top: 10px; }
+  .charts figure { margin: 0; background: #fff; border-radius: 6px; overflow: hidden; }
+  .charts img { display: block; width: 100%; height: auto; }
+  .charts figcaption { background: var(--panel); color: var(--muted); font-family: var(--mono); font-size: 11px; padding: 6px 8px; }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <h1>ZJX CROSSINGS</h1>
+  <p class="sub" id="sub">ZJX SOP descent-table restrictions for each aircraft's filed route, from the live VATSIM feed.</p>
+
+  <div id="gate" class="gate" hidden>
+    <p id="gateMsg">Sign in with VATSIM to use this page.</p>
+    <button type="button" id="gateSignIn">Sign in with VATSIM</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="bar">
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="live" class="on">Live traffic</button>
+        <button type="button" data-view="map">Map</button>
+        <button type="button" data-view="ref">SOP tables</button>
+      </div>
+      <select id="secSel" title="Show restrictions an area or sector gives or receives"></select>
+      <input type="text" id="q" placeholder="Callsign, airport, fix…" autocomplete="off" spellcheck="false">
+      <span class="status" id="status">Loading…</span>
+    </div>
+    <div class="bar" id="liveOpts">
+      <label class="chk"><input type="checkbox" id="optZjx" checked> Only in or through ZJX</label>
+      <label class="chk" title="Hide rows from sectors the filed route never crosses (sector shapes are approximate)"><input type="checkbox" id="optOnRoute" checked> Only sectors on the route</label>
+      <label class="chk"><input type="checkbox" id="optPartial" checked> Include partial route matches</label>
+      <label class="chk"><input type="checkbox" id="optPassed"> Show restrictions already passed</label>
+      <label class="chk"><input type="checkbox" id="optPrefile"> Include prefiles</label>
+    </div>
+    <div id="out"></div>
+    <div id="mapWrap" hidden>
+      <div class="mapbar">
+        <span class="lbl">Sectors</span>
+        <div class="seg" id="strataSeg">
+          <button type="button" data-st="LOW">Low</button>
+          <button type="button" data-st="HIGH" class="on">High</button>
+          <button type="button" data-st="UTA">Ultra-high</button>
+          <button type="button" data-st="">Off</button>
+        </div>
+      </div>
+      <div class="mapwrap">
+        <div id="map"></div>
+        <aside id="mapPanel" class="mappanel"></aside>
+      </div>
+    </div>
+    <details class="charts" id="charts" hidden>
+      <summary>SOP sector charts (Chapter 3)</summary>
+      <div class="grid">
+        <figure><img src="data/zjx-sop/sector-chart-low.jpg" alt="ZJX low altitude sector chart" loading="lazy"><figcaption>3.1 Low altitude sectors</figcaption></figure>
+        <figure><img src="data/zjx-sop/sector-chart-high.jpg" alt="ZJX high altitude sector chart" loading="lazy"><figcaption>3.2 High altitude sectors</figcaption></figure>
+        <figure><img src="data/zjx-sop/sector-chart-ultra-high.jpg" alt="ZJX ultra-high altitude sector chart" loading="lazy"><figcaption>3.3 Ultra-high altitude sectors</figcaption></figure>
+      </div>
+    </details>
+    <p class="foot" id="foot"></p>
+  </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, canEditArtcc, isSignedIn, login } from "./shared/vatflow-auth.js";
+import { getAirport, hasAirport, loadAirports, gcLine } from "./shared/fca-metering.js";
+import { fetchArtccBoundaries, pointInArtcc, getArtccRings, getArtccBounds } from "./shared/artcc-scope.js";
+import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft, resolveToken } from "./shared/route-engine.js";
+import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { ROWS, SECTORS, SECTOR_INFO, SECTOR_REF, AREAS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zjx-sop-data.js";
+import {
+  matchFlight, engineClass, zjxPrimaries, zjxSatPrimaries, zjxSectorShapes, sectorsOnPath, entryPoint, densify,
+} from "./shared/zjx-sop-match.js";
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const PREFS_KEY = "vatflow.zjxCrossings.prefs";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "zjx-crossings");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const prefs = loadPrefs();
+let view = ["ref", "map"].includes(prefs.view) ? prefs.view : "live";
+let stratum = typeof prefs.stratum === "string" ? prefs.stratum : "HIGH";
+let feed = null, feedAt = 0, feedErr = "";
+let started = false, timer = null;
+let shapes = null;
+
+const ll = id => getAirport(id);
+const geoCtx = { ll, primaries: zjxPrimaries(), satPrimaries: zjxSatPrimaries() };
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) { return {}; }
+}
+function savePrefs() {
+  const p = {
+    view, stratum, sec: $("secSel").value,
+    zjx: $("optZjx").checked, onRoute: $("optOnRoute").checked, partial: $("optPartial").checked,
+    passed: $("optPassed").checked, prefile: $("optPrefile").checked,
+  };
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+
+/* ---------------- access gate ---------------- */
+
+function gate() {
+  const ok = canEditArtcc("ZJX");
+  $("gate").hidden = ok;
+  $("app").hidden = !ok;
+  if (!ok) {
+    $("gateMsg").textContent = isSignedIn()
+      ? "This page is limited to VATFLOW users with ZJX access. Ask a VATFLOW admin to add ZJX to your whitelist entry."
+      : "Sign in with VATSIM to use this page. It is limited to VATFLOW users with ZJX access.";
+    $("gateSignIn").hidden = isSignedIn();
+    return;
+  }
+  if (!started) start();
+}
+$("gateSignIn").addEventListener("click", () => login());
+window.addEventListener("vatflow-auth-changed", gate);
+initVatflowAuth().then(gate, gate);
+
+/* ---------------- setup ---------------- */
+
+async function loadSectorShapes() {
+  const files = ["low", "high", "uta"].map(n => fetch(`data/artcc-sectors-${n}.geojson`).then(r => (r.ok ? r.json() : null)).catch(() => null));
+  const geo = await Promise.all(files);
+  shapes = zjxSectorShapes(geo.filter(Boolean));
+  if (!shapes.bySector.size) shapes = null;
+}
+
+function start() {
+  started = true;
+  $("secSel").innerHTML = `<option value="">All sectors</option>` + AREAS.map(a =>
+    `<optgroup label="${esc(a)} area"><option value="area:${esc(a)}">All ${esc(a)} area</option>` +
+    Object.entries(SECTOR_INFO).filter(([, v]) => v[1] === a).sort(([x], [y]) => x.localeCompare(y))
+      .map(([k, v]) => `<option value="${k}">${k} ${esc(v[0])}</option>`).join("") + `</optgroup>`).join("");
+  if (prefs.sec && [...$("secSel").options].some(o => o.value === prefs.sec)) $("secSel").value = prefs.sec;
+  if (prefs.zjx === false) $("optZjx").checked = false;
+  if (prefs.onRoute === false) $("optOnRoute").checked = false;
+  if (prefs.partial === false) $("optPartial").checked = false;
+  if (prefs.passed) $("optPassed").checked = true;
+  if (prefs.prefile) $("optPrefile").checked = true;
+  setStratum(stratum);
+  setView(view);
+
+  $("viewSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-view]");
+    if (b) { setView(b.dataset.view); savePrefs(); }
+  });
+  $("strataSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-st]");
+    if (b) { setStratum(b.dataset.st); savePrefs(); drawSectors(); }
+  });
+  ["secSel", "optZjx", "optOnRoute", "optPartial", "optPassed", "optPrefile"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  $("q").addEventListener("input", () => render());
+  $("mapPanel").addEventListener("click", e => {
+    const b = e.target.closest("button[data-cs], button[data-back]");
+    if (!b) return;
+    selected = b.dataset.cs || "";
+    render();
+  });
+
+  $("foot").innerHTML =
+    `Source: ${esc(SOP_ID)} (effective ${esc(SOP_DATE)}), Chapters 4–9 sector descent tables, plus the Alma 7 MIT and Summer SAV/SVN crossing from General Procedures. ` +
+    `"+" destinations include fields within 35 nm of the named airports. ` +
+    `A "?" marks a partial route match (the STAR or most of the routing matched, not every fix). ` +
+    `"Only sectors on the route" uses VATFLOW's ZJX sector shapes, which are approximate; ultra-high sectors 21/31/32/48/51/67 are taken from the sectors below them. Reference only; the SOP governs.`;
+
+  Promise.all([
+    loadAirports().catch(() => null),
+    fetchArtccBoundaries().catch(() => null),
+    loadNavData().catch(() => null),
+    loadSectorShapes().catch(() => null),
+  ]).then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); drawBoundaries(); drawSectors(); render(); });
+  bindAirports(getAirport, hasAirport);
+  poll();
+  timer = setInterval(poll, VATSIM_FEED_MS);
+}
+
+function setView(v) {
+  view = v;
+  $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  $("liveOpts").hidden = v === "ref";
+  $("out").hidden = v === "map";
+  $("mapWrap").hidden = v !== "map";
+  $("charts").hidden = v !== "ref";
+  if (v === "map") ensureMap();
+  render();
+}
+
+function setStratum(s) {
+  stratum = s;
+  $("strataSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.st === s));
+}
+
+/* ---------------- feed ---------------- */
+
+async function poll() {
+  try {
+    const r = await fetch(VATSIM_URL, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    feed = await r.json();
+    feedAt = Date.now();
+    feedErr = "";
+  } catch (e) {
+    feedErr = "VATSIM feed unavailable (" + (e.message || e) + ")";
+  }
+  if (!isUserTyping()) render();
+}
+
+/* ---------------- live view ---------------- */
+
+const routeCache = new Map();
+function routeInfo(f) {
+  if (!isNavReady()) return null;
+  const key = `${f.callsign}|${f.dep}|${f.arr}|${f.route}`;
+  let base = routeCache.get(key);
+  if (!base) {
+    try { base = buildRouteAnchors({ dep: f.dep, arr: f.arr, route: f.route }); } catch (_) { base = { anchors: [] }; }
+    if (shapes) base.sectors = sectorsOnPath(base.anchors.filter(a => a.ll).map(a => a.ll), shapes.bySector);
+    routeCache.set(key, base);
+  }
+  let ahead = base.anchors;
+  if (f.lat != null && !f.prefile && f.gs > 50) {
+    try { ahead = buildRouteAnchorsForAircraft({ dep: f.dep, arr: f.arr, route: f.route, lat: f.lat, lon: f.lon, hdg: f.hdg }).anchors; } catch (_) {}
+  }
+  return { all: base.anchors, ahead, sectors: base.sectors || null };
+}
+
+function flightsFromFeed() {
+  if (!feed) return [];
+  const out = [];
+  const add = (p, prefile) => {
+    const fp = p.flight_plan;
+    if (!fp || !fp.arrival || !fp.route) return;
+    out.push({
+      callsign: p.callsign, dep: (fp.departure || "").toUpperCase(), arr: (fp.arrival || "").toUpperCase(),
+      route: fp.route, type: fp.aircraft_short || fp.aircraft_faa || fp.aircraft || "", altitude: fp.altitude,
+      lat: prefile ? null : p.latitude, lon: prefile ? null : p.longitude, alt: prefile ? null : p.altitude,
+      gs: prefile ? 0 : p.groundspeed, hdg: prefile ? null : p.heading, prefile,
+    });
+  };
+  (feed.pilots || []).forEach(p => add(p, false));
+  if ($("optPrefile").checked) (feed.prefiles || []).forEach(p => add(p, true));
+  return out;
+}
+
+function inZjx(llPair) { return llPair && pointInArtcc("ZJX", llPair[0], llPair[1]) === true; }
+
+function flightStatus(f, ri) {
+  if (f.prefile) return { key: "pre", label: "PREFILE" };
+  const here = f.lat != null && inZjx([f.lat, f.lon]);
+  if (f.gs < 50) return { key: "gnd", label: "ON GROUND", outside: !here };
+  if (here) return { key: "in", label: "IN ZJX" };
+  if (ri && ri.ahead.some(a => a.ll && inZjx(a.ll))) return { key: "inb", label: "INBOUND" };
+  return { key: "out", label: "OUTSIDE", outside: true };
+}
+
+/** Sectors picked in the sector menu ("area:East" → every East sector), or null for all. */
+function pickedSectors() {
+  const v = $("secSel").value;
+  if (!v) return null;
+  if (v.startsWith("area:")) {
+    const a = v.slice(5);
+    return new Set(Object.entries(SECTOR_INFO).filter(([, i]) => i[1] === a).map(([k]) => k));
+  }
+  return new Set([v]);
+}
+
+function sectorFilterPass(row, picked) {
+  return !picked || picked.has(row[0]) || picked.has(row[5]);
+}
+
+function computeCards(qStr) {
+  const picked = pickedSectors();
+  const onlyZjx = $("optZjx").checked, onRoute = $("optOnRoute").checked;
+  const partialOk = $("optPartial").checked, showPassed = $("optPassed").checked;
+  const flights = flightsFromFeed();
+  const cards = [];
+
+  for (const f of flights) {
+    // Cheap first pass on the filed route alone; expand the route only for candidates.
+    const first = matchFlight(f, geoCtx);
+    if (!first.length) continue;
+    const ri = routeInfo(f);
+    const matches = ri ? matchFlight(f, { ...geoCtx, extraFixes: ri.all.map(a => a.name) }) : first;
+    const st = flightStatus(f, ri);
+    if (onlyZjx && st.outside) {
+      const depIn = inZjx(ll(f.dep)) || inZjx(ll(f.arr));
+      if (!(f.gs < 50 && depIn) && !(f.prefile && depIn)) continue;
+    }
+    const aheadNames = ri ? new Set(ri.ahead.map(a => a.name)) : null;
+    const allNames = ri ? new Set(ri.all.map(a => a.name)) : null;
+    const rows = matches.filter(m => {
+      if (!partialOk && m.quality !== "full") return false;
+      if (!sectorFilterPass(m.row, picked)) return false;
+      // Fail open when the route or the sector shape is unknown.
+      if (onRoute && ri && ri.sectors && shapes && shapes.bySector.has(m.row[0]) && !ri.sectors.has(m.row[0])) return false;
+      m.passed = !!(m.fix && aheadNames && allNames.has(m.fix) && !aheadNames.has(m.fix) && !f.prefile && f.gs >= 50);
+      if (m.passed && !showPassed) return false;
+      return true;
+    });
+    if (!rows.length) continue;
+    const hay = [f.callsign, f.dep, f.arr, f.route, f.type, ...rows.map(m => m.row.join(" "))].join(" ").toUpperCase();
+    if (qStr && !qStr.split(/\s+/).every(w => hay.includes(w))) continue;
+    cards.push({ f, st, rows, ri });
+  }
+
+  const rank = { in: 0, inb: 1, gnd: 2, pre: 3, out: 4 };
+  cards.sort((a, b) => (rank[a.st.key] - rank[b.st.key]) || a.f.callsign.localeCompare(b.f.callsign));
+  return cards;
+}
+
+function setFeedStatus(cards) {
+  const age = feedAt ? Math.round((Date.now() - feedAt) / 1000) : null;
+  $("status").textContent = feedErr || (feed ? `${cards.length} aircraft · feed ${age}s ago` : "Loading VATSIM feed…");
+  $("status").classList.toggle("err", !!feedErr);
+}
+
+function renderLive(qStr) {
+  const cards = computeCards(qStr);
+  setFeedStatus(cards);
+  if (!feed) { $("out").innerHTML = `<p class="empty">Loading the VATSIM feed…</p>`; return; }
+  if (!cards.length) {
+    $("out").innerHTML = `<p class="empty">No aircraft on routes with ZJX SOP restrictions${qStr || $("secSel").value ? " match these filters" : " right now"}.</p>`;
+    return;
+  }
+  $("out").innerHTML = cards.map(renderCard).join("");
+}
+
+function sectorCell(id) {
+  if (!id) return `<span class="secname">—</span>`;
+  if (SECTORS[id]) return `${esc(id)} <span class="secname">${esc(SECTORS[id])}</span>`;
+  const name = FACILITY_NAMES[id] || "";
+  return `${esc(id)}${name ? ` <span class="secname">${esc(name)}</span>` : ""}`;
+}
+
+const forLabel = r => r[8] || r[1];
+
+function renderCard({ f, st, rows }) {
+  const cls = engineClass(f.type);
+  const cruise = f.altitude ? String(f.altitude) : "";
+  const now = f.alt != null ? `${Math.round(f.alt / 100).toString().padStart(3, "0")} · ${f.gs}kt` : "";
+  const fixSet = new Set(rows.map(m => m.fix).filter(Boolean));
+  rows.forEach(m => m.row[3].replace(/\([^)]*\)/g, " ").replace(/[\[\]]/g, " ").split(/[\s/]+/).forEach(t => t && fixSet.add(t.replace("#", ""))));
+  const routeHtml = String(f.route).split(/\s+/).map(tok => {
+    const base = tok.split(/[./]/)[0].toUpperCase().replace(/\d[A-Z]?$/, "");
+    const hit = fixSet.has(tok.toUpperCase()) || (base.length >= 3 && fixSet.has(base));
+    return hit ? `<mark>${esc(tok)}</mark>` : esc(tok);
+  }).join(" ");
+
+  const body = rows.map(m => {
+    const r = m.row;
+    const notes = [...m.notes];
+    if (r[6]) notes.unshift(r[6]);
+    if (r[7]) notes.push(r[7]);
+    if (m.how === "satellite") notes.push(`${f.arr} as satellite of ${forLabel(r)}`);
+    if (m.typeUnknown) notes.push(`aircraft type ${f.type || "?"} not classified`);
+    if (m.passed) notes.push("passed");
+    return `<tr class="${m.quality}${m.passed ? " passed" : ""}">` +
+      `<td class="hand">${sectorCell(r[0])} <span class="arrow">→</span> ${sectorCell(r[5])}</td>` +
+      `<td class="restr">${esc(r[4])}</td>` +
+      `<td>${esc(forLabel(r))} ${esc(r[3])}${notes.length ? `<div class="note">${esc(notes.join(" · "))}</div>` : ""}</td>` +
+      `<td><span class="q ${m.quality}">${m.quality === "full" ? "ROUTE" : "PARTIAL"}</span> <span class="secname">${esc(SECTOR_REF[r[0]] || "")}</span></td>` +
+      `</tr>`;
+  }).join("");
+
+  return `<div class="ac">` +
+    `<div class="ac-head"><span class="cs">${esc(f.callsign)}</span>` +
+    `<span class="meta"><b>${esc(f.dep)}</b> → <b>${esc(f.arr)}</b></span>` +
+    `<span class="meta">${esc(f.type)}${cls ? ` · ${cls}` : ""}</span>` +
+    `<span class="meta">filed ${esc(cruise)}${now ? ` · now ${esc(now)}` : ""}</span>` +
+    `<span class="tag ${st.key}">${esc(st.label)}</span></div>` +
+    `<div class="route">${routeHtml}</div>` +
+    `<table><thead><tr><th>Sector → to</th><th>Restriction</th><th>For / routing</th><th>Match</th></tr></thead><tbody>${body}</tbody></table>` +
+    `</div>`;
+}
+
+/* ---------------- reference view ---------------- */
+
+function renderRef(qStr) {
+  const picked = pickedSectors();
+  const rows = ROWS.filter(r => sectorFilterPass(r, picked))
+    .filter(r => !qStr || qStr.split(/\s+/).every(w => r.join(" ").toUpperCase().includes(w)));
+  $("status").textContent = `${rows.length} of ${ROWS.length} restrictions`;
+  $("status").classList.remove("err");
+  if (!rows.length) { $("out").innerHTML = `<p class="empty">No SOP restrictions match these filters.</p>`; return; }
+  $("out").innerHTML = `<div class="ref"><table><thead><tr><th>Sector → to</th><th>Restriction</th><th>For</th><th>Routing</th><th>Note</th><th>Ref</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="hand">${sectorCell(r[0])} <span class="arrow">→</span> ${sectorCell(r[5])}</td>` +
+      `<td class="restr">${esc(r[4])}</td>` +
+      `<td>${esc(forLabel(r))}${r[2] ? ` <span class="note">${esc(r[2])}</span>` : ""}</td><td>${esc(r[3])}</td>` +
+      `<td class="note">${esc([r[6], r[7]].filter(Boolean).join(" · "))}</td>` +
+      `<td class="secname">${esc(SECTOR_REF[r[0]] || "")}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+
+/* ---------------- map view ---------------- */
+
+const NEIGHBOR_ARTCCS = ["ZDC", "ZTL", "ZHU", "ZMA"];
+const STATUS_COLOR = { in: "#57d98a", inb: "#3fb7b0", gnd: "#8a97a3", pre: "#5c6b78", out: "#5c6b78" };
+let map = null, mapLayers = null, selected = "", fittedZjx = false, fittedSel = "";
+
+function ensureMap() {
+  if (map) { setTimeout(() => map.invalidateSize(), 0); return; }
+  if (typeof L === "undefined") return;
+  map = L.map("map", { zoomControl: false, minZoom: 4, maxZoom: 11 });
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  if (window.addVatflowBasemap) window.addVatflowBasemap(map);
+  mapLayers = {
+    sectors: L.layerGroup().addTo(map), bdry: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
+    fixes: L.layerGroup().addTo(map), traffic: L.layerGroup().addTo(map),
+  };
+  map.setView([30.5, -83.5], 6);
+  map.on("click", () => { if (selected) { selected = ""; render(); } });
+  drawBoundaries();
+  drawSectors();
+}
+
+function drawBoundaries() {
+  if (!map) return;
+  mapLayers.bdry.clearLayers();
+  for (const id of ["ZJX", ...NEIGHBOR_ARTCCS]) {
+    const rings = getArtccRings(id);
+    if (!rings) continue;
+    const zjx = id === "ZJX";
+    rings.forEach(r => L.polygon(r, {
+      color: zjx ? "#e8a838" : "#3a4d5e", weight: zjx ? 1.5 : 1, opacity: zjx ? 0.6 : 0.8,
+      fill: zjx, fillOpacity: 0.03, interactive: false,
+    }).addTo(mapLayers.bdry));
+    const b = getArtccBounds(id);
+    if (b && !zjx) {
+      L.marker(L.latLngBounds(b).getCenter(), {
+        interactive: false, icon: L.divIcon({ className: "artcc-label", html: id, iconSize: [34, 12] }),
+      }).addTo(mapLayers.bdry);
+    }
+  }
+  const zb = getArtccBounds("ZJX");
+  if (zb && !fittedZjx) { map.fitBounds(zb, { padding: [10, 10] }); fittedZjx = true; }
+}
+
+/** Sector outlines and numbers for the stratum picked above the map. */
+function drawSectors() {
+  if (!map) return;
+  mapLayers.sectors.clearLayers();
+  if (!shapes || !stratum) return;
+  for (const { sector, rings } of shapes.byStratum[stratum] || []) {
+    if (!SECTORS[sector]) continue;
+    rings.forEach(r => L.polygon(r, { color: "#4a6378", weight: 1, opacity: 0.8, dashArray: "4 3", fill: false, interactive: false }).addTo(mapLayers.sectors));
+    const big = rings.reduce((a, r) => (r.length > a.length ? r : a), []);
+    const c = L.polygon(big).getBounds().getCenter();
+    L.marker(c, {
+      interactive: false,
+      icon: L.divIcon({ className: "seclbl", html: `${sector}<br>${esc(SECTORS[sector])}`, iconSize: [80, 24], iconAnchor: [40, 12] }),
+    }).addTo(mapLayers.sectors);
+  }
+}
+
+function planeIcon(color, hdg, big) {
+  const sz = big ? 18 : 12;
+  return L.divIcon({
+    className: "",
+    iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+    html: `<div style="transform:rotate(${Number(hdg) || 0}deg);width:${sz}px;height:${sz}px">` +
+      `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${color}" stroke="#0a0e14" stroke-width="1.2"/></svg></div>`,
+  });
+}
+
+/** Great-circle polyline through a list of [lat, lon]. */
+function gcPath(lls) {
+  let out = [];
+  for (let i = 0; i < lls.length - 1; i++) {
+    const seg = gcLine(lls[i], lls[i + 1]);
+    if (i > 0) seg.shift();
+    out = out.concat(seg);
+  }
+  return out;
+}
+
+/** Last point where a path leaves ZJX (for hand-offs to another ARTCC). */
+function zjxExitPoint(path) {
+  let exit = null;
+  const pts = densify(path, 0.05);
+  for (let i = 1; i < pts.length; i++) {
+    if (inZjx(pts[i - 1]) && !inZjx(pts[i])) exit = pts[i - 1];
+  }
+  return exit;
+}
+
+function fixLatLon(name, card) {
+  const a = card.ri && card.ri.all.find(x => x.name === name && x.ll);
+  if (a) return a.ll;
+  const ref = card.f.lat != null ? [card.f.lat, card.f.lon] : ll(card.f.arr);
+  try { const r = resolveToken(name, { refLL: ref, dep: card.f.dep, arr: card.f.arr }); return r ? r.ll : null; } catch (_) { return null; }
+}
+
+function drawSelected(card) {
+  const { f, ri, rows } = card;
+  const pos = f.lat != null && !f.prefile ? [f.lat, f.lon] : null;
+  const allLL = ri ? ri.all.filter(a => a.ll).map(a => a.ll) : [ll(f.dep), pos, ll(f.arr)].filter(Boolean);
+  const aheadLL = ri ? ri.ahead.filter(a => a.ll).map(a => a.ll) : [pos, ll(f.arr)].filter(Boolean);
+  const full = gcPath(allLL), ahead = gcPath(aheadLL);
+  if (full.length > 1) L.polyline(full, { color: "#8a97a3", weight: 1.5, opacity: 0.5, dashArray: "3 5", interactive: false }).addTo(mapLayers.route);
+  if (ahead.length > 1) L.polyline(ahead, { color: "#e8a838", weight: 2.5, opacity: 0.85, interactive: false }).addTo(mapLayers.route);
+
+  // One label per crossing point, listing every restriction at it: the named
+  // fix, else where the route enters the receiving sector, else where it leaves ZJX.
+  const groups = new Map();
+  const add = (key, llPair, kind, m) => {
+    if (!llPair) return;
+    if (!groups.has(key)) groups.set(key, { ll: llPair, kind, items: [] });
+    groups.get(key).items.push(m);
+  };
+  const path = full.length ? full : allLL;
+  let exit;
+  for (const m of rows) {
+    const to = m.row[5];
+    if (m.fix) add(m.fix, fixLatLon(m.fix, card), "fix", m);
+    else if (/^\d\d$/.test(to) && shapes && shapes.bySector.has(to) && /BDRY|HO /.test(m.row[4] + " " + m.row[6])) {
+      add("S" + to, entryPoint(path, shapes.bySector.get(to)), "bdry", m);
+    } else if (/^Z[A-Z]{2}$/.test(to)) {
+      if (exit === undefined) exit = zjxExitPoint(path);
+      add("BDRY " + to, exit, "bdry", m);
+    }
+  }
+  for (const [key, g] of groups) {
+    const allPassed = g.items.every(m => m.passed);
+    const anyFull = g.items.some(m => m.quality === "full");
+    const lines = g.items.map(m => `${esc(m.row[4])} <span style="opacity:.7">${esc(m.row[0])}${m.row[5] ? `→${esc(m.row[5])}` : ""}</span>`);
+    const head = key.startsWith("S") && g.kind === "bdry" ? `SECTOR ${esc(key.slice(1))} BDRY`
+      : key.startsWith("BDRY ") ? `ZJX/${esc(key.slice(5))} BDRY` : esc(key);
+    L.circleMarker(g.ll, { radius: 4, color: "#0a0e14", weight: 1, fillColor: g.kind === "bdry" ? "#3fb7b0" : "#e8a838", fillOpacity: 1 }).addTo(mapLayers.fixes);
+    L.marker(g.ll, {
+      interactive: false,
+      icon: L.divIcon({
+        className: "",
+        iconSize: null,
+        iconAnchor: [-8, 10],
+        html: `<div class="fixlbl${g.kind === "bdry" ? " bdry" : ""}${anyFull ? "" : " partial"}${allPassed ? " passed" : ""}"><b>${head}</b><br>${lines.join("<br>")}</div>`,
+      }),
+    }).addTo(mapLayers.fixes);
+  }
+
+  if (fittedSel !== f.callsign) {
+    fittedSel = f.callsign;
+    // Frame the ZJX part of the trip: crossing points, route inside ZJX, and the
+    // aircraft when it is close; a cross-country route otherwise zooms out to the coast.
+    const zb = getArtccBounds("ZJX");
+    const near = p => zb && L.latLngBounds(zb).pad(0.6).contains(p);
+    const pts = [...[...groups.values()].map(g => g.ll), ...(ahead.length ? ahead : full).filter(p => inZjx(p))];
+    if (pos && near(pos)) pts.push(pos);
+    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 8 });
+    else if (zb) map.fitBounds(zb, { padding: [10, 10] });
+  }
+}
+
+function renderMap(qStr) {
+  ensureMap();
+  const cards = computeCards(qStr);
+  setFeedStatus(cards);
+  const panel = $("mapPanel");
+  if (!map) { panel.innerHTML = `<p class="hint">The map library did not load. Try reloading the page.</p>`; return; }
+  mapLayers.traffic.clearLayers();
+  mapLayers.route.clearLayers();
+  mapLayers.fixes.clearLayers();
+  const sel = cards.find(c => c.f.callsign === selected) || null;
+  if (!sel) fittedSel = "";
+
+  for (const c of cards) {
+    if (c.f.lat == null || c.f.prefile) continue;
+    const isSel = c === sel;
+    const color = isSel ? "#e8a838" : STATUS_COLOR[c.st.key] || "#8a97a3";
+    L.marker([c.f.lat, c.f.lon], { icon: planeIcon(color, c.f.hdg, isSel), zIndexOffset: isSel ? 1000 : 0, keyboard: false })
+      .bindTooltip(`<b>${esc(c.f.callsign)}</b> ${esc(c.f.dep)}→${esc(c.f.arr)} · ${c.rows.length} restriction${c.rows.length === 1 ? "" : "s"}`,
+        { className: "cstip", direction: "top", offset: [0, -8] })
+      .on("click", e => { L.DomEvent.stopPropagation(e); selected = c.f.callsign; render(); })
+      .addTo(mapLayers.traffic);
+  }
+  if (sel) drawSelected(sel);
+
+  if (!feed) { panel.innerHTML = `<p class="hint">Loading the VATSIM feed…</p>`; return; }
+  if (sel) {
+    panel.innerHTML = `<button type="button" class="pick" data-back="1">← All aircraft</button>` + renderCard(sel);
+    return;
+  }
+  panel.innerHTML = cards.length
+    ? `<p class="hint">Click an aircraft on the map, or pick one here, to see its restrictions and crossing points.</p>` +
+      cards.map(c => `<button type="button" class="pick" data-cs="${esc(c.f.callsign)}">${esc(c.f.callsign)} ` +
+        `<span class="meta">${esc(c.f.dep)}→${esc(c.f.arr)} · ${c.rows.length}</span><span class="tag ${c.st.key}">${esc(c.st.label)}</span></button>`).join("")
+    : `<p class="hint">No aircraft on routes with ZJX SOP restrictions match these filters.</p>`;
+}
+
+function render() {
+  if (!started) return;
+  const qStr = $("q").value.trim().toUpperCase();
+  if (view === "ref") renderRef(qStr);
+  else if (view === "map") renderMap(qStr);
+  else renderLive(qStr);
+}
+</script>
+</body>
+</html>
