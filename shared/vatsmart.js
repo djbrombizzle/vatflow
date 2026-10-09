@@ -256,11 +256,11 @@ export function taxiSummary({ samples = [], sessions = {}, now }) {
  */
 export function buildSituation({
   airport, aptLL, prog = null, localAar = 0, pilots = [], prefiles = [], airportLL = () => null,
-  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null,
+  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null, etaFor = null,
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
-  const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || 9999 }, pilots, prefiles, airportLL, now });
+  const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || 9999 }, pilots, prefiles, airportLL, now, etaFor });
 
   const live = mon.flights.filter(f => !f.excluded && f.status !== "ARRIVED" && f.eta != null)
     .map(f => ({ ...f, prefiled: f.status === "PREFILE" }));
@@ -321,6 +321,7 @@ export function buildSituation({
     gates, counts, edct, gs, restrictions, wx, taxi, upcoming, reference,
   };
   sit.airportLL = airportLL;
+  sit.slots = slotBalance(live, now, cap.capacity);
   sit.reroutes = routing ? routeRecommendations({ sit, stars: routing.stars, cdrs: routing.cdrs }) : [];
   sit.recs = recommend(sit);
   return sit;
@@ -485,6 +486,83 @@ export function rebalanceSuggestion(win, capacity) {
 }
 
 /** Reroute moves grouped by what to issue: "CDR ATLMCOGA via SNFLD3 for DAL1, DAL2 (KATL)". */
+/* ---------------- 15-minute landing slots ---------------- */
+
+export const SLOT_MIN = 15;
+export const SLOT_COUNT = 13;           // the current quarter hour plus the next three hours
+
+/** Arrivals in clock-aligned 15-minute slots by landing time; anyone overdue counts in the first slot. */
+export function landingSlots(flights, now, n = SLOT_COUNT) {
+  const SLOT = SLOT_MIN * MIN, t0 = Math.floor(now / SLOT) * SLOT;
+  const slots = Array.from({ length: n }, (_, i) => ({ start: t0 + i * SLOT, end: t0 + (i + 1) * SLOT, gates: {}, total: 0, prefiled: 0, flights: [] }));
+  for (const f of flights) {
+    if (f.eta == null) continue;
+    const i = Math.max(0, Math.floor((f.eta - t0) / SLOT));
+    if (i >= n) continue;
+    const sl = slots[i], g = f.gate || "—";
+    sl.gates[g] = (sl.gates[g] || 0) + 1; sl.total++; if (f.prefiled) sl.prefiled++; sl.flights.push(f);
+  }
+  return slots;
+}
+
+export const SLOT_PULL_MAX_MIN = 3;     // most an airborne arrival can be pulled earlier (speed, a direct)
+export const SLOT_PULL_MIN_NM = 100;    // and only with room to do it
+export const SLOT_MOVES_MAX = 12;
+
+/**
+ * STAR balancing across 15-minute slots: for each slot over the AAR's quarter-hour share,
+ * move arrivals off its busiest STAR into the slot 15 minutes after (a short delay) or before
+ * (a small pull, airborne only) when that slot has room.
+ * Returns [{ start, end, count, allow, moves: [{ callsign, dep, gate, gateFix, status, dist, eta, to, shiftMin }], left }].
+ */
+export function slotBalance(flights, now, capacity) {
+  if (!(capacity > 0)) return [];
+  const slots = landingSlots(flights, now);
+  const allow = Math.floor(capacity * SLOT_MIN / 60 + 1e-9);
+  const count = slots.map(sl => sl.total);
+  const out = [];
+  let used = 0;
+  slots.forEach((sl, i) => {
+    if (count[i] <= allow || used >= SLOT_MOVES_MAX) return;
+    const rec = { start: sl.start, end: sl.end, count: count[i], allow, moves: [] };
+    const load = {};
+    for (const f of sl.flights) load[f.gate] = (load[f.gate] || 0) + 1;
+    const pool = sl.flights.slice();
+    while (count[i] > allow && used < SLOT_MOVES_MAX) {
+      const options = [];
+      for (const f of pool) {
+        if (i + 1 < slots.length && count[i + 1] < allow)
+          options.push({ f, to: i + 1, shiftMin: Math.max(1, Math.ceil((sl.end - f.eta) / MIN)) });
+        if (i > 0 && count[i - 1] < allow && f.status === "AIRBORNE" && (f.dist || 0) >= SLOT_PULL_MIN_NM) {
+          const pull = Math.ceil((f.eta - sl.start) / MIN) + 1;
+          if (pull <= SLOT_PULL_MAX_MIN && f.eta - pull * MIN > now) options.push({ f, to: i - 1, shiftMin: -pull });
+        }
+      }
+      if (!options.length) break;
+      /* off the busiest STAR first, then the smallest shift, a delay before a pull */
+      options.sort((a, b) => (load[b.f.gate] || 0) - (load[a.f.gate] || 0) || Math.abs(a.shiftMin) - Math.abs(b.shiftMin) || b.shiftMin - a.shiftMin);
+      const o = options[0];
+      pool.splice(pool.indexOf(o.f), 1);
+      load[o.f.gate]--; count[i]--; count[o.to]++; used++;
+      const f = o.f;
+      rec.moves.push({ callsign: f.callsign, dep: f.dep, gate: f.gate, gateFix: f.gateFix || null, status: f.status, dist: f.dist,
+        eta: f.eta, to: slots[o.to].start, shiftMin: o.shiftMin });
+    }
+    rec.left = count[i] - allow;
+    if (rec.moves.length) out.push(rec);
+  });
+  return out;
+}
+
+/** How to get one arrival into its new slot. */
+export function slotMoveHow(m) {
+  const n = Math.abs(m.shiftMin);
+  if (m.shiftMin < 0) return `keep the speed up or give a direct, about ${n} min earlier`;
+  if (m.status !== "AIRBORNE") return `hold the departure ${n} min (EDCT)`;
+  if ((m.dist || 0) > 150) return `speed control, ${n} min later`;
+  return n <= 6 ? `vector or extend downwind, ${n} min later` : `hold ${n} min`;
+}
+
 export function rerouteGroups(moves) {
   const groups = new Map();
   for (const m of moves) {
@@ -573,6 +651,20 @@ export function recommend(s) {
         ", so the queue is shared across feeds instead of stacking up in one" + (cdr ? ". CDRs are published routes the departure center can issue as is." : "."),
       at: r.moves[0].eta });
   }
+  /* STAR balancing across 15-minute slots */
+  for (const b of (s.slots || []).slice(0, 3)) {
+    const by = {};
+    for (const m of b.moves) (by[m.to] = by[m.to] || []).push(m);
+    const where = Object.keys(by).map(t => fmtZ(+t)).join(" and ");
+    const lines = b.moves.map(m => `${m.callsign} (${m.gate}${m.dep ? ", from " + m.dep : ""}, lands ${fmtZ(m.eta)}): ${slotMoveHow(m)}`);
+    add({ id: "slot-" + b.start, sev: b.start - s.now <= 60 * MIN ? "action" : "watch",
+      title: `Move ${plural(b.moves.length, "arrival")} from the ${fmtZ(b.start)} slot into ${where}`,
+      why: `${fmtZ(b.start)}–${fmtZ(b.end)} has ${b.count} landings against ${+(cap / 4).toFixed(1)} per 15 min (${cap}/hr), mostly off ${b.moves[0].gate}. ` +
+        `The slot${Object.keys(by).length > 1 ? "s" : ""} at ${where} ${Object.keys(by).length > 1 ? "have" : "has"} room. ${lines.join("; ")}.` +
+        (b.left > 0 ? ` That still leaves ${plural(b.left, "arrival")} over; the MIT or ground delay above covers the rest.` : ""),
+      at: b.start });
+  }
+
   const rb = !(s.reroutes || []).length && rebalanceSuggestion(pw, cap);
   if (rb) add({ id: "rebalance", sev: "info", title: `Shift ~${rb.move}/hr from ${rb.from} to ${rb.to}`,
     why: `At the peak the whole excess queues on ${rb.from} (${rb.queueBefore} more an hour than its share of the rate). Rerouting about ${rb.move} an hour to ${rb.to}, where a reroute is practical, spreads the delay so no gate queues more than ${rb.queueAfter} an hour.` });

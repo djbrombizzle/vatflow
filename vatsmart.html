@@ -156,6 +156,7 @@
       <span class="pill" id="pFeed">VATSIM</span>
       <span class="pill" id="pHub">PROGRAMS</span>
       <span class="pill" id="pWx">NWS</span>
+      <span class="pill" id="pEta">ETAs …</span>
       <span class="pill" id="pMetar">METAR</span>
       <span class="pill" id="pUpd">—</span>
     </div>
@@ -212,7 +213,9 @@
     weather and capacity into one view about two hours ahead. Here the numbers come from the same code as
     <a href="vatflow-tbfm%20v2.html">Airport TMU</a> (rate calculator, MIT per gate, Event planner) and the
     <a href="FCA-builderv02.html">FCA Builder</a>'s MIT Monitor. Demand counts arrivals with a filed route to the field;
-    ground and prefiled flights are assumed to depart now. Weather from api.weather.gov (US only).
+    ETAs over each gate fix come from the FCA Builder's engine (filed route through the STAR, climb profile, filed TAS
+    corrected for winds aloft; ground flights leave in about 3 minutes or at a filed departure time within 6 hours),
+    and landing is the rest of the route at 260 kt. Weather from api.weather.gov (US only).
   </p>
 </main>
 
@@ -228,8 +231,11 @@ import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
+import { landingSlots, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
 import { createCdrStore } from "./shared/vusalink-clearance.js";
+import { loadNavData, isNavReady } from "./shared/route-engine.js";
+import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
+import { gateEtaFor } from "./shared/gate-eta.js";
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
@@ -480,9 +486,30 @@ async function loadPast() {
   try { st.past = await getJson("data/event-history.json"); } catch (e) { console.warn("event history:", e); st.past = { airports: {} }; }
   render();
 }
+/* the FCA Builder's ETA engine: nav data for route expansion, winds aloft (refreshed hourly) */
+loadNavData().then(() => render()).catch(e => console.warn("Nav data:", e));
+bindWindAirportLookup(getAirport);
+let windsAt = 0;
+/* the engine expands each route; positions only move with the feed, so reuse results within the minute */
+const etaCache = new Map();
+function cachedGateEta(p, gate, now) {
+  const k = [p.callsign, p.route, p.deptime, gate, p.phase, p.lat, p.lon, p.gs, p.alt, Math.floor(now / 60000)].join("|");
+  if (etaCache.has(k)) return etaCache.get(k);
+  if (etaCache.size > 5000) etaCache.clear();
+  const r = gateEtaFor(p, gate, now);
+  etaCache.set(k, r);
+  return r;
+}
+function refreshWinds() {
+  if (Date.now() - windsAt < 3600000 || getWindInfo().status === "loading") return;
+  windsAt = Date.now();
+  fetchWinds().then(() => { etaCache.clear(); render(); }).catch(e => console.warn("Winds aloft:", e));
+}
+
 function refreshSlow() {
   if (!st.airport || !st.aptLL) return;
   const now = Date.now();
+  if (st.airportsReady) refreshWinds();
   if (st.wxFor !== st.airport || now - st.wxAt > WX_MS) fetchWx();
   if (st.metarFor !== st.airport || (st.metarState !== "wait" && now - st.metarAt > METAR_MS)) fetchMetar();
   if (st.tafFor !== st.airport || (st.tafState !== "wait" && now - st.tafAt > TAF_MS)) fetchTaf();
@@ -504,6 +531,11 @@ function renderPills() {
   pill("pHub", st.hubState, st.hubState === "ok" ? "PROGRAMS LIVE" : st.hubState === "bad" ? "PROGRAMS OFFLINE" : "PROGRAMS …",
     "Airport TMU programs, EDCTs and ground stops from the VATFLOW hub (read only)");
   pill("pWx", st.wxState, st.wxState === "ok" ? "NWS" : st.wxState === "bad" ? "NWS N/A" : st.wxState === "wait" ? "NWS …" : "NWS");
+  const wi = getWindInfo();
+  pill("pEta", isNavReady() ? (wi.status === "ok" ? "ok" : wi.status === "loading" ? "wait" : "") : "wait",
+    isNavReady() ? (wi.status === "ok" ? "FCA ETAs + WINDS" : wi.status === "loading" ? "FCA ETAs · WINDS …" : "FCA ETAs · NO WINDS") : "ETAs …",
+    "Gate and landing ETAs from the FCA Builder engine: filed route through the STAR, climb profile, filed TAS corrected for winds aloft" +
+    (wi.status === "ok" ? " (" + wi.count + " FB stations)" : ", still air until winds load") + ".");
   pill("pMetar", st.metarState, st.metarState === "ok" ? "METAR" : st.metarState === "bad" ? "METAR N/A" : "METAR …");
   pill("pUpd", st.feedAt ? "ok" : "", st.feedAt ? "UPDATED " + fmtZ(st.feedAt).toUpperCase() : "—");
 }
@@ -526,7 +558,7 @@ function render() {
   try {
     sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: st.prefiles,
       airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents,
-      routing: { stars: st.stars, cdrs: st.cdrs } });
+      routing: { stars: st.stars, cdrs: st.cdrs }, etaFor: isNavReady() ? (p, gate) => cachedGateEta(p, gate, now) : null });
   } catch (e) { console.error(e); return; }
   st.sit = sit;
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
@@ -607,7 +639,7 @@ function renderMap(s) {
     const col = f.excluded || f.gate === NO_GATE ? "#6b7a89" : colors[f.gate] || "#6b7a89";
     const eta = f.eta ? fmtZ(f.eta) : "";
     const m = L.marker([f.lat, f.lon], { icon: acIcon(col, f.hdg || 0, f.status === "AIRBORNE", tightSet.has(f.callsign)), keyboard: false });
-    m.bindTooltip(`${esc(f.callsign)} ${esc(f.type || "")}<br>${esc(f.dep || "")} → ${esc(f.gate)} · ETA ${eta}${f.dist != null ? " · " + Math.round(f.dist) + " nm" : ""}${f.status !== "AIRBORNE" ? " · " + f.status.toLowerCase() : ""}`, { className: "ac" });
+    m.bindTooltip(`${esc(f.callsign)} ${esc(f.type || "")}<br>${esc(f.dep || "")} → ${esc(f.gate)} ${f.gateEta ? " · " + esc(f.gateFix || f.gate) + " " + fmtZ(f.gateEta) : ""} · lands ${eta}${f.dist != null ? " · " + Math.round(f.dist) + " nm" : ""}${f.status !== "AIRBORNE" ? " · " + f.status.toLowerCase() : ""}`, { className: "ac" });
     m.addTo(layer);
   }
   $("legend").innerHTML = s.gates.filter(g => g.inbound).slice(0, 8).map(g => `<span><i style="color:${g.color}"></i>${esc(g.name)}</span>`).join("") +
@@ -619,16 +651,10 @@ function renderMap(s) {
 function renderChart(s) {
   const W = 1400, H = 300, padL = 34, padR = 10, padT = 18, stripH = 22, padB = 58;
   const SLOT = 15 * 60000, cap = s.cap.capacity, perSlot = cap / 4;
-  const t0 = Math.floor(s.now / SLOT) * SLOT, nSlots = 13, t1 = t0 + nSlots * SLOT;
+  const slots = landingSlots(s.live, s.now), nSlots = slots.length, t0 = slots[0].start, t1 = t0 + nSlots * SLOT;
   const colors = s.mon.colors;
   const colOf = g => !g || g === NO_GATE ? "#3a4654" : colors[g] || "#6b7a89";
-  const slots = Array.from({ length: nSlots }, (_, i) => ({ start: t0 + i * SLOT, gates: {}, total: 0, prefiled: 0, flights: [] }));
-  for (const f of s.live) {
-    const i = Math.max(0, Math.floor((f.eta - t0) / SLOT));     // anyone overdue lands in the first slot
-    if (i >= nSlots) continue;
-    const g = f.gate && f.gate !== NO_GATE ? f.gate : NO_GATE, sl = slots[i];
-    sl.gates[g] = (sl.gates[g] || 0) + 1; sl.total++; if (f.prefiled) sl.prefiled++; sl.flights.push(f);
-  }
+  const moved = new Map((s.slots || []).flatMap(b => b.moves.map(m => [m.callsign, m])));
   const expect = {};
   for (const x of s.program.expect || []) if (x.rate > 0) expect[x.gate] = x.rate / 4;
   const expTotal = Object.values(expect).reduce((a, b) => a + b, 0);
@@ -671,7 +697,12 @@ function renderChart(s) {
   for (const f of s.live) {
     if (f.eta >= t1) continue;
     const x = xOf(Math.max(t0, f.eta)), cy = plotB + stripH / 2, c = colOf(f.gate);
-    svg += `<path d="M${x - 4} ${cy + 5} L${x} ${cy - 5} L${x + 4} ${cy + 5} Z" fill="${f.prefiled ? "none" : c}" stroke="${c}" stroke-width="1.2"><title>${esc(f.callsign)} ${f.dep ? esc(f.dep) + " " : ""}${f.gate && f.gate !== NO_GATE ? esc(f.gate) + " " : ""}ETA ${fmtZ(f.eta)}${f.prefiled ? " (prefiled)" : f.status === "GROUND" ? " (on the ground)" : ""}</title></path>`;
+    const mv = moved.get(f.callsign);
+    if (mv) {                                                // suggested slot move: an arrow from the ETA into the new slot
+      const x2 = xOf(mv.to + (mv.shiftMin > 0 ? 2 : SLOT / 60000 - 2) * 60000);
+      svg += `<path d="M${x} ${cy - 8} Q${(x + x2) / 2} ${cy - 22} ${x2} ${cy - 8}" fill="none" stroke="#e8a838" stroke-width="1.2" stroke-dasharray="3 2"/><circle cx="${x2}" cy="${cy - 8}" r="2.2" fill="#e8a838"/>`;
+    }
+    svg += `<path d="M${x - 4} ${cy + 5} L${x} ${cy - 5} L${x + 4} ${cy + 5} Z" fill="${f.prefiled ? "none" : c}" stroke="${mv ? "#e8a838" : c}" stroke-width="${mv ? 2 : 1.2}"><title>${esc(f.callsign)} ${f.dep ? esc(f.dep) + " " : ""}${f.gateEta ? "over " + esc(f.gateFix || f.gate) + " " + fmtZ(f.gateEta) + " · " : f.gate && f.gate !== NO_GATE ? esc(f.gate) + " · " : ""}lands ${fmtZ(f.eta)}${f.prefiled ? " (prefiled)" : f.status === "GROUND" ? " (on the ground)" : ""}${mv ? " · suggest " + (mv.shiftMin > 0 ? "+" : "−") + Math.abs(mv.shiftMin) + " min into the " + fmtZ(mv.to) + " slot" : ""}</title></path>`;
   }
   /* now marker */
   const xn = xOf(s.now);
@@ -691,7 +722,7 @@ function renderChart(s) {
   }
   svg += `</svg>`;
   $("chart").innerHTML = svg;
-  $("chartNote").textContent = "bars: landings per 15 min by gate · ▲ each aircraft at its ETA (hollow: prefiled) · dashed: program expected demand";
+  $("chartNote").textContent = (isNavReady() ? "FCA engine ETAs · " : "") + "bars: landings per 15 min by gate · ▲ each aircraft at its ETA (hollow: prefiled) · dashed: program expected demand" + ((s.slots || []).length ? " · orange arrows: suggested slot moves" : "");
 }
 
 /* ---- gate table ---- */
