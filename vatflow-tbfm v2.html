@@ -31,8 +31,9 @@ import * as EventPlanner from "./shared/event-planner.js";
 window.VF_EventPlan = EventPlanner;
 </script>
 <script type="module">
-import { rollingGateDemand } from "./shared/mit-monitor.js";
+import { rollingGateDemand, gateMitTimeline } from "./shared/mit-monitor.js";
 window.VF_RollingDemand = rollingGateDemand;
+window.VF_GateMitTimeline = gateMitTimeline;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
@@ -979,6 +980,8 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .demandwin b { display: block; font-size: 15px; color: var(--text); }
 .demandwin.over b { color: var(--alert); }
 .demandwin.sel { border-color: var(--accent); background: rgba(232, 168, 56, 0.10); }
+.mittl th, .mittl td { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
+.mittl th.sel, .mittl td.sel { background: rgba(232, 168, 56, 0.08); }
 .demandwin .pk { display: block; font-size: 9px; letter-spacing: 0.08em; color: var(--warn); }
 .calcpositions { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
 .calcpositions label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
@@ -8191,6 +8194,8 @@ function renderTMURateCalc() {
     '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
     '<li><b>Peak demand</b> slides a 60-minute window every ' + DEMAND_WIN_STEP_MIN + ' minutes across the next 1\u20133 hours (Look ahead, default 3) ' +
     'and takes the busiest hour, so a rush 90 minutes out shows up now instead of only the next 60 minutes.</li>' +
+    '<li>The <b>MIT timeline</b> runs the MIT math on every window, so each gate shows when it first needs MIT and how tight it gets. ' +
+    'Use it to pass MIT to adjacent facilities before the hour that needs it.</li>' +
     '<li><b>MIT per gate</b> uses that busiest hour (or the window you click). If demand is over the AAR, gates feeding more than an even share ' +
     'get the MIT that holds them to their slice (' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to 5 nm). ' +
     'Example: AAR 40, four gates, one quiet gate needs 4/hr \u2192 the other three get 12/hr each \u2192 <b>30 MIT</b>.</li>' +
@@ -8270,6 +8275,35 @@ function liveGateDemand(code, prog) {
 }
 function demandWinLabel(w) { return fmtZ(w.start) + '\u2013' + fmtZ(w.end) + 'z'; }
 function demandWinWhen(w) { return w.offsetMin ? 'starts in ' + w.offsetMin + ' min' : 'starting now'; }
+/* gate x window grid of the MIT each gate needs, soonest first, so a restriction
+   can go to the adjacent facility before the hour that needs it */
+function renderMitTimeline(live, aar) {
+  const tlFn = window.VF_GateMitTimeline;
+  if (!tlFn) return "";
+  const tl = tlFn(live.windows, aar, MIT_NOMINAL_KT);
+  const need = tl.filter(g => g.first >= 0);
+  let h = '<div class="calcdetail" style="margin-top:6px;"><b>MIT timeline</b> \u2014 ';
+  if (!need.length) return h + 'no gate needs MIT in the next ' + rateCalc.lookaheadHr + ' hr.</div>';
+  const g0 = need[0], w0 = live.windows[g0.first];
+  h += 'first needed: <b>' + esc(g0.gate) + ' ' + g0.mits[g0.first] + ' MIT</b> from ' + fmtZ(w0.start) + 'z (' +
+    (w0.offsetMin ? 'in ' + w0.offsetMin + ' min). Pass it to the adjacent facility ahead of that.' : 'needed now).') + '</div>';
+  h += '<div class="tablewrap tablewrap--short"><table class="mittl"><thead><tr><th>GATE</th><th>NEEDED FROM</th><th>TIGHTEST</th>';
+  live.windows.forEach((w, i) => { h += '<th' + (i === live.sel ? ' class="sel"' : '') + '>' + fmtZ(w.start) + 'z</th>'; });
+  h += '</tr></thead><tbody>';
+  for (const g of tl) {
+    const fw = g.first >= 0 ? live.windows[g.first] : null;
+    h += '<tr><td class="cell-strong">' + esc(g.gate) + '</td>' +
+      '<td>' + (fw ? fmtZ(fw.start) + 'z <span class="cell-dim">' + (fw.offsetMin ? 'in ' + fw.offsetMin + ' min' : 'now') + '</span>'
+        : '<span class="cell-dim">not needed</span>') + '</td>' +
+      '<td>' + (g.peakMit ? '<b>' + g.peakMit + '</b> <span class="cell-dim">at ' + fmtZ(live.windows[g.peakIdx].start) + 'z</span>'
+        : '<span class="cell-dim">\u2014</span>') + '</td>';
+    g.mits.forEach((m, i) => {
+      h += '<td' + (i === live.sel ? ' class="sel"' : '') + '>' + (m ? '<span class="tmu-over">' + m + '</span>' : '<span class="cell-dim">\u00B7</span>') + '</td>';
+    });
+    h += '</tr>';
+  }
+  return h + '</tbody></table></div>';
+}
 /* one cell per rolling window: start time and demand; click to drive the MIT from it */
 function renderDemandWindows(live, aar) {
   let h = '<div class="demandwins">';
@@ -8312,6 +8346,7 @@ function renderGateMitCard(calcAar, validIcao, live) {
     [1, 2, 3].map(n => '<option value="' + n + '"' + (rateCalc.lookaheadHr === n ? ' selected' : '') + '>' + n + ' hr</option>').join("") +
     '</select><span class="form-note">Rolling 60-minute windows every ' + DEMAND_WIN_STEP_MIN + ' min. Click one to plan MIT for it.</span></div>';
   h += renderDemandWindows(live, aar);
+  h += renderMitTimeline(live, aar);
   const w = live.window;
   const isPeak = live.sel === live.peak;
   if (!live.windows[live.peak].total) {

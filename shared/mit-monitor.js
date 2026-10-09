@@ -182,6 +182,30 @@ export function rollingGateDemand({ flights = [], now = Date.now(), horizonMin =
   return { windows, peak };
 }
 
+/**
+ * MIT each gate needs in every rolling window, so a restriction can be passed to
+ * the adjacent facility before it is needed.
+ *   windows  rollingGateDemand(...).windows
+ * Returns [{ gate, mits: [nm per window, 0 = none], first, peakMit, peakIdx }]
+ * where first is the index of the first window needing MIT (-1 never). Sorted
+ * soonest first, then by the tightest MIT.
+ */
+export function gateMitTimeline(windows, aar, kt) {
+  const byGate = new Map();
+  windows.forEach((w, i) => {
+    const calc = calcGateMit(aar, w.entries, w.unassigned, kt);
+    for (const r of calc.rows) {
+      if (!byGate.has(r.gate)) byGate.set(r.gate, { gate: r.gate, mits: windows.map(() => 0), first: -1, peakMit: 0, peakIdx: -1 });
+      const g = byGate.get(r.gate);
+      g.mits[i] = r.limited ? r.mit : 0;
+      if (r.limited && g.first < 0) g.first = i;
+      if (r.limited && r.mit > g.peakMit) { g.peakMit = r.mit; g.peakIdx = i; }
+    }
+  });
+  const rank = g => (g.first < 0 ? Infinity : g.first);
+  return [...byGate.values()].sort((a, b) => rank(a) - rank(b) || b.peakMit - a.peakMit || a.gate.localeCompare(b.gate));
+}
+
 /** MIT (nm) the program holds a gate to now: its gate rule, else the airport-wide MIT/trail. */
 export function programGateMitNm(prog, gate) {
   const rule = (prog.gates || []).find(x => x.name && gateKey(x.name) === gateKey(gate));
