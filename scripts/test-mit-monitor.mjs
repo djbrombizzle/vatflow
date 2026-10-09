@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   arrivalGate, gateKey, calcGateMit, programGateMitNm, gateMitAction, normPrograms,
-  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, NO_GATE,
+  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, gateMitTimeline, NO_GATE,
 } from "../shared/mit-monitor.js";
 
 let passed = 0;
@@ -155,6 +155,25 @@ t("rollingGateDemand: expected demand is a per-window floor, ties go to the earl
   assert.deepEqual(r.windows[0].expected, ["GRNCH"]);
   assert.equal(r.windows[1].total, 12);
   assert.equal(rollingGateDemand({ flights: [], now, horizonMin: 60 }).windows.length, 1);
+});
+
+t("gateMitTimeline: when each gate first needs MIT and how tight it gets", () => {
+  const now = 0;
+  const at = (min, gate) => ({ eta: min * 60000, gate });
+  const flights = [
+    at(5, "OMN"), at(10, "GRNCH"),
+    ...Array.from({ length: 12 }, (_, i) => at(70 + i * 4, "GRNCH")),   // GRNCH rush from ~70 min
+    ...Array.from({ length: 4 }, (_, i) => at(80 + i * 10, "OMN")),
+  ];
+  const { windows } = rollingGateDemand({ flights, now, horizonMin: 180 });
+  const tl = gateMitTimeline(windows, 10, 360);
+  assert.equal(tl[0].gate, "GRNCH");
+  assert.equal(tl[0].mits[0], 0);                          // quiet now
+  assert.ok(tl[0].first > 0 && windows[tl[0].first].offsetMin <= 60);   // seen before the rush starts
+  assert.ok(tl[0].peakMit >= 60);                          // 12 vs a 6/hr slice -> 60 MIT
+  const omn = tl.find(g => g.gate === "OMN");
+  assert.equal(omn.first, -1);                             // under its even share throughout
+  assert.equal(omn.mits.every(m => m === 0), true);
 });
 
 console.log(`\n${passed} passed`);
