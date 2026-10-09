@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   capacityFor, queueProjection, tmiTier, edctCompliance, groundStopsFor, nearestZulu, rebalanceSuggestion,
-  groundOrigins, buildSituation, fmtZ, trackTaxi, taxiSummary, tafFromNwsProduct,
+  groundOrigins, buildSituation, fmtZ, trackTaxi, taxiSummary, tafFromNwsProduct, starOptions, routeRecommendations,
 } from "../shared/vatsmart.js";
 import { normPrograms } from "../shared/mit-monitor.js";
 
@@ -191,6 +191,48 @@ t("TAF text comes out of the NWS product", () => {
   assert.ok(taf.includes("TEMPO 0920/0924"));
   assert.ok(taf.endsWith("BKN120"));
   assert.equal(tafFromNwsProduct("nothing here", "KMCO"), "");
+});
+
+t("STAR options come from navdata transitions and the common route", () => {
+  const procs = {
+    GRNCH5: { type: "STAR", apt: [APT], transitions: { CRG: [["CRG", 30.33, -81.51]], IRQ: [["IRQ", 33.71, -82.16]] }, common: [["GRNCH", 28.9, -81.6]] },
+    SNFLD3: { type: "STAR", apt: [APT], transitions: {}, common: [["OMN", 29.30, -81.11]] },
+    GRNCH: { type: "STAR", apt: [APT], transitions: {}, common: [["GRNCH", 28.9, -81.6]] },   // un-numbered duplicate: skipped
+    XYZ1: { type: "STAR", apt: ["KTPA"], transitions: {}, common: [["XYZ", 28, -82]] },
+  };
+  const opts = starOptions(procs, APT, APT_LL);
+  assert.deepEqual(opts.map(o => o.star + ":" + o.fix), ["GRNCH5:CRG", "GRNCH5:IRQ", "GRNCH5:GRNCH", "SNFLD3:OMN"]);
+  assert.equal(opts[3].gate, "SNFLD");
+});
+
+t("reroutes: CDR for ground flights, STAR swap for airborne", () => {
+  const stars = [
+    { star: "GRNCH5", gate: "GRNCH", fix: "CRG", ll: [30.33, -81.51] },
+    { star: "SNFLD3", gate: "SNFLD", fix: "OMN", ll: [29.30, -81.11] },
+    { star: "PRICY5", gate: "PRICY", fix: "PRICY", ll: [27.0, -80.6] },
+  ];
+  const air = inbound("GRNCH", 30, 25, 55);                     // north of the field, 175-385 nm out
+  const ground = Array.from({ length: 4 }, (_, i) => ({ callsign: "GND" + i, lat: 33.64, lon: -84.43, gs: 0, alt: 1000, phase: "gnd",
+    dep: "KATL", arr: APT, type: "B738", route: "KATL DCT POUNC GRNCH5 " + APT, tas: 450 }));
+  const cdrs = { KATL: [["ATLMCOPC", "POUNC", "POUNC2 POUNC GRGIA MGMRY DEEDA GRNCH5", "2", "N", ""],
+    ["ATLMCOGA", "IRQ", "GAIRY2 IRQ FISHO Q93 GIPPL Q85 LPERD SNFLD3", "2", "N", ""]] };
+  const prog = normPrograms({ [APT]: { aar: 24 } })[APT];
+  const airportLL = c => ({ KATL: [33.64, -84.43] })[c] || null;
+  const s = buildSituation({ airport: APT, aptLL: APT_LL, prog, pilots: [...air, ...ground], airportLL, now: NOW, routing: { stars, cdrs } });
+  assert.ok(s.reroutes.length, "a reroute");
+  const r = s.reroutes[0];
+  assert.equal(r.gate, "GRNCH");
+  const cdr = r.moves.filter(m => m.kind === "cdr");
+  assert.ok(cdr.length >= 1);
+  assert.equal(cdr[0].code, "ATLMCOGA");
+  assert.equal(cdr[0].to, "SNFLD");
+  assert.ok(r.moves.every(m => m.to !== "GRNCH"));
+  assert.ok(r.moves.filter(m => m.kind === "star").every(m => m.extraNm <= 60));
+  const rec = s.recs.find(x => x.id === "reroute-GRNCH");
+  assert.ok(rec && /CDR ATLMCOGA/.test(rec.why), rec && rec.why);
+  assert.ok(!s.recs.some(x => x.id === "rebalance"));
+  /* no stars known: nothing concrete */
+  assert.deepEqual(routeRecommendations({ sit: s, stars: [], cdrs }), []);
 });
 
 console.log(`\n${passed} passed`);

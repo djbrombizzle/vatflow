@@ -19,7 +19,7 @@
  */
 import {
   buildMitMonitor, rollingGateDemand, gateMitTimeline, gateMitSchedule, programGateMitNm,
-  calcGateMit, normRate, NO_GATE, MIT_NOMINAL_KT,
+  calcGateMit, normRate, gateKey, NO_GATE, MIT_NOMINAL_KT,
 } from "./mit-monitor.js";
 import { weatherAarFactor, THUNDER_LIKELY, THUNDER_POSSIBLE, TMI_TIERS, peakFromEvent, likelyEvents, pickBasisEvent } from "./event-planner.js";
 
@@ -250,12 +250,13 @@ export function taxiSummary({ samples = [], sessions = {}, now }) {
  *   wx        worst NWS conditions over the lookahead (event-planner gridWindow) or null
  *   hub       { edcts, groundStops, restrictions } wire maps (may be empty)
  *   taxi      taxiSummary(...) for departures from the field, or null
+ *   routing   { stars: starOptions(...), cdrs: { origin: CDR rows to this field } } for reroutes, or null
  *   events    upcoming VATSIM events [{ name, startMs, endMs, airports: [icao], link }]
  *   pastEvents data/event-history.json entries for the field
  */
 export function buildSituation({
   airport, aptLL, prog = null, localAar = 0, pilots = [], prefiles = [], airportLL = () => null,
-  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [],
+  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null,
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
@@ -316,11 +317,122 @@ export function buildSituation({
   }
 
   const sit = {
-    airport, now, cap, prog, program, mon, flights: mon.flights, live, roll, peakWin, next60, queue, ratio, tier,
+    airport, aptLL, now, cap, prog, program, mon, flights: mon.flights, live, roll, peakWin, next60, queue, ratio, tier,
     gates, counts, edct, gs, restrictions, wx, taxi, upcoming, reference,
   };
+  sit.airportLL = airportLL;
+  sit.reroutes = routing ? routeRecommendations({ sit, stars: routing.stars, cdrs: routing.cdrs }) : [];
   sit.recs = recommend(sit);
   return sit;
+}
+
+/* ---------------- route recommendations ---------------- */
+
+export const REROUTE_MIN_DIST_NM = 150;   // airborne: too late to change the STAR inside this
+export const REROUTE_MAX_EXTRA_NM = 60;   // a STAR swap that costs more than this isn't offered
+const REROUTE_MAX_PER_GATE = 6;
+
+/**
+ * STAR entry points at a field from navdata (data/nav/procedures.json):
+ * [{ star: "SNFLD3", gate: "SNFLD", fix, ll: [lat, lon] }], one per transition start
+ * plus the common route's first fix, skipping points within 15 nm of the field.
+ */
+export function starOptions(procs, icao, fieldLL) {
+  const out = [];
+  for (const [name, p] of Object.entries(procs || {})) {
+    if (!p || p.type !== "STAR" || !/\d[A-Z]?$/.test(name) || !(p.apt || []).includes(icao)) continue;
+    const pts = Object.values(p.transitions || {}).map(t => t && t[0]).filter(Boolean);
+    if (p.common && p.common[0]) pts.push(p.common[0]);
+    const seen = new Set();
+    for (const [fix, lat, lon] of pts) {
+      if (seen.has(fix) || gcNm(lat, lon, fieldLL[0], fieldLL[1]) < 15) continue;
+      seen.add(fix);
+      out.push({ star: name, gate: gateKey(name), fix, ll: [lat, lon] });
+    }
+  }
+  return out;
+}
+
+/** Last STAR (as written) in a route string, or "". */
+function lastStar(route) {
+  const toks = String(route || "").toUpperCase().split(/\s+/);
+  for (let i = toks.length - 1; i >= 0; i--) if (/^[A-Z]{3,5}\d[A-Z]?$/.test(toks[i])) return toks[i];
+  return "";
+}
+
+/**
+ * Concrete reroutes that move arrivals off saturated gates onto gates with room.
+ * A gate is saturated when the peak hour gives it more arrivals than its share of
+ * the rate (the MIT split), and has room when it carries less than an even share.
+ * For each saturated gate, its arrivals in the peak hour, soonest first:
+ *   - still on the ground / prefiled: a FAA CDR from its origin to the field that
+ *     ends on a STAR into a gate with room (cdrs: { origin: [[code, depFix, route, eq, coordReq, play]] })
+ *   - else (or airborne, 150+ nm out): the other gate's STAR via its nearest entry
+ *     fix, when it adds no more than 60 nm.
+ * Up to the gate's excess (max 6 per gate). Returns
+ *   [{ gate, to, excess, demandBefore, demandAfter, added: [{ gate, before, after }], moves: [{ callsign, dep, status, eta, kind: "cdr"|"star", code?, route?, coordReq?, star, fix?, extraNm }] }]
+ */
+export function routeRecommendations({ sit, stars = [], cdrs = {} }) {
+  const cap = sit.cap.capacity, win = sit.peakWin, apt = sit.airport;
+  if (!cap || !win || win.total <= cap || !stars.length) return [];
+  const fieldLL = sit.aptLL || null;
+  const calc = calcGateMit(cap, win.entries, win.unassigned, MIT_NOMINAL_KT);
+  const starGates = [...new Set(stars.map(s => s.gate))];
+  const demand = g => (win.entries.find(([n]) => n === g) || [])[1] || 0;
+  const out = [];
+  const saturated = calc.rows.filter(r => r.limited && r.demand - r.slice >= 1).sort((a, b) => (b.demand - b.slice) - (a.demand - a.slice));
+  for (const sat of saturated) {
+    const excess = Math.min(REROUTE_MAX_PER_GATE, Math.ceil(sat.demand - sat.slice));
+    const flights = sit.live.filter(f => f.gate === sat.gate && f.eta >= win.start - 15 * MIN && f.eta < win.end)
+      .sort((a, b) => (a.status === "AIRBORNE") - (b.status === "AIRBORNE") || a.eta - b.eta);
+    /* a gate has room while it would still carry fewer than the saturated gate after the moves */
+    const room = {};
+    for (const g of starGates) { const r = Math.floor((sat.demand - demand(g)) / 2); if (g !== sat.gate && r >= 1) room[g] = r; }
+    const used = new Set();
+    const moves = [];
+    for (const f of flights) {
+      if (moves.length >= excess) break;
+      const open = Object.keys(room).filter(g => room[g] > 0);
+      if (!open.length) break;
+      let move = null;
+      /* a CDR first: a published route the origin's center already knows */
+      if (f.status !== "AIRBORNE") {
+        for (const r of (cdrs[f.dep] || [])) {
+          const star = lastStar(r[2]), g = gateKey(star);
+          if (!star || !open.includes(g)) continue;
+          const better = !move || (used.has(g) && !used.has(move.to)) || (used.has(g) === used.has(move.to) &&
+            (demand(g) < demand(move.to) || (demand(g) === demand(move.to) && r[4] !== "Y" && move.coordReq)));
+          if (better)
+            move = { to: g, kind: "cdr", code: r[0], route: r[2], coordReq: r[4] === "Y", star, extraNm: null };
+        }
+      }
+      /* else swap the STAR: the other gate's nearest entry fix */
+      if (!move && fieldLL) {
+        const from = f.status === "AIRBORNE" && f.lat != null ? [f.lat, f.lon] : sit.airportLL ? sit.airportLL(f.dep) : null;
+        if (from && !(f.status === "AIRBORNE" && (f.dist == null || f.dist < REROUTE_MIN_DIST_NM))) {
+          const via = s => gcNm(from[0], from[1], s.ll[0], s.ll[1]) + gcNm(s.ll[0], s.ll[1], fieldLL[0], fieldLL[1]);
+          const cur = stars.filter(s => s.gate === sat.gate).reduce((m, s) => Math.min(m, via(s)), Infinity);
+          for (const s of stars) {
+            if (!open.includes(s.gate) || !isFinite(cur)) continue;
+            const extra = Math.round(via(s) - cur);
+            if (extra > REROUTE_MAX_EXTRA_NM) continue;
+            const score = extra - (used.has(s.gate) ? 15 : 0);      // keep the reroutes on as few gates as practical
+            if (!move || score < move.score) move = { to: s.gate, kind: "star", star: s.star, fix: s.fix, extraNm: Math.max(0, extra), score };
+          }
+        }
+      }
+      if (!move) continue;
+      room[move.to]--; used.add(move.to);
+      delete move.score;
+      moves.push({ callsign: f.callsign, dep: f.dep, status: f.status, eta: f.eta, ...move });
+    }
+    if (!moves.length) continue;
+    const added = {};
+    for (const m of moves) added[m.to] = (added[m.to] || 0) + 1;
+    out.push({ gate: sat.gate, to: Object.keys(added), excess, demandBefore: sat.demand, demandAfter: sat.demand - moves.length,
+      added: Object.entries(added).map(([g, n]) => ({ gate: g, before: demand(g), after: demand(g) + n })), moves });
+  }
+  return out;
 }
 
 /* ---------------- recommendations ---------------- */
@@ -370,6 +482,22 @@ export function rebalanceSuggestion(win, capacity) {
   }
   if (!best || before.q - best.q < 3) return null;
   return { from, to, move: best.k, queueBefore: Math.round(before.q), queueAfter: Math.round(best.q) };
+}
+
+/** Reroute moves grouped by what to issue: "CDR ATLMCOGA via SNFLD3 for DAL1, DAL2 (KATL)". */
+export function rerouteGroups(moves) {
+  const groups = new Map();
+  for (const m of moves) {
+    const k = m.kind === "cdr" ? `CDR ${m.code}${m.coordReq ? " (coord req)" : ""} via ${m.star}` : `${m.star} via ${m.fix}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(m);
+  }
+  return [...groups].map(([k, ms]) => {
+    const deps = [...new Set(ms.map(m => m.dep).filter(Boolean))];
+    const extra = Math.max(...ms.map(m => m.extraNm || 0));
+    return `${k} for ${ms.map(m => m.callsign).join(", ")}` +
+      (ms[0].kind === "cdr" ? ` (${deps.join("/")})` : ` (${ms.every(m => m.status === "AIRBORNE") ? "airborne" : "amend route"}${extra ? `, up to +${extra} nm` : ""})`);
+  });
 }
 
 /** Ranked advice: { id, sev: action|watch|info, title, why, at?, link? }. */
@@ -435,8 +563,16 @@ export function recommend(s) {
       at: next.at, link: LINK.tmu });
   }
 
-  /* rebalance across gates */
-  const rb = rebalanceSuggestion(pw, cap);
+  /* reroutes off saturated gates (CDRs / STAR swaps), else the general rebalance idea */
+  for (const r of s.reroutes || []) {
+    const cdr = r.moves.filter(m => m.kind === "cdr").length;
+    add({ id: "reroute-" + r.gate, sev: "action", title: `Reroute ${plural(r.moves.length, "arrival")} off ${r.gate} to ${r.to.join(" / ")}`,
+      why: `${r.gate} is saturated at the peak. ` + rerouteGroups(r.moves).join("; ") +
+        `. At the peak ${r.gate} drops from ${r.demandBefore} to ${r.demandAfter} an hour, ` + r.added.map(a => `${a.gate} goes from ${a.before} to ${a.after}`).join(", ") +
+        ", so the queue is shared across feeds instead of stacking up in one" + (cdr ? ". CDRs are published routes the departure center can issue as is." : "."),
+      at: r.moves[0].eta });
+  }
+  const rb = !(s.reroutes || []).length && rebalanceSuggestion(pw, cap);
   if (rb) add({ id: "rebalance", sev: "info", title: `Shift ~${rb.move}/hr from ${rb.from} to ${rb.to}`,
     why: `At the peak the whole excess queues on ${rb.from} (${rb.queueBefore} more an hour than its share of the rate). Rerouting about ${rb.move} an hour to ${rb.to}, where a reroute is practical, spreads the delay so no gate queues more than ${rb.queueAfter} an hour.` });
 
