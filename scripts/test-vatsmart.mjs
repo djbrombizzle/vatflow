@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import {
   capacityFor, queueProjection, tmiTier, edctCompliance, groundStopsFor, nearestZulu, rebalanceSuggestion,
   groundOrigins, buildSituation, fmtZ, trackTaxi, taxiSummary, tafFromNwsProduct, starOptions, routeRecommendations,
+  landingSlots, slotBalance, slotMoveHow,
 } from "../shared/vatsmart.js";
 import { normPrograms } from "../shared/mit-monitor.js";
 
@@ -139,6 +140,35 @@ t("weather cut is a note on the clear-weather AAR, not advice to lower it", () =
   const r = s.recs.find(x => x.id === "wx-aar");
   assert.equal(s.cap.capacity, 26);
   assert.ok(r && r.sev === "info" && !/Lower/.test(r.title), r && r.title);
+});
+
+t("landing slots are clock-aligned quarter hours; overdue lands in the first", () => {
+  const now = Date.UTC(2026, 9, 9, 23, 7);
+  const sl = landingSlots([{ eta: now - 5 * MIN }, { eta: Date.UTC(2026, 9, 9, 23, 15) }, { eta: Date.UTC(2026, 9, 9, 23, 29, 59) }], now);
+  assert.equal(sl[0].start, Date.UTC(2026, 9, 9, 23, 0));
+  assert.equal(sl[0].total, 1); assert.equal(sl[1].total, 2);
+});
+
+t("slot balancing: delay off the busiest STAR into the next slot, pull only airborne and far out", () => {
+  const T = Date.UTC(2026, 9, 9, 23, 0), now = T + 2 * MIN;
+  const f = (cs, gate, etaMin, status = "AIRBORNE", dist = 200) => ({ callsign: cs, gate, eta: T + etaMin * MIN, status, dist });
+  /* 40/hr = 10 per slot; 23:15 slot has 12 (8 GRNCH), 23:30 has 9 so room for 1, 23:00 has 9 so room for 1 */
+  const flights = [
+    ...Array.from({ length: 9 }, (_, i) => f("A" + i, "OMN", 3 + i)),
+    ...Array.from({ length: 8 }, (_, i) => f("G" + i, "GRNCH", 15 + i, i === 7 ? "GROUND" : "AIRBORNE")),
+    ...Array.from({ length: 4 }, (_, i) => f("B" + i, "BITHO", 16 + i)),
+    ...Array.from({ length: 9 }, (_, i) => f("C" + i, "OMN", 31 + i)),
+  ];
+  const [b] = slotBalance(flights, now, 40);
+  assert.equal(b.start, T + 15 * MIN); assert.equal(b.count, 12); assert.equal(b.allow, 10);
+  assert.equal(b.moves.length, 2);
+  assert.ok(b.moves.every(m => m.gate === "GRNCH"), JSON.stringify(b.moves));
+  const later = b.moves.find(m => m.shiftMin > 0), earlier = b.moves.find(m => m.shiftMin < 0);
+  assert.equal(later.callsign, "G7"); assert.equal(later.to, T + 30 * MIN); assert.equal(later.shiftMin, 8);
+  assert.match(slotMoveHow(later), /hold the departure 8 min/);
+  assert.equal(earlier.callsign, "G0"); assert.equal(earlier.to, T); assert.equal(earlier.shiftMin, -1);
+  assert.equal(b.left, 0);
+  assert.deepEqual(slotBalance(flights.slice(0, 9), now, 40), []);
 });
 
 t("no AAR anywhere asks for one", () => {

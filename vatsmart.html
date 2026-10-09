@@ -231,7 +231,7 @@ import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
+import { landingSlots, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
 import { createCdrStore } from "./shared/vusalink-clearance.js";
 import { loadNavData, isNavReady } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -651,16 +651,10 @@ function renderMap(s) {
 function renderChart(s) {
   const W = 1400, H = 300, padL = 34, padR = 10, padT = 18, stripH = 22, padB = 58;
   const SLOT = 15 * 60000, cap = s.cap.capacity, perSlot = cap / 4;
-  const t0 = Math.floor(s.now / SLOT) * SLOT, nSlots = 13, t1 = t0 + nSlots * SLOT;
+  const slots = landingSlots(s.live, s.now), nSlots = slots.length, t0 = slots[0].start, t1 = t0 + nSlots * SLOT;
   const colors = s.mon.colors;
   const colOf = g => !g || g === NO_GATE ? "#3a4654" : colors[g] || "#6b7a89";
-  const slots = Array.from({ length: nSlots }, (_, i) => ({ start: t0 + i * SLOT, gates: {}, total: 0, prefiled: 0, flights: [] }));
-  for (const f of s.live) {
-    const i = Math.max(0, Math.floor((f.eta - t0) / SLOT));     // anyone overdue lands in the first slot
-    if (i >= nSlots) continue;
-    const g = f.gate && f.gate !== NO_GATE ? f.gate : NO_GATE, sl = slots[i];
-    sl.gates[g] = (sl.gates[g] || 0) + 1; sl.total++; if (f.prefiled) sl.prefiled++; sl.flights.push(f);
-  }
+  const moved = new Map((s.slots || []).flatMap(b => b.moves.map(m => [m.callsign, m])));
   const expect = {};
   for (const x of s.program.expect || []) if (x.rate > 0) expect[x.gate] = x.rate / 4;
   const expTotal = Object.values(expect).reduce((a, b) => a + b, 0);
@@ -703,7 +697,12 @@ function renderChart(s) {
   for (const f of s.live) {
     if (f.eta >= t1) continue;
     const x = xOf(Math.max(t0, f.eta)), cy = plotB + stripH / 2, c = colOf(f.gate);
-    svg += `<path d="M${x - 4} ${cy + 5} L${x} ${cy - 5} L${x + 4} ${cy + 5} Z" fill="${f.prefiled ? "none" : c}" stroke="${c}" stroke-width="1.2"><title>${esc(f.callsign)} ${f.dep ? esc(f.dep) + " " : ""}${f.gateEta ? "over " + esc(f.gateFix || f.gate) + " " + fmtZ(f.gateEta) + " · " : f.gate && f.gate !== NO_GATE ? esc(f.gate) + " · " : ""}lands ${fmtZ(f.eta)}${f.prefiled ? " (prefiled)" : f.status === "GROUND" ? " (on the ground)" : ""}</title></path>`;
+    const mv = moved.get(f.callsign);
+    if (mv) {                                                // suggested slot move: an arrow from the ETA into the new slot
+      const x2 = xOf(mv.to + (mv.shiftMin > 0 ? 2 : SLOT / 60000 - 2) * 60000);
+      svg += `<path d="M${x} ${cy - 8} Q${(x + x2) / 2} ${cy - 22} ${x2} ${cy - 8}" fill="none" stroke="#e8a838" stroke-width="1.2" stroke-dasharray="3 2"/><circle cx="${x2}" cy="${cy - 8}" r="2.2" fill="#e8a838"/>`;
+    }
+    svg += `<path d="M${x - 4} ${cy + 5} L${x} ${cy - 5} L${x + 4} ${cy + 5} Z" fill="${f.prefiled ? "none" : c}" stroke="${mv ? "#e8a838" : c}" stroke-width="${mv ? 2 : 1.2}"><title>${esc(f.callsign)} ${f.dep ? esc(f.dep) + " " : ""}${f.gateEta ? "over " + esc(f.gateFix || f.gate) + " " + fmtZ(f.gateEta) + " · " : f.gate && f.gate !== NO_GATE ? esc(f.gate) + " · " : ""}lands ${fmtZ(f.eta)}${f.prefiled ? " (prefiled)" : f.status === "GROUND" ? " (on the ground)" : ""}${mv ? " · suggest " + (mv.shiftMin > 0 ? "+" : "−") + Math.abs(mv.shiftMin) + " min into the " + fmtZ(mv.to) + " slot" : ""}</title></path>`;
   }
   /* now marker */
   const xn = xOf(s.now);
@@ -723,7 +722,7 @@ function renderChart(s) {
   }
   svg += `</svg>`;
   $("chart").innerHTML = svg;
-  $("chartNote").textContent = (isNavReady() ? "FCA engine ETAs · " : "") + "bars: landings per 15 min by gate · ▲ each aircraft at its ETA (hollow: prefiled) · dashed: program expected demand";
+  $("chartNote").textContent = (isNavReady() ? "FCA engine ETAs · " : "") + "bars: landings per 15 min by gate · ▲ each aircraft at its ETA (hollow: prefiled) · dashed: program expected demand" + ((s.slots || []).length ? " · orange arrows: suggested slot moves" : "");
 }
 
 /* ---- gate table ---- */
