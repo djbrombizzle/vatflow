@@ -162,7 +162,7 @@ export function buildSituation({
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
-  const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || program.aar || 1 }, pilots, prefiles, airportLL, now });
+  const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || 9999 }, pilots, prefiles, airportLL, now });
 
   const live = mon.flights.filter(f => !f.excluded && f.status !== "ARRIVED" && f.eta != null)
     .map(f => ({ ...f, prefiled: f.status === "PREFILE" }));
