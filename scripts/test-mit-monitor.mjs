@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   arrivalGate, gateKey, calcGateMit, programGateMitNm, gateMitAction, normPrograms,
-  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, gateMitTimeline, NO_GATE,
+  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, gateMitTimeline, gateMitSchedule, NO_GATE,
 } from "../shared/mit-monitor.js";
 
 let passed = 0;
@@ -174,6 +174,24 @@ t("gateMitTimeline: when each gate first needs MIT and how tight it gets", () =>
   const omn = tl.find(g => g.gate === "OMN");
   assert.equal(omn.first, -1);                             // under its even share throughout
   assert.equal(omn.mits.every(m => m === 0), true);
+});
+
+t("gateMitSchedule: start with the traffic, don't relax just to re-add it", () => {
+  // program already runs 30 MIT but nothing needs it for 45 minutes
+  assert.deepEqual(gateMitSchedule([0, 0, 0, 25, 30, 30, 0, 0, 0], 30), [
+    { i: 0, kind: "stop", from: 30, to: 0 },
+    { i: 3, kind: "start", from: 0, to: 25 },
+    { i: 4, kind: "tighten", from: 25, to: 30 },
+    { i: 6, kind: "stop", from: 30, to: 0 },
+  ]);
+  // a one-window dip doesn't relax; a real lull does, and MIT comes back with the traffic
+  assert.deepEqual(gateMitSchedule([40, 20, 40, 40, 0, 0, 35], 40), [
+    { i: 4, kind: "stop", from: 40, to: 0 },
+    { i: 6, kind: "start", from: 0, to: 35 },
+  ]);
+  assert.deepEqual(gateMitSchedule([0, 0, 0], 0), []);
+  assert.deepEqual(gateMitSchedule([20, 20], 20), []);
+  assert.deepEqual(gateMitSchedule([30, 20, 20], 30), [{ i: 1, kind: "relax", from: 30, to: 20 }]);
 });
 
 console.log(`\n${passed} passed`);

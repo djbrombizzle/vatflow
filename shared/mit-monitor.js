@@ -206,6 +206,28 @@ export function gateMitTimeline(windows, aar, kt) {
   return [...byGate.values()].sort((a, b) => rank(a) - rank(b) || b.peakMit - a.peakMit || a.gate.localeCompare(b.gate));
 }
 
+/**
+ * When to start, tighten, relax and stop a gate's MIT, from its per-window MITs
+ * (gateMitTimeline) and what the program holds it to now. Tightening happens in
+ * the window that needs it; relaxing or stopping only when the following window
+ * allows it too, so MIT isn't dropped and then needed again 15 minutes later.
+ * MIT that isn't needed yet comes off now and starts when the traffic does.
+ * Returns [{ i, kind: "start"|"tighten"|"relax"|"stop", from, to }] (i = window index).
+ */
+export function gateMitSchedule(mits, nowNm = 0) {
+  const out = [];
+  let cur = nowNm || 0;
+  for (let i = 0; i < mits.length; i++) {
+    let to = mits[i];
+    if (to < cur) to = Math.max(to, i + 1 < mits.length ? mits[i + 1] : 0);
+    if (to === cur) continue;
+    const kind = !cur ? "start" : !to ? "stop" : to > cur ? "tighten" : "relax";
+    out.push({ i, kind, from: cur, to });
+    cur = to;
+  }
+  return out;
+}
+
 /** MIT (nm) the program holds a gate to now: its gate rule, else the airport-wide MIT/trail. */
 export function programGateMitNm(prog, gate) {
   const rule = (prog.gates || []).find(x => x.name && gateKey(x.name) === gateKey(gate));

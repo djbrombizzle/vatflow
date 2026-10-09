@@ -31,9 +31,10 @@ import * as EventPlanner from "./shared/event-planner.js";
 window.VF_EventPlan = EventPlanner;
 </script>
 <script type="module">
-import { rollingGateDemand, gateMitTimeline } from "./shared/mit-monitor.js";
+import { rollingGateDemand, gateMitTimeline, gateMitSchedule } from "./shared/mit-monitor.js";
 window.VF_RollingDemand = rollingGateDemand;
 window.VF_GateMitTimeline = gateMitTimeline;
+window.VF_GateMitSchedule = gateMitSchedule;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
@@ -980,6 +981,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .demandwin b { display: block; font-size: 15px; color: var(--text); }
 .demandwin.over b { color: var(--alert); }
 .demandwin.sel { border-color: var(--accent); background: rgba(232, 168, 56, 0.10); }
+.mitplan { font-size: 13px; margin: 2px 0 10px; }
 .mittl th, .mittl td { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
 .mittl th.sel, .mittl td.sel { background: rgba(232, 168, 56, 0.08); }
 .demandwin .pk { display: block; font-size: 9px; letter-spacing: 0.08em; color: var(--warn); }
@@ -8196,6 +8198,8 @@ function renderTMURateCalc() {
     'and takes the busiest hour, so a rush 90 minutes out shows up now instead of only the next 60 minutes.</li>' +
     '<li>The <b>MIT timeline</b> runs the MIT math on every window, so each gate shows when it first needs MIT and how tight it gets. ' +
     'Use it to pass MIT to adjacent facilities before the hour that needs it.</li>' +
+    '<li>The <b>MIT plan</b> turns that into steps per gate: when to start, tighten, relax and remove MIT, starting from the active program. ' +
+    'MIT that isn\u2019t needed yet comes off until the traffic arrives, and it is only relaxed when the next window allows it too, so a short lull doesn\u2019t drop MIT the traffic will need again.</li>' +
     '<li><b>MIT per gate</b> uses that busiest hour (or the window you click). If demand is over the AAR, gates feeding more than an even share ' +
     'get the MIT that holds them to their slice (' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to 5 nm). ' +
     'Example: AAR 40, four gates, one quiet gate needs 4/hr \u2192 the other three get 12/hr each \u2192 <b>30 MIT</b>.</li>' +
@@ -8219,10 +8223,10 @@ function renderPeakDemandLine(live, aar) {
   return h + '</div>';
 }
 
-function renderGateMitTable(calc, prog, demandLabel, expected) {
+function renderGateMitTable(calc, prog, demandLabel, expected, actionLabel) {
   let h = '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
     '<th>GATE</th><th>' + demandLabel + '</th><th>SLICE OF AAR</th><th>RECOMMENDED</th>' +
-    (prog ? '<th>PROGRAM NOW</th><th>ACTION</th>' : '') + '</tr></thead><tbody>';
+    (prog ? '<th>PROGRAM NOW</th><th>' + (actionLabel || 'ACTION') + '</th>' : '') + '</tr></thead><tbody>';
   for (const r of calc.rows) {
     const recTxt = !r.limited ? '<span class="cell-dim">none</span>'
       : r.slice < 0.05 ? '<b>' + r.mit + ' MIT</b> <span class="cell-dim">(no slots left)</span>'
@@ -8277,32 +8281,66 @@ function demandWinLabel(w) { return fmtZ(w.start) + '\u2013' + fmtZ(w.end) + 'z'
 function demandWinWhen(w) { return w.offsetMin ? 'starts in ' + w.offsetMin + ' min' : 'starting now'; }
 /* gate x window grid of the MIT each gate needs, soonest first, so a restriction
    can go to the adjacent facility before the hour that needs it */
-function renderMitTimeline(live, aar) {
-  const tlFn = window.VF_GateMitTimeline;
-  if (!tlFn) return "";
+function renderMitTimeline(live, aar, prog) {
+  const tlFn = window.VF_GateMitTimeline, schedFn = window.VF_GateMitSchedule;
+  if (!tlFn || !schedFn) return "";
   const tl = tlFn(live.windows, aar, MIT_NOMINAL_KT);
   const need = tl.filter(g => g.first >= 0);
   let h = '<div class="calcdetail" style="margin-top:6px;"><b>MIT timeline</b> \u2014 ';
-  if (!need.length) return h + 'no gate needs MIT in the next ' + rateCalc.lookaheadHr + ' hr.</div>';
-  const g0 = need[0], w0 = live.windows[g0.first];
-  h += 'first needed: <b>' + esc(g0.gate) + ' ' + g0.mits[g0.first] + ' MIT</b> from ' + fmtZ(w0.start) + 'z (' +
-    (w0.offsetMin ? 'in ' + w0.offsetMin + ' min). Pass it to the adjacent facility ahead of that.' : 'needed now).') + '</div>';
-  h += '<div class="tablewrap tablewrap--short"><table class="mittl"><thead><tr><th>GATE</th><th>NEEDED FROM</th><th>TIGHTEST</th>';
-  live.windows.forEach((w, i) => { h += '<th' + (i === live.sel ? ' class="sel"' : '') + '>' + fmtZ(w.start) + 'z</th>'; });
-  h += '</tr></thead><tbody>';
-  for (const g of tl) {
-    const fw = g.first >= 0 ? live.windows[g.first] : null;
-    h += '<tr><td class="cell-strong">' + esc(g.gate) + '</td>' +
-      '<td>' + (fw ? fmtZ(fw.start) + 'z <span class="cell-dim">' + (fw.offsetMin ? 'in ' + fw.offsetMin + ' min' : 'now') + '</span>'
-        : '<span class="cell-dim">not needed</span>') + '</td>' +
-      '<td>' + (g.peakMit ? '<b>' + g.peakMit + '</b> <span class="cell-dim">at ' + fmtZ(live.windows[g.peakIdx].start) + 'z</span>'
-        : '<span class="cell-dim">\u2014</span>') + '</td>';
-    g.mits.forEach((m, i) => {
-      h += '<td' + (i === live.sel ? ' class="sel"' : '') + '>' + (m ? '<span class="tmu-over">' + m + '</span>' : '<span class="cell-dim">\u00B7</span>') + '</td>';
-    });
-    h += '</tr>';
+  if (!need.length) h += 'no gate needs MIT in the next ' + rateCalc.lookaheadHr + ' hr.</div>';
+  else {
+    const g0 = need[0], w0 = live.windows[g0.first];
+    h += 'first needed: <b>' + esc(g0.gate) + ' ' + g0.mits[g0.first] + ' MIT</b> from ' + fmtZ(w0.start) + 'z (' +
+      (w0.offsetMin ? 'in ' + w0.offsetMin + ' min). Pass it to the adjacent facility ahead of that.' : 'needed now).') + '</div>';
+    h += '<div class="tablewrap tablewrap--short"><table class="mittl"><thead><tr><th>GATE</th><th>NEEDED FROM</th><th>TIGHTEST</th>';
+    live.windows.forEach((w, i) => { h += '<th' + (i === live.sel ? ' class="sel"' : '') + '>' + fmtZ(w.start) + 'z</th>'; });
+    h += '</tr></thead><tbody>';
+    for (const g of tl) {
+      const fw = g.first >= 0 ? live.windows[g.first] : null;
+      h += '<tr><td class="cell-strong">' + esc(g.gate) + '</td>' +
+        '<td>' + (fw ? fmtZ(fw.start) + 'z <span class="cell-dim">' + (fw.offsetMin ? 'in ' + fw.offsetMin + ' min' : 'now') + '</span>'
+          : '<span class="cell-dim">not needed</span>') + '</td>' +
+        '<td>' + (g.peakMit ? '<b>' + g.peakMit + '</b> <span class="cell-dim">at ' + fmtZ(live.windows[g.peakIdx].start) + 'z</span>'
+          : '<span class="cell-dim">\u2014</span>') + '</td>';
+      g.mits.forEach((m, i) => {
+        h += '<td' + (i === live.sel ? ' class="sel"' : '') + '>' + (m ? '<span class="tmu-over">' + m + '</span>' : '<span class="cell-dim">\u00B7</span>') + '</td>';
+      });
+      h += '</tr>';
+    }
+    h += '</tbody></table></div>';
   }
-  return h + '</tbody></table></div>';
+  /* when to start / change / stop each gate's MIT, starting from what the program holds it to now;
+     a program gate with MIT but no traffic in the lookahead still gets its "remove" */
+  const plans = [];
+  const seen = new Set(tl.map(g => g.gate));
+  const rows = tl.map(g => ({ gate: g.gate, mits: g.mits }));
+  if (prog) {
+    for (const r of prog.gates || []) {
+      const k = r.name ? gateKey(r.name) : "";
+      if (k && !seen.has(k) && programGateMitNm(prog, k).nm) { seen.add(k); rows.push({ gate: k, mits: live.windows.map(() => 0) }); }
+    }
+  }
+  for (const r of rows) {
+    const nowNm = prog ? programGateMitNm(prog, r.gate).nm : 0;
+    const steps = schedFn(r.mits, nowNm);
+    if (steps.length) plans.push({ gate: r.gate, nowNm, steps });
+  }
+  if (!plans.length) return h;
+  const verb = st => st.kind === "start" ? 'start ' + st.to + ' MIT' : st.kind === "stop" ? 'remove MIT'
+    : (st.kind === "tighten" ? 'tighten to ' : 'relax to ') + st.to;
+  h += '<div class="calcdetail" style="margin-top:8px;"><b>MIT plan</b> \u2014 when to start, change and stop each gate' +
+    (prog ? ', from what the program holds it to now' : '') + '. MIT is only relaxed when the next window allows it too, so it isn\u2019t pulled and then needed again.</div>' +
+    '<ul class="helplist mitplan">';
+  for (const pl of plans) {
+    h += '<li><b>' + esc(pl.gate) + '</b>' + (prog ? ' <span class="cell-dim">(now ' + (pl.nowNm ? pl.nowNm + ' MIT' : 'none') + ')</span>' : '') + ': ' +
+      pl.steps.map(st => {
+        const w = live.windows[st.i];
+        const when = st.i === 0 ? 'Now' : fmtZ(w.start) + 'z <span class="cell-dim">in ' + w.offsetMin + ' min</span>';
+        const cls = st.kind === "start" || st.kind === "tighten" ? "tmu-over" : "cell-warn";
+        return when + ' <span class="' + cls + '">' + verb(st) + '</span>';
+      }).join(' \u00B7 ') + '</li>';
+  }
+  return h + '</ul>';
 }
 /* one cell per rolling window: start time and demand; click to drive the MIT from it */
 function renderDemandWindows(live, aar) {
@@ -8346,7 +8384,7 @@ function renderGateMitCard(calcAar, validIcao, live) {
     [1, 2, 3].map(n => '<option value="' + n + '"' + (rateCalc.lookaheadHr === n ? ' selected' : '') + '>' + n + ' hr</option>').join("") +
     '</select><span class="form-note">Rolling 60-minute windows every ' + DEMAND_WIN_STEP_MIN + ' min. Click one to plan MIT for it.</span></div>';
   h += renderDemandWindows(live, aar);
-  h += renderMitTimeline(live, aar);
+  h += renderMitTimeline(live, aar, prog);
   const w = live.window;
   const isPeak = live.sel === live.peak;
   if (!live.windows[live.peak].total) {
@@ -8374,7 +8412,7 @@ function renderGateMitCard(calcAar, validIcao, live) {
     h += '<div class="calcdetail">Using the program\u2019s expected demand on ' + esc([...live.expected].join(", ")) +
       ' (marked exp), where it is higher than the live count.</div>';
   }
-  h += renderGateMitTable(calc, prog, esc(demandWinLabel(w)), live.expected);
+  h += renderGateMitTable(calc, prog, esc(demandWinLabel(w)), live.expected, w.offsetMin ? 'ACTION AT ' + fmtZ(w.start) + 'Z' : 'ACTION');
   h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in each rolling 60-minute window ' +
     'over the next ' + rateCalc.lookaheadHr + ' hr; the busiest window drives the MIT. ' +
     'Gates come from the last STAR or fix in each filed route. ' + GATE_MIT_FORMULA + '</div></div>';
