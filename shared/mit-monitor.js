@@ -267,7 +267,8 @@ export function gateMitAction(recNm, nowNm) {
  *   prefiles  prefiled plans (same shape, no position)
  *   airportLL icao → [lat, lon] | null (for ground / prefile ETAs)
  */
-export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = [], airportLL = () => null, now = Date.now() }) {
+/* etaFor(p, gate) may return { eta, gateEta, gateFix } (VATSMART passes the FCA engine's gate ETAs); null falls back to the estimate below */
+export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = [], airportLL = () => null, now = Date.now(), etaFor = null }) {
   const flights = [];
   const seen = new Set();
   const add = (p, connected) => {
@@ -275,7 +276,7 @@ export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = 
     seen.add(p.callsign);
     const gate = arrivalGate(p.route, airport);
     const excluded = isExcludedFromProgram(p, prog);
-    let status, dist = null, eta = null;
+    let status, dist = null, eta = null, gateEta = null, gateFix = null;
     const hasPos = connected && p.lat != null && p.lon != null;
     if (hasPos && aptLL) dist = gcNm(p.lat, p.lon, aptLL[0], aptLL[1]);
     const airborne = hasPos && p.phase !== "gnd" && (p.gs || 0) > 60;
@@ -293,7 +294,12 @@ export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = 
       eta = now + (routeNm / tas) * 3600000 + 14 * 60000;    // assume departs now
       status = connected ? "GROUND" : "PREFILE";
     }
-    flights.push({ callsign: p.callsign, type: baseType(p.type), dep: p.dep, gate, excluded, status, dist, eta,
+    if (etaFor && status !== "ARRIVED") {
+      let e = null;
+      try { e = etaFor(p, gate); } catch (_) { e = null; }
+      if (e && e.eta > 0) { eta = e.eta; gateEta = e.gateEta || null; gateFix = e.gateFix || null; }
+    }
+    flights.push({ callsign: p.callsign, type: baseType(p.type), dep: p.dep, gate, excluded, status, dist, eta, gateEta, gateFix,
       lat: hasPos ? p.lat : null, lon: hasPos ? p.lon : null, alt: p.alt || 0, gs: p.gs || 0, hdg: p.hdg || 0 });
   };
   pilots.forEach(p => add(p, true));

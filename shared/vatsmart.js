@@ -256,11 +256,11 @@ export function taxiSummary({ samples = [], sessions = {}, now }) {
  */
 export function buildSituation({
   airport, aptLL, prog = null, localAar = 0, pilots = [], prefiles = [], airportLL = () => null,
-  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null,
+  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null, etaFor = null,
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
-  const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || 9999 }, pilots, prefiles, airportLL, now });
+  const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || 9999 }, pilots, prefiles, airportLL, now, etaFor });
 
   const live = mon.flights.filter(f => !f.excluded && f.status !== "ARRIVED" && f.eta != null)
     .map(f => ({ ...f, prefiled: f.status === "PREFILE" }));
