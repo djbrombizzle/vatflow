@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>ZDC Crossings — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  main { max-width: 1100px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 20px) 16px 40px; }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.14em; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 16px; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  select, input[type=text], button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 7px 10px;
+  }
+  input[type=text] { width: 220px; text-transform: uppercase; }
+  button { cursor: pointer; }
+  button:hover, select:hover { border-color: var(--amber); }
+  button.on { border-color: var(--amber); color: var(--amber); }
+  label.chk { font-family: var(--mono); font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .status { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
+  .status.err { color: var(--red); }
+
+  .gate { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; max-width: 520px; }
+  .gate p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  .ac { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .ac-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); }
+  .cs { font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 600; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; }
+  .tag.in { color: var(--green); }
+  .tag.inb { color: var(--cyan); }
+  .tag.gnd { color: var(--muted); }
+  .tag.pre { color: var(--dim); }
+  .route { font-family: var(--mono); font-size: 11px; color: var(--dim); padding: 6px 14px 0; overflow-wrap: anywhere; }
+  .route mark { background: none; color: var(--amber); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: var(--dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .ac table { margin-top: 6px; }
+  td.restr { color: var(--amber); font-weight: 600; white-space: nowrap; }
+  td.hand { white-space: nowrap; }
+  td.hand .arrow { color: var(--dim); }
+  .secname { color: var(--dim); font-size: 10px; }
+  td.secname { white-space: nowrap; }
+  tr.passed td { opacity: 0.45; }
+  tr.partial td.restr::after { content: " ?"; color: var(--dim); }
+  .note { color: var(--muted); font-size: 11px; }
+  .q { font-size: 10px; letter-spacing: 0.06em; }
+  .q.full { color: var(--green); }
+  .q.partial { color: var(--muted); }
+  .dv { padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: var(--cyan); border-top: 1px solid var(--line); }
+  .empty { color: var(--muted); font-size: 13px; padding: 24px 0; }
+  .ref { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+  .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
+  @media (max-width: 640px) {
+    input[type=text] { width: 100%; }
+    td.hand, td.restr { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <h1>ZDC CROSSINGS</h1>
+  <p class="sub" id="sub">ZDC SOP sector restrictions for each aircraft's filed route, from the live VATSIM feed.</p>
+
+  <div id="gate" class="gate" hidden>
+    <p id="gateMsg">Sign in with VATSIM to use this page.</p>
+    <button type="button" id="gateSignIn">Sign in with VATSIM</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="bar">
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="live" class="on">Live traffic</button>
+        <button type="button" data-view="ref">SOP tables</button>
+      </div>
+      <select id="cfgSel" title="Sector configuration"></select>
+      <select id="secSel" title="Show restrictions you give or receive"></select>
+      <input type="text" id="q" placeholder="Callsign, airport, fix…" autocomplete="off" spellcheck="false">
+      <span class="status" id="status">Loading…</span>
+    </div>
+    <div class="bar" id="liveOpts">
+      <label class="chk"><input type="checkbox" id="optZdc" checked> Only in or through ZDC</label>
+      <label class="chk"><input type="checkbox" id="optPartial" checked> Include partial route matches</label>
+      <label class="chk"><input type="checkbox" id="optPassed"> Show restrictions already passed</label>
+      <label class="chk"><input type="checkbox" id="optPrefile"> Include prefiles</label>
+    </div>
+    <div id="out"></div>
+    <p class="foot" id="foot"></p>
+  </div>
+</main>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, canEditArtcc, isSignedIn, login } from "./shared/vatflow-auth.js";
+import { getAirport, hasAirport, loadAirports } from "./shared/fca-metering.js";
+import { fetchArtccBoundaries, pointInArtcc } from "./shared/artcc-scope.js";
+import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft } from "./shared/route-engine.js";
+import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
+import {
+  matchFlight, descendViaFor, primaryAirports, satellitePrimaries, rowVisibleInConfig, ownerOf, engineClass,
+} from "./shared/zdc-sop-match.js";
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const PREFS_KEY = "vatflow.zdcCrossings.prefs";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "zdc-crossings");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const prefs = loadPrefs();
+let view = prefs.view === "ref" ? "ref" : "live";
+let feed = null, feedAt = 0, feedErr = "";
+let started = false, timer = null;
+
+const ll = id => getAirport(id);
+const geoCtx = { ll, primaries: primaryAirports(), satPrimaries: satellitePrimaries() };
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) { return {}; }
+}
+function savePrefs() {
+  const p = {
+    view, cfg: $("cfgSel").value, sec: $("secSel").value,
+    zdc: $("optZdc").checked, partial: $("optPartial").checked, passed: $("optPassed").checked, prefile: $("optPrefile").checked,
+  };
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+
+/* ---------------- access gate ---------------- */
+
+function gate() {
+  const ok = canEditArtcc("ZDC");
+  $("gate").hidden = ok;
+  $("app").hidden = !ok;
+  if (!ok) {
+    $("gateMsg").textContent = isSignedIn()
+      ? "This page is limited to VATFLOW users with ZDC access. Ask a VATFLOW admin to add ZDC to your whitelist entry."
+      : "Sign in with VATSIM to use this page. It is limited to VATFLOW users with ZDC access.";
+    $("gateSignIn").hidden = isSignedIn();
+    return;
+  }
+  if (!started) start();
+}
+$("gateSignIn").addEventListener("click", () => login());
+window.addEventListener("vatflow-auth-changed", gate);
+initVatflowAuth().then(gate, gate);
+
+/* ---------------- setup ---------------- */
+
+function start() {
+  started = true;
+  $("cfgSel").innerHTML = Object.entries(CONFIGS).map(([k, c]) => `<option value="${k}">${esc(c.label)}</option>`).join("");
+  $("secSel").innerHTML = `<option value="">All sectors</option>` +
+    Object.entries(SECTORS).map(([k, n]) => `<option value="${k}">${k} ${esc(n)}</option>`).join("");
+  if (prefs.cfg && CONFIGS[prefs.cfg]) $("cfgSel").value = prefs.cfg;
+  refreshSectorOptions();
+  if (prefs.sec) $("secSel").value = prefs.sec;
+  if (prefs.zdc === false) $("optZdc").checked = false;
+  if (prefs.partial === false) $("optPartial").checked = false;
+  if (prefs.passed) $("optPassed").checked = true;
+  if (prefs.prefile) $("optPrefile").checked = true;
+  setView(view);
+
+  $("viewSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-view]");
+    if (b) { setView(b.dataset.view); savePrefs(); }
+  });
+  $("cfgSel").addEventListener("change", () => { refreshSectorOptions(); savePrefs(); render(); });
+  ["secSel", "optZdc", "optPartial", "optPassed", "optPrefile"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  $("q").addEventListener("input", () => render());
+
+  $("foot").innerHTML =
+    `Source: ${esc(SOP_ID)} (${esc(SOP_DATE)}), Chapter 4 sector procedures (given) and Chapter 5 descend-via bottom altitudes. ` +
+    `"+" and SATS destinations are matched to fields within 35 nm of the named airport. ` +
+    `A "?" marks a partial route match (the STAR or most of the routing matched, not every fix). ` +
+    `Deconsolidated plans hide hand-offs between sectors the same controller owns. Reference only; the SOP governs.`;
+
+  Promise.all([
+    loadAirports().catch(() => null),
+    fetchArtccBoundaries().catch(() => null),
+    loadNavData().catch(() => null),
+  ]).then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); render(); });
+  bindAirports(getAirport, hasAirport);
+  poll();
+  timer = setInterval(poll, VATSIM_FEED_MS);
+}
+
+function setView(v) {
+  view = v;
+  $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  $("liveOpts").hidden = v !== "live";
+  render();
+}
+
+function refreshSectorOptions() {
+  const cfg = CONFIGS[$("cfgSel").value];
+  const cur = $("secSel").value;
+  const list = cfg && cfg.groups
+    ? Object.entries(cfg.groups).map(([k, secs]) => [k, `${k} ${SECTORS[k]} (${secs.join("/")})`])
+    : Object.entries(SECTORS).map(([k, n]) => [k, `${k} ${n}`]);
+  $("secSel").innerHTML = `<option value="">All sectors</option>` + list.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join("");
+  if (list.some(([k]) => k === cur)) $("secSel").value = cur;
+}
+
+/* ---------------- feed ---------------- */
+
+async function poll() {
+  try {
+    const r = await fetch(VATSIM_URL, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    feed = await r.json();
+    feedAt = Date.now();
+    feedErr = "";
+  } catch (e) {
+    feedErr = "VATSIM feed unavailable (" + (e.message || e) + ")";
+  }
+  if (!isUserTyping()) render();
+}
+
+/* ---------------- live view ---------------- */
+
+const routeCache = new Map();
+function routeInfo(f) {
+  if (!isNavReady()) return null;
+  const key = `${f.callsign}|${f.dep}|${f.arr}|${f.route}`;
+  let base = routeCache.get(key);
+  if (!base) {
+    try { base = buildRouteAnchors({ dep: f.dep, arr: f.arr, route: f.route }); } catch (_) { base = { anchors: [] }; }
+    routeCache.set(key, base);
+  }
+  let ahead = base.anchors;
+  if (f.lat != null && !f.prefile && f.gs > 50) {
+    try { ahead = buildRouteAnchorsForAircraft({ dep: f.dep, arr: f.arr, route: f.route, lat: f.lat, lon: f.lon, hdg: f.hdg }).anchors; } catch (_) {}
+  }
+  return { all: base.anchors, ahead };
+}
+
+function flightsFromFeed() {
+  if (!feed) return [];
+  const out = [];
+  const add = (p, prefile) => {
+    const fp = p.flight_plan;
+    if (!fp || !fp.arrival || !fp.route) return;
+    out.push({
+      callsign: p.callsign, dep: (fp.departure || "").toUpperCase(), arr: (fp.arrival || "").toUpperCase(),
+      route: fp.route, type: fp.aircraft_short || fp.aircraft_faa || fp.aircraft || "", altitude: fp.altitude,
+      lat: prefile ? null : p.latitude, lon: prefile ? null : p.longitude, alt: prefile ? null : p.altitude,
+      gs: prefile ? 0 : p.groundspeed, hdg: prefile ? null : p.heading, prefile,
+    });
+  };
+  (feed.pilots || []).forEach(p => add(p, false));
+  if ($("optPrefile").checked) (feed.prefiles || []).forEach(p => add(p, true));
+  return out;
+}
+
+function inZdc(llPair) { return llPair && pointInArtcc("ZDC", llPair[0], llPair[1]) === true; }
+
+function flightStatus(f, ri) {
+  if (f.prefile) return { key: "pre", label: "PREFILE" };
+  const here = f.lat != null && inZdc([f.lat, f.lon]);
+  if (f.gs < 50) return { key: "gnd", label: "ON GROUND", outside: !here };
+  if (here) return { key: "in", label: "IN ZDC" };
+  if (ri && ri.ahead.some(a => a.ll && inZdc(a.ll))) return { key: "inb", label: "INBOUND" };
+  return { key: "out", label: "OUTSIDE", outside: true };
+}
+
+function sectorFilterPass(row, cfgKey, sec) {
+  if (!sec) return true;
+  return ownerOf(row[0], cfgKey) === sec || ownerOf(row[5], cfgKey) === sec;
+}
+
+function renderLive(qStr) {
+  const cfgKey = $("cfgSel").value;
+  const sec = $("secSel").value;
+  const onlyZdc = $("optZdc").checked, partialOk = $("optPartial").checked, showPassed = $("optPassed").checked;
+  const flights = flightsFromFeed();
+  const cards = [];
+
+  for (const f of flights) {
+    // Cheap first pass on the filed route alone; expand the route only for candidates.
+    const first = matchFlight(f, { ...geoCtx, config: cfgKey });
+    if (!first.length) continue;
+    const ri = routeInfo(f);
+    const matches = ri ? matchFlight(f, { ...geoCtx, config: cfgKey, extraFixes: ri.all.map(a => a.name) }) : first;
+    const st = flightStatus(f, ri);
+    if (onlyZdc && st.outside) {
+      const depIn = inZdc(ll(f.dep)) || inZdc(ll(f.arr));
+      if (!(f.gs < 50 && depIn) && !(f.prefile && depIn)) continue;
+    }
+    const aheadNames = ri ? new Set(ri.ahead.map(a => a.name)) : null;
+    const allNames = ri ? new Set(ri.all.map(a => a.name)) : null;
+    const rows = matches.filter(m => {
+      if (!partialOk && m.quality !== "full") return false;
+      if (!sectorFilterPass(m.row, cfgKey, sec)) return false;
+      m.passed = !!(m.fix && aheadNames && allNames.has(m.fix) && !aheadNames.has(m.fix) && !f.prefile && f.gs >= 50);
+      if (m.passed && !showPassed) return false;
+      return true;
+    });
+    if (!rows.length) continue;
+    const dv = descendViaFor(f);
+    const hay = [f.callsign, f.dep, f.arr, f.route, f.type, ...rows.map(m => m.row.join(" "))].join(" ").toUpperCase();
+    if (qStr && !qStr.split(/\s+/).every(w => hay.includes(w))) continue;
+    cards.push({ f, st, rows, dv });
+  }
+
+  const rank = { in: 0, inb: 1, gnd: 2, pre: 3, out: 4 };
+  cards.sort((a, b) => (rank[a.st.key] - rank[b.st.key]) || a.f.callsign.localeCompare(b.f.callsign));
+
+  const age = feedAt ? Math.round((Date.now() - feedAt) / 1000) : null;
+  $("status").textContent = feedErr || (feed ? `${cards.length} aircraft · feed ${age}s ago` : "Loading VATSIM feed…");
+  $("status").classList.toggle("err", !!feedErr);
+
+  if (!feed) { $("out").innerHTML = `<p class="empty">Loading the VATSIM feed…</p>`; return; }
+  if (!cards.length) {
+    $("out").innerHTML = `<p class="empty">No aircraft on routes with ZDC SOP restrictions${qStr || sec ? " match these filters" : " right now"}.</p>`;
+    return;
+  }
+  $("out").innerHTML = cards.map(renderCard).join("");
+}
+
+function sectorCell(id, cfgKey) {
+  const s = /^\d$/.test(id) ? "0" + id : id;
+  if (SECTORS[s]) {
+    const owner = ownerOf(s, cfgKey);
+    const ownerTxt = owner && owner !== s ? ` @ ${owner}` : "";
+    return `${esc(s)}${esc(ownerTxt)} <span class="secname">${esc(SECTORS[s])}</span>`;
+  }
+  const name = FACILITY_NAMES[s] || (/z$/.test(s) ? `${s.slice(0, -1)} TRACON/ATCT` : "");
+  return `${esc(s)}${name ? ` <span class="secname">${esc(name)}</span>` : ""}`;
+}
+
+function renderCard({ f, st, rows, dv }) {
+  const cfgKey = $("cfgSel").value;
+  const cls = engineClass(f.type);
+  const cruise = f.altitude ? String(f.altitude) : "";
+  const now = f.alt != null ? `${Math.round(f.alt / 100).toString().padStart(3, "0")} · ${f.gs}kt` : "";
+  const fixSet = new Set(rows.map(m => m.fix).filter(Boolean));
+  rows.forEach(m => m.row[3].replace(/[\[\]()]/g, " ").split(/[\s/]+/).forEach(t => t && fixSet.add(t.replace("#", ""))));
+  const routeHtml = String(f.route).split(/\s+/).map(tok => {
+    const base = tok.split(/[./]/)[0].toUpperCase().replace(/\d[A-Z]?$/, "");
+    const hit = fixSet.has(tok.toUpperCase()) || (base.length >= 3 && fixSet.has(base));
+    return hit ? `<mark>${esc(tok)}</mark>` : esc(tok);
+  }).join(" ");
+
+  const body = rows.map(m => {
+    const r = m.row;
+    const notes = [...m.notes];
+    if (m.how === "satellite") notes.push(`${f.arr} as satellite of ${r[1]}`);
+    if (r[2]) notes.push(r[2]);
+    if (m.typeUnknown) notes.push(`aircraft type ${f.type || "?"} not classified`);
+    if (m.passed) notes.push("passed");
+    return `<tr class="${m.quality}${m.passed ? " passed" : ""}">` +
+      `<td class="hand">${sectorCell(r[0], cfgKey)} <span class="arrow">→</span> ${sectorCell(r[5], cfgKey)}</td>` +
+      `<td class="restr">${esc(r[4])}</td>` +
+      `<td>${esc(r[1])} ${esc(r[3])}${notes.length ? `<div class="note">${esc(notes.join(" · "))}</div>` : ""}</td>` +
+      `<td><span class="q ${m.quality}">${m.quality === "full" ? "ROUTE" : "PARTIAL"}</span> <span class="secname">${esc(SECTOR_REF[r[0]] || "")}</span></td>` +
+      `</tr>`;
+  }).join("");
+
+  const dvHtml = dv.length ? dv.map(d =>
+    `<div class="dv">${esc(d.star)}#${d.via ? ` (${esc(d.via)})` : ""} descend via · bottom ${esc(d.alt)} (QQ P) · join by ${esc(d.join)}${d.handoff ? ` · handoff ${esc(d.handoff)}` : ""}</div>`).join("") : "";
+
+  return `<div class="ac">` +
+    `<div class="ac-head"><span class="cs">${esc(f.callsign)}</span>` +
+    `<span class="meta"><b>${esc(f.dep)}</b> → <b>${esc(f.arr)}</b></span>` +
+    `<span class="meta">${esc(f.type)}${cls ? ` · ${cls}` : ""}</span>` +
+    `<span class="meta">filed ${esc(cruise)}${now ? ` · now ${esc(now)}` : ""}</span>` +
+    `<span class="tag ${st.key}">${esc(st.label)}</span></div>` +
+    `<div class="route">${routeHtml}</div>` +
+    `<table><thead><tr><th>Sector → to</th><th>Restriction</th><th>For / routing</th><th>Match</th></tr></thead><tbody>${body}</tbody></table>` +
+    dvHtml + `</div>`;
+}
+
+/* ---------------- reference view ---------------- */
+
+function renderRef(qStr) {
+  const cfgKey = $("cfgSel").value;
+  const sec = $("secSel").value;
+  const rows = ROWS.filter(r => rowVisibleInConfig(r, cfgKey) && sectorFilterPass(r, cfgKey, sec))
+    .filter(r => !qStr || qStr.split(/\s+/).every(w => r.join(" ").toUpperCase().includes(w)));
+  $("status").textContent = `${rows.length} of ${ROWS.length} restrictions`;
+  $("status").classList.remove("err");
+  if (!rows.length) { $("out").innerHTML = `<p class="empty">No SOP restrictions match these filters.</p>`; return; }
+  $("out").innerHTML = `<div class="ref"><table><thead><tr><th>Sector → to</th><th>Restriction</th><th>For</th><th>Routing</th><th>Ref</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="hand">${sectorCell(r[0], cfgKey)} <span class="arrow">→</span> ${sectorCell(r[5], cfgKey)}</td>` +
+      `<td class="restr">${esc(r[4])}</td>` +
+      `<td>${esc(r[1])}${r[2] ? ` <span class="note">${esc(r[2])}</span>` : ""}</td><td>${esc(r[3])}</td>` +
+      `<td class="secname">${esc(SECTOR_REF[r[0]] || "")}</td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+
+function render() {
+  if (!started) return;
+  const qStr = $("q").value.trim().toUpperCase();
+  if (view === "ref") renderRef(qStr);
+  else renderLive(qStr);
+}
+</script>
+</body>
+</html>
