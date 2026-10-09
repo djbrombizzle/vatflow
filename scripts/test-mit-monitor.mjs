@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   arrivalGate, gateKey, calcGateMit, programGateMitNm, gateMitAction, normPrograms,
-  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, NO_GATE,
+  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, NO_GATE,
 } from "../shared/mit-monitor.js";
 
 let passed = 0;
@@ -124,6 +124,37 @@ t("buildMitMonitor: expected demand wins where it is higher than live", () => {
   assert.equal(g("OMN").expected, 0);                       // live 2 beats expected 1
   assert.equal(m.demand, 52); assert.equal(m.over, true);
   assert.ok(g("GRNCH").recMit > 0 && g("SNFLD").recMit > 0 && !g("OMN").recMit);
+});
+
+t("rollingGateDemand: busiest 60-minute window across the lookahead drives demand", () => {
+  const now = Date.UTC(2026, 9, 9, 0, 0);
+  const at = (min, gate) => ({ eta: now + min * 60000, gate });
+  const flights = [
+    at(-3, "OMN"),                                        // overdue, still inbound: first window only
+    at(10, "OMN"), at(50, "GRNCH"),
+    ...Array.from({ length: 8 }, (_, i) => at(95 + i * 3, "GRNCH")),   // rush 95-116 min out
+    at(100, NO_GATE), at(130, "OMN"), at(200, "OMN"),     // 200 is past the 3 hr lookahead
+  ];
+  const r = rollingGateDemand({ flights, now });
+  assert.deepEqual(r.windows.map(w => w.offsetMin), [0, 15, 30, 45, 60, 75, 90, 105, 120]);
+  assert.equal(r.windows[0].total, 3);                    // the old next-60 view
+  const pk = r.windows[r.peak];
+  assert.equal(pk.offsetMin, 75);                         // 0115-0215z holds the whole rush + 0210 OMN
+  assert.equal(pk.total, 10);
+  assert.deepEqual(pk.entries, [["GRNCH", 8], ["OMN", 1]]);
+  assert.equal(pk.unassigned, 1);
+  assert.equal(r.windows[8].total, 1);                    // 0200-0300z: 0210 only
+});
+
+t("rollingGateDemand: expected demand is a per-window floor, ties go to the earliest window", () => {
+  const now = 0;
+  const r = rollingGateDemand({ flights: [{ eta: 5 * 60000, gate: "OMN" }], now, horizonMin: 120, stepMin: 30, expect: { GRNCH: 12 } });
+  assert.equal(r.windows.length, 3);
+  assert.equal(r.peak, 0);
+  assert.deepEqual(r.windows[0].entries, [["GRNCH", 12], ["OMN", 1]]);
+  assert.deepEqual(r.windows[0].expected, ["GRNCH"]);
+  assert.equal(r.windows[1].total, 12);
+  assert.equal(rollingGateDemand({ flights: [], now, horizonMin: 60 }).windows.length, 1);
 });
 
 console.log(`\n${passed} passed`);
