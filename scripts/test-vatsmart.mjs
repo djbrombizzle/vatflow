@@ -133,6 +133,14 @@ t("program MIT that's no longer needed gets a stop", () => {
   assert.ok(g && g.title.startsWith("Stop MIT on GRNCH"), g && g.title);
 });
 
+t("weather cut is a note on the clear-weather AAR, not advice to lower it", () => {
+  const wx = { cat: "IFR", thunderPct: 0, gust: 0 };
+  const s = buildSituation({ airport: APT, aptLL: APT_LL, prog: null, localAar: 30, wx, pilots: inbound("GRNCH", 3, 5, 55), now: NOW });
+  const r = s.recs.find(x => x.id === "wx-aar");
+  assert.equal(s.cap.capacity, 26);
+  assert.ok(r && r.sev === "info" && !/Lower/.test(r.title), r && r.title);
+});
+
 t("no AAR anywhere asks for one", () => {
   const s = buildSituation({ airport: APT, aptLL: APT_LL, pilots: inbound("GRNCH", 5, 5, 55), now: NOW });
   assert.deepEqual(s.recs.map(r => r.id), ["no-aar"]);

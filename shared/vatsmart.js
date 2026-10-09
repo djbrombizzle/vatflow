@@ -515,9 +515,10 @@ export function recommend(s) {
 
   /* weather cuts capacity */
   if (s.cap.factor < 1 && s.cap.aar > cap) {
-    add({ id: "wx-aar", sev: "action", title: `Lower the AAR to ${cap} for weather`,
-      why: `The forecast over the next 3 hours cuts ${apt}'s rate (${s.cap.reasons.join(", ")}), so the ${s.cap.aar}/hr ${s.cap.source === "program" ? "program" : "AAR"} is optimistic. VATSMART already plans against ${cap}/hr.`,
-      link: s.cap.source === "program" ? LINK.tmu : null });
+    /* the AAR is taken as the clear-weather rate and cut here, so this is a note, not "lower the AAR"
+       (typing the cut rate back in would cut it twice) */
+    add({ id: "wx-aar", sev: "info", title: `Planning at ${cap}/hr for weather`,
+      why: `The forecast over the next 3 hours cuts ${apt}'s rate (${s.cap.reasons.join(", ")}), so VATSMART plans against ${cap}/hr instead of the ${s.cap.aar}/hr ${s.cap.source === "program" ? "program" : "AAR"}. Keep the AAR at the clear-weather rate; the weather cut is applied on top of it.` });
   }
 
   /* the overall TMI call */
