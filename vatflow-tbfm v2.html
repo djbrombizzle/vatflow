@@ -30,6 +30,10 @@ window.VF_StaffingAtc = StaffingAtcHours;
 import * as EventPlanner from "./shared/event-planner.js";
 window.VF_EventPlan = EventPlanner;
 </script>
+<script type="module">
+import { rollingGateDemand } from "./shared/mit-monitor.js";
+window.VF_RollingDemand = rollingGateDemand;
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
 import * as FcaStore from "./shared/fca-store.js";
@@ -970,6 +974,12 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .calcresult.none { color: var(--text-muted); font-size: 28px; }
 .calcdetail { font-size: 13px; color: var(--text-dim); line-height: 1.65; margin-bottom: 4px; }
 .calcformula { font-size: 11px; color: var(--text-muted); }
+.demandwins { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 10px; }
+.demandwin { min-width: 58px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-align: center; font-family: var(--font-data); font-size: 11px; color: var(--text-dim); }
+.demandwin b { display: block; font-size: 15px; color: var(--text); }
+.demandwin.over b { color: var(--alert); }
+.demandwin.sel { border-color: var(--accent); background: rgba(232, 168, 56, 0.10); }
+.demandwin .pk { display: block; font-size: 9px; letter-spacing: 0.08em; color: var(--warn); }
 .calcpositions { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
 .calcpositions label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
 .calcpositions input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
@@ -7447,6 +7457,7 @@ const rateCalc = {
   icao: "", tier: "hub", maxAar: 120, fullStaff: 6, onDuty: 2,
   usePositions: false, advancedOpen: false, mitAarSource: "calc",
   mitMode: "live", mitPlanAar: 0, mitPlan: [], mitPlanSolve: "mit",
+  lookaheadHr: 3, mitWindowOff: null,   /* null = busiest window; not saved */
   positions: { app: true, twr: true, gnd: false, del: false, sup: false, atis: false }
 };
 try {
@@ -7466,6 +7477,7 @@ try {
       if (+p.mitPlanAar) rateCalc.mitPlanAar = parseAar(p.mitPlanAar) || 0;
       if (Array.isArray(p.mitPlan)) rateCalc.mitPlan = normMitPlan(p.mitPlan);
       if (p.mitPlanSolve === "rate") rateCalc.mitPlanSolve = "rate";
+      if (+p.lookaheadHr >= 1 && +p.lookaheadHr <= 3) rateCalc.lookaheadHr = Math.round(+p.lookaheadHr);
       if (p.positions && typeof p.positions === "object") {
         for (const k in p.positions) if (k in rateCalc.positions) rateCalc.positions[k] = !!p.positions[k];
       }
@@ -7480,7 +7492,7 @@ function saveRateCalc() {
       usePositions: rateCalc.usePositions, advancedOpen: rateCalc.advancedOpen,
       mitAarSource: rateCalc.mitAarSource,
       mitMode: rateCalc.mitMode, mitPlanAar: rateCalc.mitPlanAar, mitPlan: rateCalc.mitPlan,
-      mitPlanSolve: rateCalc.mitPlanSolve,
+      mitPlanSolve: rateCalc.mitPlanSolve, lookaheadHr: rateCalc.lookaheadHr,
       positions: rateCalc.positions
     }));
   } catch (e) {}
@@ -8159,6 +8171,8 @@ function renderTMURateCalc() {
   } else if (result.warning) {
     h += '<div class="calcdetail">' + esc(result.warning) + '</div>';
   }
+  const live = validIcao ? liveGateDemand(rateCalc.icao, tmuRates[rateCalc.icao]) : null;
+  if (live) h += renderPeakDemandLine(live, result.aar);
   if (ctl && validIcao && result.aar > 0) {
     h += '<div style="margin-top:16px;">' +
       '<button data-ratecalc-apply>APPLY TO PROGRAM</button>' +
@@ -8168,14 +8182,16 @@ function renderTMURateCalc() {
     h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">View only \u2014 unlock control to apply this rate to a program.</div>';
   }
   h += '</div>';
-  h += renderGateMitCard(result.aar, validIcao);
+  h += renderGateMitCard(result.aar, validIcao, live);
   h += '<div class="helpcard" style="margin-top:14px;"><h3>How it works</h3>' +
     '<ul class="helplist" style="font-size:13px;">' +
     '<li>Select an <b>airport tier</b> to pre-fill max AAR and full staffing, or enter your own values.</li>' +
     '<li><b>Recommended AAR</b> = max AAR \u00D7 (controllers on duty / full staffing).</li>' +
     '<li>Example: a hub at 120/hr with 6 full positions and 2 on duty \u2192 <b>40/hr</b>.</li>' +
     '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
-    '<li><b>MIT per gate</b> looks at the next hour of arrivals. If demand is over the AAR, gates feeding more than an even share ' +
+    '<li><b>Peak demand</b> slides a 60-minute window every ' + DEMAND_WIN_STEP_MIN + ' minutes across the next 1\u20133 hours (Look ahead, default 3) ' +
+    'and takes the busiest hour, so a rush 90 minutes out shows up now instead of only the next 60 minutes.</li>' +
+    '<li><b>MIT per gate</b> uses that busiest hour (or the window you click). If demand is over the AAR, gates feeding more than an even share ' +
     'get the MIT that holds them to their slice (' + MIT_NOMINAL_KT + ' kt \u00F7 slice, rounded up to 5 nm). ' +
     'Example: AAR 40, four gates, one quiet gate needs 4/hr \u2192 the other three get 12/hr each \u2192 <b>30 MIT</b>.</li>' +
     '<li>Switch MIT per gate to <b>Plan</b> to work out MIT ahead of time from your own gate list and expected arrivals per hour, with no live traffic needed. ' +
@@ -8183,6 +8199,19 @@ function renderTMURateCalc() {
     MIT_NOMINAL_KT + ' kt \u00F7 MIT; 20 MIT \u2192 18/hr) and whether the total fits the AAR.</li>' +
     '</ul></div></div>';
   return h;
+}
+
+/* busiest rolling hour over the lookahead vs the recommended AAR */
+function renderPeakDemandLine(live, aar) {
+  const pk = live.windows[live.peak], first = live.windows[0];
+  let h = '<div class="calcdetail" style="margin-top:8px;">Peak arrival demand, next ' + rateCalc.lookaheadHr + ' hr: <b>' + pk.total + '/hr</b>';
+  if (pk.total) h += ' at ' + demandWinLabel(pk) + ' (' + demandWinWhen(pk) + ')';
+  if (live.peak !== 0) h += ' \u00B7 next 60 min: ' + first.total;
+  if (aar > 0 && pk.total) {
+    h += ' \u2014 ' + (pk.total > aar ? '<span class="tmu-over">over AAR by ' + (pk.total - aar) + '</span>'
+      : '<span class="tmu-ok">within AAR</span>');
+  }
+  return h + '</div>';
 }
 
 function renderGateMitTable(calc, prog, demandLabel, expected) {
@@ -8220,30 +8249,41 @@ function gateMitSummary(calc, aar, what) {
       ? '<span class="tmu-over">over by ' + (calc.demand - aar) + '</span>, MIT needed on the gates feeding more than their slice'
       : '<span class="tmu-ok">within AAR</span>, no gate MIT needed') + '</div>';
 }
-/* next-hour metered demand per gate from the live feed; null when no feed.
-   With a program's expected demand, each gate takes the higher of the two and
-   `expected` lists the gates where the prediction won. */
+/* metered demand per gate from the live feed, as a rolling 60-minute window
+   stepped every 15 minutes across the lookahead (1-3 hr); null until the feed
+   and the shared helper load. The busiest window drives the MIT unless the
+   controller picked another one. With a program's expected demand, each gate
+   takes the higher of the two and `expected` lists the gates where the
+   prediction won. */
+const DEMAND_WIN_STEP_MIN = 15;
 function liveGateDemand(code, prog) {
   const flow = computeFlow(code);
-  if (!flow) return null;
-  const horizon = flow.now + 3600000;
-  const gates = {};
-  let unassigned = 0;
-  for (const f of flow.flights) {
-    if (f.status === "ARRIVED" || !isMetered(f) || f.eta >= horizon) continue;
-    if (f.gate === "—") unassigned++;
-    else gates[f.gate] = (gates[f.gate] || 0) + 1;
-  }
-  const expected = new Set();
-  const exp = programExpect(prog);
-  for (const g in exp) if (exp[g] > (gates[g] || 0)) { gates[g] = exp[g]; expected.add(g); }
-  const entries = Object.entries(gates).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
-  return { entries, unassigned, expected };
+  const roll = window.VF_RollingDemand;
+  if (!flow || !roll) return null;
+  const flights = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f)).map(f => ({ eta: f.eta, gate: f.gate }));
+  const r = roll({ flights, now: flow.now, horizonMin: rateCalc.lookaheadHr * 60, stepMin: DEMAND_WIN_STEP_MIN, expect: programExpect(prog) });
+  let sel = r.windows.findIndex(w => w.offsetMin === rateCalc.mitWindowOff);
+  if (sel < 0) sel = r.peak;
+  const w = r.windows[sel];
+  return { entries: w.entries, unassigned: w.unassigned, expected: new Set(w.expected),
+    windows: r.windows, peak: r.peak, sel, window: w };
+}
+function demandWinLabel(w) { return fmtZ(w.start) + '\u2013' + fmtZ(w.end) + 'z'; }
+function demandWinWhen(w) { return w.offsetMin ? 'starts in ' + w.offsetMin + ' min' : 'starting now'; }
+/* one cell per rolling window: start time and demand; click to drive the MIT from it */
+function renderDemandWindows(live, aar) {
+  let h = '<div class="demandwins">';
+  live.windows.forEach((w, i) => {
+    h += '<span class="demandwin' + (w.total > aar ? ' over' : '') + (i === live.sel ? ' sel' : '') + '" ' +
+      'data-ratecalc-win="' + (i === live.peak ? 'peak' : w.offsetMin) + '" title="' + demandWinLabel(w) + ': ' + w.total + ' arrivals">' +
+      fmtZ(w.start) + 'z<b>' + w.total + '</b>' + (i === live.peak ? '<span class="pk">PEAK</span>' : '') + '</span>';
+  });
+  return h + '</div>';
 }
 const GATE_MIT_FORMULA = 'Gates under an even share keep what they need; busier gates split what’s left, and MIT = ' +
   MIT_NOMINAL_KT + ' kt ÷ slice, rounded up to ' + GATE_MIT_STEP_NM + ' nm.';
 
-function renderGateMitCard(calcAar, validIcao) {
+function renderGateMitCard(calcAar, validIcao, live) {
   const plan = rateCalc.mitMode === "plan";
   let h = '<div class="helpcard" style="margin-top:14px;"><h3>MIT PER GATE</h3>' +
     '<div class="subtabs" style="margin:0 0 10px;">' +
@@ -8266,26 +8306,43 @@ function renderGateMitCard(calcAar, validIcao) {
       '</select></div>';
   }
   if (!(aar > 0)) return h + '<div class="calcdetail">No AAR to split across gates.</div></div>';
-  const live = liveGateDemand(code, prog);
   if (!live) return h + '<div class="calcdetail">Waiting for the VATSIM feed.</div></div>';
-  const calc = calcGateMit(aar, live.entries, live.unassigned, MIT_NOMINAL_KT);
-  if (!calc.rows.length) {
-    return h + '<div class="calcdetail">No metered IFR arrivals into ' + esc(code) + ' in the next 60 minutes with a recognizable arrival gate.</div></div>';
+  h += '<div class="tmuform" style="border-bottom:none;padding:0 0 4px;">' +
+    '<span class="lbl">LOOK AHEAD</span><select data-ratecalc-field="lookaheadHr">' +
+    [1, 2, 3].map(n => '<option value="' + n + '"' + (rateCalc.lookaheadHr === n ? ' selected' : '') + '>' + n + ' hr</option>').join("") +
+    '</select><span class="form-note">Rolling 60-minute windows every ' + DEMAND_WIN_STEP_MIN + ' min. Click one to plan MIT for it.</span></div>';
+  h += renderDemandWindows(live, aar);
+  const w = live.window;
+  const isPeak = live.sel === live.peak;
+  if (!live.windows[live.peak].total) {
+    return h + '<div class="calcdetail">No metered IFR arrivals into ' + esc(code) + ' in the next ' + rateCalc.lookaheadHr +
+      (rateCalc.lookaheadHr === 1 ? ' hour' : ' hours') + ' with a recognizable arrival gate.</div></div>';
   }
-  h += gateMitSummary(calc, aar, 'Next 60 min');
+  const calc = calcGateMit(aar, live.entries, live.unassigned, MIT_NOMINAL_KT);
+  h += gateMitSummary(calc, aar, (isPeak ? 'Peak hour ' : 'Hour ') + demandWinLabel(w) + ' (' + demandWinWhen(w) + ')');
+  if (!isPeak) {
+    const pk = live.windows[live.peak];
+    h += '<div class="calcdetail">Busiest hour is ' + demandWinLabel(pk) + ' with <b>' + pk.total + '</b> arrivals. ' +
+      '<span class="calctoggle" data-ratecalc-win="peak">Show peak</span></div>';
+  }
+  if (!calc.rows.length) return h + '<div class="calcdetail">No arrivals with a recognizable gate in this hour.</div></div>';
   if (live.unassigned) {
     h += '<div class="calcdetail">' + live.unassigned + ' with no arrival gate (they use AAR slots but can’t be restricted)</div>';
   }
   if (calc.demand < 6) {
-    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in the next hour, so these numbers can swing between updates.</div>';
+    h += '<div class="calcdetail" style="color:var(--warn);">Few flights in this hour, so these numbers can swing between updates.</div>';
+  }
+  if (w.offsetMin >= 60) {
+    h += '<div class="calcdetail">This hour is ' + w.offsetMin + ' minutes out, so it counts flights not yet airborne by their filed times; it fills in as they depart.</div>';
   }
   if (live.expected.size) {
     h += '<div class="calcdetail">Using the program\u2019s expected demand on ' + esc([...live.expected].join(", ")) +
       ' (marked exp), where it is higher than the live count.</div>';
   }
-  h += renderGateMitTable(calc, prog, 'NEXT 60 MIN', live.expected);
-  h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in the next 60 minutes; ' +
-    'gates come from the last STAR or fix in each filed route. ' + GATE_MIT_FORMULA + '</div></div>';
+  h += renderGateMitTable(calc, prog, esc(demandWinLabel(w)), live.expected);
+  h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in each rolling 60-minute window ' +
+    'over the next ' + rateCalc.lookaheadHr + ' hr; the busiest window drives the MIT. ' +
+    'Gates come from the last STAR or fix in each filed route. ' + GATE_MIT_FORMULA + '</div></div>';
   return h;
 }
 
@@ -9233,6 +9290,13 @@ contentEl.addEventListener("click", e => {
     pushSync(); ensurePolling(); tmuSub = "programs"; renderContent();
     return;
   }
+  const rcWin = e.target.closest("[data-ratecalc-win]");
+  if (rcWin) {
+    const v = rcWin.dataset.ratecalcWin;
+    rateCalc.mitWindowOff = v === "peak" ? null : +v;
+    renderContent();
+    return;
+  }
   const mitMode = e.target.closest("[data-ratecalc-mitmode]");
   if (mitMode) {
     rateCalc.mitMode = mitMode.dataset.ratecalcMitmode === "plan" ? "plan" : "live";
@@ -9835,6 +9899,8 @@ contentEl.addEventListener("change", e => {
       rateCalc.mitAarSource = rcField.value === "program" ? "program" : "calc";
     } else if (f === "mitPlanSolve") {
       rateCalc.mitPlanSolve = rcField.value === "rate" ? "rate" : "mit";
+    } else if (f === "lookaheadHr") {
+      rateCalc.lookaheadHr = Math.max(1, Math.min(3, Math.round(+rcField.value) || 3));
     } else if (f === "mitPlanAar") {
       rateCalc.mitPlanAar = rcField.value === "" ? 0 : (parseAar(rcField.value) || rateCalc.mitPlanAar);
       rcField.value = rateCalc.mitPlanAar || "";
