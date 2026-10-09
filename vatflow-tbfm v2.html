@@ -7612,6 +7612,57 @@ function gateMitAction(recNm, nowNm) {
   if (nowNm - recNm >= GATE_MIT_STEP_NM) return { kind: "relax", txt: "Relax to " + recNm };
   return { kind: "hold", txt: "Hold" };
 }
+/* What APPLY TO PROGRAM sets: the AAR plus the gate MIT the MIT per gate card
+   shows. Live uses the selected hour at the AAR being applied; Plan applies its
+   own AAR (when entered) and its gates. Gates with no MIT come back as 0, so an
+   old gate rule on them is lifted. null gates = nothing to set (no feed yet). */
+function rateCalcProgramUpdate(code, calcAar, live) {
+  if (rateCalc.mitMode === "plan") {
+    const aar = rateCalc.mitPlanAar || calcAar;
+    const byGate = {};
+    if (rateCalc.mitPlanSolve === "rate") {
+      for (const r of rateCalc.mitPlan) {
+        if (r.gate && r.mit > 0) byGate[gateKey(r.gate)] = Math.max(byGate[gateKey(r.gate)] || 0, r.mit);
+      }
+      return { aar, gates: Object.entries(byGate).map(([gate, mit]) => ({ gate, mit })) };
+    }
+    for (const r of rateCalc.mitPlan) if (r.gate && r.rate > 0) byGate[gateKey(r.gate)] = (byGate[gateKey(r.gate)] || 0) + r.rate;
+    const entries = Object.entries(byGate);
+    if (!entries.length) return { aar, gates: [] };
+    const calc = calcGateMit(aar, entries, 0, MIT_NOMINAL_KT);
+    return { aar, gates: calc.rows.map(r => ({ gate: r.gate, mit: r.limited ? r.mit : 0 })) };
+  }
+  if (live === undefined) live = liveGateDemand(code, tmuRates[code]);
+  if (!live) return { aar: calcAar, gates: null };
+  if (!live.windows[live.peak].total) return { aar: calcAar, gates: [] };
+  const calc = calcGateMit(calcAar, live.entries, live.unassigned, MIT_NOMINAL_KT);
+  return { aar: calcAar, gates: calc.rows.map(r => ({ gate: r.gate, mit: r.limited ? r.mit : 0 })) };
+}
+/* fold recommended gate MITs into a program's gate rules: set or tighten/relax
+   the MIT on each gate, drop the rule on gates that need none, leave the rest */
+/* one line under APPLY TO PROGRAM saying what it will set */
+function rateCalcApplyNote(code, calcAar, live) {
+  const upd = rateCalcProgramUpdate(code, calcAar, live);
+  const mits = (upd.gates || []).filter(g => g.mit > 0);
+  return 'Sets ' + code + ' to AAR ' + upd.aar + '/hr' +
+    (mits.length ? ' with ' + mits.map(g => g.gate + ' ' + g.mit + ' MIT').join(', ') : '') +
+    (upd.gates ? ' from MIT per gate' + (rateCalc.mitMode === "plan" ? ' (Plan)' : '') + '; other gate rules, trail and airport MIT stay as they are.'
+      : '; gate MIT is added once the VATSIM feed loads.');
+}
+function mergeGateMitRules(rules, recs) {
+  const out = (rules || []).map(g => ({ ...g }));
+  for (const r of recs) {
+    const k = gateKey(r.gate);
+    const i = out.findIndex(g => g.name && gateKey(g.name) === k);
+    if (r.mit > 0) {
+      if (i >= 0) { out[i].mit = r.mit; out[i].trail = 0; }
+      else out.push({ name: k, trail: 0, mit: r.mit });
+    } else if (i >= 0) out.splice(i, 1);
+  }
+  /* gate rules cap at 10: keep the tightest when the merge runs over */
+  if (out.length > 10) out.sort((a, b) => (b.mit || 0) - (a.mit || 0));
+  return normGates(out);
+}
 
 /* ===================== EVENT PLANNER =====================
    Field + event window in, TMI recommendation out. Demand comes from this field's
@@ -8183,8 +8234,7 @@ function renderTMURateCalc() {
   if (ctl && validIcao && result.aar > 0) {
     h += '<div style="margin-top:16px;">' +
       '<button data-ratecalc-apply>APPLY TO PROGRAM</button>' +
-      '<span class="form-note">Sets AAR for ' + esc(rateCalc.icao) +
-      ' on the Programs sub-tab (preserves trail/MIT/gates).</span></div>';
+      '<span class="form-note">' + esc(rateCalcApplyNote(rateCalc.icao, result.aar, live)) + '</span></div>';
   } else if (!ctl && validIcao && result.aar > 0) {
     h += '<div style="margin-top:14px;font-size:11px;color:#56676f;">View only \u2014 unlock control to apply this rate to a program.</div>';
   }
@@ -9369,11 +9419,13 @@ contentEl.addEventListener("click", e => {
     });
     if (rec.aar < 1) return;
     const existing = tmuRates[code];
+    const upd = rateCalcProgramUpdate(code, rec.aar);
+    const oldGates = existing && existing.gates ? existing.gates : [];
     tmuRates[code] = {
-      aar: rec.aar,
+      aar: upd.aar,
       trail: existing ? existing.trail : 0,
       mit: existing ? existing.mit : 0,
-      gates: existing && existing.gates ? existing.gates : [],
+      gates: upd.gates ? mergeGateMitRules(oldGates, upd.gates) : oldGates,
       expect: existing && existing.expect ? existing.expect : [],
       excludeWake: existing ? (existing.excludeWake || []) : [],
       excludeTypes: existing ? (existing.excludeTypes || []) : [],
