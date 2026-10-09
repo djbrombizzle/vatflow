@@ -142,4 +142,15 @@ t("event history: merge keeps events StatSim no longer lists", () => {
   assert.deepEqual(mergeHistory(fresh, prev, 1).KBOS.map(e => e.id), [2]);
 });
 
+t("gridWindow: NWS -30.48 m means no ceiling, not LIFR", () => {
+  const props = {
+    ceilingHeight: { values: [{ validTime: "2026-10-09T06:00:00+00:00/PT16H", value: -30.48 }] },
+    visibility: { values: [{ validTime: "2026-10-09T06:00:00+00:00/PT16H", value: 16093.44 }] },
+  };
+  const w = gridWindow(props, Date.UTC(2026, 9, 9, 13), Date.UTC(2026, 9, 9, 16));
+  assert.equal(w.cat, "VFR");
+  assert.equal(w.ceilFt, null);
+  assert.equal(weatherAarFactor(w).factor, 1);
+});
+
 console.log(`\n${passed} passed`);

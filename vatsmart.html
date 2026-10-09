@@ -145,8 +145,8 @@
     <form class="ctl" id="aptForm" autocomplete="off">
       <label for="apt">FIELD</label>
       <input id="apt" maxlength="4" placeholder="ICAO" spellcheck="false">
-      <label for="aar" title="Only used when the field has no Airport TMU program">AAR</label>
-      <input id="aar" type="number" min="1" max="200" placeholder="/hr" title="Only used when the field has no Airport TMU program">
+      <label for="aar" title="Plan against this AAR on this page only. Leave it blank to use the Airport TMU program.">AAR</label>
+      <input id="aar" type="number" min="1" max="200" placeholder="/hr" title="Plan against this AAR on this page only. Leave it blank to use the Airport TMU program.">
       <button type="submit">WATCH</button>
     </form>
     <div class="pills">
@@ -262,16 +262,21 @@ function setAirport(code) {
   refreshSlow();
   render();
 }
-$("aptForm").addEventListener("submit", e => {
-  e.preventDefault();
-  const a = $("aar").value;
-  setAirport($("apt").value);
+/* the AAR typed here is this page's what-if for the field shown, kept per field */
+function saveAar(v) {
   if (!st.airport) return;
   prefs.aar = prefs.aar || {};
-  if (+a > 0) prefs.aar[st.airport] = +a; else delete prefs.aar[st.airport];
+  if (+v > 0) prefs.aar[st.airport] = Math.min(200, Math.round(+v)); else delete prefs.aar[st.airport];
   savePrefs(); render();
+}
+$("aptForm").addEventListener("submit", e => {
+  e.preventDefault();
+  let code = $("apt").value.toUpperCase().trim();
+  if (code.length === 3) code = "K" + code;
+  if (code !== st.airport) setAirport(code);    // a new field loads its own saved AAR
+  else saveAar($("aar").value);
 });
-$("aar").addEventListener("change", () => $("aptForm").requestSubmit());
+$("aar").addEventListener("change", () => saveAar($("aar").value));
 
 /* ---------------- data ---------------- */
 
@@ -423,8 +428,9 @@ function render() {
   } catch (e) { console.error(e); return; }
   st.sit = sit;
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
-  $("aar").disabled = !!prog;
-  $("aar").title = prog ? "This field has an Airport TMU program (AAR " + prog.aar + "); change it there." : "Only used when the field has no Airport TMU program";
+  $("aar").title = prog
+    ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
+    : "Plan against this AAR on this page only. Set a program on Airport TMU so other pages see it.";
   renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderTmis(sit); renderWx(sit); renderEvent(sit);
 }
 
@@ -436,7 +442,9 @@ function renderKpis(s) {
   const tierCls = !tier ? "" : tier.id === "none" ? "green" : tier.id === "mit" ? "amber" : "red";
   $("kpis").innerHTML =
     kpi("Capacity", c.capacity ? `${c.capacity}<small>/hr</small>` : "—",
-      c.source === "none" ? "No program: type an AAR" : (c.source === "program" ? "Program" : "Local") + " AAR " + c.aar + (c.factor < 1 ? " · weather ×" + c.factor.toFixed(2) : ""),
+      (c.source === "none" ? "No program: type an AAR"
+        : c.source === "program" ? "Program AAR " + c.aar
+        : "Your AAR " + c.aar + (c.programAar ? " (program " + c.programAar + ")" : "")) + (c.factor < 1 ? " · weather ×" + c.factor.toFixed(2) : ""),
       c.factor < 1 ? "amber" : "") +
     kpi("Next 60 min", `${n.total}<small>${c.capacity ? " / " + c.capacity : ""}</small>`, `${n.connected} connected · ${n.prefiled} prefiled`, over(n.total)) +
     kpi("Peak 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${pw.expected.length ? "incl. expected demand" : "live + prefiles"}`, over(pw.total)) +
