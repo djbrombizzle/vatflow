@@ -223,10 +223,14 @@ function restrictionClasses(restr) {
   return null;
 }
 
-/** The crossing fix a restriction names ("BUBBI @ 150" → BUBBI), if any. */
+/**
+ * The crossing fix a restriction names ("BUBBI @ 150" → BUBBI), if any. Also
+ * reads the ZJX SOP's wording: "20 NM S of JURDI @ FL240", "Abeam BATTN AOB
+ * FL270", "Over or abeam CAPOH @ FL270".
+ */
 export function restrictionFix(restr) {
   const s = String(restr || "").toUpperCase().replace(/^[JP]:\s*/, "");
-  const m = s.match(/^(?:BDRY \()?(?:\d+\s*(?:NM)?\s*[NSEW]\s+)?([A-Z]{3,5})(?:\/[A-Z]{3,5})?\)?\s+(?:@|AOB|AT|ABEAM)/);
+  const m = s.match(/^(?:BDRY \()?(?:(?:OVER OR )?ABEAM\s+)?(?:\d+\s*(?:NM)?\s*[NSEW]{1,2}\s+(?:OF\s+)?)?([A-Z]{3,5})(?:\/[A-Z]{3,5})?\)?\s+(?:@|AOB|AT|ABEAM)/);
   if (!m || ["BDRY", "AOB", "DSDG", "ABEAM"].includes(m[1])) return null;
   return m[1];
 }
