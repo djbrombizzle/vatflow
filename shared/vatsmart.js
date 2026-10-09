@@ -54,15 +54,17 @@ export function nearestZulu(hhmm, now) {
 /* ---------------- capacity ---------------- */
 
 /**
- * The rate VATSMART plans against: the hub program's AAR (else the AAR typed on
- * this page), cut for the field's forecast weather the same way the Event planner
- * does. Returns { aar, capacity, source: "program"|"local"|"none", factor, reasons }.
+ * The rate VATSMART plans against: the AAR typed on this page (a what-if that only
+ * this page uses), else the hub program's AAR, cut for the field's forecast weather
+ * the same way the Event planner does.
+ * Returns { aar, capacity, source: "local"|"program"|"none", programAar, factor, reasons }.
  */
 export function capacityFor({ prog, localAar = 0, wx = null }) {
-  const aar = prog && prog.aar > 0 ? prog.aar : localAar > 0 ? localAar : 0;
-  const source = prog && prog.aar > 0 ? "program" : localAar > 0 ? "local" : "none";
+  const programAar = prog && prog.aar > 0 ? prog.aar : 0;
+  const aar = localAar > 0 ? localAar : programAar;
+  const source = localAar > 0 ? "local" : programAar ? "program" : "none";
   const w = weatherAarFactor(wx);
-  return { aar, capacity: aar ? Math.max(1, Math.round(aar * w.factor)) : 0, source, factor: w.factor, reasons: w.reasons };
+  return { aar, capacity: aar ? Math.max(1, Math.round(aar * w.factor)) : 0, source, programAar, factor: w.factor, reasons: w.reasons };
 }
 
 /* ---------------- arrival queue ---------------- */

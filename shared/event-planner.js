@@ -204,7 +204,8 @@ function overlapping(layer, startMs, endMs) {
 export function gridWindow(props, startMs, endMs) {
   if (!props) return null;
   const thunder = overlapping(props.probabilityOfThunder, startMs, endMs);
-  const ceil = overlapping(props.ceilingHeight, startMs, endMs);
+  // NWS sends -30.48 m (-100 ft) for "no ceiling"; only positive heights are a ceiling
+  const ceil = overlapping(props.ceilingHeight, startMs, endMs).filter(v => v > 0);
   const vis = overlapping(props.visibility, startMs, endMs);
   const gust = overlapping(props.windGust, startMs, endMs);
   const wind = overlapping(props.windSpeed, startMs, endMs);

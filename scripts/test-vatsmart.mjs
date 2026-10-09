@@ -32,6 +32,8 @@ t("capacity uses the program AAR, else the local one, cut for weather", () => {
   assert.deepEqual(capacityFor({ prog: { aar: 40 } }).capacity, 40);
   assert.equal(capacityFor({ prog: null, localAar: 30 }).source, "local");
   assert.equal(capacityFor({ prog: null }).capacity, 0);
+  const what = capacityFor({ prog: { aar: 62 }, localAar: 45 });     // the page's what-if wins over the program
+  assert.equal(what.capacity, 45); assert.equal(what.source, "local"); assert.equal(what.programAar, 62);
   const ifr = capacityFor({ prog: { aar: 40 }, wx: { cat: "IFR", thunderPct: 0, gust: 0 } });
   assert.equal(ifr.capacity, 34);
   assert.ok(ifr.reasons[0].startsWith("IFR"));
