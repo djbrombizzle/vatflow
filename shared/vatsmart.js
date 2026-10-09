@@ -511,7 +511,7 @@ export const SLOT_MOVES_MAX = 12;
 
 /**
  * STAR balancing across 15-minute slots: for each slot over the AAR's quarter-hour share,
- * move arrivals off its busiest STAR into the slot 15 minutes after (a short delay) or before
+ * move airborne arrivals (ground flights are left to the FCA) off its busiest STAR into the slot 15 minutes after (a short delay) or before
  * (a small pull, airborne only) when that slot has room.
  * Returns [{ start, end, count, allow, moves: [{ callsign, dep, gate, gateFix, status, dist, eta, to, shiftMin }], left }].
  */
@@ -527,13 +527,13 @@ export function slotBalance(flights, now, capacity) {
     const rec = { start: sl.start, end: sl.end, count: count[i], allow, moves: [] };
     const load = {};
     for (const f of sl.flights) load[f.gate] = (load[f.gate] || 0) + 1;
-    const pool = sl.flights.slice();
+    const pool = sl.flights.filter(f => f.status === "AIRBORNE");   // ground and prefiled flights are the FCA's to meter
     while (count[i] > allow && used < SLOT_MOVES_MAX) {
       const options = [];
       for (const f of pool) {
         if (i + 1 < slots.length && count[i + 1] < allow)
           options.push({ f, to: i + 1, shiftMin: Math.max(1, Math.ceil((sl.end - f.eta) / MIN)) });
-        if (i > 0 && count[i - 1] < allow && f.status === "AIRBORNE" && (f.dist || 0) >= SLOT_PULL_MIN_NM) {
+        if (i > 0 && count[i - 1] < allow && (f.dist || 0) >= SLOT_PULL_MIN_NM) {
           const pull = Math.ceil((f.eta - sl.start) / MIN) + 1;
           if (pull <= SLOT_PULL_MAX_MIN && f.eta - pull * MIN > now) options.push({ f, to: i - 1, shiftMin: -pull });
         }
@@ -560,7 +560,6 @@ export function slotBalance(flights, now, capacity) {
 export function slotMoveHow(m) {
   const n = Math.abs(m.shiftMin);
   if (m.shiftMin < 0) return `keep the speed up or give a direct, about ${n} min earlier${m.shiftNm ? ` (about ${m.shiftNm} nm shorter)` : ""}`;
-  if (m.status !== "AIRBORNE") return `hold the departure ${n} min (EDCT)`;
   const nm = m.shiftNm ? ` (about ${m.shiftNm} nm)` : "";
   if ((m.dist || 0) > 150) return `speed control, ${n} min later${nm}`;
   return n <= 6 ? `vector or extend downwind, ${n} min later${nm}` : `hold ${n} min`;
@@ -664,7 +663,7 @@ export function recommend(s) {
       title: `Move ${plural(b.moves.length, "arrival")} from the ${fmtZ(b.start)} slot into ${where}`,
       why: `${fmtZ(b.start)}–${fmtZ(b.end)} has ${b.count} landings against ${+(cap / 4).toFixed(1)} per 15 min (${cap}/hr), mostly off ${b.moves[0].gate}. ` +
         `The slot${Object.keys(by).length > 1 ? "s" : ""} at ${where} ${Object.keys(by).length > 1 ? "have" : "has"} room. ${lines.join("; ")}.` +
-        (b.left > 0 ? ` That still leaves ${plural(b.left, "arrival")} over; the MIT or ground delay above covers the rest.` : ""),
+        (b.left > 0 ? ` That still leaves ${plural(b.left, "arrival")} over; ground flights are left to the FCA, and the MIT or ground delay above covers the rest.` : ""),
       at: b.start });
   }
 

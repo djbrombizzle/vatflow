@@ -190,7 +190,7 @@
     </div>
     <div class="row">
       <section class="card">
-        <h2>SLOT ADJUSTMENTS <span class="r muted">arrivals to move into a 15-minute slot with room · busiest STAR first</span></h2>
+        <h2>SLOT ADJUSTMENTS <span class="r muted">airborne arrivals to move into a 15-minute slot with room · busiest STAR first · ground flights are the FCA's</span></h2>
         <div class="scroll" id="slotList"></div>
       </section>
     </div>
@@ -780,7 +780,7 @@ function renderSlots(s) {
     const over = s.cap.capacity ? landingSlots(s.live, s.now).filter(sl => sl.total > Math.floor(per + 1e-9)).length : 0;
     $("slotList").innerHTML = `<div class="body muted">${esc(!s.cap.capacity ? "Set an AAR to check the 15-minute slots."
       : !over ? `Every 15-minute slot is within ${+per.toFixed(1)} landings (${s.cap.capacity}/hr).`
-      : `${over} slot${over === 1 ? " is" : "s are"} over ${+per.toFixed(1)} landings, but the slots either side are full too, so moving arrivals 15 minutes won't help. See the MIT and ground delay advice.`)}</div>`;
+      : `${over} slot${over === 1 ? " is" : "s are"} over ${+per.toFixed(1)} landings, but the slots either side are full too or the extra arrivals are still on the ground, which the FCA meters. See the MIT and ground delay advice.`)}</div>`;
     return;
   }
   const col = g => s.mon.colors[g] || "#6b7a89";
