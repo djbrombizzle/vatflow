@@ -147,35 +147,45 @@ export function calcGateMit(aar, gateDemand, unassignedDemand, kt) {
 /**
  * Arrival demand as a rolling 60-minute window across a longer lookahead, so the
  * busiest hour drives the rate instead of just the next 60 minutes.
- *   flights   [{ eta, gate }] metered arrivals still inbound (gate NO_GATE when unknown)
+ *   flights   [{ eta, gate, prefiled }] metered arrivals still inbound (gate NO_GATE
+ *             when unknown; prefiled = a VATSIM prefile, not yet connected)
  *   now       ms
  *   horizonMin  how far ahead to look (window end), default 180
  *   stepMin   how often a window starts, default 15
  *   windowMin window length, default 60
  *   expect    { gateKey: expected/hr } from the program; each gate takes the higher
  *             of its live count and this, per window
- * Returns { windows: [{ start, end, total, entries, unassigned, expected }], peak }
- * where entries is [[gate, n]] busiest first, expected lists gates the prediction
- * won, and peak is the index of the busiest window (earliest on a tie).
+ *   includePrefiled  count prefiles in the demand (default true); either way each
+ *             window reports how many there are
+ * Returns { windows: [{ start, end, total, connected, prefiled, prefiledByGate, entries,
+ * unassigned, expected }], peak } where entries is [[gate, n]] busiest first,
+ * expected lists gates the prediction won, and peak is the index of the busiest
+ * window (earliest on a tie).
  */
-export function rollingGateDemand({ flights = [], now = Date.now(), horizonMin = 180, stepMin = 15, windowMin = 60, expect = {} } = {}) {
+export function rollingGateDemand({ flights = [], now = Date.now(), horizonMin = 180, stepMin = 15, windowMin = 60, expect = {}, includePrefiled = true } = {}) {
   const winMs = windowMin * 60000;
   const lastStart = Math.max(0, horizonMin - windowMin);
   const windows = [];
   for (let off = 0; off <= lastStart; off += stepMin) {
     const start = now + off * 60000, end = start + winMs;
-    const gates = {};
-    let unassigned = 0;
+    const gates = {}, prefiledByGate = {};
+    let unassigned = 0, connected = 0, prefiled = 0;
     for (const f of flights) {
       if (!(f.eta < end) || (off > 0 && f.eta < start)) continue;   // the first window also takes anyone overdue
-      if (!f.gate || f.gate === NO_GATE) unassigned++;
+      const noGate = !f.gate || f.gate === NO_GATE;
+      if (f.prefiled) {
+        prefiled++;
+        if (!noGate) prefiledByGate[f.gate] = (prefiledByGate[f.gate] || 0) + 1;
+        if (!includePrefiled) continue;
+      } else connected++;
+      if (noGate) unassigned++;
       else gates[f.gate] = (gates[f.gate] || 0) + 1;
     }
     const expected = [];
     for (const g in expect) if (expect[g] > (gates[g] || 0)) { gates[g] = expect[g]; expected.push(g); }
     const entries = Object.entries(gates).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
     const total = entries.reduce((n, [, d]) => n + d, 0) + unassigned;
-    windows.push({ start, end, offsetMin: off, total, entries, unassigned, expected });
+    windows.push({ start, end, offsetMin: off, total, connected, prefiled, prefiledByGate, entries, unassigned, expected });
   }
   let peak = 0;
   windows.forEach((w, i) => { if (w.total > windows[peak].total) peak = i; });

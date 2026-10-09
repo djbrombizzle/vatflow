@@ -194,4 +194,21 @@ t("gateMitSchedule: start with the traffic, don't relax just to re-add it", () =
   assert.deepEqual(gateMitSchedule([30, 20, 20], 30), [{ i: 1, kind: "relax", from: 30, to: 20 }]);
 });
 
+t("rollingGateDemand: prefiles are counted apart from connected traffic", () => {
+  const now = 0;
+  const flights = [
+    { eta: 10 * 60000, gate: "OMN" },
+    { eta: 20 * 60000, gate: "OMN", prefiled: true },
+    { eta: 30 * 60000, gate: NO_GATE, prefiled: true },
+    { eta: 40 * 60000, gate: "GRNCH" },
+  ];
+  const w = rollingGateDemand({ flights, now, horizonMin: 60 }).windows[0];
+  assert.equal(w.connected, 2); assert.equal(w.prefiled, 2); assert.equal(w.total, 4);
+  assert.deepEqual(w.prefiledByGate, { OMN: 1 });
+  assert.equal(w.unassigned, 1);
+  const x = rollingGateDemand({ flights, now, horizonMin: 60, includePrefiled: false }).windows[0];
+  assert.equal(x.total, 2); assert.equal(x.prefiled, 2); assert.equal(x.unassigned, 0);
+  assert.deepEqual(x.entries, [["GRNCH", 1], ["OMN", 1]]);
+});
+
 console.log(`\n${passed} passed`);
