@@ -58,7 +58,7 @@ export function normPrograms(wire) {
 
 /* ---------------- aircraft filters (same as Airport TMU) ---------------- */
 
-const AIRCRAFT_ENGINE = {
+export const AIRCRAFT_ENGINE = {
   A10:"jet",A124:"jet",A19N:"jet",A20N:"jet",A21N:"jet",A306:"jet",A310:"jet",A318:"jet",A319:"jet",A320:"jet",A321:"jet",A332:"jet",A333:"jet",A339:"jet",A343:"jet",A359:"jet",A388:"jet",
   AT43:"turboprop",AT45:"turboprop",AT46:"turboprop",AT72:"turboprop",AT75:"turboprop",AT76:"turboprop",
   B712:"jet",B722:"jet",B732:"jet",B733:"jet",B734:"jet",B735:"jet",B736:"jet",B737:"jet",B738:"jet",B739:"jet",
