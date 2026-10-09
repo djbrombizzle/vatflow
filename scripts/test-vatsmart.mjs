@@ -149,7 +149,7 @@ t("landing slots are clock-aligned quarter hours; overdue lands in the first", (
   assert.equal(sl[0].total, 1); assert.equal(sl[1].total, 2);
 });
 
-t("slot balancing: delay off the busiest STAR into the next slot, pull only airborne and far out", () => {
+t("slot balancing: airborne only, delay off the busiest STAR into the next slot, pull only far out", () => {
   const T = Date.UTC(2026, 9, 9, 23, 0), now = T + 2 * MIN;
   const f = (cs, gate, etaMin, status = "AIRBORNE", dist = 200) => ({ callsign: cs, gate, eta: T + etaMin * MIN, status, dist });
   /* 40/hr = 10 per slot; 23:15 slot has 12 (8 GRNCH), 23:30 has 9 so room for 1, 23:00 has 9 so room for 1 */
@@ -164,9 +164,12 @@ t("slot balancing: delay off the busiest STAR into the next slot, pull only airb
   assert.equal(b.moves.length, 2);
   assert.ok(b.moves.every(m => m.gate === "GRNCH"), JSON.stringify(b.moves));
   const later = b.moves.find(m => m.shiftMin > 0), earlier = b.moves.find(m => m.shiftMin < 0);
-  assert.equal(later.callsign, "G7"); assert.equal(later.to, T + 30 * MIN); assert.equal(later.shiftMin, 8);
-  assert.match(slotMoveHow(later), /hold the departure 8 min/);
+  assert.equal(later.callsign, "G6"); assert.equal(later.to, T + 30 * MIN); assert.equal(later.shiftMin, 9);   // G7 is on the ground: the FCA's
+  assert.ok(!b.moves.some(m => m.status !== "AIRBORNE"));
+  assert.match(slotMoveHow(later), /speed control, 9 min later \(about 30 nm\)/);
   assert.equal(earlier.callsign, "G0"); assert.equal(earlier.to, T); assert.equal(earlier.shiftMin, -1);
+  assert.equal(earlier.shiftNm, 3);     // 1 min at 200 kt
+  assert.match(slotMoveHow(earlier), /about 3 nm shorter/);
   assert.equal(b.left, 0);
   assert.deepEqual(slotBalance(flights.slice(0, 9), now, 40), []);
 });

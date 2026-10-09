@@ -190,6 +190,12 @@
     </div>
     <div class="row">
       <section class="card">
+        <h2>SLOT ADJUSTMENTS <span class="r muted">airborne arrivals to move into a 15-minute slot with room · busiest STAR first · ground flights are the FCA's</span></h2>
+        <div class="scroll" id="slotList"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
         <h2>GATES · MIT PLAN <span class="r muted">each cell is a 60-min window starting at that time</span></h2>
         <div class="scroll"><table id="gates"></table></div>
       </section>
@@ -231,7 +237,7 @@ import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { landingSlots, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
+import { landingSlots, slotMoveHow, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
 import { createCdrStore } from "./shared/vusalink-clearance.js";
 import { loadNavData, isNavReady } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -565,7 +571,7 @@ function render() {
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
     : "Plan against this AAR on this page only. Set a program on Airport TMU so other pages see it.";
-  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
+  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderSlots(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
 }
 
 function taxiNow(now) {
@@ -765,6 +771,30 @@ function renderRoutes(s) {
   }
   h += `</table>`;
   $("routes").innerHTML = h;
+}
+
+function renderSlots(s) {
+  const bs = s.slots || [];
+  if (!bs.length) {
+    const per = s.cap.capacity / 4;
+    const over = s.cap.capacity ? landingSlots(s.live, s.now).filter(sl => sl.total > Math.floor(per + 1e-9)).length : 0;
+    $("slotList").innerHTML = `<div class="body muted">${esc(!s.cap.capacity ? "Set an AAR to check the 15-minute slots."
+      : !over ? `Every 15-minute slot is within ${+per.toFixed(1)} landings (${s.cap.capacity}/hr).`
+      : `${over} slot${over === 1 ? " is" : "s are"} over ${+per.toFixed(1)} landings, but the slots either side are full too or the extra arrivals are still on the ground, which the FCA meters. See the MIT and ground delay advice.`)}</div>`;
+    return;
+  }
+  const col = g => s.mon.colors[g] || "#6b7a89";
+  let h = `<table><tr><th>Flight</th><th>From</th><th>Status</th><th>Gate</th><th class="num">Over gate</th><th class="num">Lands</th><th>Slot</th><th class="num">Adjust</th><th>How</th></tr>`;
+  for (const b of bs) for (const m of b.moves) {
+    const later = m.shiftMin > 0, n = Math.abs(m.shiftMin);
+    h += `<tr><td><b>${esc(m.callsign)}</b></td><td>${esc(m.dep || "")}</td><td class="muted">${esc(m.status.toLowerCase())}</td>
+      <td><span class="sw" style="background:${col(m.gate)}"></span>${esc(m.gateFix || m.gate)}</td>
+      <td class="num">${m.gateEta ? fmtZ(m.gateEta) : '<span class="muted">—</span>'}</td><td class="num">${fmtZ(m.eta)}</td>
+      <td>${fmtZ(b.start)} → <b>${fmtZ(m.to)}</b></td>
+      <td class="num"><b>${later ? "+" : "−"}${n} min</b>${m.shiftNm ? `<br><span class="muted">${later ? "+" : "−"}${m.shiftNm} nm</span>` : ""}</td>
+      <td style="white-space:normal;min-width:220px">${esc(slotMoveHow(m))}</td></tr>`;
+  }
+  $("slotList").innerHTML = h + `</table>`;
 }
 
 /* ---- bottom row ---- */
