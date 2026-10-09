@@ -545,8 +545,9 @@ export function slotBalance(flights, now, capacity) {
       pool.splice(pool.indexOf(o.f), 1);
       load[o.f.gate]--; count[i]--; count[o.to]++; used++;
       const f = o.f;
-      rec.moves.push({ callsign: f.callsign, dep: f.dep, gate: f.gate, gateFix: f.gateFix || null, status: f.status, dist: f.dist,
-        eta: f.eta, to: slots[o.to].start, shiftMin: o.shiftMin });
+      const shiftNm = f.status === "AIRBORNE" ? Math.round(Math.abs(o.shiftMin) * Math.max(f.gs || 0, 200) / 60) : null;
+      rec.moves.push({ callsign: f.callsign, dep: f.dep, gate: f.gate, gateFix: f.gateFix || null, gateEta: f.gateEta || null,
+        status: f.status, dist: f.dist, eta: f.eta, to: slots[o.to].start, shiftMin: o.shiftMin, shiftNm });
     }
     rec.left = count[i] - allow;
     if (rec.moves.length) out.push(rec);
@@ -554,13 +555,15 @@ export function slotBalance(flights, now, capacity) {
   return out;
 }
 
+/* shiftNm: track miles to add (delay) or save (pull) at the aircraft's groundspeed; null on the ground */
 /** How to get one arrival into its new slot. */
 export function slotMoveHow(m) {
   const n = Math.abs(m.shiftMin);
-  if (m.shiftMin < 0) return `keep the speed up or give a direct, about ${n} min earlier`;
+  if (m.shiftMin < 0) return `keep the speed up or give a direct, about ${n} min earlier${m.shiftNm ? ` (about ${m.shiftNm} nm shorter)` : ""}`;
   if (m.status !== "AIRBORNE") return `hold the departure ${n} min (EDCT)`;
-  if ((m.dist || 0) > 150) return `speed control, ${n} min later`;
-  return n <= 6 ? `vector or extend downwind, ${n} min later` : `hold ${n} min`;
+  const nm = m.shiftNm ? ` (about ${m.shiftNm} nm)` : "";
+  if ((m.dist || 0) > 150) return `speed control, ${n} min later${nm}`;
+  return n <= 6 ? `vector or extend downwind, ${n} min later${nm}` : `hold ${n} min`;
 }
 
 export function rerouteGroups(moves) {

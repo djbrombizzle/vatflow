@@ -167,6 +167,8 @@ t("slot balancing: delay off the busiest STAR into the next slot, pull only airb
   assert.equal(later.callsign, "G7"); assert.equal(later.to, T + 30 * MIN); assert.equal(later.shiftMin, 8);
   assert.match(slotMoveHow(later), /hold the departure 8 min/);
   assert.equal(earlier.callsign, "G0"); assert.equal(earlier.to, T); assert.equal(earlier.shiftMin, -1);
+  assert.equal(later.shiftNm, null); assert.equal(earlier.shiftNm, 3);     // on the ground: no miles; 1 min at 200 kt
+  assert.match(slotMoveHow(earlier), /about 3 nm shorter/);
   assert.equal(b.left, 0);
   assert.deepEqual(slotBalance(flights.slice(0, 9), now, 40), []);
 });
