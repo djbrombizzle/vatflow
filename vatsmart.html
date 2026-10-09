@@ -193,6 +193,12 @@
         <div class="scroll"><table id="gates"></table></div>
       </section>
     </div>
+    <div class="row">
+      <section class="card">
+        <h2>ROUTE ADVISORIES <span class="r muted" id="rteNote">reroutes off saturated gates · CDRs first, then a STAR swap</span></h2>
+        <div class="scroll" id="routes"></div>
+      </section>
+    </div>
     <div class="row four">
       <section class="card"><h2>TMIs IN FORCE</h2><div class="body" id="tmis"></div></section>
       <section class="card"><h2>WEATHER <span class="r muted" id="wxAge"></span></h2><div class="body" id="wx"></div></section>
@@ -222,7 +228,8 @@ import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN } from "./shared/vatsmart.js";
+import { buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
+import { createCdrStore } from "./shared/vusalink-clearance.js";
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
@@ -253,6 +260,7 @@ const st = {
   metar: "", metarState: "idle", metarAt: 0, metarFor: "",
   taf: "", tafIssued: "", tafState: "idle", tafAt: 0, tafFor: "",
   taxiSessions: {}, taxiLocal: [], taxiShared: [], taxiSharedState: "wait",
+  procs: null, stars: [], starsFor: "", cdrs: {}, cdrAsked: new Set(),
   events: [], eventsAt: 0, past: null,
   airportsReady: false, sit: null,
 };
@@ -272,7 +280,7 @@ function setAirport(code) {
   const u = new URL(location.href); u.searchParams.set("apt", code); history.replaceState(null, "", u);
   document.title = code + " · VATSMART — VATFLOW";
   st.wxProps = null; st.wxFor = ""; st.metar = ""; st.metarFor = ""; st.taf = ""; st.tafIssued = ""; st.tafFor = "";
-  st.taxiSessions = {};
+  st.taxiSessions = {}; st.stars = []; st.starsFor = ""; st.cdrs = {}; st.cdrAsked = new Set();
   mapFitted = false;
   refreshSlow();
   render();
@@ -312,6 +320,7 @@ function fetchFeed() {
       if (st.airport && st.aptLL) {
         const done = trackTaxi(st.taxiSessions, st.pilots, st.airport, st.aptLL, st.feedAt);
         if (done.length) { st.taxiLocal.push(...done); saveTaxiLocal(); }
+        loadCdrs();
       }
       render();
     })
@@ -421,6 +430,36 @@ async function connectTaxiShared() {
   } catch (e) { console.warn("Taxi Monitor samples:", e); st.taxiSharedState = "bad"; render(); }
 }
 
+/* route data for reroutes: STAR entry fixes from navdata, FAA CDRs per origin (data/cdr/) */
+const cdrStore = createCdrStore({ base: "data/cdr/" });
+let procsLoad = null;
+function loadStars() {
+  const apt = st.airport;
+  if (!apt || !st.aptLL || st.starsFor === apt) return;
+  st.starsFor = apt;
+  procsLoad = procsLoad || fetch("data/nav/procedures.json").then(r => r.ok ? r.json() : null).catch(() => null);
+  procsLoad.then(procs => {
+    if (!procs || apt !== st.airport) return;
+    st.stars = starOptions(procs, apt, st.aptLL);
+    render();
+  });
+}
+async function loadCdrs() {
+  const apt = st.airport;
+  if (!apt) return;
+  const idx = await cdrStore.loadIndex();
+  const known = new Set(Object.values((idx && idx.prefix) || {}));
+  const origins = new Set(st.pilots.concat(st.prefiles)
+    .filter(p => p.arr === apt && p.dep && (p.prefile || p.phase === "gnd") && known.has(p.dep) && !st.cdrAsked.has(p.dep)).map(p => p.dep));
+  if (!origins.size) return;
+  await Promise.all([...origins].map(async o => {
+    st.cdrAsked.add(o);
+    const shard = await cdrStore.loadOrigin(o);
+    if (apt === st.airport && shard && shard[apt]) st.cdrs[o] = shard[apt];
+  }));
+  if (apt === st.airport) render();
+}
+
 async function fetchEvents() {
   st.eventsAt = Date.now();
   try {
@@ -447,6 +486,8 @@ function refreshSlow() {
   if (st.wxFor !== st.airport || now - st.wxAt > WX_MS) fetchWx();
   if (st.metarFor !== st.airport || (st.metarState !== "wait" && now - st.metarAt > METAR_MS)) fetchMetar();
   if (st.tafFor !== st.airport || (st.tafState !== "wait" && now - st.tafAt > TAF_MS)) fetchTaf();
+  loadStars();
+  loadCdrs();
   if (now - st.eventsAt > EVENTS_MS) fetchEvents();
 }
 
@@ -484,14 +525,15 @@ function render() {
   let sit;
   try {
     sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: st.prefiles,
-      airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents });
+      airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents,
+      routing: { stars: st.stars, cdrs: st.cdrs } });
   } catch (e) { console.error(e); return; }
   st.sit = sit;
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
     : "Plan against this AAR on this page only. Set a program on Airport TMU so other pages see it.";
-  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
+  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
 }
 
 function taxiNow(now) {
@@ -621,6 +663,31 @@ function renderGates(s) {
   }).join("");
   const timeRow = `<tr><td colspan="6"></td><td><div class="plan">${wins.map((w, i) => `<span style="background:none">${fmtZ(w.start).slice(0, 4)}</span>`).join("")}</div></td><td colspan="2"></td></tr>`;
   $("gates").innerHTML = head + (rows ? rows + timeRow : `<tr><td colspan="9" class="dim">No arrivals with a filed route to ${esc(s.airport)} in the next ${HORIZON_MIN / 60} hours.</td></tr>`);
+}
+
+/* ---- route advisories ---- */
+function renderRoutes(s) {
+  const rr = s.reroutes || [];
+  if (!rr.length) {
+    const why = !s.cap.capacity ? "Set an AAR to look for saturated gates."
+      : s.peakWin.total <= s.cap.capacity ? `No gate is saturated: the peak hour (${s.peakWin.total}) is within ${s.cap.capacity}/hr.`
+      : !st.stars.length ? (st.starsFor ? "Loading STARs…" : "No STARs for this field in navdata, so there's nothing to reroute onto.")
+      : "Gates are over their share, but no CDR or nearby STAR swap moves an arrival to a gate with room.";
+    $("routes").innerHTML = `<div class="body muted">${esc(why)}</div>`;
+    return;
+  }
+  let h = `<table><tr><th>Flight</th><th>From</th><th>Status</th><th class="num">ETA</th><th>Gate</th><th>Issue</th><th>Notes</th></tr>`;
+  for (const r of rr) for (const m of r.moves) {
+    const fromCol = s.mon.colors[r.gate] || "#6b7a89", toCol = s.mon.colors[m.to] || "#6b7a89";
+    h += `<tr><td><b>${esc(m.callsign)}</b></td><td>${esc(m.dep || "")}</td><td class="muted">${esc(m.status.toLowerCase())}</td><td class="num">${fmtZ(m.eta)}</td>
+      <td><span class="sw" style="background:${fromCol}"></span>${esc(r.gate)} → <span class="sw" style="background:${toCol}"></span>${esc(m.to)}</td>
+      <td style="white-space:normal;min-width:280px">${m.kind === "cdr"
+        ? `<span class="tag cyan">CDR</span><b>${esc(m.code)}</b> <span class="muted">${esc(m.route)}</span>`
+        : `<span class="tag amber">STAR</span>DCT <b>${esc(m.fix)}</b> ${esc(m.star)}`}</td>
+      <td>${m.coordReq ? '<span class="tag amber">COORD REQ</span>' : ""}${m.kind === "star" ? (m.extraNm ? `+${m.extraNm} nm` : '<span class="muted">no extra distance</span>') : ""}</td></tr>`;
+  }
+  h += `</table>`;
+  $("routes").innerHTML = h;
 }
 
 /* ---- bottom row ---- */
