@@ -183,7 +183,7 @@
     </div>
     <div class="row">
       <section class="card">
-        <h2>ROLLING 60-MIN DEMAND vs CAPACITY <span class="r muted" id="chartNote"></span></h2>
+        <h2>ARRIVALS BY LANDING TIME <span class="r muted" id="chartNote"></span></h2>
         <div class="body chart" id="chart"></div>
       </section>
     </div>
@@ -615,37 +615,83 @@ function renderMap(s) {
 }
 
 /* ---- rolling demand chart ---- */
+/* arrivals in clock-aligned 15-minute slots by landing time, plus a tick per aircraft at its ETA */
 function renderChart(s) {
-  const W = 1400, H = 240, padL = 34, padR = 10, padT = 14, padB = 34;
-  const wins = s.roll.windows, cap = s.cap.capacity;
-  const maxV = Math.max(cap * 1.25 || 10, ...wins.map(w => w.total)) * 1.08;
-  const bw = (W - padL - padR) / wins.length;
-  const y = v => padT + (H - padT - padB) * (1 - v / maxV);
+  const W = 1400, H = 300, padL = 34, padR = 10, padT = 18, stripH = 22, padB = 58;
+  const SLOT = 15 * 60000, cap = s.cap.capacity, perSlot = cap / 4;
+  const t0 = Math.floor(s.now / SLOT) * SLOT, nSlots = 13, t1 = t0 + nSlots * SLOT;
   const colors = s.mon.colors;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Rolling 60-minute arrival demand by gate against capacity">`;
-  const step = maxV > 80 ? 20 : maxV > 40 ? 10 : 5;
+  const colOf = g => !g || g === NO_GATE ? "#3a4654" : colors[g] || "#6b7a89";
+  const slots = Array.from({ length: nSlots }, (_, i) => ({ start: t0 + i * SLOT, gates: {}, total: 0, prefiled: 0, flights: [] }));
+  for (const f of s.live) {
+    const i = Math.max(0, Math.floor((f.eta - t0) / SLOT));     // anyone overdue lands in the first slot
+    if (i >= nSlots) continue;
+    const g = f.gate && f.gate !== NO_GATE ? f.gate : NO_GATE, sl = slots[i];
+    sl.gates[g] = (sl.gates[g] || 0) + 1; sl.total++; if (f.prefiled) sl.prefiled++; sl.flights.push(f);
+  }
+  const expect = {};
+  for (const x of s.program.expect || []) if (x.rate > 0) expect[x.gate] = x.rate / 4;
+  const expTotal = Object.values(expect).reduce((a, b) => a + b, 0);
+  const maxV = Math.max(perSlot * 1.4 || 4, expTotal, ...slots.map(sl => sl.total), 4) * 1.12;
+  const plotB = H - padB - stripH;                         // bottom of the bars
+  const y = v => padT + (plotB - padT) * (1 - v / maxV);
+  const xOf = t => padL + (W - padL - padR) * (t - t0) / (t1 - t0);
+  const bw = (W - padL - padR) / nSlots;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Arrivals by landing time in 15-minute slots against capacity">`;
+  const step = maxV > 24 ? 5 : maxV > 10 ? 2 : 1;
   for (let v = 0; v <= maxV; v += step) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="#1a222c"/><text x="${padL - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
-  wins.forEach((w, i) => {
-    const x = padL + i * bw + bw * 0.14, wd = bw * 0.72;
+  /* hour shading so the clock hours read at a glance */
+  for (let h = Math.ceil(t0 / 3600000) * 3600000 - 3600000; h < t1; h += 3600000) {
+    if (Math.round(h / 3600000) % 2) continue;
+    const a = xOf(Math.max(t0, h)), b = xOf(Math.min(t1, h + 3600000));
+    if (b > a) svg += `<rect x="${a}" y="${padT}" width="${b - a}" height="${plotB + stripH - padT}" fill="#ffffff" fill-opacity="0.025"/>`;
+  }
+  slots.forEach((sl, i) => {
+    const x = padL + i * bw + bw * 0.16, wd = bw * 0.68;
     let acc = 0;
-    const parts = [...w.entries];
-    if (w.unassigned) parts.push([NO_GATE, w.unassigned]);
+    const parts = Object.entries(sl.gates).filter(([g]) => g !== NO_GATE).sort((a, b) => b[1] - a[1]);
+    if (sl.gates[NO_GATE]) parts.push([NO_GATE, sl.gates[NO_GATE]]);
     for (const [g, n] of parts) {
-      const col = g === NO_GATE ? "#3a4654" : colors[g] || "#6b7a89";
-      const exp = w.expected.includes(g);
-      svg += `<rect x="${x}" y="${y(acc + n)}" width="${wd}" height="${Math.max(0, y(acc) - y(acc + n))}" fill="${col}" fill-opacity="${exp ? 0.35 : 0.85}"${exp ? ` stroke="${col}" stroke-dasharray="3 2"` : ""}><title>${esc(g)} ${n}${exp ? " (expected demand)" : ""}</title></rect>`;
+      svg += `<rect x="${x}" y="${y(acc + n)}" width="${wd}" height="${Math.max(0, y(acc) - y(acc + n) - 1)}" rx="2" fill="${colOf(g)}" fill-opacity="0.88"><title>${esc(g === NO_GATE ? "no gate" : g)}: ${n} landing ${fmtZ(sl.start)}–${fmtZ(sl.start + SLOT)}</title></rect>`;
       acc += n;
     }
-    const over = cap && w.total > cap;
-    svg += `<text x="${x + wd / 2}" y="${y(w.total) - 4}" text-anchor="middle" style="fill:${over ? "#e07070" : "#d4dde6"};font-weight:700">${w.total}</text>`;
-    svg += `<text x="${x + wd / 2}" y="${H - padB + 14}" text-anchor="middle"${i === s.roll.peak ? ' style="fill:#e8a838"' : ""}>${fmtZ(w.start)}</text>`;
-    if (w.prefiled) svg += `<text x="${x + wd / 2}" y="${H - padB + 27}" text-anchor="middle" style="fill:#5c6b78">${w.prefiled}p</text>`;
+    let eacc = 0;                                            // program expected demand the live traffic hasn't filled yet
+    for (const g in expect) {
+      const gap = expect[g] - (sl.gates[g] || 0);
+      if (gap <= 0.05) continue;
+      svg += `<rect x="${x}" y="${y(acc + eacc + gap)}" width="${wd}" height="${Math.max(0, y(acc + eacc) - y(acc + eacc + gap))}" fill="${colOf(g)}" fill-opacity="0.18" stroke="${colOf(g)}" stroke-dasharray="3 2"><title>${esc(g)} expected ${expect[g].toFixed(1)} per 15 min (program)</title></rect>`;
+      eacc += gap;
+    }
+    if (sl.total) svg += `<text x="${x + wd / 2}" y="${y(sl.total) - 5}" text-anchor="middle" style="fill:${perSlot && sl.total > perSlot ? "#e07070" : "#d4dde6"};font-weight:700;font-size:12px">${sl.total}</text>`;
   });
-  if (cap) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(cap)}" y2="${y(cap)}" stroke="#e8a838" stroke-width="1.5" stroke-dasharray="6 4"/>` +
-    `<text x="${W - padR}" y="${y(cap) - 5}" text-anchor="end" style="fill:#e8a838">capacity ${cap}/hr</text>`;
+  if (cap) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(perSlot)}" y2="${y(perSlot)}" stroke="#e8a838" stroke-width="1.5" stroke-dasharray="6 4"/>` +
+    `<text x="${W - padR}" y="${y(perSlot) - 5}" text-anchor="end" style="fill:#e8a838">capacity ${cap}/hr · ${+perSlot.toFixed(1)} per 15 min</text>`;
+  /* one tick per aircraft at its ETA */
+  svg += `<line x1="${padL}" x2="${W - padR}" y1="${plotB + stripH / 2}" y2="${plotB + stripH / 2}" stroke="#1f2933"/>`;
+  for (const f of s.live) {
+    if (f.eta >= t1) continue;
+    const x = xOf(Math.max(t0, f.eta)), cy = plotB + stripH / 2, c = colOf(f.gate);
+    svg += `<path d="M${x - 4} ${cy + 5} L${x} ${cy - 5} L${x + 4} ${cy + 5} Z" fill="${f.prefiled ? "none" : c}" stroke="${c}" stroke-width="1.2"><title>${esc(f.callsign)} ${f.dep ? esc(f.dep) + " " : ""}${f.gate && f.gate !== NO_GATE ? esc(f.gate) + " " : ""}ETA ${fmtZ(f.eta)}${f.prefiled ? " (prefiled)" : f.status === "GROUND" ? " (on the ground)" : ""}</title></path>`;
+  }
+  /* now marker */
+  const xn = xOf(s.now);
+  svg += `<line x1="${xn}" x2="${xn}" y1="${padT}" y2="${plotB + stripH}" stroke="#4fb8d6" stroke-width="1" stroke-dasharray="2 3"/><text x="${xn + 4}" y="${padT + 8}" style="fill:#4fb8d6">now</text>`;
+  /* quarter-hour labels, the hour in bold */
+  for (let i = 0; i <= nSlots; i++) {
+    const t = t0 + i * SLOT, x = xOf(t), top = new Date(t).getUTCMinutes() === 0;
+    svg += `<line x1="${x}" x2="${x}" y1="${plotB + stripH}" y2="${plotB + stripH + (top ? 7 : 4)}" stroke="#3a4654"/>`;
+    if (i < nSlots || top) svg += `<text x="${x}" y="${plotB + stripH + 18}" text-anchor="middle"${top ? ' style="fill:#d4dde6;font-weight:700"' : ""}>${fmtZ(t)}</text>`;
+  }
+  /* clock-hour totals against the AAR */
+  for (let h = Math.floor(t0 / 3600000) * 3600000; h < t1; h += 3600000) {
+    const a = Math.max(t0, h), b = Math.min(t1, h + 3600000);
+    if (b - a < 30 * 60000) continue;                        // too little of the hour on the chart to total it
+    const n = s.live.filter(f => (f.eta >= h || (h <= t0 && f.eta < h + 3600000)) && f.eta < h + 3600000).length;
+    svg += `<text x="${(xOf(a) + xOf(b)) / 2}" y="${H - 8}" text-anchor="middle" style="fill:${cap && n > cap ? "#e07070" : "#8a98a6"}">${fmtZ(h).slice(0, 2)}z hour: <tspan style="font-weight:700">${n}</tspan>${cap ? " / " + cap : ""}${b < h + 3600000 ? " (part)" : ""}</text>`;
+  }
   svg += `</svg>`;
   $("chart").innerHTML = svg;
-  $("chartNote").textContent = "bars: arrivals per gate · dashed: expected demand · Np: prefiles";
+  $("chartNote").textContent = "bars: landings per 15 min by gate · ▲ each aircraft at its ETA (hollow: prefiled) · dashed: program expected demand";
 }
 
 /* ---- gate table ---- */
