@@ -54,7 +54,7 @@
   .empty { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; max-width: 640px; color: var(--muted); font-size: 13px; line-height: 1.6; }
   .empty b { color: var(--text); }
 
-  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
   .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
   .kpi .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
   .kpi .v { font-family: var(--mono); font-size: 24px; font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -66,7 +66,10 @@
 
   .row { display: grid; gap: 12px; margin-bottom: 12px; }
   .row.main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
-  .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .row.four { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); }
+  pre.raw { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 0; padding: 8px 10px; background: #0a0f15; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
+  .wxhead { display: flex; gap: 8px; align-items: baseline; margin-top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  .wxhead:first-child { margin-top: 0; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; }
   .card > h2 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--dim); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
   .card > h2 .r { margin-left: auto; letter-spacing: 0.04em; font-weight: 400; }
@@ -123,7 +126,7 @@
 
   @media (max-width: 1100px) {
     .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .row.main, .row.three { grid-template-columns: minmax(0, 1fr); }
+    .row.main, .row.four { grid-template-columns: minmax(0, 1fr); }
     #map { height: 360px; }
   }
   @media (max-width: 560px) {
@@ -153,14 +156,14 @@
       <span class="pill" id="pFeed">VATSIM</span>
       <span class="pill" id="pHub">PROGRAMS</span>
       <span class="pill" id="pWx">NWS</span>
-      <span class="pill" id="pSig">SIGMET</span>
+      <span class="pill" id="pMetar">METAR</span>
       <span class="pill" id="pUpd">—</span>
     </div>
   </div>
 
   <div id="empty" class="empty">
     Pick the <b>event field</b> above. VATSMART pulls together live VATSIM traffic, the field's Airport TMU program,
-    EDCTs and ground stops, the NWS forecast, SIGMETs and the VATSIM event calendar, looks three hours ahead with the
+    EDCTs and ground stops, the METAR, TAF and NWS forecast, departure taxi-out times and the VATSIM event calendar, looks three hours ahead with the
     same rolling-demand and MIT-per-gate math as the rate calculator, and tells you what to do next.
     <br><br>
     It never changes a program. Set rates on <b>Airport TMU</b> and issue ground delays from an <b>FCA</b> (FCA Builder / IDST).
@@ -190,9 +193,10 @@
         <div class="scroll"><table id="gates"></table></div>
       </section>
     </div>
-    <div class="row three">
+    <div class="row four">
       <section class="card"><h2>TMIs IN FORCE</h2><div class="body" id="tmis"></div></section>
-      <section class="card"><h2>WEATHER · NEXT 3 HOURS</h2><div class="body" id="wx"></div></section>
+      <section class="card"><h2>WEATHER <span class="r muted" id="wxAge"></span></h2><div class="body" id="wx"></div></section>
+      <section class="card"><h2>DEPARTURES · TAXI-OUT</h2><div class="body" id="taxi"></div></section>
       <section class="card"><h2>EVENT OUTLOOK</h2><div class="body" id="evt"></div></section>
     </div>
   </div>
@@ -210,21 +214,29 @@
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
 <script src="shared/vatflow-basemap.js"></script>
-<script src="shared/edst-sigmets.js"></script>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { getAirport, loadAirports, fpFields } from "./shared/fca-metering.js";
 import { getAccessApiBase } from "./shared/vatflow-access-api.js";
 import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
-import { fetchArtccBoundaries, artccForPoint } from "./shared/artcc-scope.js";
+import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { buildSituation, fmtZ, HORIZON_MIN } from "./shared/vatsmart.js";
+import { buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN } from "./shared/vatsmart.js";
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
 const LS = "vatflow.vatsmart";
-const WX_MS = 30 * 60000, SIG_MS = 10 * 60000, EVENTS_MS = 30 * 60000;
+const WX_MS = 30 * 60000, METAR_MS = 5 * 60000, TAF_MS = 15 * 60000, EVENTS_MS = 30 * 60000;
+const TAXI_LS = "vatflow.vatsmart.taxi";
+/* same Firebase project as Airport TMU's Taxi Monitor; read only (anonymous auth, taximon/samples) */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDxEKw1N-hrycpefE4OsTg_5wSkUSJWgiI",
+  authDomain: "vatflow-12967.firebaseapp.com",
+  databaseURL: "https://vatflow-12967-default-rtdb.firebaseio.com",
+  projectId: "vatflow-12967",
+  appId: "1:868579866461:web:8901b3c5ca92d028131ab4",
+};
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "vatsmart");
 
@@ -238,7 +250,9 @@ const st = {
   pilots: [], prefiles: [], feed: "wait", feedAt: 0,
   hub: { rates: {}, edcts: {}, groundStops: {}, restrictions: {} }, hubState: "wait",
   wxProps: null, wxState: "idle", wxAt: 0, wxFor: "",
-  artcc: "", sigmets: [], sigState: "idle", sigAt: 0,
+  metar: "", metarState: "idle", metarAt: 0, metarFor: "",
+  taf: "", tafIssued: "", tafState: "idle", tafAt: 0, tafFor: "",
+  taxiSessions: {}, taxiLocal: [], taxiShared: [], taxiSharedState: "wait",
   events: [], eventsAt: 0, past: null,
   airportsReady: false, sit: null,
 };
@@ -257,7 +271,8 @@ function setAirport(code) {
   prefs.airport = code; savePrefs();
   const u = new URL(location.href); u.searchParams.set("apt", code); history.replaceState(null, "", u);
   document.title = code + " · VATSMART — VATFLOW";
-  st.wxProps = null; st.wxFor = ""; st.sigmets = []; st.artcc = ""; st.sigAt = 0;
+  st.wxProps = null; st.wxFor = ""; st.metar = ""; st.metarFor = ""; st.taf = ""; st.tafIssued = ""; st.tafFor = "";
+  st.taxiSessions = {};
   mapFitted = false;
   refreshSlow();
   render();
@@ -294,6 +309,10 @@ function fetchFeed() {
         callsign: p.callsign, lat: null, lon: null, alt: 0, gs: 0, hdg: 0, phase: "gnd", prefile: true,
         wake: wakeFromFp(p.flight_plan), ...fpFields(p.flight_plan) }));
       st.feed = "ok"; st.feedAt = Date.now();
+      if (st.airport && st.aptLL) {
+        const done = trackTaxi(st.taxiSessions, st.pilots, st.airport, st.aptLL, st.feedAt);
+        if (done.length) { st.taxiLocal.push(...done); saveTaxiLocal(); }
+      }
       render();
     })
     .catch(err => { console.warn("VATSIM feed:", err); st.feed = "bad"; render(); });
@@ -346,22 +365,62 @@ async function fetchWx() {
   }
   render();
 }
-async function fetchSigmets() {
-  const apt = st.airport, ll = st.aptLL;
-  if (!ll || !window.EdstSigmets) return;
-  st.sigState = "wait"; st.sigAt = Date.now(); renderPills();
+async function fetchMetar() {
+  const apt = st.airport;
+  st.metarState = "wait"; st.metarFor = apt; st.metarAt = Date.now(); renderPills();
   try {
-    await fetchArtccBoundaries();
-    const artcc = artccForPoint(ll[0], ll[1]);
-    if (!artcc) throw new Error("no ARTCC for " + apt);
-    const r = await window.EdstSigmets.fetchSigmetsForArtcc(artcc);
+    const r = await fetch("https://metar.vatsim.net/metar.php?id=" + encodeURIComponent(apt), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const txt = (await r.text()).trim();
     if (apt !== st.airport) return;
-    st.artcc = artcc;
-    st.sigmets = (r.entries || []).map(x => ({ sequence: x.sequence || "", hazard: x.hazard || "", text: String(x.fullText || x.text || "").replace(/\s+/g, " ").trim(), end: x.end }));
-    st.sigState = "ok";
-  } catch (e) { console.warn("SIGMETs:", e); if (apt === st.airport) st.sigState = "bad"; }
+    if (!txt.startsWith(apt)) throw new Error("no METAR");
+    st.metar = txt; st.metarState = "ok";
+  } catch (e) { if (apt === st.airport) { st.metar = ""; st.metarState = "bad"; } }
   render();
 }
+/* TAFs from api.weather.gov (CORS-friendly; NWS products, so US fields only) */
+async function fetchTaf() {
+  const apt = st.airport;
+  st.tafState = "wait"; st.tafFor = apt; st.tafAt = Date.now();
+  try {
+    if (!/^K[A-Z0-9]{3}$/.test(apt)) throw new Error("US fields only");
+    const list = await getJson("https://api.weather.gov/products/types/TAF/locations/" + apt.slice(1), 20000, { Accept: "application/ld+json" });
+    const first = list && list["@graph"] && list["@graph"][0];
+    if (!first) throw new Error("no TAF");
+    const prod = await getJson(first["@id"], 20000, { Accept: "application/ld+json" });
+    if (apt !== st.airport) return;
+    const taf = tafFromNwsProduct(prod.productText, apt);
+    if (!taf) throw new Error("no TAF in product");
+    st.taf = taf; st.tafIssued = prod.issuanceTime || first.issuanceTime || ""; st.tafState = "ok";
+  } catch (e) { if (apt === st.airport) { st.taf = ""; st.tafIssued = ""; st.tafState = "bad"; } }
+  render();
+}
+
+/* departure taxi samples: this page's own (kept 24 h) plus the shared Taxi Monitor log */
+try {
+  const saved = JSON.parse(localStorage.getItem(TAXI_LS) || "[]");
+  if (Array.isArray(saved)) st.taxiLocal = saved.filter(x => x && Date.now() - x.endMs < 86400000);
+} catch (_) {}
+function saveTaxiLocal() {
+  st.taxiLocal = st.taxiLocal.filter(x => Date.now() - x.endMs < 86400000).slice(-300);
+  try { localStorage.setItem(TAXI_LS, JSON.stringify(st.taxiLocal)); } catch (_) {}
+}
+async function connectTaxiShared() {
+  try {
+    const [{ initializeApp }, { getDatabase, ref, onValue }, { getAuth, signInAnonymously }] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"),
+    ]);
+    const app = initializeApp(FIREBASE_CONFIG, "vatsmart");
+    await signInAnonymously(getAuth(app));
+    onValue(ref(getDatabase(app), "taximon/samples"), snap => {
+      st.taxiShared = Object.values(snap.val() || {}).filter(x => x && x.airport && x.durationMs > 0);
+      st.taxiSharedState = "ok"; render();
+    }, err => { console.warn("Taxi Monitor samples:", err); st.taxiSharedState = "bad"; render(); });
+  } catch (e) { console.warn("Taxi Monitor samples:", e); st.taxiSharedState = "bad"; render(); }
+}
+
 async function fetchEvents() {
   st.eventsAt = Date.now();
   try {
@@ -386,7 +445,8 @@ function refreshSlow() {
   if (!st.airport || !st.aptLL) return;
   const now = Date.now();
   if (st.wxFor !== st.airport || now - st.wxAt > WX_MS) fetchWx();
-  if (st.sigState !== "wait" && now - st.sigAt > SIG_MS) fetchSigmets();
+  if (st.metarFor !== st.airport || (st.metarState !== "wait" && now - st.metarAt > METAR_MS)) fetchMetar();
+  if (st.tafFor !== st.airport || (st.tafState !== "wait" && now - st.tafAt > TAF_MS)) fetchTaf();
   if (now - st.eventsAt > EVENTS_MS) fetchEvents();
 }
 
@@ -403,7 +463,7 @@ function renderPills() {
   pill("pHub", st.hubState, st.hubState === "ok" ? "PROGRAMS LIVE" : st.hubState === "bad" ? "PROGRAMS OFFLINE" : "PROGRAMS …",
     "Airport TMU programs, EDCTs and ground stops from the VATFLOW hub (read only)");
   pill("pWx", st.wxState, st.wxState === "ok" ? "NWS" : st.wxState === "bad" ? "NWS N/A" : st.wxState === "wait" ? "NWS …" : "NWS");
-  pill("pSig", st.sigState, st.sigState === "ok" ? "SIGMET " + (st.artcc || "") : st.sigState === "bad" ? "SIGMET N/A" : "SIGMET …");
+  pill("pMetar", st.metarState, st.metarState === "ok" ? "METAR" : st.metarState === "bad" ? "METAR N/A" : "METAR …");
   pill("pUpd", st.feedAt ? "ok" : "", st.feedAt ? "UPDATED " + fmtZ(st.feedAt).toUpperCase() : "—");
 }
 
@@ -424,16 +484,20 @@ function render() {
   let sit;
   try {
     sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: st.prefiles,
-      airportLL: getAirport, now, wx, hub: st.hub, sigmets: st.sigmets, events: st.events, pastEvents });
+      airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents });
   } catch (e) { console.error(e); return; }
   st.sit = sit;
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
     : "Plan against this AAR on this page only. Set a program on Airport TMU so other pages see it.";
-  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderTmis(sit); renderWx(sit); renderEvent(sit);
+  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
 }
 
+function taxiNow(now) {
+  const samples = st.taxiLocal.concat(st.taxiShared).filter(x => x.airport === st.airport);
+  return taxiSummary({ samples, sessions: st.taxiSessions, now });
+}
 function kpi(k, v, s, cls = "") { return `<div class="kpi ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
 function renderKpis(s) {
   const c = s.cap, pw = s.peakWin, n = s.next60;
@@ -451,6 +515,9 @@ function renderKpis(s) {
     kpi("Arrival queue", s.queue.maxDelay ? `${s.queue.maxDelay}<small> min</small>` : "0", s.queue.maxDelay ? "longest around " + fmtZ(s.queue.maxAt) + " if nothing is done" : "no queue projected",
       s.queue.maxDelay > 15 ? "red" : s.queue.maxDelay > 0 ? "amber" : "green") +
     kpi("Inbound", `${s.counts.airborne + s.counts.ground + s.counts.prefile}`, `${s.counts.airborne} air · ${s.counts.ground} gnd · ${s.counts.prefile} prefile` + (s.counts.excluded ? ` · ${s.counts.excluded} excl` : "")) +
+    kpi("Taxi-out", s.taxi && s.taxi.avgMin != null ? `${s.taxi.avgMin}<small> min</small>` : "—",
+      s.taxi ? `${s.taxi.groundQueue} on ground · ${s.taxi.taxiing.length} taxiing` + (s.taxi.trend === "increasing" ? " · rising" : s.taxi.trend === "decreasing" ? " · falling" : "") : "no departures timed yet",
+      !s.taxi || s.taxi.avgMin == null ? "" : s.taxi.avgMin >= TAXI_SLOW_MIN + 10 ? "red" : s.taxi.avgMin >= TAXI_SLOW_MIN ? "amber" : "green") +
     kpi("TMI call", tier ? esc(tier.id === "none" ? "NONE" : tier.id === "mit" ? "MIT" : tier.id === "fca" ? "MIT + FCA" : "GDP") : "—",
       tier ? esc(tier.label) : "needs an AAR", tierCls);
 }
@@ -571,23 +638,36 @@ function renderTmis(s) {
   if (s.restrictions.length) h += `<ul class="list">${s.restrictions.slice(0, 6).map(r => `<li><span class="tag cyan">RSTR</span>${esc(r.restriction)} <span class="muted">${esc(r.requesting)}→${esc(r.providing)} ${esc(r.start)}–${esc(r.stop)}</span></li>`).join("")}</ul>`;
   $("tmis").innerHTML = h;
 }
+const catTag = cat => `<span class="tag ${cat === "VFR" ? "green" : cat === "MVFR" ? "cyan" : "red"}">${esc(cat)}</span>`;
+const fmtTaf = t => esc(t).replace(/\s+(FM\d{6}|TEMPO|BECMG|PROB\d{2})/g, "\n  $1");
 function renderWx(s) {
   const w = s.wx;
-  let h = "";
-  if (!w) h += `<div class="muted">${st.wxState === "wait" ? "Loading the NWS forecast…" : st.wxState === "bad" ? "No NWS forecast for " + esc(s.airport) + " (US fields only, or api.weather.gov didn't answer)." : "No forecast yet."}</div>`;
-  else {
-    const catCls = w.cat === "VFR" ? "green" : w.cat === "MVFR" ? "cyan" : "red";
-    h += `<dl class="kv"><dt>Category</dt><dd><span class="tag ${catCls}">${w.cat}</span> worst over the next 3 hours</dd>
-      <dt>Ceiling</dt><dd>${w.ceilFt != null ? w.ceilFt.toLocaleString() + " ft" : "—"}</dd>
-      <dt>Visibility</dt><dd>${w.visSm != null ? w.visSm + " sm" : "—"}</dd>
-      <dt>Wind</dt><dd>${w.wspd} kt${w.gust ? ", gusts " + w.gust : ""}</dd>
-      <dt>Thunder</dt><dd class="${w.thunderPct >= 25 ? "tight" : ""}">${w.thunderPct}%</dd>
-      <dt>Rate</dt><dd>${s.cap.factor < 1 ? "×" + s.cap.factor.toFixed(2) + " (" + esc(s.cap.reasons.join(", ")) + ")" : "no cut"}</dd></dl>`;
-  }
-  h += `<div style="margin-top:10px" class="muted">SIGMETs${st.artcc ? " for " + esc(st.artcc) : ""}:</div>`;
-  if (st.sigState === "ok") h += s.sigmets.length ? `<ul class="list">${s.sigmets.slice(0, 5).map(x => `<li><span class="tag ${/convect|\bts\b/i.test(x.hazard) ? "red" : "amber"}">${esc(x.sequence || "SIG")}</span>${esc(x.hazard)} <span class="muted">${esc(String(x.text || "").slice(0, 160))}</span></li>`).join("")}</ul>` : `<div class="muted">none in effect</div>`;
-  else h += `<div class="muted">${st.sigState === "bad" ? "unavailable" : "loading…"}</div>`;
+  let h = `<div class="wxhead">METAR ${st.metar ? catTag(metarCategory(st.metar)) : ""}</div>`;
+  h += st.metar ? `<pre class="raw">${esc(st.metar)}</pre>`
+    : `<div class="muted">${st.metarState === "bad" ? "No METAR for " + esc(s.airport) + "." : "Loading…"}</div>`;
+  h += `<div class="wxhead">TAF${st.tafIssued ? ` <span>issued ${fmtZ(Date.parse(st.tafIssued))}</span>` : ""}</div>`;
+  h += st.taf ? `<pre class="raw">${fmtTaf(st.taf)}</pre>`
+    : `<div class="muted">${st.tafState === "bad" ? "No TAF for " + esc(s.airport) + " (api.weather.gov, US fields only)." : "Loading…"}</div>`;
+  h += `<div class="wxhead">NEXT 3 HOURS · NWS FORECAST</div>`;
+  if (!w) h += `<div class="muted">${st.wxState === "wait" ? "Loading the NWS forecast…" : st.wxState === "bad" ? "No NWS forecast for " + esc(s.airport) + " (US fields only)." : "No forecast yet."}</div>`;
+  else h += `<div style="margin-top:4px">${catTag(w.cat)} ceiling ${w.ceilFt != null ? w.ceilFt.toLocaleString() + " ft" : "none"} · vis ${w.visSm != null ? w.visSm + " sm" : "—"} · wind ${w.wspd} kt${w.gust ? " G" + w.gust : ""} · <span class="${w.thunderPct >= 25 ? "tight" : ""}">thunder ${w.thunderPct}%</span></div>
+    <div class="muted">Rate ${s.cap.factor < 1 ? "×" + s.cap.factor.toFixed(2) + " (" + esc(s.cap.reasons.join(", ")) + ")" : "not cut for weather"}</div>`;
   $("wx").innerHTML = h;
+  const obs = st.metar.match(/\b\d{2}(\d{4})Z\b/);
+  $("wxAge").textContent = obs ? "observed " + obs[1] + "z" : "";
+}
+function renderTaxi(s) {
+  const t = s.taxi;
+  let h = "";
+  if (!t) h = `<div class="muted">No departures from ${esc(s.airport)} on the ground or timed yet. VATSMART times taxi-out (7 kt to 60 kt) while this page is open, and adds the Taxi Monitor's shared samples when the field is monitored there${st.taxiSharedState === "bad" ? " (shared samples unavailable right now)" : ""}.</div>`;
+  else {
+    h += `<dl class="kv"><dt>Average</dt><dd>${t.avgMin != null ? `<b class="${t.avgMin >= TAXI_SLOW_MIN ? "tight" : ""}">${t.avgMin} min</b> over the last ${t.sampleCount} departure${t.sampleCount === 1 ? "" : "s"}` : '<span class="muted">no completed taxi-outs in the last 2 hours</span>'}</dd>
+      <dt>Trend</dt><dd>${t.sampleCount >= 10 ? t.trend : '<span class="muted">needs 10 departures</span>'}</dd>
+      <dt>Last hour</dt><dd>${t.perHour} departure${t.perHour === 1 ? "" : "s"}</dd>
+      <dt>On ground</dt><dd>${t.groundQueue} · ${t.taxiing.length} taxiing</dd></dl>`;
+    if (t.taxiing.length) h += `<ul class="list">${t.taxiing.slice(0, 8).map(x => `<li><b>${esc(x.cs)}</b> <span class="${x.min >= TAXI_SLOW_MIN ? "tight" : "muted"}">taxiing ${x.min} min</span></li>`).join("")}</ul>`;
+  }
+  $("taxi").innerHTML = h;
 }
 function renderEvent(s) {
   const up = s.upcoming, ref = s.reference, now = s.now;
@@ -612,6 +692,7 @@ loadAirports(() => { st.airportsReady = true; if (st.airport) { st.aptLL = getAi
 loadPast();
 fetchEvents();
 connectHub();
+connectTaxiShared();
 fetchFeed();
 setInterval(fetchFeed, VATSIM_FEED_MS);
 setInterval(() => { refreshSlow(); render(); }, 60000);   // windows move with the clock even when nothing else changes

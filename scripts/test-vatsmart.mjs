@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   capacityFor, queueProjection, tmiTier, edctCompliance, groundStopsFor, nearestZulu, rebalanceSuggestion,
-  groundOrigins, buildSituation, fmtZ,
+  groundOrigins, buildSituation, fmtZ, trackTaxi, taxiSummary, tafFromNwsProduct,
 } from "../shared/vatsmart.js";
 import { normPrograms } from "../shared/mit-monitor.js";
 
@@ -148,6 +148,49 @@ t("upcoming event compares a past one to capacity", () => {
   assert.equal(r.sev, "watch");
   assert.match(r.why, /about 55\/hr/);
   assert.equal(fmtZ(NOW), "2300z");
+});
+
+t("taxi-out is timed from 7 kt to 60 kt near the field", () => {
+  const sess = {};
+  const at = (gs, alt = 0, lat = APT_LL[0]) => [{ callsign: "DAL1", dep: APT, arr: "KATL", lat, lon: APT_LL[1], gs, alt }];
+  assert.deepEqual(trackTaxi(sess, at(0), APT, APT_LL, NOW), []);
+  assert.equal(sess.DAL1.phase, "watching");
+  trackTaxi(sess, at(15), APT, APT_LL, NOW + 5 * MIN);
+  assert.equal(sess.DAL1.phase, "rolling");
+  const done = trackTaxi(sess, at(140, 400), APT, APT_LL, NOW + 27 * MIN);
+  assert.equal(done.length, 1);
+  assert.equal(done[0].durationMs, 22 * MIN);
+  assert.equal(sess.DAL1, undefined);
+  /* already airborne when first seen: not timed */
+  assert.deepEqual(trackTaxi(sess, at(250, 5000), APT, APT_LL, NOW), []);
+  assert.deepEqual(sess, {});
+});
+
+t("taxi summary flags slow taxi-out", () => {
+  const samples = Array.from({ length: 6 }, (_, i) => ({ callsign: "A" + i, startMs: NOW - (40 + i) * MIN, endMs: NOW - (15 + i) * MIN, durationMs: 25 * MIN }));
+  samples.push({ ...samples[0] });                                             // same flight from two sources
+  samples.push({ callsign: "OLD", startMs: NOW - 5 * 3600000, endMs: NOW - 4.5 * 3600000, durationMs: 60 * MIN });
+  const sessions = { UAL9: { phase: "rolling", startMs: NOW - 31 * MIN }, SWA2: { phase: "watching" } };
+  const tx = taxiSummary({ samples, sessions, now: NOW });
+  assert.equal(tx.sampleCount, 6);
+  assert.equal(tx.avgMin, 25);
+  assert.equal(tx.groundQueue, 2);
+  assert.equal(tx.longestCs, "UAL9");
+  assert.equal(tx.longestMin, 31);
+  const prog = normPrograms({ [APT]: { aar: 40 } })[APT];
+  const s = buildSituation({ airport: APT, aptLL: APT_LL, prog, pilots: [], now: NOW, taxi: tx });
+  const r = s.recs.find(x => x.id === "taxi");
+  assert.ok(r && r.title === "Taxi-out averaging 25 min at KMCO", r && r.title);
+  assert.equal(taxiSummary({ samples: [], sessions: {}, now: NOW }), null);
+});
+
+t("TAF text comes out of the NWS product", () => {
+  const prod = "\n000\nFTUS42 KMLB 091120\nTAFMCO\nTAF\nKMCO 091120Z 0912/1018 11005KT P6SM FEW009 SCT250\n     FM091400 13008KT P6SM SCT015\n      TEMPO 0920/0924 4SM TSRA BR BKN025CB\n     FM101400 17009KT P6SM SCT030 BKN120=\n$$\n";
+  const taf = tafFromNwsProduct(prod, "KMCO");
+  assert.ok(taf.startsWith("KMCO 091120Z 0912/1018"));
+  assert.ok(taf.includes("TEMPO 0920/0924"));
+  assert.ok(taf.endsWith("BKN120"));
+  assert.equal(tafFromNwsProduct("nothing here", "KMCO"), "");
 });
 
 console.log(`\n${passed} passed`);
