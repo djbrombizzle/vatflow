@@ -12,7 +12,7 @@
  *     shared/mit-monitor.js (same as Airport TMU's rate calculator and MIT Monitor)
  *   - weather capacity factor, TMI tiers, past-event peaks: shared/event-planner.js
  * The page (vatsmart.html) feeds it the VATSIM feed, the hub's programs / EDCTs /
- * ground stops, the NWS forecast, SIGMETs and the event calendar.
+ * ground stops, the NWS forecast, METAR / TAF, taxi-out times and the event calendar.
  *
  * Recommendations are advice only. Programs are still set on Airport TMU, ground
  * delays are still issued from an FCA (FCA Builder / IDST).
@@ -146,6 +146,101 @@ export function groundStopsFor(groundStops, airport, now) {
   return out;
 }
 
+/* ---------------- TAF ---------------- */
+
+/**
+ * The TAF itself from an api.weather.gov TAF product (WMO header, "TAFMCO", "TAF"
+ * lines, then the forecast ending in "="). Returns its lines, indentation kept, or "".
+ */
+export function tafFromNwsProduct(text, icao) {
+  const lines = String(text || "").replace(/\r/g, "").split("\n");
+  const re = new RegExp("^(TAF\\s+(AMD\\s+|COR\\s+)?)?" + icao + "\\s+\\d{6}Z");
+  const i = lines.findIndex(l => re.test(l.trim()));
+  if (i < 0) return "";
+  const out = [];
+  for (let j = i; j < lines.length; j++) {
+    const l = lines[j].replace(/\s+$/, "");
+    if (!l.trim() || /^\$\$/.test(l.trim())) break;
+    out.push(l);
+    if (/=\s*$/.test(l)) break;
+  }
+  return out.join("\n").replace(/=\s*$/, "");
+}
+
+/* ---------------- departure taxi-out ---------------- */
+
+/* same rules as the Taxi Monitor (vatflow-tbfm v2.html): the clock starts at 7 kt
+   and stops at 60 kt or a 100 ft climb, for departures within 15 nm of the field */
+export const TAXI_GS_START = 7, TAXI_GS_STOP = 60, TAXI_CLIMB_FT = 100, TAXI_PROX_NM = 15, TAXI_MIN_MS = 3000;
+export const TAXI_SLOW_MIN = 20;         // average taxi-out that counts as a departure delay
+export const TAXI_LONG_MIN = 30;         // one aircraft taxiing this long is worth a look
+const TAXI_WINDOW_MS = 2 * HOUR;         // samples older than this don't describe the field now
+
+function gcNm(a, b, c, d) {
+  const r = x => x * Math.PI / 180, R = 3440.065;
+  const h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Time departures' taxi-out from successive VATSIM feeds while the page is open.
+ *   sessions  { callsign: { phase: "watching"|"rolling", firstSeen, startMs, baseAlt } } (mutated)
+ * Returns completed samples [{ airport, callsign, startMs, endMs, durationMs }].
+ */
+export function trackTaxi(sessions, pilots, airport, aptLL, now) {
+  const done = [];
+  const seen = new Set();
+  const finish = (cs, s) => {
+    if (s.phase === "rolling" && now - s.startMs >= TAXI_MIN_MS)
+      done.push({ airport, callsign: cs, startMs: s.startMs, endMs: now, durationMs: now - s.startMs });
+    delete sessions[cs];
+  };
+  for (const p of pilots) {
+    if (String(p.dep || "").toUpperCase() !== airport || p.lat == null || !aptLL) continue;
+    const cs = p.callsign, gs = p.gs || 0, alt = p.alt || 0;
+    let s = sessions[cs];
+    const near = gcNm(p.lat, p.lon, aptLL[0], aptLL[1]) <= TAXI_PROX_NM;
+    if (!s) {
+      if (!near || gs > TAXI_GS_STOP) continue;          // already flying when first seen
+      s = sessions[cs] = { phase: "watching", firstSeen: now, startMs: null, baseAlt: alt };
+    }
+    seen.add(cs);
+    if (s.phase === "watching" && gs > TAXI_GS_START) { s.phase = "rolling"; s.startMs = now; s.baseAlt = alt; }
+    if (s.phase === "rolling" && now > s.startMs && (gs > TAXI_GS_STOP || alt >= s.baseAlt + TAXI_CLIMB_FT || !near)) finish(cs, s);
+  }
+  for (const cs of Object.keys(sessions)) if (!seen.has(cs)) delete sessions[cs];   // disconnected
+  return done;
+}
+
+/**
+ * Taxi-out picture for one field from completed samples (the shared Taxi Monitor
+ * log plus this page's own) and the aircraft on the ground now.
+ * Returns { avgMin, trend, perHour, sampleCount, groundQueue, taxiing: [{ cs, min }], longestCs, longestMin } or null.
+ */
+export function taxiSummary({ samples = [], sessions = {}, now }) {
+  const seen = new Set();
+  const recent = samples
+    .filter(x => x && now - x.endMs <= TAXI_WINDOW_MS && x.durationMs > 0)
+    .sort((a, b) => b.endMs - a.endMs)
+    .filter(x => { const k = x.callsign + "|" + Math.round(x.startMs / 120000); if (seen.has(k)) return false; seen.add(k); return true; });
+  const last = recent.slice(0, 20);
+  const avg = list => list.reduce((n, x) => n + x.durationMs, 0) / list.length / 60000;
+  let trend = "stable";
+  if (recent.length >= 10) {
+    const d = avg(recent.slice(0, 5)) - avg(recent.slice(5, 10));
+    trend = d >= 2 ? "increasing" : d <= -2 ? "decreasing" : "stable";
+  }
+  const taxiing = Object.entries(sessions).filter(([, s]) => s.phase === "rolling")
+    .map(([cs, s]) => ({ cs, min: Math.round((now - s.startMs) / 60000) })).sort((a, b) => b.min - a.min);
+  const groundQueue = Object.keys(sessions).length;
+  if (!last.length && !groundQueue) return null;
+  return {
+    avgMin: last.length ? Math.round(avg(last)) : null, trend, sampleCount: last.length,
+    perHour: recent.filter(x => now - x.endMs <= HOUR).length,
+    groundQueue, taxiing, longestCs: taxiing[0] ? taxiing[0].cs : "", longestMin: taxiing[0] ? taxiing[0].min : 0,
+  };
+}
+
 /* ---------------- the situation ---------------- */
 
 /**
@@ -154,13 +249,13 @@ export function groundStopsFor(groundStops, airport, now) {
  *   pilots, prefiles, airportLL   same as buildMitMonitor
  *   wx        worst NWS conditions over the lookahead (event-planner gridWindow) or null
  *   hub       { edcts, groundStops, restrictions } wire maps (may be empty)
- *   sigmets   [{ sequence, hazard, text }] for the field's ARTCC
+ *   taxi      taxiSummary(...) for departures from the field, or null
  *   events    upcoming VATSIM events [{ name, startMs, endMs, airports: [icao], link }]
  *   pastEvents data/event-history.json entries for the field
  */
 export function buildSituation({
   airport, aptLL, prog = null, localAar = 0, pilots = [], prefiles = [], airportLL = () => null,
-  now = Date.now(), wx = null, hub = {}, sigmets = [], events = [], pastEvents = [],
+  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [],
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
@@ -222,7 +317,7 @@ export function buildSituation({
 
   const sit = {
     airport, now, cap, prog, program, mon, flights: mon.flights, live, roll, peakWin, next60, queue, ratio, tier,
-    gates, counts, edct, gs, restrictions, wx, sigmets: sigmets || [], upcoming, reference,
+    gates, counts, edct, gs, restrictions, wx, taxi, upcoming, reference,
   };
   sit.recs = recommend(sit);
   return sit;
@@ -371,9 +466,18 @@ export function recommend(s) {
   if (s.wx && s.wx.thunderPct >= THUNDER_POSSIBLE) add({ id: "wx-ts", sev: s.wx.thunderPct >= THUNDER_LIKELY ? "action" : "watch",
     title: `Thunderstorms ${s.wx.thunderPct}% at ${apt} in the next 3 hours`,
     why: "Plan for a lower rate and possible gate closures; brief the reroutes before cells reach the arrival corridors." });
-  const conv = (s.sigmets || []).filter(x => /convect|\bts\b/i.test(x.hazard || ""));
-  if (conv.length) add({ id: "sigmet", sev: "watch", title: `${plural(conv.length, "convective SIGMET")} near ${apt}'s center`,
-    why: conv.slice(0, 3).map(x => (x.sequence ? x.sequence + ": " : "") + String(x.text || "").slice(0, 140)).join(" · ") });
+  /* departure taxi-out */
+  const tx = s.taxi;
+  if (tx && (tx.avgMin >= TAXI_SLOW_MIN || (tx.longestMin || 0) >= TAXI_LONG_MIN)) {
+    const slow = tx.avgMin >= TAXI_SLOW_MIN;
+    add({ id: "taxi", sev: tx.avgMin >= TAXI_SLOW_MIN + 10 ? "action" : "watch",
+      title: slow ? `Taxi-out averaging ${tx.avgMin} min at ${apt}` : `${tx.longestCs} taxiing ${tx.longestMin} min at ${apt}`,
+      why: `${plural(tx.groundQueue, "departure")} on the ground, ${tx.taxiing.length} taxiing now` +
+        (tx.longestMin ? `, longest ${tx.longestCs} at ${tx.longestMin} min` : "") +
+        (tx.trend === "increasing" ? "; taxi times are going up" : "") +
+        ". Hold departures at the gate (ramp metering) or space them with departure MIT so the queue waits with engines off.",
+      link: { href: "ramp.html", label: "Ramp" } });
+  }
 
   /* the next event, from a past one like it */
   if (s.upcoming && s.upcoming.startMs > s.now) {
