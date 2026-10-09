@@ -44,6 +44,8 @@
   input#aar { width: 64px; }
   button { cursor: pointer; }
   button:hover, input:hover { border-color: var(--amber); }
+  #pfBtn[aria-pressed="true"] { color: var(--green); border-color: #1f3a2a; }
+  #pfBtn[aria-pressed="false"] { color: var(--dim); text-decoration: line-through; }
   .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   .pill { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
   .pill::before { content: "●"; margin-right: 5px; }
@@ -151,6 +153,7 @@
       <label for="aar" title="Clear-weather AAR to plan against on this page only; VATSMART applies the forecast weather cut itself. Leave it blank to use the Airport TMU program.">AAR</label>
       <input id="aar" type="number" min="1" max="200" placeholder="/hr" title="Clear-weather AAR to plan against on this page only; VATSMART applies the forecast weather cut itself. Leave it blank to use the Airport TMU program.">
       <button type="submit">WATCH</button>
+      <button type="button" id="pfBtn" aria-pressed="true" title="Count prefiled flights (filed but not connected yet) in demand, the chart and the advice">PREFILES ON</button>
     </form>
     <div class="pills">
       <span class="pill" id="pFeed">VATSIM</span>
@@ -279,6 +282,14 @@ const st = {
 
 /* ---------------- field selection ---------------- */
 
+/* prefiled flights count by default; the toggle is remembered */
+const usePrefiles = () => prefs.prefiles !== false;
+function renderPfBtn() {
+  const on = usePrefiles(), n = st.airport ? st.prefiles.filter(p => p.arr === st.airport).length : 0;
+  $("pfBtn").setAttribute("aria-pressed", String(on));
+  $("pfBtn").textContent = `PREFILES ${on ? "ON" : "OFF"}${st.airport ? " (" + n + ")" : ""}`;
+}
+$("pfBtn").addEventListener("click", () => { prefs.prefiles = !usePrefiles(); savePrefs(); render(); });
 function localAar() { return +((prefs.aar || {})[st.airport]) || 0; }
 function setAirport(code) {
   code = String(code || "").toUpperCase().trim();
@@ -547,7 +558,7 @@ function renderPills() {
 }
 
 function render() {
-  renderPills();
+  renderPills(); renderPfBtn();
   if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; return; }
   if (!st.aptLL) st.aptLL = getAirport(st.airport);
   if (!st.aptLL) {
@@ -562,7 +573,7 @@ function render() {
   const pastEvents = (st.past && st.past.airports && st.past.airports[st.airport]) || [];
   let sit;
   try {
-    sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: st.prefiles,
+    sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: usePrefiles() ? st.prefiles : [],
       airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents,
       routing: { stars: st.stars, cdrs: st.cdrs }, etaFor: isNavReady() ? (p, gate) => cachedGateEta(p, gate, now) : null });
   } catch (e) { console.error(e); return; }
@@ -591,7 +602,7 @@ function renderKpis(s) {
         : "Your AAR " + c.aar + (c.programAar ? " (program " + c.programAar + ")" : "")) + (c.factor < 1 ? " · weather ×" + c.factor.toFixed(2) : ""),
       c.factor < 1 ? "amber" : "") +
     kpi("Next 60 min", `${n.total}<small>${c.capacity ? " / " + c.capacity : ""}</small>`, `${n.connected} connected · ${n.prefiled} prefiled`, over(n.total)) +
-    kpi("Peak 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${pw.expected.length ? "incl. expected demand" : "live + prefiles"}`, over(pw.total)) +
+    kpi("Peak 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${pw.expected.length ? "incl. expected demand" : usePrefiles() ? "live + prefiles" : "live only, prefiles off"}`, over(pw.total)) +
     kpi("Arrival queue", s.queue.maxDelay ? `${s.queue.maxDelay}<small> min</small>` : "0", s.queue.maxDelay ? "longest around " + fmtZ(s.queue.maxAt) + " if nothing is done" : "no queue projected",
       s.queue.maxDelay > 15 ? "red" : s.queue.maxDelay > 0 ? "amber" : "green") +
     kpi("Inbound", `${s.counts.airborne + s.counts.ground + s.counts.prefile}`, `${s.counts.airborne} air · ${s.counts.ground} gnd · ${s.counts.prefile} prefile` + (s.counts.excluded ? ` · ${s.counts.excluded} excl` : "")) +
