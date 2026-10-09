@@ -984,6 +984,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .mitplan { font-size: 13px; margin: 2px 0 10px; }
 .mittl th, .mittl td { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
 .mittl th.sel, .mittl td.sel { background: rgba(232, 168, 56, 0.08); }
+.demandwin .pf { display: block; font-size: 10px; color: var(--info); }
 .demandwin .pk { display: block; font-size: 9px; letter-spacing: 0.08em; color: var(--warn); }
 .calcpositions { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
 .calcpositions label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
@@ -7462,7 +7463,7 @@ const rateCalc = {
   icao: "", tier: "hub", maxAar: 120, fullStaff: 6, onDuty: 2,
   usePositions: false, advancedOpen: false, mitAarSource: "calc",
   mitMode: "live", mitPlanAar: 0, mitPlan: [], mitPlanSolve: "mit",
-  lookaheadHr: 3, mitWindowOff: null,   /* null = busiest window; not saved */
+  lookaheadHr: 3, countPrefiles: true, mitWindowOff: null,   /* null = busiest window; not saved */
   positions: { app: true, twr: true, gnd: false, del: false, sup: false, atis: false }
 };
 try {
@@ -7482,6 +7483,7 @@ try {
       if (+p.mitPlanAar) rateCalc.mitPlanAar = parseAar(p.mitPlanAar) || 0;
       if (Array.isArray(p.mitPlan)) rateCalc.mitPlan = normMitPlan(p.mitPlan);
       if (p.mitPlanSolve === "rate") rateCalc.mitPlanSolve = "rate";
+      if (p.countPrefiles === false) rateCalc.countPrefiles = false;
       if (+p.lookaheadHr >= 1 && +p.lookaheadHr <= 3) rateCalc.lookaheadHr = Math.round(+p.lookaheadHr);
       if (p.positions && typeof p.positions === "object") {
         for (const k in p.positions) if (k in rateCalc.positions) rateCalc.positions[k] = !!p.positions[k];
@@ -7497,7 +7499,7 @@ function saveRateCalc() {
       usePositions: rateCalc.usePositions, advancedOpen: rateCalc.advancedOpen,
       mitAarSource: rateCalc.mitAarSource,
       mitMode: rateCalc.mitMode, mitPlanAar: rateCalc.mitPlanAar, mitPlan: rateCalc.mitPlan,
-      mitPlanSolve: rateCalc.mitPlanSolve, lookaheadHr: rateCalc.lookaheadHr,
+      mitPlanSolve: rateCalc.mitPlanSolve, lookaheadHr: rateCalc.lookaheadHr, countPrefiles: rateCalc.countPrefiles,
       positions: rateCalc.positions
     }));
   } catch (e) {}
@@ -8196,6 +8198,8 @@ function renderTMURateCalc() {
     '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
     '<li><b>Peak demand</b> slides a 60-minute window every ' + DEMAND_WIN_STEP_MIN + ' minutes across the next 1\u20133 hours (Look ahead, default 3) ' +
     'and takes the busiest hour, so a rush 90 minutes out shows up now instead of only the next 60 minutes.</li>' +
+    '<li><b>Prefiles</b> (flight plans filed before the pilot connects) count toward demand by their filed departure time, shown as <b>+N pf</b> next to connected traffic. ' +
+    'They show an event\u2019s demand before it is online; untick Count prefiles to plan on connected traffic only.</li>' +
     '<li>The <b>MIT timeline</b> runs the MIT math on every window, so each gate shows when it first needs MIT and how tight it gets. ' +
     'Use it to pass MIT to adjacent facilities before the hour that needs it.</li>' +
     '<li>The <b>MIT plan</b> turns that into steps per gate: when to start, tighten, relax and remove MIT, starting from the active program. ' +
@@ -8214,6 +8218,7 @@ function renderTMURateCalc() {
 function renderPeakDemandLine(live, aar) {
   const pk = live.windows[live.peak], first = live.windows[0];
   let h = '<div class="calcdetail" style="margin-top:8px;">Peak arrival demand, next ' + rateCalc.lookaheadHr + ' hr: <b>' + pk.total + '/hr</b>';
+  if (pk.prefiled) h += ' <span class="cell-dim">(' + demandBreakdown(pk) + ')</span>';
   if (pk.total) h += ' at ' + demandWinLabel(pk) + ' (' + demandWinWhen(pk) + ')';
   if (live.peak !== 0) h += ' \u00B7 next 60 min: ' + first.total;
   if (aar > 0 && pk.total) {
@@ -8223,7 +8228,7 @@ function renderPeakDemandLine(live, aar) {
   return h + '</div>';
 }
 
-function renderGateMitTable(calc, prog, demandLabel, expected, actionLabel) {
+function renderGateMitTable(calc, prog, demandLabel, expected, actionLabel, pfByGate) {
   let h = '<div class="tablewrap tablewrap--short"><table><thead><tr>' +
     '<th>GATE</th><th>' + demandLabel + '</th><th>SLICE OF AAR</th><th>RECOMMENDED</th>' +
     (prog ? '<th>PROGRAM NOW</th><th>' + (actionLabel || 'ACTION') + '</th>' : '') + '</tr></thead><tbody>';
@@ -8241,7 +8246,8 @@ function renderGateMitTable(calc, prog, demandLabel, expected, actionLabel) {
         '<td class="' + cls + '">' + esc(act.txt) + '</td>';
     }
     h += '<tr><td class="cell-strong">' + esc(r.gate) + '</td>' +
-      '<td>' + r.demand + (expected && expected.has(r.gate) ? ' <span class="cell-info" title="Your expected demand, higher than the live count">exp</span>' : '') +
+      '<td>' + r.demand + (pfByGate && pfByGate[r.gate] ? ' <span class="cell-info" title="Prefiled flight plans in this hour">' + pfByGate[r.gate] + ' pf</span>' : '') +
+      (expected && expected.has(r.gate) ? ' <span class="cell-info" title="Your expected demand, higher than the live count">exp</span>' : '') +
       ' <span class="cell-dim">(' + Math.round(r.share * 100) + '%)</span></td>' +
       '<td>' + r.slice.toFixed(1) + '/hr</td><td>' + recTxt + '</td>' + progCells + '</tr>';
   }
@@ -8269,13 +8275,19 @@ function liveGateDemand(code, prog) {
   const flow = computeFlow(code);
   const roll = window.VF_RollingDemand;
   if (!flow || !roll) return null;
-  const flights = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f)).map(f => ({ eta: f.eta, gate: f.gate }));
-  const r = roll({ flights, now: flow.now, horizonMin: rateCalc.lookaheadHr * 60, stepMin: DEMAND_WIN_STEP_MIN, expect: programExpect(prog) });
+  const flights = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f)).map(f => ({ eta: f.eta, gate: f.gate, prefiled: f.status === "PROPOSED" }));
+  const r = roll({ flights, now: flow.now, horizonMin: rateCalc.lookaheadHr * 60, stepMin: DEMAND_WIN_STEP_MIN,
+    expect: programExpect(prog), includePrefiled: rateCalc.countPrefiles });
   let sel = r.windows.findIndex(w => w.offsetMin === rateCalc.mitWindowOff);
   if (sel < 0) sel = r.peak;
   const w = r.windows[sel];
   return { entries: w.entries, unassigned: w.unassigned, expected: new Set(w.expected),
     windows: r.windows, peak: r.peak, sel, window: w };
+}
+/* "21 connected + 5 prefiled" (prefiles left out of the count when switched off) */
+function demandBreakdown(w) {
+  const pf = w.prefiled ? ' + ' + w.prefiled + ' prefiled' + (rateCalc.countPrefiles ? '' : ' (not counted)') : '';
+  return w.connected + ' connected' + pf + (w.total !== w.connected + (rateCalc.countPrefiles ? w.prefiled : 0) ? ', ' + w.total + ' with expected demand' : '');
 }
 function demandWinLabel(w) { return fmtZ(w.start) + '\u2013' + fmtZ(w.end) + 'z'; }
 function demandWinWhen(w) { return w.offsetMin ? 'starts in ' + w.offsetMin + ' min' : 'starting now'; }
@@ -8347,8 +8359,10 @@ function renderDemandWindows(live, aar) {
   let h = '<div class="demandwins">';
   live.windows.forEach((w, i) => {
     h += '<span class="demandwin' + (w.total > aar ? ' over' : '') + (i === live.sel ? ' sel' : '') + '" ' +
-      'data-ratecalc-win="' + (i === live.peak ? 'peak' : w.offsetMin) + '" title="' + demandWinLabel(w) + ': ' + w.total + ' arrivals">' +
-      fmtZ(w.start) + 'z<b>' + w.total + '</b>' + (i === live.peak ? '<span class="pk">PEAK</span>' : '') + '</span>';
+      'data-ratecalc-win="' + (i === live.peak ? 'peak' : w.offsetMin) + '" title="' + demandWinLabel(w) + ': ' + demandBreakdown(w) + '">' +
+      fmtZ(w.start) + 'z<b>' + (rateCalc.countPrefiles ? w.connected : w.total) + '</b>' +
+      (w.prefiled ? '<span class="pf">+' + w.prefiled + ' pf</span>' : '') +
+      (i === live.peak ? '<span class="pk">PEAK</span>' : '') + '</span>';
   });
   return h + '</div>';
 }
@@ -8382,7 +8396,9 @@ function renderGateMitCard(calcAar, validIcao, live) {
   h += '<div class="tmuform" style="border-bottom:none;padding:0 0 4px;">' +
     '<span class="lbl">LOOK AHEAD</span><select data-ratecalc-field="lookaheadHr">' +
     [1, 2, 3].map(n => '<option value="' + n + '"' + (rateCalc.lookaheadHr === n ? ' selected' : '') + '>' + n + ' hr</option>').join("") +
-    '</select><span class="form-note">Rolling 60-minute windows every ' + DEMAND_WIN_STEP_MIN + ' min. Click one to plan MIT for it.</span></div>';
+    '</select><label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c9d6df;cursor:pointer;margin-left:12px;">' +
+    '<input type="checkbox" style="width:auto;margin:0;" data-ratecalc-field="countPrefiles"' + (rateCalc.countPrefiles ? ' checked' : '') + '> Count prefiles</label>' +
+    '<span class="form-note">Rolling 60-minute windows every ' + DEMAND_WIN_STEP_MIN + ' min; big number = connected, +pf = prefiled flight plans. Click one to plan MIT for it.</span></div>';
   h += renderDemandWindows(live, aar);
   h += renderMitTimeline(live, aar, prog);
   const w = live.window;
@@ -8393,6 +8409,10 @@ function renderGateMitCard(calcAar, validIcao, live) {
   }
   const calc = calcGateMit(aar, live.entries, live.unassigned, MIT_NOMINAL_KT);
   h += gateMitSummary(calc, aar, (isPeak ? 'Peak hour ' : 'Hour ') + demandWinLabel(w) + ' (' + demandWinWhen(w) + ')');
+  if (w.prefiled) {
+    h += '<div class="calcdetail">' + demandBreakdown(w) + '. Prefiles are flight plans filed ahead of connecting, so they show the demand forming before an event; ' +
+      (rateCalc.countPrefiles ? 'some won\u2019t show, so treat that part as a forecast.' : 'turn on Count prefiles to plan for them.') + '</div>';
+  }
   if (!isPeak) {
     const pk = live.windows[live.peak];
     h += '<div class="calcdetail">Busiest hour is ' + demandWinLabel(pk) + ' with <b>' + pk.total + '</b> arrivals. ' +
@@ -8412,7 +8432,8 @@ function renderGateMitCard(calcAar, validIcao, live) {
     h += '<div class="calcdetail">Using the program\u2019s expected demand on ' + esc([...live.expected].join(", ")) +
       ' (marked exp), where it is higher than the live count.</div>';
   }
-  h += renderGateMitTable(calc, prog, esc(demandWinLabel(w)), live.expected, w.offsetMin ? 'ACTION AT ' + fmtZ(w.start) + 'Z' : 'ACTION');
+  h += renderGateMitTable(calc, prog, esc(demandWinLabel(w)), live.expected, w.offsetMin ? 'ACTION AT ' + fmtZ(w.start) + 'Z' : 'ACTION',
+    rateCalc.countPrefiles ? w.prefiledByGate : null);
   h += '<div class="calcformula">Updates with every feed refresh. Demand is metered arrivals by ETA in each rolling 60-minute window ' +
     'over the next ' + rateCalc.lookaheadHr + ' hr; the busiest window drives the MIT. ' +
     'Gates come from the last STAR or fix in each filed route. ' + GATE_MIT_FORMULA + '</div></div>';
@@ -9972,6 +9993,8 @@ contentEl.addEventListener("change", e => {
       rateCalc.mitAarSource = rcField.value === "program" ? "program" : "calc";
     } else if (f === "mitPlanSolve") {
       rateCalc.mitPlanSolve = rcField.value === "rate" ? "rate" : "mit";
+    } else if (f === "countPrefiles") {
+      rateCalc.countPrefiles = rcField.checked;
     } else if (f === "lookaheadHr") {
       rateCalc.lookaheadHr = Math.max(1, Math.min(3, Math.round(+rcField.value) || 3));
     } else if (f === "mitPlanAar") {
