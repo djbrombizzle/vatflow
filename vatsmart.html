@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VATSMART — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
+  main { max-width: 1480px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 16px) 16px 40px; }
+
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 14px; }
+  .brand h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.16em; margin: 0; }
+  .brand h1 span { color: var(--amber); }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+  .ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ctl label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  input, button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 7px 10px;
+  }
+  input#apt { width: 84px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em; }
+  input#aar { width: 64px; }
+  button { cursor: pointer; }
+  button:hover, input:hover { border-color: var(--amber); }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .pill::before { content: "●"; margin-right: 5px; }
+  .pill.ok { color: var(--green); border-color: #1f3a2a; }
+  .pill.wait { color: var(--amber); }
+  .pill.bad { color: var(--red); border-color: #3a1f1f; }
+
+  .empty { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; max-width: 640px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .empty b { color: var(--text); }
+
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+  .kpi .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+  .kpi .v { font-family: var(--mono); font-size: 24px; font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .v small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .kpi .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi.red { border-color: #4a2424; } .kpi.red .v { color: var(--red); }
+  .kpi.amber { border-color: #4a3a1c; } .kpi.amber .v { color: var(--amber); }
+  .kpi.green .v { color: var(--green); }
+
+  .row { display: grid; gap: 12px; margin-bottom: 12px; }
+  .row.main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; }
+  .card > h2 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--dim); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+  .card > h2 .r { margin-left: auto; letter-spacing: 0.04em; font-weight: 400; }
+  .card .body { padding: 10px 14px; font-size: 12px; line-height: 1.5; }
+
+  .recs { list-style: none; margin: 0; padding: 0; overflow-y: auto; max-height: 480px; }
+  .rec { display: grid; grid-template-columns: 64px 1fr auto; gap: 4px 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: start; }
+  .rec:last-child { border-bottom: none; }
+  .sev { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; padding: 2px 0; text-align: center; border-radius: 3px; border: 1px solid currentColor; margin-top: 2px; }
+  .sev.action { color: var(--red); }
+  .sev.watch { color: var(--amber); }
+  .sev.info { color: var(--cyan); }
+  .rec .t { font-weight: 600; font-size: 13px; }
+  .rec .w { grid-column: 2 / 4; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .rec a { font-family: var(--mono); font-size: 10px; color: #5ba8c9; text-decoration: none; white-space: nowrap; letter-spacing: 0.06em; }
+  .rec a:hover { color: var(--amber); }
+
+  #map { height: 480px; border-radius: 0 0 8px 8px; background: #0b1016; }
+  .leaflet-container { font-family: var(--mono); }
+  .leaflet-tooltip.ac { background: #0e1319ee; color: var(--text); border: 1px solid #2a3644; font-size: 11px; box-shadow: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+
+  .chart { overflow-x: auto; }
+  .chart svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .chart text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: var(--dim); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 6px 8px; border-bottom: 1px solid #151d27; vertical-align: middle; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .plan { display: flex; gap: 2px; }
+  .plan span { flex: 1 1 0; min-width: 26px; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 2px; background: #121922; color: var(--dim); }
+  .plan span.m { background: #3a2d14; color: var(--amber); }
+  .plan span.m2 { background: #4a2020; color: #ff9b9b; }
+  .plan span.pk { outline: 1px solid var(--amber); }
+  .tight { color: var(--red); }
+  .dim { color: var(--dim); }
+  .muted { color: var(--muted); }
+  .scroll { overflow-x: auto; }
+
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; }
+  .kv dt { color: var(--dim); font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 2px; }
+  .kv dd { margin: 0; }
+  .list { margin: 6px 0 0; padding: 0; list-style: none; }
+  .list li { padding: 4px 0; border-top: 1px solid #151d27; font-size: 12px; }
+  .list li:first-child { border-top: none; }
+  .tag { font-family: var(--mono); font-size: 10px; padding: 0 5px; border-radius: 3px; border: 1px solid currentColor; margin-right: 4px; }
+  .tag.red { color: var(--red); } .tag.amber { color: var(--amber); } .tag.green { color: var(--green); } .tag.cyan { color: var(--cyan); }
+  .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 16px; }
+  .foot a { color: #5ba8c9; }
+
+  @media (max-width: 1100px) {
+    .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .row.main, .row.three { grid-template-columns: minmax(0, 1fr); }
+    #map { height: 360px; }
+  }
+  @media (max-width: 560px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pills { margin-left: 0; }
+    .rec { grid-template-columns: 54px 1fr; }
+    .rec a { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <div class="top">
+    <div class="brand">
+      <h1>VAT<span>SMART</span></h1>
+      <p>One page to monitor an event field, see the next 3 hours and know what to do. Advice only.</p>
+    </div>
+    <form class="ctl" id="aptForm" autocomplete="off">
+      <label for="apt">FIELD</label>
+      <input id="apt" maxlength="4" placeholder="ICAO" spellcheck="false">
+      <label for="aar" title="Only used when the field has no Airport TMU program">AAR</label>
+      <input id="aar" type="number" min="1" max="200" placeholder="/hr" title="Only used when the field has no Airport TMU program">
+      <button type="submit">WATCH</button>
+    </form>
+    <div class="pills">
+      <span class="pill" id="pFeed">VATSIM</span>
+      <span class="pill" id="pHub">PROGRAMS</span>
+      <span class="pill" id="pWx">NWS</span>
+      <span class="pill" id="pSig">SIGMET</span>
+      <span class="pill" id="pUpd">—</span>
+    </div>
+  </div>
+
+  <div id="empty" class="empty">
+    Pick the <b>event field</b> above. VATSMART pulls together live VATSIM traffic, the field's Airport TMU program,
+    EDCTs and ground stops, the NWS forecast, SIGMETs and the VATSIM event calendar, looks three hours ahead with the
+    same rolling-demand and MIT-per-gate math as the rate calculator, and tells you what to do next.
+    <br><br>
+    It never changes a program. Set rates on <b>Airport TMU</b> and issue ground delays from an <b>FCA</b> (FCA Builder / IDST).
+  </div>
+
+  <div id="app" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="row main">
+      <section class="card">
+        <h2>RECOMMENDATIONS <span class="r" id="recCount"></span></h2>
+        <ul class="recs" id="recs"></ul>
+      </section>
+      <section class="card">
+        <h2>INBOUND TRAFFIC <span class="r legend" id="legend"></span></h2>
+        <div id="map"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>ROLLING 60-MIN DEMAND vs CAPACITY <span class="r muted" id="chartNote"></span></h2>
+        <div class="body chart" id="chart"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>GATES · MIT PLAN <span class="r muted">each cell is a 60-min window starting at that time</span></h2>
+        <div class="scroll"><table id="gates"></table></div>
+      </section>
+    </div>
+    <div class="row three">
+      <section class="card"><h2>TMIs IN FORCE</h2><div class="body" id="tmis"></div></section>
+      <section class="card"><h2>WEATHER · NEXT 3 HOURS</h2><div class="body" id="wx"></div></section>
+      <section class="card"><h2>EVENT OUTLOOK</h2><div class="body" id="evt"></div></section>
+    </div>
+  </div>
+
+  <p class="foot">
+    Inspired by the FAA's SMART (Strategic Management of Airspace, Routes and Trajectories), which brings schedules,
+    weather and capacity into one view about two hours ahead. Here the numbers come from the same code as
+    <a href="vatflow-tbfm%20v2.html">Airport TMU</a> (rate calculator, MIT per gate, Event planner) and the
+    <a href="FCA-builderv02.html">FCA Builder</a>'s MIT Monitor. Demand counts arrivals with a filed route to the field;
+    ground and prefiled flights are assumed to depart now. Weather from api.weather.gov (US only).
+  </p>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
+<script src="shared/edst-sigmets.js"></script>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { getAirport, loadAirports, fpFields } from "./shared/fca-metering.js";
+import { getAccessApiBase } from "./shared/vatflow-access-api.js";
+import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
+import { gridWindow } from "./shared/event-planner.js";
+import { fetchArtccBoundaries, artccForPoint } from "./shared/artcc-scope.js";
+import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { buildSituation, fmtZ, HORIZON_MIN } from "./shared/vatsmart.js";
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
+const LS = "vatflow.vatsmart";
+const WX_MS = 30 * 60000, SIG_MS = 10 * 60000, EVENTS_MS = 30 * 60000;
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "vatsmart");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch (_) { return {}; } })();
+const savePrefs = () => { try { localStorage.setItem(LS, JSON.stringify(prefs)); } catch (_) {} };
+
+const st = {
+  airport: "", aptLL: null,
+  pilots: [], prefiles: [], feed: "wait", feedAt: 0,
+  hub: { rates: {}, edcts: {}, groundStops: {}, restrictions: {} }, hubState: "wait",
+  wxProps: null, wxState: "idle", wxAt: 0, wxFor: "",
+  artcc: "", sigmets: [], sigState: "idle", sigAt: 0,
+  events: [], eventsAt: 0, past: null,
+  airportsReady: false, sit: null,
+};
+
+/* ---------------- field selection ---------------- */
+
+function localAar() { return +((prefs.aar || {})[st.airport]) || 0; }
+function setAirport(code) {
+  code = String(code || "").toUpperCase().trim();
+  if (code.length === 3) code = "K" + code;
+  if (!/^[A-Z0-9]{4}$/.test(code)) return;
+  st.airport = code;
+  st.aptLL = getAirport(code);
+  $("apt").value = code;
+  $("aar").value = localAar() || "";
+  prefs.airport = code; savePrefs();
+  const u = new URL(location.href); u.searchParams.set("apt", code); history.replaceState(null, "", u);
+  document.title = code + " · VATSMART — VATFLOW";
+  st.wxProps = null; st.wxFor = ""; st.sigmets = []; st.artcc = ""; st.sigAt = 0;
+  mapFitted = false;
+  refreshSlow();
+  render();
+}
+$("aptForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const a = $("aar").value;
+  setAirport($("apt").value);
+  if (!st.airport) return;
+  prefs.aar = prefs.aar || {};
+  if (+a > 0) prefs.aar[st.airport] = +a; else delete prefs.aar[st.airport];
+  savePrefs(); render();
+});
+$("aar").addEventListener("change", () => $("aptForm").requestSubmit());
+
+/* ---------------- data ---------------- */
+
+function fetchFeed() {
+  fetch(VATSIM_URL, { cache: "no-store" })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(d => {
+      st.pilots = (d.pilots || []).filter(p => typeof p.latitude === "number").map(p => {
+        const gs = p.groundspeed || 0;
+        return { callsign: p.callsign, lat: p.latitude, lon: p.longitude, alt: p.altitude || 0, gs, hdg: p.heading || 0,
+          phase: gs < 50 ? "gnd" : "air", wake: wakeFromFp(p.flight_plan), ...fpFields(p.flight_plan) };
+      });
+      const conn = new Set(st.pilots.map(p => p.callsign));
+      st.prefiles = (d.prefiles || []).filter(p => p.flight_plan && !conn.has(p.callsign)).map(p => ({
+        callsign: p.callsign, lat: null, lon: null, alt: 0, gs: 0, hdg: 0, phase: "gnd", prefile: true,
+        wake: wakeFromFp(p.flight_plan), ...fpFields(p.flight_plan) }));
+      st.feed = "ok"; st.feedAt = Date.now();
+      render();
+    })
+    .catch(err => { console.warn("VATSIM feed:", err); st.feed = "bad"; render(); });
+}
+
+let hubRetry = 0;
+function connectHub() {
+  let ws;
+  try { ws = new WebSocket(getAccessApiBase().replace(/^http/, "ws")); }
+  catch (_) { st.hubState = "bad"; render(); return; }
+  ws.onopen = () => { hubRetry = 0; };
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (_) { return; }
+    if (m.type !== "state") return;              // read only: never push
+    st.hub = { rates: m.rates || {}, edcts: m.edcts || {}, groundStops: m.groundStops || {}, restrictions: m.restrictions || {} };
+    st.hubState = "ok";
+    render();
+  };
+  ws.onclose = () => {
+    st.hubState = hubRetry > 2 ? "bad" : "wait"; render();
+    hubRetry = Math.min(hubRetry + 1, 6);
+    setTimeout(connectHub, 2000 * hubRetry);
+  };
+  ws.onerror = () => { try { ws.close(); } catch (_) {} };
+}
+
+async function getJson(url, ms = 20000, headers = {}) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal, headers });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } finally { clearTimeout(timer); }
+}
+async function fetchWx() {
+  const apt = st.airport, ll = st.aptLL;
+  if (!ll) return;
+  st.wxState = "wait"; st.wxFor = apt; st.wxAt = Date.now(); renderPills();
+  try {
+    const pt = await getJson("https://api.weather.gov/points/" + ll[0].toFixed(4) + "," + ll[1].toFixed(4), 20000, { Accept: "application/geo+json" });
+    const url = pt && pt.properties && pt.properties.forecastGridData;
+    if (!url) throw new Error("no forecast grid");
+    const g = await getJson(url, 20000, { Accept: "application/geo+json" });
+    if (apt !== st.airport) return;
+    st.wxProps = g.properties; st.wxState = "ok"; st.wxFor = apt; st.wxAt = Date.now();
+  } catch (e) {
+    if (apt !== st.airport) return;
+    console.warn("NWS:", e); st.wxState = "bad"; st.wxFor = apt; st.wxAt = Date.now();
+  }
+  render();
+}
+async function fetchSigmets() {
+  const apt = st.airport, ll = st.aptLL;
+  if (!ll || !window.EdstSigmets) return;
+  st.sigState = "wait"; st.sigAt = Date.now(); renderPills();
+  try {
+    await fetchArtccBoundaries();
+    const artcc = artccForPoint(ll[0], ll[1]);
+    if (!artcc) throw new Error("no ARTCC for " + apt);
+    const r = await window.EdstSigmets.fetchSigmetsForArtcc(artcc);
+    if (apt !== st.airport) return;
+    st.artcc = artcc;
+    st.sigmets = (r.entries || []).map(x => ({ sequence: x.sequence || "", hazard: x.hazard || "", text: String(x.fullText || x.text || "").replace(/\s+/g, " ").trim(), end: x.end }));
+    st.sigState = "ok";
+  } catch (e) { console.warn("SIGMETs:", e); if (apt === st.airport) st.sigState = "bad"; }
+  render();
+}
+async function fetchEvents() {
+  st.eventsAt = Date.now();
+  try {
+    const json = await getJson(EVENTS_URL);
+    const list = Array.isArray(json) ? json : (json.data || []);
+    st.events = list.map(raw => {
+      const startMs = Date.parse(raw.start_time), endMs = Date.parse(raw.end_time);
+      if (!isFinite(startMs) || !isFinite(endMs)) return null;
+      const set = new Set();
+      for (const a of raw.airports || []) if (a && a.icao) set.add(String(a.icao).toUpperCase());
+      for (const r of raw.routes || []) if (r && r.arrival) set.add(String(r.arrival).toUpperCase());
+      return { name: raw.name || "Event", startMs, endMs, airports: [...set], link: raw.link || "" };
+    }).filter(Boolean);
+  } catch (e) { console.warn("VATSIM events:", e); }
+  render();
+}
+async function loadPast() {
+  try { st.past = await getJson("data/event-history.json"); } catch (e) { console.warn("event history:", e); st.past = { airports: {} }; }
+  render();
+}
+function refreshSlow() {
+  if (!st.airport || !st.aptLL) return;
+  const now = Date.now();
+  if (st.wxFor !== st.airport || now - st.wxAt > WX_MS) fetchWx();
+  if (st.sigState !== "wait" && now - st.sigAt > SIG_MS) fetchSigmets();
+  if (now - st.eventsAt > EVENTS_MS) fetchEvents();
+}
+
+/* ---------------- render ---------------- */
+
+function pill(id, state, text, title) {
+  const el = $(id);
+  el.className = "pill " + (state === "ok" ? "ok" : state === "bad" ? "bad" : state === "wait" ? "wait" : "");
+  el.textContent = text;
+  if (title) el.title = title;
+}
+function renderPills() {
+  pill("pFeed", st.feed, st.feed === "ok" ? "VATSIM LIVE" : st.feed === "bad" ? "VATSIM FEED DOWN" : "VATSIM …");
+  pill("pHub", st.hubState, st.hubState === "ok" ? "PROGRAMS LIVE" : st.hubState === "bad" ? "PROGRAMS OFFLINE" : "PROGRAMS …",
+    "Airport TMU programs, EDCTs and ground stops from the VATFLOW hub (read only)");
+  pill("pWx", st.wxState, st.wxState === "ok" ? "NWS" : st.wxState === "bad" ? "NWS N/A" : st.wxState === "wait" ? "NWS …" : "NWS");
+  pill("pSig", st.sigState, st.sigState === "ok" ? "SIGMET " + (st.artcc || "") : st.sigState === "bad" ? "SIGMET N/A" : "SIGMET …");
+  pill("pUpd", st.feedAt ? "ok" : "", st.feedAt ? "UPDATED " + fmtZ(st.feedAt).toUpperCase() : "—");
+}
+
+function render() {
+  renderPills();
+  if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; return; }
+  if (!st.aptLL) st.aptLL = getAirport(st.airport);
+  if (!st.aptLL) {
+    $("empty").hidden = false; $("app").hidden = true;
+    $("empty").innerHTML = st.airportsReady ? `Unknown airport <b>${esc(st.airport)}</b>.` : `Loading the airport database…`;
+    return;
+  }
+  $("empty").hidden = true; $("app").hidden = false;
+  const now = Date.now();
+  const prog = normPrograms(st.hub.rates)[st.airport] || null;
+  const wx = st.wxProps && st.wxFor === st.airport ? gridWindow(st.wxProps, now, now + HORIZON_MIN * 60000) : null;
+  const pastEvents = (st.past && st.past.airports && st.past.airports[st.airport]) || [];
+  let sit;
+  try {
+    sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: st.prefiles,
+      airportLL: getAirport, now, wx, hub: st.hub, sigmets: st.sigmets, events: st.events, pastEvents });
+  } catch (e) { console.error(e); return; }
+  st.sit = sit;
+  $("aar").placeholder = prog ? String(prog.aar) : "/hr";
+  $("aar").disabled = !!prog;
+  $("aar").title = prog ? "This field has an Airport TMU program (AAR " + prog.aar + "); change it there." : "Only used when the field has no Airport TMU program";
+  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderGates(sit); renderTmis(sit); renderWx(sit); renderEvent(sit);
+}
+
+function kpi(k, v, s, cls = "") { return `<div class="kpi ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
+function renderKpis(s) {
+  const c = s.cap, pw = s.peakWin, n = s.next60;
+  const over = x => !c.capacity ? "" : x > c.capacity ? "red" : x > c.capacity * 0.9 ? "amber" : "green";
+  const tier = s.tier;
+  const tierCls = !tier ? "" : tier.id === "none" ? "green" : tier.id === "mit" ? "amber" : "red";
+  $("kpis").innerHTML =
+    kpi("Capacity", c.capacity ? `${c.capacity}<small>/hr</small>` : "—",
+      c.source === "none" ? "No program: type an AAR" : (c.source === "program" ? "Program" : "Local") + " AAR " + c.aar + (c.factor < 1 ? " · weather ×" + c.factor.toFixed(2) : ""),
+      c.factor < 1 ? "amber" : "") +
+    kpi("Next 60 min", `${n.total}<small>${c.capacity ? " / " + c.capacity : ""}</small>`, `${n.connected} connected · ${n.prefiled} prefiled`, over(n.total)) +
+    kpi("Peak 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${pw.expected.length ? "incl. expected demand" : "live + prefiles"}`, over(pw.total)) +
+    kpi("Arrival queue", s.queue.maxDelay ? `${s.queue.maxDelay}<small> min</small>` : "0", s.queue.maxDelay ? "longest around " + fmtZ(s.queue.maxAt) + " if nothing is done" : "no queue projected",
+      s.queue.maxDelay > 15 ? "red" : s.queue.maxDelay > 0 ? "amber" : "green") +
+    kpi("Inbound", `${s.counts.airborne + s.counts.ground + s.counts.prefile}`, `${s.counts.airborne} air · ${s.counts.ground} gnd · ${s.counts.prefile} prefile` + (s.counts.excluded ? ` · ${s.counts.excluded} excl` : "")) +
+    kpi("TMI call", tier ? esc(tier.id === "none" ? "NONE" : tier.id === "mit" ? "MIT" : tier.id === "fca" ? "MIT + FCA" : "GDP") : "—",
+      tier ? esc(tier.label) : "needs an AAR", tierCls);
+}
+
+function renderRecs(s) {
+  const counts = { action: 0, watch: 0, info: 0 };
+  s.recs.forEach(r => counts[r.sev]++);
+  $("recCount").innerHTML = `<span class="tag red">${counts.action} ACT</span><span class="tag amber">${counts.watch} WATCH</span><span class="tag cyan">${counts.info} INFO</span>`;
+  $("recs").innerHTML = s.recs.map(r => `<li class="rec">
+      <span class="sev ${r.sev}">${r.sev.toUpperCase()}</span>
+      <span class="t">${esc(r.title)}</span>
+      ${r.link ? `<a href="${r.link.href}" target="_blank" rel="noopener">${esc(r.link.label.toUpperCase())} ↗</a>` : "<span></span>"}
+      <span class="w">${esc(r.why)}</span>
+    </li>`).join("") || `<li class="rec"><span></span><span class="w">Nothing to recommend yet.</span></li>`;
+}
+
+/* ---- map ---- */
+let map = null, layer = null, mapFitted = false;
+function renderMap(s) {
+  if (!window.L) return;
+  if (!map) {
+    map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: 11, attributionControl: true });
+    if (window.addVatflowBasemap) window.addVatflowBasemap(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  if (!mapFitted) { map.setView(st.aptLL, 5); mapFitted = true; }
+  layer.clearLayers();
+  const ll = st.aptLL;
+  for (const nm of [50, 150, 300]) L.circle(ll, { radius: nm * 1852, color: "#2a3644", weight: 1, fill: false, dashArray: "3 5", interactive: false }).addTo(layer);
+  L.circleMarker(ll, { radius: 6, color: "#e8a838", weight: 2, fillColor: "#e8a838", fillOpacity: 0.4 }).bindTooltip(st.airport, { className: "ac", permanent: true, direction: "right" }).addTo(layer);
+  const colors = s.mon.colors;
+  const tightSet = new Set(s.gates.flatMap(g => (g.spacing || []).filter(x => x.tight).map(x => x.callsign)));
+  for (const f of s.flights) {
+    if (f.lat == null || f.status === "ARRIVED") continue;
+    const col = f.excluded || f.gate === NO_GATE ? "#6b7a89" : colors[f.gate] || "#6b7a89";
+    const eta = f.eta ? fmtZ(f.eta) : "";
+    const m = L.circleMarker([f.lat, f.lon], { radius: f.status === "AIRBORNE" ? 4 : 3, color: tightSet.has(f.callsign) ? "#e07070" : col,
+      weight: tightSet.has(f.callsign) ? 2 : 1, fillColor: col, fillOpacity: f.status === "AIRBORNE" ? 0.9 : 0.3 });
+    m.bindTooltip(`${esc(f.callsign)} ${esc(f.type || "")}<br>${esc(f.dep || "")} → ${esc(f.gate)} · ETA ${eta}${f.dist != null ? " · " + Math.round(f.dist) + " nm" : ""}${f.status !== "AIRBORNE" ? " · " + f.status.toLowerCase() : ""}`, { className: "ac" });
+    m.addTo(layer);
+  }
+  $("legend").innerHTML = s.gates.filter(g => g.inbound).slice(0, 8).map(g => `<span><i style="background:${g.color}"></i>${esc(g.name)}</span>`).join("") +
+    `<span><i style="background:#6b7a89"></i>no gate</span>`;
+}
+
+/* ---- rolling demand chart ---- */
+function renderChart(s) {
+  const W = 1400, H = 240, padL = 34, padR = 10, padT = 14, padB = 34;
+  const wins = s.roll.windows, cap = s.cap.capacity;
+  const maxV = Math.max(cap * 1.25 || 10, ...wins.map(w => w.total)) * 1.08;
+  const bw = (W - padL - padR) / wins.length;
+  const y = v => padT + (H - padT - padB) * (1 - v / maxV);
+  const colors = s.mon.colors;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Rolling 60-minute arrival demand by gate against capacity">`;
+  const step = maxV > 80 ? 20 : maxV > 40 ? 10 : 5;
+  for (let v = 0; v <= maxV; v += step) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="#1a222c"/><text x="${padL - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
+  wins.forEach((w, i) => {
+    const x = padL + i * bw + bw * 0.14, wd = bw * 0.72;
+    let acc = 0;
+    const parts = [...w.entries];
+    if (w.unassigned) parts.push([NO_GATE, w.unassigned]);
+    for (const [g, n] of parts) {
+      const col = g === NO_GATE ? "#3a4654" : colors[g] || "#6b7a89";
+      const exp = w.expected.includes(g);
+      svg += `<rect x="${x}" y="${y(acc + n)}" width="${wd}" height="${Math.max(0, y(acc) - y(acc + n))}" fill="${col}" fill-opacity="${exp ? 0.35 : 0.85}"${exp ? ` stroke="${col}" stroke-dasharray="3 2"` : ""}><title>${esc(g)} ${n}${exp ? " (expected demand)" : ""}</title></rect>`;
+      acc += n;
+    }
+    const over = cap && w.total > cap;
+    svg += `<text x="${x + wd / 2}" y="${y(w.total) - 4}" text-anchor="middle" style="fill:${over ? "#e07070" : "#d4dde6"};font-weight:700">${w.total}</text>`;
+    svg += `<text x="${x + wd / 2}" y="${H - padB + 14}" text-anchor="middle"${i === s.roll.peak ? ' style="fill:#e8a838"' : ""}>${fmtZ(w.start)}</text>`;
+    if (w.prefiled) svg += `<text x="${x + wd / 2}" y="${H - padB + 27}" text-anchor="middle" style="fill:#5c6b78">${w.prefiled}p</text>`;
+  });
+  if (cap) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(cap)}" y2="${y(cap)}" stroke="#e8a838" stroke-width="1.5" stroke-dasharray="6 4"/>` +
+    `<text x="${W - padR}" y="${y(cap) - 5}" text-anchor="end" style="fill:#e8a838">capacity ${cap}/hr</text>`;
+  svg += `</svg>`;
+  $("chart").innerHTML = svg;
+  $("chartNote").textContent = "bars: arrivals per gate · dashed: expected demand · Np: prefiles";
+}
+
+/* ---- gate table ---- */
+function renderGates(s) {
+  const wins = s.roll.windows;
+  const head = `<tr><th>Gate</th><th class="num">Inbound</th><th class="num">Air</th><th class="num">Next 60</th><th class="num">Peak</th><th class="num">MIT now</th><th>MIT plan ${wins.map(w => "").join("")}</th><th>Next change</th><th>Spacing</th></tr>`;
+  const rows = s.gates.filter(g => g.inbound || g.peakDemand || g.nowNm).map(g => {
+    const plan = `<div class="plan">${g.mits.map((m, i) => `<span class="${m ? (m >= 30 ? "m2" : "m") : ""}${i === s.roll.peak ? " pk" : ""}" title="${fmtZ(wins[i].start)}–${fmtZ(wins[i].end)}: ${m ? m + " MIT" : "no MIT"}">${m || "·"}</span>`).join("")}</div>`;
+    const nx = g.schedule[0];
+    const next = nx ? `${nx.kind.toUpperCase()}${nx.to ? " " + nx.to : ""} ${nx.i === 0 ? "now" : fmtZ(nx.at)}` : `<span class="dim">hold</span>`;
+    const sp = (g.spacing || []).length ? (g.tight ? `<span class="tight">${g.tight} tight</span>` : `<span class="dim">${g.spacing.length} ok</span>`) : `<span class="dim">—</span>`;
+    return `<tr><td><span class="sw" style="background:${g.color}"></span>${esc(g.name)}${g.expectedHr ? ` <span class="dim" title="expected demand from the program">exp ${g.expectedHr}</span>` : ""}</td>
+      <td class="num">${g.inbound || 0}</td><td class="num">${g.airborne || 0}</td><td class="num">${g.demand60 || 0}</td><td class="num">${g.peakDemand}</td>
+      <td class="num">${g.nowNm ? g.nowNm : '<span class="dim">—</span>'}</td><td style="min-width:${wins.length * 30}px">${plan}</td><td>${next}</td><td>${sp}</td></tr>`;
+  }).join("");
+  const timeRow = `<tr><td colspan="6"></td><td><div class="plan">${wins.map((w, i) => `<span style="background:none">${fmtZ(w.start).slice(0, 4)}</span>`).join("")}</div></td><td colspan="2"></td></tr>`;
+  $("gates").innerHTML = head + (rows ? rows + timeRow : `<tr><td colspan="9" class="dim">No arrivals with a filed route to ${esc(s.airport)} in the next ${HORIZON_MIN / 60} hours.</td></tr>`);
+}
+
+/* ---- bottom row ---- */
+function renderTmis(s) {
+  const p = s.prog;
+  let h = `<dl class="kv">`;
+  h += `<dt>Program</dt><dd>${p ? `AAR <b>${p.aar}</b>` + (p.mit ? ` · ${p.mit} MIT` : p.trail ? ` · ${p.trail} min trail` : "") : `<span class="muted">none on Airport TMU</span>`}</dd>`;
+  if (p && p.gates.length) h += `<dt>Gate rules</dt><dd>${p.gates.map(g => `${esc(g.name)} ${g.mit ? g.mit + " MIT" : g.trail + " MINIT"}`).join(" · ")}</dd>`;
+  if (p && p.expect.length) h += `<dt>Expected</dt><dd>${p.expect.map(x => `${esc(x.gate)} ${x.rate}/hr`).join(" · ")}</dd>`;
+  h += `<dt>Ground stops</dt><dd>${s.gs.length ? s.gs.map(g => `<span class="tag ${g.expired ? "amber" : "red"}">GS</span>until ${esc(g.until || "?")}${g.scope ? " · " + esc(g.scope) : ""}${g.expired ? ' <span class="muted">(past end)</span>' : ""}`).join("<br>") : '<span class="muted">none</span>'}</dd>`;
+  const e = s.edct;
+  h += `<dt>EDCTs</dt><dd>${e.rows.length ? `${e.rows.length} issued · <span class="${e.early.length ? "tight" : "muted"}">${e.early.length} early</span> · <span class="${e.late.length ? "tight" : "muted"}">${e.late.length} late</span> · ${e.waiting.length} waiting` : '<span class="muted">none to this field</span>'}</dd>`;
+  h += `</dl>`;
+  if (e.rows.length) h += `<ul class="list">${e.rows.slice(0, 8).map(r => `<li><b>${esc(r.cs)}</b> ${esc(r.dep || "")} · EDCT ${fmtZ(r.t)} · <span class="${r.status === "early" || r.status === "late" ? "tight" : "muted"}">${r.status}</span></li>`).join("")}</ul>`;
+  if (s.restrictions.length) h += `<ul class="list">${s.restrictions.slice(0, 6).map(r => `<li><span class="tag cyan">RSTR</span>${esc(r.restriction)} <span class="muted">${esc(r.requesting)}→${esc(r.providing)} ${esc(r.start)}–${esc(r.stop)}</span></li>`).join("")}</ul>`;
+  $("tmis").innerHTML = h;
+}
+function renderWx(s) {
+  const w = s.wx;
+  let h = "";
+  if (!w) h += `<div class="muted">${st.wxState === "wait" ? "Loading the NWS forecast…" : st.wxState === "bad" ? "No NWS forecast for " + esc(s.airport) + " (US fields only, or api.weather.gov didn't answer)." : "No forecast yet."}</div>`;
+  else {
+    const catCls = w.cat === "VFR" ? "green" : w.cat === "MVFR" ? "cyan" : "red";
+    h += `<dl class="kv"><dt>Category</dt><dd><span class="tag ${catCls}">${w.cat}</span> worst over the next 3 hours</dd>
+      <dt>Ceiling</dt><dd>${w.ceilFt != null ? w.ceilFt.toLocaleString() + " ft" : "—"}</dd>
+      <dt>Visibility</dt><dd>${w.visSm != null ? w.visSm + " sm" : "—"}</dd>
+      <dt>Wind</dt><dd>${w.wspd} kt${w.gust ? ", gusts " + w.gust : ""}</dd>
+      <dt>Thunder</dt><dd class="${w.thunderPct >= 25 ? "tight" : ""}">${w.thunderPct}%</dd>
+      <dt>Rate</dt><dd>${s.cap.factor < 1 ? "×" + s.cap.factor.toFixed(2) + " (" + esc(s.cap.reasons.join(", ")) + ")" : "no cut"}</dd></dl>`;
+  }
+  h += `<div style="margin-top:10px" class="muted">SIGMETs${st.artcc ? " for " + esc(st.artcc) : ""}:</div>`;
+  if (st.sigState === "ok") h += s.sigmets.length ? `<ul class="list">${s.sigmets.slice(0, 5).map(x => `<li><span class="tag ${/convect|\bts\b/i.test(x.hazard) ? "red" : "amber"}">${esc(x.sequence || "SIG")}</span>${esc(x.hazard)} <span class="muted">${esc(String(x.text || "").slice(0, 160))}</span></li>`).join("")}</ul>` : `<div class="muted">none in effect</div>`;
+  else h += `<div class="muted">${st.sigState === "bad" ? "unavailable" : "loading…"}</div>`;
+  $("wx").innerHTML = h;
+}
+function renderEvent(s) {
+  const up = s.upcoming, ref = s.reference, now = s.now;
+  let h = "";
+  if (up) {
+    const live = up.startMs <= now;
+    h += `<div><span class="tag ${live ? "green" : "amber"}">${live ? "LIVE" : "NEXT"}</span><b>${up.link ? `<a href="${esc(up.link)}" target="_blank" rel="noopener" style="color:inherit">${esc(up.name)}</a>` : esc(up.name)}</b></div>
+      <div class="muted">${fmtZ(up.startMs)}–${fmtZ(up.endMs)} · ${up.airports.length} field${up.airports.length === 1 ? "" : "s"}${live ? "" : " · starts in " + Math.round((up.startMs - now) / 60000) + " min"}</div>`;
+    if (ref) h += `<div style="margin-top:8px">Like <b>${esc(ref.ev.name)}</b> <span class="muted">(${new Date(ref.ev.startMs).toISOString().slice(0, 10)}; ${esc(ref.reasons.join(", "))})</span>: peak <b>${ref.ev.peakArr}</b> landings/hr, plan for about <b>${ref.peak.value}</b>/hr${s.cap.capacity ? ` vs capacity ${s.cap.capacity}` : ""}.</div>`;
+    else h += `<div class="muted" style="margin-top:8px">No past event at ${esc(s.airport)} to compare with.</div>`;
+  } else h += `<div class="muted">No VATSIM event at ${esc(s.airport)} in the next 24 hours${st.eventsAt ? "" : " (calendar loading)"}.</div>`;
+  const past = ((st.past && st.past.airports && st.past.airports[s.airport]) || []).slice().sort((a, b) => b.startMs - a.startMs).slice(0, 4);
+  if (past.length) h += `<div style="margin-top:10px" class="muted">Recent events here:</div><ul class="list">${past.map(e => `<li>${new Date(e.startMs).toISOString().slice(0, 10)} · ${esc(e.name)} <span class="muted">peak ${e.peakArr}/hr</span></li>`).join("")}</ul>`;
+  h += `<div class="muted" style="margin-top:10px">For a full forecast and gate split, run the Event planner on <a href="vatflow-tbfm%20v2.html" style="color:#5ba8c9">Airport TMU</a>.</div>`;
+  $("evt").innerHTML = h;
+}
+
+/* ---------------- start ---------------- */
+
+loadAirports(() => { st.airportsReady = true; if (st.airport) { st.aptLL = getAirport(st.airport); refreshSlow(); } render(); })
+  .catch(err => { console.warn("Airport DB:", err); st.airportsReady = true; render(); });
+loadPast();
+fetchEvents();
+connectHub();
+fetchFeed();
+setInterval(fetchFeed, VATSIM_FEED_MS);
+setInterval(() => { refreshSlow(); render(); }, 60000);   // windows move with the clock even when nothing else changes
+const initial = new URL(location.href).searchParams.get("apt") || prefs.airport || "";
+if (initial) setAirport(initial);
+else render();
+</script>
+</body>
+</html>
