@@ -249,8 +249,9 @@ t("STAR options come from navdata transitions and the common route", () => {
 t("reroutes: CDR for ground flights, STAR swap for airborne", () => {
   const stars = [
     { star: "GRNCH5", gate: "GRNCH", fix: "CRG", ll: [30.33, -81.51] },
-    { star: "SNFLD3", gate: "SNFLD", fix: "OMN", ll: [29.30, -81.11] },
-    { star: "PRICY5", gate: "PRICY", fix: "PRICY", ll: [27.0, -80.6] },
+    { star: "SNFLD3", gate: "SNFLD", fix: "OMN", ll: [28.6, -79.9] },          // east of the field
+    { star: "PRICY5", gate: "PRICY", fix: "PRICY", ll: [27.0, -80.6] },         // south-east
+    { star: "LEESE3", gate: "LEESE", fix: "LEESE", ll: [30.2, -81.0] },         // north, the same corner as GRNCH
   ];
   const air = inbound("GRNCH", 30, 25, 55);                     // north of the field, 175-385 nm out
   const ground = Array.from({ length: 4 }, (_, i) => ({ callsign: "GND" + i, lat: 33.64, lon: -84.43, gs: 0, alt: 1000, phase: "gnd",
@@ -268,10 +269,16 @@ t("reroutes: CDR for ground flights, STAR swap for airborne", () => {
   assert.equal(cdr[0].code, "ATLMCOGA");
   assert.equal(cdr[0].to, "SNFLD");
   assert.ok(r.moves.every(m => m.to !== "GRNCH"));
+  assert.ok(r.moves.every(m => m.to !== "LEESE"), "never into the same corner: " + r.to.join(","));
+  assert.equal(r.dir, "N"); assert.equal(r.dirs.SNFLD, "E");
   assert.ok(r.moves.filter(m => m.kind === "star").every(m => m.extraNm <= 60));
   const rec = s.recs.find(x => x.id === "reroute-GRNCH");
-  assert.ok(rec && /CDR ATLMCOGA/.test(rec.why), rec && rec.why);
+  assert.ok(rec && /CDR ATLMCOGA/.test(rec.why) && /GRNCH \(N\)/.test(rec.why), rec && rec.why);
   assert.ok(!s.recs.some(x => x.id === "rebalance"));
+  /* only a STAR into the same corner: no reroute at all */
+  const same = buildSituation({ airport: APT, aptLL: APT_LL, prog, pilots: [...air, ...ground], airportLL, now: NOW,
+    routing: { stars: [stars[0], stars[3]], cdrs: {} } });
+  assert.deepEqual(same.reroutes, []);
   /* no stars known: nothing concrete */
   assert.deepEqual(routeRecommendations({ sit: s, stars: [], cdrs }), []);
 });

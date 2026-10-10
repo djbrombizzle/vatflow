@@ -205,7 +205,7 @@
     </div>
     <div class="row">
       <section class="card">
-        <h2>ROUTE ADVISORIES <span class="r muted" id="rteNote">reroutes off saturated gates · CDRs first, then a STAR swap</span></h2>
+        <h2>ROUTE ADVISORIES <span class="r muted" id="rteNote">reroutes off saturated gates to another corner of the field · CDRs first, then a STAR swap</span></h2>
         <div class="scroll" id="routes"></div>
       </section>
     </div>
@@ -766,7 +766,7 @@ function renderRoutes(s) {
     const why = !s.cap.capacity ? "Set an AAR to look for saturated gates."
       : s.peakWin.total <= s.cap.capacity ? `No gate is saturated: the peak hour (${s.peakWin.total}) is within ${s.cap.capacity}/hr.`
       : !st.stars.length ? (st.starsFor ? "Loading STARs…" : "No STARs for this field in navdata, so there's nothing to reroute onto.")
-      : "Gates are over their share, but no CDR or nearby STAR swap moves an arrival to a gate with room.";
+      : "Gates are over their share, but no CDR or STAR swap within 60 nm moves an arrival to a gate with room in another corner of the field.";
     $("routes").innerHTML = `<div class="body muted">${esc(why)}</div>`;
     return;
   }
@@ -774,7 +774,7 @@ function renderRoutes(s) {
   for (const r of rr) for (const m of r.moves) {
     const fromCol = s.mon.colors[r.gate] || "#6b7a89", toCol = s.mon.colors[m.to] || "#6b7a89";
     h += `<tr><td><b>${esc(m.callsign)}</b></td><td>${esc(m.dep || "")}</td><td class="muted">${esc(m.status.toLowerCase())}</td><td class="num">${fmtZ(m.eta)}</td>
-      <td><span class="sw" style="background:${fromCol}"></span>${esc(r.gate)} → <span class="sw" style="background:${toCol}"></span>${esc(m.to)}</td>
+      <td><span class="sw" style="background:${fromCol}"></span>${esc(r.gate)} <span class="muted">${esc(r.dir)}</span> → <span class="sw" style="background:${toCol}"></span>${esc(m.to)} <span class="muted">${esc(r.dirs[m.to] || "")}</span></td>
       <td style="white-space:normal;min-width:280px">${m.kind === "cdr"
         ? `<span class="tag cyan">CDR</span><b>${esc(m.code)}</b> <span class="muted">${esc(m.route)}</span>`
         : `<span class="tag amber">STAR</span>DCT <b>${esc(m.fix)}</b> ${esc(m.star)}`}</td>

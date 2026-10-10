@@ -332,6 +332,29 @@ export function buildSituation({
 export const REROUTE_MIN_DIST_NM = 150;   // airborne: too late to change the STAR inside this
 export const REROUTE_MAX_EXTRA_NM = 60;   // a STAR swap that costs more than this isn't offered
 const REROUTE_MAX_PER_GATE = 6;
+export const CORNER_SEP_DEG = 60;          // gates closer than this in bearing from the field feed the same corner
+
+function bearingDeg(la1, lo1, la2, lo2) {
+  const r = Math.PI / 180, y = Math.sin((lo2 - lo1) * r) * Math.cos(la2 * r);
+  const x = Math.cos(la1 * r) * Math.sin(la2 * r) - Math.sin(la1 * r) * Math.cos(la2 * r) * Math.cos((lo2 - lo1) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+const angDiff = (a, b) => Math.abs(((a - b) + 540) % 360 - 180);
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+export const compassOf = deg => COMPASS[Math.round(deg / 45) % 8];
+
+/** Bearing from the field to each gate: the circular mean of its STAR entry fixes. */
+export function gateBearings(stars, fieldLL) {
+  const acc = {};
+  for (const s of stars) {
+    const b = bearingDeg(fieldLL[0], fieldLL[1], s.ll[0], s.ll[1]) * Math.PI / 180;
+    const a = acc[s.gate] = acc[s.gate] || [0, 0];
+    a[0] += Math.sin(b); a[1] += Math.cos(b);
+  }
+  const out = {};
+  for (const g in acc) out[g] = (Math.atan2(acc[g][0], acc[g][1]) * 180 / Math.PI + 360) % 360;
+  return out;
+}
 
 /**
  * STAR entry points at a field from navdata (data/nav/procedures.json):
@@ -362,7 +385,9 @@ function lastStar(route) {
 }
 
 /**
- * Concrete reroutes that move arrivals off saturated gates onto gates with room.
+ * Concrete reroutes that move arrivals off saturated gates onto gates with room in another
+ * corner of the field (CORNER_SEP_DEG or more apart in bearing): a STAR into the same corner
+ * shares the same airspace and relieves nothing.
  * A gate is saturated when the peak hour gives it more arrivals than its share of
  * the rate (the MIT split), and has room when it carries less than an even share.
  * For each saturated gate, its arrivals in the peak hour, soonest first:
@@ -377,18 +402,28 @@ export function routeRecommendations({ sit, stars = [], cdrs = {} }) {
   const cap = sit.cap.capacity, win = sit.peakWin, apt = sit.airport;
   if (!cap || !win || win.total <= cap || !stars.length) return [];
   const fieldLL = sit.aptLL || null;
+  if (!fieldLL) return [];
+  const brg = gateBearings(stars, fieldLL);
+  /* demand of everything feeding the same corner as gate g */
+  const cornerDemand = g => win.entries.reduce((n, [o, d]) => n + (brg[o] != null && angDiff(brg[o], brg[g]) < CORNER_SEP_DEG ? d : 0), 0);
   const calc = calcGateMit(cap, win.entries, win.unassigned, MIT_NOMINAL_KT);
   const starGates = [...new Set(stars.map(s => s.gate))];
   const demand = g => (win.entries.find(([n]) => n === g) || [])[1] || 0;
   const out = [];
   const saturated = calc.rows.filter(r => r.limited && r.demand - r.slice >= 1).sort((a, b) => (b.demand - b.slice) - (a.demand - a.slice));
   for (const sat of saturated) {
+    if (brg[sat.gate] == null) continue;                       // no STAR geometry for this gate
     const excess = Math.min(REROUTE_MAX_PER_GATE, Math.ceil(sat.demand - sat.slice));
     const flights = sit.live.filter(f => f.gate === sat.gate && f.eta >= win.start - 15 * MIN && f.eta < win.end)
       .sort((a, b) => (a.status === "AIRBORNE") - (b.status === "AIRBORNE") || a.eta - b.eta);
-    /* a gate has room while it would still carry fewer than the saturated gate after the moves */
+    /* a gate in another corner has room while its corner would still carry fewer than the saturated corner after the moves */
+    const satCorner = cornerDemand(sat.gate);
     const room = {};
-    for (const g of starGates) { const r = Math.floor((sat.demand - demand(g)) / 2); if (g !== sat.gate && r >= 1) room[g] = r; }
+    for (const g of starGates) {
+      if (angDiff(brg[g], brg[sat.gate]) < CORNER_SEP_DEG) continue;
+      const r = Math.floor((satCorner - cornerDemand(g)) / 2);
+      if (r >= 1) room[g] = r;
+    }
     const used = new Set();
     const moves = [];
     for (const f of flights) {
@@ -430,7 +465,7 @@ export function routeRecommendations({ sit, stars = [], cdrs = {} }) {
     if (!moves.length) continue;
     const added = {};
     for (const m of moves) added[m.to] = (added[m.to] || 0) + 1;
-    out.push({ gate: sat.gate, to: Object.keys(added), excess, demandBefore: sat.demand, demandAfter: sat.demand - moves.length,
+    out.push({ gate: sat.gate, dir: compassOf(brg[sat.gate]), dirs: Object.fromEntries(Object.keys(added).map(g => [g, compassOf(brg[g])])), to: Object.keys(added), excess, demandBefore: sat.demand, demandAfter: sat.demand - moves.length,
       added: Object.entries(added).map(([g, n]) => ({ gate: g, before: demand(g), after: demand(g) + n })), moves });
   }
   return out;
@@ -648,7 +683,7 @@ export function recommend(s) {
   for (const r of s.reroutes || []) {
     const cdr = r.moves.filter(m => m.kind === "cdr").length;
     add({ id: "reroute-" + r.gate, sev: "action", title: `Reroute ${plural(r.moves.length, "arrival")} off ${r.gate} to ${r.to.join(" / ")}`,
-      why: `${r.gate} is saturated at the peak. ` + rerouteGroups(r.moves).join("; ") +
+      why: `${r.gate} (${r.dir}) is saturated at the peak. Move arrivals to the ${[...new Set(Object.values(r.dirs))].join(" / ")} side of the field: ` + rerouteGroups(r.moves).join("; ") +
         `. At the peak ${r.gate} drops from ${r.demandBefore} to ${r.demandAfter} an hour, ` + r.added.map(a => `${a.gate} goes from ${a.before} to ${a.after}`).join(", ") +
         ", so the queue is shared across feeds instead of stacking up in one" + (cdr ? ". CDRs are published routes the departure center can issue as is." : "."),
       at: r.moves[0].eta });
