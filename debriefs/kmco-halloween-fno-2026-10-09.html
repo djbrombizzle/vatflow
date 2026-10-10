@@ -114,42 +114,44 @@ footer b span{color:var(--amber)}
 <p class="sub">KMCO, Fri 9 Oct 2026, 2300 to 0302Z. All 186 arrivals' filed routes and 15 second position logs from <a href="https://statsim.net/flights/airport/KMCO/custom/2026-10-09T23%3A00/2026-10-10T03%3A02">StatSim</a>, plus all 122 KATL departures in the same window.</p>
 
 <div class="tiles">
-  <div class="tile"><div class="k">ZJAYX lane spacing</div><div class="v">28 nm</div><div class="d">median in trail, 41 aircraft, 1 pair under 10 nm</div></div>
-  <div class="tile good"><div class="k">ATL to MCO airborne delay</div><div class="v">2.8 min</div><div class="d">median, vs 4.8 min for everyone else</div></div>
-  <div class="tile"><div class="k">ATL release holds</div><div class="v">38 min</div><div class="d">median taxi for 31 MCO departures, vs 9 for other ATL departures</div></div>
-  <div class="tile hot"><div class="k">GTOUT late push</div><div class="v">+15 min</div><div class="d">typical delay for NE arrivals landing 0200 to 0255Z</div></div>
-  <div class="tile hot"><div class="k">Airborne holds</div><div class="v">14</div><div class="d">aircraft held 40+ nm out, 7 of them before 2340Z</div></div>
+  <div class="tile"><div class="k">Arrivals</div><div class="v">186</div><div class="d">landed 2300 to 0302Z</div></div>
+  <div class="tile"><div class="k">ZJAYX in-trail</div><div class="v">28 nm</div><div class="d">median, 41 aircraft, 1 pair under 10 nm</div></div>
+  <div class="tile"><div class="k">LPERD in-trail</div><div class="v">27 nm</div><div class="d">median, 32 aircraft, 0 pairs under 15 nm</div></div>
+  <div class="tile"><div class="k">KATL to KMCO taxi</div><div class="v">38 min</div><div class="d">median, 0000 to 0210Z, vs 9 min for other KATL departures</div></div>
+  <div class="tile"><div class="k">GTOUT arrivals delay</div><div class="v">15 min</div><div class="d">median, landing 0200 to 0255Z</div></div>
+  <div class="tile"><div class="k">Holds 40+ nm out</div><div class="v">14</div><div class="d">aircraft, 7 of them before 2340Z</div></div>
 </div>
 
-<div class="card hl">
-  <h2>ZTL found the spot</h2>
-  <p>ZTL kept KMCO-bound KATL departures on the ground until there was a hole for them in the overhead stream (IND, ORD, MDW, DTW, LAX and DFW traffic on Q79 / THRSR to ZJAYX), then released them into it. From 0000 to 0210Z the 31 KATL to KMCO departures waited a median <b>38 minutes</b> from pushback to takeoff. Every other KATL departure in that window, 47 of them, waited <b>9</b>. Once the program came off at about 0210Z, KMCO departures went back to 5 to 7 minutes.</p>
-  <p>Because the delay was taken on the ground, nothing had to be fixed in the air. Over the ZTL/ZJX boundary at ZJAYX the stream ran at a median <b>28 nm</b> in trail (10th percentile 16 nm) with KATL departures interleaved between overflights. Only 2 of the 30 KATL arrivals lost more than 10 minutes airborne. After 2340Z only one aircraft in the ZJAYX lane held en route: UPS2292, 58 nm out at 0137Z. The 31 held departures took about 950 minutes of delay at the gate in Atlanta, minutes that would otherwise have been spent holding over ZJX.</p>
-  <p class="note">The release program is inferred from the taxi times. StatSim has no EDCT or release data, but only KMCO-bound departures from KATL were slow to depart, so ATL ground congestion doesn't explain it.</p>
+<div class="card">
+  <h2>KATL departures to KMCO</h2>
+  <p>From 0000 to 0210Z the 31 KATL departures to KMCO had a median of <b>38 minutes</b> from pushback to takeoff. The 47 other KATL departures in the same window had a median of <b>9 minutes</b>. After about 0210Z, KMCO departures took 5 to 7 minutes.</p>
+  <p>All but one KATL departure to KMCO filed SMLTZ3 WALET ZJAYX GRNCH5. At ZJAYX they were interleaved with traffic from IND, ORD, MDW, DTW, LAX and DFW arriving via Q79 / THRSR. 30 of them landed inside the window, with a median airborne delay of 2.8 minutes; 2 were delayed more than 10 minutes. The median for all other arrivals was 4.8 minutes, with 51 of 149 delayed more than 10 minutes. The time above the 9 minute median adds up to about 950 minutes across the 31 departures.</p>
+  <p class="note">StatSim has no EDCT or release data. The taxi times are measured from first movement to the first report at 100 kt or more.</p>
   <div class="legend"><span><i style="background:var(--amber)"></i>KATL to KMCO</span><span><i style="background:var(--muted)"></i>KATL to everywhere else</span></div>
   <div id="atlChart"></div>
 </div>
 
-<div class="grid2 row2">
-  <div class="card">
-    <h2>Where MIT worked</h2>
-    <ul class="find">
-      <li><b>ZTL to ZJX at ZJAYX (GRNCH5).</b> This was the busiest lane at 41 aircraft, peaking at 15 an hour from 0118Z, and it was the cleanest: a median of 28 nm in trail, 1 pair under 10 nm and one en-route hold after 2340Z. Most of it came down to the KATL release program.</li>
-      <li><b>ZDC and ZTL to ZJX on Q85 at LPERD.</b> Upstream spacing was the most consistent of the night: a median of 27 nm, no pair under 15 nm, and none of these aircraft held en route. The MIT was flown well. The rate was the problem, as covered on the right.</li>
-      <li><b>The ZJX merge at ELITE.</b> GRNCH5 traffic from ZJAYX, DEEDA and DEFUN came together at a median of 26 nm, with only 2 pairs under 10 nm across 54 aircraft.</li>
-      <li><b>GRNCH held up all night.</b> GRNCH5 arrivals lost a median of only 2.5 minutes inside 40 nm of KMCO. During the 0130 to 0230Z peak they were delayed 7 to 9 minutes, half as much as the GTOUT side.</li>
-    </ul>
-  </div>
-  <div class="card">
-    <h2>Where it needs work</h2>
-    <ul class="find">
-      <li><b>The GTOUT (NE) gate was over its share from about 0130Z.</b> 20 an hour crossed GTOUT. Spacing at LPERD was fine, but every NE arrival landing between 0200 and 0255Z was delayed 9 to 20 minutes, and that delay was taken inside 40 nm of the field (holds and 360s near GTOUT). The MIT number was right for a quiet gate but too small for this one at the peak.</li>
-      <li><b>The start was late.</b> Between 2244 and 2340Z, 6 GRNCH5 arrivals held 58 to 137 nm out, between 11,000 ft and FL450. FFT1540 and FDX425 crossed ZJAYX only 8 nm apart at 2249Z, before the stream had any spacing in it.</li>
-      <li><b>DEEDA traffic from the west lost time in ZJX.</b> All 8 aircraft entering on ZTL's west side via DEEDA and DEFUN (from DEN, MEM, BNA, SEA and IAH) lost more than 10 minutes. About half of it was lost between 150 and 40 nm while ZJX fitted them into the ZJAYX stream.</li>
-      <li><b>Holding outside ZJX.</b> ZMA held 3 MUNGI1 arrivals 48 to 79 nm south between 0027 and 0042Z. ZDC held two KLGA arrivals on the ALYNA4 / HIBAC route about 400 nm out, near Wilmington, from 0102 to 0124Z.</li>
-      <li><b>Gate spacing got tight.</b> 6 pairs crossed GRNCH and 6 crossed GTOUT less than 10 nm apart. Upstream spacing collapsed as aircraft slowed into the gates.</li>
-    </ul>
-  </div>
+<div class="card">
+  <h2>By MIT point and gate</h2>
+  <ul class="find">
+    <li><b>ZJAYX (ZTL to ZJX, GRNCH5).</b> 41 aircraft, peak 15 in an hour from 0118Z. Median 28 nm in trail, 10th percentile 16 nm, 1 pair under 10 nm. FFT1540 and FDX425 crossed 8 nm apart at 2249Z.</li>
+    <li><b>LPERD (Q85 from ZDC and ZTL to ZJX, GTOUT1).</b> 32 aircraft, peak 15 in an hour from 0117Z. Median 27 nm, no pair under 15 nm, no holds 40+ nm out.</li>
+    <li><b>ELITE (ZJX merge of ZJAYX, DEEDA and DEFUN traffic).</b> 54 aircraft, median 26 nm, 2 pairs under 10 nm.</li>
+    <li><b>GRNCH gate.</b> 56 aircraft, median 18.5 nm, 6 pairs under 10 nm. Median delay inside 40 nm of KMCO 2.5 minutes; median total delay 7 to 9 minutes for landings 0130 to 0230Z.</li>
+    <li><b>GTOUT gate.</b> 38 aircraft, peak 20 in an hour from 0133Z. Median 17 nm, 6 pairs under 10 nm. Arrivals landing 0200 to 0255Z were delayed 9 to 20 minutes. Across all GTOUT1 arrivals, the median added time inside 40 nm of KMCO was 11 minutes.</li>
+    <li><b>DEEDA / DEFUN.</b> All 8 aircraft entering ZJX from the west side of ZTL (from DEN, MEM, BNA, SEA and IAH) were delayed more than 10 minutes, median 13 minutes, about half of it between 150 and 40 nm.</li>
+    <li><b>ALYNA gate.</b> 12 crossings, peak 5 in an hour.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>Holds 40+ nm from KMCO</h2>
+  <ul class="find">
+    <li><b>2244 to 2340Z:</b> 6 GRNCH5 arrivals, 58 to 137 nm out, between 11,000 ft and FL450.</li>
+    <li><b>0027 to 0042Z:</b> 3 MUNGI1 arrivals in ZMA, 48 to 79 nm south.</li>
+    <li><b>0102 to 0124Z:</b> 2 KLGA arrivals on ALYNA4 via HIBAC, held in ZDC about 400 nm out near Wilmington.</li>
+    <li><b>After 2340Z on the ZJAYX lane:</b> 1 aircraft, UPS2292, 58 nm out at 0137Z.</li>
+  </ul>
 </div>
 
 <div class="card">
@@ -161,7 +163,7 @@ footer b span{color:var(--amber)}
 
 <div class="card">
   <h2>In-trail spacing at each MIT point</h2>
-  <p class="note">The spacing is the trailing aircraft's distance from the fix at the moment the lead aircraft crossed it. Only pairs within 8 minutes of each other count, so gaps in the stream don't inflate the numbers. The MIT values actually issued weren't in the data, so the defaults below are a guess from the spacing floor. Type in the real values to rescore.</p>
+  <p class="note">The spacing is the trailing aircraft's distance from the fix at the moment the lead aircraft crossed it. Only pairs within 8 minutes of each other count, so gaps in the stream don't inflate the numbers. The MIT values issued are not in the data; the defaults below are placeholders. Enter the actual values to score compliance.</p>
   <div class="tblwrap"><table id="ptTbl"></table></div>
 </div>
 
@@ -172,7 +174,7 @@ footer b span{color:var(--amber)}
 </div>
 
 <div class="card">
-  <h2>Where the delay landed</h2>
+  <h2>Airborne delay by STAR and time</h2>
   <p class="note">Median airborne delay by STAR and 30 minute landing bin. Delay is the time from 150 nm to touchdown minus the quickest tenth of flights on the same STAR. The number in each cell is the count of arrivals.</p>
   <div class="tblwrap"><table id="heat"></table></div>
 </div>
@@ -190,21 +192,9 @@ footer b span{color:var(--amber)}
 </div>
 
 <div class="card">
-  <h2>For next time</h2>
-  <ul class="find">
-    <li><b>Treat GTOUT the way ZTL treated ATL.</b> At about 0115Z, when GTOUT demand passed about 15 an hour, raise the Q85 / LPERD MIT to about 35 nm, which is about 12 an hour at 420 kt. Or put KCLT, KDCA and KRDU on call for release. KCLT is ZTL's own field, so the KATL approach carries straight over.</li>
-    <li><b>Use ALYNA for overflow.</b> Only 12 arrivals used ALYNA all night, never more than 5 in an hour. Moving the NE overflow onto ALYNA4 via HIBAC or GRDON, with F11 approval per the ZJX SOP, would have taken pressure off GTOUT.</li>
-    <li><b>Start the MIT before the first wave.</b> Have ZJAYX spacing in place by about 2240Z, not after the first wave has already bunched over ZJX.</li>
-    <li><b>Put an MIT on DEEDA and DEFUN.</b> Have ZTL and ZHU space the western traffic before ISSZZ and ELITE so ZJX isn't merging it into a full stream.</li>
-    <li><b>Add a gate MIT and speed control at GRNCH and GTOUT.</b> That would stop the 25 nm upstream spacing collapsing to under 10 nm at the gate.</li>
-    <li><b>Use the expected rate on each gate in VATFLOW.</b> A per-gate expected rate on the KMCO program (MIT Monitor) would have flagged GTOUT at 20 an hour while GRNCH was at about 15.</li>
-  </ul>
-</div>
-
-<div class="card">
   <h2>How this was worked out</h2>
   <ul class="find">
-    <li><b>Lanes and STARs</b> come from the routes filed on StatSim, so this is the STAR flown, not a guess from bearing as in the earlier report. GRNCH5 79, GTOUT1 43, MUNGI1 24, ALYNA4 14, PRICY5 10, others 16. KMCO was in south flow (GTOUT1, not SNFLD3).</li>
+    <li><b>Lanes and STARs</b> come from the routes filed on StatSim, so this is the STAR flown. GRNCH5 79, GTOUT1 43, MUNGI1 24, ALYNA4 14, PRICY5 10, others 16. KMCO was in south flow (GTOUT1, not SNFLD3).</li>
     <li><b>Crossing times</b> are interpolated from 15 second position reports, taking the closest point within 8 nm of the fix. StatSim timestamps are to the minute, so reports within a minute are spread evenly.</li>
     <li><b>Holds</b> are 330° or more of turn inside 12 minutes above 100 kt. Inside about 30 nm that also catches some vectors for sequencing.</li>
     <li><b>ARTCC entry</b> uses VATFLOW's high-altitude boundary polygons. Arrivals that connected inside ZJX have no entry lane.</li>
@@ -244,7 +234,7 @@ const starCol = s => STAR_COL[s] || "#5c6b78";
   for (let m = 60; m <= 300; m += 30) s += `<text x="${X(m)}" y="${H - 10}" text-anchor="middle">${hhmm(m)}Z</text>`;
   s += `<text x="${L}" y="${T - 2}" style="font-size:10px">minutes pushback to takeoff</text>`;
   s += `<rect x="${X(120)}" y="${T}" width="${X(250) - X(120)}" height="${H - T - B}" fill="rgba(232,168,56,.06)"/>`;
-  s += `<text x="${X(185)}" y="${T + 12}" text-anchor="middle" style="fill:var(--amber);font-size:10px">MCO release program ~0000–0210Z</text>`;
+  s += `<text x="${X(185)}" y="${T + 12}" text-anchor="middle" style="fill:var(--amber);font-size:10px">0000–0210Z</text>`;
   xs.sort((a, b) => (a.d === "KMCO") - (b.d === "KMCO")).forEach(o => {
     const mco = o.d === "KMCO";
     s += `<circle cx="${X(o.to)}" cy="${Y(o.tx)}" r="${mco ? 4.5 : 3.5}" fill="${mco ? "var(--amber)" : "var(--muted)"}" opacity="${mco ? 1 : .8}" data-tip="<b>${esc(o.cs)}</b> to ${esc(o.d)}<br>takeoff ${hhmm(o.to)}Z<br>taxi ${o.tx} min"/>`;
@@ -414,7 +404,7 @@ renderPtTbl(); renderSep();
   let h = `<thead><tr><th>Entry</th><th class="n">Arr</th><th class="n">Median delay</th><th class="n">&gt;10 min</th></tr></thead><tbody>`;
   rows.forEach(([k, v]) => {
     const d = v.filter(f => f.d != null).map(f => f.d), m = med(d), over = d.filter(x => x > 10).length;
-    const hl = k.includes("ZJAYX") ? ' class="hl"' : "";
+    const hl = "";
     h += `<tr${hl}><td>${esc(k)}</td><td class="n">${v.length}</td><td class="n">${m.toFixed(1)}</td><td class="n">${over} (${Math.round(100 * over / d.length)}%)</td></tr>`;
   });
   $("laneTbl").innerHTML = h + "</tbody>";
