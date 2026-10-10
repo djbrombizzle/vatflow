@@ -589,7 +589,11 @@ function taxiNow(now) {
   const samples = st.taxiLocal.concat(st.taxiShared).filter(x => x.airport === st.airport);
   return taxiSummary({ samples, sessions: st.taxiSessions, now });
 }
-function kpi(k, v, s, cls = "") { return `<div class="kpi ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
+function kpi(k, v, s, cls = "", title = "") { return `<div class="kpi ${cls}"${title ? ` title="${esc(title)}"` : ""}><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
+/* "40 air · 28 gnd · 6 pf": only the airborne part has a firm ETA */
+function demandSplit(w) {
+  return `${w.airborne} air · ${w.connected - w.airborne} gnd · ${w.prefiled} pf` + (w.prefiled && !usePrefiles() ? " (off)" : "");
+}
 function renderKpis(s) {
   const c = s.cap, pw = s.peakWin, n = s.next60;
   const over = x => !c.capacity ? "" : x > c.capacity ? "red" : x > c.capacity * 0.9 ? "amber" : "green";
@@ -601,8 +605,9 @@ function renderKpis(s) {
         : c.source === "program" ? "Program AAR " + c.aar
         : "Your AAR " + c.aar + (c.programAar ? " (program " + c.programAar + ")" : "")) + (c.factor < 1 ? " · weather ×" + c.factor.toFixed(2) : ""),
       c.factor < 1 ? "amber" : "") +
-    kpi("Next 60 min", `${n.total}<small>${c.capacity ? " / " + c.capacity : ""}</small>`, `${n.connected} connected · ${n.prefiled} prefiled`, over(n.total)) +
-    kpi("Peak 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${pw.expected.length ? "incl. expected demand" : usePrefiles() ? "live + prefiles" : "live only, prefiles off"}`, over(pw.total)) +
+    kpi("Next 60 min", `${n.total}<small>${c.capacity ? " / " + c.capacity : ""}</small>`, demandSplit(n), over(n.total)) +
+    kpi("Peak demand 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${demandSplit(pw)}${pw.expected.length ? " · incl. expected demand" : ""}`, over(pw.total),
+      "Aircraft that want to land in the busiest hour ahead, by ETA. Not a landing rate: whatever is over capacity lands later, held or slowed. Ground flights are assumed to depart now.") +
     kpi("Arrival queue", s.queue.maxDelay ? `${s.queue.maxDelay}<small> min</small>` : "0", s.queue.maxDelay ? "longest around " + fmtZ(s.queue.maxAt) + " if nothing is done" : "no queue projected",
       s.queue.maxDelay > 15 ? "red" : s.queue.maxDelay > 0 ? "amber" : "green") +
     kpi("Inbound", `${s.counts.airborne + s.counts.ground + s.counts.prefile}`, `${s.counts.airborne} air · ${s.counts.ground} gnd · ${s.counts.prefile} prefile` + (s.counts.excluded ? ` · ${s.counts.excluded} excl` : "")) +

@@ -146,6 +146,15 @@ t("rollingGateDemand: busiest 60-minute window across the lookahead drives deman
   assert.equal(r.windows[8].total, 1);                    // 0200-0300z: 0210 only
 });
 
+t("rollingGateDemand: splits connected demand into airborne and on the ground", () => {
+  const f = (min, airborne, prefiled) => ({ eta: min * 60000, gate: "OMN", airborne, prefiled });
+  const w = rollingGateDemand({ flights: [f(5, true), f(10, true), f(20, false), f(30, false, true)], now: 0, horizonMin: 60 }).windows[0];
+  assert.equal(w.total, 4);
+  assert.equal(w.connected, 3);
+  assert.equal(w.airborne, 2);
+  assert.equal(w.prefiled, 1);
+});
+
 t("rollingGateDemand: expected demand is a per-window floor, ties go to the earliest window", () => {
   const now = 0;
   const r = rollingGateDemand({ flights: [{ eta: 5 * 60000, gate: "OMN" }], now, horizonMin: 120, stepMin: 30, expect: { GRNCH: 12 } });
