@@ -379,7 +379,7 @@
     ETAs over each gate fix come from the FCA Builder's engine (filed route through the STAR, climb profile, filed TAS
     corrected for winds aloft; ground flights leave in about 3 minutes or at a filed departure time within 6 hours),
     and landing is the rest of the route at 190 kt plus 1.5 minutes (calibrated on StatSim KMCO arrivals: downwind, base and final add track miles). Landings and holding are counted from the live feed while this page is open. Merge points expand each filed route back from its gate fix and compare the merged flow with the gate's share of the rate. Weather from api.weather.gov (US only).
-    The MAP tab draws suggested reroutes dashed (a CDR from the origin, or direct to the new STAR's entry fix). Runways and closed gates set under FIELD CONFIG stay in this browser and only change VATSMART's advice; the ATIS option reads the field's ATIS from the VATSIM feed.
+    The MAP tab draws suggested reroutes dashed (a CDR from the origin, or direct to the new STAR's entry fix). Runways and closed gates set under FIELD CONFIG stay in this browser and only change VATSMART's advice; the ATIS option reads the field's ATIS from the VATSIM feed, or the FAA D-ATIS (as on the D-ATIS page) when no VATSIM ATIS is online.
   </p>
 </main>
 
@@ -398,6 +398,8 @@ import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
 import { mergeAsk, landingSlots, slotMoveHow, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions,
   flightIssues, runwaysFromAtis, windFromMetar, runwayPairs, normRwy, gateBearings, compassOf, CLOSED_MAX_EXTRA_NM } from "./shared/vatsmart.js";
 import { loadRunwayEnds } from "./shared/taxi-runways.js";
+import { fetchDatis } from "./shared/datis-fetch.js";
+import { atisInfo } from "./shared/datis-parse.js";
 import { createCdrStore } from "./shared/vusalink-clearance.js";
 import { loadNavData, isNavReady } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -441,6 +443,7 @@ const st = {
   airportsReady: false, sit: null,
   arr: null,
   atis: [], ends: [], endsFor: "",
+  datis: [], datisFor: "", datisAt: 0, datisState: "idle",
   sel: "", kinds: new Set(), search: "", cfgOpen: false,
 };
 
@@ -469,7 +472,7 @@ function setAirport(code) {
   st.wxProps = null; st.wxFor = ""; st.metar = ""; st.metarFor = ""; st.taf = ""; st.tafIssued = ""; st.tafFor = "";
   st.arr = loadArr(code);
   st.taxiSessions = {}; st.stars = []; st.starsFor = ""; st.cdrs = {}; st.cdrAsked = new Set();
-  st.sel = ""; st.ends = []; st.endsFor = "";
+  st.sel = ""; st.ends = []; st.endsFor = ""; st.datis = []; st.datisFor = ""; st.datisState = "idle";
   mapFitted = false; bigFitted = false;
   refreshSlow();
   render();
@@ -515,6 +518,7 @@ function fetchFeed() {
         const done = trackTaxi(st.taxiSessions, st.pilots, st.airport, st.aptLL, st.feedAt);
         if (done.length) { st.taxiLocal.push(...done); saveTaxiLocal(); }
         loadCdrs();
+        maybeLoadDatis();
       }
       render();
     })
@@ -659,6 +663,7 @@ function loadEnds() {
   loadRunwayEnds(apt).then(ends => {
     if (apt !== st.airport) return;
     st.ends = ends.map(e => [e.id, e.lat, e.lon, e.hdg, e.lenFt]);
+    maybeLoadDatis();
     render();
   });
 }
@@ -681,20 +686,48 @@ function atisFor(apt) {
   return st.atis.filter(a => a.callsign.startsWith(apt + "_"))
     .map(a => ({ ...a, kind: /_A_ATIS$/.test(a.callsign) ? "arr" : /_D_ATIS$/.test(a.callsign) ? "dep" : "both" }));
 }
-/* runways in use: from the ATIS when that's picked and it names any, else the ones set by hand */
-function runwayConfig() {
-  const c = cfgFor(), known = st.ends.map(e => e[0]);
-  const manual = { arr: c.arr, dep: c.dep, source: "manual" };
-  if (c.rwyMode !== "atis") return manual;
-  const list = atisFor(st.airport);
+/* the real-world FAA D-ATIS (same feed as VATFLOW's D-ATIS page), for when no VATSIM ATIS is online */
+const DATIS_MS = 5 * 60000;
+async function loadDatis() {
+  const apt = st.airport;
+  st.datisState = "wait"; st.datisFor = apt; st.datisAt = Date.now();
+  try {
+    const list = await fetchDatis(apt);
+    if (apt !== st.airport) return;
+    st.datis = list.map(d => ({ callsign: "FAA D-ATIS" + (d.type === "arr" ? " ARR" : d.type === "dep" ? " DEP" : ""), code: atisInfo(d.datis).letter || "",
+      text: d.datis, kind: d.type === "arr" ? "arr" : d.type === "dep" ? "dep" : "both" }));
+    st.datisState = "ok";
+  } catch (e) { if (apt === st.airport) { st.datis = []; st.datisState = "bad"; } }
+  render();
+}
+function runwaysFrom(list, known) {
   const arr = new Set(), dep = new Set();
   for (const a of list) {
     const r = runwaysFromAtis(a.text, known);
     if (a.kind !== "dep") r.arr.forEach(x => arr.add(x));
     if (a.kind !== "arr") r.dep.forEach(x => dep.add(x));
   }
-  if (arr.size || dep.size) return { arr: [...arr].sort(), dep: [...dep].sort(), source: "atis", atis: list };
-  return { ...manual, source: list.length ? "atis-unparsed" : "atis-none", atis: list };
+  return { arr: [...arr].sort(), dep: [...dep].sort() };
+}
+/* runways in use: from the VATSIM ATIS when that's picked and it names any, else the FAA D-ATIS, else the ones set by hand */
+function runwayConfig() {
+  const c = cfgFor(), known = st.ends.map(e => e[0]);
+  const manual = { arr: c.arr, dep: c.dep, source: "manual" };
+  if (c.rwyMode !== "atis") return manual;
+  const list = atisFor(st.airport);
+  const v = runwaysFrom(list, known);
+  if (v.arr.length || v.dep.length) return { ...v, source: "atis", atis: list };
+  const dl = st.datisFor === st.airport ? st.datis : [];
+  const d = runwaysFrom(dl, known);
+  if (d.arr.length || d.dep.length) return { ...d, source: "datis", atis: list, datis: dl };
+  return { ...manual, source: list.length || dl.length ? "atis-unparsed" : "atis-none", atis: list, datis: dl };
+}
+/* the D-ATIS is only fetched while the VATSIM ATIS gives no runways */
+function maybeLoadDatis() {
+  if (!st.airport || cfgFor().rwyMode !== "atis" || st.datisState === "wait") return;
+  const v = runwaysFrom(atisFor(st.airport), st.ends.map(e => e[0]));
+  if (v.arr.length || v.dep.length) return;
+  if (st.datisFor !== st.airport || Date.now() - st.datisAt > DATIS_MS) loadDatis();
 }
 
 async function loadCdrs() {
@@ -786,6 +819,7 @@ function refreshSlow() {
   if (st.tafFor !== st.airport || (st.tafState !== "wait" && now - st.tafAt > TAF_MS)) fetchTaf();
   loadStars();
   loadEnds();
+  maybeLoadDatis();
   loadCdrs();
   if (now - st.eventsAt > EVENTS_MS) fetchEvents();
 }
@@ -1267,8 +1301,9 @@ function rwyLabel(rc) {
 }
 function renderCfgSummary(s) {
   const rc = runwayConfig(), c = cfgFor();
-  const src = rc.source === "atis" ? `ATIS ${esc((rc.atis.find(a => a.code) || {}).code || "")}`.trim()
-    : rc.source === "manual" ? "set by hand" : rc.source === "atis-none" ? "no ATIS online" : "ATIS names no runways";
+  const src = rc.source === "atis" ? `VATSIM ATIS ${esc((rc.atis.find(a => a.code) || {}).code || "")}`.trim()
+    : rc.source === "datis" ? `FAA D-ATIS ${esc((rc.datis.find(a => a.code) || {}).code || "")}`.trim()
+    : rc.source === "manual" ? "set by hand" : rc.source === "atis-none" ? "no ATIS or D-ATIS" : "ATIS names no runways";
   const any = rc.arr.length || rc.dep.length;
   $("cfgSum").hidden = !any && !c.closed.length;
   $("cfgSum").innerHTML = (any ? `RUNWAYS ${rwyLabel(rc)} <span class="dim">(${src})</span>` : "") +
@@ -1292,16 +1327,19 @@ function renderCfg(s) {
   const c = cfgFor(), rc = runwayConfig();
   $("cfgApt").textContent = s.airport;
   let h = `<h3>RUNWAY CONFIGURATION</h3>
-    <div class="seg"><button type="button" data-rmode="atis" aria-pressed="${c.rwyMode === "atis"}">AUTO · VATSIM ATIS</button><button type="button" data-rmode="manual" aria-pressed="${c.rwyMode === "manual"}">SET BY HAND</button></div>`;
+    <div class="seg"><button type="button" data-rmode="atis" aria-pressed="${c.rwyMode === "atis"}">AUTO · ATIS</button><button type="button" data-rmode="manual" aria-pressed="${c.rwyMode === "manual"}">SET BY HAND</button></div>`;
   if (c.rwyMode === "atis") {
-    const list = rc.atis || [];
-    h += !list.length ? `<p class="muted">No ATIS for ${esc(s.airport)} is online on VATSIM right now${c.arr.length || c.dep.length ? ", so the runways set by hand below are used" : ". Set the runways by hand below until one connects"}.</p>`
-      : `<p>${rwyLabel(rc)} ${rc.source === "atis" ? "" : '<span class="tight">(the ATIS doesn\'t name a runway I recognise; using the ones set by hand)</span>'}</p>` +
-        list.map(a => `<div class="atisbox"><b>${esc(a.callsign)}${a.code ? " · INFO " + esc(a.code) : ""}</b>\n${esc(a.text || "(no text)")}</div>`).join("");
+    const list = rc.atis || [], dl = rc.datis || [];
+    const box = a => `<div class="atisbox"><b>${esc(a.callsign)}${a.code ? " · INFO " + esc(a.code) : ""}</b>\n${esc(a.text || "(no text)")}</div>`;
+    if (rc.source === "atis") h += `<p>${rwyLabel(rc)} <span class="muted">from the VATSIM ATIS</span></p>` + list.map(box).join("");
+    else if (rc.source === "datis") h += `<p>${rwyLabel(rc)} <span class="muted">from the FAA D-ATIS (${list.length ? "the VATSIM ATIS names no runway I recognise" : "no VATSIM ATIS online"})</span></p>` + dl.map(box).join("") + list.map(box).join("");
+    else h += `<p class="muted">${list.length ? "The VATSIM ATIS names no runway I recognise" : "No VATSIM ATIS for " + esc(s.airport) + " is online"}, and ` +
+      (st.datisState === "wait" ? "the FAA D-ATIS is loading…" : dl.length ? "neither does the FAA D-ATIS" : "there's no FAA D-ATIS for it") +
+      `${c.arr.length || c.dep.length ? ", so the runways set by hand below are used" : ". Set the runways by hand below"}.</p>` + list.map(box).join("") + dl.map(box).join("");
   }
   if (!st.ends.length) h += `<p class="muted">${st.endsFor ? "Loading runways…" : "No runway data for this field."}</p>`;
   else {
-    h += `<p class="muted" style="margin:10px 0 0">${c.rwyMode === "atis" ? "Fallback when the ATIS is offline. " : ""}Tap a runway to cycle: arrivals, departures, both, off.</p><div class="rwgrid">`;
+    h += `<p class="muted" style="margin:10px 0 0">${c.rwyMode === "atis" ? "Used when neither ATIS names the runways. " : ""}Tap a runway to cycle: arrivals, departures, both, off.</p><div class="rwgrid">`;
     for (const [id] of st.ends) {
       const r = normRwy(id), a = c.arr.includes(r), d = c.dep.includes(r);
       const cls = a && d ? "both" : a ? "arr" : d ? "dep" : "";
@@ -1325,7 +1363,7 @@ function renderCfg(s) {
 }
 $("cfgBody").addEventListener("click", e => {
   const m = e.target.closest("[data-rmode]");
-  if (m) { const c = cfgFor(); c.rwyMode = m.dataset.rmode; saveCfg(c); return; }
+  if (m) { const c = cfgFor(); c.rwyMode = m.dataset.rmode; saveCfg(c); maybeLoadDatis(); return; }
   const r = e.target.closest("[data-rwy]");
   if (r) {
     const c = cfgFor(), id = r.dataset.rwy, a = c.arr.includes(id), d = c.dep.includes(id);
