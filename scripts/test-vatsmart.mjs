@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import {
   capacityFor, queueProjection, tmiTier, edctCompliance, groundStopsFor, nearestZulu, rebalanceSuggestion,
   groundOrigins, buildSituation, fmtZ, trackTaxi, taxiSummary, tafFromNwsProduct, starOptions, routeRecommendations,
-  landingSlots, slotBalance, slotMoveHow,
+  landingSlots, slotBalance, slotMoveHow, closedGateReroutes, runwaysFromAtis, windFromMetar, runwayWinds, runwayPairs, flightIssues,
 } from "../shared/vatsmart.js";
 import { normPrograms, airborneEtaMin } from "../shared/mit-monitor.js";
 
@@ -282,6 +282,73 @@ t("reroutes: CDR for ground flights, STAR swap for airborne", () => {
   assert.deepEqual(same.reroutes, []);
   /* no stars known: nothing concrete */
   assert.deepEqual(routeRecommendations({ sit: s, stars: [], cdrs }), []);
+});
+
+t("closed gate: every arrival over it moves to an open gate, any corner", () => {
+  const stars = [
+    { star: "GRNCH5", gate: "GRNCH", fix: "CRG", ll: [30.33, -81.51] },
+    { star: "LEESE3", gate: "LEESE", fix: "LEESE", ll: [30.2, -81.0] },        // same corner as GRNCH: fine for a closure
+    { star: "SNFLD3", gate: "SNFLD", fix: "OMN", ll: [28.6, -79.9] },
+  ];
+  const air = inbound("GRNCH", 4, 25, 55);
+  const ground = [{ callsign: "GND0", lat: 33.64, lon: -84.43, gs: 0, alt: 1000, phase: "gnd", dep: "KATL", arr: APT, type: "B738",
+    route: "KATL DCT POUNC GRNCH5 " + APT, tas: 450 }];
+  const cdrs = { KATL: [["ATLMCOGA", "IRQ", "GAIRY2 IRQ FISHO Q93 GIPPL Q85 LPERD SNFLD3", "2", "N", ""]] };
+  const prog = normPrograms({ [APT]: { aar: 60 } })[APT];
+  const airportLL = c => ({ KATL: [33.64, -84.43] })[c] || null;
+  const s = buildSituation({ airport: APT, aptLL: APT_LL, prog, pilots: [...air, ...ground], airportLL, now: NOW,
+    routing: { stars, cdrs }, config: { closed: ["GRNCH"] } });
+  assert.equal(s.closures.length, 1);
+  const c = s.closures[0];
+  assert.equal(c.gate, "GRNCH");
+  assert.equal(c.moves.length + c.stuck.length, 5);
+  assert.ok(c.moves.every(m => m.to !== "GRNCH"));
+  assert.equal(c.moves.find(m => m.callsign === "GND0").kind, "cdr");
+  assert.ok(c.moves.some(m => m.to === "LEESE"), "a same-corner gate is fine when the gate is closed");
+  assert.ok(s.recs.some(r => r.id === "closed-GRNCH" && r.sev === "action"));
+  assert.ok(!s.recs.some(r => r.id === "gate-GRNCH"), "no MIT advice for a closed gate");
+  const iss = flightIssues(s);
+  assert.equal(iss.GND0[0].kind, "closed");
+  assert.ok(iss.GND0[0].move && iss.GND0[0].move.code === "ATLMCOGA");
+  /* saturation reroutes never land on a closed gate */
+  const busy = buildSituation({ airport: APT, aptLL: APT_LL, prog: normPrograms({ [APT]: { aar: 24 } })[APT], pilots: inbound("GRNCH", 30, 25, 55), airportLL, now: NOW,
+    routing: { stars, cdrs: {} }, config: { closed: ["SNFLD"] } });
+  assert.ok(busy.reroutes.every(r => r.moves.every(m => m.to !== "SNFLD")));
+  assert.deepEqual(closedGateReroutes({ sit: s, stars, cdrs, closed: [] }), []);
+});
+
+t("runways from ATIS text: landing, departing, both, and never altimeters or closures", () => {
+  const ends = ["17L", "35R", "17R", "35L", "18L", "36R", "18R", "36L"];
+  assert.deepEqual(runwaysFromAtis("MCO ATIS INFO K 2253Z. 18010KT 10SM A2992. ILS RWY 18R APCH, ILS RWY 17L APCH IN USE. DEPG RWY 17R, RWY 18L. NOTAMS... RWY 36L CLSD.", ends),
+    { arr: ["17L", "18R"], dep: ["17R", "18L"] });
+  assert.deepEqual(runwaysFromAtis("LANDING RUNWAY 35L AND 36R, DEPARTING RUNWAY 35R/36L", ends), { arr: ["35L", "36R"], dep: ["35R", "36L"] });
+  assert.deepEqual(runwaysFromAtis("RWYS 17L 18R IN USE.", ends), { arr: ["17L", "18R"], dep: ["17L", "18R"] });
+  assert.deepEqual(runwaysFromAtis("LANDING AND DEPARTING RWY 18R. ALTIMETER 3018.", ends), { arr: ["18R"], dep: ["18R"] });
+  assert.deepEqual(runwaysFromAtis("VISUAL APCH RWY 17L. WIND 170 AT 12. TWY B CLSD.", ends), { arr: ["17L"], dep: [] });
+  assert.deepEqual(runwaysFromAtis("", ends), { arr: [], dep: [] });
+  /* live VATSIM ATIS wording */
+  assert.deepEqual(runwaysFromAtis("TEB ATIS INFO P 1751Z. ILS Z RWY 6 APCH IN USE. ARR 6, DEP 1.. NOTAMS... TEB DEPS MUST COMPLY.", ["06", "24", "01", "19"]),
+    { arr: ["06"], dep: ["01"] });
+  assert.deepEqual(runwaysFromAtis("BOSTON LOGAN AIRPORT ATIS INFORMATION V. 1754Z. RNAV 4L, DEP 4R. RWY 33R IS APPROVED FOR TURN OFF AFTER LDG.", ["04L", "04R", "33R", "15L"]),
+    { arr: ["04L"], dep: ["04R"] });
+  assert.deepEqual(runwaysFromAtis("VIS APPS RWY 20R IN USE. LDG AND DEPTG RWYS 20R, AND 20L. RWY 20L DEPTS TURN LEFT 15 DEGREES", ["20L", "20R", "02L", "02R"]),
+    { arr: ["20L", "20R"], dep: ["20L", "20R"] });
+  assert.deepEqual(runwaysFromAtis("SIMUL INSTR DEPARTURES IN PROG RWYS 24 AND 25.", ["24L", "24R", "25L", "25R", "06L"]).dep, ["24L", "24R", "25L", "25R"]);
+});
+
+t("METAR wind and runway components", () => {
+  assert.deepEqual(windFromMetar("KMCO 092253Z 36012G22KT 10SM"), { dir: 360, spd: 12, gust: 22 });
+  assert.equal(windFromMetar("KMCO 092253Z VRB03KT").dir, null);
+  assert.equal(windFromMetar("nothing"), null);
+  const ends = [["17L", 28.44, -81.28, 180, 9001], ["35R", 28.42, -81.28, 360, 9001]];
+  const w = runwayWinds(["17L", "35R"], ends, { dir: 360, spd: 12, gust: 0 });
+  assert.equal(w[0].head, -12); assert.equal(w[1].head, 12); assert.equal(w[0].cross, 0);
+  assert.deepEqual(runwayPairs(ends).map(p => p.map(e => e[0])), [["17L", "35R"]]);
+  const prog = normPrograms({ [APT]: { aar: 40 } })[APT];
+  const s = buildSituation({ airport: APT, aptLL: APT_LL, prog, pilots: [], now: NOW,
+    config: { closed: [], runways: { arr: ["17L"], dep: ["17L"] }, ends, wind: { dir: 360, spd: 12, gust: 0 } } });
+  const r = s.recs.find(x => x.id === "rwy-tail");
+  assert.ok(r && r.sev === "action" && /35R/.test(r.why), r && r.why);
 });
 
 console.log(`\n${passed} passed`);

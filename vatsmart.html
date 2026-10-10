@@ -143,6 +143,94 @@
   .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 16px; }
   .foot a { color: #5ba8c9; }
 
+
+  /* ---- tabs, map tab, config drawer ---- */
+  .tabs { display: flex; gap: 4px; align-items: center; margin: -4px 0 12px; border-bottom: 1px solid var(--line); }
+  .tabs button.tab { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--dim); letter-spacing: 0.14em; font-size: 11px; padding: 8px 14px; }
+  .tabs button.tab:hover { color: var(--text); }
+  .tabs button.tab[aria-selected="true"] { color: var(--amber); border-bottom-color: var(--amber); }
+  .tabs .sp { flex: 1; }
+  #cfgBtn { font-size: 11px; letter-spacing: 0.08em; padding: 5px 10px; margin-bottom: 4px; }
+  #cfgBtn.on { border-color: var(--red); color: var(--red); }
+  body.maptab main { max-width: none; padding-bottom: 0; }
+  body.maptab .foot { display: none; }
+  .mapview { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 10px; height: calc(100vh - var(--vatflow-nav-h) - 130px); min-height: 480px; }
+  .side { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; }
+  .side h2 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--dim); margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+  .side h2 .r { margin-left: auto; letter-spacing: 0.04em; font-weight: 400; }
+  .side .tools { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .side input#acSearch { width: 100%; text-transform: uppercase; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 10px; border: 1px solid #2a3644; color: var(--muted); background: none; cursor: pointer; }
+  .chip[aria-pressed="true"] { color: var(--bg); background: var(--amber); border-color: var(--amber); }
+  .chip.k-closed { --k: #ff6b6b; } .chip.k-reroute { --k: #f5a83d; } .chip.k-slot { --k: #e8a838; } .chip.k-holding { --k: #ffd166; }
+  .chip.k-tight { --k: #e07070; } .chip.k-edct { --k: #c792ea; } .chip.k-nogate { --k: #8a97a3; }
+  .chip[class*="k-"] { border-color: var(--k); color: var(--k); }
+  .chip[class*="k-"][aria-pressed="true"] { background: var(--k); color: var(--bg); }
+  .attn { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
+  .attn li { padding: 8px 12px; border-bottom: 1px solid #151d27; cursor: pointer; }
+  .attn li:hover { background: #121922; }
+  .attn li.sel { background: #1a2330; box-shadow: inset 3px 0 0 var(--amber); }
+  .attn .hd { display: flex; gap: 8px; align-items: baseline; font-family: var(--mono); font-size: 12px; }
+  .attn .hd b { font-size: 13px; }
+  .attn .hd .r { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .attn .is { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+  .attn .is .k { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; padding: 0 4px; border-radius: 3px; border: 1px solid currentColor; margin-right: 5px; }
+  .layers { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font-size: 11px; color: var(--muted); padding: 8px 12px; border-top: 1px solid var(--line); }
+  .layers label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .mapbox { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  #bigMap { position: absolute; inset: 0; background: #0b1016; }
+  .acinfo { position: absolute; left: 10px; bottom: 24px; z-index: 600; width: min(440px, calc(100% - 20px)); max-height: 55%; overflow-y: auto; background: #0e1319f2; border: 1px solid #2a3644; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.5; }
+  .acinfo .hd { display: flex; gap: 10px; align-items: baseline; font-family: var(--mono); }
+  .acinfo .hd b { font-size: 16px; }
+  .acinfo .hd button { margin-left: auto; padding: 2px 8px; font-size: 11px; }
+  .acinfo .rte { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow-wrap: anywhere; margin-top: 4px; }
+  .acinfo .rte.new { color: var(--amber); }
+  .acinfo ul { margin: 6px 0 0; padding-left: 16px; }
+  .maplegend { position: absolute; right: 10px; top: 10px; z-index: 600; background: #0e1319e6; border: 1px solid #2a3644; border-radius: 6px; padding: 6px 9px; font-family: var(--mono); font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+  .maplegend .ln { display: inline-block; width: 22px; vertical-align: middle; margin-right: 6px; border-top: 2px solid; }
+  .leaflet-tooltip.blk { background: transparent; border: none; box-shadow: none; color: var(--text); font-family: var(--mono); font-size: 10.5px; line-height: 1.25; padding: 0 0 0 4px; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+  .leaflet-tooltip.blk:before { display: none; }
+  .leaflet-tooltip.gfix { background: transparent; border: none; box-shadow: none; font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 0 4px; text-shadow: 0 0 3px #000; }
+  .leaflet-tooltip.gfix:before { display: none; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0e1319; color: var(--text); border: 1px solid #2a3644; }
+  .leaflet-popup-content { font-family: var(--mono); font-size: 11px; margin: 10px 12px; }
+  .leaflet-popup-content button { margin-top: 6px; font-size: 11px; padding: 4px 8px; }
+  @keyframes vsPulse { 0% { transform: scale(0.8); opacity: 0.9; } 100% { transform: scale(1.7); opacity: 0; } }
+  .pulse { position: absolute; inset: -9px; border-radius: 50%; border: 2px solid var(--pc); animation: vsPulse 1.6s ease-out infinite; pointer-events: none; }
+  .halo { position: absolute; inset: -7px; border-radius: 50%; border: 2px solid var(--pc); pointer-events: none; }
+
+  .drawer { position: fixed; top: var(--vatflow-nav-h); right: 0; bottom: 0; width: min(420px, 100vw); z-index: 1200; background: var(--panel); border-left: 1px solid #2a3644; box-shadow: -8px 0 24px #0008; display: flex; flex-direction: column; }
+  .drawer > h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+  .drawer > h2 button { margin-left: auto; padding: 3px 9px; }
+  .drawer .bd { overflow-y: auto; padding: 12px 14px 24px; font-size: 12px; line-height: 1.5; }
+  .drawer h3 { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); margin: 16px 0 6px; font-weight: 500; }
+  .drawer h3:first-child { margin-top: 0; }
+  .seg { display: inline-flex; border: 1px solid #2a3644; border-radius: 6px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; font-size: 11px; padding: 6px 10px; background: none; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: #1f2a36; color: var(--amber); }
+  .rwgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 8px; }
+  .rwbtn { font-size: 12px; padding: 6px 4px; text-align: center; }
+  .rwbtn small { display: block; font-size: 9px; letter-spacing: 0.08em; color: var(--dim); }
+  .rwbtn.arr { border-color: var(--green); color: var(--green); }
+  .rwbtn.dep { border-color: #4fb8d6; color: #4fb8d6; }
+  .rwbtn.both { border-color: var(--amber); color: var(--amber); }
+  .gtrow { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid #151d27; font-family: var(--mono); font-size: 12px; }
+  .gtrow:first-child { border-top: none; }
+  .gtbtn { font-size: 10px; letter-spacing: 0.08em; padding: 3px 9px; min-width: 70px; }
+  .gtbtn.open { color: var(--green); border-color: #1f3a2a; }
+  .gtbtn.closed { color: var(--bg); background: var(--red); border-color: var(--red); }
+  .atisbox { font-family: var(--mono); font-size: 11px; color: var(--muted); background: #0a0f15; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cfgsum { font-family: var(--mono); font-size: 11px; color: var(--muted); margin: -6px 0 10px; }
+  .cfgsum b { color: var(--text); }
+  .cfgsum .tight { font-weight: 700; }
+
+  @media (max-width: 900px) {
+    .mapview { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(420px, 1fr); height: auto; }
+    .side { max-height: 320px; }
+    .mapbox { height: 70vh; }
+  }
+
   @media (max-width: 1100px) {
     .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .row.main, .row.two, .row.four { grid-template-columns: minmax(0, 1fr); }
@@ -182,6 +270,14 @@
     </div>
   </div>
 
+
+  <div class="tabs" id="tabs" hidden>
+    <button type="button" class="tab" data-tab="overview" aria-selected="true">OVERVIEW</button>
+    <button type="button" class="tab" data-tab="map" aria-selected="false">MAP</button>
+    <span class="sp"></span>
+    <button type="button" id="cfgBtn" title="Runway configuration and gate closures for this field (this page only)">FIELD CONFIG</button>
+  </div>
+  <div class="cfgsum" id="cfgSum" hidden></div>
   <div id="empty" class="empty">
     Pick the <b>event field</b> above. VATSMART pulls together live VATSIM traffic, the field's Airport TMU program,
     EDCTs and ground stops, the METAR, TAF and NWS forecast, departure taxi-out times and the VATSIM event calendar, looks three hours ahead with the
@@ -198,7 +294,7 @@
         <ul class="recs" id="recs"></ul>
       </section>
       <section class="card">
-        <h2>INBOUND TRAFFIC <span class="r legend" id="legend"></span></h2>
+        <h2>INBOUND TRAFFIC <a href="#map" class="muted" style="color:#5ba8c9;text-decoration:none;font-weight:400;letter-spacing:.06em">FULL MAP ↗</a><span class="r legend" id="legend"></span></h2>
         <div id="map"></div>
       </section>
     </div>
@@ -238,7 +334,7 @@
     </div>
     <div class="row">
       <section class="card">
-        <h2>ROUTE ADVISORIES <span class="r muted" id="rteNote">reroutes off saturated gates to another corner of the field · CDRs first, then a STAR swap</span></h2>
+        <h2>ROUTE ADVISORIES <span class="r muted" id="rteNote">reroutes off closed gates, and off saturated gates to another corner of the field · CDRs first, then a STAR swap · drawn dashed on the MAP tab</span></h2>
         <div class="scroll" id="routes"></div>
       </section>
     </div>
@@ -250,6 +346,31 @@
     </div>
   </div>
 
+
+  <div id="mapView" hidden>
+    <div class="mapview">
+      <aside class="side">
+        <h2>NEEDS ATTENTION <span class="r" id="attnCount"></span></h2>
+        <div class="tools">
+          <input id="acSearch" placeholder="Find callsign" spellcheck="false" autocomplete="off">
+          <div class="chips" id="kindChips"></div>
+        </div>
+        <ul class="attn" id="attn"></ul>
+        <div class="layers" id="layers"></div>
+      </aside>
+      <div class="mapbox">
+        <div id="bigMap"></div>
+        <div class="maplegend" id="mapLegend"></div>
+        <div class="acinfo" id="acInfo" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="drawer" id="cfg" hidden>
+    <h2>FIELD CONFIG <span class="muted" id="cfgApt"></span><button type="button" id="cfgClose">CLOSE</button></h2>
+    <div class="bd" id="cfgBody"></div>
+  </aside>
+
   <p class="foot">
     Inspired by the FAA's SMART (Strategic Management of Airspace, Routes and Trajectories), which brings schedules,
     weather and capacity into one view about two hours ahead. Here the numbers come from the same code as
@@ -258,6 +379,7 @@
     ETAs over each gate fix come from the FCA Builder's engine (filed route through the STAR, climb profile, filed TAS
     corrected for winds aloft; ground flights leave in about 3 minutes or at a filed departure time within 6 hours),
     and landing is the rest of the route at 190 kt plus 1.5 minutes (calibrated on StatSim KMCO arrivals: downwind, base and final add track miles). Landings and holding are counted from the live feed while this page is open. Merge points expand each filed route back from its gate fix and compare the merged flow with the gate's share of the rate. Weather from api.weather.gov (US only).
+    The MAP tab draws suggested reroutes dashed (a CDR from the origin, or direct to the new STAR's entry fix). Runways and closed gates set under FIELD CONFIG stay in this browser and only change VATSMART's advice; the ATIS option reads the field's ATIS from the VATSIM feed.
   </p>
 </main>
 
@@ -273,12 +395,14 @@ import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { mergeAsk, landingSlots, slotMoveHow, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
+import { mergeAsk, landingSlots, slotMoveHow, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions,
+  flightIssues, runwaysFromAtis, windFromMetar, runwayPairs, normRwy, gateBearings, compassOf, CLOSED_MAX_EXTRA_NM } from "./shared/vatsmart.js";
+import { loadRunwayEnds } from "./shared/taxi-runways.js";
 import { createCdrStore } from "./shared/vusalink-clearance.js";
 import { loadNavData, isNavReady } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
 import { gateEtaFor, gateFixFor } from "./shared/gate-eta.js";
-import { buildRouteAnchors } from "./shared/route-engine.js";
+import { buildRouteAnchors, buildRoutePathLLs } from "./shared/route-engine.js";
 import { fetchArtccBoundaries, artccForPoint, isArtccScopeReady } from "./shared/artcc-scope.js";
 import { createArrivalState, updateArrivals, holdingNow, landingRate } from "./shared/arrival-track.js";
 
@@ -316,6 +440,8 @@ const st = {
   events: [], eventsAt: 0, past: null,
   airportsReady: false, sit: null,
   arr: null,
+  atis: [], ends: [], endsFor: "",
+  sel: "", kinds: new Set(), search: "", cfgOpen: false,
 };
 
 /* ---------------- field selection ---------------- */
@@ -343,7 +469,8 @@ function setAirport(code) {
   st.wxProps = null; st.wxFor = ""; st.metar = ""; st.metarFor = ""; st.taf = ""; st.tafIssued = ""; st.tafFor = "";
   st.arr = loadArr(code);
   st.taxiSessions = {}; st.stars = []; st.starsFor = ""; st.cdrs = {}; st.cdrAsked = new Set();
-  mapFitted = false;
+  st.sel = ""; st.ends = []; st.endsFor = "";
+  mapFitted = false; bigFitted = false;
   refreshSlow();
   render();
 }
@@ -378,6 +505,8 @@ function fetchFeed() {
       st.prefiles = (d.prefiles || []).filter(p => p.flight_plan && !conn.has(p.callsign)).map(p => ({
         callsign: p.callsign, lat: null, lon: null, alt: 0, gs: 0, hdg: 0, phase: "gnd", prefile: true,
         wake: wakeFromFp(p.flight_plan), ...fpFields(p.flight_plan) }));
+      st.atis = (d.atis || []).filter(a => a && /_ATIS$/.test(a.callsign || "")).map(a => ({
+        callsign: a.callsign, code: a.atis_code || "", text: (a.text_atis || []).join(" ").trim() }));
       st.feed = "ok"; st.feedAt = Date.now();
       if (st.airport && st.aptLL) {
         if (!st.arr) st.arr = loadArr(st.airport);
@@ -522,6 +651,52 @@ function loadStars() {
     render();
   });
 }
+/* runway ends for the field shown (data/nav/runways.json) */
+function loadEnds() {
+  const apt = st.airport;
+  if (!apt || st.endsFor === apt) return;
+  st.endsFor = apt;
+  loadRunwayEnds(apt).then(ends => {
+    if (apt !== st.airport) return;
+    st.ends = ends.map(e => [e.id, e.lat, e.lon, e.hdg, e.lenFt]);
+    render();
+  });
+}
+
+/* ---------------- field config (this page only: never sent to the hub) ---------------- */
+
+function cfgFor(apt = st.airport) {
+  prefs.cfg = prefs.cfg || {};
+  const c = prefs.cfg[apt] || {};
+  return { rwyMode: c.rwyMode === "manual" ? "manual" : "atis", arr: c.arr || [], dep: c.dep || [], closed: c.closed || [] };
+}
+function saveCfg(c) { prefs.cfg = prefs.cfg || {}; prefs.cfg[st.airport] = c; savePrefs(); render(); }
+function toggleGate(g) {
+  const c = cfgFor();
+  c.closed = c.closed.includes(g) ? c.closed.filter(x => x !== g) : c.closed.concat(g).sort();
+  saveCfg(c);
+}
+/* the field's VATSIM ATIS stations: KMCO_ATIS, KMCO_A_ATIS (arrival), KMCO_D_ATIS (departure) */
+function atisFor(apt) {
+  return st.atis.filter(a => a.callsign.startsWith(apt + "_"))
+    .map(a => ({ ...a, kind: /_A_ATIS$/.test(a.callsign) ? "arr" : /_D_ATIS$/.test(a.callsign) ? "dep" : "both" }));
+}
+/* runways in use: from the ATIS when that's picked and it names any, else the ones set by hand */
+function runwayConfig() {
+  const c = cfgFor(), known = st.ends.map(e => e[0]);
+  const manual = { arr: c.arr, dep: c.dep, source: "manual" };
+  if (c.rwyMode !== "atis") return manual;
+  const list = atisFor(st.airport);
+  const arr = new Set(), dep = new Set();
+  for (const a of list) {
+    const r = runwaysFromAtis(a.text, known);
+    if (a.kind !== "dep") r.arr.forEach(x => arr.add(x));
+    if (a.kind !== "arr") r.dep.forEach(x => dep.add(x));
+  }
+  if (arr.size || dep.size) return { arr: [...arr].sort(), dep: [...dep].sort(), source: "atis", atis: list };
+  return { ...manual, source: list.length ? "atis-unparsed" : "atis-none", atis: list };
+}
+
 async function loadCdrs() {
   const apt = st.airport;
   if (!apt) return;
@@ -610,6 +785,7 @@ function refreshSlow() {
   if (st.metarFor !== st.airport || (st.metarState !== "wait" && now - st.metarAt > METAR_MS)) fetchMetar();
   if (st.tafFor !== st.airport || (st.tafState !== "wait" && now - st.tafAt > TAF_MS)) fetchTaf();
   loadStars();
+  loadEnds();
   loadCdrs();
   if (now - st.eventsAt > EVENTS_MS) fetchEvents();
 }
@@ -638,28 +814,35 @@ function renderPills() {
 
 function render() {
   renderPills(); renderPfBtn();
-  if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; return; }
+  if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true; $("tabs").hidden = true; return; }
   if (!st.aptLL) st.aptLL = getAirport(st.airport);
   if (!st.aptLL) {
-    $("empty").hidden = false; $("app").hidden = true;
+    $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true;
     $("empty").innerHTML = st.airportsReady ? `Unknown airport <b>${esc(st.airport)}</b>.` : `Loading the airport database…`;
     return;
   }
-  $("empty").hidden = true; $("app").hidden = false;
+  $("empty").hidden = true; $("tabs").hidden = false;
+  $("app").hidden = tab !== "overview"; $("mapView").hidden = tab !== "map";
+  document.body.classList.toggle("maptab", tab === "map");
   const now = Date.now();
   const prog = normPrograms(st.hub.rates)[st.airport] || null;
   const wx = st.wxProps && st.wxFor === st.airport ? gridWindow(st.wxProps, now, now + HORIZON_MIN * 60000) : null;
   const pastEvents = (st.past && st.past.airports && st.past.airports[st.airport]) || [];
+  const rwc = runwayConfig();
   let sit;
   try {
     sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: usePrefiles() ? st.prefiles : [],
       airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents,
       routing: { stars: st.stars, cdrs: st.cdrs },
+      config: { closed: cfgFor().closed, runways: rwc, ends: st.ends, wind: windFromMetar(st.metar) },
       merge: mergeHooks(),
       actual: st.arr ? { rate: landingRate(st.arr, now), holding: holdingNow(st.arr, now), recent: st.arr.holds.filter(h => now - h.end < 2 * 3600000) } : null,
       etaFor: isNavReady() ? (p, gate) => cachedGateEta(p, gate, now) : null });
   } catch (e) { console.error(e); return; }
   st.sit = sit;
+  renderTabs(); renderCfgSummary(sit);
+  if (st.cfgOpen) renderCfg(sit);
+  if (tab === "map") { renderBigMap(sit); renderAttn(sit); renderAcInfo(sit); return; }
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
@@ -939,7 +1122,7 @@ function renderHolding(s) {
 
 /* ---- route advisories ---- */
 function renderRoutes(s) {
-  const rr = s.reroutes || [];
+  const rr = [...(s.closures || []), ...(s.reroutes || [])];
   if (!rr.length) {
     const why = !s.cap.capacity ? "Set an AAR to look for saturated gates."
       : s.peakWin.total <= s.cap.capacity ? `No gate is saturated: the peak hour (${s.peakWin.total}) is within ${s.cap.capacity}/hr.`
@@ -952,12 +1135,14 @@ function renderRoutes(s) {
   for (const r of rr) for (const m of r.moves) {
     const fromCol = s.mon.colors[r.gate] || "#6b7a89", toCol = s.mon.colors[m.to] || "#6b7a89";
     h += `<tr><td><b>${esc(m.callsign)}</b></td><td>${esc(m.dep || "")}</td><td class="muted">${esc(m.status.toLowerCase())}</td><td class="num">${fmtZ(m.eta)}</td>
-      <td><span class="sw" style="background:${fromCol}"></span>${esc(r.gate)} <span class="muted">${esc(r.dir)}</span> → <span class="sw" style="background:${toCol}"></span>${esc(m.to)} <span class="muted">${esc(r.dirs[m.to] || "")}</span></td>
+      <td>${r.closed ? '<span class="tag red">CLOSED</span>' : ""}<span class="sw" style="background:${fromCol}"></span>${esc(r.gate)} <span class="muted">${esc(r.dir)}</span> → <span class="sw" style="background:${toCol}"></span>${esc(m.to)} <span class="muted">${esc(r.dirs[m.to] || "")}</span></td>
       <td style="white-space:normal;min-width:280px">${m.kind === "cdr"
         ? `<span class="tag cyan">CDR</span><b>${esc(m.code)}</b> <span class="muted">${esc(m.route)}</span>`
         : `<span class="tag amber">STAR</span>DCT <b>${esc(m.fix)}</b> ${esc(m.star)}`}</td>
       <td>${m.coordReq ? '<span class="tag amber">COORD REQ</span>' : ""}${m.kind === "star" ? (m.extraNm ? `+${m.extraNm} nm` : '<span class="muted">no extra distance</span>') : ""}</td></tr>`;
   }
+  for (const r of s.closures || []) for (const cs of r.stuck)
+    h += `<tr><td><b>${esc(cs)}</b></td><td colspan="3"></td><td><span class="tag red">CLOSED</span>${esc(r.gate)}</td><td colspan="2" class="tight">no open gate within ${CLOSED_MAX_EXTRA_NM} nm extra: reroute by hand</td></tr>`;
   h += `</table>`;
   $("routes").innerHTML = h;
 }
@@ -1046,6 +1231,391 @@ function renderEvent(s) {
   if (past.length) h += `<div style="margin-top:10px" class="muted">Recent events here:</div><ul class="list">${past.map(e => `<li>${new Date(e.startMs).toISOString().slice(0, 10)} · ${esc(e.name)} <span class="muted">peak ${e.peakArr}/hr</span></li>`).join("")}</ul>`;
   h += `<div class="muted" style="margin-top:10px">For a full forecast and gate split, run the Event planner on <a href="vatflow-tbfm%20v2.html" style="color:#5ba8c9">Airport TMU</a>.</div>`;
   $("evt").innerHTML = h;
+}
+
+/* ---------------- tabs ---------------- */
+
+let tab = location.hash === "#map" ? "map" : location.hash === "#overview" ? "overview" : prefs.tab === "map" ? "map" : "overview";
+function setTab(t) {
+  tab = t === "map" ? "map" : "overview";
+  prefs.tab = tab; savePrefs();
+  history.replaceState(null, "", location.pathname + location.search + "#" + tab);
+  render();
+  if (tab === "map") sizeMapView();
+}
+function renderTabs() {
+  for (const b of document.querySelectorAll("#tabs .tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
+}
+$("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) setTab(b.dataset.tab); });
+/* the map fills the window below the header */
+function sizeMapView() {
+  const el = document.querySelector(".mapview");
+  if (!el || $("mapView").hidden || innerWidth <= 900) { if (el) el.style.height = ""; return; }
+  el.style.height = Math.max(480, innerHeight - el.getBoundingClientRect().top - 10) + "px";
+  if (bigMap) bigMap.invalidateSize();
+}
+addEventListener("resize", sizeMapView);
+addEventListener("hashchange", () => { const t = location.hash.slice(1); if ((t === "map" || t === "overview") && t !== tab) setTab(t); });
+
+/* ---------------- field config drawer ---------------- */
+
+$("cfgBtn").addEventListener("click", () => { st.cfgOpen = !st.cfgOpen; $("cfg").hidden = !st.cfgOpen; render(); });
+$("cfgClose").addEventListener("click", () => { st.cfgOpen = false; $("cfg").hidden = true; });
+function rwyLabel(rc) {
+  const a = rc.arr.length ? rc.arr.join(" ") : "—", d = rc.dep.length ? rc.dep.join(" ") : "—";
+  return `ARR <b>${esc(a)}</b> · DEP <b>${esc(d)}</b>`;
+}
+function renderCfgSummary(s) {
+  const rc = runwayConfig(), c = cfgFor();
+  const src = rc.source === "atis" ? `ATIS ${esc((rc.atis.find(a => a.code) || {}).code || "")}`.trim()
+    : rc.source === "manual" ? "set by hand" : rc.source === "atis-none" ? "no ATIS online" : "ATIS names no runways";
+  const any = rc.arr.length || rc.dep.length;
+  $("cfgSum").hidden = !any && !c.closed.length;
+  $("cfgSum").innerHTML = (any ? `RUNWAYS ${rwyLabel(rc)} <span class="dim">(${src})</span>` : "") +
+    (s.rwyWinds.length ? " · " + s.rwyWinds.map(w => `${w.rwy} <span class="${w.head < -5 ? "tight" : "muted"}">${w.head < 0 ? "tail " + -w.head : "head " + w.head}</span>/x${w.cross}`).join(" ") : "") +
+    (c.closed.length ? `${any ? " · " : ""}<span class="tight">CLOSED ${esc(c.closed.join(" "))}</span>` : "");
+  $("cfgBtn").textContent = "FIELD CONFIG" + (c.closed.length ? ` · ${c.closed.length} GATE${c.closed.length === 1 ? "" : "S"} CLOSED` : "");
+  $("cfgBtn").classList.toggle("on", !!c.closed.length);
+}
+/* every gate the field has a STAR for, plus any gate the traffic files */
+function fieldGates(s) {
+  const brg = st.stars.length && st.aptLL ? gateBearings(st.stars, st.aptLL) : {};
+  const names = new Set(Object.keys(brg));
+  for (const g of s.gates) if (g.name !== NO_GATE && (g.inbound || g.peakDemand)) names.add(g.name);
+  for (const g of cfgFor().closed) names.add(g);
+  return [...names].map(name => {
+    const g = s.gates.find(x => x.name === name);
+    return { name, brg: brg[name], dir: brg[name] != null ? compassOf(brg[name]) : "", inbound: g ? g.inbound : 0, color: s.mon.colors[name] || "#6b7a89" };
+  }).sort((a, b) => (a.brg ?? 999) - (b.brg ?? 999) || a.name.localeCompare(b.name));
+}
+function renderCfg(s) {
+  const c = cfgFor(), rc = runwayConfig();
+  $("cfgApt").textContent = s.airport;
+  let h = `<h3>RUNWAY CONFIGURATION</h3>
+    <div class="seg"><button type="button" data-rmode="atis" aria-pressed="${c.rwyMode === "atis"}">AUTO · VATSIM ATIS</button><button type="button" data-rmode="manual" aria-pressed="${c.rwyMode === "manual"}">SET BY HAND</button></div>`;
+  if (c.rwyMode === "atis") {
+    const list = rc.atis || [];
+    h += !list.length ? `<p class="muted">No ATIS for ${esc(s.airport)} is online on VATSIM right now${c.arr.length || c.dep.length ? ", so the runways set by hand below are used" : ". Set the runways by hand below until one connects"}.</p>`
+      : `<p>${rwyLabel(rc)} ${rc.source === "atis" ? "" : '<span class="tight">(the ATIS doesn\'t name a runway I recognise; using the ones set by hand)</span>'}</p>` +
+        list.map(a => `<div class="atisbox"><b>${esc(a.callsign)}${a.code ? " · INFO " + esc(a.code) : ""}</b>\n${esc(a.text || "(no text)")}</div>`).join("");
+  }
+  if (!st.ends.length) h += `<p class="muted">${st.endsFor ? "Loading runways…" : "No runway data for this field."}</p>`;
+  else {
+    h += `<p class="muted" style="margin:10px 0 0">${c.rwyMode === "atis" ? "Fallback when the ATIS is offline. " : ""}Tap a runway to cycle: arrivals, departures, both, off.</p><div class="rwgrid">`;
+    for (const [id] of st.ends) {
+      const r = normRwy(id), a = c.arr.includes(r), d = c.dep.includes(r);
+      const cls = a && d ? "both" : a ? "arr" : d ? "dep" : "";
+      h += `<button type="button" class="rwbtn ${cls}" data-rwy="${esc(r)}">${esc(r)}<small>${a && d ? "ARR + DEP" : a ? "ARR" : d ? "DEP" : "—"}</small></button>`;
+    }
+    h += `</div>`;
+  }
+  const w = windFromMetar(st.metar);
+  if (s.rwyWinds.length) h += `<p style="margin-top:8px">Wind ${w.dir != null ? String(w.dir).padStart(3, "0") : "VRB"}° ${w.spd}${w.gust ? "G" + w.gust : ""} kt: ` +
+    s.rwyWinds.map(x => `<b>${esc(x.rwy)}</b> <span class="${x.head < -5 ? "tight" : ""}">${x.head < 0 ? "tailwind " + -x.head : "headwind " + x.head}</span>, crosswind ${x.cross}${x.crossGust > x.cross ? " (G" + x.crossGust + ")" : ""}`).join(" · ") + `</p>`;
+  h += `<h3>ARRIVAL GATES</h3><p class="muted" style="margin:0 0 6px">Close a gate to have VATSMART move everyone filed over it to an open gate (CDR or STAR swap, up to ${CLOSED_MAX_EXTRA_NM} nm extra). Saturation reroutes never go to a closed gate.</p>`;
+  const gates = fieldGates(s);
+  h += gates.length ? gates.map(g => {
+    const shut = c.closed.includes(g.name);
+    return `<div class="gtrow"><span><span class="sw" style="background:${g.color}"></span><b>${esc(g.name)}</b> <span class="muted">${esc(g.dir)}</span></span>
+      <span class="muted">${g.inbound} inbound</span>
+      <button type="button" class="gtbtn ${shut ? "closed" : "open"}" data-gate-toggle="${esc(g.name)}">${shut ? "CLOSED" : "OPEN"}</button></div>`;
+  }).join("") : `<p class="muted">${st.starsFor ? "Loading STARs…" : "No STARs for this field in navdata."}</p>`;
+  h += `<p class="muted" style="margin-top:14px">These settings stay in this browser and only change VATSMART's own advice and map. They don't change programs on Airport TMU or anything other controllers see.</p>`;
+  $("cfgBody").innerHTML = h;
+}
+$("cfgBody").addEventListener("click", e => {
+  const m = e.target.closest("[data-rmode]");
+  if (m) { const c = cfgFor(); c.rwyMode = m.dataset.rmode; saveCfg(c); return; }
+  const r = e.target.closest("[data-rwy]");
+  if (r) {
+    const c = cfgFor(), id = r.dataset.rwy, a = c.arr.includes(id), d = c.dep.includes(id);
+    const [na, nd] = !a && !d ? [true, false] : a && !d ? [false, true] : !a && d ? [true, true] : [false, false];
+    c.arr = c.arr.filter(x => x !== id).concat(na ? [id] : []).sort();
+    c.dep = c.dep.filter(x => x !== id).concat(nd ? [id] : []).sort();
+    saveCfg(c);
+  }
+});
+/* gate open / close buttons in the drawer and in map popups */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-gate-toggle]");
+  if (!b) return;
+  toggleGate(b.dataset.gateToggle);
+  if (bigMap) bigMap.closePopup();
+});
+
+/* ---------------- map tab ---------------- */
+
+const KINDS = [
+  ["closed", "CLOSED GATE", "#ff6b6b"], ["reroute", "REROUTE", "#f5a83d"], ["slot", "SLOT", "#e8a838"], ["holding", "HOLDING", "#ffd166"],
+  ["tight", "SPACING", "#e07070"], ["edct", "EDCT", "#c792ea"], ["nogate", "NO GATE", "#8a97a3"],
+];
+const KIND_COL = Object.fromEntries(KINDS.map(k => [k[0], k[2]]));
+const SEV_COL = { action: "#ff5c5c", watch: "#e8a838", info: "#4fb8d6" };
+const SEV_N = { action: 0, watch: 1, info: 2 };
+const LAYERS = [
+  ["proposed", "Proposed reroutes", true], ["filed", "Filed routes (flagged)", false], ["labels", "Data blocks (flagged)", true],
+  ["allLabels", "Data blocks (all)", false], ["ground", "Ground traffic", true], ["onlyFlagged", "Only flagged aircraft", false],
+  ["gates", "Gates", true], ["runways", "Runways", true], ["merges", "Merge points", true], ["rings", "Range rings", true],
+];
+const lay = k => { const v = (prefs.mapLayers || {})[k]; return v == null ? LAYERS.find(x => x[0] === k)[2] : !!v; };
+$("layers").innerHTML = LAYERS.map(([k, label]) => `<label><input type="checkbox" data-layer="${k}"${lay(k) ? " checked" : ""}> ${label}</label>`).join("");
+$("layers").addEventListener("change", e => {
+  const k = e.target.dataset.layer; if (!k) return;
+  prefs.mapLayers = { ...(prefs.mapLayers || {}), [k]: e.target.checked }; savePrefs(); render();
+});
+$("kindChips").addEventListener("click", e => {
+  const b = e.target.closest("[data-kind]"); if (!b) return;
+  const k = b.dataset.kind;
+  if (k === "all") st.kinds.clear(); else if (st.kinds.has(k)) st.kinds.delete(k); else st.kinds.add(k);
+  render();
+});
+$("acSearch").addEventListener("input", e => { st.search = e.target.value.toUpperCase().trim(); render(); });
+$("acSearch").addEventListener("keydown", e => {
+  if (e.key !== "Enter" || !st.sit || !st.search) return;
+  const f = st.sit.flights.find(x => x.callsign === st.search) || st.sit.flights.find(x => x.callsign.includes(st.search));
+  if (f) selectFlight(f.callsign, true);
+});
+$("attn").addEventListener("click", e => { const li = e.target.closest("[data-cs]"); if (li) selectFlight(li.dataset.cs, true); });
+$("acInfo").addEventListener("click", e => { if (e.target.closest("[data-unsel]")) { st.sel = ""; render(); } });
+
+function pilotOf(cs) { return st.pilots.find(p => p.callsign === cs) || st.prefiles.find(p => p.callsign === cs) || null; }
+function selectFlight(cs, fly) {
+  st.sel = cs;
+  render();
+  if (!fly || !bigMap || !st.sit) return;
+  const f = st.sit.flights.find(x => x.callsign === cs);
+  if (!f) return;
+  if (f.lat != null) bigMap.flyTo([f.lat, f.lon], Math.max(bigMap.getZoom(), 7), { duration: 0.6 });
+  else {
+    const pts = [...proposedPaths(f).flatMap(x => x.path), ...filedPath(f)];
+    if (pts.length > 1) bigMap.flyToBounds(L.latLngBounds(pts), { padding: [40, 40], duration: 0.6 });
+  }
+}
+
+/* route geometry from the FCA Builder's route engine, cached per filed route and rough position */
+const pathCache = new Map();
+function cached(k, fn) {
+  if (pathCache.has(k)) return pathCache.get(k);
+  if (pathCache.size > 3000) pathCache.clear();
+  let v = [];
+  try { v = fn() || []; } catch (e) { console.warn("route path:", e); }
+  pathCache.set(k, v);
+  return v;
+}
+const posKey = f => f.lat == null ? "gnd" : f.lat.toFixed(1) + "," + f.lon.toFixed(1);
+function filedPath(f) {
+  const p = pilotOf(f.callsign);
+  if (!p || !isNavReady()) return [];
+  const air = f.status === "AIRBORNE";
+  return cached(["F", f.callsign, p.dep, p.route, air ? posKey(f) : ""].join("|"),
+    () => buildRoutePathLLs({ ...p, phase: air ? "air" : "gnd" }, { includeNow: air }));
+}
+/* how a suggested reroute would fly: a CDR from the origin, or direct to the new STAR's entry fix and down the STAR */
+function proposedPath(f, m) {
+  if (!isNavReady()) return [];
+  return cached(["P", f.callsign, m.kind, m.code || "", m.fix || "", m.star, posKey(f)].join("|"), () => {
+    let anchors;
+    if (m.kind === "cdr") anchors = buildRouteAnchors({ dep: f.dep, arr: st.airport, route: m.route }).anchors;
+    else {
+      const from = f.lat != null ? [f.lat, f.lon] : getAirport(f.dep);
+      if (!from) return [];
+      anchors = buildRouteAnchors({ dep: "", arr: st.airport, route: `${m.fix} ${m.star}` }, { origin: from }).anchors;
+    }
+    return anchors.map(a => a.ll).filter(Boolean);
+  });
+}
+function proposedPaths(f) {
+  const out = [];
+  for (const x of (st.issues || {})[f.callsign] || []) if (x.move && (x.kind === "closed" || x.kind === "reroute")) out.push({ kind: x.kind, move: x.move, path: proposedPath(f, x.move) });
+  return out;
+}
+
+function destPoint(ll, brgDeg, nm) {
+  const r = Math.PI / 180, d = nm / 3440.065, b = brgDeg * r, la = ll[0] * r, lo = ll[1] * r;
+  const la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(b));
+  const lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la), Math.cos(d) - Math.sin(la) * Math.sin(la2));
+  return [la2 / r, lo2 / r];
+}
+
+function bigIcon(color, hdg, airborne, sev, selected, holding) {
+  const sz = airborne ? 17 : 12;
+  const fill = airborne ? color : "#0a0e14";
+  const pc = selected ? "#ffffff" : SEV_COL[sev] || "";
+  const ring = (holding ? `<div class="halo" style="--pc:#ffd166;border-style:dashed;inset:-10px"></div>` : "") +
+    (pc ? `<div class="halo" style="--pc:${pc}"></div>` + (sev === "action" || selected ? `<div class="pulse" style="--pc:${pc}"></div>` : "") : "");
+  const html = `<div style="position:relative;width:${sz}px;height:${sz}px">${ring}<div style="transform:rotate(${Math.round(hdg)}deg);width:${sz}px;height:${sz}px">` +
+    `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" style="display:block;filter:drop-shadow(0 0 2px #000)"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${fill}" stroke="${airborne ? "#0a0e14" : color}" stroke-width="${airborne ? 1.2 : 2}" stroke-linejoin="round"/></svg></div></div>`;
+  return L.divIcon({ className: "", html, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+}
+const SHORT = { closed: "CLSD", reroute: "RTE", slot: "SLOT", holding: "HOLD", tight: "SPC", edct: "EDCT", nogate: "NO GATE" };
+function blockText(f, iss) {
+  const alt = f.status === "AIRBORNE" ? String(Math.round(f.alt / 100)).padStart(3, "0") + " " + Math.round(f.gs) : f.status.toLowerCase();
+  const tags = (iss || []).map(x => x.move && x.move.to && (x.kind === "closed" || x.kind === "reroute") ? `${SHORT[x.kind]}→${x.move.to}`
+    : x.kind === "slot" && x.move ? `SLOT ${x.move.shiftMin > 0 ? "+" : "−"}${Math.abs(x.move.shiftMin)}` : SHORT[x.kind]);
+  return `<b>${esc(f.callsign)}</b> ${esc(f.type || "")}<br>${esc(alt)} ${esc(f.gate === NO_GATE ? "" : f.gate)}` +
+    (tags.length ? `<br><span style="color:${SEV_COL[iss[0].sev]}">${esc([...new Set(tags)].join(" "))}</span>` : "");
+}
+
+let bigMap = null, bigLayers = null, bigFitted = false;
+function renderBigMap(s) {
+  if (!window.L) return;
+  if (!bigMap) {
+    bigMap = L.map("bigMap", { zoomControl: true, minZoom: 3, maxZoom: 13, attributionControl: true, preferCanvas: false });
+    if (window.addVatflowBasemap) window.addVatflowBasemap(bigMap);
+    bigLayers = L.layerGroup().addTo(bigMap);
+    bigMap.on("click", () => { if (st.sel) { st.sel = ""; render(); } });
+    sizeMapView();
+  }
+  if (!bigFitted) { bigMap.setView(st.aptLL, 7); bigFitted = true; setTimeout(sizeMapView, 0); }
+  bigLayers.clearLayers();
+  const ll = st.aptLL, colors = s.mon.colors, cfg = cfgFor(), shut = new Set(cfg.closed);
+  const iss = st.issues = flightIssues(s);
+  for (const k in iss) iss[k].sort((a, b) => SEV_N[a.sev] - SEV_N[b.sev]);
+
+  if (lay("rings")) for (const nm of [25, 50, 100, 150, 300]) {
+    L.circle(ll, { radius: nm * 1852, color: "#2a3644", weight: 1, fill: false, dashArray: "3 5", interactive: false }).addTo(bigLayers);
+    L.marker(destPoint(ll, 0, nm), { icon: L.divIcon({ className: "", html: `<span style="font:10px var(--mono);color:#5c6b78">${nm}</span>`, iconSize: [24, 12], iconAnchor: [-3, 6] }), interactive: false }).addTo(bigLayers);
+  }
+
+  /* runways: arrivals green with a 15 nm final, departures blue, both amber */
+  const rc = runwayConfig();
+  if (lay("runways") && st.ends.length) {
+    for (const pair of runwayPairs(st.ends)) {
+      if (pair.length < 2) continue;
+      const [a, b] = pair, ida = normRwy(a[0]), idb = normRwy(b[0]);
+      const arrA = rc.arr.includes(ida), arrB = rc.arr.includes(idb), depAny = rc.dep.includes(ida) || rc.dep.includes(idb);
+      const arrAny = arrA || arrB;
+      const col = arrAny && depAny ? "#e8a838" : arrAny ? "#57d98a" : depAny ? "#4fb8d6" : "#6b7a89";
+      L.polyline([[a[1], a[2]], [b[1], b[2]]], { color: col, weight: 5, opacity: 0.9 })
+        .bindTooltip(`RWY ${esc(ida)}/${esc(idb)}${a[4] ? " · " + a[4].toLocaleString() + " ft" : ""}${arrAny ? " · landing " + [arrA && ida, arrB && idb].filter(Boolean).join(" ") : ""}${depAny ? " · departing " + [rc.dep.includes(ida) && ida, rc.dep.includes(idb) && idb].filter(Boolean).join(" ") : ""}`, { className: "ac" }).addTo(bigLayers);
+      for (const e of pair) {
+        const id = normRwy(e[0]);
+        if (!rc.arr.includes(id)) continue;
+        L.polyline([[e[1], e[2]], destPoint([e[1], e[2]], (e[3] + 180) % 360, 15)], { color: "#57d98a", weight: 1.5, dashArray: "6 6", opacity: 0.8, interactive: false }).addTo(bigLayers);
+        L.marker(destPoint([e[1], e[2]], (e[3] + 180) % 360, 16), { icon: L.divIcon({ className: "", html: `<span style="font:700 10px var(--mono);color:#57d98a;text-shadow:0 0 3px #000">${esc(id)}</span>`, iconSize: [30, 12], iconAnchor: [15, 6] }), interactive: false }).addTo(bigLayers);
+      }
+    }
+  }
+  L.circleMarker(ll, { radius: 5, color: "#e8a838", weight: 2, fillColor: "#e8a838", fillOpacity: 0.4 }).bindTooltip(st.airport, { className: "ac", direction: "right" }).addTo(bigLayers);
+
+  /* gates: each STAR entry fix, a label per gate, closed ones crossed out */
+  if (lay("gates") && st.stars.length) {
+    const brg = gateBearings(st.stars, ll);
+    const byGate = {};
+    for (const x of st.stars) (byGate[x.gate] = byGate[x.gate] || []).push(x);
+    for (const [g, fixes] of Object.entries(byGate)) {
+      const closed = shut.has(g), col = closed ? "#ff5c5c" : colors[g] || "#5c6b78";
+      const gs = s.gates.find(x => x.name === g);
+      const pop = `<b>${esc(g)}</b> ${esc(compassOf(brg[g]))} · ${gs ? gs.inbound : 0} inbound${gs && gs.nowNm ? " · " + gs.nowNm + " MIT" : ""}<br>` +
+        `${esc([...new Set(fixes.map(x => x.star))].join(" "))}<br><button type="button" data-gate-toggle="${esc(g)}">${closed ? "OPEN GATE" : "CLOSE GATE"}</button>`;
+      for (const x of fixes) {
+        const html = closed ? `<svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2L12 12M12 2L2 12" stroke="${col}" stroke-width="3"/></svg>`
+          : `<svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 6L6 12L0 6Z" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
+        L.marker(x.ll, { icon: L.divIcon({ className: "", html, iconSize: [14, 14], iconAnchor: [7, 7] }) })
+          .bindTooltip(`${esc(x.fix)} · ${esc(x.star)}`, { className: "ac" }).bindPopup(pop).addTo(bigLayers);
+      }
+      /* the gate's name at its entry fix nearest the field */
+      const near = fixes.reduce((m, x) => !m || L.latLng(ll).distanceTo(x.ll) < L.latLng(ll).distanceTo(m.ll) ? x : m, null);
+      L.marker(near.ll, { icon: L.divIcon({ className: "", iconSize: [110, 14], iconAnchor: [-8, 7],
+        html: `<div style="font:700 11px var(--mono);letter-spacing:.06em;color:${col};text-shadow:0 0 3px #000,0 0 2px #000;white-space:nowrap">${esc(g)}${closed ? " ✕ CLOSED" : ""}</div>` }) })
+        .bindPopup(pop).addTo(bigLayers);
+    }
+  }
+
+  if (lay("merges")) for (const mp of (s.merges || []).filter(x => x.status !== "ok" && x.ll)) {
+    const c = mp.status === "over" ? "#e07070" : "#e8a838";
+    L.circleMarker(mp.ll, { radius: 10, color: c, weight: 3, fillColor: c, fillOpacity: 0.2 })
+      .bindTooltip(`${esc(mp.fix)} → ${esc(mp.gate)} ${mp.peak.n}/hr vs ${mp.share}`, { className: "ac", permanent: true, direction: "left" }).addTo(bigLayers);
+  }
+
+  /* routes under the traffic: filed (solid) and suggested (dashed) */
+  const sel = st.sel ? s.flights.find(f => f.callsign === st.sel) : null;
+  const labelled = new Set();
+  const drawRoutes = (f, filed, proposed, strong) => {
+    const col = f.gate === NO_GATE ? "#8a97a3" : colors[f.gate] || "#8a97a3";
+    if (filed) {
+      const fp = filedPath(f);
+      if (fp.length > 1) L.polyline(fp, { color: col, weight: strong ? 2.5 : 1.5, opacity: strong ? 0.9 : 0.5, interactive: false }).addTo(bigLayers);
+    }
+    if (proposed) for (const p of proposedPaths(f)) {
+      if (p.path.length < 2) continue;
+      const c = p.kind === "closed" ? "#ff6b6b" : "#f5a83d";
+      L.polyline(p.path, { color: c, weight: strong ? 3 : 2, opacity: strong ? 1 : 0.8, dashArray: "8 6" })
+        .bindTooltip(`${esc(f.callsign)}: ${p.move.kind === "cdr" ? "CDR " + esc(p.move.code) + " via " + esc(p.move.star) : "DCT " + esc(p.move.fix) + " " + esc(p.move.star)} → ${esc(p.move.to)}${p.move.extraNm ? " (+" + p.move.extraNm + " nm)" : ""}`, { className: "ac", sticky: true })
+        .on("click", ev => { L.DomEvent.stopPropagation(ev); selectFlight(f.callsign, false); }).addTo(bigLayers);
+      const lk = p.move.kind === "cdr" ? p.move.code : p.move.fix + " " + p.move.star;
+      if (strong || (lay("labels") && !labelled.has(lk))) {        /* the new route's name at its first fix, once per route */
+        labelled.add(lk);
+        L.marker(p.path[Math.min(p.path.length - 1, 1)], { interactive: false, icon: L.divIcon({ className: "", iconSize: [110, 14], iconAnchor: [-6, 7],
+          html: `<span style="font:700 10px var(--mono);color:${c};text-shadow:0 0 3px #000,0 0 2px #000;white-space:nowrap">${esc(lk)}</span>` }) }).addTo(bigLayers);
+      }
+    }
+  };
+  for (const f of s.flights) {
+    if (f.status === "ARRIVED" || f === sel) continue;
+    const i = iss[f.callsign];
+    if (!i) continue;
+    drawRoutes(f, lay("filed"), lay("proposed"), false);
+  }
+  if (sel) drawRoutes(sel, true, true, true);
+
+  /* traffic */
+  const holdSet = new Map(((s.actual && s.actual.holding) || []).map(h => [h.cs, h]));
+  for (const f of s.flights) {
+    if (f.lat == null || f.status === "ARRIVED") continue;
+    const i = iss[f.callsign], isSel = f.callsign === st.sel;
+    if (!isSel && lay("onlyFlagged") && !i) continue;
+    if (!isSel && !lay("ground") && f.status !== "AIRBORNE") continue;
+    const col = f.excluded || f.gate === NO_GATE ? "#6b7a89" : colors[f.gate] || "#6b7a89";
+    const m = L.marker([f.lat, f.lon], { icon: bigIcon(col, f.hdg || 0, f.status === "AIRBORNE", i ? i[0].sev : "", isSel, holdSet.has(f.callsign)), keyboard: false, zIndexOffset: isSel ? 1000 : i ? 500 : 0 });
+    const label = (i && lay("labels")) || lay("allLabels") || isSel;
+    if (label) m.bindTooltip(blockText(f, i), { className: "blk", permanent: true, direction: "right", offset: [10, 0] });
+    else m.bindTooltip(blockText(f, i), { className: "ac", direction: "right" });
+    m.on("click", ev => { L.DomEvent.stopPropagation(ev); selectFlight(f.callsign, false); });
+    m.addTo(bigLayers);
+  }
+
+  $("mapLegend").innerHTML = `<span><span class="ln" style="border-color:#ff6b6b;border-top-style:dashed"></span>reroute off closed gate</span>
+    <span><span class="ln" style="border-color:#f5a83d;border-top-style:dashed"></span>reroute off saturated gate</span>
+    <span><span class="ln" style="border-color:#8a97a3"></span>filed route</span>
+    <span><span style="color:${SEV_COL.action}">◯</span> act · <span style="color:${SEV_COL.watch}">◯</span> watch · <span style="color:${SEV_COL.info}">◯</span> info · <span style="color:#ffd166">◌</span> holding</span>
+    ${st.ends.length ? `<span><span class="ln" style="border-color:#57d98a"></span>arrival rwy · <span style="color:#4fb8d6">━</span> departure</span>` : ""}`;
+}
+
+function renderAttn(s) {
+  const iss = st.issues || {};
+  const byCs = new Map(s.flights.map(f => [f.callsign, f]));
+  const counts = {};
+  for (const cs in iss) for (const k of new Set(iss[cs].map(x => x.kind))) counts[k] = (counts[k] || 0) + 1;
+  $("kindChips").innerHTML = `<button type="button" class="chip" data-kind="all" aria-pressed="${!st.kinds.size}">ALL ${Object.keys(iss).length}</button>` +
+    KINDS.filter(([k]) => counts[k]).map(([k, label]) => `<button type="button" class="chip k-${k}" data-kind="${k}" aria-pressed="${st.kinds.has(k)}">${label} ${counts[k]}</button>`).join("");
+  let rows = Object.entries(iss).map(([cs, list]) => ({ cs, list, f: byCs.get(cs) }))
+    .filter(r => !st.kinds.size || r.list.some(x => st.kinds.has(x.kind)))
+    .filter(r => !st.search || r.cs.includes(st.search));
+  rows.sort((a, b) => SEV_N[a.list[0].sev] - SEV_N[b.list[0].sev] || ((a.f && a.f.eta) || 9e15) - ((b.f && b.f.eta) || 9e15));
+  /* a searched callsign with nothing to fix still shows, so it can be found on the map */
+  if (st.search) for (const f of s.flights) if (!iss[f.callsign] && f.callsign.includes(st.search) && f.status !== "ARRIVED") rows.push({ cs: f.callsign, list: [], f });
+  $("attnCount").textContent = `${Object.keys(iss).length} aircraft`;
+  $("attn").innerHTML = rows.slice(0, 200).map(({ cs, list, f }) => {
+    const col = f ? (f.gate === NO_GATE ? "#6b7a89" : s.mon.colors[f.gate] || "#6b7a89") : "#6b7a89";
+    const where = !f ? "" : f.status === "AIRBORNE" ? `${f.dist != null ? Math.round(f.dist) + " nm · " : ""}lands ${fmtZ(f.eta)}` : `${f.status.toLowerCase()} ${esc(f.dep || "")} · lands ${f.eta ? fmtZ(f.eta) : "—"}`;
+    return `<li data-cs="${esc(cs)}" class="${cs === st.sel ? "sel" : ""}"><div class="hd"><b>${esc(cs)}</b><span><span class="sw" style="background:${col}"></span>${esc(f ? f.gate : "")}</span><span class="r">${where}</span></div>
+      ${list.length ? list.map(x => `<div class="is"><span class="k" style="color:${KIND_COL[x.kind]}">${esc(SHORT[x.kind])}</span>${esc(x.text)}</div>`).join("") : `<div class="is">Nothing to fix.</div>`}</li>`;
+  }).join("") || `<li style="cursor:default"><div class="is">${Object.keys(iss).length ? "Nothing matches the filter." : "No aircraft need fixing right now."}</div></li>`;
+}
+
+function renderAcInfo(s) {
+  const f = st.sel ? s.flights.find(x => x.callsign === st.sel) : null;
+  if (!f) { $("acInfo").hidden = true; return; }
+  const p = pilotOf(f.callsign), list = (st.issues || {})[f.callsign] || [];
+  const prop = proposedPaths(f);
+  $("acInfo").hidden = false;
+  $("acInfo").innerHTML = `<div class="hd"><b>${esc(f.callsign)}</b><span>${esc(f.type || "")}</span><span class="muted">${esc(f.dep || "?")} → ${esc(s.airport)}</span><button type="button" data-unsel="1">✕</button></div>
+    <div>${f.status === "AIRBORNE" ? `FL${String(Math.round(f.alt / 100)).padStart(3, "0")} · ${Math.round(f.gs)} kt · ${f.dist != null ? Math.round(f.dist) + " nm out" : ""}` : esc(f.status.toLowerCase())}
+      · gate <b>${esc(f.gate)}</b>${f.gateEta ? ` over ${esc(f.gateFix || f.gate)} ${fmtZ(f.gateEta)}` : ""} · lands <b>${f.eta ? fmtZ(f.eta) : "—"}</b></div>
+    ${p && p.route ? `<div class="rte">FILED ${esc(p.route)}</div>` : ""}
+    ${prop.map(x => `<div class="rte new">PROPOSED ${x.move.kind === "cdr" ? `CDR ${esc(x.move.code)}${x.move.coordReq ? " (coord req)" : ""}: ${esc(x.move.route)}` : `DCT ${esc(x.move.fix)} ${esc(x.move.star)}`} → ${esc(x.move.to)}${x.move.extraNm ? ` · +${x.move.extraNm} nm` : ""}${x.path.length < 2 ? " (route not drawn: nav data still loading or a fix isn't in navdata)" : ""}</div>`).join("")}
+    ${list.length ? `<ul>${list.map(x => `<li><span style="color:${SEV_COL[x.sev]}">${esc(SHORT[x.kind])}</span> ${esc(x.text)}</li>`).join("")}</ul>` : `<div class="muted" style="margin-top:4px">Nothing to fix on this one.</div>`}`;
 }
 
 /* ---------------- start ---------------- */
