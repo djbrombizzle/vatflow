@@ -256,10 +256,12 @@ export function taxiSummary({ samples = [], sessions = {}, now }) {
  *   pastEvents data/event-history.json entries for the field
  *   actual    { rate: landingRate(...), holding: holdingNow(...) } from shared/arrival-track.js, or null
  *   merge     { routeOf, anchorsFor, gateIndex, artccFor, originCenter } hooks for buildMergePoints, or null
+ *   config    this page's field config, or null: { closed: [gate], runways: { arr: [], dep: [], source }, ends: runways.json rows, wind: windFromMetar(...) }
  */
 export function buildSituation({
   airport, aptLL, prog = null, localAar = 0, pilots = [], prefiles = [], airportLL = () => null,
   now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null, etaFor = null, actual = null, merge = null,
+  config = null,
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
@@ -326,7 +328,11 @@ export function buildSituation({
   sit.airportLL = airportLL;
   sit.slots = slotBalance(live, now, cap.capacity);
   sit.merges = merge && cap.capacity ? buildMergePoints({ ...merge, flights: live, aptLL, windows: roll.windows, capacity: cap.capacity, now }) : [];
+  sit.config = config || { closed: [], runways: null, ends: [], wind: null };
+  sit.closedGates = sit.config.closed || [];
+  sit.closures = routing ? closedGateReroutes({ sit, stars: routing.stars, cdrs: routing.cdrs, closed: sit.closedGates }) : [];
   sit.reroutes = routing ? routeRecommendations({ sit, stars: routing.stars, cdrs: routing.cdrs }) : [];
+  sit.rwyWinds = sit.config.runways ? runwayWinds(sit.config.runways.arr || [], sit.config.ends, sit.config.wind) : [];
   sit.recs = recommend(sit);
   return sit;
 }
@@ -411,12 +417,13 @@ export function routeRecommendations({ sit, stars = [], cdrs = {} }) {
   /* demand of everything feeding the same corner as gate g */
   const cornerDemand = g => win.entries.reduce((n, [o, d]) => n + (brg[o] != null && angDiff(brg[o], brg[g]) < CORNER_SEP_DEG ? d : 0), 0);
   const calc = calcGateMit(cap, win.entries, win.unassigned, MIT_NOMINAL_KT);
-  const starGates = [...new Set(stars.map(s => s.gate))];
+  const shut = new Set(sit.closedGates || []);
+  const starGates = [...new Set(stars.map(s => s.gate))].filter(g => !shut.has(g));
   const demand = g => (win.entries.find(([n]) => n === g) || [])[1] || 0;
   const out = [];
   const saturated = calc.rows.filter(r => r.limited && r.demand - r.slice >= 1).sort((a, b) => (b.demand - b.slice) - (a.demand - a.slice));
   for (const sat of saturated) {
-    if (brg[sat.gate] == null) continue;                       // no STAR geometry for this gate
+    if (brg[sat.gate] == null || shut.has(sat.gate)) continue; // no STAR geometry, or closed (closedGateReroutes moves all of it)
     const excess = Math.min(REROUTE_MAX_PER_GATE, Math.ceil(sat.demand - sat.slice));
     const flights = sit.live.filter(f => f.gate === sat.gate && f.eta >= win.start - 15 * MIN && f.eta < win.end)
       .sort((a, b) => (a.status === "AIRBORNE") - (b.status === "AIRBORNE") || a.eta - b.eta);
@@ -472,6 +479,194 @@ export function routeRecommendations({ sit, stars = [], cdrs = {} }) {
     out.push({ gate: sat.gate, dir: compassOf(brg[sat.gate]), dirs: Object.fromEntries(Object.keys(added).map(g => [g, compassOf(brg[g])])), to: Object.keys(added), excess, demandBefore: sat.demand, demandAfter: sat.demand - moves.length,
       added: Object.entries(added).map(([g, n]) => ({ gate: g, before: demand(g), after: demand(g) + n })), moves });
   }
+  return out;
+}
+
+/* ---------------- field config: closed gates ---------------- */
+
+export const CLOSED_MAX_EXTRA_NM = 150;   // a closed gate has to move everyone, so a longer swap is still offered
+const CLOSED_PAST_NM = 40;                 // airborne this close with no gate ETA is taken as past the gate already
+
+/**
+ * Arrivals filed over a gate the user closed on this page, each moved to an open gate:
+ * a CDR for flights still on the ground, else the open gate's STAR via its nearest entry
+ * fix (any corner: the closure, not saturation, is the reason). Spreads the moves by
+ * scoring extra distance plus the target's load. Flights already past the gate are left.
+ * Returns [{ gate, closed: true, dir, dirs, to, moves, stuck: [callsign], demandBefore, demandAfter, added }].
+ */
+export function closedGateReroutes({ sit, stars = [], cdrs = {}, closed = [] }) {
+  const shut = new Set(closed);
+  if (!shut.size || !sit.aptLL) return [];
+  const fieldLL = sit.aptLL, now = sit.now;
+  const brg = stars.length ? gateBearings(stars, fieldLL) : {};
+  const open = [...new Set(stars.map(s => s.gate))].filter(g => !shut.has(g));
+  const load = {};
+  for (const f of sit.live) if (f.gate) load[f.gate] = (load[f.gate] || 0) + 1;
+  const out = [];
+  for (const gate of shut) {
+    const flights = sit.live.filter(f => f.gate === gate &&
+      !(f.gateEta != null ? f.gateEta <= now : f.status === "AIRBORNE" && f.dist != null && f.dist < CLOSED_PAST_NM))
+      .sort((a, b) => a.eta - b.eta);
+    if (!flights.length) continue;
+    const moves = [], stuck = [];
+    for (const f of flights) {
+      let move = null;
+      if (f.status !== "AIRBORNE") {
+        for (const r of (cdrs[f.dep] || [])) {
+          const star = lastStar(r[2]), g = gateKey(star);
+          if (!star || !open.includes(g)) continue;
+          const better = !move || (load[g] || 0) < (load[move.to] || 0) || ((load[g] || 0) === (load[move.to] || 0) && r[4] !== "Y" && move.coordReq);
+          if (better) move = { to: g, kind: "cdr", code: r[0], route: r[2], coordReq: r[4] === "Y", star, extraNm: null };
+        }
+      }
+      if (!move) {
+        const from = f.status === "AIRBORNE" && f.lat != null ? [f.lat, f.lon] : sit.airportLL ? sit.airportLL(f.dep) : null;
+        if (from) {
+          const via = s => gcNm(from[0], from[1], s.ll[0], s.ll[1]) + gcNm(s.ll[0], s.ll[1], fieldLL[0], fieldLL[1]);
+          const cur = stars.filter(s => s.gate === gate).reduce((m, s) => Math.min(m, via(s)), Infinity);
+          const base = isFinite(cur) ? cur : gcNm(from[0], from[1], fieldLL[0], fieldLL[1]);
+          for (const s of stars) {
+            if (!open.includes(s.gate)) continue;
+            const extra = Math.round(via(s) - base);
+            if (extra > CLOSED_MAX_EXTRA_NM) continue;
+            const score = Math.max(0, extra) + 2 * (load[s.gate] || 0);
+            if (!move || score < move.score) move = { to: s.gate, kind: "star", star: s.star, fix: s.fix, extraNm: Math.max(0, extra), score };
+          }
+        }
+      }
+      if (!move) { stuck.push(f.callsign); continue; }
+      delete move.score;
+      load[move.to] = (load[move.to] || 0) + 1;
+      moves.push({ callsign: f.callsign, dep: f.dep, status: f.status, eta: f.eta, ...move });
+    }
+    const added = {};
+    for (const m of moves) added[m.to] = (added[m.to] || 0) + 1;
+    out.push({ gate, closed: true, dir: brg[gate] != null ? compassOf(brg[gate]) : "",
+      dirs: Object.fromEntries(Object.keys(added).map(g => [g, brg[g] != null ? compassOf(brg[g]) : ""])),
+      to: Object.keys(added), moves, stuck, demandBefore: flights.length, demandAfter: stuck.length,
+      added: Object.entries(added).map(([g, n]) => ({ gate: g, before: load[g] - n, after: load[g] })) });
+  }
+  return out;
+}
+
+/* ---------------- field config: runways ---------------- */
+
+const RWY_RE = /^(0?[1-9]|[12]\d|3[0-6])([LRC])?$/;
+const normRwy = r => { const m = String(r || "").toUpperCase().match(RWY_RE); return m ? String(+m[1]).padStart(2, "0") + (m[2] || "") : ""; };
+export { normRwy };
+
+/**
+ * Arrival and departure runways from an ATIS text, checked against the field's known
+ * runway ends (data/nav/runways.json) so altimeters, times and frequencies never count.
+ * A runway goes to whichever of landing / departing was said last before it; with
+ * neither ("RWYS 27L 28R IN USE") it counts for both. Sentences about closures are skipped.
+ */
+export function runwaysFromAtis(text, known = []) {
+  const ok = new Set(known.map(normRwy).filter(Boolean));
+  const arr = new Set(), dep = new Set();
+  const t = String(text || "").toUpperCase().replace(/\s+/g, " ");
+  const ARR = /^(APCH|APCHS|APPROACH|APPROACHES|APP|APPS|LNDG|LDG|LANDING|LAND|ARRIVAL|ARRIVALS|ARR|ARRS|ARRIVING|ARVNG|ARRVG)$/;
+  const DEP = /^(DEPG|DEPTG|DEPARTING|DEPARTURE|DEPARTURES|DEP|DEPS|DEPART|TKOF|TAKEOFF|TAKEOFFS)$/;
+  const APPR = /^(ILS|RNAV|RNP|VISUAL|VIS|LOC|GPS|LDA|VOR)$/;
+  const NEUTRAL = /^(SIMUL|SIMULTANEOUS|CONVERGING|PARALLEL|DEPENDENT|INDEPENDENT|IN|USE|EXPECT|EXP)$/;
+  const RWYW = /^(RWY|RWYS|RY|RYS|RUNWAY|RUNWAYS)$/;
+  const JOIN = /^(,|AND|Y|Z|X|W|-)$/;
+  for (const sentence of t.split(/\.(?=\s|$)|\.\.\.|;/)) {
+    if (/\b(CLSD|CLOSED|OTS|UNUSABLE|U\/S)\b/.test(sentence)) continue;
+    const toks = sentence.replace(/[,/&()]/g, " , ").split(" ").map(w => w.replace(/\.+$/, "")).filter(Boolean);
+    let mode = "", list = false, prevKw = "";
+    const pending = [];
+    const put = r => { if (mode === "arr" || mode === "both") arr.add(r); if (mode === "dep" || mode === "both") dep.add(r); if (!mode) pending.push(r); };
+    for (const w of toks) {
+      const kw = ARR.test(w) || APPR.test(w) ? "arr" : DEP.test(w) ? "dep" : "";
+      if (kw) {
+        /* "LANDING AND DEPARTING RWY 27" is both */
+        mode = prevKw && prevKw !== kw ? "both" : kw;
+        prevKw = kw; list = true;               // "ARR 6, DEP 1"
+        continue;
+      }
+      if (RWYW.test(w)) { list = true; continue; }
+      if (JOIN.test(w)) continue;
+      prevKw = "";
+      const r = normRwy(w);
+      /* "RWYS 24 AND 25" at a field with 24L/24R and 25L/25R means both sides */
+      const hits = !r ? [] : ok.has(r) ? [r] : /^\d\d$/.test(r) ? [...ok].filter(x => x.slice(0, 2) === r) : [];
+      if (list && hits.length) { hits.forEach(put); continue; }
+      if (!NEUTRAL.test(w)) list = false;
+    }
+    /* "RWYS 27L 28R IN USE": no landing or departing word in the sentence */
+    if (/\b(IN USE|IN PROG|IN EFFECT|ACTIVE)\b/.test(sentence)) for (const r of pending) { arr.add(r); dep.add(r); }
+  }
+  const sort = s => [...s].sort();
+  return { arr: sort(arr), dep: sort(dep) };
+}
+
+/** Wind from a METAR: { dir (true, or null when variable), spd, gust } or null. */
+export function windFromMetar(metar) {
+  const m = String(metar || "").match(/\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS)\b/);
+  if (!m) return null;
+  const k = m[4] === "MPS" ? 1.944 : 1;
+  return { dir: m[1] === "VRB" ? null : +m[1], spd: Math.round(+m[2] * k), gust: m[3] ? Math.round(+m[3] * k) : 0 };
+}
+
+/** Headwind (negative = tailwind) and crosswind on each runway end, steady and gust. */
+export function runwayWinds(rwys, ends = [], wind) {
+  if (!wind || wind.dir == null) return [];
+  return rwys.map(r => {
+    const e = ends.find(x => normRwy(x[0]) === normRwy(r));
+    if (!e) return null;
+    const a = (wind.dir - e[3]) * Math.PI / 180;
+    const g = Math.max(wind.gust || 0, wind.spd);
+    return { rwy: normRwy(r), hdg: e[3], head: Math.round(wind.spd * Math.cos(a)), cross: Math.round(Math.abs(wind.spd * Math.sin(a))),
+      crossGust: Math.round(Math.abs(g * Math.sin(a))), tailGust: Math.round(-g * Math.cos(a)) };
+  }).filter(Boolean);
+}
+
+export const TAILWIND_KT = 5;            // more than this on an arrival runway is worth turning the field for
+export const CROSSWIND_KT = 20;
+
+/** The field's runway ends grouped into runways: [[endA, endB]] from runways.json rows. */
+export function runwayPairs(ends = []) {
+  const left = ends.slice(), out = [];
+  while (left.length) {
+    const a = left.shift();
+    const num = +normRwy(a[0]).slice(0, 2), side = normRwy(a[0]).slice(2);
+    const opp = { L: "R", R: "L", C: "C", "": "" }[side];
+    const want = String(((num + 17) % 36) + 1).padStart(2, "0") + opp;
+    const i = left.findIndex(b => normRwy(b[0]) === want);
+    out.push(i >= 0 ? [a, left.splice(i, 1)[0]] : [a]);
+  }
+  return out;
+}
+
+/* ---------------- what needs fixing, per aircraft ---------------- */
+
+/**
+ * Every aircraft the advice names, with why: { callsign: [{ kind, sev, text, move? }] }.
+ * kinds: closed (filed over a closed gate), reroute, slot, holding, tight, edct, nogate.
+ */
+export function flightIssues(s) {
+  const out = {};
+  const add = (cs, x) => (out[cs] = out[cs] || []).push(x);
+  for (const r of s.closures || []) {
+    for (const m of r.moves) add(m.callsign, { kind: "closed", sev: "action", move: m,
+      text: `${r.gate} is closed: ` + (m.kind === "cdr" ? `CDR ${m.code} via ${m.star}` : `DCT ${m.fix} ${m.star}`) + ` to ${m.to}` + (m.extraNm ? ` (+${m.extraNm} nm)` : "") });
+    for (const cs of r.stuck) add(cs, { kind: "closed", sev: "action", text: `${r.gate} is closed and no open gate is within ${CLOSED_MAX_EXTRA_NM} nm extra: reroute by hand` });
+  }
+  for (const r of s.reroutes || []) for (const m of r.moves)
+    add(m.callsign, { kind: "reroute", sev: "action", move: m,
+      text: `Off saturated ${r.gate}: ` + (m.kind === "cdr" ? `CDR ${m.code} via ${m.star}` : `DCT ${m.fix} ${m.star}`) + ` to ${m.to}` + (m.extraNm ? ` (+${m.extraNm} nm)` : "") });
+  for (const b of s.slots || []) for (const m of b.moves)
+    add(m.callsign, { kind: "slot", sev: b.start - s.now <= 60 * MIN ? "action" : "watch", move: m,
+      text: `${m.shiftMin > 0 ? "+" : "−"}${Math.abs(m.shiftMin)} min into the ${fmtZ(m.to)} slot: ${slotMoveHow(m)}` });
+  for (const h of (s.actual && s.actual.holding) || [])
+    add(h.cs, { kind: "holding", sev: h.min >= 10 ? "action" : "watch", text: `Holding ${h.min} min, ${h.nm} nm ${h.dir}` });
+  for (const g of s.gates) for (const x of (g.spacing || []).filter(x => x.tight))
+    add(x.callsign, { kind: "tight", sev: "watch", text: `${Math.round(x.gap)} nm behind ${x.ahead} on ${g.name}, inside ${g.nowNm || g.recMit} MIT` });
+  for (const r of s.edct.early) add(r.cs, { kind: "edct", sev: "watch", text: `Departed early for EDCT ${fmtZ(r.t)}` });
+  for (const r of s.edct.late) add(r.cs, { kind: "edct", sev: "watch", text: `On the ground past EDCT ${fmtZ(r.t)}` });
+  for (const f of s.live) if (f.gate === NO_GATE && !f.excluded && f.status === "AIRBORNE")
+    add(f.callsign, { kind: "nogate", sev: "info", text: "Route ends without a STAR or fix VATFLOW knows: no gate MIT covers it" });
   return out;
 }
 
@@ -679,10 +874,40 @@ export function recommend(s) {
       why: `Demand is over capacity but ${apt} has no Airport TMU program, so MIT Monitor, dashboards and the other controllers can't see the rate. Set AAR ${s.cap.aar} on Airport TMU.`, link: LINK.tmu });
   }
 
+  /* gates closed on this page: everyone filed over them needs another gate */
+  const shut = new Set(s.closedGates || []);
+  for (const r of s.closures || []) {
+    const n = r.moves.length + r.stuck.length;
+    add({ id: "closed-" + r.gate, sev: "action", title: `${plural(n, "arrival")} filed over closed ${r.gate}`,
+      why: (r.moves.length ? `Reroute ${r.moves.length === n ? "them" : r.moves.length} to an open gate: ` + rerouteGroups(r.moves).join("; ") + "." : "") +
+        (r.stuck.length ? ` No CDR or STAR within ${CLOSED_MAX_EXTRA_NM} nm extra reaches an open gate for ${r.stuck.slice(0, 6).join(", ")}${r.stuck.length > 6 ? " …" : ""}: reroute by hand.` : "") +
+        (r.added.length ? ` ${r.added.map(a => `${a.gate} goes from ${a.before} to ${a.after}`).join(", ")} inbound.` : "") +
+        " The closure is set on this page only; tell the adjacent centers and pass the reroutes upstream.",
+      at: (r.moves[0] || {}).eta || null, link: LINK.tmu });
+  }
+
+  /* runway config against the wind */
+  const rw = s.rwyWinds || [];
+  const tail = rw.filter(x => -x.head > TAILWIND_KT).sort((a, b) => a.head - b.head);
+  const cfg = s.config && s.config.runways;
+  if (tail.length) {
+    const flip = (cfg.arr || []).map(r => {
+      const n = (+r.slice(0, 2) + 17) % 36 + 1, side = { L: "R", R: "L", C: "C" }[r.slice(2)] || "";
+      return String(n).padStart(2, "0") + side;
+    }).filter(r => (s.config.ends || []).some(e => normRwy(e[0]) === r));
+    const w = s.config.wind;
+    add({ id: "rwy-tail", sev: -tail[0].head >= 10 ? "action" : "watch", title: `Tailwind ${-tail[0].head} kt landing ${tail.map(x => x.rwy).join(", ")}`,
+      why: `Wind ${String(w.dir).padStart(3, "0")}° at ${w.spd}${w.gust ? "G" + w.gust : ""} kt puts ${tail.map(x => `${-x.head} kt of tailwind on ${x.rwy}`).join(", ")}. ` +
+        (flip.length ? `Turning the field to ${flip.join(", ")} lands into the wind; plan the change for a gap in the arrivals, since a config change costs landings while the final is rebuilt.` : "Consider a runway change into the wind.") });
+  }
+  const xw = rw.filter(x => x.crossGust >= CROSSWIND_KT && !tail.includes(x));
+  if (xw.length) add({ id: "rwy-xwind", sev: "watch", title: `Crosswind ${xw[0].crossGust} kt on ${xw.map(x => x.rwy).join(", ")}`,
+    why: `Expect more go-arounds and wider spacing on final; the achieved rate may drop below the AAR.` });
+
   /* gate MIT plan: the next change on each gate */
   for (const g of s.gates) {
     const next = g.schedule[0];
-    if (!next) continue;
+    if (!next || shut.has(g.name)) continue;
     const soon = next.at - s.now <= NEAR_START_MIN * MIN;
     const when = next.i === 0 ? "now" : `at ${fmtZ(next.at)}`;
     const verb = { start: `Start ${next.to} MIT on ${g.name}`, tighten: `Tighten ${g.name} to ${next.to} MIT`,
