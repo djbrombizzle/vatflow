@@ -9,12 +9,18 @@
  * else the gate itself when it is a filed fix. The engine meters FCA lines, so
  * each gate fix gets a short line across the route there.
  *
- * Landing time = gate ETA + the rest of the route at TERMINAL_KT.
+ * Landing time = gate ETA + TERMINAL_PAD_MIN + the rest of the route at TERMINAL_KT.
+ * Calibrated on StatSim position logs of KMCO arrivals in light traffic (Oct 2026):
+ * the gate ETA itself was within a minute (median), but gate to touchdown took
+ * 1.6 min + the route's remaining miles at 188 kt (downwind, base and final add
+ * track miles and slow down). At 260 kt it had run about 5 minutes early.
  */
 import { plannedProfileEta, getAirport, haversineNm, bearing } from "./fca-metering.js";
+import { airborneEtaMin } from "./mit-monitor.js";
 import { buildRouteAnchors, isNavReady } from "./route-engine.js";
 
-export const TERMINAL_KT = 260;        // gate to touchdown, descending on the STAR and approach
+export const TERMINAL_KT = 190;        // gate to touchdown, descending on the STAR and approach, vectors included
+export const TERMINAL_PAD_MIN = 1.5;
 export const GATE_LINE_NM = 8;         // half-length of the line drawn across the route at the gate fix
 
 /** The gate fix among a route's expanded anchors: { name, ll, index } or null. */
@@ -62,7 +68,7 @@ export function gateEtaFor(p, gate, now = Date.now()) {
   if (!fix) return null;
   const fca = gateLine(anchors, fix.index);
   const r = plannedProfileEta(p, fca, now);
-  const rest = restNm(anchors, fix.index) / TERMINAL_KT * 3600000;
+  const rest = (restNm(anchors, fix.index) / TERMINAL_KT * 60 + TERMINAL_PAD_MIN) * 60000;
   if (r && r.etaSec != null) {
     const gateEta = now + r.etaSec * 1000;
     return { gateFix: fix.name, gateEta, eta: gateEta + rest };
@@ -71,8 +77,7 @@ export function gateEtaFor(p, gate, now = Date.now()) {
   const apt = getAirport(p.arr);
   const toGo = p.lat != null ? haversineNm(p.lat, p.lon, apt[0], apt[1]) : Infinity;
   if (p.phase === "air" && toGo <= Math.max(60, haversineNm(fix.ll[0], fix.ll[1], apt[0], apt[1]) + 30)) {
-    const nm = Math.min(restNm(anchors, fix.index), toGo * 1.25);
-    return { gateFix: fix.name, gateEta: null, eta: now + nm / Math.max(160, Math.min(p.gs || 0, TERMINAL_KT + 40)) * 3600000 };
+    return { gateFix: fix.name, gateEta: null, eta: now + airborneEtaMin(toGo, p.gs) * 60000 };
   }
   return null;
 }

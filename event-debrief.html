@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event debrief — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
+  main { max-width: 1480px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 16px) 16px 40px; }
+
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 14px; }
+  .brand h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.16em; margin: 0; }
+  .brand h1 span { color: var(--amber); }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+  .ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ctl label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  input, button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 7px 10px;
+  }
+  input#apt { width: 84px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em; }
+  input#aar { width: 64px; }
+  button { cursor: pointer; }
+  button:hover, input:hover { border-color: var(--amber); }
+  #pfBtn[aria-pressed="true"] { color: var(--green); border-color: #1f3a2a; }
+  #pfBtn[aria-pressed="false"] { color: var(--dim); text-decoration: line-through; }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .pill::before { content: "●"; margin-right: 5px; }
+  .pill.ok { color: var(--green); border-color: #1f3a2a; }
+  .pill.wait { color: var(--amber); }
+  .pill.bad { color: var(--red); border-color: #3a1f1f; }
+
+  .empty { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; max-width: 640px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .empty b { color: var(--text); }
+
+  .kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+  .kpi .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+  .kpi .v { font-family: var(--mono); font-size: 24px; font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .v small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .kpi .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi.red { border-color: #4a2424; } .kpi.red .v { color: var(--red); }
+  .kpi.amber { border-color: #4a3a1c; } .kpi.amber .v { color: var(--amber); }
+  .kpi.green .v { color: var(--green); }
+
+  .row { display: grid; gap: 12px; margin-bottom: 12px; }
+  .row.main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .row.two { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .row.four { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); }
+  pre.raw { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 0; padding: 8px 10px; background: #0a0f15; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
+  .wxhead { display: flex; gap: 8px; align-items: baseline; margin-top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
+  .wxhead:first-child { margin-top: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; }
+  .card > h2 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--dim); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+  .card > h2 .r { margin-left: auto; letter-spacing: 0.04em; font-weight: 400; }
+  .card .body { padding: 10px 14px; font-size: 12px; line-height: 1.5; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: var(--dim); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 6px 8px; border-bottom: 1px solid #151d27; vertical-align: middle; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .plan { display: flex; gap: 2px; }
+  .plan span { flex: 1 1 0; min-width: 26px; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 2px; background: #121922; color: var(--dim); }
+  .plan span.m { background: #3a2d14; color: var(--amber); }
+  .plan span.m2 { background: #4a2020; color: #ff9b9b; }
+  .plan span.pk { outline: 1px solid var(--amber); }
+  .tight { color: var(--red); }
+  .dim { color: var(--dim); }
+  .muted { color: var(--muted); }
+  .scroll { overflow-x: auto; }
+
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; }
+  .kv dt { color: var(--dim); font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 2px; }
+  .kv dd { margin: 0; }
+  .list { margin: 6px 0 0; padding: 0; list-style: none; }
+  .list li { padding: 4px 0; border-top: 1px solid #151d27; font-size: 12px; }
+  .list li:first-child { border-top: none; }
+  .tag { font-family: var(--mono); font-size: 10px; padding: 0 5px; border-radius: 3px; border: 1px solid currentColor; margin-right: 4px; }
+  .tag.red { color: var(--red); } .tag.amber { color: var(--amber); } .tag.green { color: var(--green); } .tag.cyan { color: var(--cyan); }
+  .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 16px; }
+  .foot a { color: #5ba8c9; }
+
+
+  .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  select { font-family: var(--mono); font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; max-width: 420px; }
+  .chart { overflow-x: auto; }
+  .chart svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .chart text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .tl { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
+  .tl li { display: grid; grid-template-columns: 56px 90px 1fr; gap: 8px; padding: 5px 14px; border-bottom: 1px solid #151d27; font-size: 12px; }
+  .tl li .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--dim); text-transform: uppercase; padding-top: 1px; }
+  .tl li time { font-family: var(--mono); color: var(--muted); }
+  .note { border-left: 3px solid var(--amber); background: #1a1508; padding: 8px 12px; font-size: 12px; color: var(--text); margin-bottom: 12px; border-radius: 0 6px 6px 0; }
+  .bad { color: var(--red); } .good { color: var(--green); } .warn { color: var(--amber); }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .row.two { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <div class="top">
+    <div class="brand">
+      <h1>EVENT <span>DEBRIEF</span></h1>
+      <p>What the TMIs were and when, what the runways landed, and how each gate held up. From the event recorder's logs.</p>
+    </div>
+    <div class="pick">
+      <select id="logSel" aria-label="Event log"><option>Loading logs…</option></select>
+      <label class="pill" style="cursor:pointer">OPEN A LOG FILE<input type="file" id="fileIn" accept=".json,application/json" hidden></label>
+    </div>
+  </div>
+
+  <div id="empty" class="empty">Pick an event above. Logs are written by the <b>Event recorder</b> workflow while a VATSIM event is on at a US field, and kept in <code>data/event-logs/</code>.</div>
+
+  <div id="app" hidden>
+    <div id="srcNote"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="row">
+      <section class="card">
+        <h2>LANDINGS PER 15 MIN · AAR IN FORCE <span class="r muted" id="chartNote"></span></h2>
+        <div class="body chart" id="chart"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>GATES <span class="r muted">flow over the gate fix · in-trail at the fix against the MIT in force · airborne delay from 150 nm · holding</span></h2>
+        <div class="scroll"><table id="gates"></table></div>
+      </section>
+    </div>
+    <div class="row two">
+      <section class="card">
+        <h2>TMI TIMELINE <span class="r muted">from the VATFLOW hub: programs, gate rules, ground stops, restrictions, EDCTs</span></h2>
+        <ul class="tl" id="timeline"></ul>
+      </section>
+      <section class="card">
+        <h2>HOLDING</h2>
+        <div class="scroll" id="holds"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>SHORT IN-TRAIL AT THE GATE FIX <span class="r muted">pairs more than 2 nm inside the MIT in force</span></h2>
+        <div class="scroll" id="short"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>ARRIVALS <span class="r muted" id="flNote"></span></h2>
+        <div class="scroll" style="max-height:520px;overflow-y:auto"><table id="flights"></table></div>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">
+    Gate crossing = the flight's closest pass within 8 nm of its gate fix (the STAR's namesake fix, from the filed route).
+    In-trail = the time between two crossings no more than 8 minutes apart times the follower's groundspeed, against the MIT the
+    Airport TMU program held that gate to at the time. Airborne delay = time from 150 nm to touchdown, less the 10th percentile for
+    the same gate. Holding = a turn through 330° or more within 9 minutes, 25–200 nm out (same rule as VATSMART).
+  </p>
+</main>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { buildDebrief, fmtZ } from "./shared/event-debrief.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "debrief");
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const kpi = (k, v, s, cls = "") => `<div class="kpi ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+let airports = null;
+
+async function fieldLL(icao) {
+  if (!airports) {
+    try { airports = await (await fetch("data/nav/runways.json")).json(); } catch (_) { airports = {}; }
+  }
+  const r = airports[icao];
+  return r && r.length ? [r.reduce((a, x) => a + x[1], 0) / r.length, r.reduce((a, x) => a + x[2], 0) / r.length] : null;
+}
+
+async function loadIndex() {
+  let idx = [];
+  try { const r = await fetch("data/event-logs/index.json", { cache: "no-store" }); if (r.ok) idx = await r.json(); } catch (_) {}
+  const sel = $("logSel");
+  sel.innerHTML = `<option value="">${idx.length ? "Pick an event…" : "No logs recorded yet"}</option>` +
+    idx.map(r => `<option value="${esc(r.file)}">${esc(new Date(r.startMs).toISOString().slice(0, 10))} ${esc(r.field)} · ${esc(r.name)} · ${r.landings} landed${r.source === "statsim" ? " (StatSim)" : ""}</option>`).join("");
+  const want = new URLSearchParams(location.search).get("log");
+  if (want && idx.some(r => r.file === want)) { sel.value = want; openLog(want); }
+}
+$("logSel").addEventListener("change", e => { if (e.target.value) openLog(e.target.value); });
+$("fileIn").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try { show(JSON.parse(await f.text())); } catch (err) { $("empty").hidden = false; $("app").hidden = true; $("empty").textContent = "That file isn't an event log: " + err.message; }
+});
+async function openLog(file) {
+  const u = new URL(location.href); u.searchParams.set("log", file); history.replaceState(null, "", u);
+  try { const r = await fetch("data/event-logs/" + encodeURIComponent(file), { cache: "no-store" }); show(await r.json()); }
+  catch (e) { $("empty").hidden = false; $("app").hidden = true; $("empty").textContent = "Couldn't load " + file + ": " + e.message; }
+}
+
+async function show(doc) {
+  if (!doc || !doc.field || !doc.flights) throw new Error("not an event log");
+  const d = buildDebrief(doc, await fieldLL(doc.field));
+  document.title = `${d.field} debrief · VATFLOW`;
+  $("empty").hidden = true; $("app").hidden = false;
+  const noTmi = doc.source === "statsim";
+  $("srcNote").innerHTML = noTmi
+    ? `<div class="note">Rebuilt from StatSim position logs after the event, so there's no TMI log: the AAR and MIT columns are empty and in-trail isn't scored against an MIT. Events the recorder covers have them.</div>`
+    : !d.timeline.some(e => e.kind === "program") ? `<div class="note">No Airport TMU program for ${esc(d.field)} was on the hub while this was recorded, so landings and spacing aren't compared with an AAR or MIT.</div>` : "";
+  const t = d.totals;
+  const peakCls = d.peak.aar ? (d.peak.n >= d.peak.aar * 0.9 ? "green" : d.peak.n >= d.peak.aar * 0.75 ? "amber" : "red") : "";
+  $("kpis").innerHTML =
+    kpi("Event", esc(d.field), `${esc(d.event.name)} · ${fmtZ(d.from)}–${fmtZ(d.to)}`) +
+    kpi("Landed", t.landed, `${d.flights.length} arrivals seen`) +
+    kpi("Peak hour", `${d.peak.n}<small>${d.peak.aar ? " / " + d.peak.aar : ""}</small>`, `${fmtZ(d.peak.start)}–${fmtZ(d.peak.start + 3600000)}${d.peak.aar ? " against the AAR" : ""}`, peakCls) +
+    kpi("Airborne delay", t.medianDelay != null ? `${t.medianDelay}<small> min</small>` : "—", t.p90Delay != null ? `median · 90th pct ${t.p90Delay} min` : "no positions", t.p90Delay > 15 ? "amber" : "") +
+    kpi("Holding", t.holds, t.holds ? `${t.holdMin} min in total` : "nobody held", t.holds >= 5 ? "red" : t.holds ? "amber" : "green") +
+    kpi("TMI changes", noTmi ? "—" : t.tmiChanges, noTmi ? "not logged (StatSim)" : `${t.edcts} EDCTs issued` + (t.maxAar ? ` · AAR up to ${t.maxAar}` : ""));
+  renderChart(d); renderGates(d, noTmi); renderTimeline(d, noTmi); renderHolds(d); renderShort(d, noTmi); renderFlights(d);
+}
+
+function renderChart(d) {
+  const bins = d.bins, W = 1400, H = 260, padL = 34, padR = 12, padT = 16, padB = 40;
+  if (!bins.length) { $("chart").innerHTML = ""; return; }
+  const maxV = Math.max(4, ...bins.map(b => b.n), ...bins.map(b => (b.aar || 0) / 4)) * 1.15;
+  const y = v => padT + (H - padT - padB) * (1 - v / maxV);
+  const bw = (W - padL - padR) / bins.length;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Landings per 15 minutes against the AAR in force">`;
+  const step = maxV > 24 ? 5 : maxV > 10 ? 2 : 1;
+  for (let v = 0; v <= maxV; v += step) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="#1a222c"/><text x="${padL - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
+  bins.forEach((b, i) => {
+    const x = padL + i * bw + bw * 0.15, wd = bw * 0.7, per = b.aar ? b.aar / 4 : null;
+    const col = !per ? "#5ba8c9" : b.n >= per * 0.9 ? "#57d98a" : b.n >= per * 0.75 ? "#e8a838" : "#e07070";
+    svg += `<rect x="${x}" y="${y(b.n)}" width="${wd}" height="${y(0) - y(b.n)}" fill="${col}" fill-opacity="0.85" rx="2"><title>${fmtZ(b.start)}: ${b.n} landed${per ? ` · AAR ${b.aar} (${per}/15 min)` : ""}${b.delay != null ? ` · median delay ${b.delay} min` : ""}${b.held ? ` · ${b.held} holding` : ""}</title></rect>`;
+    if (b.n) svg += `<text x="${x + wd / 2}" y="${y(b.n) - 4}" text-anchor="middle" fill="#d4dde6">${b.n}</text>`;
+    if (b.held) svg += `<text x="${x + wd / 2}" y="${y(0) - 4}" text-anchor="middle" fill="#0a0e14" font-weight="700">H${b.held}</text>`;
+    if (i % 2 === 0) svg += `<text x="${x + wd / 2}" y="${H - 22}" text-anchor="middle">${fmtZ(b.start).slice(0, 4)}</text>`;
+    if (b.delay != null) svg += `<text x="${x + wd / 2}" y="${H - 8}" text-anchor="middle" fill="${b.delay >= 10 ? "#e07070" : b.delay >= 5 ? "#e8a838" : "#5c6b78"}">${Math.round(b.delay)}</text>`;
+  });
+  /* the AAR in force, as a step line in landings per 15 minutes */
+  let path = "";
+  bins.forEach((b, i) => {
+    if (!b.aar) return;
+    const x0 = padL + i * bw, x1 = x0 + bw, yy = y(b.aar / 4);
+    path += (path && bins[i - 1] && bins[i - 1].aar ? `L${x0},${yy}` : `M${x0},${yy}`) + `L${x1},${yy}`;
+  });
+  if (path) svg += `<path d="${path}" fill="none" stroke="#e8a838" stroke-width="2" stroke-dasharray="6 4"/>`;
+  svg += `<text x="${padL}" y="${H - 8}" text-anchor="start" fill="#5c6b78">delay</text>`;
+  $("chart").innerHTML = svg + `</svg>`;
+  $("chartNote").textContent = "bars: landings · dashed: AAR ÷ 4 · H: aircraft holding · bottom row: median airborne delay (min)";
+}
+
+function renderGates(d, noTmi) {
+  const rows = d.gates.filter(g => g.arrivals || g.crossings).map(g => {
+    const shortCls = !g.mitPairs ? "" : g.short / g.mitPairs > 0.3 ? "bad" : g.short ? "warn" : "good";
+    return `<tr><td><b>${esc(g.gate)}</b>${g.fix !== g.gate ? ` <span class="muted">${esc(g.fix)}</span>` : ""}</td>
+      <td class="num">${g.arrivals}</td><td class="num"><b>${g.peakHr}</b><span class="muted">${g.peakAt ? " @" + fmtZ(g.peakAt) : ""}</span></td>
+      <td>${noTmi ? '<span class="dim">not logged</span>' : g.mitsUsed.length ? g.mitsUsed.map(m => m + " MIT").join(", ") : '<span class="dim">none</span>'}</td>
+      <td class="num">${g.medianGap != null ? Math.round(g.medianGap) + " nm" : "—"}</td>
+      <td class="num ${shortCls}">${g.mitPairs ? `${g.short} of ${g.mitPairs}` : '<span class="dim">—</span>'}</td>
+      <td class="num ${g.medianDelay >= 8 ? "bad" : g.medianDelay >= 4 ? "warn" : ""}">${g.medianDelay != null ? g.medianDelay + " min" : "—"}</td>
+      <td class="num">${g.p90Delay != null ? g.p90Delay + " min" : "—"}</td>
+      <td class="num ${g.holds ? "bad" : ""}">${g.holds ? `${g.holds} · ${g.holdMin} min` : '<span class="dim">0</span>'}</td>
+      <td class="muted">${g.origins.map(([o, n]) => esc(o) + " " + n).join(", ")}</td></tr>`;
+  }).join("");
+  $("gates").innerHTML = `<tr><th>Gate</th><th class="num">Landed</th><th class="num">Peak hr over fix</th><th>MIT in force</th><th class="num">Median in-trail</th><th class="num">Short of MIT</th><th class="num">Median delay</th><th class="num">90th pct</th><th class="num">Holding</th><th>Top origins</th></tr>` +
+    (rows || `<tr><td colspan="10" class="dim">No gates.</td></tr>`);
+}
+
+function renderTimeline(d, noTmi) {
+  const kinds = { program: "Program", gs: "Ground stop", restriction: "Restriction", edct: "EDCTs" };
+  $("timeline").innerHTML = d.timeline.length
+    ? d.timeline.map(e => `<li><time>${fmtZ(e.t)}</time><span class="k">${kinds[e.kind] || e.kind}</span><span>${esc(e.text)}</span></li>`).join("")
+    : `<li><span></span><span></span><span class="muted">${noTmi ? "Not logged: this log was rebuilt from StatSim." : "No TMI changes while recording."}</span></li>`;
+}
+function renderHolds(d) {
+  $("holds").innerHTML = d.holds.length
+    ? `<table><tr><th>Flight</th><th>Gate</th><th class="num">From</th><th class="num">To</th><th class="num">Min</th><th>Where</th></tr>` +
+      d.holds.map(h => `<tr><td><b>${esc(h.cs)}</b></td><td>${esc(h.gate)}</td><td class="num">${fmtZ(h.start)}</td><td class="num">${fmtZ(h.end)}</td><td class="num">${h.min}</td><td class="muted">${h.nm} nm ${esc(h.dir)}</td></tr>`).join("") + `</table>`
+    : `<div class="body muted">Nobody held.</div>`;
+}
+function renderShort(d, noTmi) {
+  const pairs = d.gates.flatMap(g => g.pairs.filter(p => p.short).map(p => ({ ...p, gate: g.gate }))).sort((a, b) => a.t - b.t);
+  $("short").innerHTML = noTmi ? `<div class="body muted">No MIT was logged, so spacing isn't scored. Median in-trail per gate is in the table above.</div>`
+    : pairs.length ? `<table><tr><th class="num">Crossed</th><th>Gate</th><th>Pair</th><th class="num">In-trail</th><th class="num">MIT</th></tr>` +
+      pairs.slice(0, 60).map(p => `<tr><td class="num">${fmtZ(p.t)}</td><td>${esc(p.gate)}</td><td>${esc(p.lead)} → <b>${esc(p.trail)}</b></td><td class="num bad">${p.gap} nm</td><td class="num">${p.mit}</td></tr>`).join("") + `</table>`
+    : `<div class="body muted">Every pair with an MIT in force crossed its gate fix at or near the MIT.</div>`;
+}
+function renderFlights(d) {
+  const list = d.flights.filter(f => f.land || f.cross).sort((a, b) => (a.land || a.cross.t) - (b.land || b.cross.t));
+  $("flNote").textContent = `${list.length} arrivals · sorted by landing time`;
+  $("flights").innerHTML = `<tr><th>Flight</th><th>From</th><th>Type</th><th>Gate</th><th class="num">Off</th><th class="num">Gate fix</th><th class="num">Landed</th><th class="num">150 nm → land</th><th class="num">Delay</th></tr>` +
+    list.map(f => `<tr><td><b>${esc(f.cs)}</b></td><td>${esc(f.dep)}</td><td class="muted">${esc(f.type)}</td><td>${esc(f.gate)}</td>
+      <td class="num muted">${f.off ? fmtZ(f.off) : "—"}</td><td class="num">${f.cross ? fmtZ(f.cross.t) : "—"}</td><td class="num">${f.land ? fmtZ(f.land) : "—"}</td>
+      <td class="num">${f.t150 != null ? Math.round(f.t150) + " min" : "—"}</td><td class="num ${f.delay >= 10 ? "bad" : f.delay >= 5 ? "warn" : ""}">${f.delay != null ? Math.round(f.delay) + " min" : "—"}</td></tr>`).join("");
+}
+
+loadIndex();
+</script>
+</body>
+</html>

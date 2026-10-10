@@ -1,0 +1,67 @@
+# Event recorder: logs Airport TMU programs, ground stops, restrictions, EDCTs,
+# gate crossings, landings and holding at US event fields while an event is on,
+# then commits data/event-logs/ for the Event debrief page (event-debrief.html).
+#
+# Every 30 minutes a run checks the VATSIM event calendar. With nothing on or
+# starting within 45 minutes it exits in seconds. Otherwise it polls until the
+# events end (+45 min), at most 5 h 45 min. While one run records, later triggers
+# queue behind it (concurrency) and exit once they find the event already over.
+name: Event recorder
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+    inputs:
+      fields:
+        description: "Fields to record now regardless of events, e.g. KMCO,KATL (blank = events only)"
+        required: false
+        default: ""
+      run_seconds:
+        description: "Longest to poll, seconds (default 20700)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: event-recorder
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Record
+        env:
+          FIELDS: ${{ github.event.inputs.fields || '' }}
+          RUN_SECONDS: ${{ github.event.inputs.run_seconds || '20700' }}
+        run: node scripts/record-event.mjs
+
+      - name: Commit
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain -- data/event-logs)" ]; then
+            echo "Nothing recorded"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data/event-logs
+          git commit -m "Event recorder: $(ls -t data/event-logs/*.json | grep -v index | head -3 | xargs -n1 basename | tr '\n' ' ')"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

@@ -21,6 +21,7 @@ import {
   buildMitMonitor, rollingGateDemand, gateMitTimeline, gateMitSchedule, programGateMitNm,
   calcGateMit, normRate, gateKey, NO_GATE, MIT_NOMINAL_KT,
 } from "./mit-monitor.js";
+import { buildMergePoints } from "./merge-points.js";
 import { weatherAarFactor, THUNDER_LIKELY, THUNDER_POSSIBLE, TMI_TIERS, peakFromEvent, likelyEvents, pickBasisEvent } from "./event-planner.js";
 
 const MIN = 60000, HOUR = 3600000;
@@ -253,10 +254,12 @@ export function taxiSummary({ samples = [], sessions = {}, now }) {
  *   routing   { stars: starOptions(...), cdrs: { origin: CDR rows to this field } } for reroutes, or null
  *   events    upcoming VATSIM events [{ name, startMs, endMs, airports: [icao], link }]
  *   pastEvents data/event-history.json entries for the field
+ *   actual    { rate: landingRate(...), holding: holdingNow(...) } from shared/arrival-track.js, or null
+ *   merge     { routeOf, anchorsFor, gateIndex, artccFor, originCenter } hooks for buildMergePoints, or null
  */
 export function buildSituation({
   airport, aptLL, prog = null, localAar = 0, pilots = [], prefiles = [], airportLL = () => null,
-  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null, etaFor = null,
+  now = Date.now(), wx = null, hub = {}, taxi = null, events = [], pastEvents = [], routing = null, etaFor = null, actual = null, merge = null,
 }) {
   const cap = capacityFor({ prog, localAar, wx });
   const program = prog || normRate({ aar: cap.aar });
@@ -318,10 +321,11 @@ export function buildSituation({
 
   const sit = {
     airport, aptLL, now, cap, prog, program, mon, flights: mon.flights, live, roll, peakWin, next60, queue, ratio, tier,
-    gates, counts, edct, gs, restrictions, wx, taxi, upcoming, reference,
+    gates, counts, edct, gs, restrictions, wx, taxi, upcoming, reference, actual,
   };
   sit.airportLL = airportLL;
   sit.slots = slotBalance(live, now, cap.capacity);
+  sit.merges = merge && cap.capacity ? buildMergePoints({ ...merge, flights: live, aptLL, windows: roll.windows, capacity: cap.capacity, now }) : [];
   sit.reroutes = routing ? routeRecommendations({ sit, stars: routing.stars, cdrs: routing.cdrs }) : [];
   sit.recs = recommend(sit);
   return sit;
@@ -480,6 +484,20 @@ const LINK = {
   idst: { href: "idst.html", label: "IDST" },
   dash: { href: "vatflow-tbfm%20v2.html", label: "Apt Dashboard" },
 };
+
+/** "Ask ZJX for Q83 (TAALN) 35 MIT and Q85 (IGARY) 40 MIT at ROYCO" for a merge point. */
+export function mergeAsk(m) {
+  const by = {};
+  for (const b of m.branches) if (b.mit) (by[b.center || "the upstream center"] = by[b.center || "the upstream center"] || []).push(`${b.label} ${b.mit} MIT`);
+  const asks = Object.entries(by).map(([c, l]) => `ask ${c} for ${l.join(" and ")}`);
+  const when = m.peak.atFix ? `, passing ${fmtZ(m.peak.atFix[0])}–${fmtZ(m.peak.atFix[1])}` : "";
+  if (!asks.length) {
+    const owner = [...new Set(m.branches.map(b => b.center).filter(Boolean))];
+    return `Ask ${owner.length === 1 ? owner[0] : "the center that owns the merge"} for ${m.mergedMit} MIT over ${m.fix} for all ${m.gate} traffic${when}, so the streams interleave instead of arriving together`;
+  }
+  const s = asks.join("; ") + ` at ${m.fix}` + when;
+  return s[0].toUpperCase() + s.slice(1);
+}
 
 /** Origins of the still-on-the-ground arrivals landing in [startMs, endMs), busiest first. */
 export function groundOrigins(live, startMs, endMs) {
@@ -705,6 +723,43 @@ export function recommend(s) {
   const rb = !(s.reroutes || []).length && rebalanceSuggestion(pw, cap);
   if (rb) add({ id: "rebalance", sev: "info", title: `Shift ~${rb.move}/hr from ${rb.from} to ${rb.to}`,
     why: `At the peak the whole excess queues on ${rb.from} (${rb.queueBefore} more an hour than its share of the rate). Rerouting about ${rb.move} an hour to ${rb.to}, where a reroute is practical, spreads the delay so no gate queues more than ${rb.queueAfter} an hour.` });
+
+  /* streams merging upstream of a gate faster than the gate's share */
+  for (const m of (s.merges || []).filter(x => x.status !== "ok").slice(0, 4)) {
+    const at = m.peak.atFix ? m.peak.atFix[0] : m.peak.start;
+    add({ id: "merge-" + m.gate + "-" + m.fix, sev: at - s.now <= 60 * MIN || m.status === "over" ? "action" : "watch",
+      title: m.status === "over"
+        ? `${m.gate}: ${m.peak.n}/hr merging at ${m.fix}, ${Math.round(m.over)} over its share`
+        : `${m.gate}: ${m.burst} arrivals bunch at ${m.fix} inside 15 minutes`,
+      why: `${m.branches.map(b => `${b.label} ${b.n}/hr` + (b.from.length ? ` (from ${b.from.slice(0, 2).map(([c, n]) => c + " " + n).join(", ")})` : "")).join(" + ")} join at ${m.fix}, ${m.nmToField} nm out, ` +
+        `landing ${fmtZ(m.peak.start)}–${fmtZ(m.peak.end)} against a ${m.share}/hr share for ${m.gate}. ` + mergeAsk(m) + ".",
+      at, link: LINK.tmu });
+  }
+
+  /* what the runways are actually doing, and who is holding */
+  const act = s.actual;
+  if (act && act.rate && act.rate.perHr != null && act.rate.covered >= 45) {
+    const r = act.rate, wanted = s.next60.total;
+    if (r.perHr < cap * 0.85 && wanted >= cap * 0.9)
+      add({ id: "achieved", sev: r.perHr < cap * 0.75 ? "action" : "watch", title: `Landing ${r.perHr}/hr against ${cap}/hr`,
+        why: `${apt} landed ${r.last60} in the last ${r.covered === 60 ? "hour" : r.covered + " minutes"} while ${wanted} want to land in the next hour, so the rate isn't being achieved. ` +
+          `Plan against what the runways are doing (type ${r.perHr} in the AAR box to see the MIT and ground delays it needs), or find out what is holding them up: runway configuration, spacing on final, go-arounds.`, link: LINK.tmu });
+  }
+  const holdBy = {};
+  for (const h of (act && act.holding) || []) (holdBy[h.gate] = holdBy[h.gate] || []).push(h);
+  for (const [gate, hs] of Object.entries(holdBy)) {
+    const g = s.gates.find(x => x.name === gate);
+    const longest = hs[0];
+    const target = g ? Math.max(g.mits[0] || 0, (g.nowNm || 0) + 10, 20) : 0;
+    const fix = gate === NO_GATE ? "with no gate" : `on ${gate}`;
+    add({ id: "holding-" + gate, sev: hs.length >= 2 || longest.min >= 10 ? "action" : "watch",
+      title: `${plural(hs.length, "aircraft", "aircraft")} holding ${fix}, longest ${longest.min} min`,
+      why: hs.slice(0, 5).map(h => `${h.cs} ${h.min} min, ${h.nm} nm ${h.dir}`).join("; ") + ". " +
+        (gate === NO_GATE ? "Check their routes; no gate MIT covers them."
+          : g && g.nowNm ? `${gate} is held to ${g.nowNm} MIT and still delivers more than the runways take: tighten it to ${target} MIT so the hold drains, and pass it upstream now.`
+          : `${gate} has no MIT: start ${target} MIT so the next arrivals take the delay in trail instead of in the hold.`),
+      link: LINK.tmu });
+  }
 
   /* in-trail spacing right now */
   for (const g of s.gates) {
