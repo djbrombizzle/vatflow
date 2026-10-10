@@ -263,7 +263,7 @@ export function buildSituation({
   const mon = buildMitMonitor({ airport, aptLL, prog: { ...program, aar: cap.capacity || 9999 }, pilots, prefiles, airportLL, now, etaFor });
 
   const live = mon.flights.filter(f => !f.excluded && f.status !== "ARRIVED" && f.eta != null)
-    .map(f => ({ ...f, prefiled: f.status === "PREFILE" }));
+    .map(f => ({ ...f, prefiled: f.status === "PREFILE", airborne: f.status === "AIRBORNE" }));
   const expect = {};
   for (const x of program.expect || []) expect[x.gate] = x.rate;
   const roll = rollingGateDemand({ flights: live, now, horizonMin: HORIZON_MIN, stepMin: STEP_MIN, windowMin: 60, expect });

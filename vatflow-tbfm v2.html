@@ -8247,7 +8247,9 @@ function renderTMURateCalc() {
     '<li>Example: a hub at 120/hr with 6 full positions and 2 on duty \u2192 <b>40/hr</b>.</li>' +
     '<li>Enable the position checklist to cap capacity when critical positions (APP, TWR) are not staffed.</li>' +
     '<li><b>Peak demand</b> slides a 60-minute window every ' + DEMAND_WIN_STEP_MIN + ' minutes across the next 1\u20133 hours (Look ahead, default 3) ' +
-    'and takes the busiest hour, so a rush 90 minutes out shows up now instead of only the next 60 minutes.</li>' +
+    'and takes the busiest hour, so a rush 90 minutes out shows up now instead of only the next 60 minutes. ' +
+    'It counts aircraft that <i>want</i> to land, not landings: anything over the AAR lands later (held, slowed or given an EDCT), so it can read well above what the runways deliver. ' +
+    'Only the airborne part has a firm ETA; aircraft on the ground are assumed to depart now.</li>' +
     '<li><b>Prefiles</b> (flight plans filed before the pilot connects) count toward demand by their filed departure time, shown as <b>+N pf</b> next to connected traffic. ' +
     'They show an event\u2019s demand before it is online; untick Count prefiles to plan on connected traffic only.</li>' +
     '<li>The <b>MIT timeline</b> runs the MIT math on every window, so each gate shows when it first needs MIT and how tight it gets. ' +
@@ -8267,8 +8269,9 @@ function renderTMURateCalc() {
 /* busiest rolling hour over the lookahead vs the recommended AAR */
 function renderPeakDemandLine(live, aar) {
   const pk = live.windows[live.peak], first = live.windows[0];
-  let h = '<div class="calcdetail" style="margin-top:8px;">Peak arrival demand, next ' + rateCalc.lookaheadHr + ' hr: <b>' + pk.total + '/hr</b>';
-  if (pk.prefiled) h += ' <span class="cell-dim">(' + demandBreakdown(pk) + ')</span>';
+  let h = '<div class="calcdetail" style="margin-top:8px;" title="Aircraft that want to land in the busiest hour ahead, by ETA. Not a landing rate or an AAR: ' +
+    'whatever is over the AAR lands later, held or slowed. Ground flights are assumed to depart now.">Peak arrival demand (not landings), next ' + rateCalc.lookaheadHr + ' hr: <b>' + pk.total + '/hr</b>';
+  if (pk.total) h += ' <span class="cell-dim">(' + demandBreakdown(pk) + ')</span>';
   if (pk.total) h += ' at ' + demandWinLabel(pk) + ' (' + demandWinWhen(pk) + ')';
   if (live.peak !== 0) h += ' \u00B7 next 60 min: ' + first.total;
   if (aar > 0 && pk.total) {
@@ -8325,7 +8328,7 @@ function liveGateDemand(code, prog) {
   const flow = computeFlow(code);
   const roll = window.VF_RollingDemand;
   if (!flow || !roll) return null;
-  const flights = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f)).map(f => ({ eta: f.eta, gate: f.gate, prefiled: f.status === "PROPOSED" }));
+  const flights = flow.flights.filter(f => f.status !== "ARRIVED" && isMetered(f)).map(f => ({ eta: f.eta, gate: f.gate, prefiled: f.status === "PROPOSED", airborne: f.status === "AIRBORNE" }));
   const r = roll({ flights, now: flow.now, horizonMin: rateCalc.lookaheadHr * 60, stepMin: DEMAND_WIN_STEP_MIN,
     expect: programExpect(prog), includePrefiled: rateCalc.countPrefiles });
   let sel = r.windows.findIndex(w => w.offsetMin === rateCalc.mitWindowOff);
@@ -8334,10 +8337,10 @@ function liveGateDemand(code, prog) {
   return { entries: w.entries, unassigned: w.unassigned, expected: new Set(w.expected),
     windows: r.windows, peak: r.peak, sel, window: w };
 }
-/* "21 connected + 5 prefiled" (prefiles left out of the count when switched off) */
+/* "14 airborne + 7 on the ground + 5 prefiled" (prefiles left out of the count when switched off) */
 function demandBreakdown(w) {
   const pf = w.prefiled ? ' + ' + w.prefiled + ' prefiled' + (rateCalc.countPrefiles ? '' : ' (not counted)') : '';
-  return w.connected + ' connected' + pf + (w.total !== w.connected + (rateCalc.countPrefiles ? w.prefiled : 0) ? ', ' + w.total + ' with expected demand' : '');
+  return w.airborne + ' airborne + ' + (w.connected - w.airborne) + ' on the ground' + pf + (w.total !== w.connected + (rateCalc.countPrefiles ? w.prefiled : 0) ? ', ' + w.total + ' with expected demand' : '');
 }
 function demandWinLabel(w) { return fmtZ(w.start) + '\u2013' + fmtZ(w.end) + 'z'; }
 function demandWinWhen(w) { return w.offsetMin ? 'starts in ' + w.offsetMin + ' min' : 'starting now'; }
