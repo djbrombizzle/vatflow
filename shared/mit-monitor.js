@@ -260,6 +260,18 @@ export function gateMitAction(recNm, nowNm) {
 /* ---------------- the monitor ---------------- */
 
 /**
+ * Minutes to touchdown for an airborne arrival `dist` nm from the field at `gs` kt:
+ * the straight line at today's groundspeed, plus the descent, STAR and vectors.
+ * Calibrated on StatSim position logs of KMCO arrivals in light traffic (Oct 2026):
+ * the straight line alone ran 7 minutes short at 20-50 nm out and 12 minutes short
+ * beyond 200 nm (median), so the allowance grows with distance up to 12 minutes.
+ */
+export function airborneEtaMin(dist, gs) {
+  const pad = dist < 40 ? dist * 0.18 : Math.min(12, 6 + dist * 0.035);
+  return dist / Math.max(gs || 0, 120) * 60 + pad;
+}
+
+/**
  * Build the monitor view for one programmed airport.
  *   airport   ICAO
  *   aptLL     [lat, lon] of the airport
@@ -284,9 +296,7 @@ export function buildMitMonitor({ airport, aptLL, prog, pilots = [], prefiles = 
     if (hasPos && !airborne && dist != null && dist < 5) {
       status = "ARRIVED";
     } else if (airborne && dist != null) {
-      const gs = Math.max(p.gs || 0, 120);
-      const pad = dist > 40 ? 4 : dist > 15 ? 2 : 0;
-      eta = now + (dist / gs) * 3600000 + pad * 60000;
+      eta = now + airborneEtaMin(dist, p.gs) * 60000;
       status = "AIRBORNE";
     } else {
       const depLL = airportLL(p.dep);

@@ -56,7 +56,7 @@
   .empty { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; max-width: 640px; color: var(--muted); font-size: 13px; line-height: 1.6; }
   .empty b { color: var(--text); }
 
-  .kpis { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
   .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
   .kpi .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
   .kpi .v { font-family: var(--mono); font-size: 24px; font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -68,6 +68,7 @@
 
   .row { display: grid; gap: 12px; margin-bottom: 12px; }
   .row.main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .row.two { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
   .row.four { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); }
   pre.raw { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 0; padding: 8px 10px; background: #0a0f15; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
   .wxhead { display: flex; gap: 8px; align-items: baseline; margin-top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
@@ -95,6 +96,22 @@
   .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
   .legend i { display: inline-block; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 9px solid currentColor; margin-right: 4px; vertical-align: 0; }
 
+  .merges { padding: 4px 0; }
+  .merge { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .merge:last-child { border-bottom: none; }
+  .merge.over { background: linear-gradient(90deg, #2a1414 0, transparent 60%); border-left: 3px solid var(--red); }
+  .merge.bunched { background: linear-gradient(90deg, #2a2112 0, transparent 60%); border-left: 3px solid var(--amber); }
+  .merge .hd { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+  .merge .gt { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: 0.04em; }
+  .merge.over .gt { color: var(--red); } .merge.bunched .gt { color: var(--amber); }
+  .merge .flow { font-family: var(--mono); font-size: 15px; }
+  .merge .flow b { font-size: 20px; }
+  .merge .ask { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+  .merge .ask::before { content: "▶ "; color: var(--amber); }
+  .stack { display: flex; height: 22px; border-radius: 4px; overflow: hidden; margin: 8px 0 6px; max-width: 760px; position: relative; }
+  .stack span { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; color: #0a0e14; font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .stack i { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed #fff; }
+  .merge table td, .merge table th { padding: 3px 8px; }
   .chart { overflow-x: auto; }
   .chart svg { display: block; width: 100%; min-width: 640px; height: auto; }
   .chart text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
@@ -128,7 +145,7 @@
 
   @media (max-width: 1100px) {
     .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .row.main, .row.four { grid-template-columns: minmax(0, 1fr); }
+    .row.main, .row.two, .row.four { grid-template-columns: minmax(0, 1fr); }
     #map { height: 360px; }
   }
   @media (max-width: 560px) {
@@ -187,8 +204,24 @@
     </div>
     <div class="row">
       <section class="card">
+        <h2>MERGE POINTS <span class="r muted" id="mergeNote">where arrival streams join before the gate · flow by landing hour against the gate's share</span></h2>
+        <div class="merges" id="merges"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
         <h2>ARRIVALS BY LANDING TIME <span class="r muted" id="chartNote"></span></h2>
         <div class="body chart" id="chart"></div>
+      </section>
+    </div>
+    <div class="row two">
+      <section class="card">
+        <h2>RUNWAYS · ACTUAL LANDINGS <span class="r muted" id="landNote"></span></h2>
+        <div class="body chart" id="landChart"></div>
+      </section>
+      <section class="card">
+        <h2>HOLDING <span class="r muted">a turn through 330° or more, 25–200 nm out</span></h2>
+        <div class="scroll" id="holdList"></div>
       </section>
     </div>
     <div class="row">
@@ -224,7 +257,7 @@
     <a href="FCA-builderv02.html">FCA Builder</a>'s MIT Monitor. Demand counts arrivals with a filed route to the field;
     ETAs over each gate fix come from the FCA Builder's engine (filed route through the STAR, climb profile, filed TAS
     corrected for winds aloft; ground flights leave in about 3 minutes or at a filed departure time within 6 hours),
-    and landing is the rest of the route at 260 kt. Weather from api.weather.gov (US only).
+    and landing is the rest of the route at 190 kt plus 1.5 minutes (calibrated on StatSim KMCO arrivals: downwind, base and final add track miles). Landings and holding are counted from the live feed while this page is open. Merge points expand each filed route back from its gate fix and compare the merged flow with the gate's share of the rate. Weather from api.weather.gov (US only).
   </p>
 </main>
 
@@ -240,17 +273,21 @@ import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
-import { landingSlots, slotMoveHow, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
+import { mergeAsk, landingSlots, slotMoveHow, buildSituation, fmtZ, HORIZON_MIN, trackTaxi, taxiSummary, tafFromNwsProduct, TAXI_SLOW_MIN, starOptions } from "./shared/vatsmart.js";
 import { createCdrStore } from "./shared/vusalink-clearance.js";
 import { loadNavData, isNavReady } from "./shared/route-engine.js";
 import { fetchWinds, getWindInfo, bindWindAirportLookup } from "./shared/winds-aloft.js";
-import { gateEtaFor } from "./shared/gate-eta.js";
+import { gateEtaFor, gateFixFor } from "./shared/gate-eta.js";
+import { buildRouteAnchors } from "./shared/route-engine.js";
+import { fetchArtccBoundaries, artccForPoint, isArtccScopeReady } from "./shared/artcc-scope.js";
+import { createArrivalState, updateArrivals, holdingNow, landingRate } from "./shared/arrival-track.js";
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
 const LS = "vatflow.vatsmart";
 const WX_MS = 30 * 60000, METAR_MS = 5 * 60000, TAF_MS = 15 * 60000, EVENTS_MS = 30 * 60000;
 const TAXI_LS = "vatflow.vatsmart.taxi";
+const ARR_LS = "vatflow.vatsmart.arr.";     // + ICAO: landings and holds seen while the page was open
 /* same Firebase project as Airport TMU's Taxi Monitor; read only (anonymous auth, taximon/samples) */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDxEKw1N-hrycpefE4OsTg_5wSkUSJWgiI",
@@ -278,6 +315,7 @@ const st = {
   procs: null, stars: [], starsFor: "", cdrs: {}, cdrAsked: new Set(),
   events: [], eventsAt: 0, past: null,
   airportsReady: false, sit: null,
+  arr: null,
 };
 
 /* ---------------- field selection ---------------- */
@@ -303,6 +341,7 @@ function setAirport(code) {
   const u = new URL(location.href); u.searchParams.set("apt", code); history.replaceState(null, "", u);
   document.title = code + " · VATSMART — VATFLOW";
   st.wxProps = null; st.wxFor = ""; st.metar = ""; st.metarFor = ""; st.taf = ""; st.tafIssued = ""; st.tafFor = "";
+  st.arr = loadArr(code);
   st.taxiSessions = {}; st.stars = []; st.starsFor = ""; st.cdrs = {}; st.cdrAsked = new Set();
   mapFitted = false;
   refreshSlow();
@@ -341,6 +380,9 @@ function fetchFeed() {
         wake: wakeFromFp(p.flight_plan), ...fpFields(p.flight_plan) }));
       st.feed = "ok"; st.feedAt = Date.now();
       if (st.airport && st.aptLL) {
+        if (!st.arr) st.arr = loadArr(st.airport);
+        updateArrivals(st.arr, st.pilots, st.airport, st.aptLL, st.feedAt);
+        saveArr();
         const done = trackTaxi(st.taxiSessions, st.pilots, st.airport, st.aptLL, st.feedAt);
         if (done.length) { st.taxiLocal.push(...done); saveTaxiLocal(); }
         loadCdrs();
@@ -453,6 +495,19 @@ async function connectTaxiShared() {
   } catch (e) { console.warn("Taxi Monitor samples:", e); st.taxiSharedState = "bad"; render(); }
 }
 
+/* actual landings and holding at the field shown, kept per field across reloads */
+function loadArr(code) {
+  try {
+    const a = JSON.parse(localStorage.getItem(ARR_LS + code) || "null");
+    if (a && a.ac && Array.isArray(a.landings) && Array.isArray(a.covered)) return a;
+  } catch (_) {}
+  return createArrivalState(Date.now());
+}
+function saveArr() {
+  if (!st.airport || !st.arr) return;
+  try { localStorage.setItem(ARR_LS + st.airport, JSON.stringify(st.arr)); } catch (_) {}
+}
+
 /* route data for reroutes: STAR entry fixes from navdata, FAA CDRs per origin (data/cdr/) */
 const cdrStore = createCdrStore({ base: "data/cdr/" });
 let procsLoad = null;
@@ -517,6 +572,30 @@ function cachedGateEta(p, gate, now) {
   etaCache.set(k, r);
   return r;
 }
+/* merge points: each route expanded once per filed route, centers from the ARTCC boundaries */
+const anchorCache = new Map();
+function anchorsFor(p) {
+  const k = [p.callsign, p.dep, p.route].join("|");
+  if (!anchorCache.has(k)) { if (anchorCache.size > 4000) anchorCache.clear(); anchorCache.set(k, buildRouteAnchors(p).anchors); }
+  return anchorCache.get(k);
+}
+fetchArtccBoundaries().then(() => render()).catch(() => {});
+function mergeHooks() {
+  if (!isNavReady()) return null;
+  const by = new Map();
+  for (const p of st.prefiles) by.set(p.callsign, p);
+  for (const p of st.pilots) by.set(p.callsign, p);
+  const centerAt = (lat, lon) => isArtccScopeReady() ? artccForPoint(lat, lon) : null;
+  return {
+    routeOf: cs => by.get(cs) || null, anchorsFor,
+    gateIndex: (anchors, gate) => { const g = gateFixFor(anchors, gate); return g ? g.index : -1; },
+    artccFor: centerAt,
+    originCenter: icao => {
+      const ll = getAirport(icao), c = ll ? centerAt(ll[0], ll[1]) : null;
+      return c || (!icao ? null : /^C/.test(icao) ? "Canada" : /^[KPT]/.test(icao) ? null : "intl");
+    },
+  };
+}
 function refreshWinds() {
   if (Date.now() - windsAt < 3600000 || getWindInfo().status === "loading") return;
   windsAt = Date.now();
@@ -575,14 +654,17 @@ function render() {
   try {
     sit = buildSituation({ airport: st.airport, aptLL: st.aptLL, prog, localAar: localAar(), pilots: st.pilots, prefiles: usePrefiles() ? st.prefiles : [],
       airportLL: getAirport, now, wx, hub: st.hub, taxi: taxiNow(now), events: st.events, pastEvents,
-      routing: { stars: st.stars, cdrs: st.cdrs }, etaFor: isNavReady() ? (p, gate) => cachedGateEta(p, gate, now) : null });
+      routing: { stars: st.stars, cdrs: st.cdrs },
+      merge: mergeHooks(),
+      actual: st.arr ? { rate: landingRate(st.arr, now), holding: holdingNow(st.arr, now), recent: st.arr.holds.filter(h => now - h.end < 2 * 3600000) } : null,
+      etaFor: isNavReady() ? (p, gate) => cachedGateEta(p, gate, now) : null });
   } catch (e) { console.error(e); return; }
   st.sit = sit;
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
     : "Plan against this AAR on this page only. Set a program on Airport TMU so other pages see it.";
-  renderKpis(sit); renderRecs(sit); renderMap(sit); renderChart(sit); renderSlots(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
+  renderKpis(sit); renderRecs(sit); renderMap(sit); renderMerges(sit); renderChart(sit); renderLandings(sit); renderHolding(sit); renderSlots(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
 }
 
 function taxiNow(now) {
@@ -606,6 +688,7 @@ function renderKpis(s) {
         : "Your AAR " + c.aar + (c.programAar ? " (program " + c.programAar + ")" : "")) + (c.factor < 1 ? " · weather ×" + c.factor.toFixed(2) : ""),
       c.factor < 1 ? "amber" : "") +
     kpi("Next 60 min", `${n.total}<small>${c.capacity ? " / " + c.capacity : ""}</small>`, demandSplit(n), over(n.total)) +
+    landedKpi(s) +
     kpi("Peak demand 60 min", `${pw.total}<small> @ ${fmtZ(pw.start)}</small>`, `${fmtZ(pw.start)}–${fmtZ(pw.end)} · ${demandSplit(pw)}${pw.expected.length ? " · incl. expected demand" : ""}`, over(pw.total),
       "Aircraft that want to land in the busiest hour ahead, by ETA. Not a landing rate: whatever is over capacity lands later, held or slowed. Ground flights are assumed to depart now.") +
     kpi("Arrival queue", s.queue.maxDelay ? `${s.queue.maxDelay}<small> min</small>` : "0", s.queue.maxDelay ? "longest around " + fmtZ(s.queue.maxAt) + " if nothing is done" : "no queue projected",
@@ -616,6 +699,17 @@ function renderKpis(s) {
       !s.taxi || s.taxi.avgMin == null ? "" : s.taxi.avgMin >= TAXI_SLOW_MIN + 10 ? "red" : s.taxi.avgMin >= TAXI_SLOW_MIN ? "amber" : "green") +
     kpi("TMI call", tier ? esc(tier.id === "none" ? "NONE" : tier.id === "mit" ? "MIT" : tier.id === "fca" ? "MIT + FCA" : "GDP") : "—",
       tier ? esc(tier.label) : "needs an AAR", tierCls);
+}
+
+/* landings in the last hour: what the runways achieve against the rate planned */
+function landedKpi(s) {
+  const a = s.actual, r = a && a.rate, c = s.cap.capacity;
+  if (!r || r.covered < 5) return kpi("Landed 60 min", "—", "counting from when this page opened", "", "Landings are counted from the live feed while this page is open (kept across reloads).");
+  const cls = !c || r.perHr == null ? "" : r.perHr < c * 0.75 ? "red" : r.perHr < c * 0.9 ? "amber" : "green";
+  const hold = a.holding.length ? ` · ${a.holding.length} holding` : "";
+  return kpi("Landed 60 min", `${r.last60}<small>${c ? " / " + c : ""}</small>`,
+    (r.covered < 60 ? `in ${r.covered} min watched` + (r.perHr != null ? ` (${r.perHr}/hr)` : "") : "last hour") + hold, a.holding.length ? "red" : cls,
+    "Arrivals that touched down in the last 60 minutes, from the live feed while this page was open. Compare with the AAR: if the runways land fewer, plan against what they land.");
 }
 
 function renderRecs(s) {
@@ -633,10 +727,11 @@ function renderRecs(s) {
 /* ---- map ---- */
 /* aircraft symbol pointing along the heading (same arrowhead as the FCA Builder); on the ground it's
    hollow, and a red ring marks an aircraft inside the MIT behind the one ahead */
-function acIcon(color, hdg, airborne, tight) {
+function acIcon(color, hdg, airborne, tight, holding) {
   const sz = airborne ? 15 : 11;
   const fill = airborne ? color : "#0a0e14";
-  const ring = tight ? `<div style="position:absolute;inset:-5px;border:1.5px solid #e07070;border-radius:50%"></div>` : "";
+  const ring = holding ? `<div style="position:absolute;inset:-7px;border:2px dashed #e8a838;border-radius:50%"></div>`
+    : tight ? `<div style="position:absolute;inset:-5px;border:1.5px solid #e07070;border-radius:50%"></div>` : "";
   const html = `<div style="position:relative;width:${sz}px;height:${sz}px">${ring}<div style="transform:rotate(${Math.round(hdg)}deg);width:${sz}px;height:${sz}px">` +
     `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" style="display:block;filter:drop-shadow(0 0 2px #000)"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${fill}" stroke="${airborne ? "#0a0e14" : color}" stroke-width="${airborne ? 1.2 : 2}" stroke-linejoin="round"/></svg></div></div>`;
   return L.divIcon({ className: "", html, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
@@ -656,13 +751,19 @@ function renderMap(s) {
   L.circleMarker(ll, { radius: 6, color: "#e8a838", weight: 2, fillColor: "#e8a838", fillOpacity: 0.4 }).bindTooltip(st.airport, { className: "ac", permanent: true, direction: "right" }).addTo(layer);
   const colors = s.mon.colors;
   const tightSet = new Set(s.gates.flatMap(g => (g.spacing || []).filter(x => x.tight).map(x => x.callsign)));
+  const holdSet = new Map(((s.actual && s.actual.holding) || []).map(h => [h.cs, h]));
   for (const f of s.flights) {
     if (f.lat == null || f.status === "ARRIVED") continue;
     const col = f.excluded || f.gate === NO_GATE ? "#6b7a89" : colors[f.gate] || "#6b7a89";
     const eta = f.eta ? fmtZ(f.eta) : "";
-    const m = L.marker([f.lat, f.lon], { icon: acIcon(col, f.hdg || 0, f.status === "AIRBORNE", tightSet.has(f.callsign)), keyboard: false });
-    m.bindTooltip(`${esc(f.callsign)} ${esc(f.type || "")}<br>${esc(f.dep || "")} → ${esc(f.gate)} ${f.gateEta ? " · " + esc(f.gateFix || f.gate) + " " + fmtZ(f.gateEta) : ""} · lands ${eta}${f.dist != null ? " · " + Math.round(f.dist) + " nm" : ""}${f.status !== "AIRBORNE" ? " · " + f.status.toLowerCase() : ""}`, { className: "ac" });
+    const m = L.marker([f.lat, f.lon], { icon: acIcon(col, f.hdg || 0, f.status === "AIRBORNE", tightSet.has(f.callsign), holdSet.has(f.callsign)), keyboard: false });
+    m.bindTooltip(`${esc(f.callsign)} ${esc(f.type || "")}<br>${esc(f.dep || "")} → ${esc(f.gate)} ${f.gateEta ? " · " + esc(f.gateFix || f.gate) + " " + fmtZ(f.gateEta) : ""} · lands ${eta}${f.dist != null ? " · " + Math.round(f.dist) + " nm" : ""}${f.status !== "AIRBORNE" ? " · " + f.status.toLowerCase() : ""}${holdSet.has(f.callsign) ? " · HOLDING " + holdSet.get(f.callsign).min + " min" : ""}`, { className: "ac" });
     m.addTo(layer);
+  }
+  for (const mp of (s.merges || []).filter(x => x.status !== "ok" && x.ll)) {
+    const c = mp.status === "over" ? "#e07070" : "#e8a838";
+    L.circleMarker(mp.ll, { radius: 9, color: c, weight: 3, fillColor: c, fillOpacity: 0.25 })
+      .bindTooltip(`${esc(mp.fix)} → ${esc(mp.gate)} ${mp.peak.n}/hr`, { className: "ac", permanent: true, direction: "left" }).addTo(layer);
   }
   $("legend").innerHTML = s.gates.filter(g => g.inbound).slice(0, 8).map(g => `<span><i style="color:${g.color}"></i>${esc(g.name)}</span>`).join("") +
     `<span><i style="color:#6b7a89"></i>no gate</span>`;
@@ -762,6 +863,78 @@ function renderGates(s) {
   }).join("");
   const timeRow = `<tr><td colspan="6"></td><td><div class="plan">${wins.map((w, i) => `<span style="background:none">${fmtZ(w.start).slice(0, 4)}</span>`).join("")}</div></td><td colspan="2"></td></tr>`;
   $("gates").innerHTML = head + (rows ? rows + timeRow : `<tr><td colspan="9" class="dim">No arrivals with a filed route to ${esc(s.airport)} in the next ${HORIZON_MIN / 60} hours.</td></tr>`);
+}
+
+/* ---- merge points ---- */
+const STREAM_COLORS = ["#54b8e8", "#f5a83d", "#c792ea", "#57d98a", "#f07178", "#ffd166"];
+function renderMerges(s) {
+  const ms = s.merges || [];
+  const bad = ms.filter(m => m.status !== "ok");
+  if (!s.cap.capacity) { $("merges").innerHTML = `<div class="body muted">Set an AAR to compare merges with each gate's share.</div>`; return; }
+  if (!isNavReady()) { $("merges").innerHTML = `<div class="body muted">Loading nav data to expand routes…</div>`; return; }
+  const show = bad.length ? bad.slice(0, 6) : ms.slice(0, 3);
+  let h = bad.length ? "" : `<div class="body muted">No merge is over its gate's share or bunched in the next ${HORIZON_MIN / 60} hours.${ms.length ? " Busiest merges:" : ""}</div>`;
+  for (const m of show) {
+    const tag = m.status === "over" ? `<span class="tag red">OVER +${Math.round(m.over)}</span>` : m.status === "bunched" ? `<span class="tag amber">BUNCHED</span>` : `<span class="tag green">OK</span>`;
+    const tot = m.branches.reduce((a, b) => a + b.n, 0) || 1;
+    const sharePct = Math.min(100, m.share / Math.max(tot, m.share) * 100);
+    const stack = `<div class="stack" style="width:${Math.min(100, tot / Math.max(tot, m.share) * 100)}%;min-width:240px">` +
+      m.branches.map((b, i) => `<span style="flex:${b.n};background:${STREAM_COLORS[i % STREAM_COLORS.length]}" title="${esc(b.label)}: ${b.n}/hr">${esc(b.label)} ${b.n}</span>`).join("") +
+      (m.status === "over" ? `<i style="left:${sharePct}%" title="share ${m.share}/hr"></i>` : "") + `</div>`;
+    const rows = m.branches.map((b, i) => `<tr><td><span class="sw" style="background:${STREAM_COLORS[i % STREAM_COLORS.length]}"></span><b>${esc(b.label)}</b></td>
+      <td>${esc(b.center || "?")}</td><td class="muted">${b.from.slice(0, 3).map(([c, n]) => esc(c) + " " + n).join(", ")}</td>
+      <td class="num">${b.n}/hr</td><td class="num">${b.mit ? `<b class="${m.status === "over" ? "tight" : ""}">${b.mit} MIT</b>` : '<span class="dim">—</span>'}</td>
+      <td class="muted" style="white-space:normal">${b.callsigns.slice(0, 8).map(esc).join(" ")}${b.callsigns.length > 8 ? " …" : ""}</td></tr>`).join("");
+    h += `<div class="merge ${m.status}">
+      <div class="hd">${tag}<span class="gt">${esc(m.gate)} ← ${esc(m.fix)}</span>
+        <span class="flow"><b>${m.peak.n}</b>/hr vs <b>${m.share}</b> share</span>
+        <span class="muted">${m.nmToField} nm out · lands ${fmtZ(m.peak.start)}–${fmtZ(m.peak.end)}${m.peak.atFix ? ` · passes ${esc(m.fix)} ${fmtZ(m.peak.atFix[0])}–${fmtZ(m.peak.atFix[1])}` : ""} · ${m.burst} inside 15 min</span></div>
+      ${stack}
+      <table><tr><th>Stream</th><th>Center</th><th>Traffic from</th><th class="num">Flow</th><th class="num">Give</th><th>Flights</th></tr>${rows}</table>
+      ${m.status !== "ok" ? `<div class="ask">${esc(mergeAsk(m))}</div>` : ""}
+    </div>`;
+  }
+  $("merges").innerHTML = h;
+}
+
+/* ---- actual landings: last two hours by 15-minute slot against the rate ---- */
+function renderLandings(s) {
+  const a = s.actual;
+  if (!a) { $("landChart").innerHTML = ""; return; }
+  const slots = a.rate.slots, cap = s.cap.capacity, per = cap / 4;
+  const since = st.arr.covered.length ? st.arr.covered[st.arr.covered.length - 1][0] : s.now;
+  $("landNote").textContent = `touchdowns per 15 min · counted since ${fmtZ(since)}` + (a.rate.perHr != null ? ` · ${a.rate.perHr}/hr` : "");
+  const W = 700, H = 170, padL = 30, padR = 10, padT = 14, padB = 26;
+  const maxV = Math.max(per * 1.3 || 4, ...slots.map(x => x.n), 4) * 1.1;
+  const y = v => padT + (H - padT - padB) * (1 - v / maxV);
+  const bw = (W - padL - padR) / slots.length;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Touchdowns per 15 minutes against the rate">`;
+  const step = maxV > 24 ? 5 : maxV > 10 ? 2 : 1;
+  for (let v = 0; v <= maxV; v += step) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="#1a222c"/><text x="${padL - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
+  slots.forEach((sl, i) => {
+    const x = padL + i * bw + bw * 0.18, wd = bw * 0.64, cur = i === slots.length - 1;
+    const full = cur ? Math.max(1, Math.round((s.now - sl.start) / 60000)) : 15;
+    const watched = sl.covered >= full - 1;
+    const col = !per ? "#5ba8c9" : sl.n >= per * 0.9 ? "#57d98a" : sl.n >= per * 0.75 ? "#e8a838" : "#e07070";
+    if (sl.covered > 0) svg += `<rect x="${x}" y="${y(sl.n)}" width="${wd}" height="${y(0) - y(sl.n)}" fill="${col}" fill-opacity="${watched && !cur ? 0.85 : 0.4}" rx="2"><title>${fmtZ(sl.start)}: ${sl.n} landed${watched ? "" : ` (watched ${sl.covered} of ${full} min)`}</title></rect>` +
+      `<text x="${x + wd / 2}" y="${y(sl.n) - 4}" text-anchor="middle" fill="#d4dde6">${sl.n}</text>`;
+    else svg += `<text x="${x + wd / 2}" y="${y(0) - 4}" text-anchor="middle">·</text>`;
+    svg += `<text x="${x + wd / 2}" y="${H - 8}" text-anchor="middle">${fmtZ(sl.start).slice(0, 4)}${cur ? "▸" : ""}</text>`;
+  });
+  if (per) svg += `<line x1="${padL}" x2="${W - padR}" y1="${y(per)}" y2="${y(per)}" stroke="#e8a838" stroke-dasharray="5 4"/><text x="${W - padR}" y="${y(per) - 4}" text-anchor="end" fill="#e8a838">${+per.toFixed(1)} per 15 min (${cap}/hr)</text>`;
+  $("landChart").innerHTML = svg + `</svg>`;
+}
+function renderHolding(s) {
+  const a = s.actual;
+  const now = (a && a.holding) || [], recent = ((a && a.recent) || []).slice().sort((x, y) => y.end - x.end);
+  if (!now.length && !recent.length) { $("holdList").innerHTML = `<div class="body muted">Nobody holding${a && a.rate.covered < 60 ? " since this page opened" : " in the last 2 hours"}.</div>`; return; }
+  const col = g => s.mon.colors[g] || "#6b7a89";
+  let h = `<table><tr><th>Flight</th><th>Gate</th><th>Where</th><th class="num">Since</th><th class="num">Min</th></tr>`;
+  for (const x of now) h += `<tr><td><b class="tight">${esc(x.cs)}</b> <span class="tag red">HOLDING</span></td><td><span class="sw" style="background:${col(x.gate)}"></span>${esc(x.gate)}</td>
+    <td>${x.nm} nm ${esc(x.dir)}</td><td class="num">${fmtZ(x.since)}</td><td class="num"><b class="tight">${x.min}</b></td></tr>`;
+  for (const x of recent.slice(0, 8)) h += `<tr><td>${esc(x.cs)} <span class="muted">held</span></td><td><span class="sw" style="background:${col(x.gate)}"></span>${esc(x.gate)}</td>
+    <td class="muted">${x.nm} nm ${esc(x.dir)}</td><td class="num muted">${fmtZ(x.start)}</td><td class="num">${x.min}</td></tr>`;
+  $("holdList").innerHTML = h + `</table>`;
 }
 
 /* ---- route advisories ---- */

@@ -9,7 +9,7 @@ import {
   groundOrigins, buildSituation, fmtZ, trackTaxi, taxiSummary, tafFromNwsProduct, starOptions, routeRecommendations,
   landingSlots, slotBalance, slotMoveHow,
 } from "../shared/vatsmart.js";
-import { normPrograms } from "../shared/mit-monitor.js";
+import { normPrograms, airborneEtaMin } from "../shared/mit-monitor.js";
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -22,7 +22,8 @@ function inbound(gate, n, fromMin, toMin, prefix = gate) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const etaMin = fromMin + (toMin - fromMin) * (n === 1 ? 0 : i / (n - 1));
-    const dist = Math.max(10, etaMin * 7);              // 420 kt groundspeed
+    let dist = 10;                                     // 420 kt, plus the descent and approach allowance
+    while (airborneEtaMin(dist + 1, 420) <= etaMin) dist++;
     out.push({ callsign: prefix + i, lat: APT_LL[0] + dist / 60, lon: APT_LL[1], gs: 420, alt: 30000, phase: "air",
       dep: "KATL", arr: APT, type: "B738", route: `KATL DCT ${gate}1 ${APT}` });
   }

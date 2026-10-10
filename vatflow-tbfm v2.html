@@ -2778,7 +2778,9 @@ function computeFlow(target) {
         if (hwA != null) cg = Math.max(tas * 0.4, Math.min(tas * 1.6, tas - hwA));
         gs = Math.max(gs, cg * 0.88);
       }
-      const pad = distToArr > 40 ? 4 : distToArr > 15 ? 2 : 0;
+      /* descent, STAR and vectors: same allowance as airborneEtaMin in shared/mit-monitor.js
+         (calibrated on StatSim KMCO arrivals; the old 4-minute pad ran 7-12 minutes early) */
+      const pad = distToArr < 40 ? distToArr * 0.18 : Math.min(12, 6 + distToArr * 0.035);
       const eteMs = (distToArr / gs) * 3600000 + pad * 60000;
       const pos = pilotPos(p, dep);
       pushFlight({ key:p.callsign, callsign:p.callsign, type:ac.type, wake:ac.wake, dep, gate,

@@ -419,7 +419,7 @@ export function buildRouteAnchors(p, opts = {}) {
           intlTruncated = true;
           break;
         }
-        refLL = pushAnchor(anchors, pt);
+        refLL = pushAnchor(anchors, { ...pt, via: tok });   // via: the airway it was flown on
       }
       if (intlTruncated) {
         for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
@@ -448,7 +448,7 @@ export function buildRouteAnchors(p, opts = {}) {
           intlTruncated = true;
           break;
         }
-        refLL = pushAnchor(anchors, pt);
+        refLL = pushAnchor(anchors, { ...pt, via: tok });
       }
       if (intlTruncated) {
         for (let j = i + 1; j < tokens.length; j++) oceanicSkipped.push(cleanToken(tokens[j]));
