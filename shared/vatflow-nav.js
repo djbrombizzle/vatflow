@@ -19,6 +19,7 @@ const NAV_ITEMS = [
       { id: "debrief", href: "event-debrief.html", label: "Event debrief" },
       { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
       { id: "ramp", href: "ramp.html", label: "Ramp Management" },
+      { id: "gates", href: "gates.html", label: "Gate list (CRC)" },
       { id: "datis", href: "datis.html", label: "Digital ATIS" },
     ],
   },

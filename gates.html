@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate List — VATFLOW</title>
+<!--
+  Gate list: a view-only inbound / outbound gate reference for a controller,
+  sized for a small browser window next to CRC. Same data as the Ramp page
+  (live mode): the VATSIM feed plus the vUSAlink-hub ramp board.
+
+  Inbound gate, in order: the stand assigned on the ramp board, the real
+  flight's gate from FlightStats (REAL), else the airline's proposed gate
+  (PROP). Outbound gate: where the aircraft is parked, else its board stand.
+
+  ?icao=KDCA picks the airport; ?size=lg makes the text bigger.
+-->
+<style>
+  :root { --bg: #0b0f14; --panel: #121821; --line: #223042; --text: #d7e1ec; --muted: #7f91a6;
+          --asg: #7ee2a8; --real: #8cc4ff; --prop: #c9a86a; --warn: #f0b35a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+               font: 13px/1.35 ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace; }
+  body.lg { font-size: 16px; }
+  header { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header b { letter-spacing: .05em; }
+  select { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px; }
+  #clock { margin-left: auto; }
+  #status { color: var(--muted); font-size: .85em; width: 100%; }
+  #status.bad { color: var(--warn); }
+  main { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 900px) { main { grid-template-columns: 1fr 1fr; } section + section { border-left: 1px solid var(--line); } }
+  h2 { margin: 0; padding: 4px 8px; font-size: 1em; letter-spacing: .08em; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); }
+  h2 span { float: right; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: normal; color: var(--muted); padding: 2px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 2px 8px; border-bottom: 1px solid #161f2b; white-space: nowrap; }
+  td.gate { font-weight: bold; font-size: 1.1em; }
+  .asg { color: var(--asg); } .real { color: var(--real); } .prop { color: var(--prop); }
+  .src { font-size: .8em; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .empty { padding: 8px; color: var(--muted); }
+  footer { padding: 6px 8px; color: var(--muted); font-size: .8em; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <b>GATES</b>
+  <select id="airportSel" aria-label="Airport"></select>
+  <span id="clock"></span>
+  <div id="status">Loading…</div>
+</header>
+<main>
+  <section>
+    <h2>INBOUND <span id="inCount"></span></h2>
+    <table>
+      <thead><tr><th>CALLSIGN</th><th>TYPE</th><th>FROM</th><th>ETA</th><th>GATE</th><th></th></tr></thead>
+      <tbody id="inBody"></tbody>
+    </table>
+  </section>
+  <section>
+    <h2>OUTBOUND <span id="outCount"></span></h2>
+    <table>
+      <thead><tr><th>CALLSIGN</th><th>TYPE</th><th>TO</th><th>GATE</th><th>STATUS</th><th>P-TIME</th></tr></thead>
+      <tbody id="outBody"></tbody>
+    </table>
+  </section>
+</main>
+<footer>
+  <span class="asg">ASSIGNED</span> on the ramp board ·
+  <span class="real">REAL</span> today's real flight (FlightStats) ·
+  <span class="prop">PROP</span> proposed from the airline's gates. View only.
+</footer>
+
+<script type="module">
+import {
+  STATES, indexLayout, deriveFlights, autoAssignStands, standLabel, operatorFor, distNm, ptimeCountdown, INBOUND_MAX_NM,
+} from "./shared/ramp-core.js";
+import { createLiveStore } from "./shared/ramp-live.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const params = new URLSearchParams(location.search);
+if (params.get("size") === "lg") document.body.classList.add("lg");
+
+let L = null;
+let store = null;
+let unsub = null;
+const memory = new Map();
+const autoMemo = new Map();
+
+const fmtEta = m => m == null ? "–" : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : `${m}m`;
+const lbl = id => standLabel(L, id);
+
+/** Inbounds too far out for the ramp page (over INBOUND_MAX_NM): still listed here. */
+function farRows(pilots, have) {
+  const out = [];
+  for (const p of pilots || []) {
+    const fp = p.flight_plan || {};
+    const cs = String(p.callsign || "").toUpperCase();
+    if (have.has(cs) || String(fp.arrival || "").toUpperCase() !== L.icao) continue;
+    const lat = Number(p.latitude), lon = Number(p.longitude);
+    const d = Number.isFinite(lat) && Number.isFinite(lon) ? distNm(lat, lon, L.field.lat, L.field.lon) : 1e9;
+    if (d <= INBOUND_MAX_NM) continue;
+    const gs = Number(p.groundspeed) || 0;
+    out.push({
+      callsign: cs, type: String(fp.aircraft_short || fp.aircraft || "").split("/")[0].toUpperCase(),
+      dep: String(fp.departure || "").toUpperCase(), arr: L.icao, op: operatorFor(L, cs, fp.remarks),
+      entry: store.getState().flights[cs] || null, stand: store.getState().flights[cs]?.stand || null, atStand: null,
+      state: STATES.INBOUND, distNm: d, etaMin: gs > 40 ? Math.round((d / gs) * 60) : null,
+    });
+  }
+  return out;
+}
+
+function inboundGate(r) {
+  if (r.entry?.stand) return { gate: lbl(r.entry.stand), cls: "asg", src: "ASSIGNED" };
+  if (r.autoStand && r.realGate?.stand === r.stand) return { gate: lbl(r.stand), cls: "real", src: "REAL" };
+  if (r.realGate && !r.realGate.stand) return { gate: r.realGate.gate, cls: "real", src: "REAL" };
+  if (r.autoStand) return { gate: lbl(r.stand), cls: "prop", src: "PROP" };
+  return { gate: "", cls: "muted", src: "" };
+}
+
+function render() {
+  const now = Date.now();
+  const pilots = store.getPilots();
+  const rows = deriveFlights(L, pilots, store.getState(), memory, now);
+  rows.push(...farRows(pilots, new Set(rows.map(r => r.callsign))));
+  autoAssignStands(L, rows, autoMemo, store.getRealGates ? store.getRealGates() : {});
+
+  const inb = rows.filter(r => r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)
+    .sort((a, b) => (a.state === STATES.TAXI_IN ? 0 : 1) - (b.state === STATES.TAXI_IN ? 0 : 1)
+      || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.distNm - b.distNm);
+  $("inBody").innerHTML = inb.map(r => {
+    const g = inboundGate(r);
+    const eta = r.state === STATES.TAXI_IN ? "TAXI" : r.etaMin != null ? fmtEta(r.etaMin) : `${Math.round(r.distNm)}nm`;
+    return `<tr><td>${esc(r.callsign)}</td><td>${esc(r.type)}</td><td>${esc(r.dep || "?")}</td><td>${esc(eta)}</td>`
+      + `<td class="gate ${g.cls}">${esc(g.gate || "—")}</td><td class="src">${esc(g.src)}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="empty">No inbound traffic.</td></tr>`;
+  $("inCount").textContent = inb.length;
+
+  const outb = rows.filter(r => r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN && r.dep === L.icao)
+    .sort((a, b) => (a.ptime ?? 1e15) - (b.ptime ?? 1e15) || a.callsign.localeCompare(b.callsign));
+  $("outBody").innerHTML = outb.map(r => {
+    const gate = r.atStand || r.stand;
+    const pt = r.ptime != null ? ptimeCountdown(r.ptime, now) : "";
+    return `<tr><td>${esc(r.callsign)}</td><td>${esc(r.type)}</td><td>${esc(r.arr || "?")}</td>`
+      + `<td class="gate">${esc(gate ? lbl(gate) : "—")}</td><td class="muted">${esc(r.state)}</td><td>${esc(pt)}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="empty">No departures on the ground.</td></tr>`;
+  $("outCount").textContent = outb.length;
+
+  const st = store.status || {};
+  $("status").textContent = st.ok ? `${L.icao} ${L.name || ""} · live` : `${L.icao} · ${st.text || "connecting…"}`;
+  $("status").className = st.ok ? "" : "bad";
+}
+
+let raf = 0;
+const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); };
+
+async function loadAirport(icao) {
+  const raw = await (await fetch(`data/ramp/${encodeURIComponent(icao)}.json`, { cache: "no-cache" })).json();
+  if (store) { store.stop(); unsub && unsub(); }
+  memory.clear();
+  autoMemo.clear();
+  L = indexLayout(raw);
+  $("airportSel").value = L.icao;
+  document.title = `${L.icao} Gates — VATFLOW`;
+  const u = new URL(location.href);
+  u.searchParams.set("icao", L.icao);
+  history.replaceState(null, "", u);
+  store = createLiveStore(L);
+  unsub = store.subscribe(schedule);
+  store.start();
+  schedule();
+}
+
+setInterval(() => {
+  const d = new Date();
+  $("clock").textContent = `${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")}Z`;
+}, 1000);
+
+let airports = [];
+try {
+  airports = (await (await fetch("data/ramp/index.json", { cache: "no-cache" })).json()).airports || [];
+} catch (_) {
+  airports = [{ icao: "KCVG" }];
+}
+$("airportSel").innerHTML = airports.map(a => `<option value="${esc(a.icao)}">${esc(a.icao)}</option>`).join("");
+$("airportSel").addEventListener("change", e => loadAirport(e.target.value).catch(err => { $("status").textContent = `Could not load ${e.target.value}: ${err.message || err}`; }));
+const want = (params.get("icao") || "").toUpperCase();
+const first = airports.some(a => a.icao === want) ? want : airports[0].icao;
+loadAirport(first).catch(err => { $("status").textContent = `Could not load ${first}: ${err.message || err}`; });
+</script>
+</body>
+</html>
