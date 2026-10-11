@@ -1109,6 +1109,8 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .wsic-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .wsic-chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border); color: var(--text-dim); }
 .wsic-chip.ev { background: rgba(123, 110, 184, 0.18); border-color: rgba(123, 110, 184, 0.5); color: #cfc6fa; }
+.wsic-chip.wx { background: rgba(91, 168, 201, 0.15); border-color: rgba(91, 168, 201, 0.5); color: #9fd2e8; }
+.wsic-chip.live { background: rgba(76, 175, 122, 0.13); border-color: rgba(76, 175, 122, 0.45); color: #8fdcb0; }
 .wsic-chip.gap { background: rgba(212, 92, 92, 0.12); border-color: rgba(212, 92, 92, 0.45); color: #eeaaaa; }
 .wsic-sec { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin: 20px 0 10px; display: flex; gap: 10px; align-items: baseline; }
 .wsic-sec span { text-transform: none; letter-spacing: 0; color: var(--text-muted); opacity: 0.8; }
@@ -4241,6 +4243,7 @@ function computeStaffingRecommendations() {
     centers: centerRows,
     approaches: appRows,
     towers: twrRows.slice(0, 40),
+    maps: { CTR: centers, APP: approaches, TWR: towers },
     boundariesReady: boundariesStatus === "ok",
     controllerCount: controllers.length
   };
@@ -4303,7 +4306,10 @@ const STAFFING_HIST_PERIODS = [
 const STAFFING_HIST_DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const STATSIM_COUNTRY_US = "https://statsim.net/flights/countries/country/US/";
 const VATSIM_EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
-const STAFF_EVENT_RADIUS_NM = 500;
+const STAFF_EVENT_RADIUS_NM = 800;     /* about 2 hours' flight: event traffic from this far still passes through */
+const STAFF_EVENT_LOCAL_NM = 150;      /* events this close get the full uplift; farther ones feed traffic in or out */
+const STAFF_EVENT_FEEDER_WEIGHT = 0.6;
+const STAFF_EVENT_GS_KT = 420;         /* rough block speed to turn distance into flight time */
 const STAFF_EVENT_SCORE_BOOST = 0.35;   /* +35% predicted ops per overlapping nearby event (capped at 2) */
 const STATSIM_FETCH_PROXIES = [
   u => "https://r.jina.ai/https://" + u.replace(/^https?:\/\//, ""),
@@ -5402,7 +5408,9 @@ function histUpcomingEventsForSlot(slot, win, networkEvents) {
   const nearbyMap = {};
   for (const icao of ids) {
     for (const ev of eventsNearAirport(icao, networkEvents || [], radius)) {
-      if (!(ev.startMs < win.endMs && ev.endMs > win.startMs)) continue;
+      /* Feeder traffic leaves this far from the event about one flight time before it starts. */
+      const leadMs = Math.min(2, ev.nm / STAFF_EVENT_GS_KT) * 3600000;
+      if (!(ev.startMs - leadMs < win.endMs && ev.endMs > win.startMs)) continue;
       const k = String(ev.id);
       if (!nearbyMap[k] || ev.nm < nearbyMap[k].nm) nearbyMap[k] = ev;
     }
@@ -5466,8 +5474,10 @@ function enrichStaffingHistTableRow(slot, networkEvents, nowMs) {
   const avgDep = histRoundOps((staffWin.dep || 0) / samples);
   const avgArr = histRoundOps((staffWin.arr || 0) / samples);
   const eventCount = upcomingEvents.length;
+  const eventWeight = upcomingEvents.reduce((w, ev) =>
+    w + (ev.nm <= STAFF_EVENT_LOCAL_NM ? 1 : STAFF_EVENT_FEEDER_WEIGHT), 0);
   const eventMult = eventCount
-    ? (1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, eventCount))
+    ? (1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, eventWeight))
     : 1;
   let predOps = win ? histRoundOps(avgOps * eventMult) : 0;
   const artcc = histSlotArtcc(slot);
@@ -5605,7 +5615,15 @@ function wsicReasons(row, cov) {
   const out = [];
   for (const ev of (row.upcomingEvents || []).slice(0, 2)) {
     const name = String(ev.name || "Event");
-    out.push({ cls: "ev", text: "\u2605 " + (name.length > 34 ? name.slice(0, 32) + "\u2026" : name) });
+    out.push({ cls: "ev", text: "\u2605 " + (name.length > 34 ? name.slice(0, 32) + "\u2026" : name) +
+      (ev.nm > STAFF_EVENT_LOCAL_NM ? " \u00b7 " + ev.nm + " nm" : "") });
+  }
+  if (row.wxBad && row.wxBad.length) {
+    out.push({ cls: "wx", text: "Bad weather at " + row.wxIcao + " \u00b7 " + row.wxBad.join(", ") });
+  }
+  if (row.liveCount) {
+    out.push({ cls: "live", text: row.liveCount + " flight" + (row.liveCount === 1 ? "" : "s") +
+      " airborne or filed for this window" });
   }
   const pct = cov[row.type + "|" + row.id];
   if (pct != null) {
@@ -5632,10 +5650,104 @@ function wsicTraconArtcc(tid) {
   return best;
 }
 /** Live feed positions in this ARTCC that want a controller right now. */
-function wsicLiveNow(artcc) {
+/* ---- Prediction adjustments: live flights + prefiles, forecast weather ---- */
+const WSIC_WX_TTL_MS = 60 * 60000;
+const WSIC_WX_BOOST = 0.25;            /* bad weather: every arrival is an approach to work */
+const WSIC_WX_MAX_FIELDS = 10;
+let wsicWx = {};                       /* icao -> { status, props, at } */
+/** Field whose weather stands for this window (the tower, or the busiest field under an APP / CTR). */
+function wsicAnchor(row) {
+  if (row.type === "TWR") return row.id;
+  let best = "", n = -1;
+  for (const [icao, v] of Object.entries(row.airports || {})) if (v > n) { best = icao; n = v; }
+  return best;
+}
+function wsicEnsureWx(icaos) {
+  const now = Date.now();
+  for (const icao of icaos) {
+    const c = wsicWx[icao];
+    if (c && (c.status === "loading" || now - c.at < WSIC_WX_TTL_MS)) continue;
+    const ll = lookup(icao);
+    if (!ll) { wsicWx[icao] = { status: "error", at: now }; continue; }
+    wsicWx[icao] = { status: "loading", at: now };
+    evNwsGrid(ll).then(props => {
+      wsicWx[icao] = { status: "ok", props, at: Date.now() };
+    }).catch(() => {
+      wsicWx[icao] = { status: "error", at: Date.now() };
+    }).finally(() => {
+      if (staffingSub === "lookup") renderContent();
+    });
+  }
+}
+/** Forecast in the window that makes it hard work: gusts, visibility under 1 SM, ceiling under 200 ft. */
+function wsicBadWx(props, startMs, endMs) {
+  const EP = window.VF_EventPlan;
+  if (!props || !EP) return [];
+  const vals = layer => {
+    const out = [];
+    for (const x of (layer && layer.values) || []) {
+      const r = EP.parseValidTime(x.validTime);
+      if (r && r[1] > startMs && r[0] < endMs && x.value != null) out.push(x.value);
+    }
+    return out;
+  };
+  const bad = [];
+  const gust = vals(props.windGust);
+  const gustKt = gust.length ? Math.round(Math.max(...gust) / 1.852) : 0;
+  if (gustKt >= 25) bad.push("gusts " + gustKt + " kt");
+  const vis = vals(props.visibility);
+  const visSm = vis.length ? Math.min(...vis) / 1609.34 : 99;
+  if (visSm < 1) bad.push("vis " + (Math.round(visSm * 10) / 10) + " SM");
+  /* NWS sends a negative height for "no ceiling" */
+  const ceil = vals(props.ceilingHeight).filter(v => v > 0);
+  const ceilFt = ceil.length ? Math.min(...ceil) * 3.28084 : 99999;
+  if (ceilFt < 200) bad.push("ceiling " + Math.round(ceilFt) + " ft");
+  return bad;
+}
+/** Live arrivals / departures (airborne, on the ground, prefiled) timed inside the window. */
+function wsicLiveCount(rec, row) {
+  const d = rec && rec.maps && rec.maps[row.type] && rec.maps[row.type][row.id];
+  if (!d) return 0;
+  let n = 0;
+  for (const ev of d.events) if (ev.t >= row.upcomingStartMs && ev.t < row.upcomingEndMs) n++;
+  return n;
+}
+/**
+ * Board prediction: history (with event uplift) or the flights already airborne / filed
+ * for the window, whichever is higher, raised when the field's forecast is bad.
+ */
+function wsicAdjustRows(rows, rec) {
+  const pre = rows.map(r => {
+    const liveCount = wsicLiveCount(rec, r);
+    return Object.assign({}, r, { liveCount, wxIcao: wsicAnchor(r), predOps: Math.max(r.predOps, liveCount) });
+  });
+  const fields = [];
+  for (const r of wsicRankRows(pre)) {
+    if (r.wxIcao && fields.indexOf(r.wxIcao) === -1) fields.push(r.wxIcao);
+    if (fields.length >= WSIC_WX_MAX_FIELDS) break;
+  }
+  wsicEnsureWx(fields);
+  for (const r of pre) {
+    const wx = wsicWx[r.wxIcao];
+    r.wxBad = wx && wx.status === "ok" ? wsicBadWx(wx.props, r.upcomingStartMs, r.upcomingEndMs) : [];
+    if (r.wxBad.length) r.predOps = histRoundOps(r.predOps * (1 + WSIC_WX_BOOST));
+  }
+  return pre;
+}
+function wsicUpliftWhy(row) {
+  const why = [];
+  if (row.eventBoost) why.push("events");
+  if (row.liveCount > row.avgOps) why.push("filed flights");
+  if (row.wxBad && row.wxBad.length) why.push("weather");
+  return why.join(", ");
+}
+function wsicLiveRec() {
   if (!vatsim) return null;
   ensureBoundariesIfNeeded();
-  const rec = computeStaffingRecommendations();
+  return computeStaffingRecommendations();
+}
+function wsicLiveNow(rec, artcc) {
+  if (!rec) return null;
   const out = [];
   for (const r of rec.centers) if (r.id === artcc) out.push(r);
   for (const r of rec.approaches) if (wsicTraconArtcc(r.id) === artcc) out.push(r);
@@ -5673,7 +5785,11 @@ function wsicDataSourceHtml() {
   h += '<div class="staffnote">Windows are the busiest 2\u20134 hours for each facility and weekday in the loaded ' +
     "StatSim period, placed on their next date in the coming 7 days. <b>Ops expected</b> is the typical " +
     "arrivals + departures in that window, raised " + Math.round(STAFF_EVENT_SCORE_BOOST * 100) +
-    "% per overlapping VATSIM event within " + STAFF_EVENT_RADIUS_NM + " nm (max two). " +
+    "% per overlapping VATSIM event within " + STAFF_EVENT_LOCAL_NM + " nm, and less for events up to " +
+    STAFF_EVENT_RADIUS_NM + " nm away (about 2 hours\u2019 flight, counted from when their traffic would leave), max two. " +
+    "If more flights are already airborne, on the ground, or prefiled for the window than history expects, that count is used. " +
+    "A forecast of gusts 25 kt+, visibility under 1 SM, or a ceiling under 200 ft (NWS gridpoint forecast at the busiest field) adds " +
+    Math.round(WSIC_WX_BOOST * 100) + "%. " +
     "<b>Usually unstaffed</b> uses StatSim controller hours for the same period. " +
     "Open <b>Historical Data</b> for the full national table.</div>";
   return h + "</details>";
@@ -5791,7 +5907,8 @@ function renderWsicBoard(res) {
   h += wsicStatusBanner();
 
   /* Right now: live feed demand with nobody online */
-  const live = wsicLiveNow(artcc);
+  const rec = wsicLiveRec();
+  const live = wsicLiveNow(rec, artcc);
   if (live && live.length) {
     const urgent = live.some(r => r.status === "need");
     h += '<div class="wsic-live' + (urgent ? "" : " warm") + '"><div class="wsic-live-hd"><span class="wsic-dot"></span>' +
@@ -5819,7 +5936,7 @@ function renderWsicBoard(res) {
   }
 
   const all = wsicAllRows(res).filter(r => r.artcc === artcc && (!type || r.type === type));
-  const ranked = wsicRankRows(all.filter(wsicUpcoming));
+  const ranked = wsicRankRows(wsicAdjustRows(all.filter(wsicUpcoming), rec));
   const events = wsicArtccEvents(res, artcc, now);
   const cov = wsicCoverageMap();
   const max = ranked.length ? ranked[0].predOps : 0;
@@ -5842,8 +5959,8 @@ function renderWsicBoard(res) {
     ' <span class="wsic-cd' + (cd.live ? " live" : "") + '">' + esc(cd.text) + "</span></div>" +
     '<div class="wsic-chips">' + wsicChipsHtml(bestReasons, 4) + "</div></div>" +
     '<div class="wsic-hero-num"><div class="n">' + best.predOps + "</div><div class=\"l\">ops expected</div>" +
-    (best.eventBoost && best.predOps !== best.avgOps
-      ? '<div class="up">\u2191 from ' + best.avgOps + " with events</div>" : "") +
+    (best.predOps > best.avgOps && wsicUpliftWhy(best)
+      ? '<div class="up">\u2191 from ' + best.avgOps + " typical \u00b7 " + esc(wsicUpliftWhy(best)) + "</div>" : "") +
     "</div></div>";
 
   /* Next best windows */
@@ -7042,7 +7159,8 @@ function renderStaffingHistorical() {
     "<b>Avg ops</b> = typical arr+dep movements in the focused <b>2\u20134 hour</b> staff-up block on that weekday " +
     "(total sample movements \u00f7 number of those weekdays in the period). " +
     "<b>Pred. ops</b> = avg ops for the next matching day, raised when a nearby VATSIM event " +
-    "(within " + STAFF_EVENT_RADIUS_NM + " nm) overlaps that window (+35% per event, max two). " +
+    "(within " + STAFF_EVENT_RADIUS_NM + " nm, about 2 hours\u2019 flight) overlaps that window " +
+    "(+35% per event within " + STAFF_EVENT_LOCAL_NM + " nm, less for farther feeder events, max two). " +
     "Filter Facility/ARTCC (e.g. ZJX), Type (TWR / APP / CTR), or Day (Mon). " +
     "Process live / Paste remain available as fallbacks. " +
     "Open <b>Staff it &amp; they will come?</b> to compare staffing against pilot traffic for the period.</div>";
@@ -7257,7 +7375,8 @@ function renderHelp() {
     '<b>Movements vs ATC</b> (This year scatter plots with trend lines for CTR / APP / TWR).</li>' +
     '<li><b>When should I control?</b> starts with your ARTCC, then shows the best window this week, more good windows, ' +
     'a 7-day timeline, events in your airspace, and live demand with nobody online. Times are in your local time.</li>' +
-    '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
+    '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>800 nm</b> (about 2 hours\u2019 flight) boost overlapping slots, ' +
+    'full uplift within 150 nm and less for farther feeder events. ' +
     'Controller examinations are excluded.</li></ul></div></details>' +
 
     '<div class="helpsec" id="help-tools">VATFLOW suite</div>' +
