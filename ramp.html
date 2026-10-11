@@ -216,6 +216,7 @@
       <h1><span id="ttlIcao">…</span> Ramp Management</h1>
       <div class="sub" id="ttlSub">Stand assignment and push control</div>
     </div>
+    <a class="btn" id="gateListLink" href="gates.html" target="_blank" rel="noopener" title="View-only inbound / outbound gate list, sized for a window next to CRC">Gate list</a>
     <div class="seg" id="modeSeg" role="group" aria-label="Mode">
       <button data-mode="demo">DEMO</button>
       <button data-mode="live">LIVE</button>
@@ -1399,6 +1400,7 @@ async function loadAirport(icao) {
   LS.set("vatflow.ramp.airport", L.icao);
   $("airportSel").value = L.icao;
   $("ttlIcao").textContent = L.icao;
+  $("gateListLink").href = `gates.html?icao=${encodeURIComponent(L.icao)}`;
   $("ttlSub").textContent = L.subtitle || "Stand assignment and push control";
   $("airportName").textContent = L.name || "";
   document.title = `${L.icao} Ramp Management — VATFLOW`;
