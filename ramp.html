@@ -409,7 +409,7 @@ function scheduleRender() {
 function render() {
   const state = store.getState();
   rows = deriveFlights(L, store.getPilots(), state, memory, Date.now());
-  autoAssignStands(L, rows, autoMemo);
+  autoAssignStands(L, rows, autoMemo, store.getRealGates ? store.getRealGates() : {});
   if (store.mode === "demo") demoSpawnOnProposed();
   const sel = selectedRamps();
   vrows = rows.filter(r => inSelection(r, sel));
@@ -867,7 +867,8 @@ function renderFlights() {
   $("flights").innerHTML = list.map(r => {
     const e = r.entry;
     let ramp = esc(rampLabel(r));
-    if (r.autoStand) ramp += ' <span class="badge auto" title="Proposed from the airline\'s gates. Assign it or send the stand telex to put it on the board.">AUTO</span>';
+    if (r.autoStand && r.realGate && r.realGate.stand === r.stand) ramp += ` <span class="badge auto" title="${esc(realGateWhy(r))} Assign it or send the stand telex to put it on the board.">REAL</span>`;
+    else if (r.autoStand) ramp += ' <span class="badge auto" title="Proposed from the airline\'s gates. Assign it or send the stand telex to put it on the board.">AUTO</span>';
     if (r.noGate) {
       ramp = `<span class="badge bad blink" style="${blinkDelay()}" title="Every ${esc(airlineName(r))} gate is occupied or assigned">NO GATE · ${esc(airlineName(r))} full</span>`;
     } else if (!r.stand && (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)) {
@@ -925,6 +926,13 @@ function spotNote(r, state) {
 }
 
 /** Airline (or operator) name for notes: "United", "DHL". */
+/** Why a real-world gate was proposed: "Real-world gate for AA2648 today (FlightStats)." */
+function realGateWhy(r) {
+  const g = r.realGate;
+  const leg = g.source === "departure" ? `${g.flight}'s departure gate here today (the real flight flies the other way)` : `real-world gate for ${g.flight} today`;
+  return `The ${leg}, from FlightStats.`;
+}
+
 function airlineName(r) {
   return airlineFor(L, r.callsign)?.name || (r.op.group !== "?" ? r.op.group : "airline");
 }
@@ -1007,7 +1015,7 @@ function renderSelected(state) {
   const cf = r.stand && conflicts.get(r.stand);
   const myConflict = cf && cf.inbound === r.callsign ? cf : null;
   const airline = airlineFor(L, r.callsign);
-  const sig = JSON.stringify([state.settings.flow, r.autoStand, r.noGate, myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
+  const sig = JSON.stringify([state.settings.flow, r.autoStand, r.realGate?.stand, r.realGate?.taken, r.noGate, myConflict, hop, r.callsign, r.state, r.stand, r.atStand, e.push, e.stand, (e.msgs || []).length, me.canWrite, me.reason, ui.flash, q?.status, q?.pos, rows.map(x => x.atStand || x.stand).join()]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
 
@@ -1025,7 +1033,8 @@ function renderSelected(state) {
   box.innerHTML = `
     <div class="selHead"><span class="cs">${esc(r.callsign)}</span><span class="chip">${esc(r.type || "?")}</span><span class="chip">${dir}</span><span class="chip">${esc(r.op.group === "?" ? "operator ?" : r.op.group)}</span>${airline ? `<span class="chip">${esc(airline.name)}</span>` : ""}</div>
     ${r.noGate ? `<div class="conflictNote blink" style="${blinkDelay()}">⚠ No free ${esc(airlineName(r))} gate: every one is occupied or assigned. Pick a stand by hand.</div>` : ""}
-    ${r.autoStand ? `<div class="roNote" style="border-color:#3d5877;color:#a9c8e8;background:#0f1a26">Proposed ${esc(lbl(r.stand))} from the ${esc(airlineName(r))} gates. It moves if someone parks or spawns there. ${me.canWrite ? "Assign it, or send the stand telex, to put it on the board." : ""}</div>` : ""}
+    ${r.autoStand && r.realGate && r.realGate.stand === r.stand ? `<div class="roNote" style="border-color:#3d5877;color:#a9c8e8;background:#0f1a26">Proposed ${esc(lbl(r.stand))}: ${esc(realGateWhy(r))} ${me.canWrite ? "Assign it, or send the stand telex, to put it on the board." : ""}</div>`
+      : r.autoStand ? `<div class="roNote" style="border-color:#3d5877;color:#a9c8e8;background:#0f1a26">${r.realGate?.taken ? `Real-world gate ${esc(lbl(r.realGate.stand))} is taken. ` : ""}Proposed ${esc(lbl(r.stand))} from the ${esc(airlineName(r))} gates. It moves if someone parks or spawns there. ${me.canWrite ? "Assign it, or send the stand telex, to put it on the board." : ""}</div>` : ""}
     ${myConflict ? `<div class="conflictNote">⚠ Stand ${esc(lbl(r.stand))} is occupied by ${esc(myConflict.occupant)}. Pick another stand, and send the pilot a stand change.</div>` : ""}
     <div class="facts">
       <div><div class="k">From</div><div class="v">${esc(r.dep || "?")}</div></div>

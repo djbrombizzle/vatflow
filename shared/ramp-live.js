@@ -7,13 +7,17 @@
  * or _TWR. Everyone else gets the read-only picture.
  *
  * Endpoints (vUSAlink-hub ramp.py):
- *   POST /hub/ramp/state  {icao, cid?, vatflowToken?}  -> {state, me, station, dryRun, hoppie}
+ *   POST /hub/ramp/state  {icao, cid?, vatflowToken?}  -> {state, me, station, dryRun, hoppie, realGates}
  *   POST /hub/ramp/op     {icao, cid, vatflowToken, op, ...}
  *   POST /hub/ramp/telex  {icao, cid, vatflowToken, to, text, force?}
  *
  * `hoppie` is {callsign: connected} from the hub's Hoppie ping of the field's
  * traffic. A telex to a callsign Hoppie says is not connected is refused (409,
  * offline) unless sent with force.
+ *
+ * `realGates` is {callsign: {gate, source, flight}}: the hub's FlightStats
+ * lookup for arrivals whose callsign is a real flight number flying today's
+ * real city pair (AAL2648 MIA-DCA -> D39). The page proposes that gate.
  */
 import { emptyState } from "./ramp-core.js";
 import { getSession, getStoredToken } from "./vatflow-auth.js";
@@ -52,6 +56,7 @@ export function createLiveStore(L) {
   let state = emptyState(L.icao);
   let pilots = [];
   let hoppie = {};
+  let realGates = {};
   const listeners = new Set();
   const store = {
     mode: "live",
@@ -60,6 +65,7 @@ export function createLiveStore(L) {
     station: "",
     dryRun: false,
     getHoppie: () => hoppie,
+    getRealGates: () => realGates,
     getState: () => state,
     getPilots: () => pilots,
     subscribe(fn) {
@@ -110,6 +116,7 @@ export function createLiveStore(L) {
       store.station = d.station || "";
       store.dryRun = !!d.dryRun;
       hoppie = d.hoppie || {};
+      realGates = d.realGates || {};
       store.status = { ok: true, text: `Hub connected · telex station ${store.station || "?"}${store.dryRun ? " (dry run)" : ""}` };
     } catch (e) {
       store.status = { ok: false, text: e.message || String(e) };

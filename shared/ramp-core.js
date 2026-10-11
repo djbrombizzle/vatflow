@@ -707,17 +707,48 @@ export function airlineStands(L, row) {
   return out.length ? out : null;
 }
 
+/** Gate name for matching: "Gate B-11", "B 11" and "b11" are all "B11". */
+function gateKey(name) {
+  return String(name || "").trim().toUpperCase().replace(/^(GATE|STAND|POS|RAMP)\s+/, "").replace(/[-\s]/g, "");
+}
+
 /**
- * Proposed gates for arrivals that have none on the board, from their
- * airline's gates. Each proposal sticks (memo: callsign -> stand id, kept by
+ * The layout stand for a real-world gate name (FlightStats "D39", "A1"), or
+ * null: by id or label, ignoring leading zeros in the number (A1 = A01).
+ */
+export function standForGate(L, gate) {
+  const want = gateKey(gate);
+  if (!want) return null;
+  const split = k => {
+    const m = /^([A-Z]*)0*([0-9]+[A-Z]?)$/.exec(k);
+    return m ? m[1] + "|" + m[2] : k;
+  };
+  const w = split(want);
+  for (const s of L.stands) {
+    for (const k of [s.id, s.label]) {
+      if (k == null) continue;
+      const g = gateKey(k);
+      if (g === want || split(g) === w) return s;
+    }
+  }
+  return null;
+}
+
+/**
+ * Proposed gates for arrivals that have none on the board. A real-world gate
+ * (realGates: callsign -> {gate, source, flight}, the hub's FlightStats
+ * lookup for a callsign that is a real flight number on today's real city
+ * pair) comes first when it is a stand on this layout and free. Otherwise the
+ * airline's gates: each proposal sticks (memo: callsign -> stand id, kept by
  * the caller between renders) until that gate is taken, by an aircraft
  * parked or spawned on it or another flight's assignment; then it moves to
  * the next free gate of the same airline. With none free the row gets
  * noGate. General aviation is left alone. Mutates rows: r.stand, r.autoStand,
- * r.noGate. A proposal is the page's; it goes on the board when a controller
- * assigns it or sends the stand telex.
+ * r.realGate ({gate, source, flight, stand, taken?}), r.noGate. A proposal is
+ * the page's; it goes on the board when a controller assigns it or sends the
+ * stand telex.
  */
-export function autoAssignStands(L, rows, memo) {
+export function autoAssignStands(L, rows, memo, realGates = {}) {
   const taken = new Set();
   for (const r of rows) {
     if (r.atStand) taken.add(r.atStand);
@@ -727,15 +758,29 @@ export function autoAssignStands(L, rows, memo) {
   for (const r of rows) {
     if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN) continue;
     if (r.entry?.stand) continue;
+    const real = realGates?.[r.callsign];
+    const rs = real && standForGate(L, real.gate);
     const stands = airlineStands(L, r);
-    if (stands) want.push({ r, stands });
+    if (stands || rs) want.push({ r, stands: stands || [], real: rs && !standOff(rs) ? { ...real, stand: rs.id } : null });
   }
   // Closest first: taxiing in, then by ETA / distance.
   want.sort((a, b) => (a.r.state === STATES.TAXI_IN ? 0 : 1) - (b.r.state === STATES.TAXI_IN ? 0 : 1)
     || (a.r.etaMin ?? 1e9) - (b.r.etaMin ?? 1e9) || a.r.distNm - b.r.distNm || a.r.callsign.localeCompare(b.r.callsign));
   const keep = new Set();
-  // Pass 1: proposals that still hold keep their gate.
+  // Pass 0: real-world gates, where free.
   for (const w of want) {
+    if (!w.real) continue;
+    if (taken.has(w.real.stand)) {
+      w.r.realGate = { ...w.real, taken: true };
+      continue;
+    }
+    taken.add(w.real.stand);
+    w.stand = w.real.stand;
+    w.r.realGate = w.real;
+  }
+  // Pass 1: airline proposals that still hold keep their gate.
+  for (const w of want) {
+    if (w.stand) continue;
     const prev = memo.get(w.r.callsign);
     if (prev && w.stands.includes(prev) && !taken.has(prev)) {
       taken.add(prev);
@@ -748,12 +793,13 @@ export function autoAssignStands(L, rows, memo) {
     if (w.stand) taken.add(w.stand);
     keep.add(w.r.callsign);
     if (w.stand) {
-      memo.set(w.r.callsign, w.stand);
+      if (w.r.realGate?.stand === w.stand) memo.delete(w.r.callsign);
+      else memo.set(w.r.callsign, w.stand);
       w.r.stand = w.stand;
       w.r.autoStand = true;
     } else {
       memo.delete(w.r.callsign);
-      w.r.noGate = true;
+      if (w.stands.length) w.r.noGate = true;
     }
   }
   for (const cs of [...memo.keys()]) if (!keep.has(cs)) memo.delete(cs);

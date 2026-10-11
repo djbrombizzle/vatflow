@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import {
   airlineFor, applyOp, composeStandTelex, deriveFlights, entrySpotFor, standConflicts, emptyState, indexLayout, locateOnChart,
   nearestStand, operatorFor, parseDm, parseDownlink, queueOrder, queueView, standStatuses,
-  suggestStand, STATES, PUSH, TELEX_MAX, exitSpotFor, autoAssignStands, airlineStands, ptimeMs, ptimeCountdown, standLabel,
+  suggestStand, STATES, PUSH, TELEX_MAX, exitSpotFor, autoAssignStands, airlineStands, standForGate, ptimeMs, ptimeCountdown, standLabel,
 } from "../shared/ramp-core.js";
 
 let passed = 0;
@@ -377,6 +377,7 @@ console.log(`test-ramp-core: ${passed} passed`);
   assert(operatorFor(R, "DAL1402", "").group === "Terminal", "an airline match sets the operator group (no 'operator ?')");
   assert(operatorFor(R, "N123AB", "").group === "?", "unknown callsigns stay '?'");
 }
+const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.json", import.meta.url))));
 /* ---------- auto gates and proposed departure times ---------- */
 {
   const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDCA.json", import.meta.url))));
@@ -416,6 +417,20 @@ console.log(`test-ramp-core: ${passed} passed`);
   rs = derive([inb("DAL100", 16), inb("DAL200", 36), ...fill]);
   assert(by("DAL100").noGate && !by("DAL100").stand, "no free Delta gate: noGate, and no gate from another airline");
   assert(standStatuses(D, derive([inb("DAL300", 30)])).get(memo.get("DAL300"))?.key === "proposed", "proposed gates colour as proposed");
+  // Real-world gates (FlightStats via the hub) come first when the stand exists and is free.
+  {
+    const m2 = new Map(), st2 = emptyState("KDCA"), mem2 = new Map();
+    const real = { AAL2648: { gate: "D39", source: "arrival", flight: "AA2648" }, DAL7: { gate: "Z99", source: "arrival", flight: "DL7" } };
+    const der = (pl) => autoAssignStands(D, deriveFlights(D, pl, st2, mem2, now), m2, real);
+    let r2 = der([inb("AAL2648", 20), inb("DAL7", 25)]);
+    const b2 = cs => r2.find(r => r.callsign === cs);
+    assert(b2("AAL2648").stand === "D39" && b2("AAL2648").autoStand && b2("AAL2648").realGate?.flight === "AA2648", `AAL2648 gets real gate D39 (got ${b2("AAL2648").stand})`);
+    assert(b2("DAL7").stand && !b2("DAL7").realGate, "a real gate not on the layout falls back to the airline gates");
+    r2 = der([inb("AAL2648", 20), parkedAt("AAL999", "D39")]);
+    assert(b2("AAL2648").stand !== "D39" && b2("AAL2648").realGate?.taken, "real gate occupied: airline proposal, flagged taken");
+    assert(standForGate(D, "Gate D-39")?.id === "D39" && standForGate(D, "d39")?.id === "D39" && !standForGate(D, "D3"), "gate names match loosely");
+    assert(standForGate(C2(), "A1")?.id === "A01", "A1 matches CVG A01");
+  }
   // Cargo at CVG by operator: DHL by callsign, Amazon by remarks, shared carriers left alone.
   const C = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.json", import.meta.url))));
   const op = (cs, rmk) => ({ callsign: cs, op: operatorFor(C, cs, rmk) });
