@@ -428,6 +428,8 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
     assert(b2("DAL7").stand && !b2("DAL7").realGate, "a real gate not on the layout falls back to the airline gates");
     r2 = der([inb("AAL2648", 20), parkedAt("AAL999", "D39")]);
     assert(b2("AAL2648").stand !== "D39" && b2("AAL2648").realGate?.taken, "real gate occupied: airline proposal, flagged taken");
+    r2 = der([parkedAt("AAL2648", "D43")]);
+    assert(b2("AAL2648").atStand === "D43" && b2("AAL2648").realGate?.stand === "D39" && !b2("AAL2648").autoStand, "parked elsewhere: real gate shown, not proposed");
     assert(standForGate(D, "Gate D-39")?.id === "D39" && standForGate(D, "d39")?.id === "D39" && !standForGate(D, "D3"), "gate names match loosely");
     assert(standForGate(C2(), "A1")?.id === "A01", "A1 matches CVG A01");
   }

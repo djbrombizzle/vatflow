@@ -756,10 +756,13 @@ export function autoAssignStands(L, rows, memo, realGates = {}) {
   }
   const want = [];
   for (const r of rows) {
-    if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN) continue;
-    if (r.entry?.stand) continue;
     const real = realGates?.[r.callsign];
     const rs = real && standForGate(L, real.gate);
+    // Landed or assigned: the real gate is shown, not proposed.
+    if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN || r.entry?.stand) {
+      if (real) r.realGate = { ...real, stand: rs ? rs.id : null };
+      continue;
+    }
     const stands = airlineStands(L, r);
     if (stands || rs) want.push({ r, stands: stands || [], real: rs && !standOff(rs) ? { ...real, stand: rs.id } : null });
   }
