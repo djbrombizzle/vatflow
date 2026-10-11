@@ -1029,43 +1029,148 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .staffhist-tablewrap tr.histpick td { outline: 1px solid rgba(232, 168, 56, 0.35); outline-offset: -1px; }
 .staffhist-tablewrap .hist-boost { color: var(--accent-text); }
 .staffhist-count { font-family: var(--font-data); font-size: 11px; color: var(--text-muted); margin: 0 0 8px; }
-.staffhist-lookup {
-  margin: 16px 0 18px; padding: 16px 18px; background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
+/* "When should I control?" board */
+.wsic-kicker { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); font-weight: 600; }
+.wsic-pickhead { margin: 4px 0 16px; }
+.wsic-pickttl { font-family: var(--font-display); font-size: 34px; letter-spacing: 0.03em; color: var(--text); line-height: 1.1; margin-top: 2px; }
+.wsic-picksub { font-size: 13px; color: var(--text-dim); margin-top: 4px; max-width: 640px; }
+.wsic-banner { margin: 0 0 14px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--accent-dim); color: var(--accent-text); font-size: 12px; }
+.wsic-banner.err { background: rgba(212, 92, 92, 0.12); color: #e89a9a; }
+.wsic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.wsic-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; cursor: pointer;
+  padding: 12px 14px; border-radius: var(--radius); background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); transition: transform 0.12s, border-color 0.12s, background 0.12s;
 }
-.staffhist-lookup-title {
-  font-family: var(--font-display); font-size: 20px; letter-spacing: 0.03em;
-  color: var(--text); margin: 0 0 4px;
+.wsic-tile:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--surface-2); }
+.wsic-tile.mine { border-color: var(--border-hi); box-shadow: inset 0 0 0 1px rgba(245, 199, 106, 0.25); }
+.wsic-tile-code { font-family: var(--font-display); font-size: 28px; letter-spacing: 0.04em; line-height: 1; }
+.wsic-tile.prime .wsic-tile-code { color: var(--accent-text); }
+.wsic-tile-name { font-size: 11px; color: var(--text-muted); }
+.wsic-tile-bar { width: 100%; height: 4px; border-radius: 2px; background: var(--elevated); margin-top: 6px; overflow: hidden; }
+.wsic-tile-bar i { display: block; height: 100%; border-radius: 2px; background: var(--text-muted); }
+.wsic-tile.busy .wsic-tile-bar i { background: var(--info); }
+.wsic-tile.prime .wsic-tile-bar i { background: linear-gradient(90deg, var(--accent), var(--accent-text)); }
+.wsic-tile-stats { font-family: var(--font-data); font-size: 11px; color: var(--text-dim); }
+.wsic-tile-stats b { color: var(--text); font-weight: 600; }
+.wsic-tile-stats .ev, .wsic-wk-best .ev { color: #b3a6f0; }
+.wsic-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 4px 0 14px; }
+.wsic-id { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.wsic-id-code { font-family: var(--font-display); font-size: 40px; letter-spacing: 0.04em; line-height: 1; color: var(--accent-text); }
+.wsic-id-name { font-size: 14px; color: var(--text-dim); }
+.wsic-types { display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.wsic-type { background: transparent; border: 0; color: var(--text-dim); font-size: 12px; padding: 6px 12px; cursor: pointer; }
+.wsic-type + .wsic-type { border-left: 1px solid var(--border); }
+.wsic-type.on { background: var(--accent); color: #111; font-weight: 600; }
+.wsic-change {
+  background: transparent; border: 1px solid var(--border-hi); color: var(--text-dim);
+  border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer;
 }
-.staffhist-lookup-sub {
-  font-size: 12px; color: var(--text-muted); line-height: 1.45; margin: 0 0 14px; max-width: 720px;
+.wsic-change:hover { border-color: var(--accent); color: var(--accent-text); }
+.wsic-live {
+  margin: 0 0 14px; padding: 10px 12px; border-radius: var(--radius);
+  background: rgba(212, 92, 92, 0.08); border: 1px solid rgba(212, 92, 92, 0.35);
 }
-.staffhist-lookup-fields {
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px;
+.wsic-live.warm { background: rgba(212, 146, 58, 0.07); border-color: rgba(212, 146, 58, 0.35); }
+.wsic-live.warm .wsic-live-hd { color: var(--warn); }
+.wsic-live.warm .wsic-dot { background: var(--warn); box-shadow: 0 0 0 3px rgba(212, 146, 58, 0.25); }
+.wsic-live.calm { background: var(--surface); border-color: var(--border); display: flex; align-items: center; gap: 12px; }
+.wsic-live-hd { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #e89a9a; font-weight: 700; display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.wsic-live.calm .wsic-live-hd { color: var(--text-muted); margin: 0; }
+.wsic-live-calm { font-size: 12px; color: var(--text-dim); }
+.wsic-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--alert); box-shadow: 0 0 0 3px rgba(212, 92, 92, 0.25); animation: pulse 1.4s infinite; }
+.wsic-dot.calm { background: var(--ok); box-shadow: none; animation: none; }
+.wsic-live-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.wsic-live-item { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface); border-left: 3px solid var(--alert); }
+.wsic-live-item.watch { border-left-color: var(--warn); }
+.wsic-live-item .fac { font-family: var(--font-display); font-size: 18px; letter-spacing: 0.03em; }
+.wsic-live-item .st { justify-self: end; align-self: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #e89a9a; }
+.wsic-live-item.watch .st { color: var(--warn); }
+.wsic-live-item .why { grid-column: 1 / -1; font-size: 11px; color: var(--text-dim); }
+.wsic-hero {
+  position: relative; display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  padding: 20px 22px; border-radius: 10px; margin: 0 0 18px; cursor: default;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(232, 168, 56, 0.22), rgba(232, 168, 56, 0.04) 55%, transparent 80%), var(--surface);
+  border: 1px solid rgba(232, 168, 56, 0.45);
+  box-shadow: 0 0 0 1px rgba(232, 168, 56, 0.08), 0 10px 30px rgba(0, 0, 0, 0.35);
 }
-.staffhist-lookup-fields label {
-  display: flex; flex-direction: column; gap: 4px;
-  font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em;
+.wsic-hero[data-hist-apt], .wsic-card[data-hist-apt] { cursor: pointer; }
+.wsic-hero.ev { background: radial-gradient(120% 140% at 0% 0%, rgba(232, 168, 56, 0.22), rgba(123, 110, 184, 0.14) 55%, transparent 85%), var(--surface); }
+.wsic-hero-main { min-width: 260px; flex: 1; }
+.wsic-hero-fac { font-family: var(--font-display); font-size: 52px; line-height: 1; letter-spacing: 0.03em; color: var(--text); margin-top: 6px; }
+.wsic-hero-fac span { font-size: 26px; color: var(--accent-text); }
+.wsic-hero-when { font-family: var(--font-data); font-size: 15px; color: var(--text); margin: 8px 0 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wsic-hero-num { text-align: right; min-width: 140px; }
+.wsic-hero-num .n { font-family: var(--font-display); font-size: 72px; line-height: 0.9; color: var(--accent-text); text-shadow: 0 0 24px rgba(232, 168, 56, 0.35); }
+.wsic-hero-num .l { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.wsic-hero-num .up { font-size: 11px; color: #b3a6f0; margin-top: 4px; }
+.wsic-cd { font-family: var(--font-data); font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border-hi); color: var(--text-dim); white-space: nowrap; }
+.wsic-cd.live { background: rgba(76, 175, 122, 0.15); border-color: rgba(76, 175, 122, 0.5); color: #7fd3a3; }
+.wsic-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wsic-chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border); color: var(--text-dim); }
+.wsic-chip.ev { background: rgba(123, 110, 184, 0.18); border-color: rgba(123, 110, 184, 0.5); color: #cfc6fa; }
+.wsic-chip.gap { background: rgba(212, 92, 92, 0.12); border-color: rgba(212, 92, 92, 0.45); color: #eeaaaa; }
+.wsic-sec { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin: 20px 0 10px; display: flex; gap: 10px; align-items: baseline; }
+.wsic-sec span { text-transform: none; letter-spacing: 0; color: var(--text-muted); opacity: 0.8; }
+.wsic-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.wsic-card { padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--text-muted); transition: transform 0.12s, border-color 0.12s; }
+.wsic-card:hover { transform: translateY(-2px); border-color: var(--border-hi); }
+.wsic-card.prime { border-top-color: var(--accent); }
+.wsic-card.busy { border-top-color: var(--info); }
+.wsic-card-hd { display: flex; justify-content: space-between; align-items: baseline; }
+.wsic-card-hd .fac { font-family: var(--font-display); font-size: 24px; letter-spacing: 0.03em; }
+.wsic-card-hd .fac span { font-size: 15px; color: var(--text-dim); }
+.wsic-tier { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.wsic-tier.prime { color: var(--accent-text); }
+.wsic-tier.busy { color: var(--info); }
+.wsic-card-when { font-family: var(--font-data); font-size: 12px; color: var(--text-dim); margin: 2px 0 6px; }
+.wsic-card-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.wsic-card-row .n { font-family: var(--font-display); font-size: 30px; line-height: 1; color: var(--text); }
+.wsic-card.prime .wsic-card-row .n { color: var(--accent-text); }
+.wsic-card-row .n small { font-family: var(--font-ui); font-size: 11px; color: var(--text-muted); }
+.wsic-week { padding: 10px 12px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+.wsic-wk-row { display: grid; grid-template-columns: 90px 1fr 220px; gap: 12px; align-items: center; padding: 3px 0; }
+.wsic-wk-axis .wsic-wk-track { height: 14px; background: none; border: 0; }
+.wsic-wk-axis .wsic-wk-track span { position: absolute; top: 0; font-family: var(--font-data); font-size: 10px; color: var(--text-muted); transform: translateX(-2px); }
+.wsic-wk-day { font-size: 12px; color: var(--text-dim); }
+.wsic-wk-track { position: relative; height: 52px; border-radius: var(--radius-sm); background: repeating-linear-gradient(90deg, var(--elevated) 0, var(--elevated) calc(25% - 1px), var(--border) calc(25% - 1px), var(--border) 25%); }
+.wsic-wk-blk {
+  position: absolute; height: 13px; border-radius: 3px; background: var(--text-muted); color: #0b0f14;
+  font-family: var(--font-data); font-size: 9px; line-height: 13px; padding: 0 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.staffhist-lookup-fields input, .staffhist-lookup-fields select {
-  font-family: var(--font-data); font-size: 13px; padding: 7px 10px;
-  background: var(--elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  color: var(--text); min-width: 110px; width: 120px;
-}
-.staffhist-lookup-fields input[data-hist-lookup="facility"] { width: 140px; }
-.staffhist-lookup-best {
-  margin: 10px 0 14px; padding: 12px 14px;
-  background: var(--elevated); border: 1px solid var(--border-hi); border-radius: var(--radius-sm);
-  border-left: 3px solid var(--accent-text);
-}
-.staffhist-lookup-best .lbl {
-  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;
-}
-.staffhist-lookup-best .pick {
-  font-family: var(--font-display); font-size: 22px; letter-spacing: 0.03em; color: var(--text);
-}
-.staffhist-lookup-best .detail {
-  font-size: 13px; color: var(--text-dim); margin-top: 4px; line-height: 1.4;
+.wsic-wk-blk b { font-weight: 700; }
+.wsic-wk-blk.busy { background: var(--info); }
+.wsic-wk-blk.prime { background: linear-gradient(90deg, var(--accent), var(--accent-text)); box-shadow: 0 0 8px rgba(232, 168, 56, 0.5); }
+.wsic-wk-ev { position: absolute; bottom: 0; height: 4px; border-radius: 2px; background: #9d8ff0; }
+.wsic-wk-now { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.wsic-wk-best { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wsic-wk-best b { color: var(--text); }
+.wsic-wk-best .n { font-family: var(--font-data); color: var(--accent-text); }
+.wsic-wk-legend { display: flex; gap: 16px; margin: 8px 0 0 102px; font-size: 11px; color: var(--text-muted); }
+.wsic-wk-legend i { display: inline-block; width: 14px; height: 6px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--text-muted); }
+.wsic-wk-legend i.busy { background: var(--info); }
+.wsic-wk-legend i.prime { background: var(--accent); }
+.wsic-wk-legend i.evk { background: #9d8ff0; height: 3px; }
+.wsic-events { display: flex; flex-direction: column; gap: 8px; }
+.wsic-event { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); border-left: 3px solid #9d8ff0; }
+.wsic-event-date { width: 44px; text-align: center; font-size: 10px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.06em; }
+.wsic-event-date b { display: block; font-family: var(--font-display); font-size: 24px; line-height: 1; color: var(--text); letter-spacing: 0; }
+.wsic-event-body { flex: 1; min-width: 0; }
+.wsic-event-body .nm { font-size: 14px; color: var(--text); font-weight: 600; }
+.wsic-event-body .nm a { color: inherit; text-decoration: none; }
+.wsic-event-body .nm a:hover { color: var(--accent-text); }
+.wsic-event-body .meta { font-family: var(--font-data); font-size: 11px; color: var(--text-dim); }
+.wsic-all, .wsic-source { margin-top: 18px; }
+.wsic-all summary, .wsic-source summary { cursor: pointer; font-size: 12px; color: var(--text-dim); padding: 6px 0; }
+.wsic-all summary:hover, .wsic-source summary:hover { color: var(--accent-text); }
+.wsic-source[open] summary { margin-bottom: 8px; }
+@media (max-width: 720px) {
+  .wsic-wk-row { grid-template-columns: 64px 1fr; }
+  .wsic-wk-best { display: none; }
+  .wsic-wk-legend { margin-left: 0; flex-wrap: wrap; }
+  .wsic-hero-num { text-align: left; }
+  .wsic-hero-fac { font-size: 40px; }
 }
 .staffhist-lookup-tablewrap { overflow-x: auto; margin-top: 8px; }
 .staffhist-lookup-tablewrap table { min-width: 720px; }
@@ -4219,9 +4324,6 @@ let staffingHist = {
     facility: "", type: "", artcc: "", day: "", window: "",
     avgOps: "", upcoming: "", predOps: "", events: ""
   },
-  lookup: {
-    facility: "", type: "", artcc: "", day: ""
-  },
   /* recommendations | staffit — which historical table is visible */
   dataView: "recommendations"
 };
@@ -5426,154 +5528,396 @@ function buildStaffingHistTableRows(result) {
   for (const slot of (result.centers || [])) rows.push(enrichStaffingHistTableRow(slot, events, nowMs));
   return rows;
 }
-function histLookupQueryActive() {
-  const l = staffingHist.lookup || {};
-  return !!(String(l.facility || "").trim() || String(l.type || "").trim() ||
-    String(l.artcc || "").trim() || String(l.day || "").trim());
+/* ---------- "When should I control?" board: pick an ARTCC, then see when and why ---------- */
+const STAFFING_ARTCC_NAMES = {
+  ZAB: "Albuquerque", ZAN: "Anchorage", ZAU: "Chicago", ZBW: "Boston", ZDC: "Washington",
+  ZDV: "Denver", ZFW: "Fort Worth", ZHN: "Honolulu", ZHU: "Houston", ZID: "Indianapolis",
+  ZJX: "Jacksonville", ZKC: "Kansas City", ZLA: "Los Angeles", ZLC: "Salt Lake", ZMA: "Miami",
+  ZME: "Memphis", ZMP: "Minneapolis", ZNY: "New York", ZOA: "Oakland", ZOB: "Cleveland",
+  ZSE: "Seattle", ZTL: "Atlanta"
+};
+const WSIC_ARTCC_KEY = "vatflow_wsic_artcc";
+let staffingBoard = { artcc: "", type: "" };
+try {
+  const savedBoardArtcc = localStorage.getItem(WSIC_ARTCC_KEY);
+  if (savedBoardArtcc && STAFFING_ARTCC_SET.has(savedBoardArtcc)) staffingBoard.artcc = savedBoardArtcc;
+} catch (e) {}
+function wsicSetArtcc(artcc) {
+  staffingBoard.artcc = STAFFING_ARTCC_SET.has(artcc) ? artcc : "";
+  try {
+    if (staffingBoard.artcc) localStorage.setItem(WSIC_ARTCC_KEY, staffingBoard.artcc);
+    else localStorage.removeItem(WSIC_ARTCC_KEY);
+  } catch (e) {}
 }
-function histLookupFacilityMatch(row, query) {
-  const q = String(query || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (!q) return true;
-  const candidates = [row.id].concat(histSlotAirportIds(row));
-  for (const raw of candidates) {
-    const id = String(raw || "").toUpperCase();
-    if (!id) continue;
-    if (id.indexOf(q) !== -1) return true;
-    if (q.length === 3 && id === "K" + q) return true;
-    if (id.length === 4 && id.charAt(0) === "K" && id.slice(1) === q) return true;
+let wsicAtcRequested = false;
+let wsicRowsCache = { result: null, minute: -1, rows: [] };
+/** All enriched staff-up rows, rebuilt at most once a minute per loaded result. */
+function wsicAllRows(result) {
+  const minute = Math.floor(Date.now() / 60000);
+  if (wsicRowsCache.result !== result || wsicRowsCache.minute !== minute) {
+    wsicRowsCache = { result, minute, rows: buildStaffingHistTableRows(result) };
   }
-  return false;
+  return wsicRowsCache.rows;
 }
-function histLookupPasses(row) {
-  const l = staffingHist.lookup || {};
-  const fac = String(l.facility || "").trim();
-  const typ = String(l.type || "").trim().toUpperCase();
-  const art = String(l.artcc || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const day = String(l.day || "").trim().toUpperCase();
-  if (fac && !histLookupFacilityMatch(row, fac)) return false;
-  if (typ && String(row.type || "").toUpperCase().indexOf(typ) === -1) return false;
-  if (art) {
-    const hay = (String(row.artcc || "") + " " + String(row.id || "")).toUpperCase();
-    if (hay.indexOf(art) === -1) return false;
-  }
-  if (day) {
-    const dayHay = String(row.localDowLabel || row.dowLabel).toUpperCase();
-    if (dayHay.indexOf(day) === -1) return false;
-  }
-  return true;
+function wsicUpcoming(row) {
+  return row.upcomingStartMs < Number.POSITIVE_INFINITY;
 }
-function sortedStaffingHistLookupRows(rows) {
-  const out = rows.slice();
-  out.sort((a, b) => {
-    const aOut = !(a.upcomingStartMs < Number.POSITIVE_INFINITY);
-    const bOut = !(b.upcomingStartMs < Number.POSITIVE_INFINITY);
-    if (aOut !== bOut) return aOut ? 1 : -1;
-    const pa = a.predOps != null ? a.predOps : -1;
-    const pb = b.predOps != null ? b.predOps : -1;
-    if (pa !== pb) return pb - pa;
-    const aa = a.avgOps != null ? a.avgOps : -1;
-    const ab = b.avgOps != null ? b.avgOps : -1;
-    if (aa !== ab) return ab - aa;
-    return (a.upcomingStartMs - b.upcomingStartMs) ||
-      String(a.id).localeCompare(String(b.id)) || (a.dow - b.dow);
-  });
+/** Network events in the next 7 days with at least one airport inside this ARTCC. */
+function wsicArtccEvents(result, artcc, nowMs) {
+  const horizon = nowMs + 7 * 24 * 3600000;
+  const out = [];
+  for (const ev of (result && result.networkEvents) || []) {
+    if (!(ev.endMs > nowMs && ev.startMs < horizon)) continue;
+    const fields = [];
+    for (const a of ev.airports || []) {
+      if (airportStaffingArtcc(a.icao) === artcc && fields.indexOf(a.icao) === -1) fields.push(a.icao);
+    }
+    if (fields.length) out.push(Object.assign({}, ev, { fields }));
+  }
+  return out.sort((a, b) => a.startMs - b.startMs);
+}
+/** coveragePct per "TYPE|ID" from the ATC hours period, when loaded. */
+function wsicCoverageMap() {
+  const map = {};
+  if (!staffingAtc.result) return map;
+  for (const r of atcCoverageRows()) {
+    if (r.coveragePct != null) map[r.type + "|" + r.id] = r.coveragePct;
+  }
+  return map;
+}
+function wsicCountdown(startMs, endMs, nowMs) {
+  if (nowMs >= startMs && nowMs < endMs) return { live: true, text: "Happening now" };
+  const diff = Math.max(0, startMs - nowMs);
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (d > 0) return { live: false, text: "in " + d + "d " + h + "h" };
+  if (h > 0) return { live: false, text: "in " + h + "h " + m + "m" };
+  return { live: false, text: "in " + m + "m" };
+}
+function wsicTier(pred, max) {
+  const t = max > 0 ? pred / max : 0;
+  return t >= 0.66 ? "prime" : t >= 0.33 ? "busy" : "steady";
+}
+const WSIC_TIER_LABEL = { prime: "Prime time", busy: "Busy", steady: "Steady" };
+/** Short "why" chips for one window, most persuasive first. */
+function wsicReasons(row, cov) {
+  const out = [];
+  for (const ev of (row.upcomingEvents || []).slice(0, 2)) {
+    const name = String(ev.name || "Event");
+    out.push({ cls: "ev", text: "\u2605 " + (name.length > 34 ? name.slice(0, 32) + "\u2026" : name) });
+  }
+  const pct = cov[row.type + "|" + row.id];
+  if (pct != null) {
+    if (pct < 5) out.push({ cls: "gap", text: "Usually unstaffed \u00b7 " + pct + "% of hours" });
+    else if (pct < 25) out.push({ cls: "gap", text: "Often unstaffed \u00b7 " + pct + "% of hours" });
+  }
+  out.push({ cls: "", text: "~" + row.avgOps + " ops on a typical " + row.localDowLabel });
+  if (row.reason) out.push({ cls: "", text: "Peak " + row.reason });
   return out;
 }
-function staffingHistLookupResults(result, limit) {
-  if (!result || !histLookupQueryActive()) return [];
-  const matched = buildStaffingHistTableRows(result).filter(histLookupPasses);
-  return sortedStaffingHistLookupRows(matched).slice(0, limit == null ? 8 : limit);
+function wsicChipsHtml(reasons, max) {
+  return reasons.slice(0, max).map(r =>
+    '<span class="wsic-chip' + (r.cls ? " " + r.cls : "") + '">' + esc(r.text) + "</span>").join("");
 }
-function renderStaffingHistLookupPanel(result) {
-  const l = staffingHist.lookup || { facility: "", type: "", artcc: "", day: "" };
-  let h = '<div class="staffhist-lookup">';
-  h += '<div class="staffhist-lookup-title">When should I control?</div>';
-  h += '<div class="staffhist-lookup-sub">Search the loaded historical period for the best day and ' +
-    "2\u20134hr staff-up window. Enter Facility, Type, ARTCC, and/or Day \u2014 leave fields blank to widen the search.</div>";
-  h += '<div class="staffhist-lookup-fields">';
-  h += '<label>Facility<input data-hist-lookup="facility" data-keep="hist-lu-facility" maxlength="8" ' +
-    'placeholder="KMCO / MCO" autocomplete="off" value="' + esc(l.facility || "") + '"></label>';
-  h += '<label>Type<select data-hist-lookup="type" data-keep="hist-lu-type">' +
-    '<option value=""' + (!l.type ? " selected" : "") + ">Any</option>" +
-    '<option value="TWR"' + (l.type === "TWR" ? " selected" : "") + ">TWR</option>" +
-    '<option value="APP"' + (l.type === "APP" ? " selected" : "") + ">APP</option>" +
-    '<option value="CTR"' + (l.type === "CTR" ? " selected" : "") + ">CTR</option>" +
-    "</select></label>";
-  h += '<label>ARTCC<input data-hist-lookup="artcc" data-keep="hist-lu-artcc" maxlength="5" ' +
-    'placeholder="ZJX" autocomplete="off" value="' + esc(l.artcc || "") + '"></label>';
-  h += '<label>Day<select data-hist-lookup="day" data-keep="hist-lu-day">' +
-    '<option value=""' + (!l.day ? " selected" : "") + ">Any</option>";
-  for (const d of STAFFING_HIST_DOW) {
-    h += '<option value="' + d + '"' + (l.day === d ? " selected" : "") + ">" + d + "</option>";
+function wsicTraconArtcc(tid) {
+  const fields = (usTraconIndex().traconAirports || {})[tid] || [];
+  const counts = {};
+  for (const icao of fields) {
+    const a = airportStaffingArtcc(icao);
+    if (a) counts[a] = (counts[a] || 0) + 1;
   }
-  h += "</select></label>";
-  h += '<div class="staffhist-actions">' +
-    '<button type="button" class="ghost" data-hist-lookup-clear' +
-    (histLookupQueryActive() ? "" : " disabled") + ">Clear</button></div>";
+  let best = "", n = 0;
+  for (const [k, c] of Object.entries(counts)) if (c > n) { best = k; n = c; }
+  return best;
+}
+/** Live feed positions in this ARTCC that want a controller right now. */
+function wsicLiveNow(artcc) {
+  if (!vatsim) return null;
+  ensureBoundariesIfNeeded();
+  const rec = computeStaffingRecommendations();
+  const out = [];
+  for (const r of rec.centers) if (r.id === artcc) out.push(r);
+  for (const r of rec.approaches) if (wsicTraconArtcc(r.id) === artcc) out.push(r);
+  for (const r of rec.towers) if (airportStaffingArtcc(r.id) === artcc) out.push(r);
+  return out.filter(r => r.status === "need" || r.status === "watch")
+    .sort((a, b) => (a.status === b.status ? 0 : a.status === "need" ? -1 : 1) || b.score - a.score)
+    .slice(0, 4);
+}
+/** Top distinct windows: at most two per facility so one field can't fill the board. */
+function wsicPicks(rows, limit) {
+  const perFac = {};
+  const out = [];
+  for (const r of rows) {
+    const k = r.type + "|" + r.id;
+    if ((perFac[k] || 0) >= 2) continue;
+    perFac[k] = (perFac[k] || 0) + 1;
+    out.push(r);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+function wsicRankRows(rows) {
+  return rows.slice().sort((a, b) =>
+    (b.predOps - a.predOps) || (b.avgOps - a.avgOps) || (a.upcomingStartMs - b.upcomingStartMs) ||
+    String(a.id).localeCompare(String(b.id)));
+}
+function wsicWhenLabel(r) {
+  return histFmtLocalDate(r.upcomingStartMs) + " \u00b7 " + histFmtLocalRange(r.upcomingStartMs, r.upcomingEndMs);
+}
+function wsicDataSourceHtml() {
+  let h = '<details class="wsic-source"' + (staffingHist.status === "error" ? " open" : "") + ">" +
+    "<summary>Data source \u00b7 " + esc((STAFFING_HIST_PERIODS.find(p => p.id === staffingHist.period) || {}).label || "") +
+    " of StatSim history</summary>";
+  h += renderStaffingHistPeriodControls({ showLive: false });
+  h += '<div class="staffnote">Windows are the busiest 2\u20134 hours for each facility and weekday in the loaded ' +
+    "StatSim period, placed on their next date in the coming 7 days. <b>Ops expected</b> is the typical " +
+    "arrivals + departures in that window, raised " + Math.round(STAFF_EVENT_SCORE_BOOST * 100) +
+    "% per overlapping VATSIM event within " + STAFF_EVENT_RADIUS_NM + " nm (max two). " +
+    "<b>Usually unstaffed</b> uses StatSim controller hours for the same period. " +
+    "Open <b>Historical Data</b> for the full national table.</div>";
+  return h + "</details>";
+}
+function wsicStatusBanner() {
+  if (staffingHist.status === "loading") {
+    return '<div class="wsic-banner">' + esc(staffingHist.message || "Loading history\u2026") + "</div>";
+  }
+  if (staffingHist.status === "error") {
+    return '<div class="wsic-banner err">' + esc(staffingHist.message || "Could not load history.") + "</div>";
+  }
+  return "";
+}
+function renderWsicPicker(res) {
+  const now = Date.now();
+  const rows = res ? wsicAllRows(res) : [];
+  const summary = {};
+  for (const id of STAFFING_ARTCCS) summary[id] = { peak: 0, events: 0 };
+  for (const r of rows) {
+    if (!wsicUpcoming(r) || !summary[r.artcc]) continue;
+    summary[r.artcc].peak = Math.max(summary[r.artcc].peak, r.predOps);
+  }
+  if (res) for (const id of STAFFING_ARTCCS) summary[id].events = wsicArtccEvents(res, id, now).length;
+  let max = 0;
+  for (const id of STAFFING_ARTCCS) max = Math.max(max, summary[id].peak);
+  const mine = new Set((myArtccs || []).map(a => String(a).toUpperCase()));
+
+  let h = '<div class="wsic-pickhead"><div class="wsic-kicker">When should I control?</div>' +
+    '<div class="wsic-pickttl">Pick your ARTCC</div>' +
+    '<div class="wsic-picksub">See the best times to log on this week, and why: expected traffic, events, and positions that usually sit empty.</div></div>';
+  h += wsicStatusBanner();
+  h += '<div class="wsic-grid">';
+  const ids = STAFFING_ARTCCS.slice().sort((a, b) =>
+    (mine.has(b) - mine.has(a)) || a.localeCompare(b));
+  for (const id of ids) {
+    const s = summary[id];
+    const tier = res && s.peak ? wsicTier(s.peak, max) : "";
+    const pct = max > 0 ? Math.round((s.peak / max) * 100) : 0;
+    h += '<button type="button" class="wsic-tile' + (tier ? " " + tier : "") + (mine.has(id) ? " mine" : "") +
+      '" data-wsic-artcc="' + id + '">' +
+      '<span class="wsic-tile-code">' + id + "</span>" +
+      '<span class="wsic-tile-name">' + esc(STAFFING_ARTCC_NAMES[id] || "") + (mine.has(id) ? " \u00b7 yours" : "") + "</span>" +
+      (res
+        ? '<span class="wsic-tile-bar"><i style="width:' + pct + '%"></i></span>' +
+          '<span class="wsic-tile-stats">' + (s.peak ? "peak <b>" + s.peak + "</b> ops" : "quiet week") +
+          (s.events ? ' <span class="ev">\u2605' + s.events + "</span>" : "") +
+          "</span>"
+        : "") +
+      "</button>";
+  }
   h += "</div>";
-
-  if (!result) {
-    h += '<div class="staffnone">Load historical data first (Load from database on this tab or Historical Data).</div>';
-    h += "</div>";
-    return h;
+  h += wsicDataSourceHtml();
+  return h;
+}
+function wsicWeekHtml(rows, events, nowMs) {
+  const today = new Date(nowMs);
+  let h = '<div class="wsic-sec">This week at a glance <span>' + esc(histLocalTzAbbr(nowMs)) + "</span></div>";
+  h += '<div class="wsic-week"><div class="wsic-wk-row wsic-wk-axis"><span></span><div class="wsic-wk-track">';
+  for (const hr of [0, 6, 12, 18]) {
+    h += '<span style="left:' + (hr / 24 * 100) + '%">' + String(hr).padStart(2, "0") + "00</span>";
   }
-  if (!histLookupQueryActive()) {
-    h += '<div class="staffnone">Enter at least one of Facility, Type, ARTCC, or Day to see the best control window.</div>';
+  h += "</div><span></span></div>";
+  const max = rows.reduce((m, r) => Math.max(m, r.predOps), 0);
+  for (let d = 0; d < 7; d++) {
+    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d).getTime();
+    const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d + 1).getTime();
+    const span = dayEnd - dayStart;
+    const dayRows = wsicPicks(rows.filter(r => r.upcomingStartMs >= dayStart && r.upcomingStartMs < dayEnd), 3);
+    const dayEvents = events.filter(ev => ev.startMs < dayEnd && ev.endMs > dayStart);
+    const lbl = d === 0 ? "Today" : d === 1 ? "Tomorrow" : histFmtLocalDate(dayStart);
+    h += '<div class="wsic-wk-row"><span class="wsic-wk-day">' + esc(lbl) + "</span>" +
+      '<div class="wsic-wk-track">';
+    dayRows.forEach((r, lane) => {
+      const left = Math.max(0, (r.upcomingStartMs - dayStart) / span * 100);
+      const right = Math.min(100, (r.upcomingEndMs - dayStart) / span * 100);
+      const tier = wsicTier(r.predOps, max);
+      h += '<span class="wsic-wk-blk ' + tier + '" style="left:' + left.toFixed(2) + "%;width:" +
+        Math.max(1.5, right - left).toFixed(2) + "%;top:" + (3 + lane * 15) + 'px" title="' +
+        esc(r.id + " " + r.type + " \u00b7 " + histFmtLocalRange(r.upcomingStartMs, r.upcomingEndMs) +
+          " \u00b7 " + r.predOps + " ops expected") + '">' + esc(r.id + " " + r.type) + " <b>" + r.predOps + "</b></span>";
+    });
+    for (const ev of dayEvents) {
+      const left = Math.max(0, (ev.startMs - dayStart) / span * 100);
+      const right = Math.min(100, (ev.endMs - dayStart) / span * 100);
+      h += '<span class="wsic-wk-ev" style="left:' + left.toFixed(2) + "%;width:" +
+        Math.max(1, right - left).toFixed(2) + '%" title="' +
+        esc("\u2605 " + ev.name + " \u00b7 " + histFmtLocalRange(ev.startMs, ev.endMs)) + '"></span>';
+    }
+    if (d === 0) h += '<span class="wsic-wk-now" style="left:' + ((nowMs - dayStart) / span * 100).toFixed(2) + '%"></span>';
     h += "</div>";
-    return h;
+    const best = dayRows[0];
+    h += '<span class="wsic-wk-best">' + (best
+      ? "<b>" + esc(best.id) + "</b> " + esc(best.type) + " " +
+        esc(histLocalHHMM(best.upcomingStartMs) + "\u2013" + histLocalHHMM(best.upcomingEndMs)) +
+        ' <span class="n">' + best.predOps + "</span>" + (dayEvents.length ? ' <span class="ev">\u2605</span>' : "")
+      : '<span class="cell-muted">quiet</span>') + "</span></div>";
+  }
+  h += '<div class="wsic-wk-legend"><span><i class="prime"></i>Prime time</span><span><i class="busy"></i>Busy</span>' +
+    '<span><i class="steady"></i>Steady</span><span><i class="evk"></i>Event</span></div>';
+  return h + "</div>";
+}
+function renderWsicBoard(res) {
+  const now = Date.now();
+  const artcc = staffingBoard.artcc;
+  const type = staffingBoard.type;
+  let h = '<div class="wsic-top">' +
+    '<div class="wsic-id"><span class="wsic-id-code">' + esc(artcc) + "</span>" +
+    '<span class="wsic-id-name">' + esc(STAFFING_ARTCC_NAMES[artcc] || "") + " Center</span></div>" +
+    '<div class="wsic-types">';
+  for (const t of ["", "TWR", "APP", "CTR"]) {
+    h += '<button type="button" class="wsic-type' + (type === t ? " on" : "") + '" data-wsic-type="' + t + '">' +
+      (t || "All positions") + "</button>";
+  }
+  h += '</div><button type="button" class="wsic-change" data-wsic-change>Change ARTCC</button></div>';
+  h += wsicStatusBanner();
+
+  /* Right now: live feed demand with nobody online */
+  const live = wsicLiveNow(artcc);
+  if (live && live.length) {
+    const urgent = live.some(r => r.status === "need");
+    h += '<div class="wsic-live' + (urgent ? "" : " warm") + '"><div class="wsic-live-hd"><span class="wsic-dot"></span>' +
+      (urgent ? "Right now \u00b7 log on" : "Right now \u00b7 traffic building, nobody online") +
+      '</div><div class="wsic-live-list">';
+    for (const r of live) {
+      const reason = r.window ? staffingReasonPhrase(r.window.reasons) : "";
+      h += '<div class="wsic-live-item ' + r.status + '">' +
+        '<span class="fac">' + esc(r.id) + " " + esc(r.type) + "</span>" +
+        '<span class="st">' + (r.status === "need" ? "Log on now" : "Building") + "</span>" +
+        '<span class="why">Demand ' + r.score + " of " + r.thresh + " to open" + (reason ? " \u00b7 " + esc(reason) : "") +
+        "</span></div>";
+    }
+    h += "</div></div>";
+  } else if (live) {
+    h += '<div class="wsic-live calm"><div class="wsic-live-hd"><span class="wsic-dot calm"></span>Right now</div>' +
+      '<div class="wsic-live-calm">No unstaffed demand in ' + esc(artcc) + " at the moment.</div></div>";
   }
 
-  const rows = staffingHistLookupResults(result, 8);
-  if (!rows.length) {
-    h += '<div class="staffnone">No matching facilities in the loaded ' +
-      esc(staffingHist.period) + " sample. Try a wider search or another period.</div>";
-    h += "</div>";
-    return h;
+  if (!res) {
+    h += '<div class="staffnone">' + (staffingHist.status === "loading"
+      ? "Loading traffic history\u2026"
+      : "No traffic history loaded yet. Open Data source below and press Load from database.") + "</div>";
+    return h + wsicDataSourceHtml();
   }
 
-  const best = rows[0];
-  const bestWin = best.localWindowLabel || best.staffWindowLabel || best.windowLabel || "";
-  h += '<div class="staffhist-lookup-best">';
-  h += '<div class="lbl">Best match</div>';
-  h += '<div class="pick">' + esc(best.id) + " " + esc(best.type) +
-    " \u00b7 " + esc(best.localDowLabel || best.dowLabel) + " " + esc(bestWin) + "</div>";
-  h += '<div class="detail">Typical <b>' + best.avgOps + "</b> ops in that window" +
-    (best.upcomingStartMs < Number.POSITIVE_INFINITY
-      ? " \u00b7 next opportunity <b>" + esc(best.localUpcomingLabel) + "</b> (pred <b>" + best.predOps + "</b>)"
-      : "") +
-    (best.artcc ? " \u00b7 " + esc(best.artcc) : "") +
-    (best.localEventText ? " \u00b7 " + esc(best.localEventText) : "") +
+  const all = wsicAllRows(res).filter(r => r.artcc === artcc && (!type || r.type === type));
+  const ranked = wsicRankRows(all.filter(wsicUpcoming));
+  const events = wsicArtccEvents(res, artcc, now);
+  const cov = wsicCoverageMap();
+  const max = ranked.length ? ranked[0].predOps : 0;
+
+  if (!ranked.length) {
+    h += '<div class="staffnone">No ' + esc(type || "") + " traffic windows for " + esc(artcc) +
+      " in the loaded period. Try All positions or a longer period under Data source.</div>";
+    return h + wsicDataSourceHtml();
+  }
+
+  /* Hero: the single best window this week */
+  const best = ranked[0];
+  const cd = wsicCountdown(best.upcomingStartMs, best.upcomingEndMs, now);
+  const bestReasons = wsicReasons(best, cov);
+  h += '<div class="wsic-hero' + (best.eventBoost ? " ev" : "") + '"' +
+    (best.type === "TWR" ? ' data-hist-apt="' + esc(best.id) + '"' : "") + ">" +
+    '<div class="wsic-hero-main"><div class="wsic-kicker">Best time to control this week</div>' +
+    '<div class="wsic-hero-fac">' + esc(best.id) + ' <span>' + esc(best.type) + "</span></div>" +
+    '<div class="wsic-hero-when">' + esc(wsicWhenLabel(best)) +
+    ' <span class="wsic-cd' + (cd.live ? " live" : "") + '">' + esc(cd.text) + "</span></div>" +
+    '<div class="wsic-chips">' + wsicChipsHtml(bestReasons, 4) + "</div></div>" +
+    '<div class="wsic-hero-num"><div class="n">' + best.predOps + "</div><div class=\"l\">ops expected</div>" +
+    (best.eventBoost && best.predOps !== best.avgOps
+      ? '<div class="up">\u2191 from ' + best.avgOps + " with events</div>" : "") +
     "</div></div>";
 
-  h += '<div class="staffhist-count">Top ' + rows.length + " matches ranked by predicted ops, then avg ops</div>";
-  h += '<div class="staffhist-lookup-tablewrap tablewrap"><table><thead><tr>' +
-    "<th>Facility</th><th>Type</th><th>ARTCC</th><th>Day</th><th>Best window</th>" +
-    "<th>Avg ops</th><th>Staff next 7 days</th><th>Pred. ops</th><th>Events</th>" +
-    "</tr></thead><tbody>";
-  for (const r of rows) {
-    const pick = r.type === "TWR" && staffingHist.selectedAirport === r.id;
-    const predCell = r.upcomingStartMs < Number.POSITIVE_INFINITY
-      ? (r.eventBoost && r.predOps !== r.avgOps
-        ? '<span class="hist-boost">' + r.avgOps + "\u2192" + r.predOps + "</span>"
-        : String(r.predOps))
-      : '<span class="cell-muted">\u2014</span>';
-    h += '<tr class="' + (pick ? "histpick" : "") + '"' +
-      (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '" style="cursor:pointer"' : "") + ">" +
-      '<td class="cell-strong">' + esc(r.id) + "</td>" +
-      "<td>" + esc(r.type) + "</td>" +
-      "<td>" + esc(r.artcc || "\u2014") + "</td>" +
-      "<td>" + esc(r.localDowLabel) + "</td>" +
-      '<td title="' + esc((r.staffWindowLabel || r.windowLabel) + " UTC \u00b7 " + (r.reason || "")) + '">' +
-      esc(r.localWindowLabel) +
-      ' <span class="cell-muted">' + esc(r.reason || "") + "</span></td>" +
-      "<td>" + r.avgOps + "</td>" +
-      '<td class="hist-upcoming">' + esc(r.localUpcomingLabel || "\u2014") + "</td>" +
-      "<td>" + predCell + "</td>" +
-      '<td class="hist-events">' + (r.localEventText ? esc(r.localEventText) : '<span class="cell-muted">\u2014</span>') +
-      "</td></tr>";
+  /* Next best windows */
+  const picks = wsicPicks(ranked.slice(1), 6);
+  if (picks.length) {
+    h += '<div class="wsic-sec">More good windows <span>ranked by ops expected</span></div><div class="wsic-cards">';
+    for (const r of picks) {
+      const tier = wsicTier(r.predOps, max);
+      const c = wsicCountdown(r.upcomingStartMs, r.upcomingEndMs, now);
+      h += '<div class="wsic-card ' + tier + '"' +
+        (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '"' : "") + ">" +
+        '<div class="wsic-card-hd"><span class="fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span></span>" +
+        '<span class="wsic-tier ' + tier + '">' + WSIC_TIER_LABEL[tier] + "</span></div>" +
+        '<div class="wsic-card-when">' + esc(wsicWhenLabel(r)) + "</div>" +
+        '<div class="wsic-card-row"><span class="n">' + r.predOps + '<small> ops</small></span>' +
+        '<span class="wsic-cd' + (c.live ? " live" : "") + '">' + esc(c.text) + "</span></div>" +
+        '<div class="wsic-chips">' + wsicChipsHtml(wsicReasons(r, cov), 2) + "</div></div>";
+    }
+    h += "</div>";
   }
-  h += "</tbody></table></div></div>";
-  return h;
+
+  h += wsicWeekHtml(ranked, events, now);
+
+  /* Events */
+  h += '<div class="wsic-sec">Events in ' + esc(artcc) + " <span>next 7 days</span></div>";
+  if (!events.length) {
+    h += '<div class="staffnone">' + ((res.networkEvents || []).length
+      ? "No VATSIM events listed for " + esc(artcc) + " airports this week."
+      : "VATSIM events were not available for this load.") + "</div>";
+  } else {
+    h += '<div class="wsic-events">';
+    for (const ev of events.slice(0, 6)) {
+      const c = wsicCountdown(ev.startMs, ev.endMs, now);
+      const name = esc(ev.name || "Event");
+      h += '<div class="wsic-event">' +
+        '<div class="wsic-event-date"><b>' + new Date(ev.startMs).getDate() + "</b>" +
+        STAFFING_HIST_MONTHS[new Date(ev.startMs).getMonth()] + "</div>" +
+        '<div class="wsic-event-body"><div class="nm">' +
+        (ev.link ? '<a href="' + esc(ev.link) + '" target="_blank" rel="noopener">' + name + "</a>" : name) + "</div>" +
+        '<div class="meta">' + esc(histFmtLocalDate(ev.startMs) + " \u00b7 " + histFmtLocalRange(ev.startMs, ev.endMs)) +
+        " \u00b7 " + esc(ev.fields.join(", ")) + "</div></div>" +
+        '<span class="wsic-cd' + (c.live ? " live" : "") + '">' + esc(c.text) + "</span></div>";
+    }
+    h += "</div>";
+  }
+
+  /* Full ranked list stays available, collapsed */
+  h += '<details class="wsic-all"><summary>All ' + ranked.length + " windows in " + esc(artcc) + "</summary>" +
+    '<div class="staffhist-lookup-tablewrap tablewrap"><table><thead><tr>' +
+    "<th>Facility</th><th>Type</th><th>When</th><th>Ops expected</th><th>Typical</th><th>Why</th>" +
+    "</tr></thead><tbody>";
+  for (const r of ranked.slice(0, 40)) {
+    h += "<tr" + (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '" style="cursor:pointer"' : "") + ">" +
+      '<td class="cell-strong">' + esc(r.id) + "</td><td>" + esc(r.type) + "</td>" +
+      "<td>" + esc(wsicWhenLabel(r)) + "</td><td>" + r.predOps + "</td><td>" + r.avgOps + "</td>" +
+      '<td class="hist-events">' + esc(wsicReasons(r, cov).filter(x => x.cls).map(x => x.text).join(" \u00b7 ") ||
+        (r.reason || "")) + "</td></tr>";
+  }
+  h += "</tbody></table></div></details>";
+
+  const sel = staffingHist.selectedAirport;
+  if (sel && airportStaffingArtcc(sel) === artcc) h += staffingHistHeatHtml(sel, { local: true });
+  return h + wsicDataSourceHtml();
+}
+function renderStaffingHistLookup() {
+  restoreStaffingHistoricalCache();
+  /* Coverage ("usually unstaffed") needs ATC hours for the same period. */
+  if (!staffingAtc.result && !wsicAtcRequested && staffingAtc.status !== "loading") {
+    wsicAtcRequested = true;
+    staffingAtc.period = staffingHist.period;
+    setTimeout(loadStaffingAtcFromDb, 0);
+  }
+  const res = staffingHist.result;
+  return staffingBoard.artcc ? renderWsicBoard(res) : renderWsicPicker(res);
 }
 function histTableCellText(row, key) {
   switch (key) {
@@ -6622,19 +6966,6 @@ function renderStaffingHistPeriodControls(opts) {
   }
   return h;
 }
-function renderStaffingHistLookup() {
-  restoreStaffingHistoricalCache();
-  const res = staffingHist.result;
-  let h = renderStaffingHistPeriodControls({ showLive: false });
-  h += '<div class="staffsub" style="margin-bottom:8px">Uses the same StatSim USA period as Historical Data. Times are in your local time (' +
-    esc(histLocalTzAbbr()) + ").</div>";
-  h += renderStaffingHistLookupPanel(res);
-  if (res && staffingHist.selectedAirport) h += staffingHistHeatHtml(staffingHist.selectedAirport, { local: true });
-  h += '<div class="staffnote">This search ranks matching facilities by <b>Pred. ops</b> (next 7 days with event uplift), ' +
-    "then <b>Avg ops</b> for the historical 2\u20134hr staff-up window. " +
-    "Open <b>Historical Data</b> for the full filterable table.</div>";
-  return h;
-}
 function renderStaffingHistorical() {
   restoreStaffingHistoricalCache();
   const res = staffingHist.result;
@@ -6769,9 +7100,7 @@ function renderStaffing() {
       '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">StatSim USA traffic</div></div>' +
       renderStaffingHistorical();
   } else if (staffingSub === "lookup") {
-    body = '<div class="staffhead"><div class="stafftitle">When should I control?</div>' +
-      '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">Best day / time from history</div></div>' +
-      renderStaffingHistLookup();
+    body = renderStaffingHistLookup();
   } else {
     body = renderStaffingLiveBody();
   }
@@ -6926,8 +7255,8 @@ function renderHelp() {
     '<b>Staffing recommendations</b>, <b>Staff it &amp; they will come?</b> (pilots vs staffing), ' +
     '<b>ATC hours trend</b> (2020\u20132026 calendar-year controller hours; 2026 through Aug 31 only), and ' +
     '<b>Movements vs ATC</b> (This year scatter plots with trend lines for CTR / APP / TWR).</li>' +
-    '<li><b>When should I control?</b> is a focused search (Facility / Type / ARTCC / Day) over that same data ' +
-    'and returns the best 2\u20134hr staff-up window without scanning the full table.</li>' +
+    '<li><b>When should I control?</b> starts with your ARTCC, then shows the best window this week, more good windows, ' +
+    'a 7-day timeline, events in your airspace, and live demand with nobody online. Times are in your local time.</li>' +
     '<li>Historical times are <b>Zulu</b>. Upcoming <b>VATSIM events</b> within <b>500 nm</b> boost overlapping slots. ' +
     'Controller examinations are excluded.</li></ul></div></details>' +
 
@@ -9274,8 +9603,21 @@ contentEl.addEventListener("click", e => {
     }
     return;
   }
-  if (e.target.closest("[data-hist-lookup-clear]")) {
-    staffingHist.lookup = { facility: "", type: "", artcc: "", day: "" };
+  const wsicArtccBtn = e.target.closest("[data-wsic-artcc]");
+  if (wsicArtccBtn) {
+    wsicSetArtcc(wsicArtccBtn.dataset.wsicArtcc);
+    window.scrollTo(0, 0);
+    renderContent();
+    return;
+  }
+  if (e.target.closest("[data-wsic-change]")) {
+    wsicSetArtcc("");
+    renderContent();
+    return;
+  }
+  const wsicTypeBtn = e.target.closest("[data-wsic-type]");
+  if (wsicTypeBtn) {
+    staffingBoard.type = wsicTypeBtn.dataset.wsicType || "";
     renderContent();
     return;
   }
@@ -9621,13 +9963,6 @@ contentEl.addEventListener("change", e => {
     staffingAtc.period = atcPeriod.value || "thisweek";
     staffingAtc.result = null;
     loadStaffingAtcHours();
-    return;
-  }
-  const histLookupChange = e.target.closest("select[data-hist-lookup]");
-  if (histLookupChange) {
-    if (!staffingHist.lookup) staffingHist.lookup = { facility: "", type: "", artcc: "", day: "" };
-    staffingHist.lookup[histLookupChange.dataset.histLookup] = histLookupChange.value;
-    renderContent();
     return;
   }
   const histFile = e.target.closest("[data-hist-file]");
@@ -9994,19 +10329,6 @@ contentEl.addEventListener("input", e => {
       atcTrendFilter.value = v;
     }
     staffingAtcTrend.filters[fk] = v;
-    renderContent();
-    return;
-  }
-  const histLookup = e.target.closest("[data-hist-lookup]");
-  if (histLookup) {
-    if (!staffingHist.lookup) staffingHist.lookup = { facility: "", type: "", artcc: "", day: "" };
-    const lk = histLookup.dataset.histLookup;
-    let v = histLookup.value;
-    if (lk === "facility" || lk === "artcc") {
-      v = String(v || "").toUpperCase();
-      if (histLookup.tagName === "INPUT") histLookup.value = v;
-    }
-    staffingHist.lookup[lk] = v;
     renderContent();
     return;
   }
