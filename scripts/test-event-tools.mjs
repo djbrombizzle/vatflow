@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
  * Tests for the event tools: shared/arrival-track.js (landings, holding),
- * shared/merge-points.js, shared/event-debrief.js and the airborne ETA allowance.
+ * shared/merge-points.js and the airborne ETA allowance.
  * Usage: node scripts/test-event-tools.mjs
  */
 import assert from "node:assert/strict";
 import { createArrivalState, updateArrivals, holdingNow, landingRate } from "../shared/arrival-track.js";
 import { buildMergePoints, upstreamWalk } from "../shared/merge-points.js";
-import { buildDebrief, tmiTimeline, describeProgramChange } from "../shared/event-debrief.js";
-import { airborneEtaMin, normRate, rollingGateDemand } from "../shared/mit-monitor.js";
+import { airborneEtaMin, rollingGateDemand } from "../shared/mit-monitor.js";
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -108,31 +107,6 @@ t("merge within the share: ok, no MIT", () => {
   const m = mergeCase(3, 3, 60).find(x => x.fix === "MERGE");
   assert.equal(m.status, "ok");
   assert.ok(m.branches.every(b => !b.mit));
-});
-
-t("debrief: TMI words, landings against the AAR, spacing against the MIT", () => {
-  assert.deepEqual(describeProgramChange(normRate({ aar: 40, gates: [{ name: "GRNCH5", mit: 20 }] }), normRate({ aar: 36, gates: [{ name: "GRNCH5", mit: 25 }, { name: "SNFLD", mit: 15 }] })),
-    ["AAR 40 → 36", "GRNCH 20 MIT → 25 MIT", "SNFLD 15 MIT"]);
-  const tl = tmiTimeline([{ t: NOW, kind: "program", value: { aar: 40 } }, { t: NOW + MIN, kind: "edct", cs: "DAL1", value: NOW + 30 * MIN },
-    { t: NOW + 2 * MIN, kind: "gs", value: [{ scope: "ZTL", until: "0100" }] }]);
-  assert.deepEqual(tl.map(e => e.kind), ["program", "edct", "gs"]);
-  const doc = { field: APT, event: { name: "Test" }, recorded: [[NOW, NOW + 60 * MIN]],
-    tmi: [{ t: NOW - MIN, kind: "program", value: { aar: 40, gates: [{ name: "GRNCH", mit: 20 }] } }],
-    flights: {
-      A: { cs: "A", dep: "KATL", gate: "GRNCH", cross: { t: NOW + 10 * MIN, gs: 360 }, land: NOW + 25 * MIN, pos: [] },
-      B: { cs: "B", dep: "KATL", gate: "GRNCH", cross: { t: NOW + 12 * MIN, gs: 360 }, land: NOW + 27 * MIN, pos: [] },
-      C: { cs: "C", dep: "KATL", gate: "GRNCH", cross: { t: NOW + 16 * MIN, gs: 360 }, land: NOW + 31 * MIN, pos: [] },
-    },
-    landings: [{ cs: "A", t: NOW + 25 * MIN }, { cs: "B", t: NOW + 27 * MIN }, { cs: "C", t: NOW + 31 * MIN }], holds: [], taxi: [] };
-  const d = buildDebrief(doc, LL);
-  assert.equal(d.totals.landed, 3);
-  assert.equal(d.bins[1].n, 2);
-  assert.equal(d.bins[1].aar, 40);
-  const g = d.gates[0];
-  assert.equal(g.gate, "GRNCH");
-  assert.deepEqual(g.pairs.map(p => p.gap), [12, 24]);
-  assert.equal(g.short, 1);                          // 12 nm against 20 MIT
-  assert.equal(doc.flights.A.delay, undefined, "the log isn't changed");
 });
 
 console.log(`\n${passed} passed`);

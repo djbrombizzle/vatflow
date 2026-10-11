@@ -16,7 +16,6 @@ const NAV_ITEMS = [
     children: [
       { id: "tbfm", href: "vatflow-tbfm%20v2.html", label: "Airport TMU" },
       { id: "vatsmart", href: "vatsmart.html", label: "VATSMART" },
-      { id: "debrief", href: "event-debrief.html", label: "Event debrief" },
       { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
       { id: "ramp", href: "ramp.html", label: "Ramp Management" },
       { id: "gates", href: "gates.html", label: "Gate list (CRC)" },
