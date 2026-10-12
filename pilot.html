@@ -114,6 +114,8 @@
     message 8 minutes before your departure time, and the <b>WDR</b> (final weights and takeoff data)
     at a random time in the <span id="wdrWin">5</span> minutes before your departure time.
     Turn on Runway Analysis in SimBrief to get takeoff numbers in the WDR.
+    Runway change? Send a telex to <b id="stationLabel2">DALOPS</b> such as <b>T/O PERF 16R</b> and you get a revised
+    WDR for that runway; the pre-pushback and WDR use it from then on.
   </div>
 
   <div id="signedOut" class="signin hidden">
@@ -156,10 +158,11 @@
 
     <div class="card wide">
       <h2>Preview from your latest SimBrief plan</h2>
-      <p class="hint" id="previewHint">How the messages would read right now (the push update as if you had connected 30 to 15 minutes before departure). Fuel by tank, the fuel already on
+      <p class="hint" id="previewHint">Messages are always built from your latest SimBrief plan when they are sent; re-import after you regenerate it to see the new numbers here. How the messages would read right now (the push update as if you had connected 30 to 15 minutes before departure). Fuel by tank, the fuel already on
         board, CG and stab trim are modelled from your plan; weights, fuel and takeoff performance are SimBrief's.</p>
-      <div class="row" style="margin:0 0 10px"><button type="button" class="b" id="previewBtn">Refresh preview</button>
-        <span class="msgline" id="previewMsg"></span></div>
+      <div class="row" style="margin:0 0 10px"><button type="button" class="b primary" id="previewBtn">Re-import SimBrief OFP</button>
+        <span class="msgline" id="ofpLine"></span></div>
+      <div class="msgline" id="previewMsg" style="margin:-4px 0 10px"></div>
       <div id="preview" class="printers"></div>
     </div>
   </div>
@@ -173,7 +176,7 @@ import { rampHubBase } from "./shared/ramp-live.js";
 mountVatflowNav(document.getElementById("vatflowAppNav"), "pilot");
 
 const $ = id => document.getElementById(id);
-const NAMES = { efsr: "EFSR", push: "Planned push update", pre: "Pre-pushback", wdr: "WDR" };
+const NAMES = { efsr: "EFSR", push: "Planned push update", pre: "Pre-pushback", wdr: "WDR", perf: "T/O perf (requested)" };
 const KINDS = ["efsr", "push", "pre", "wdr"];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const z = t => { const d = new Date(t * 1000); return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "Z"; };
@@ -207,6 +210,7 @@ function renderStatus(d) {
   const ops = (d.ops || ["DAL"]).join("/");
   $("opsLabel").textContent = ops;
   $("stationLabel").textContent = (d.ops || ["DAL"]).map(o => o + "OPS").join("/");
+  $("stationLabel2").textContent = $("stationLabel").textContent;
   $("wdrWin").textContent = d.wdrWindowMin || 5;
   const p = d.profile;
   if (p && document.activeElement !== $("simbrief")) $("simbrief").value = p.simbrief || "";
@@ -230,6 +234,7 @@ function renderStatus(d) {
     pills.push(`<span class="pill${moved ? " ok" : ""}"><span class="lab">P-TIME</span>${z(st.proposed)}` +
       `${moved ? ` <span class="lab">(was ${z(st.filedProposed)})</span>` : ""}</span>`);
   }
+  if (st.rwy) pills.push(`<span class="pill ok"><span class="lab">T/O RWY</span>${esc(st.rwy)}</span>`);
   if (d.dryRun) pills.push(`<span class="pill warn">Hub in test mode: nothing is actually sent</span>`);
   $("pills").innerHTML = pills.join("");
 
@@ -264,6 +269,11 @@ function slip(title, sub, text) {
 function renderPreview(pv) {
   if (!pv) { $("preview").innerHTML = `<div class="empty">Save your SimBrief username to see a preview.</div>`; return; }
   if (!pv.ok) { $("preview").innerHTML = `<div class="empty">${esc(pv.error)}</div>`; return; }
+  const o = pv.ofp || {};
+  $("ofpLine").textContent = [
+    "Loaded OFP:", o.callsign, o.orig && o.dest ? `${o.orig}-${o.dest}` : "", o.type, o.reg,
+    o.generated ? `generated ${z(o.generated)}` : "", o.fetched ? `· fetched ${z(o.fetched)}` : "",
+  ].filter(Boolean).join(" ");
   $("previewMsg").className = "msgline" + (pv.issue ? " err" : "");
   $("previewMsg").textContent = pv.issue || "";
   $("preview").innerHTML = KINDS.map(k => slip(NAMES[k], "", pv[k])).join("");
@@ -307,7 +317,17 @@ $("deleteBtn").addEventListener("click", async () => {
   }
 });
 
-$("previewBtn").addEventListener("click", () => load(true));
+$("previewBtn").addEventListener("click", async () => {
+  $("previewBtn").disabled = true;
+  $("previewMsg").className = "msgline"; $("previewMsg").textContent = "Fetching your latest SimBrief plan…";
+  try {
+    const d = await call({ action: "reimport" });
+    renderStatus(d); renderPreview(d.preview);
+    if (d.preview && !d.preview.issue) { $("previewMsg").className = "msgline ok"; $("previewMsg").textContent = "Re-imported."; }
+  } catch (e) {
+    $("previewMsg").className = "msgline err"; $("previewMsg").textContent = e.message;
+  } finally { $("previewBtn").disabled = false; }
+});
 $("signInBtn").addEventListener("click", () => login());
 
 function show() {
