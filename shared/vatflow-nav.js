@@ -33,10 +33,11 @@ const NAV_ITEMS = [
     ],
   },
   {
-    id: "dispatch",
-    label: "Dispatch Center",
+    id: "ops",
+    label: "Ops Center",
     children: [
-      { id: "aoc", href: "aoc.html", label: "Airline Ops" },
+      { id: "aoc", href: "aoc.html", label: "Airline Dispatch" },
+      { id: "atc-ops", href: "vatflow-tbfm%20v2.html?app=atc-ops", label: "ATC Ops" },
     ],
   },
   {

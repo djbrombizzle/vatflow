@@ -1579,6 +1579,11 @@ const GATE_PALETTE = ["#54b8e8","#57d98a","#f5a83d","#c792ea","#f07178"];
 
 /* ---------- state ---------- */
 let activeTab = "home";     // home | meter | mydash | tmu | restrict | dep | taximon | pilot | staffing | help
+/* ATC Ops (Ops Center menu) is this page opened with ?app=atc-ops: only the staffing views,
+   without the Airport TMU tabs. Airport TMU itself no longer shows ATC Staffing. */
+const ATC_OPS_MODE = /(?:^|[?&])app=atc-ops(?:&|$)/.test(location.search);
+window.VF_ATC_OPS = ATC_OPS_MODE;
+const ATC_OPS_HASH = { live: "live", when: "lookup", history: "historical" };
 let icao = null;            // METER view: arrival field being metered
 let depIcao = null;         // DEPARTURES view: tower controller's field
 let taxiMonAirports = [];   // TAXI MONITOR: up to 5 departure fields to measure
@@ -7449,10 +7454,11 @@ function renderStaffingLiveBody() {
 function renderStaffing() {
   const subBar = '<div class="subtabs">' +
     '<span class="subtab' + (staffingSub === "live" ? " active" : "") + '" data-staffingsub="live">Live</span>' +
-    '<span class="subtab' + (staffingSub === "historical" ? " active" : "") +
-    '" data-staffingsub="historical">Historical Data</span>' +
     '<span class="subtab' + (staffingSub === "lookup" ? " active" : "") +
-    '" data-staffingsub="lookup">When should I control?</span></div>';
+    '" data-staffingsub="lookup">When should I control?</span>' +
+    '<span class="subtab' + (staffingSub === "historical" ? " active" : "") +
+    '" data-staffingsub="historical">Historical Data</span></div>';
+
 
   let body;
   const histWide = true;
@@ -7604,7 +7610,8 @@ function renderHelp() {
     '<details class="help-acc"><summary>Taxi Monitor / Pilot</summary><div class="help-acc-body"><ul class="helplist">' +
     '<li><b>Taxi Monitor</b> — controllers add up to 5 monitored airports; tracks ground departures.</li>' +
     '<li><b>Pilot</b> — enter your VATSIM CID for your flight, delays, and suggested wheels-up (info only).</li></ul></div></details>' +
-    '<details class="help-acc"><summary>ATC Staffing</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<details class="help-acc"><summary>ATC Staffing (now Ops Center \u2192 ATC Ops)</summary><div class="help-acc-body"><ul class="helplist">' +
+    '<li>ATC Staffing moved to its own page: <a href="vatflow-tbfm%20v2.html?app=atc-ops">Ops Center \u2192 ATC Ops</a> in the top menu.</li>' +
     '<li>Recommends where ATC should log on for <b>Center</b>, <b>Approach</b>, and <b>Tower</b>.</li>' +
     '<li>Uses airborne traffic, rolling / about-to-depart ground traffic, and proposed flight plans from the VATSIM feed.</li>' +
     '<li>Scoped to the <b>USA only</b> for now (CONUS + Alaska + Hawaii). Shows online controllers when a position is already staffed.</li>' +
@@ -9959,6 +9966,10 @@ contentEl.addEventListener("click", e => {
     const next = staffingSubBtn.dataset.staffingsub;
     if (next && next !== staffingSub) {
       staffingSub = next;
+      if (ATC_OPS_MODE) {
+        const h = Object.keys(ATC_OPS_HASH).find(k => ATC_OPS_HASH[k] === next);
+        try { history.replaceState(null, "", "#" + h); } catch (err) {}
+      }
       renderContent();
       if ((next === "historical" || next === "lookup") &&
           !staffingHist.result && staffingHist.status !== "loading") {
@@ -11212,12 +11223,25 @@ document.addEventListener("visibilitychange", () => {
 });
 document.addEventListener("pagehide", () => saveTaxiSessions());
 
-renderContent();
+if (ATC_OPS_MODE) {
+  document.title = "VATFLOW \u2014 ATC Ops";
+  document.querySelector(".brandsub").textContent = "ATC Ops \u00b7 staffing & live traffic";
+  document.querySelector(".header-nav").style.display = "none";
+  document.getElementById("syncCtl").style.display = "none";
+  const fromHash = ATC_OPS_HASH[String(location.hash || "").replace("#", "")];
+  if (fromHash) staffingSub = fromHash;
+  setTab("staffing");
+  if (staffingSub !== "live" && !staffingHist.result && staffingHist.status !== "loading") loadStaffingHistoricalFromDb();
+} else {
+  const staffTab = document.querySelector('.tab[data-tab="staffing"]');
+  if (staffTab) staffTab.remove();
+  renderContent();
+}
 </script>
 
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-mountVatflowNav(document.getElementById("vatflowAppNav"), "tbfm");
+mountVatflowNav(document.getElementById("vatflowAppNav"), window.VF_ATC_OPS ? "atc-ops" : "tbfm");
 </script>
 
 <!-- =====================================================================
