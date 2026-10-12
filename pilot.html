@@ -95,6 +95,17 @@
   .signin p { font-size: 12px; color: var(--fg-dim); max-width: 640px; line-height: 1.55; }
   .hidden { display: none !important; }
   .dry { color: var(--amber); font-size: 10px; margin-left: 6px; }
+  .hdr .helpBtn { margin-left: 10px; padding: 3px 10px; font-size: 10.5px; }
+  #help { margin: 10px 14px 0; }
+  #help .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; }
+  @media (max-width: 860px) { #help .cols { grid-template-columns: 1fr; } }
+  #help h3 { margin: 10px 0 4px; font-size: 10.5px; color: var(--cyan); letter-spacing: 0.08em; font-weight: 600; }
+  #help p, #help li { font-size: 11.5px; line-height: 1.55; color: var(--fg); }
+  #help p { margin: 0 0 6px; }
+  #help ol, #help ul { margin: 0 0 6px; padding-left: 18px; }
+  #help code { color: var(--amber); font-family: inherit; }
+  #help table { margin: 2px 0 6px; }
+  #help td { color: var(--fg); }
 </style>
 </head>
 <body>
@@ -104,6 +115,58 @@
     <span class="title">PILOT ACARS</span>
     <span class="sub">Ops Center · automatic company messages over Hoppie</span>
     <span class="clock" id="clock"></span>
+    <button type="button" class="b helpBtn" id="helpBtn" aria-expanded="false" aria-controls="help">? HELP</button>
+  </div>
+  <div id="help" class="card hidden">
+    <h2>Pilot ACARS help</h2>
+    <div class="cols">
+      <div>
+        <h3>GETTING STARTED</h3>
+        <ol>
+          <li>Sign in with VATSIM and enter your SimBrief username (or pilot ID). Save.</li>
+          <li>Plan the flight in SimBrief with <b>Runway Analysis</b> turned on, for the same city pair you file on VATSIM.</li>
+          <li>Connect to VATSIM under a <b>DAL</b> callsign (e.g. DAL1700) with a departure time in your flight plan.</li>
+          <li>Log your aircraft's ACARS into Hoppie with your Hoppie logon code, using the same callsign.</li>
+          <li>Watch "Your flight": it shows Hoppie status, your departure time and when each message is due.</li>
+        </ol>
+        <h3>WHAT YOU GET, AND WHEN</h3>
+        <table>
+          <tbody>
+            <tr><td>EFSR</td><td>5 min after you are seen on both VATSIM and Hoppie</td></tr>
+            <tr><td>Planned push update</td><td>Only if you connect 30 to 15 min before departure: 10 min after you connect, moving departure 5 min earlier</td></tr>
+            <tr><td>Pre-pushback</td><td>8 min before departure</td></tr>
+            <tr><td>WDR</td><td>At a random time in the last 5 min before departure</td></tr>
+          </tbody>
+        </table>
+        <p>Departure time is the one in your VATSIM flight plan (P-time). Messages arrive in that order, at least a minute
+          apart. Connecting late is fine: anything overdue is sent in order, but the pre-pushback and WDR are skipped more
+          than 30 min after P-time. Nothing is sent once you start your takeoff roll.</p>
+      </div>
+      <div>
+        <h3>RUNWAY CHANGE (T/O PERF)</h3>
+        <p>If the airport turns around, send a free-text telex to <b>DALOPS</b>, for example <code>T/O PERF 16R</code>
+          (<code>TO PERF RWY 16R</code> or <code>RWY CHANGE 16R</code> also work). Within about 20 seconds you get a revised
+          WDR for that runway, and the pre-pushback and WDR use it from then on. The numbers come from your SimBrief
+          runway analysis; if the runway is not in it, the reply lists the runways that are.</p>
+        <h3>READING THE WDR</h3>
+        <ul>
+          <li><code>D40/05</code>: <b>D</b>ry or <b>W</b>et runway (wet when the live METAR shows precipitation), flex temp 40 (or <code>TO</code> for full thrust), flaps 5.</li>
+          <li>RATOW: max takeoff weight for that runway. V1, VR, V2 are SimBrief's.</li>
+          <li>The header wind is the live METAR's head/crosswind for that runway.</li>
+        </ul>
+        <h3>NEW PLAN?</h3>
+        <p>Every message is built from your latest SimBrief plan when it is sent. After regenerating, press
+          <b>Re-import SimBrief OFP</b> to update the preview here.</p>
+        <h3>NOT GETTING MESSAGES?</h3>
+        <ul>
+          <li>"Your flight" says why it is waiting: not connected, callsign not DAL, Hoppie not seen, or a SimBrief plan for a different city pair (or more than 18 hours old).</li>
+          <li>Check your ACARS client is logged on to Hoppie as the same callsign you are flying.</li>
+          <li>Make sure "Send me automatic ACARS messages" is ticked and saved.</li>
+        </ul>
+        <p>Fuel by tank, fuel already on board, CG, stab trim and the fueler are modelled from your plan; weights, fuel
+          and takeoff performance are SimBrief's.</p>
+      </div>
+    </div>
   </div>
   <div class="note">
     Fly a <b id="opsLabel">DAL</b> callsign with your ACARS client connected to Hoppie and VATFLOW sends your
@@ -169,6 +232,10 @@
 </div>
 
 <script type="module">
+document.getElementById("helpBtn").addEventListener("click", e => {
+  const open = document.getElementById("help").classList.toggle("hidden") === false;
+  e.currentTarget.setAttribute("aria-expanded", String(open));
+});
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { initVatflowAuth, getSession, getStoredToken, login } from "./shared/vatflow-auth.js";
 import { rampHubBase } from "./shared/ramp-live.js";
