@@ -7260,8 +7260,39 @@ function renderStaffingHistorical() {
 }
 /* ---------- ATC Staffing Live: per-ARTCC traffic counts (now / next 60 / next 120 min) ---------- */
 /* Log on when nobody is online and this many movements (arrivals + departures) are due in the next 60 min.
+   Tower and Approach bars follow the field's airspace class: a tower uses its own field's class, an approach
+   uses the highest class among its fields and counts all of them together (PCT: DCA + IAD + BWI against 30).
    Center also counts aircraft airborne in its airspace right now. */
-const LIVE_LOGON = { TWR: 15, APP: 25, CTR: 40 };
+const LIVE_LOGON = { CTR: 40 };
+const LIVE_LOGON_CLASS = { B: 30, C: 20, D: 10 };
+/* FAA Class B primary airports (plus military fields inside a Class B surface area). */
+const LIVE_CLASS_B = new Set(("KATL KBOS KCLT KORD KCVG KCLE KDFW KDAL KDEN KDTW PHNL KIAH KHOU KMCI KLAS KLAX KMEM " +
+  "KMIA KMSP KMSY KJFK KLGA KEWR KMCO KPHL KPHX KPIT KSTL KSLC KSAN KNKX KSFO KSEA KTPA KMCF KDCA KIAD KBWI KADW").split(" "));
+/* FAA Class C airports; any other towered field is treated as Class D. */
+const LIVE_CLASS_C = new Set(("PANC PAFA PHOG TJSJ KABE KABI KABQ KACT KACY KALB KAMA KAUS KAVL KAVP KAZO KBDL KBGR KBHM " +
+  "KBIL KBNA KBOI KBTR KBTV KBUF KBUR KCAE KCAK KCHA KCHS KCID KCMH KCMI KCOS KCRP KCRW KDAB KDAY KDLH KDSM KELP " +
+  "KERI KEVV KFAT KFAY KFLL KFNT KFSM KFWA KGEG KGRB KGRR KGSO KGSP KGTF KHSV KHUF KICT KILM KIND KJAN KJAX KLAN " +
+  "KLBB KLCH KLEX KLFT KLIT KLNK KMAF KMBS KMDT KMDW KMFD KMGM KMHT KMKE KMLI KMLU KMOB KMRY KMSN KMYR KOAK KOKC " +
+  "KOMA KONT KORF KPBI KPDX KPIA KPNS KPSP KPVD KPWM KRDU KRFD KRIC KRNO KROA KROC KRSW KSAT KSAV KSBA KSBN KSDF " +
+  "KSFB KSGF KSHV KSJC KSJT KSMF KSNA KSPI KSRQ KSUX KSYR KTLH KTOL KTRI KTUL KTUS KTXK KTYS KVPS KYNG").split(" "));
+function liveAirportClass(icao) {
+  icao = String(icao || "").toUpperCase();
+  return LIVE_CLASS_B.has(icao) ? "B" : LIVE_CLASS_C.has(icao) ? "C" : "D";
+}
+const LIVE_CLASS_RANK = { B: 3, C: 2, D: 1 };
+/** Highest airspace class among a TRACON's fields (its known fields plus any seen with traffic). */
+function liveTraconClass(tid, seen) {
+  let best = "D";
+  const idx = usTraconIndex().traconAirports[tid];
+  for (const set of [idx, seen]) {
+    if (!set) continue;
+    for (const icao of set) {
+      const c = liveAirportClass(icao);
+      if (LIVE_CLASS_RANK[c] > LIVE_CLASS_RANK[best]) best = c;
+    }
+  }
+  return best;
+}
 const LIVE_NEAR_TWR_NM = 20;       /* arrivals this close count as "now" for the tower */
 const LIVE_NEAR_APP_NM = 60;       /* airborne this close to a TRACON field count as "now" for approach */
 const LIVE_GROUP_MIN = 3;          /* same origin \u2192 same destination, this many or more = group flight */
@@ -7317,7 +7348,11 @@ function computeLiveArtcc(artcc, now, flights) {
     if (!twr[icao]) twr[icao] = liveEmptyFac("TWR", icao);
     list.push(twr[icao]);
     const t = tOf(icao);
-    if (t) { if (!app[t]) app[t] = liveEmptyFac("APP", t); list.push(app[t]); }
+    if (t) {
+      if (!app[t]) { app[t] = liveEmptyFac("APP", t); app[t].apts = new Set(); }
+      app[t].apts.add(icao);
+      list.push(app[t]);
+    }
     return list;
   };
   const h1 = now + 3600000, h2 = now + 7200000;
@@ -7371,9 +7406,11 @@ function computeLiveArtcc(artcc, now, flights) {
     r.next60 = r.arr60 + r.dep60;
     r.next120 = r.arr120 + r.dep120;
     const load = r.type === "CTR" ? Math.max(r.now, r.next60) : r.next60;
+    if (r.type !== "CTR") r.cls = r.type === "TWR" ? liveAirportClass(r.id) : liveTraconClass(r.id, r.apts);
+    r.bar = r.type === "CTR" ? LIVE_LOGON.CTR : LIVE_LOGON_CLASS[r.cls];
     r.status = r.online.length ? "online"
-      : load >= LIVE_LOGON[r.type] ? "need"
-        : r.next120 >= LIVE_LOGON[r.type] * 1.5 ? "soon"
+      : load >= r.bar ? "need"
+        : r.next120 >= r.bar * 1.5 ? "soon"
           : "quiet";
   }
   return { ctr, app: Object.values(app), twr: Object.values(twr), rows, groups: liveGroups(inbound, now) };
@@ -7413,9 +7450,9 @@ function liveStatusWhy(r) {
   if (r.status === "need") {
     return r.type === "CTR" && r.now > r.next60
       ? r.now + " airborne in the airspace, " + who
-      : r.next60 + " movements in the next 60 min, " + who;
+      : r.next60 + " movements in the next 60 min (bar " + r.bar + "), " + who;
   }
-  if (r.status === "soon") return r.next120 + " movements in the next 120 min, " + who;
+  if (r.status === "soon") return r.next120 + " movements in the next 120 min (bar " + Math.ceil(r.bar * 1.5) + "), " + who;
   return r.topdown ? "Top-down from " + r.topdown : "Nobody online";
 }
 function liveCountCell(total, arr, dep) {
@@ -7430,7 +7467,7 @@ function liveRowsHtml(rows, emptyMsg, national) {
   for (const r of rows) {
     h += '<tr class="' + r.status + (national ? " live-link" : "") + '"' +
       (national ? ' data-wsic-artcc="' + esc(r.artcc) + '" title="Open ' + esc(r.artcc) + '"' : "") + ">" +
-      '<td class="live-fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span>" +
+      '<td class="live-fac">' + esc(r.id) + " <span>" + esc(r.type) + (r.cls ? " \u00b7 " + r.cls : "") + "</span>" +
       (national ? ' <small class="live-artcc">' + (r.id === r.artcc ? "" : esc(r.artcc) + " ") + "\u203a</small>" : "") + "</td>" +
       '<td><span class="live-badge ' + r.status + '">' + LIVE_STATUS_LABEL[r.status] + "</span></td>" +
       '<td class="live-n"><b>' + r.now + "</b><span>" +
@@ -7572,8 +7609,9 @@ function renderLiveBoard() {
   h += '<div class="staffnote">Counts come from the VATSIM feed: aircraft airborne, on the ground with a flight plan, ' +
     "and prefiled. Departure times use the filed time (or about 8 minutes for connected aircraft); arrival times use " +
     "distance and groundspeed, or the filed cruise speed before departure. <b>Log on</b> = nobody online and at least " +
-    LIVE_LOGON.TWR + " (TWR), " + LIVE_LOGON.APP + " (APP) or " + LIVE_LOGON.CTR + " (CTR, or that many airborne) " +
-    "movements in the next 60 minutes (an open Center or Approach above it still counts as top-down cover only). <b>Busy soon</b> = half again that many within 120 minutes. " +
+    "this many movements in the next 60 minutes: Tower and Approach by airspace class, Class B " + LIVE_LOGON_CLASS.B +
+    ", Class C " + LIVE_LOGON_CLASS.C + ", Class D " + LIVE_LOGON_CLASS.D + " (an approach counts all its fields together " +
+    "against its busiest class), Center " + LIVE_LOGON.CTR + " (or that many airborne). An open Center or Approach above a position still counts as top-down cover only. <b>Busy soon</b> = half again that many within 120 minutes. " +
     "Times are in your local time. USA only (CONUS, Alaska, Hawaii).</div>";
   return h;
 }
@@ -7752,7 +7790,7 @@ function renderHelp() {
     '<li>Scoped to the <b>USA only</b> for now (CONUS + Alaska + Hawaii). Shows online controllers when a position is already staffed.</li>' +
     '<li><b>Live</b> starts with your ARTCC, then lists each Center / Approach / Tower position with plain counts: aircraft there now, ' +
     'and arrivals + departures due in the next 60 and 120 minutes, plus group flights inbound (3+ aircraft from the same origin) with their ETAs.</li>' +
-    '<li><b>Log on</b> = nobody online and 6+ (TWR), 10+ (APP) or 20+ (CTR) movements in the next 60 minutes. <b>Busy soon</b> = that much traffic building within 120 minutes. <b>Online</b> = already covered.</li>' +
+    '<li><b>Log on</b> = nobody online and, in the next 60 minutes, 30+ movements at a Class B field, 20+ at Class C or 10+ at Class D (Approach adds up all its fields against its busiest class), or 40+ for Center. <b>Busy soon</b> = that much traffic building within 120 minutes. <b>Online</b> = already covered.</li>' +
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
     '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online). ' +
