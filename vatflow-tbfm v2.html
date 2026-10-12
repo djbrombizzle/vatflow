@@ -1117,6 +1117,11 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .live-stat.alert { border-color: rgba(212, 92, 92, 0.5); background: rgba(212, 92, 92, 0.08); }
 .live-stat.alert b { color: #ee8f8f; }
 .live-tablewrap { overflow-x: auto; }
+.wsic-view { margin: 0 0 16px; }
+.live-table tr.live-link { cursor: pointer; }
+.live-table tr.live-link:hover td { background: var(--surface-2); }
+.live-artcc { font-family: var(--font-data); font-size: 11px; color: var(--accent-text); margin-left: 4px; }
+.wsic-card[data-wsic-artcc] { cursor: pointer; }
 .live-table { width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0 6px; }
 .live-table th { text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; padding: 0 12px; }
 .live-table td { background: var(--surface); padding: 8px 12px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -5547,6 +5552,23 @@ try {
   const savedBoardArtcc = localStorage.getItem(WSIC_ARTCC_KEY);
   if (savedBoardArtcc && STAFFING_ARTCC_SET.has(savedBoardArtcc)) staffingBoard.artcc = savedBoardArtcc;
 } catch (e) {}
+/* Picker view: "artcc" (tiles) or a position type ranked nationwide (CTR / APP / TWR). */
+const WSIC_VIEW_KEY = "vatflow_wsic_view";
+staffingBoard.view = "artcc";
+try {
+  const savedView = localStorage.getItem(WSIC_VIEW_KEY);
+  if (savedView && ["artcc", "CTR", "APP", "TWR"].indexOf(savedView) !== -1) staffingBoard.view = savedView;
+} catch (e) {}
+function wsicSetView(v) {
+  staffingBoard.view = ["CTR", "APP", "TWR"].indexOf(v) !== -1 ? v : "artcc";
+  try { localStorage.setItem(WSIC_VIEW_KEY, staffingBoard.view); } catch (e) {}
+}
+function wsicViewToggleHtml() {
+  const opts = [["artcc", "By ARTCC"], ["CTR", "Busiest CTR"], ["APP", "Busiest APP"], ["TWR", "Busiest TWR"]];
+  return '<div class="wsic-types wsic-view">' + opts.map(([v, l]) =>
+    '<button type="button" class="wsic-type' + (staffingBoard.view === v ? " on" : "") + '" data-wsic-view="' + v + '">' +
+    l + "</button>").join("") + "</div>";
+}
 function wsicSetArtcc(artcc) {
   staffingBoard.artcc = STAFFING_ARTCC_SET.has(artcc) ? artcc : "";
   try {
@@ -5835,6 +5857,46 @@ function wsicStatusBanner() {
   }
   return "";
 }
+/** One window card. National cards open their ARTCC's board; ARTCC-board tower cards open the hourly pattern. */
+function wsicCardHtml(r, tier, c, cov, national) {
+  return '<div class="wsic-card ' + tier + '"' +
+    (national ? ' data-wsic-artcc="' + esc(r.artcc) + '" title="Open ' + esc(r.artcc) + '"'
+      : r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '"' : "") + ">" +
+    '<div class="wsic-card-hd"><span class="fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span></span>" +
+    '<span class="wsic-tier ' + tier + '">' + (national ? (r.id === r.artcc ? "Open" : esc(r.artcc)) + " \u203a" : WSIC_TIER_LABEL[tier]) + "</span></div>" +
+    '<div class="wsic-card-when">' + esc(wsicWhenLabel(r)) + "</div>" +
+    '<div class="wsic-card-row"><span class="n">' + r.predOps + '<small> ops</small></span>' +
+    '<span class="wsic-cd' + (c.live ? " live" : "") + '">' + esc(c.text) + "</span></div>" +
+    '<div class="wsic-chips">' + wsicChipsHtml(wsicReasons(r, cov), 2) + "</div></div>";
+}
+/** Busiest windows nationwide for one position type, one card per facility. */
+function renderWsicNational(res, type) {
+  const now = Date.now();
+  const names = { CTR: "centers", APP: "approach / TRACON facilities", TWR: "towers" };
+  let h = '<div class="wsic-sec">Busiest ' + names[type] + " this week <span>one best window each, ranked by ops expected \u00b7 tap one to open its ARTCC</span></div>";
+  if (!res) {
+    return h + '<div class="staffnone">' + (staffingHist.status === "loading" ? "Loading traffic history\u2026"
+      : "No traffic history loaded yet. Open Data source below and press Load from database.") + "</div>";
+  }
+  const pre = wsicRankRows(wsicAllRows(res).filter(r => r.type === type && wsicUpcoming(r) && r.artcc)).slice(0, 150);
+  const ranked = wsicRankRows(wsicAdjustRows(pre, wsicLiveRec()));
+  const seen = {};
+  const top = [];
+  for (const r of ranked) {
+    if (seen[r.id]) continue;
+    seen[r.id] = true;
+    top.push(r);
+    if (top.length >= 12) break;
+  }
+  if (!top.length) return h + '<div class="staffnone">No ' + esc(type) + " windows in the loaded period.</div>";
+  const cov = wsicCoverageMap();
+  const max = top[0].predOps;
+  h += '<div class="wsic-cards">';
+  for (const r of top) {
+    h += wsicCardHtml(r, wsicTier(r.predOps, max), wsicCountdown(r.upcomingStartMs, r.upcomingEndMs, now), cov, true);
+  }
+  return h + "</div>";
+}
 function renderWsicPicker(res) {
   const now = Date.now();
   const rows = res ? wsicAllRows(res) : [];
@@ -5850,9 +5912,11 @@ function renderWsicPicker(res) {
   const mine = new Set((myArtccs || []).map(a => String(a).toUpperCase()));
 
   let h = '<div class="wsic-pickhead"><div class="wsic-kicker">When should I control?</div>' +
-    '<div class="wsic-pickttl">Pick your ARTCC</div>' +
+    '<div class="wsic-pickttl">' + (staffingBoard.view === "artcc" ? "Pick your ARTCC" : "Busiest " + staffingBoard.view) + "</div>" +
     '<div class="wsic-picksub">See the best times to log on this week, and why: expected traffic, events, and positions that usually sit empty.</div></div>';
   h += wsicStatusBanner();
+  h += wsicViewToggleHtml();
+  if (staffingBoard.view !== "artcc") return h + renderWsicNational(res, staffingBoard.view) + wsicDataSourceHtml();
   h += '<div class="wsic-grid">';
   const ids = STAFFING_ARTCCS.slice().sort((a, b) =>
     (mine.has(b) - mine.has(a)) || a.localeCompare(b));
@@ -6005,14 +6069,7 @@ function renderWsicBoard(res) {
     for (const r of picks) {
       const tier = wsicTier(r.predOps, max);
       const c = wsicCountdown(r.upcomingStartMs, r.upcomingEndMs, now);
-      h += '<div class="wsic-card ' + tier + '"' +
-        (r.type === "TWR" ? ' data-hist-apt="' + esc(r.id) + '"' : "") + ">" +
-        '<div class="wsic-card-hd"><span class="fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span></span>" +
-        '<span class="wsic-tier ' + tier + '">' + WSIC_TIER_LABEL[tier] + "</span></div>" +
-        '<div class="wsic-card-when">' + esc(wsicWhenLabel(r)) + "</div>" +
-        '<div class="wsic-card-row"><span class="n">' + r.predOps + '<small> ops</small></span>' +
-        '<span class="wsic-cd' + (c.live ? " live" : "") + '">' + esc(c.text) + "</span></div>" +
-        '<div class="wsic-chips">' + wsicChipsHtml(wsicReasons(r, cov), 2) + "</div></div>";
+      h += wsicCardHtml(r, tier, c, cov, false);
     }
     h += "</div>";
   }
@@ -7247,7 +7304,7 @@ function liveEmptyFac(type, id) {
   return { type, id, now: 0, arr60: 0, dep60: 0, arr120: 0, dep120: 0, online: [] };
 }
 /** Plain counts for the ARTCC and every APP / TWR under it, plus inbound group flights. */
-function computeLiveArtcc(artcc, now) {
+function computeLiveArtcc(artcc, now, flights) {
   ensureBoundariesIfNeeded();
   const artccOf = {};
   const aOf = icao => (icao in artccOf ? artccOf[icao] : (artccOf[icao] = airportStaffingArtcc(icao)));
@@ -7265,7 +7322,7 @@ function computeLiveArtcc(artcc, now) {
   };
   const h1 = now + 3600000, h2 = now + 7200000;
   const inbound = [];
-  for (const f of liveFlights(now)) {
+  for (const f of flights || liveFlights(now)) {
     if (f.kind === "AIRBORNE" && f.lat != null && artccForStaffingPoint(f.lat, f.lon) === artcc) ctr.now++;
     if (f.dep && aOf(f.dep) === artcc) {
       const list = facs(f.dep);
@@ -7365,13 +7422,16 @@ function liveCountCell(total, arr, dep) {
   return '<td class="live-n"><b>' + total + "</b>" +
     (total ? '<span>' + arr + " arr \u00b7 " + dep + " dep</span>" : "") + "</td>";
 }
-function liveRowsHtml(rows, emptyMsg) {
+function liveRowsHtml(rows, emptyMsg, national) {
   if (!rows.length) return '<div class="staffnone">' + emptyMsg + "</div>";
   let h = '<div class="live-tablewrap"><table class="live-table"><thead><tr>' +
     "<th>Position</th><th>Status</th><th>Now</th><th>Next 60 min</th><th>Next 120 min</th><th>Who / why</th>" +
     "</tr></thead><tbody>";
   for (const r of rows) {
-    h += '<tr class="' + r.status + '"><td class="live-fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span></td>" +
+    h += '<tr class="' + r.status + (national ? " live-link" : "") + '"' +
+      (national ? ' data-wsic-artcc="' + esc(r.artcc) + '" title="Open ' + esc(r.artcc) + '"' : "") + ">" +
+      '<td class="live-fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span>" +
+      (national ? ' <small class="live-artcc">' + (r.id === r.artcc ? "" : esc(r.artcc) + " ") + "\u203a</small>" : "") + "</td>" +
       '<td><span class="live-badge ' + r.status + '">' + LIVE_STATUS_LABEL[r.status] + "</span></td>" +
       '<td class="live-n"><b>' + r.now + "</b><span>" +
       (r.type === "CTR" ? "airborne" : r.type === "APP" ? "within " + LIVE_NEAR_APP_NM + " nm" : "ground + final") +
@@ -7406,6 +7466,31 @@ function liveArtccData(artcc) {
   }
   return liveCache.data;
 }
+let liveNationalCache = { at: 0, feed: null, rows: null };
+/** Every ARTCC's positions in one list, for the "Busiest CTR / APP / TWR" view. */
+function liveNationalRows() {
+  const now = Date.now();
+  if (liveNationalCache.feed !== vatsim || now - liveNationalCache.at > 15000 || !liveNationalCache.rows) {
+    const flights = liveFlights(now);
+    const rows = [];
+    for (const id of STAFFING_ARTCCS) {
+      for (const r of computeLiveArtcc(id, now, flights).rows) rows.push(Object.assign(r, { artcc: id }));
+    }
+    liveNationalCache = { at: now, feed: vatsim, rows };
+  }
+  return liveNationalCache.rows;
+}
+function renderLiveNational(type) {
+  const load = r => (r.type === "CTR" ? Math.max(r.now, r.next60) : r.next60);
+  const rows = liveNationalRows().filter(r => r.type === type && (r.now || r.next120 || r.online.length))
+    .sort((a, b) => load(b) - load(a) || b.next120 - a.next120 || b.now - a.now || a.id.localeCompare(b.id))
+    .slice(0, 20);
+  const names = { CTR: "centers", APP: "approach / TRACON facilities", TWR: "towers" };
+  return '<div class="wsic-sec">Busiest ' + names[type] + " right now <span>ranked by " +
+    (type === "CTR" ? "airborne now or movements next 60 min" : "arrivals + departures next 60 min") +
+    " \u00b7 tap one to open its ARTCC</span></div>" +
+    liveRowsHtml(rows, "No " + esc(type) + " traffic in the feed right now.", true);
+}
 function renderLivePicker() {
   const now = Date.now();
   /* One pass for every ARTCC: airborne inside it, and movements in the next 60 min at its fields. */
@@ -7431,9 +7516,11 @@ function renderLivePicker() {
   for (const id of STAFFING_ARTCCS) max = Math.max(max, sum[id].air + sum[id].next60);
   const mine = new Set((myArtccs || []).map(a => String(a).toUpperCase()));
   let h = '<div class="wsic-pickhead"><div class="wsic-kicker">Live traffic</div>' +
-    '<div class="wsic-pickttl">Pick your ARTCC</div>' +
+    '<div class="wsic-pickttl">' + (staffingBoard.view === "artcc" ? "Pick your ARTCC" : "Busiest " + staffingBoard.view) + "</div>" +
     '<div class="wsic-picksub">Aircraft in the air now, arrivals and departures due in the next 60 and 120 minutes, ' +
     "group flights on the way, and which positions are open.</div></div>";
+  h += wsicViewToggleHtml();
+  if (staffingBoard.view !== "artcc") return h + renderLiveNational(staffingBoard.view);
   h += '<div class="wsic-grid">';
   const ids = STAFFING_ARTCCS.slice().sort((a, b) => (mine.has(b) - mine.has(a)) || a.localeCompare(b));
   for (const id of ids) {
@@ -10024,6 +10111,12 @@ contentEl.addEventListener("click", e => {
         loadStaffingHistoricalFromDb();
       }
     }
+    return;
+  }
+  const wsicViewBtn = e.target.closest("[data-wsic-view]");
+  if (wsicViewBtn) {
+    wsicSetView(wsicViewBtn.dataset.wsicView);
+    renderContent();
     return;
   }
   const wsicArtccBtn = e.target.closest("[data-wsic-artcc]");
