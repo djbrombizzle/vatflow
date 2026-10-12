@@ -110,7 +110,7 @@
     flight three messages from <b id="stationLabel">DALOPS</b>, built from your latest SimBrief plan:
     the <b>EFSR</b> (fuel slip) 5 minutes after you are seen on VATSIM and Hoppie, the <b>pre-pushback</b>
     message 8 minutes before your filed departure time, and the <b>WDR</b> (final weights and takeoff data)
-    at a random time in the <span id="wdrWin">15</span> minutes before your filed departure time.
+    at a random time in the <span id="wdrWin">5</span> minutes before your filed departure time.
     Turn on Runway Analysis in SimBrief to get takeoff numbers in the WDR.
   </div>
 
@@ -205,7 +205,7 @@ function renderStatus(d) {
   const ops = (d.ops || ["DAL"]).join("/");
   $("opsLabel").textContent = ops;
   $("stationLabel").textContent = (d.ops || ["DAL"]).map(o => o + "OPS").join("/");
-  $("wdrWin").textContent = d.wdrWindowMin || 15;
+  $("wdrWin").textContent = d.wdrWindowMin || 5;
   const p = d.profile;
   if (p && document.activeElement !== $("simbrief")) $("simbrief").value = p.simbrief || "";
   if (p) $("enabled").checked = !!p.enabled;
@@ -236,7 +236,7 @@ function renderStatus(d) {
     else if (due[k]) { when = z(due[k]); cls = "due"; status = "Due " + rel(due[k]); }
     else if (k === "efsr" && st.eligible) status = "5 min after you are on VATSIM and Hoppie";
     else if (k === "pre") status = "P-time minus 8 min";
-    else if (k === "wdr") status = `Random, last ${d.wdrWindowMin || 15} min before P-time`;
+    else if (k === "wdr") status = `Random, last ${d.wdrWindowMin || 5} min before P-time`;
     return `<tr><td>${NAMES[k]}</td><td>${when}</td><td class="st ${cls}">${esc(status)}</td></tr>`;
   }).join("");
   $("waiting").classList.toggle("hidden", !st.waiting);
