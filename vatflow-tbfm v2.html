@@ -1067,6 +1067,17 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
   border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer;
 }
 .wsic-change:hover { border-color: var(--accent); color: var(--accent-text); }
+.wsic-partners { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 0 0 16px; }
+.wsic-partner { padding: 9px 11px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); font-size: 12px; }
+.wsic-partner.on { border-color: rgba(232, 168, 56, 0.55); background: rgba(232, 168, 56, 0.07); }
+.wsic-partner-hd { display: flex; align-items: center; gap: 7px; }
+.wsic-partner-hd span:not(.wsic-dot) { color: var(--text-muted); font-family: var(--font-data); font-size: 11px; }
+.wsic-partner .wsic-dot { background: var(--text-muted); box-shadow: none; animation: none; }
+.wsic-partner.on .wsic-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.25); }
+.wsic-partner-st { margin-top: 4px; color: var(--text-dim); }
+.wsic-partner.on .wsic-partner-st { color: var(--accent-text); }
+.wsic-partner-lift { margin-top: 2px; color: var(--text-muted); font-size: 11px; }
+.wsic-partner-ev { margin-top: 5px; color: #b9a7f0; font-size: 11px; line-height: 1.5; }
 .wsic-live {
   margin: 0 0 14px; padding: 10px 12px; border-radius: var(--radius);
   background: rgba(212, 92, 92, 0.08); border: 1px solid rgba(212, 92, 92, 0.35);
@@ -5636,10 +5647,14 @@ const WSIC_TIER_LABEL = { prime: "Prime time", busy: "Busy", steady: "Steady" };
 /** Short "why" chips for one window, most persuasive first. */
 function wsicReasons(row, cov) {
   const out = [];
+  const partnerEv = new Set((row.partnerEvents || []).map(ev => String(ev.id)));
   for (const ev of (row.upcomingEvents || []).slice(0, 2)) {
     const name = String(ev.name || "Event");
     out.push({ cls: "ev", text: "\u2605 " + (name.length > 34 ? name.slice(0, 32) + "\u2026" : name) +
-      (ev.nm > STAFF_EVENT_LOCAL_NM ? " \u00b7 " + ev.nm + " nm" : "") });
+      (partnerEv.has(String(ev.id)) ? " \u00b7 " + row.artcc + " partner" : ev.nm > STAFF_EVENT_LOCAL_NM ? " \u00b7 " + ev.nm + " nm" : "") });
+  }
+  for (const p of row.partnersOn || []) {
+    out.push({ cls: "staff", text: p.name + " staffed \u00b7 " + row.artcc + " traffic to " + p.code + " \u00d7" + p.lift });
   }
   if (row.wxBad && row.wxBad.length) {
     out.push({ cls: "wx", text: "Bad weather at " + row.wxIcao + " \u00b7 " + row.wxBad.join(", ") });
@@ -5777,11 +5792,69 @@ function wsicStaffedNearby(row, staffed, now) {
   return staffed.filter(f => !own.has(f.id) && !(f.type === row.type && f.id === row.id) &&
     haversineNm(pt[0], pt[1], f.lat, f.lon) <= STAFF_EVENT_RADIUS_NM);
 }
+/* Traffic partners: farther fields that drive an ARTCC's traffic when they are staffed.
+   ZDC lifts come from the ZDC traffic study (2026-10-12, StatSim Apr-Oct 2026): with the partner staffed and
+   ZDC dark, ZDC flights to and from it run this many times higher than at the same hour with the partner dark.
+   Chicago is the study's pooled 1.44. share = rough part of ZDC's flights that go to that partner (BOS and NYC
+   from the study; ATL and Chicago estimated), so one staffed partner lifts all of ZDC by share x (lift - 1). */
+const WSIC_PARTNERS = {
+  ZDC: [
+    { code: "BOS", name: "Boston", airports: ["KBOS"], app: ["A90"], ctr: "ZBW", lift: 1.89, share: 0.14 },
+    { code: "NYC", name: "New York", airports: ["KJFK", "KLGA", "KEWR"], app: ["N90"], ctr: "ZNY", lift: 1.6, share: 0.13 },
+    { code: "ATL", name: "Atlanta", airports: ["KATL"], app: ["A80"], ctr: "ZTL", lift: 1.48, share: 0.05 },
+    { code: "CHI", name: "Chicago", airports: ["KORD", "KMDW"], app: ["C90"], ctr: "ZAU", lift: 1.44, share: 0.05 }
+  ]
+};
+/** Partner positions online now: its towers, approach, or the center above them. */
+function wsicPartnerOnline(p) {
+  const out = [];
+  for (const c of (vatsim && vatsim.controllers) || []) {
+    const pc = parseStaffingController(c);
+    if (!pc) continue;
+    if ((pc.type === "TWR" && p.airports.indexOf(pc.id) !== -1) || (pc.type === "APP" && p.app.indexOf(pc.id) !== -1) ||
+      (pc.type === "CTR" && pc.id === p.ctr)) out.push(pc.callsign);
+  }
+  return out;
+}
+function wsicPartnerIds(p) {
+  return new Set(p.airports.concat(p.app, [p.ctr]));
+}
+/** Network events with at least one field at this partner. */
+function wsicPartnerEvent(ev, p, result) {
+  const full = ((result && result.networkEvents) || []).find(x => String(x.id) === String(ev.id)) || ev;
+  return (full.airports || []).some(a => p.airports.indexOf(String(a.icao || a).toUpperCase()) !== -1);
+}
+/** Partners for this row's ARTCC: events at them count as local, and staffed ones lift the window. */
+function wsicApplyPartners(r, now, result) {
+  const partners = WSIC_PARTNERS[r.artcc];
+  if (!partners) return;
+  const evs = r.upcomingEvents || [];
+  r.partnerEvents = evs.filter(ev => partners.some(p => wsicPartnerEvent(ev, p, result)));
+  if (r.partnerEvents.length && r.eventMult) {
+    const ids = new Set(r.partnerEvents.map(ev => String(ev.id)));
+    const w = evs.reduce((n, ev) => n + (ev.nm <= STAFF_EVENT_LOCAL_NM || ids.has(String(ev.id)) ? 1 : STAFF_EVENT_FEEDER_WEIGHT), 0);
+    const mult = 1 + STAFF_EVENT_SCORE_BOOST * Math.min(2, w);
+    r.predOps = histRoundOps(r.predOps * mult / r.eventMult);
+    r.eventMult = mult;
+  }
+  r.partnersOn = [];
+  if (!(r.upcomingStartMs < now + WSIC_STAFFED_HORIZON_MS)) return;
+  let lift = 0;
+  for (const p of partners) {
+    const on = wsicPartnerOnline(p);
+    if (!on.length) continue;
+    r.partnersOn.push({ code: p.code, name: p.name, lift: p.lift, callsigns: on });
+    lift += p.share * (p.lift - 1);
+  }
+  if (lift > 0) r.predOps = histRoundOps(r.predOps * (1 + lift));
+}
 function wsicAdjustRows(rows, rec) {
   const pre = rows.map(r => {
     const liveCount = wsicLiveCount(rec, r);
-    return Object.assign({}, r, { liveCount, wxIcao: wsicAnchor(r),
-      predOps: Math.max(r.predOps, histRoundOps(liveCount / (r.hours || 1))) });
+    const x = Object.assign({}, r, { liveCount, wxIcao: wsicAnchor(r) });
+    wsicApplyPartners(x, Date.now(), staffingHist.result);
+    x.predOps = Math.max(x.predOps, histRoundOps(liveCount / (r.hours || 1)));
+    return x;
   });
   const fields = [];
   for (const r of wsicRankRows(pre)) {
@@ -5793,6 +5866,12 @@ function wsicAdjustRows(rows, rec) {
   const now = Date.now();
   for (const r of pre) {
     r.staffedNear = wsicStaffedNearby(r, staffed, now);
+    /* Partners already have their own, larger lift. */
+    if (WSIC_PARTNERS[r.artcc]) {
+      const pids = new Set();
+      for (const p of WSIC_PARTNERS[r.artcc]) for (const id of wsicPartnerIds(p)) pids.add(id);
+      r.staffedNear = r.staffedNear.filter(f => !pids.has(f.id));
+    }
     if (r.staffedNear.length) {
       r.predOps = histRoundOps(r.predOps * (1 + Math.min(WSIC_STAFFED_MAX, WSIC_STAFFED_BOOST * r.staffedNear.length)));
     }
@@ -5805,9 +5884,10 @@ function wsicAdjustRows(rows, rec) {
 function wsicUpliftWhy(row) {
   const why = [];
   if (row.eventBoost) why.push("events");
-  if (row.liveCount > row.avgOps) why.push("filed flights");
+  if (row.liveCount / (row.hours || 1) > row.avgOps) why.push("filed flights");
   if (row.wxBad && row.wxBad.length) why.push("weather");
   if (row.staffedNear && row.staffedNear.length) why.push("staffed neighbors");
+  if (row.partnersOn && row.partnersOn.length) why.push("staffed partners");
   return why.join(", ");
 }
 function wsicLiveRec() {
@@ -5994,6 +6074,33 @@ function wsicWeekHtml(rows, events, nowMs) {
     '<span><i class="steady"></i>Steady</span><span><i class="evk"></i>Event</span></div>';
   return h + "</div>";
 }
+/** Partner strip: which traffic partners are online now and their events this week. */
+function wsicPartnersHtml(artcc, result, now) {
+  const partners = WSIC_PARTNERS[artcc];
+  if (!partners) return "";
+  const horizon = now + 7 * 24 * 3600000;
+  let h = '<div class="wsic-sec">Traffic partners <span>when these are staffed, ' + esc(artcc) +
+    " traffic to them runs higher \u00b7 their events count as " + esc(artcc) + " events</span></div><div class=\"wsic-partners\">";
+  for (const p of partners) {
+    const on = wsicPartnerOnline(p);
+    const evs = ((result && result.networkEvents) || [])
+      .filter(ev => ev.endMs > now && ev.startMs < horizon && wsicPartnerEvent(ev, p, result))
+      .sort((a, b) => a.startMs - b.startMs);
+    h += '<div class="wsic-partner' + (on.length ? " on" : "") + '">' +
+      '<div class="wsic-partner-hd"><span class="wsic-dot"></span><b>' + esc(p.name) + "</b> <span>" +
+      esc(p.airports.map(a => a.replace(/^K/, "")).join(" / ")) + "</span></div>" +
+      '<div class="wsic-partner-st">' + (on.length
+        ? "Online \u00b7 " + esc(on.slice(0, 3).join(", ")) + (on.length > 3 ? " +" + (on.length - 3) : "")
+        : "Not online") + "</div>" +
+      '<div class="wsic-partner-lift">' + esc(artcc) + " traffic to " + esc(p.code) + " \u00d7" + p.lift + " when staffed</div>" +
+      (evs.length
+        ? '<div class="wsic-partner-ev">' + evs.slice(0, 2).map(ev =>
+          "\u2605 " + esc(histFmtLocalEventListItem(ev)) + " " + esc(histLocalHHMM(ev.startMs))).join("<br>") + "</div>"
+        : "") +
+      "</div>";
+  }
+  return h + "</div>";
+}
 function renderWsicBoard(res) {
   const now = Date.now();
   const artcc = staffingBoard.artcc;
@@ -6008,6 +6115,7 @@ function renderWsicBoard(res) {
   }
   h += '</div><button type="button" class="wsic-change" data-wsic-change>Change ARTCC</button></div>';
   h += wsicStatusBanner();
+  h += wsicPartnersHtml(artcc, res, now);
 
   /* Right now: live feed demand with nobody online */
   const rec = wsicLiveRec();
@@ -7608,6 +7716,7 @@ function renderLiveBoard() {
     (need.length === 1 ? "position needs" : "positions need") + " a controller</span></div>" +
     '<div class="live-stat"><b>' + online + "</b><span>controllers online</span></div></div>";
 
+  h += wsicPartnersHtml(artcc, staffingHist.result, Date.now());
   h += liveGroupsHtml(d.groups);
   h += '<div class="wsic-sec">Center</div>' + liveRowsHtml([d.ctr], "");
   h += '<div class="wsic-sec">Approach <span>' + apps.length + " with traffic</span></div>" +
