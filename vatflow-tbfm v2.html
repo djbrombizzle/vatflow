@@ -1109,6 +1109,43 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .wsic-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .wsic-chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border); color: var(--text-dim); }
 .wsic-chip.ev { background: rgba(123, 110, 184, 0.18); border-color: rgba(123, 110, 184, 0.5); color: #cfc6fa; }
+.wsic-tile-stats .off { color: var(--text-muted); }
+.live-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 0 0 16px; }
+.live-stat { padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+.live-stat b { display: block; font-family: var(--font-display); font-size: 38px; line-height: 1; color: var(--text); }
+.live-stat span { font-size: 11px; color: var(--text-dim); }
+.live-stat.alert { border-color: rgba(212, 92, 92, 0.5); background: rgba(212, 92, 92, 0.08); }
+.live-stat.alert b { color: #ee8f8f; }
+.live-tablewrap { overflow-x: auto; }
+.live-table { width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0 6px; }
+.live-table th { text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; padding: 0 12px; }
+.live-table td { background: var(--surface); padding: 8px 12px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.live-table td:first-child { border-left: 3px solid var(--border-hi); border-radius: var(--radius) 0 0 var(--radius); }
+.live-table td:last-child { border-right: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0; }
+.live-table tr.need td:first-child { border-left-color: var(--alert); }
+.live-table tr.soon td:first-child { border-left-color: var(--warn); }
+.live-table tr.online td:first-child { border-left-color: var(--ok); }
+.live-fac { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.03em; white-space: nowrap; }
+.live-fac span { font-size: 14px; color: var(--text-dim); }
+.live-n b { font-family: var(--font-display); font-size: 26px; line-height: 1; color: var(--text); margin-right: 8px; }
+.live-n span { font-family: var(--font-data); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.live-table tr.need .live-n b { color: #ee8f8f; }
+.live-why { font-size: 12px; color: var(--text-dim); }
+.live-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; background: var(--elevated); color: var(--text-muted); }
+.live-badge.need { background: rgba(212, 92, 92, 0.18); color: #ee8f8f; animation: pulse 1.6s infinite; }
+.live-badge.soon { background: rgba(212, 146, 58, 0.16); color: var(--warn); }
+.live-badge.online { background: rgba(76, 175, 122, 0.15); color: #7fd3a3; }
+.live-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.live-group { padding: 12px 14px; border-radius: var(--radius); background: rgba(123, 110, 184, 0.1); border: 1px solid rgba(123, 110, 184, 0.45); }
+.live-group-hd { display: flex; justify-content: space-between; align-items: baseline; }
+.live-group-hd .route { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.03em; color: var(--text); }
+.live-group-hd .n { font-family: var(--font-display); font-size: 30px; color: #cfc6fa; }
+.live-group-hd .n small { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); }
+.live-group-sub { font-size: 12px; color: var(--text-dim); margin: 2px 0 8px; }
+.live-group-etas { display: flex; flex-wrap: wrap; gap: 5px; }
+.live-group-etas span { font-family: var(--font-data); font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border); color: var(--text-dim); }
+.live-group-etas span.air { border-color: rgba(123, 110, 184, 0.6); color: #cfc6fa; }
+.live-group-etas b { color: var(--text); font-weight: 600; }
 .wsic-chip.wx { background: rgba(91, 168, 201, 0.15); border-color: rgba(91, 168, 201, 0.5); color: #9fd2e8; }
 .wsic-chip.live { background: rgba(76, 175, 122, 0.13); border-color: rgba(76, 175, 122, 0.45); color: #8fdcb0; }
 .wsic-chip.gap { background: rgba(212, 92, 92, 0.12); border-color: rgba(212, 92, 92, 0.45); color: #eeaaaa; }
@@ -4248,54 +4285,6 @@ function computeStaffingRecommendations() {
     controllerCount: controllers.length
   };
 }
-function staffingStatusLabel(status) {
-  return status === "need" ? "Log on" :
-    status === "watch" ? "Watch" :
-    status === "staffed" ? "Online" : "Quiet";
-}
-function staffingDemandHtml(d) {
-  const bits = [];
-  if (d.airborne) bits.push('<span class="staffchip"><strong>' + d.airborne + '</strong> airborne</span>');
-  if (d.rolling) bits.push('<span class="staffchip"><strong>' + d.rolling + '</strong> rolling</span>');
-  if (d.ground) bits.push('<span class="staffchip"><strong>' + d.ground + '</strong> ground</span>');
-  if (d.proposed) bits.push('<span class="staffchip"><strong>' + d.proposed + '</strong> proposed</span>');
-  if (d.inbound) bits.push('<span class="staffchip"><strong>' + d.inbound + '</strong> inbound</span>');
-  if (!bits.length) return '<span class="staffchip">no demand</span>';
-  return '<div class="staffchips">' + bits.join("") + '</div>';
-}
-function staffingRowsHtml(rows, emptyMsg) {
-  if (!rows.length) return '<div class="staffnone">' + emptyMsg + '</div>';
-  let h = '<div class="stafflist">';
-  for (const r of rows) {
-    const win = r.window;
-    const reason = win ? staffingReasonPhrase(win.reasons) : "";
-    let windowHtml = "";
-    if (win) {
-      windowHtml = '<div class="staffwindow">' + fmtZ(win.start) + "\u2013" + fmtZ(win.end) + "Z" +
-        ' <span>\u00b7 ' + esc(reason) + " (" + win.count + ")</span></div>";
-    }
-    const why = r.status === "need"
-      ? "Log on recommended — demand score <b>" + r.score + "</b> (threshold " + r.thresh + ") with no controller online."
-      : r.status === "watch"
-        ? "Watch — demand score <b>" + r.score + "</b> (Log on at " + r.thresh + "+)."
-        : r.status === "staffed"
-          ? "Position online" + (r.score ? " with demand score <b>" + r.score + "</b>." : ".")
-          : "Low demand.";
-    const reasonLine = win
-      ? '<div class="staffwhy">Heavy period driven by <b>' + esc(reason) + "</b>.</div>"
-      : "";
-    h += '<div class="staffrow ' + r.status + '">' +
-      '<span class="stafffac">' + esc(r.id) + '</span>' +
-      '<span class="staffbadge ' + r.status + '">' + staffingStatusLabel(r.status) + '</span>' +
-      '<div class="staffdemand">' + reasonLine + windowHtml +
-      '<div class="staffwhy">' + why + "</div>" + staffingDemandHtml(r.demand) + '</div>' +
-      '<div class="staffonline' + (r.online.length ? "" : " empty") + '">' +
-      (r.online.length ? r.online.map(esc).join("<br>") : "\u2014") +
-      '</div></div>';
-  }
-  h += '</div>';
-  return h;
-}
 
 /* ---------- ATC Staffing: Historical Data (StatSim USA) ---------- */
 const STAFFING_HIST_PERIODS = [
@@ -5746,16 +5735,6 @@ function wsicLiveRec() {
   ensureBoundariesIfNeeded();
   return computeStaffingRecommendations();
 }
-function wsicLiveNow(rec, artcc) {
-  if (!rec) return null;
-  const out = [];
-  for (const r of rec.centers) if (r.id === artcc) out.push(r);
-  for (const r of rec.approaches) if (wsicTraconArtcc(r.id) === artcc) out.push(r);
-  for (const r of rec.towers) if (airportStaffingArtcc(r.id) === artcc) out.push(r);
-  return out.filter(r => r.status === "need" || r.status === "watch")
-    .sort((a, b) => (a.status === b.status ? 0 : a.status === "need" ? -1 : 1) || b.score - a.score)
-    .slice(0, 4);
-}
 /** Top distinct windows: at most two per facility so one field can't fill the board. */
 function wsicPicks(rows, limit) {
   const perFac = {};
@@ -5908,24 +5887,27 @@ function renderWsicBoard(res) {
 
   /* Right now: live feed demand with nobody online */
   const rec = wsicLiveRec();
-  const live = wsicLiveNow(rec, artcc);
+  const live = vatsim ? liveArtccData(artcc).rows
+    .filter(r => r.status === "need" || r.status === "soon")
+    .sort((x, y) => (x.status === y.status ? 0 : x.status === "need" ? -1 : 1) || y.next60 - x.next60)
+    .slice(0, 4) : null;
   if (live && live.length) {
     const urgent = live.some(r => r.status === "need");
     h += '<div class="wsic-live' + (urgent ? "" : " warm") + '"><div class="wsic-live-hd"><span class="wsic-dot"></span>' +
       (urgent ? "Right now \u00b7 log on" : "Right now \u00b7 traffic building, nobody online") +
       '</div><div class="wsic-live-list">';
     for (const r of live) {
-      const reason = r.window ? staffingReasonPhrase(r.window.reasons) : "";
-      h += '<div class="wsic-live-item ' + r.status + '">' +
+      h += '<div class="wsic-live-item ' + (r.status === "need" ? "need" : "watch") + '">' +
         '<span class="fac">' + esc(r.id) + " " + esc(r.type) + "</span>" +
-        '<span class="st">' + (r.status === "need" ? "Log on now" : "Building") + "</span>" +
-        '<span class="why">Demand ' + r.score + " of " + r.thresh + " to open" + (reason ? " \u00b7 " + esc(reason) : "") +
-        "</span></div>";
+        '<span class="st">' + (r.status === "need" ? "Log on now" : "Busy soon") + "</span>" +
+        '<span class="why">' + r.next60 + " movements next 60 min \u00b7 " + r.next120 + " next 120 min" +
+        (r.type === "CTR" ? " \u00b7 " + r.now + " airborne" : "") +
+        (r.topdown ? " \u00b7 top-down from " + esc(r.topdown) + " only" : "") + "</span></div>";
     }
     h += "</div></div>";
   } else if (live) {
     h += '<div class="wsic-live calm"><div class="wsic-live-hd"><span class="wsic-dot calm"></span>Right now</div>' +
-      '<div class="wsic-live-calm">No unstaffed demand in ' + esc(artcc) + " at the moment.</div></div>";
+      '<div class="wsic-live-calm">No unstaffed traffic in ' + esc(artcc) + " at the moment.</div></div>";
   }
 
   if (!res) {
@@ -7166,6 +7148,295 @@ function renderStaffingHistorical() {
     "Open <b>Staff it &amp; they will come?</b> to compare staffing against pilot traffic for the period.</div>";
   return h;
 }
+/* ---------- ATC Staffing Live: per-ARTCC traffic counts (now / next 60 / next 120 min) ---------- */
+/* Log on when nobody is online and this many movements (arrivals + departures) are due in the next 60 min.
+   Center also counts aircraft airborne in its airspace right now. */
+const LIVE_LOGON = { TWR: 6, APP: 10, CTR: 20 };
+const LIVE_NEAR_TWR_NM = 20;       /* arrivals this close count as "now" for the tower */
+const LIVE_NEAR_APP_NM = 60;       /* airborne this close to a TRACON field count as "now" for approach */
+const LIVE_GROUP_MIN = 3;          /* same origin \u2192 same destination, this many or more = group flight */
+const LIVE_GROUP_SPREAD_MS = 45 * 60000;
+const LIVE_GROUP_FAR_MS = 30 * 60000;  /* group must still be at least this far out */
+/** Every flight that touches a US field, with its timed departure / arrival. */
+function liveFlights(now) {
+  const out = [];
+  for (const p of (vatsim && vatsim.pilots) || []) {
+    const fp = p.flight_plan;
+    const dep = String((fp && fp.departure) || "").toUpperCase();
+    const arr = String((fp && fp.arrival) || "").toUpperCase();
+    const motion = classifyPilotMotion(p);
+    const usDep = isUsStaffingAirport(dep), usArr = isUsStaffingAirport(arr);
+    const f = { cs: p.callsign, dep: usDep ? dep : "", arr: usArr ? arr : "", kind: motion,
+      lat: p.latitude, lon: p.longitude, etd: null, eta: null, fp: !!fp };
+    if (motion === "AIRBORNE") {
+      if (usArr) f.eta = staffingEtaAirborne(p.latitude, p.longitude, arr, p.groundspeed, now);
+    } else {
+      if (!fp || !usDep) continue;              /* parked with no plan, or a foreign field */
+      f.etd = motion === "ROLLING" ? now : staffingEtdFromPlan(fp, now, true);
+      if (usArr) f.eta = f.etd + staffingFlightTimeMs(dep, arr, fp.cruise_tas);
+    }
+    out.push(f);
+  }
+  for (const p of (vatsim && vatsim.prefiles) || []) {
+    const fp = p.flight_plan || p;
+    const dep = String((fp && fp.departure) || p.departure || "").toUpperCase();
+    const arr = String((fp && fp.arrival) || p.arrival || "").toUpperCase();
+    const usDep = isUsStaffingAirport(dep), usArr = isUsStaffingAirport(arr);
+    if (!usDep && !usArr) continue;
+    const etd = staffingEtdFromPlan(fp, now, false);
+    out.push({ cs: p.callsign, dep: usDep ? dep : "", arr: usArr ? arr : "", kind: "PREFILE",
+      lat: null, lon: null, etd: usDep ? etd : null,
+      eta: usArr ? etd + staffingFlightTimeMs(dep, arr, fp && fp.cruise_tas) : null, fp: true });
+  }
+  return out;
+}
+function liveEmptyFac(type, id) {
+  return { type, id, now: 0, arr60: 0, dep60: 0, arr120: 0, dep120: 0, online: [] };
+}
+/** Plain counts for the ARTCC and every APP / TWR under it, plus inbound group flights. */
+function computeLiveArtcc(artcc, now) {
+  ensureBoundariesIfNeeded();
+  const artccOf = {};
+  const aOf = icao => (icao in artccOf ? artccOf[icao] : (artccOf[icao] = airportStaffingArtcc(icao)));
+  const trOf = {};
+  const tOf = icao => (icao in trOf ? trOf[icao] : (trOf[icao] = traconForAirport(icao)));
+  const ctr = liveEmptyFac("CTR", artcc);
+  const app = {}, twr = {};
+  const facs = icao => {
+    const list = [ctr];
+    if (!twr[icao]) twr[icao] = liveEmptyFac("TWR", icao);
+    list.push(twr[icao]);
+    const t = tOf(icao);
+    if (t) { if (!app[t]) app[t] = liveEmptyFac("APP", t); list.push(app[t]); }
+    return list;
+  };
+  const h1 = now + 3600000, h2 = now + 7200000;
+  const inbound = [];
+  for (const f of liveFlights(now)) {
+    if (f.kind === "AIRBORNE" && f.lat != null && artccForStaffingPoint(f.lat, f.lon) === artcc) ctr.now++;
+    if (f.dep && aOf(f.dep) === artcc) {
+      const list = facs(f.dep);
+      if (f.kind === "GROUND" || f.kind === "ROLLING") twr[f.dep].now++;
+      if (f.etd != null && f.etd <= h2) {
+        for (const x of list) { x.dep120++; if (f.etd <= h1) x.dep60++; }
+      }
+      if (f.kind === "AIRBORNE" && f.lat != null) {
+        const pt = lookup(f.dep);
+        if (pt && app[tOf(f.dep)] && haversineNm(f.lat, f.lon, pt[0], pt[1]) <= LIVE_NEAR_APP_NM) app[tOf(f.dep)].now++;
+      }
+    }
+    if (f.arr && aOf(f.arr) === artcc) {
+      const list = facs(f.arr);
+      if (f.eta != null && f.eta <= h2 && f.eta >= now - 5 * 60000) {
+        for (const x of list) { x.arr120++; if (f.eta <= h1) x.arr60++; }
+      }
+      if (f.kind === "AIRBORNE" && f.lat != null) {
+        const pt = lookup(f.arr);
+        const nm = pt ? haversineNm(f.lat, f.lon, pt[0], pt[1]) : Infinity;
+        if (nm <= LIVE_NEAR_TWR_NM) twr[f.arr].now++;
+        const t = tOf(f.arr);
+        if (t && nm <= LIVE_NEAR_APP_NM) app[t].now++;
+      }
+      if (f.eta != null && f.dep && f.dep !== f.arr) inbound.push(f);
+    }
+  }
+  for (const c of (vatsim && vatsim.controllers) || []) {
+    const pc = parseStaffingController(c);
+    if (!pc) continue;
+    const fac = pc.type === "CTR" ? (pc.id === artcc ? ctr : null)
+      : pc.type === "APP" ? app[pc.id] || (wsicTraconArtcc(pc.id) === artcc ? (app[pc.id] = liveEmptyFac("APP", pc.id)) : null)
+        : twr[pc.id] || (aOf(pc.id) === artcc ? (twr[pc.id] = liveEmptyFac("TWR", pc.id)) : null);
+    if (fac) fac.online.push(pc.callsign);
+  }
+  const rows = [ctr].concat(Object.values(app), Object.values(twr));
+  /* Top-down cover: an open Center covers its approaches and towers; an open Approach covers its towers. */
+  for (const r of Object.values(app)) if (!r.online.length && ctr.online.length) r.topdown = ctr.online[0];
+  for (const r of Object.values(twr)) {
+    if (r.online.length) continue;
+    const a = app[tOf(r.id)];
+    if (a && a.online.length) r.topdown = a.online[0];
+    else if (ctr.online.length) r.topdown = ctr.online[0];
+  }
+  for (const r of rows) {
+    r.next60 = r.arr60 + r.dep60;
+    r.next120 = r.arr120 + r.dep120;
+    const load = r.type === "CTR" ? Math.max(r.now, r.next60) : r.next60;
+    r.status = r.online.length ? "online"
+      : load >= LIVE_LOGON[r.type] ? "need"
+        : r.next120 >= LIVE_LOGON[r.type] * 1.5 ? "soon"
+          : "quiet";
+  }
+  return { ctr, app: Object.values(app), twr: Object.values(twr), rows, groups: liveGroups(inbound, now) };
+}
+/** Inbound waves: 3+ aircraft from the same origin to the same field, ETAs within 45 min, still 30+ min out. */
+function liveGroups(inbound, now) {
+  const byPair = {};
+  for (const f of inbound) {
+    if (f.eta < now + LIVE_GROUP_FAR_MS) continue;
+    const k = f.dep + ">" + f.arr;
+    (byPair[k] = byPair[k] || []).push(f);
+  }
+  const out = [];
+  for (const list of Object.values(byPair)) {
+    if (list.length < LIVE_GROUP_MIN) continue;
+    list.sort((a, b) => a.eta - b.eta);
+    /* keep the densest run of ETAs inside the spread */
+    let best = [list[0]];
+    for (let i = 0; i < list.length; i++) {
+      let j = i;
+      while (j + 1 < list.length && list[j + 1].eta - list[i].eta <= LIVE_GROUP_SPREAD_MS) j++;
+      if (j - i + 1 > best.length) best = list.slice(i, j + 1);
+    }
+    if (best.length < LIVE_GROUP_MIN) continue;
+    out.push({
+      dep: best[0].dep, arr: best[0].arr, flights: best,
+      airborne: best.filter(f => f.kind === "AIRBORNE").length,
+      firstEta: best[0].eta, lastEta: best[best.length - 1].eta
+    });
+  }
+  return out.sort((a, b) => b.flights.length - a.flights.length || a.firstEta - b.firstEta);
+}
+const LIVE_STATUS_LABEL = { need: "Log on", soon: "Busy soon", online: "Online", quiet: "Quiet" };
+function liveStatusWhy(r) {
+  if (r.status === "online") return r.online.join(", ");
+  const who = r.topdown ? "top-down from " + r.topdown + " only" : "nobody online";
+  if (r.status === "need") {
+    return r.type === "CTR" && r.now > r.next60
+      ? r.now + " airborne in the airspace, " + who
+      : r.next60 + " movements in the next 60 min, " + who;
+  }
+  if (r.status === "soon") return r.next120 + " movements in the next 120 min, " + who;
+  return r.topdown ? "Top-down from " + r.topdown : "Nobody online";
+}
+function liveCountCell(total, arr, dep) {
+  return '<td class="live-n"><b>' + total + "</b>" +
+    (total ? '<span>' + arr + " arr \u00b7 " + dep + " dep</span>" : "") + "</td>";
+}
+function liveRowsHtml(rows, emptyMsg) {
+  if (!rows.length) return '<div class="staffnone">' + emptyMsg + "</div>";
+  let h = '<div class="live-tablewrap"><table class="live-table"><thead><tr>' +
+    "<th>Position</th><th>Status</th><th>Now</th><th>Next 60 min</th><th>Next 120 min</th><th>Who / why</th>" +
+    "</tr></thead><tbody>";
+  for (const r of rows) {
+    h += '<tr class="' + r.status + '"><td class="live-fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span></td>" +
+      '<td><span class="live-badge ' + r.status + '">' + LIVE_STATUS_LABEL[r.status] + "</span></td>" +
+      '<td class="live-n"><b>' + r.now + "</b><span>" +
+      (r.type === "CTR" ? "airborne" : r.type === "APP" ? "within " + LIVE_NEAR_APP_NM + " nm" : "ground + final") +
+      "</span></td>" +
+      liveCountCell(r.next60, r.arr60, r.dep60) + liveCountCell(r.next120, r.arr120, r.dep120) +
+      '<td class="live-why">' + esc(liveStatusWhy(r)) + "</td></tr>";
+  }
+  return h + "</tbody></table></div>";
+}
+function liveGroupsHtml(groups) {
+  if (!groups.length) return "";
+  let h = '<div class="wsic-sec">Group flights inbound <span>' + LIVE_GROUP_MIN +
+    "+ aircraft, same origin and destination</span></div><div class=\"live-groups\">";
+  for (const g of groups.slice(0, 6)) {
+    h += '<div class="live-group"><div class="live-group-hd">' +
+      '<span class="route">' + esc(g.dep) + " \u2192 " + esc(g.arr) + "</span>" +
+      '<span class="n">' + g.flights.length + "<small> aircraft</small></span></div>" +
+      '<div class="live-group-sub">ETAs ' + esc(histLocalHHMM(g.firstEta) + "\u2013" + histLocalHHMM(g.lastEta) +
+        " " + histLocalTzAbbr(g.firstEta)) + " \u00b7 " +
+      g.airborne + " airborne, " + (g.flights.length - g.airborne) + " not yet departed</div>" +
+      '<div class="live-group-etas">' + g.flights.map(f =>
+        '<span class="' + (f.kind === "AIRBORNE" ? "air" : "") + '">' + esc(f.cs) + " <b>" +
+        esc(histLocalHHMM(f.eta)) + "</b></span>").join("") + "</div></div>";
+  }
+  return h + "</div>";
+}
+let liveCache = { at: 0, artcc: "", data: null };
+function liveArtccData(artcc) {
+  const now = Date.now();
+  if (liveCache.artcc !== artcc || liveCache.feed !== vatsim || now - liveCache.at > 15000) {
+    liveCache = { at: now, artcc, feed: vatsim, data: computeLiveArtcc(artcc, now) };
+  }
+  return liveCache.data;
+}
+function renderLivePicker() {
+  const now = Date.now();
+  /* One pass for every ARTCC: airborne inside it, and movements in the next 60 min at its fields. */
+  const sum = {};
+  for (const id of STAFFING_ARTCCS) sum[id] = { air: 0, next60: 0, online: 0 };
+  const artccOf = {};
+  const aOf = icao => (icao in artccOf ? artccOf[icao] : (artccOf[icao] = airportStaffingArtcc(icao)));
+  for (const f of liveFlights(now)) {
+    if (f.kind === "AIRBORNE" && f.lat != null) {
+      const a = artccForStaffingPoint(f.lat, f.lon);
+      if (a && sum[a]) sum[a].air++;
+    }
+    if (f.dep && f.etd != null && f.etd <= now + 3600000) { const a = aOf(f.dep); if (a && sum[a]) sum[a].next60++; }
+    if (f.arr && f.eta != null && f.eta >= now - 300000 && f.eta <= now + 3600000) { const a = aOf(f.arr); if (a && sum[a]) sum[a].next60++; }
+  }
+  for (const c of (vatsim && vatsim.controllers) || []) {
+    const pc = parseStaffingController(c);
+    if (!pc) continue;
+    const a = pc.type === "CTR" ? pc.id : pc.type === "TWR" ? aOf(pc.id) : wsicTraconArtcc(pc.id);
+    if (a && sum[a]) sum[a].online++;
+  }
+  let max = 1;
+  for (const id of STAFFING_ARTCCS) max = Math.max(max, sum[id].air + sum[id].next60);
+  const mine = new Set((myArtccs || []).map(a => String(a).toUpperCase()));
+  let h = '<div class="wsic-pickhead"><div class="wsic-kicker">Live traffic</div>' +
+    '<div class="wsic-pickttl">Pick your ARTCC</div>' +
+    '<div class="wsic-picksub">Aircraft in the air now, arrivals and departures due in the next 60 and 120 minutes, ' +
+    "group flights on the way, and which positions are open.</div></div>";
+  h += '<div class="wsic-grid">';
+  const ids = STAFFING_ARTCCS.slice().sort((a, b) => (mine.has(b) - mine.has(a)) || a.localeCompare(b));
+  for (const id of ids) {
+    const s = sum[id];
+    const load = s.air + s.next60;
+    const tier = load ? wsicTier(load, max) : "";
+    h += '<button type="button" class="wsic-tile' + (tier ? " " + tier : "") + (mine.has(id) ? " mine" : "") +
+      '" data-wsic-artcc="' + id + '">' +
+      '<span class="wsic-tile-code">' + id + "</span>" +
+      '<span class="wsic-tile-name">' + esc(STAFFING_ARTCC_NAMES[id] || "") + (mine.has(id) ? " \u00b7 yours" : "") + "</span>" +
+      '<span class="wsic-tile-bar"><i style="width:' + Math.round(load / max * 100) + '%"></i></span>' +
+      '<span class="wsic-tile-stats"><b>' + s.air + "</b> airborne now</span>" +
+      '<span class="wsic-tile-stats"><b>' + s.next60 + "</b> arr + dep next 60 min</span>" +
+      '<span class="wsic-tile-stats">' + (s.online ? s.online + " online" : '<span class="off">nobody online</span>') + "</span>" +
+      "</button>";
+  }
+  return h + "</div>";
+}
+function renderLiveBoard() {
+  const artcc = staffingBoard.artcc;
+  const d = liveArtccData(artcc);
+  const busy = r => r.status !== "quiet" || r.now || r.next120;
+  const apps = d.app.filter(busy).sort((a, b) => b.next60 - a.next60 || b.now - a.now || a.id.localeCompare(b.id));
+  const twrs = d.twr.filter(busy).sort((a, b) => b.next60 - a.next60 || b.now - a.now || a.id.localeCompare(b.id));
+  const all = [d.ctr].concat(apps, twrs);
+  const need = all.filter(r => r.status === "need");
+  const online = all.reduce((n, r) => n + r.online.length, 0);
+  const tot60 = d.twr.reduce((n, r) => n + r.next60, 0);
+  const tot120 = d.twr.reduce((n, r) => n + r.next120, 0);
+
+  let h = '<div class="wsic-top">' +
+    '<div class="wsic-id"><span class="wsic-id-code">' + esc(artcc) + "</span>" +
+    '<span class="wsic-id-name">' + esc(STAFFING_ARTCC_NAMES[artcc] || "") + " Center \u00b7 live</span></div>" +
+    '<button type="button" class="wsic-change" data-wsic-change>Change ARTCC</button></div>';
+  h += '<div class="live-stats">' +
+    '<div class="live-stat"><b>' + d.ctr.now + "</b><span>airborne in " + esc(artcc) + " now</span></div>" +
+    '<div class="live-stat"><b>' + tot60 + "</b><span>arrivals + departures next 60 min</span></div>" +
+    '<div class="live-stat"><b>' + tot120 + "</b><span>next 120 min</span></div>" +
+    '<div class="live-stat' + (need.length ? " alert" : "") + '"><b>' + need.length + "</b><span>" +
+    (need.length === 1 ? "position needs" : "positions need") + " a controller</span></div>" +
+    '<div class="live-stat"><b>' + online + "</b><span>controllers online</span></div></div>";
+
+  h += liveGroupsHtml(d.groups);
+  h += '<div class="wsic-sec">Center</div>' + liveRowsHtml([d.ctr], "");
+  h += '<div class="wsic-sec">Approach <span>' + apps.length + " with traffic</span></div>" +
+    liveRowsHtml(apps, "No approach traffic in " + esc(artcc) + " right now.");
+  h += '<div class="wsic-sec">Tower <span>' + twrs.length + " with traffic</span></div>" +
+    liveRowsHtml(twrs.slice(0, 25), "No tower traffic in " + esc(artcc) + " right now.");
+  h += '<div class="staffnote">Counts come from the VATSIM feed: aircraft airborne, on the ground with a flight plan, ' +
+    "and prefiled. Departure times use the filed time (or about 8 minutes for connected aircraft); arrival times use " +
+    "distance and groundspeed, or the filed cruise speed before departure. <b>Log on</b> = nobody online and at least " +
+    LIVE_LOGON.TWR + " (TWR), " + LIVE_LOGON.APP + " (APP) or " + LIVE_LOGON.CTR + " (CTR, or that many airborne) " +
+    "movements in the next 60 minutes (an open Center or Approach above it still counts as top-down cover only). <b>Busy soon</b> = half again that many within 120 minutes. " +
+    "Times are in your local time. USA only (CONUS, Alaska, Hawaii).</div>";
+  return h;
+}
 function renderStaffingLiveBody() {
   if (!vatsim) {
     return '<div class="msg">' +
@@ -7173,35 +7444,7 @@ function renderStaffingLiveBody() {
         ? "Could not reach the VATSIM data feed. It retries every 30 seconds."
         : "Pulling the VATSIM feed\u2026") + "</div>";
   }
-  ensureBoundariesIfNeeded();
-  const rec = computeStaffingRecommendations();
-  const needCtr = rec.centers.filter(r => r.status === "need").length;
-  const needApp = rec.approaches.filter(r => r.status === "need").length;
-  const needTwr = rec.towers.filter(r => r.status === "need").length;
-
-  return '<div class="staffhead">' +
-    '<div class="stafftitle">Live recommendations</div>' +
-    '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">' +
-    (needCtr + needApp + needTwr) + " recommended logons" +
-    (rec.boundariesReady ? "" : " \u00b7 loading ARTCC boundaries\u2026") +
-    "</div></div>" +
-    '<div class="staffsub">Recommendations for Center, Approach, and Tower based on airborne traffic, ' +
-    "aircraft rolling / about to depart, and proposed flight plans. Scoped to the USA only " +
-    "(CONUS + Alaska + Hawaii). Online controllers from the VATSIM feed are shown when already staffed.</div>" +
-
-    '<div class="staffsec">Center <span>' + needCtr + " need coverage</span></div>" +
-    staffingRowsHtml(rec.centers, "No Center staffing recommendations right now.") +
-
-    '<div class="staffsec">Approach <span>' + needApp + " need coverage</span></div>" +
-    staffingRowsHtml(rec.approaches, "No Approach staffing recommendations right now.") +
-
-    '<div class="staffsec">Tower <span>' + needTwr + " need coverage</span></div>" +
-    staffingRowsHtml(rec.towers, "No Tower staffing recommendations right now.") +
-
-    '<div class="staffnote">Staffing windows are built from timed arrivals, departures, and enroute demand ' +
-    "(not fixed hourly blocks) — start/end rounded to 5 minutes. Scoring weights airborne and rolling traffic highest. " +
-    "Puerto Rico / Guam (ZUA / ZAP) are excluded from this USA test scope. Feed controllers: " +
-    rec.controllerCount + ".</div>";
+  return staffingBoard.artcc ? renderLiveBoard() : renderLivePicker();
 }
 function renderStaffing() {
   const subBar = '<div class="subtabs">' +
@@ -7212,7 +7455,7 @@ function renderStaffing() {
     '" data-staffingsub="lookup">When should I control?</span></div>';
 
   let body;
-  const histWide = staffingSub === "historical" || staffingSub === "lookup";
+  const histWide = true;
   if (staffingSub === "historical") {
     body = '<div class="staffhead"><div class="stafftitle">Historical Data</div>' +
       '<div style="font-family:var(--font-data);font-size:12px;color:var(--text-muted)">StatSim USA traffic</div></div>' +
@@ -7365,7 +7608,9 @@ function renderHelp() {
     '<li>Recommends where ATC should log on for <b>Center</b>, <b>Approach</b>, and <b>Tower</b>.</li>' +
     '<li>Uses airborne traffic, rolling / about-to-depart ground traffic, and proposed flight plans from the VATSIM feed.</li>' +
     '<li>Scoped to the <b>USA only</b> for now (CONUS + Alaska + Hawaii). Shows online controllers when a position is already staffed.</li>' +
-    '<li><b>Log on</b> = demand above threshold with nobody online. <b>Watch</b> = building demand. <b>Online</b> = already covered.</li>' +
+    '<li><b>Live</b> starts with your ARTCC, then lists each Center / Approach / Tower position with plain counts: aircraft there now, ' +
+    'and arrivals + departures due in the next 60 and 120 minutes, plus group flights inbound (3+ aircraft from the same origin) with their ETAs.</li>' +
+    '<li><b>Log on</b> = nobody online and 6+ (TWR), 10+ (APP) or 20+ (CTR) movements in the next 60 minutes. <b>Busy soon</b> = that much traffic building within 120 minutes. <b>Online</b> = already covered.</li>' +
     '<li><b>Historical Data</b> loads precomputed StatSim USA aggregates from <b>Supabase</b> ' +
     '(refreshed every Monday for week / month / year). Process live / Paste remain as fallbacks.</li>' +
     '<li>The Period box has two rows: <b>Pilots</b> (movements) and <b>ATC</b> (controller time online). ' +
