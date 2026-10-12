@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilot ACARS — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #050505;
+    --fg: #cfcfcf;
+    --fg-dim: #6b6b6b;
+    --cyan: #3fb7b0;
+    --green: #79d27a;
+    --amber: #e8a838;
+    --red: #e07070;
+    --line: #333;
+    --panel: #121212;
+    --paper: #f4f1e8;
+    --ink: #1b1b1b;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  #page { padding-top: var(--vatflow-nav-h); background: #0b0b0b; min-height: 100vh; }
+  .hdr {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 8px 14px; background: #161616; border-bottom: 1px solid #444;
+  }
+  .hdr .title { color: #fff; letter-spacing: 0.4px; font-size: 14px; }
+  .hdr .sub { color: var(--fg-dim); font-size: 11px; }
+  .hdr .clock { margin-left: auto; color: var(--fg-dim); font-size: 11px; }
+  .note { padding: 8px 14px; font-size: 11px; color: var(--fg-dim); line-height: 1.5; border-bottom: 1px solid #222; }
+  .note b { color: var(--fg); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px 14px; }
+  @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); padding: 10px 12px; min-width: 0; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 {
+    margin: 0 0 8px; font-size: 11px; letter-spacing: 0.1em; color: var(--amber);
+    font-weight: 600; text-transform: uppercase;
+  }
+  .card .hint { color: var(--fg-dim); font-size: 10.5px; margin: 0 0 8px; line-height: 1.45; }
+  label.f { display: block; font-size: 10px; color: var(--fg-dim); letter-spacing: 0.06em; margin: 8px 0 3px; }
+  input[type=text] {
+    width: 100%; max-width: 320px; background: #0d0d0d; border: 1px solid #444; color: #fff;
+    font-family: inherit; font-size: 13px; padding: 6px 8px;
+  }
+  input[readonly] { color: var(--fg-dim); }
+  .chk { display: flex; gap: 8px; align-items: center; font-size: 12px; margin: 10px 0 4px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  button.b {
+    background: #1d1d1d; border: 1px solid #555; color: var(--fg); font-family: inherit;
+    font-size: 11.5px; padding: 6px 12px; cursor: pointer; letter-spacing: 0.04em;
+  }
+  button.b:hover { background: #262626; }
+  button.b.primary { border-color: #7a5c1d; color: var(--amber); }
+  button.b.danger { border-color: #6a2a2a; color: var(--red); }
+  button.b:disabled { opacity: 0.5; cursor: default; }
+  .msgline { font-size: 11.5px; min-height: 16px; }
+  .msgline.ok { color: var(--green); }
+  .msgline.err { color: var(--red); }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pill { display: inline-flex; gap: 6px; align-items: center; padding: 4px 9px; border: 1px solid #444; background: #151515; font-size: 11.5px; }
+  .pill .lab { color: var(--fg-dim); font-size: 10px; }
+  .pill.ok { border-color: #2d5a32; color: var(--green); }
+  .pill.warn { border-color: #6a5420; color: var(--amber); }
+  .pill.bad { border-color: #6a2a2a; color: var(--red); }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th { text-align: left; color: var(--fg-dim); font-weight: 600; padding: 5px 6px; border-bottom: 1px solid #333; font-size: 10px; letter-spacing: 0.06em; }
+  td { padding: 6px; border-bottom: 1px solid #1c1c1c; vertical-align: top; }
+  td.st.sent { color: var(--green); }
+  td.st.due { color: var(--amber); }
+  td.st.skip { color: var(--fg-dim); }
+  .waiting { margin-top: 8px; font-size: 11.5px; color: var(--amber); }
+  .reason { margin-top: 8px; font-size: 11.5px; color: var(--fg-dim); }
+  .printers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  @media (max-width: 1100px) { .printers { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 700px) { .printers { grid-template-columns: 1fr; } }
+  .slip h3 { margin: 0 0 4px; font-size: 10.5px; color: var(--fg-dim); letter-spacing: 0.08em; font-weight: 600; }
+  .slip h3 span { color: var(--cyan); font-weight: 400; }
+  pre.acars {
+    margin: 0; background: var(--paper); color: var(--ink); padding: 12px 14px;
+    font-family: "Courier New", Courier, monospace; font-size: 12.5px; line-height: 1.32;
+    white-space: pre; overflow-x: auto; border: 1px solid #c9c4b4;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+  .empty { color: var(--fg-dim); font-size: 11.5px; padding: 8px 0; }
+  .signin { padding: 24px 14px; }
+  .signin p { font-size: 12px; color: var(--fg-dim); max-width: 640px; line-height: 1.55; }
+  .hidden { display: none !important; }
+  .dry { color: var(--amber); font-size: 10px; margin-left: 6px; }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div id="page">
+  <div class="hdr">
+    <span class="title">PILOT ACARS</span>
+    <span class="sub">Ops Center · automatic company messages over Hoppie</span>
+    <span class="clock" id="clock"></span>
+  </div>
+  <div class="note">
+    Fly a <b id="opsLabel">DAL</b> callsign with your ACARS client connected to Hoppie and VATFLOW sends your
+    flight three messages from <b id="stationLabel">DALOPS</b>, built from your latest SimBrief plan:
+    the <b>EFSR</b> (fuel slip) 5 minutes after you are seen on VATSIM and Hoppie, the <b>pre-pushback</b>
+    message 8 minutes before your filed departure time, and the <b>WDR</b> (final weights and takeoff data)
+    at a random time in the <span id="wdrWin">15</span> minutes before your filed departure time.
+    Turn on Runway Analysis in SimBrief to get takeoff numbers in the WDR.
+  </div>
+
+  <div id="signedOut" class="signin hidden">
+    <p>Sign in with your VATSIM account to set up your pilot profile. VATFLOW only uses your CID to find your
+      flight on the network.</p>
+    <button type="button" class="b primary" id="signInBtn">Sign in with VATSIM</button>
+  </div>
+
+  <div id="signedIn" class="cards hidden">
+    <div class="card">
+      <h2>Your profile</h2>
+      <p class="hint">Your CID comes from your VATSIM sign-in. Messages only go to a flight connected under this CID.</p>
+      <label class="f" for="cid">VATSIM CID</label>
+      <input type="text" id="cid" readonly>
+      <label class="f" for="simbrief">SIMBRIEF USERNAME (OR PILOT ID)</label>
+      <input type="text" id="simbrief" autocomplete="off" spellcheck="false" placeholder="e.g. jsmith">
+      <label class="chk"><input type="checkbox" id="enabled" checked> Send me automatic ACARS messages</label>
+      <div class="row">
+        <button type="button" class="b primary" id="saveBtn">Save profile</button>
+        <button type="button" class="b danger hidden" id="deleteBtn">Delete my profile</button>
+      </div>
+      <div class="msgline" id="saveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Your flight</h2>
+      <div class="pills" id="pills"></div>
+      <table>
+        <thead><tr><th>MESSAGE</th><th>WHEN</th><th>STATUS</th></tr></thead>
+        <tbody id="sched"></tbody>
+      </table>
+      <div class="waiting hidden" id="waiting"></div>
+      <div class="reason hidden" id="reason"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Sent to your aircraft</h2>
+      <div id="sent" class="printers"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Preview from your latest SimBrief plan</h2>
+      <p class="hint" id="previewHint">How the three messages would read right now. Fuel by tank, the fuel already on
+        board, CG and stab trim are modelled from your plan; weights, fuel and takeoff performance are SimBrief's.</p>
+      <div class="row" style="margin:0 0 10px"><button type="button" class="b" id="previewBtn">Refresh preview</button>
+        <span class="msgline" id="previewMsg"></span></div>
+      <div id="preview" class="printers"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, getSession, getStoredToken, login } from "./shared/vatflow-auth.js";
+import { rampHubBase } from "./shared/ramp-live.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "pilot");
+
+const $ = id => document.getElementById(id);
+const NAMES = { efsr: "EFSR", pre: "Pre-pushback", wdr: "WDR" };
+const KINDS = ["efsr", "pre", "wdr"];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const z = t => { const d = new Date(t * 1000); return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "Z"; };
+const rel = t => {
+  const m = Math.round((t - Date.now() / 1000) / 60);
+  return m === 0 ? "now" : m > 0 ? `in ${m} min` : `${-m} min ago`;
+};
+
+let last = null;
+let busy = false;
+
+function tick() { $("clock").textContent = new Date().toISOString().slice(11, 16) + "Z"; }
+setInterval(tick, 1000); tick();
+
+async function call(body) {
+  const s = getSession();
+  const res = await fetch(`${rampHubBase()}/hub/pilot`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cid: s?.cid, vatflowToken: getStoredToken(), ...body }),
+  });
+  let data = null;
+  try { data = await res.json(); } catch (_) {}
+  if (!data) throw new Error(res.status === 404 ? "The hub does not have the Pilot ACARS update yet." : `Hub answered HTTP ${res.status}.`);
+  if (!data.ok) throw new Error(data.error || `Hub answered HTTP ${res.status}.`);
+  return data;
+}
+
+function renderStatus(d) {
+  last = d;
+  const ops = (d.ops || ["DAL"]).join("/");
+  $("opsLabel").textContent = ops;
+  $("stationLabel").textContent = (d.ops || ["DAL"]).map(o => o + "OPS").join("/");
+  $("wdrWin").textContent = d.wdrWindowMin || 15;
+  const p = d.profile;
+  if (p && document.activeElement !== $("simbrief")) $("simbrief").value = p.simbrief || "";
+  if (p) $("enabled").checked = !!p.enabled;
+  $("deleteBtn").classList.toggle("hidden", !p);
+
+  const st = d.status || {};
+  const pills = [];
+  if (!p) pills.push(`<span class="pill warn">No profile saved yet</span>`);
+  else if (!p.enabled) pills.push(`<span class="pill warn">Messages turned off</span>`);
+  pills.push(st.connected
+    ? `<span class="pill ${st.eligible ? "ok" : "warn"}"><span class="lab">VATSIM</span>${esc(st.callsign)} ${esc(st.dep || "")}${st.arr ? "-" + esc(st.arr) : ""}</span>`
+    : `<span class="pill bad"><span class="lab">VATSIM</span>not connected</span>`);
+  if (st.eligible) {
+    pills.push(st.hoppie === true ? `<span class="pill ok"><span class="lab">HOPPIE</span>connected</span>`
+      : st.hoppie === false ? `<span class="pill bad"><span class="lab">HOPPIE</span>not connected</span>`
+      : `<span class="pill"><span class="lab">HOPPIE</span>checking…</span>`);
+  }
+  if (st.proposed) pills.push(`<span class="pill"><span class="lab">P-TIME</span>${z(st.proposed)}</span>`);
+  if (d.dryRun) pills.push(`<span class="pill warn">Hub in test mode: nothing is actually sent</span>`);
+  $("pills").innerHTML = pills.join("");
+
+  const due = st.due || {}, sent = st.sent || {}, skipped = st.skipped || {};
+  $("sched").innerHTML = KINDS.map(k => {
+    let when = "—", cls = "", status = "—";
+    if (sent[k]) { when = z(sent[k]); cls = "sent"; status = "Sent " + rel(sent[k]); }
+    else if (skipped[k]) { cls = "skip"; status = "Skipped: " + skipped[k]; }
+    else if (st.rolled) { cls = "skip"; status = "Not sent (departed)"; }
+    else if (due[k]) { when = z(due[k]); cls = "due"; status = "Due " + rel(due[k]); }
+    else if (k === "efsr" && st.eligible) status = "5 min after you are on VATSIM and Hoppie";
+    else if (k === "pre") status = "P-time minus 8 min";
+    else if (k === "wdr") status = `Random, last ${d.wdrWindowMin || 15} min before P-time`;
+    return `<tr><td>${NAMES[k]}</td><td>${when}</td><td class="st ${cls}">${esc(status)}</td></tr>`;
+  }).join("");
+  $("waiting").classList.toggle("hidden", !st.waiting);
+  $("waiting").textContent = st.waiting || "";
+  $("reason").classList.toggle("hidden", !st.reason);
+  $("reason").textContent = st.reason || "";
+
+  const log = (st.log || []).slice().reverse();
+  $("sent").innerHTML = log.length ? log.map(m => slip(`${NAMES[m.kind] || m.kind}`, `${z(m.t)}${m.dryRun ? " · test mode, not sent" : ""}`, m.text)).join("")
+    : `<div class="empty">Nothing sent yet.</div>`;
+}
+
+function slip(title, sub, text) {
+  return `<div class="slip"><h3>${esc(title)} <span>${esc(sub)}</span></h3><pre class="acars">${esc(text)}</pre></div>`;
+}
+
+function renderPreview(pv) {
+  if (!pv) { $("preview").innerHTML = `<div class="empty">Save your SimBrief username to see a preview.</div>`; return; }
+  if (!pv.ok) { $("preview").innerHTML = `<div class="empty">${esc(pv.error)}</div>`; return; }
+  $("previewMsg").className = "msgline" + (pv.issue ? " err" : "");
+  $("previewMsg").textContent = pv.issue || "";
+  $("preview").innerHTML = KINDS.map(k => slip(NAMES[k], "", pv[k])).join("");
+}
+
+async function load(preview) {
+  if (busy) return;
+  busy = true;
+  try {
+    const d = await call({ action: "get", preview });
+    renderStatus(d);
+    if (preview) renderPreview(d.preview);
+  } catch (e) {
+    $("saveMsg").className = "msgline err";
+    $("saveMsg").textContent = e.message;
+  } finally { busy = false; }
+}
+
+$("saveBtn").addEventListener("click", async () => {
+  $("saveBtn").disabled = true;
+  $("saveMsg").className = "msgline"; $("saveMsg").textContent = "Saving…";
+  try {
+    const d = await call({ action: "save", simbrief: $("simbrief").value.trim(), enabled: $("enabled").checked, preview: true });
+    renderStatus(d); renderPreview(d.preview);
+    $("saveMsg").className = "msgline ok";
+    $("saveMsg").textContent = d.preview && !d.preview.ok ? `Saved, but ${d.preview.error}` : "Saved.";
+  } catch (e) {
+    $("saveMsg").className = "msgline err"; $("saveMsg").textContent = e.message;
+  } finally { $("saveBtn").disabled = false; }
+});
+
+$("deleteBtn").addEventListener("click", async () => {
+  if (!confirm("Delete your pilot profile? VATFLOW stops sending you messages and forgets your SimBrief username.")) return;
+  try {
+    const d = await call({ action: "delete" });
+    $("simbrief").value = "";
+    renderStatus(d); renderPreview(null);
+    $("saveMsg").className = "msgline ok"; $("saveMsg").textContent = "Profile deleted.";
+  } catch (e) {
+    $("saveMsg").className = "msgline err"; $("saveMsg").textContent = e.message;
+  }
+});
+
+$("previewBtn").addEventListener("click", () => load(true));
+$("signInBtn").addEventListener("click", () => login());
+
+function show() {
+  const s = getSession();
+  $("signedOut").classList.toggle("hidden", !!s);
+  $("signedIn").classList.toggle("hidden", !s);
+  if (s) $("cid").value = s.cid;
+  return s;
+}
+
+window.addEventListener("vatflow-auth-changed", () => { if (show() && !last) load(true); });
+await initVatflowAuth();
+if (show()) load(true);
+setInterval(() => { if (getSession()) load(false); }, 30000);
+</script>
+</body>
+</html>
