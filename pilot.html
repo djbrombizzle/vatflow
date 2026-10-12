@@ -156,10 +156,11 @@
 
     <div class="card wide">
       <h2>Preview from your latest SimBrief plan</h2>
-      <p class="hint" id="previewHint">How the messages would read right now (the push update as if you had connected 30 to 15 minutes before departure). Fuel by tank, the fuel already on
+      <p class="hint" id="previewHint">Messages are always built from your latest SimBrief plan when they are sent; re-import after you regenerate it to see the new numbers here. How the messages would read right now (the push update as if you had connected 30 to 15 minutes before departure). Fuel by tank, the fuel already on
         board, CG and stab trim are modelled from your plan; weights, fuel and takeoff performance are SimBrief's.</p>
-      <div class="row" style="margin:0 0 10px"><button type="button" class="b" id="previewBtn">Refresh preview</button>
-        <span class="msgline" id="previewMsg"></span></div>
+      <div class="row" style="margin:0 0 10px"><button type="button" class="b primary" id="previewBtn">Re-import SimBrief OFP</button>
+        <span class="msgline" id="ofpLine"></span></div>
+      <div class="msgline" id="previewMsg" style="margin:-4px 0 10px"></div>
       <div id="preview" class="printers"></div>
     </div>
   </div>
@@ -264,6 +265,11 @@ function slip(title, sub, text) {
 function renderPreview(pv) {
   if (!pv) { $("preview").innerHTML = `<div class="empty">Save your SimBrief username to see a preview.</div>`; return; }
   if (!pv.ok) { $("preview").innerHTML = `<div class="empty">${esc(pv.error)}</div>`; return; }
+  const o = pv.ofp || {};
+  $("ofpLine").textContent = [
+    "Loaded OFP:", o.callsign, o.orig && o.dest ? `${o.orig}-${o.dest}` : "", o.type, o.reg,
+    o.generated ? `generated ${z(o.generated)}` : "", o.fetched ? `· fetched ${z(o.fetched)}` : "",
+  ].filter(Boolean).join(" ");
   $("previewMsg").className = "msgline" + (pv.issue ? " err" : "");
   $("previewMsg").textContent = pv.issue || "";
   $("preview").innerHTML = KINDS.map(k => slip(NAMES[k], "", pv[k])).join("");
@@ -307,7 +313,17 @@ $("deleteBtn").addEventListener("click", async () => {
   }
 });
 
-$("previewBtn").addEventListener("click", () => load(true));
+$("previewBtn").addEventListener("click", async () => {
+  $("previewBtn").disabled = true;
+  $("previewMsg").className = "msgline"; $("previewMsg").textContent = "Fetching your latest SimBrief plan…";
+  try {
+    const d = await call({ action: "reimport" });
+    renderStatus(d); renderPreview(d.preview);
+    if (d.preview && !d.preview.issue) { $("previewMsg").className = "msgline ok"; $("previewMsg").textContent = "Re-imported."; }
+  } catch (e) {
+    $("previewMsg").className = "msgline err"; $("previewMsg").textContent = e.message;
+  } finally { $("previewBtn").disabled = false; }
+});
 $("signInBtn").addEventListener("click", () => login());
 
 function show() {
