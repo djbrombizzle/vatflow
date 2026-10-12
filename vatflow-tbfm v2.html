@@ -7261,7 +7261,7 @@ function renderStaffingHistorical() {
 /* ---------- ATC Staffing Live: per-ARTCC traffic counts (now / next 60 / next 120 min) ---------- */
 /* Log on when nobody is online and this many movements (arrivals + departures) are due in the next 60 min.
    Center also counts aircraft airborne in its airspace right now. */
-const LIVE_LOGON = { TWR: 6, APP: 10, CTR: 20 };
+const LIVE_LOGON = { TWR: 15, APP: 25, CTR: 40 };
 const LIVE_NEAR_TWR_NM = 20;       /* arrivals this close count as "now" for the tower */
 const LIVE_NEAR_APP_NM = 60;       /* airborne this close to a TRACON field count as "now" for approach */
 const LIVE_GROUP_MIN = 3;          /* same origin \u2192 same destination, this many or more = group flight */
