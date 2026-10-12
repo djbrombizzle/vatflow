@@ -5582,7 +5582,13 @@ let wsicRowsCache = { result: null, minute: -1, rows: [] };
 function wsicAllRows(result) {
   const minute = Math.floor(Date.now() / 60000);
   if (wsicRowsCache.result !== result || wsicRowsCache.minute !== minute) {
-    wsicRowsCache = { result, minute, rows: buildStaffingHistTableRows(result) };
+    /* History counts are totals for a 2-4 hour window; the board shows them per hour. */
+    const rows = buildStaffingHistTableRows(result).map(r => {
+      const hours = r.upcomingEndMs > r.upcomingStartMs
+        ? Math.max(1, Math.round((r.upcomingEndMs - r.upcomingStartMs) / 3600000)) : STAFF_HIST_MAX_HOURS;
+      return Object.assign({}, r, { hours, predOps: histRoundOps(r.predOps / hours), avgOps: histRoundOps(r.avgOps / hours) });
+    });
+    wsicRowsCache = { result, minute, rows };
   }
   return wsicRowsCache.rows;
 }
@@ -5649,10 +5655,10 @@ function wsicReasons(row, cov) {
   }
   const pct = cov[row.type + "|" + row.id];
   if (pct != null) {
-    if (pct < 5) out.push({ cls: "gap", text: "Usually unstaffed \u00b7 " + pct + "% of hours" });
-    else if (pct < 25) out.push({ cls: "gap", text: "Often unstaffed \u00b7 " + pct + "% of hours" });
+    if (pct < 5) out.push({ cls: "gap", text: "Usually unstaffed \u00b7 staffed " + pct + "% of hours" });
+    else if (pct < 25) out.push({ cls: "gap", text: "Often unstaffed \u00b7 staffed " + pct + "% of hours" });
   }
-  out.push({ cls: "", text: "~" + row.avgOps + " ops on a typical " + row.localDowLabel });
+  out.push({ cls: "", text: "~" + row.avgOps + " ops/hr on a typical " + row.localDowLabel });
   if (row.reason) out.push({ cls: "", text: "Peak " + row.reason });
   return out;
 }
@@ -5774,7 +5780,8 @@ function wsicStaffedNearby(row, staffed, now) {
 function wsicAdjustRows(rows, rec) {
   const pre = rows.map(r => {
     const liveCount = wsicLiveCount(rec, r);
-    return Object.assign({}, r, { liveCount, wxIcao: wsicAnchor(r), predOps: Math.max(r.predOps, liveCount) });
+    return Object.assign({}, r, { liveCount, wxIcao: wsicAnchor(r),
+      predOps: Math.max(r.predOps, histRoundOps(liveCount / (r.hours || 1))) });
   });
   const fields = [];
   for (const r of wsicRankRows(pre)) {
@@ -5835,11 +5842,11 @@ function wsicDataSourceHtml() {
     " of StatSim history</summary>";
   h += renderStaffingHistPeriodControls({ showLive: false });
   h += '<div class="staffnote">Windows are the busiest 2\u20134 hours for each facility and weekday in the loaded ' +
-    "StatSim period, placed on their next date in the coming 7 days. <b>Ops expected</b> is the typical " +
-    "arrivals + departures in that window, raised " + Math.round(STAFF_EVENT_SCORE_BOOST * 100) +
+    "StatSim period, placed on their next date in the coming 7 days. <b>Ops / hr expected</b> is the typical " +
+    "arrivals + departures per hour across that window (a Center or Approach adds up all its fields), raised " + Math.round(STAFF_EVENT_SCORE_BOOST * 100) +
     "% per overlapping VATSIM event within " + STAFF_EVENT_LOCAL_NM + " nm, and less for events up to " +
     STAFF_EVENT_RADIUS_NM + " nm away (about 2 hours\u2019 flight, counted from when their traffic would leave), max two. " +
-    "If more flights are already airborne, on the ground, or prefiled for the window than history expects, that count is used. " +
+    "If more flights are already airborne, on the ground, or prefiled for the window than history expects, that rate is used. " +
     "Windows starting within 3 hours get +" + Math.round(WSIC_STAFFED_BOOST * 100) + "% per TWR / APP / CTR staffed now within " +
     STAFF_EVENT_RADIUS_NM + " nm (max +" + Math.round(WSIC_STAFFED_MAX * 100) + "%), since open positions nearby bring traffic. " +
     "A forecast of gusts 25 kt+, visibility under 1 SM, or a ceiling under 200 ft (NWS gridpoint forecast at the busiest field) adds " +
@@ -5865,7 +5872,7 @@ function wsicCardHtml(r, tier, c, cov, national) {
     '<div class="wsic-card-hd"><span class="fac">' + esc(r.id) + " <span>" + esc(r.type) + "</span></span>" +
     '<span class="wsic-tier ' + tier + '">' + (national ? (r.id === r.artcc ? "Open" : esc(r.artcc)) + " \u203a" : WSIC_TIER_LABEL[tier]) + "</span></div>" +
     '<div class="wsic-card-when">' + esc(wsicWhenLabel(r)) + "</div>" +
-    '<div class="wsic-card-row"><span class="n">' + r.predOps + '<small> ops</small></span>' +
+    '<div class="wsic-card-row"><span class="n">' + r.predOps + '<small> ops/hr</small></span>' +
     '<span class="wsic-cd' + (c.live ? " live" : "") + '">' + esc(c.text) + "</span></div>" +
     '<div class="wsic-chips">' + wsicChipsHtml(wsicReasons(r, cov), 2) + "</div></div>";
 }
@@ -5873,7 +5880,7 @@ function wsicCardHtml(r, tier, c, cov, national) {
 function renderWsicNational(res, type) {
   const now = Date.now();
   const names = { CTR: "centers", APP: "approach / TRACON facilities", TWR: "towers" };
-  let h = '<div class="wsic-sec">Busiest ' + names[type] + " this week <span>one best window each, ranked by ops expected \u00b7 tap one to open its ARTCC</span></div>";
+  let h = '<div class="wsic-sec">Busiest ' + names[type] + " this week <span>one best window each, ranked by ops per hour expected \u00b7 tap one to open its ARTCC</span></div>";
   if (!res) {
     return h + '<div class="staffnone">' + (staffingHist.status === "loading" ? "Loading traffic history\u2026"
       : "No traffic history loaded yet. Open Data source below and press Load from database.") + "</div>";
@@ -5930,7 +5937,7 @@ function renderWsicPicker(res) {
       '<span class="wsic-tile-name">' + esc(STAFFING_ARTCC_NAMES[id] || "") + (mine.has(id) ? " \u00b7 yours" : "") + "</span>" +
       (res
         ? '<span class="wsic-tile-bar"><i style="width:' + pct + '%"></i></span>' +
-          '<span class="wsic-tile-stats">' + (s.peak ? "peak <b>" + s.peak + "</b> ops" : "quiet week") +
+          '<span class="wsic-tile-stats">' + (s.peak ? "peak <b>" + s.peak + "</b> ops/hr" : "quiet week") +
           (s.events ? ' <span class="ev">\u2605' + s.events + "</span>" : "") +
           "</span>"
         : "") +
@@ -5965,7 +5972,7 @@ function wsicWeekHtml(rows, events, nowMs) {
       h += '<span class="wsic-wk-blk ' + tier + '" style="left:' + left.toFixed(2) + "%;width:" +
         Math.max(1.5, right - left).toFixed(2) + "%;top:" + (3 + lane * 15) + 'px" title="' +
         esc(r.id + " " + r.type + " \u00b7 " + histFmtLocalRange(r.upcomingStartMs, r.upcomingEndMs) +
-          " \u00b7 " + r.predOps + " ops expected") + '">' + esc(r.id + " " + r.type) + " <b>" + r.predOps + "</b></span>";
+          " \u00b7 " + r.predOps + " ops/hr expected") + '">' + esc(r.id + " " + r.type) + " <b>" + r.predOps + "</b></span>";
     });
     for (const ev of dayEvents) {
       const left = Math.max(0, (ev.startMs - dayStart) / span * 100);
@@ -6057,7 +6064,7 @@ function renderWsicBoard(res) {
     '<div class="wsic-hero-when">' + esc(wsicWhenLabel(best)) +
     ' <span class="wsic-cd' + (cd.live ? " live" : "") + '">' + esc(cd.text) + "</span></div>" +
     '<div class="wsic-chips">' + wsicChipsHtml(bestReasons, 4) + "</div></div>" +
-    '<div class="wsic-hero-num"><div class="n">' + best.predOps + "</div><div class=\"l\">ops expected</div>" +
+    '<div class="wsic-hero-num"><div class="n">' + best.predOps + "</div><div class=\"l\">ops / hr expected</div>" +
     (best.predOps > best.avgOps && wsicUpliftWhy(best)
       ? '<div class="up">\u2191 from ' + best.avgOps + " typical \u00b7 " + esc(wsicUpliftWhy(best)) + "</div>" : "") +
     "</div></div>";
@@ -6065,7 +6072,7 @@ function renderWsicBoard(res) {
   /* Next best windows */
   const picks = wsicPicks(ranked.slice(1), 6);
   if (picks.length) {
-    h += '<div class="wsic-sec">More good windows <span>ranked by ops expected</span></div><div class="wsic-cards">';
+    h += '<div class="wsic-sec">More good windows <span>ranked by ops per hour expected</span></div><div class="wsic-cards">';
     for (const r of picks) {
       const tier = wsicTier(r.predOps, max);
       const c = wsicCountdown(r.upcomingStartMs, r.upcomingEndMs, now);
