@@ -1146,6 +1146,7 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .live-group-etas span { font-family: var(--font-data); font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--elevated); border: 1px solid var(--border); color: var(--text-dim); }
 .live-group-etas span.air { border-color: rgba(123, 110, 184, 0.6); color: #cfc6fa; }
 .live-group-etas b { color: var(--text); font-weight: 600; }
+.wsic-chip.staff { background: rgba(232, 168, 56, 0.12); border-color: rgba(232, 168, 56, 0.45); color: var(--accent-text); }
 .wsic-chip.wx { background: rgba(91, 168, 201, 0.15); border-color: rgba(91, 168, 201, 0.5); color: #9fd2e8; }
 .wsic-chip.live { background: rgba(76, 175, 122, 0.13); border-color: rgba(76, 175, 122, 0.45); color: #8fdcb0; }
 .wsic-chip.gap { background: rgba(212, 92, 92, 0.12); border-color: rgba(212, 92, 92, 0.45); color: #eeaaaa; }
@@ -5615,6 +5616,11 @@ function wsicReasons(row, cov) {
   if (row.wxBad && row.wxBad.length) {
     out.push({ cls: "wx", text: "Bad weather at " + row.wxIcao + " \u00b7 " + row.wxBad.join(", ") });
   }
+  if (row.staffedNear && row.staffedNear.length) {
+    const names = row.staffedNear.slice(0, 3).map(f => f.id + " " + f.type).join(", ");
+    out.push({ cls: "staff", text: row.staffedNear.length + " staffed within 2 hr flight \u00b7 " + names +
+      (row.staffedNear.length > 3 ? " +" + (row.staffedNear.length - 3) : "") });
+  }
   if (row.liveCount) {
     out.push({ cls: "live", text: row.liveCount + " flight" + (row.liveCount === 1 ? "" : "s") +
       " airborne or filed for this window" });
@@ -5710,6 +5716,39 @@ function wsicLiveCount(rec, row) {
  * Board prediction: history (with event uplift) or the flights already airborne / filed
  * for the window, whichever is higher, raised when the field's forecast is bad.
  */
+/* Staffed facilities within about 2 hours' flight draw traffic in and out of the area.
+   Only known for now, so it applies to windows that start within the next 3 hours. */
+const WSIC_STAFFED_BOOST = 0.04;       /* per staffed facility in range */
+const WSIC_STAFFED_MAX = 0.2;
+const WSIC_STAFFED_HORIZON_MS = 3 * 3600000;
+/** Online TWR / APP / CTR from the feed, each with a point to measure distance from. */
+function wsicStaffedNow() {
+  const out = [];
+  const seen = {};
+  for (const c of (vatsim && vatsim.controllers) || []) {
+    const pc = parseStaffingController(c);
+    if (!pc) continue;
+    const key = pc.type + "|" + pc.id;
+    if (seen[key]) continue;
+    let icao = null;
+    if (pc.type === "TWR") icao = pc.id;
+    else if (pc.type === "APP") icao = Array.from((usTraconIndex().traconAirports || {})[pc.id] || []).find(a => lookup(a)) || null;
+    else icao = Object.keys(STAFFING_AIRPORT_ARTCC).find(a => STAFFING_AIRPORT_ARTCC[a] === pc.id) || null;
+    const pt = icao && lookup(icao);
+    if (!pt) continue;
+    seen[key] = true;
+    out.push({ type: pc.type, id: pc.id, lat: pt[0], lon: pt[1], callsign: pc.callsign });
+  }
+  return out;
+}
+function wsicStaffedNearby(row, staffed, now) {
+  if (!staffed.length || !(row.upcomingStartMs < now + WSIC_STAFFED_HORIZON_MS)) return [];
+  const pt = lookup(row.wxIcao);
+  if (!pt) return [];
+  const own = new Set([row.id].concat(histSlotAirportIds(row)));
+  return staffed.filter(f => !own.has(f.id) && !(f.type === row.type && f.id === row.id) &&
+    haversineNm(pt[0], pt[1], f.lat, f.lon) <= STAFF_EVENT_RADIUS_NM);
+}
 function wsicAdjustRows(rows, rec) {
   const pre = rows.map(r => {
     const liveCount = wsicLiveCount(rec, r);
@@ -5721,7 +5760,13 @@ function wsicAdjustRows(rows, rec) {
     if (fields.length >= WSIC_WX_MAX_FIELDS) break;
   }
   wsicEnsureWx(fields);
+  const staffed = wsicStaffedNow();
+  const now = Date.now();
   for (const r of pre) {
+    r.staffedNear = wsicStaffedNearby(r, staffed, now);
+    if (r.staffedNear.length) {
+      r.predOps = histRoundOps(r.predOps * (1 + Math.min(WSIC_STAFFED_MAX, WSIC_STAFFED_BOOST * r.staffedNear.length)));
+    }
     const wx = wsicWx[r.wxIcao];
     r.wxBad = wx && wx.status === "ok" ? wsicBadWx(wx.props, r.upcomingStartMs, r.upcomingEndMs) : [];
     if (r.wxBad.length) r.predOps = histRoundOps(r.predOps * (1 + WSIC_WX_BOOST));
@@ -5733,6 +5778,7 @@ function wsicUpliftWhy(row) {
   if (row.eventBoost) why.push("events");
   if (row.liveCount > row.avgOps) why.push("filed flights");
   if (row.wxBad && row.wxBad.length) why.push("weather");
+  if (row.staffedNear && row.staffedNear.length) why.push("staffed neighbors");
   return why.join(", ");
 }
 function wsicLiveRec() {
@@ -5772,6 +5818,8 @@ function wsicDataSourceHtml() {
     "% per overlapping VATSIM event within " + STAFF_EVENT_LOCAL_NM + " nm, and less for events up to " +
     STAFF_EVENT_RADIUS_NM + " nm away (about 2 hours\u2019 flight, counted from when their traffic would leave), max two. " +
     "If more flights are already airborne, on the ground, or prefiled for the window than history expects, that count is used. " +
+    "Windows starting within 3 hours get +" + Math.round(WSIC_STAFFED_BOOST * 100) + "% per TWR / APP / CTR staffed now within " +
+    STAFF_EVENT_RADIUS_NM + " nm (max +" + Math.round(WSIC_STAFFED_MAX * 100) + "%), since open positions nearby bring traffic. " +
     "A forecast of gusts 25 kt+, visibility under 1 SM, or a ceiling under 200 ft (NWS gridpoint forecast at the busiest field) adds " +
     Math.round(WSIC_WX_BOOST * 100) + "%. " +
     "<b>Usually unstaffed</b> uses StatSim controller hours for the same period. " +
@@ -6015,7 +6063,7 @@ function renderWsicBoard(res) {
 function renderStaffingHistLookup() {
   restoreStaffingHistoricalCache();
   /* Coverage ("usually unstaffed") needs ATC hours for the same period. */
-  if (!staffingAtc.result && !wsicAtcRequested && staffingAtc.status !== "loading") {
+  if (!staffingAtc.result && !wsicAtcRequested && staffingAtc.status !== "loading" && window.VF_StaffingAtcStore) {
     wsicAtcRequested = true;
     staffingAtc.period = staffingHist.period;
     setTimeout(loadStaffingAtcFromDb, 0);
@@ -11231,7 +11279,12 @@ if (ATC_OPS_MODE) {
   const fromHash = ATC_OPS_HASH[String(location.hash || "").replace("#", "")];
   if (fromHash) staffingSub = fromHash;
   setTab("staffing");
-  if (staffingSub !== "live" && !staffingHist.result && staffingHist.status !== "loading") loadStaffingHistoricalFromDb();
+  /* The history store is a module script, which runs after this one: load once the page has finished loading. */
+  const loadHist = () => {
+    if (staffingSub !== "live" && !staffingHist.result && staffingHist.status !== "loading") loadStaffingHistoricalFromDb();
+  };
+  if (document.readyState === "complete") loadHist();
+  else window.addEventListener("load", loadHist);
 } else {
   const staffTab = document.querySelector('.tab[data-tab="staffing"]');
   if (staffTab) staffTab.remove();
