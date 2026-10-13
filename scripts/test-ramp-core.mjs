@@ -552,8 +552,8 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
 {
   const H = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIAH.json", import.meta.url))));
   const count = r => H.stands.filter(s => s.ramp === r).length;
-  assert(H.stands.length === 166 && count("IAH-B") === 26 && count("IAH-E") === 24 && count("IAH-CGO") === 8 &&
-    count("IAH-ECN") + count("IAH-ECS") === 17, "KIAH 166 stands: Terminals A-E, Terminal B B40-B68, Central and East Cargo");
+  assert(H.stands.length === 163 && count("IAH-B") === 26 && count("IAH-E") === 23 && count("IAH-CGO") === 8 &&
+    count("IAH-ECN") + count("IAH-ECS") === 17, "KIAH 163 stands: Terminals A-E, Terminal B B40-B68, Central and East Cargo");
   assert(H.stands.every(s => !s.approx && s.noseHdg != null), "every KIAH stand has real coordinates and a heading");
   // Terminal B is renumbered (70-9C): B40-B48, B50-B57, B60-B68, none of the old B1-B31.
   assert(H.standById.has("B40") && H.standById.has("B68") && !H.standById.has("B1") && !H.standById.has("B49"), "KIAH Terminal B numbering");
@@ -563,7 +563,11 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   assert(composeStandTelex(H, "E9").includes("CTC EAST RAMP 131.275"), "KIAH Terminal E is East Ramp");
   assert(composeStandTelex(H, "DH1A").startsWith("KIAH INTERNATIONAL RAMP: PARK STAND 1A."), "KIAH D hardstands keep their chart names");
   assert(!/ CTC /.test(composeStandTelex(H, "CC2")), "KIAH cargo ramps have no chart frequency: " + composeStandTelex(H, "CC2"));
-  assert(standForGate(H, "B51")?.id === "B51" && standForGate(H, "E20A")?.id === "E20A", "KIAH real gates match");
+  assert(standForGate(H, "B51")?.id === "B51" && standForGate(H, "E20A")?.id === "E20", "KIAH real gates match");
+  // One stand per gate with several lead-in lines, labelled with all of them.
+  assert(standForGate(H, "E20B")?.id === "E20" && standForGate(H, "E20")?.id === "E20" && H.standById.get("E20").label === "E20A/B" &&
+    ["D5", "D5A", "D5B", "D5C"].every(g => standForGate(H, g)?.id === "D5") && !H.standById.has("D5A") && !H.standById.has("E20A"), "KIAH E20A/B and D5A/B/C are one stand each");
+  assert(["SR1", "SR2", "SR3"].every(id => H.standById.get(id).noseHdg === 180), "KIAH South Ramp noses south");
   const want = { UAL1: "IAH-E", SKW1: "IAH-B", AAL1: "IAH-AS", BAW1: "IAH-D", FDX1: "IAH-CGO" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(H, [], operatorFor(H, cs, ""), cs).ramp === ramp, `KIAH ${cs} on ${ramp}`);
 }
