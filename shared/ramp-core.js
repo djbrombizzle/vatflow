@@ -715,7 +715,8 @@ function gateKey(name) {
 /**
  * The layout stand for a real-world gate name (FlightStats "D39", "A1"), or
  * null: by id or label, ignoring leading zeros in the number (A1 = A01). A
- * label naming several lead-in lines ("E20A/B") matches each (E20A, E20B).
+ * label naming several lead-in lines ("E20A/B", "D17/A/X") matches each
+ * (E20A, E20B; D17, D17A, D17X).
  */
 export function standForGate(L, gate) {
   const want = gateKey(gate);
@@ -725,9 +726,10 @@ export function standForGate(L, gate) {
     return m ? m[1] + "|" + m[2] : k;
   };
   const w = split(want);
+  // "E20A/B" is E20A and E20B; "B22/A" (base line and its A line) is B22 and B22A.
   const lines = label => {
-    const m = /^(.*?[0-9])([A-Z](?:\/[A-Z])+)$/.exec(gateKey(label));
-    return m ? m[2].split("/").map(x => m[1] + x) : [];
+    const m = /^(.*?[0-9])([A-Z]?)((?:\/[A-Z])+)$/.exec(gateKey(label));
+    return m ? [m[2], ...m[3].split("/").slice(1)].map(x => m[1] + x) : [];
   };
   for (const s of L.stands) {
     for (const k of [s.id, s.label, ...lines(s.label)]) {
