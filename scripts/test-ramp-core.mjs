@@ -225,7 +225,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO", "index lists KCVG, KIAD, KDCA, KRDU and KMCO");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH and KAUS");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -547,5 +547,36 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
     Date.now = realNow;
     globalThis.setTimeout = realTimeout;
   }
+}
+/* ---------- KIAH ---------- */
+{
+  const H = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIAH.json", import.meta.url))));
+  const count = r => H.stands.filter(s => s.ramp === r).length;
+  assert(H.stands.length === 166 && count("IAH-B") === 26 && count("IAH-E") === 24 && count("IAH-CGO") === 8 &&
+    count("IAH-ECN") + count("IAH-ECS") === 17, "KIAH 166 stands: Terminals A-E, Terminal B B40-B68, Central and East Cargo");
+  assert(H.stands.every(s => !s.approx && s.noseHdg != null), "every KIAH stand has real coordinates and a heading");
+  // Terminal B is renumbered (70-9C): B40-B48, B50-B57, B60-B68, none of the old B1-B31.
+  assert(H.standById.has("B40") && H.standById.has("B68") && !H.standById.has("B1") && !H.standById.has("B49"), "KIAH Terminal B numbering");
+  assert(composeStandTelex(H, "B62") === "KIAH WEST RAMP: PARK STAND B62. ENTER AT SPOT 2. CTC WEST RAMP 121.625 AT SPOT 2 FOR TAXI.", "KIAH B telex: " + composeStandTelex(H, "B62"));
+  assert(composeStandTelex(H, "A9").startsWith("KIAH NORTH RAMP: PARK STAND A9.") && composeStandTelex(H, "A9").includes("130.825"), "KIAH A north is North Ramp");
+  assert(composeStandTelex(H, "D12").includes("CTC INTERNATIONAL RAMP 131.3"), "KIAH Terminal D is International Ramp");
+  assert(composeStandTelex(H, "E9").includes("CTC EAST RAMP 131.275"), "KIAH Terminal E is East Ramp");
+  assert(composeStandTelex(H, "DH1A").startsWith("KIAH INTERNATIONAL RAMP: PARK STAND 1A."), "KIAH D hardstands keep their chart names");
+  assert(!/ CTC /.test(composeStandTelex(H, "CC2")), "KIAH cargo ramps have no chart frequency: " + composeStandTelex(H, "CC2"));
+  assert(standForGate(H, "B51")?.id === "B51" && standForGate(H, "E20A")?.id === "E20A", "KIAH real gates match");
+  const want = { UAL1: "IAH-E", SKW1: "IAH-B", AAL1: "IAH-AS", BAW1: "IAH-D", FDX1: "IAH-CGO" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(H, [], operatorFor(H, cs, ""), cs).ramp === ramp, `KIAH ${cs} on ${ramp}`);
+}
+/* ---------- KAUS ---------- */
+{
+  const A = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KAUS.json", import.meta.url))));
+  assert(A.stands.length === 61 && A.stands.filter(s => s.ramp === "AUS-M").length === 15 && A.stands.filter(s => s.ramp === "AUS-13").length === 5,
+    "KAUS 61 stands: gates 1-37 with lettered gates, 13A-13E, Maintenance Ramp M1-M13");
+  assert(A.stands.every(s => !s.approx && s.noseHdg != null), "every KAUS stand has real coordinates and a heading");
+  assert(composeStandTelex(A, "6") === "KAUS RAMP: PARK STAND 6. ENTER VIA TAXILANE C1. CTC RAMP 126.225.", "KAUS telex: " + composeStandTelex(A, "6"));
+  assert(composeStandTelex(A, "M13") === "KAUS RAMP: PARK STAND M13.", "KAUS maintenance ramp has no ramp frequency");
+  assert(A.stands.filter(s => s.ramp === "AUS-M").every(s => (s.tags || []).includes("maintenance")), "KAUS maintenance stands are tagged");
+  assert(suggestStand(A, [], operatorFor(A, "SWA1", ""), "SWA1").ramp === "AUS-E" && suggestStand(A, [], operatorFor(A, "DAL1", ""), "DAL1").ramp === "AUS-W", "KAUS airline gates");
+  assert(airlineStands(A, { callsign: "SWA12", op: operatorFor(A, "SWA12", "") }).every(id => !id.startsWith("M") && !id.startsWith("13")), "KAUS proposals skip the hardstands and maintenance");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
