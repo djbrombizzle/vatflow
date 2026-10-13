@@ -14,14 +14,16 @@ Personal reference for how sign-in, permissions, and admin tools work after VATS
 flowchart LR
     visitor[Not signed in]
     basic[Signed in — Basic]
-    editor[ARTCC Editor]
+    contributor[ERIDS Contributor]
+    tmu[ARTCC TMU]
     staff[ARTCC Staff]
     admin[Global Admin]
 
     visitor -->|browse only| tools[All VATFLOW tools]
     basic -->|runway + RDY| limited[Limited writes]
-    editor -->|own ARTCC only| scoped[FCA + Airport TMU]
-    staff -->|whitelist editors| scoped
+    contributor -->|own ARTCC only| erids[ERIDS links]
+    tmu -->|own ARTCC only| scoped[FCA + Airport TMU + ERIDS]
+    staff -->|whitelist TMU + contributors| scoped
     admin -->|any ARTCC + appoint staff| all[Full + Admin Access]
 ```
 
@@ -30,7 +32,7 @@ flowchart LR
 3. JWT is stored in the browser. Every tool reads it to decide what the user can do.
 4. **Full access** is granted only via the **whitelist**, now scoped by **ARTCC** (and optional role).
 5. **Global admin** is separate: CIDs in Railway `VATFLOW_ADMIN_CIDS`.
-6. **ARTCC staff** (appointed by admin) can whitelist editors for their facility without you.
+6. **ARTCC staff** (appointed by admin) can whitelist TMU and contributors for their facility without you.
 
 There are **no passwords**. Legacy page passwords are gone.
 
@@ -42,19 +44,20 @@ There are **no passwords**. Legacy page passwords are gone.
 |---|---|---|
 | **Visitor** | Don't sign in | **Sign in with VATSIM** |
 | **Basic** | Any VATSIM sign-in | CID · rating, **Signed in** |
-| **Editor** | Whitelist `role: editor` + ARTCC(s) | CID · rating, **Controller** or ARTCC codes |
+| **Contributor** | Whitelist `role: contributor` + ARTCC(s) | CID · rating, **ERIDS contributor** |
+| **TMU** | Whitelist `role: tmu` + ARTCC(s) | CID · rating, **Controller** or ARTCC codes |
 | **Staff** | Whitelist `role: staff` + ARTCC(s) | Same + **Admin Access** link |
 | **Global admin** | `VATFLOW_ADMIN_CIDS` | Admin Access + can appoint staff |
 
 ### Full access rule
 
 ```
-fullAccess = (CID is on whitelist)
+fullAccess = (CID is on whitelist) && role != "contributor"
 artccs     = entry.artccs   // e.g. ["ZDC"] or ["*"]
-accessRole = entry.role     // "editor" | "staff"
+accessRole = entry.role     // "tmu" | "staff" | "contributor"
 ```
 
-Legacy whitelist rows without `role` / `artccs` are treated as **global editors** (`artccs: ["*"]`) until you re-scope them.
+Legacy whitelist rows without `role` / `artccs` are treated as **global TMU** (`artccs: ["*"]`) until you re-scope them.
 
 `/auth/session` **recomputes** access from the live whitelist on each check, so revokes apply on the next page load / refresh (without waiting for JWT expiry for capability flags).
 
@@ -73,10 +76,19 @@ Legacy whitelist rows without `role` / `artccs` are treated as **global editors*
 | **Runway Balancer** | Full edit | — |
 | **FCA Builder** | **RDY** / cancel releases | Create/edit/delete FCAs |
 | **IDST** | **RDY** if online on VATSIM ATC | — |
-| **FCA Overview** | View map + strips; **RDY** if signed in | Reorder/exclude without ARTCC editor access |
+| **FCA Overview** | View map + strips; **RDY** if signed in | Reorder/exclude without ARTCC TMU access |
 | **Airport TMU** | View | Set rates, restrictions |
 
-### Editor (whitelisted for ARTCC)
+### Contributor (ERIDS only)
+
+Signed-in **Basic** everywhere, **plus** only for their ARTCC(s):
+
+- **ERIDS**: open **Admin** and edit home buttons, approach plates, SOP and chart links; **Save to hub**.
+- No FCA, Airport TMU or live sync writes (`fullAccess` stays false).
+
+### TMU (whitelisted for ARTCC)
+
+Formerly **Editor**. Stored `role: "editor"` rows read as `tmu`, so nobody needs re-adding.
 
 Everything Basic can do, **plus** only for their ARTCC(s):
 
@@ -85,16 +97,17 @@ Everything Basic can do, **plus** only for their ARTCC(s):
 | **FCA Builder** | Create/edit/delete FCAs whose owning `artcc` matches; drag-reorder sequence |
 | **FCA Overview** | Drag-reorder / exclude strips for owned FCAs (same sync as Builder) |
 | **Airport TMU** | Programs / restrictions / ground stops for airports in that ARTCC; Live sync merges scoped pushes |
+| **ERIDS** | Edit and save that ARTCC's links (same as Contributor) |
 
 ### Staff
 
-Everything an editor for those ARTCC(s) can do, **plus**:
+Everything a TMU for those ARTCC(s) can do, **plus**:
 
-- Open **Admin Access** and add/remove **editors** for their ARTCC only (cannot appoint other staff or grant `*`).
+- Open **Admin Access** and add/remove **TMU** and **contributors** for their ARTCC only (cannot appoint other staff or grant `*`).
 
 ### Global admin
 
-- Appoint **staff** and **editors** for any ARTCC (or `*` = all ARTCCs).
+- Appoint **staff**, **TMU** and **contributors** for any ARTCC (or `*` = all ARTCCs).
 - Override any facility.
 - Appoint **dispatchers** (below), and dispatch any operator code themselves.
 
@@ -126,13 +139,13 @@ Everything an editor for those ARTCC(s) can do, **plus**:
 
 ### FCAs
 
-- Owning field: `fca.artcc` (required to save for scoped editors).
+- Owning field: `fca.artcc` (required to save for scoped TMU).
 - `scope` may list other ARTCCs for metering geography; **ACL uses owner only**.
 
 ### Airport TMU programs
 
 - Airport → primary ARTCC via a shared map (e.g. KDCA → ZDC).
-- Unknown airports: scoped editors cannot edit; global (`*`) can.
+- Unknown airports: scoped TMU cannot edit; global (`*`) can.
 
 ---
 
@@ -144,10 +157,10 @@ Everything an editor for those ARTCC(s) can do, **plus**:
 2. CID + role **Staff** + check **ZDC** → Add.
 3. They sign in again (or refresh) and see Admin Access.
 
-### Staff whitelists a ZDC editor
+### Staff whitelists a ZDC TMU or contributor
 
 1. Staff opens Admin Access.
-2. Add CID as **Editor** with ZDC checked.
+2. Add CID as **TMU** (or **Contributor** for ERIDS only) with ZDC checked.
 3. That CID can edit ZDC FCAs and ZDC airports only.
 
 ### Revoke
@@ -169,7 +182,7 @@ Remove on Admin Access. Capabilities update on next `/auth/session` refresh; JWT
       "note": "ZDC TMU"
     },
     "1112223": {
-      "role": "editor",
+      "role": "tmu",
       "artccs": ["ZDC", "ZNY"],
       "addedAt": "...",
       "addedBy": "9876543",
@@ -230,4 +243,4 @@ FCA Supabase writes remain primarily **client-gated** by `canEditFca` (Supabase 
 
 ---
 
-*Last updated for ARTCC-scoped staff/editor roles and product clarity renames.*
+*Last updated for ARTCC-scoped staff/TMU/contributor roles and product clarity renames.*

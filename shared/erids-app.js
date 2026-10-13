@@ -25,7 +25,7 @@ import {
 import {
   initVatflowAuth,
   isSignedIn,
-  canEditArtcc,
+  canEditErids,
   login,
 } from "./vatflow-auth.js";
 import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
@@ -634,7 +634,7 @@ function renderChrome() {
 
   if (el.adminBtn) {
     el.adminBtn.hidden = false;
-    el.adminBtn.textContent = canEditArtcc(state.artcc) ? "Admin" : "Admin";
+    el.adminBtn.textContent = "Admin";
     el.adminBtn.classList.toggle("is-active", state.view === "admin");
   }
 }
@@ -1158,7 +1158,7 @@ function renderHelp() {
     `<li><b>Back</b> steps one level (facility → home, etc.).</li>` +
     `<li><b>Live data:</b> Messages NOTAMs / SIGMETs and WX METARs refresh from existing VATFLOW weather hubs.</li>` +
     `<li><b>Charts / SOPs:</b> Charts load official FAA d-TPP PDFs (airport diagram, approaches, SIDs, STARs) in the embedded viewer (sign in required for proxy). Prefer direct <code>.pdf</code> URLs in Admin for SOPs — HTML pages that block framing need <b>Open Externally</b>.</li>` +
-    `<li><b>Admin:</b> ARTCC editors/staff/admins can tap <b>Admin</b> to edit button labels and URLs; saves to the VATFLOW hub so everyone sees updates.</li>` +
+    `<li><b>Admin:</b> ARTCC contributors, TMU, staff and admins can tap <b>Admin</b> to edit button labels and URLs; saves to the VATFLOW hub so everyone sees updates.</li>` +
     `<li><b>Shortcuts:</b> tap Define Shortcuts, then a facility or link; Show User Shortcuts lists them.</li>` +
     `<li>Pick an <b>ARTCC</b> in the header to change live weather scope and load that center’s pack (ZJX ships with demo content).</li>` +
     `</ul>` +
@@ -1191,7 +1191,7 @@ function renderAdminButtonEditor(path, buttons) {
 }
 
 function renderAdmin() {
-  const canEdit = canEditArtcc(state.artcc);
+  const canEdit = canEditErids(state.artcc);
   const facs = (state.config && state.config.facilities) || [];
   if (!state.adminFacilityId && facs[0]) state.adminFacilityId = facs[0].id;
   const fac = adminFacility();
@@ -1210,7 +1210,7 @@ function renderAdmin() {
   }
 
   if (!canEdit) {
-    html += `<div class="erids-empty">Your account cannot edit ${esc(state.artcc)}. Need editor/staff whitelist for this ARTCC (or global admin).</div>`;
+    html += `<div class="erids-empty">Your account cannot edit ${esc(state.artcc)}. Need Contributor, TMU or Staff access for this ARTCC (or global admin).</div>`;
     return html;
   }
 

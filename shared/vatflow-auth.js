@@ -127,6 +127,20 @@ export function canEditArtcc(artcc) {
   return !!id && (_session.artccs || []).includes(id);
 }
 
+/** ERIDS link editing: TMU/staff/admin for the ARTCC, or an ERIDS contributor scoped to it. */
+export function canEditErids(artcc) {
+  if (canEditArtcc(artcc)) return true;
+  if (!isSignedIn() || _session.accessRole !== "contributor") return false;
+  const list = _session.artccs || [];
+  if (list.includes("*")) return true;
+  const id = String(artcc || "").toUpperCase();
+  return !!id && list.includes(id);
+}
+
+export function isEridsContributor() {
+  return isSignedIn() && _session.accessRole === "contributor";
+}
+
 /**
  * FCA write gate — ownership is fca.artcc (required for scoped editors).
  */
@@ -153,6 +167,7 @@ export function authStatusLabel() {
     if (!hasGlobalArtccAccess() && arts.length) return arts.join("/");
     return "Controller";
   }
+  if (isEridsContributor()) return "ERIDS contributor";
   return "Signed in";
 }
 

@@ -49,7 +49,7 @@ export async function saveHubEridsConfig(artcc, config) {
       );
     }
     if (res.status === 401 || res.status === 403) {
-      throw new Error(data.error || "Not allowed to edit this ARTCC — need editor/staff access.");
+      throw new Error(data.error || "Not allowed to edit this ARTCC — need Contributor, TMU or Staff access.");
     }
     throw new Error(data.error || "Save failed (" + res.status + ")");
   }

@@ -31,8 +31,9 @@
     <div class="card">
       <h1>Admin — ARTCC Access</h1>
       <p class="muted">
-        Grant <b>editors</b> full control for specific ARTCCs (FCA Builder + Airport TMU for that facility).
-        Global admins can also appoint <b>staff</b> who whitelist editors for their own ARTCC without further admin help.
+        Grant <b>TMU</b> full control for specific ARTCCs (FCA Builder, Airport TMU and ERIDS for that facility),
+        or <b>Contributor</b> access to edit only that ARTCC's ERIDS links.
+        Global admins can also appoint <b>staff</b> who whitelist TMU and contributors for their own ARTCC without further admin help.
       </p>
       <div id="authStatus" class="status">Checking sign-in…</div>
     </div>
@@ -41,7 +42,8 @@
       <div class="row">
         <input id="cidInput" inputmode="numeric" maxlength="9" placeholder="VATSIM CID">
         <select id="roleSelect">
-          <option value="editor">Editor</option>
+          <option value="tmu">TMU</option>
+          <option value="contributor">Contributor (ERIDS only)</option>
           <option value="staff">Staff (can whitelist)</option>
         </select>
         <input id="noteInput" placeholder="Note (optional)" style="flex:1;min-width:160px">
@@ -123,6 +125,12 @@
       return (managedArtccs || []).filter(a => a !== "*").sort();
     }
 
+    function roleLabel(role) {
+      if (role === "staff") return "Staff";
+      if (role === "contributor") return "Contributor";
+      return "TMU";
+    }
+
     function renderArtccPicker() {
       const list = selectableArtccs();
       artccPicker.innerHTML = list.map(id =>
@@ -136,7 +144,7 @@
       artccPicker.style.opacity = useGlobal ? "0.4" : "1";
       artccPicker.querySelectorAll("input").forEach(cb => { cb.disabled = useGlobal; });
       roleSelect.querySelector('option[value="staff"]').disabled = !canPromoteStaff;
-      if (!canPromoteStaff) roleSelect.value = "editor";
+      if (!canPromoteStaff && roleSelect.value === "staff") roleSelect.value = "tmu";
     }
 
     function selectedArtccs() {
@@ -165,7 +173,7 @@
         return `
         <tr>
           <td>${row.cid}</td>
-          <td>${row.role || "editor"}</td>
+          <td>${roleLabel(row.role)}</td>
           <td>${arts}</td>
           <td>${row.note || "—"}</td>
           <td>${(row.addedAt || "").slice(0, 10)}</td>
@@ -248,12 +256,12 @@
       }
       const s = getSession();
       if (isAdmin()) {
-        authStatus.textContent = "Global admin — manage staff and editors for any ARTCC.";
-        document.getElementById("formTitle").textContent = "Add staff or editor";
+        authStatus.textContent = "Global admin — manage staff, TMU and contributors for any ARTCC.";
+        document.getElementById("formTitle").textContent = "Add staff, TMU or contributor";
       } else {
         const arts = (s.artccs || []).join(", ");
-        authStatus.textContent = `ARTCC staff (${arts}) — whitelist editors for your facility only.`;
-        document.getElementById("formTitle").textContent = "Add editor for your ARTCC";
+        authStatus.textContent = `ARTCC staff (${arts}) — whitelist TMU and contributors for your facility only.`;
+        document.getElementById("formTitle").textContent = "Add TMU or contributor for your ARTCC";
       }
       whitelistCard.style.display = "";
       loadWhitelist();
@@ -285,7 +293,7 @@
         body: JSON.stringify({ cid, note, role, artccs }),
       });
       cfgStatus.textContent = res && res.ok
-        ? `Saved ${cid} (${role}, ${artccs.join(",")}).`
+        ? `Saved ${cid} (${roleLabel(role)}, ${artccs.join(",")}).`
         : `Failed: ${(res && res.error) || "unknown"}`;
       if (res && res.ok) {
         document.getElementById("cidInput").value = "";
