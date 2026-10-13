@@ -10,7 +10,7 @@
  * departures call for push, and an approved push actually pushes and taxis out.
  */
 import {
-  applyOp, emptyState, entrySpotFor, findLane, operatorFor, projectOnPolyline, chartHeading, queueOrder, PUSH,
+  applyOp, emptyState, entrySpotFor, findLane, operatorFor, projectOnPolyline, chartHeading, queueOrder, PUSH, distM, STAND_RADIUS_M,
 } from "./ramp-core.js";
 
 const TICK_MS = 1000;
@@ -27,7 +27,11 @@ function lanePath(L, stand) {
   let spot = entrySpotFor(L, stand);
   if (!spot) {
     const [p, q] = [lane.pts[0], lane.pts[lane.pts.length - 1]];
-    const far = Math.hypot(p[0] - stand.x, p[1] - stand.y) > Math.hypot(q[0] - stand.x, q[1] - stand.y) ? p : q;
+    let far = Math.hypot(p[0] - stand.x, p[1] - stand.y) > Math.hypot(q[0] - stand.x, q[1] - stand.y) ? p : q;
+    // Waiting there stopped would count as parked at a stand that close (KAUS: Taxilane C1 ends by gate 6A),
+    // so take the end clear of the gates.
+    const near = far === p ? q : p;
+    if (standClearM(L, stand.chart, far) < STAND_RADIUS_M && standClearM(L, stand.chart, near) > standClearM(L, stand.chart, far)) far = near;
     spot = { id: null, chart: stand.chart, x: far[0], y: far[1] };
   }
   const a = projectOnPolyline(lane.pts, stand.x, stand.y);
@@ -38,6 +42,14 @@ function lanePath(L, stand) {
   else if (a.seg > b.seg) for (let i = a.seg; i > b.seg; i--) pts.push(lane.pts[i]);
   pts.push([b.x, b.y], [spot.x, spot.y]);
   return { spot, pts };
+}
+
+/** Metres from a chart point to the nearest stand. */
+function standClearM(L, chart, [x, y]) {
+  const pr = L.proj[chart];
+  if (!pr) return Infinity;
+  const g = pr.toLatLon(x, y);
+  return Math.min(...L.stands.map(s => distM(g.lat, g.lon, s.lat, s.lon)));
 }
 
 /** Advance along a polyline by `px`. Mutates ac.path; returns true when done. */
