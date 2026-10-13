@@ -16,6 +16,8 @@ import {
   fetchHubEridsConfig,
   saveHubEridsConfig,
   deleteHubEridsConfig,
+  fetchHubEridsHistory,
+  restoreHubEridsVersion,
   shouldOpenInViewer,
   looksLikePdfUrl,
   fetchProxiedDocument,
@@ -76,6 +78,9 @@ const state = {
   config: null,
   configSource: "static",
   configUpdatedAt: null,
+  configRev: 0,
+  configUpdatedBy: null,
+  adminHistory: null,
   bundledConfig: null,
   adminFacilityId: null,
   adminStatus: "",
@@ -262,12 +267,21 @@ async function loadConfig(artcc) {
     ? structuredClone(bundled)
     : JSON.parse(JSON.stringify(bundled));
 
+  state.configRev = 0;
+  state.configUpdatedBy = null;
+  state.configUpdatedAt = null;
+  state.adminHistory = null;
   try {
     const hub = await fetchHubEridsConfig(artcc);
+    if (hub && hub.ok) {
+      // Kept even with no live pack, so a reset shows who reset it.
+      state.configRev = Number(hub.rev || 0);
+      state.configUpdatedBy = hub.updatedBy || null;
+      state.configUpdatedAt = hub.updatedAt || null;
+    }
     if (hub && hub.ok && hub.config) {
       state.config = hub.config;
       state.configSource = "hub";
-      state.configUpdatedAt = hub.updatedAt || null;
       return;
     }
   } catch (err) {
@@ -276,7 +290,6 @@ async function loadConfig(artcc) {
 
   state.config = bundled;
   state.configSource = "static";
-  state.configUpdatedAt = null;
 }
 
 function revokeViewerBlob() {
@@ -1190,6 +1203,46 @@ function renderAdminButtonEditor(path, buttons) {
   );
 }
 
+function whoText(by) {
+  if (!by) return "unknown";
+  return by.name && by.name !== by.cid ? `${by.name} (${by.cid})` : String(by.cid || "unknown");
+}
+
+function zuluText(iso) {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(iso || ""));
+  return m ? `${m[1]} ${m[2]}Z` : String(iso || "");
+}
+
+function lastChangeText() {
+  if (!state.configUpdatedAt) return "";
+  const by = state.configUpdatedBy;
+  const verb = by && by.reset ? "reset" : by && by.restoredRev ? `restored v${by.restoredRev}` : "saved";
+  return ` · v${state.configRev} ${verb} by ${whoText(by)} at ${zuluText(state.configUpdatedAt)}`;
+}
+
+const HISTORY_REASON = { save: "replaced by a save", reset: "removed by Reset", restore: "replaced by a restore" };
+
+function renderAdminHistory() {
+  let html = `<div class="erids-admin-section"><div class="erids-section-bar">Version history</div>`;
+  if (!state.adminHistory) {
+    html += `<div class="erids-form-row"><button type="button" class="erids-btn" id="eridsAdminHistory">Show history</button></div></div>`;
+    return html;
+  }
+  if (!state.adminHistory.length) {
+    return html + `<div class="erids-empty">No earlier versions yet.</div></div>`;
+  }
+  html += state.adminHistory
+    .map(
+      (h) =>
+        `<div class="erids-form-row" style="align-items:center">` +
+        `<span class="erids-meta" style="flex:1;margin:0">v${esc(h.rev)} · saved by ${esc(whoText(h.updatedBy))}${h.updatedAt ? " at " + esc(zuluText(h.updatedAt)) : ""} · ${esc(HISTORY_REASON[h.reason] || h.reason || "replaced")} by ${esc(whoText(h.archivedBy))} at ${esc(zuluText(h.archivedAt))}</span>` +
+        `<button type="button" class="erids-btn" data-admin-restore="${esc(h.rev)}" style="min-height:40px">Restore</button>` +
+        `</div>`
+    )
+    .join("");
+  return html + `</div>`;
+}
+
 function renderAdmin() {
   const canEdit = canEditErids(state.artcc);
   const facs = (state.config && state.config.facilities) || [];
@@ -1199,7 +1252,7 @@ function renderAdmin() {
   let html =
     `<h1 class="erids-view-title">Admin — ${esc(state.artcc)} links</h1>` +
     `<div class="erids-crumb">Admin</div>` +
-    `<p class="erids-meta">Source: ${esc(state.configSource)}${state.configUpdatedAt ? " · hub updated " + esc(state.configUpdatedAt) : ""}</p>` +
+    `<p class="erids-meta">Source: ${esc(state.configSource)}${lastChangeText()}</p>` +
     `<p class="erids-meta">Saves go to VATFLOW hub (<code>/erids/config</code>). If Save returns 404, merge/deploy <b>vatflow-hub PR #7</b> and set <code>ERIDS_FILE=/data/vatflow-erids.json</code> on Railway.</p>`;
 
   if (!isSignedIn()) {
@@ -1221,6 +1274,8 @@ function renderAdmin() {
     `<button type="button" class="erids-btn" id="eridsAdminReset">Reset to bundled</button>` +
     `</div>` +
     `<div class="erids-admin-status ${esc(state.adminStatusKind)}" id="eridsAdminStatus">${esc(state.adminStatus)}</div>`;
+
+  html += renderAdminHistory();
 
   // Center home buttons
   html += `<div class="erids-admin-section"><div class="erids-section-bar">Center home buttons</div>`;
@@ -1540,9 +1595,12 @@ function bindEvents() {
         state.adminStatus = "Saving…";
         state.adminStatusKind = "";
         render();
-        const result = await saveHubEridsConfig(state.artcc, state.config);
+        const result = await saveHubEridsConfig(state.artcc, state.config, state.configRev);
         state.configSource = "hub";
         state.configUpdatedAt = result.updatedAt || new Date().toISOString();
+        state.configRev = Number(result.rev || state.configRev + 1);
+        state.configUpdatedBy = result.updatedBy || null;
+        state.adminHistory = null;
         state.adminStatus = "Saved to hub.";
         state.adminStatusKind = "ok";
       } catch (err) {
@@ -1562,10 +1620,22 @@ function bindEvents() {
     }
     if (ev.target.id === "eridsAdminReset") {
       ev.preventDefault();
+      const ok = window.confirm(
+        `Reset ${state.artcc} to the bundled links?\n\n` +
+          `This removes the saved ${state.artcc} pack for everyone. ` +
+          `You can bring it back from Version history.`
+      );
+      if (!ok) return;
       try {
-        await deleteHubEridsConfig(state.artcc);
-      } catch (_) {
-        /* hub may not have a pack yet */
+        const result = await deleteHubEridsConfig(state.artcc, state.configRev);
+        state.configRev = Number(result.rev || state.configRev + 1);
+        state.configUpdatedAt = result.updatedAt || null;
+        state.configUpdatedBy = result.updatedBy || null;
+      } catch (err) {
+        state.adminStatus = (err && err.message) || "Reset failed";
+        state.adminStatusKind = "err";
+        render();
+        return;
       }
       if (state.bundledConfig) {
         state.config = structuredClone
@@ -1573,9 +1643,43 @@ function bindEvents() {
           : JSON.parse(JSON.stringify(state.bundledConfig));
       }
       state.configSource = "static";
-      state.configUpdatedAt = null;
-      state.adminStatus = "Reset to bundled JSON.";
+      state.adminHistory = null;
+      state.adminStatus = "Reset to bundled. The previous version is in Version history.";
       state.adminStatusKind = "ok";
+      render();
+      return;
+    }
+    if (ev.target.id === "eridsAdminHistory") {
+      ev.preventDefault();
+      try {
+        const data = await fetchHubEridsHistory(state.artcc);
+        state.adminHistory = data.history || [];
+      } catch (err) {
+        state.adminStatus = (err && err.message) || "Could not load history";
+        state.adminStatusKind = "err";
+      }
+      render();
+      return;
+    }
+    const restoreRev = ev.target.getAttribute && ev.target.getAttribute("data-admin-restore");
+    if (restoreRev) {
+      ev.preventDefault();
+      const ok = window.confirm(
+        `Restore ${state.artcc} v${restoreRev}?\n\nIt replaces the current links for everyone. ` +
+          `The current version stays in Version history.`
+      );
+      if (!ok) return;
+      try {
+        await restoreHubEridsVersion(state.artcc, Number(restoreRev));
+        await loadConfig(state.artcc);
+        const data = await fetchHubEridsHistory(state.artcc);
+        state.adminHistory = data.history || [];
+        state.adminStatus = `Restored v${restoreRev}.`;
+        state.adminStatusKind = "ok";
+      } catch (err) {
+        state.adminStatus = (err && err.message) || "Restore failed";
+        state.adminStatusKind = "err";
+      }
       render();
       return;
     }

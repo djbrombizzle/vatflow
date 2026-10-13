@@ -86,6 +86,12 @@ Signed-in **Basic** everywhere, **plus** only for their ARTCC(s):
 - **ERIDS**: open **Admin** and edit home buttons, approach plates, SOP and chart links; **Save to hub**.
 - No FCA, Airport TMU or live sync writes (`fullAccess` stays false).
 
+ERIDS saves (by anyone who can edit the ARTCC):
+
+- Admin shows the live version, who saved it and when.
+- A save built on an older version is refused, so two people can't silently overwrite each other; the message names who saved first.
+- **Reset to bundled** asks for confirmation. Every save, reset and restore keeps the version it replaced (last 20) under **Version history**, where any editor of that ARTCC can **Restore** one.
+
 ### TMU (whitelisted for ARTCC)
 
 Formerly **Editor**. Stored `role: "editor"` rows read as `tmu`, so nobody needs re-adding.
