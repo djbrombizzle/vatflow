@@ -24,11 +24,26 @@ export async function fetchHubEridsConfig(artcc) {
   return res.json();
 }
 
+/** Error for a save/reset based on an older version than the hub has. */
+function staleError(data) {
+  const who = data.updatedBy && (data.updatedBy.name || data.updatedBy.cid);
+  const err = new Error(
+    (who ? who + " saved" : "Someone saved") +
+      " a newer version" +
+      (data.updatedAt ? " at " + data.updatedAt : "") +
+      ". Your changes were not saved. Copy anything you need, then Reload to see their version."
+  );
+  err.code = "stale";
+  err.meta = data;
+  return err;
+}
+
 /**
  * @param {string} artcc
  * @param {object} config
+ * @param {number} [baseRev] hub rev the edits started from; a newer hub rev is refused (409)
  */
-export async function saveHubEridsConfig(artcc, config) {
+export async function saveHubEridsConfig(artcc, config, baseRev) {
   const token = getStoredToken();
   if (!token) throw new Error("Sign in required");
   const res = await fetch(`${hubBase()}/erids/config`, {
@@ -39,10 +54,11 @@ export async function saveHubEridsConfig(artcc, config) {
       "content-type": "application/json",
       authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ artcc: String(artcc || "").toUpperCase(), config }),
+    body: JSON.stringify({ artcc: String(artcc || "").toUpperCase(), config, baseRev }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) {
+    if (res.status === 409) throw staleError(data);
     if (res.status === 404) {
       throw new Error(
         "Hub ERIDS API not deployed yet (404). Merge & deploy vatflow-hub PR #7, then retry Save."
@@ -58,12 +74,14 @@ export async function saveHubEridsConfig(artcc, config) {
 
 /**
  * @param {string} artcc
+ * @param {number} [baseRev]
  */
-export async function deleteHubEridsConfig(artcc) {
+export async function deleteHubEridsConfig(artcc, baseRev) {
   const token = getStoredToken();
   if (!token) throw new Error("Sign in required");
   const id = String(artcc || "").toUpperCase();
-  const res = await fetch(`${hubBase()}/erids/config?artcc=${encodeURIComponent(id)}`, {
+  const rev = baseRev == null ? "" : `&baseRev=${encodeURIComponent(baseRev)}`;
+  const res = await fetch(`${hubBase()}/erids/config?artcc=${encodeURIComponent(id)}${rev}`, {
     method: "DELETE",
     mode: "cors",
     credentials: "omit",
@@ -71,8 +89,51 @@ export async function deleteHubEridsConfig(artcc) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) {
+    if (res.status === 409) throw staleError(data);
     throw new Error(data.error || "Delete failed (" + res.status + ")");
   }
+  return data;
+}
+
+/**
+ * Versions of an ARTCC pack that saves, resets and restores replaced (newest first).
+ * @param {string} artcc
+ */
+export async function fetchHubEridsHistory(artcc) {
+  const token = getStoredToken();
+  if (!token) throw new Error("Sign in required");
+  const id = String(artcc || "").toUpperCase();
+  const res = await fetch(`${hubBase()}/erids/history?artcc=${encodeURIComponent(id)}`, {
+    method: "GET",
+    mode: "cors",
+    credentials: "omit",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || "History failed (" + res.status + ")");
+  return data;
+}
+
+/**
+ * @param {string} artcc
+ * @param {number} rev version from fetchHubEridsHistory
+ */
+export async function restoreHubEridsVersion(artcc, rev) {
+  const token = getStoredToken();
+  if (!token) throw new Error("Sign in required");
+  const res = await fetch(`${hubBase()}/erids/restore`, {
+    method: "POST",
+    mode: "cors",
+    credentials: "omit",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ artcc: String(artcc || "").toUpperCase(), rev }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || "Restore failed (" + res.status + ")");
   return data;
 }
 
