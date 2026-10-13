@@ -88,6 +88,7 @@
   .tgl input:disabled { opacity: .4; cursor: not-allowed; }
   .legend div { display: flex; align-items: center; gap: 9px; padding: 3px 0; font-size: 12.5px; }
   .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .legend .lg { width: 14px; height: 14px; flex: none; }
   .perm { margin-top: 12px; padding: 8px 10px; border-radius: 7px; font-size: 12px; border: 1px solid var(--line-2); color: var(--muted); }
   .perm.ok { border-color: #22583a; color: #9fe0b5; }
   .perm.ro { border-color: #6a5320; color: #f0cf85; }
@@ -261,9 +262,9 @@
       <div id="notesBox" hidden><h3>Local procedures</h3><ul class="notes" id="notes"></ul></div>
       <h3>Legend</h3>
       <div class="legend">
-        <div><i style="background:var(--empty)"></i>Empty</div>
-        <div><i style="background:var(--assigned)"></i>Assigned / reserved</div>
-        <div><i style="background:var(--proposed)"></i>Proposed (airline gate, not yet assigned)</div>
+        <div><svg class="lg" viewBox="-12 -14 24 28"><line x1="0" y1="-11" x2="0" y2="14" stroke="#d8b64a" stroke-width="1.8"/><line x1="-5" y1="-11" x2="5" y2="-11" stroke="#d8b64a" stroke-width="2.2"/></svg>Empty (lead-in line)</div>
+        <div><svg class="lg" viewBox="-12 -12 24 24"><path d="M0,-11 L1.6,-8 L1.6,-3 L10,2 L10,4 L1.6,1.5 L1.2,7 L4,9.5 L4,11 L0,10 L-4,11 L-4,9.5 L-1.2,7 L-1.6,1.5 L-10,4 L-10,2 L-1.6,-3 L-1.6,-8 Z" fill="none" stroke="var(--assigned)" stroke-width="1.6" stroke-dasharray="2.5 1.5"/></svg>Assigned / reserved</div>
+        <div><svg class="lg" viewBox="-12 -12 24 24"><path d="M0,-11 L1.6,-8 L1.6,-3 L10,2 L10,4 L1.6,1.5 L1.2,7 L4,9.5 L4,11 L0,10 L-4,11 L-4,9.5 L-1.2,7 L-1.6,1.5 L-10,4 L-10,2 L-1.6,-3 L-1.6,-8 Z" fill="none" stroke="var(--proposed)" stroke-width="1.6" stroke-dasharray="2.5 1.5"/></svg>Proposed (airline gate, not yet assigned)</div>
         <div><i style="background:var(--occupied)"></i>Occupied</div>
         <div><i style="background:var(--pushreq)"></i>Push requested</div>
         <div><i style="background:var(--pushheld)"></i>Push held</div>
@@ -778,7 +779,6 @@ function renderMap(state) {
       const color = occ ? (STATE_COLOR[occ.state] || STAND_COLOR.occupied) : st ? STAND_COLOR[st.key] : STAND_COLOR.empty;
       const rot = s.noseHdg ?? 0;
       const isSel = (occ && occ.callsign === sel) || (selRow && !selRow.atStand && selRow.stand === s.id);
-      const opacity = occ || st ? 1 : 0.5;
       const target = occ ? `data-cs="${esc(occ.callsign)}"` : st?.callsign ? `data-cs="${esc(st.callsign)}"` : "";
       h += `<g class="stand" data-stand="${esc(s.id)}" ${target} transform="translate(${s.x},${s.y})">`;
       if (isSel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
@@ -787,8 +787,12 @@ function renderMap(state) {
         h += `<g class="blink" style="${blinkDelay()}"><circle r="20" fill="rgba(239,77,77,.18)" stroke="#ef4d4d" stroke-width="2.5"/></g>`;
       }
       h += `<circle r="13" fill="transparent"/>`;
-      h += `<path d="${PLANE}" transform="rotate(${rot})" fill="${color}" fill-opacity="${opacity}" stroke="#05080c" stroke-width=".6"/>`;
-      // An empty gate's faded icon may be written over; an aircraft may not.
+      // An aircraft only where one is parked; a planned one is a dashed outline,
+      // an empty gate just its lead-in line with a stop bar at the nose.
+      if (occ) h += `<path d="${PLANE}" transform="rotate(${rot})" fill="${color}" stroke="#05080c" stroke-width=".6"/>`;
+      else if (st) h += `<path d="${PLANE}" transform="rotate(${rot})" fill="none" stroke="${color}" stroke-width="1.4" stroke-dasharray="2.5 1.5"/>`;
+      else h += `<g transform="rotate(${rot})"><line x1="0" y1="-13" x2="0" y2="22" stroke="#d8b64a" stroke-width="1.3" stroke-opacity=".75"/><line x1="-4" y1="-13" x2="4" y2="-13" stroke="#d8b64a" stroke-width="1.6" stroke-opacity=".9"/></g>`;
+      // An empty gate's lead-in line may be written over; an aircraft may not.
       obstacles.push({ x: s.x, y: s.y, r: occ || st ? 12 : 8, soft: !(occ || st) });
       const who = occ || (st?.key === "assigned" || st?.key === "proposed" ? rows.find(r => r.callsign === st.callsign) : null);
       const lines = [];
