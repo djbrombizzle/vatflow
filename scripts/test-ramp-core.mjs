@@ -225,7 +225,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH and KAUS");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS and KDFW");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -582,5 +582,29 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   assert(A.stands.filter(s => s.ramp === "AUS-M").every(s => (s.tags || []).includes("maintenance")), "KAUS maintenance stands are tagged");
   assert(suggestStand(A, [], operatorFor(A, "SWA1", ""), "SWA1").ramp === "AUS-E" && suggestStand(A, [], operatorFor(A, "DAL1", ""), "DAL1").ramp === "AUS-W", "KAUS airline gates");
   assert(airlineStands(A, { callsign: "SWA12", op: operatorFor(A, "SWA12", "") }).every(id => !id.startsWith("M") && !id.startsWith("13")), "KAUS proposals skip the hardstands and maintenance");
+}
+/* ---------- KDFW ---------- */
+{
+  const F = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDFW.json", import.meta.url))));
+  const count = r => F.stands.filter(s => s.ramp === r).length;
+  assert(F.stands.length === 246 && count("DFW-A") === 25 && count("DFW-SP") === 16 && count("DFW-WC") === 9,
+    "KDFW 246 stands: Terminals A-E, hardstands, T stands, South Pad and West Cargo");
+  assert(F.stands.every(s => !s.approx && s.noseHdg != null), "every KDFW stand has real coordinates and a heading");
+  // 60-9B renumbered Terminal A: A4-A8 then A15, A16, A18; no A9-A14 or A17.
+  assert(["A4", "A8", "A15", "A16", "A18"].every(id => F.standById.has(id)) && !["A9", "A14", "A17"].some(id => F.standById.has(id)), "KDFW Terminal A numbering");
+  assert(composeStandTelex(F, "A20") === "KDFW A RAMP: PARK STAND A20. CTC A RAMP 131.275.", "KDFW A telex: " + composeStandTelex(F, "A20"));
+  assert(composeStandTelex(F, "B40").includes("CTC B NORTH RAMP 130.1") && composeStandTelex(F, "B9").includes("CTC B-D RAMP 129.625") &&
+    composeStandTelex(F, "D36").includes("CTC B-D RAMP 129.625") && composeStandTelex(F, "D12").includes("CTC D RAMP 129.825"), "KDFW B and D ramps");
+  assert(composeStandTelex(F, "C10").includes("CTC A RAMP 131.275") && composeStandTelex(F, "C14").includes("CTC C RAMP 131.8"), "KDFW C2-C12 on 131.275, C14 on 131.8");
+  assert(composeStandTelex(F, "E17").includes("CTC E NORTH RAMP 131.0") && composeStandTelex(F, "E18").includes("CTC E SOUTH RAMP 128.825"), "KDFW E north/south boundary");
+  assert(composeStandTelex(F, "S90").includes("CTC D RAMP 129.825") && !/ CTC /.test(composeStandTelex(F, "WK1")), "KDFW South Pad on 129.825, West Cargo no freq");
+  assert(composeStandTelex(F, "CT95").startsWith("KDFW C RAMP: PARK STAND T95.") && F.standById.has("T95"), "KDFW T95 at C and D keep their chart name");
+  // One stand per gate with several lead-in lines.
+  assert(["D17", "D17A", "D17X"].every(g => standForGate(F, g)?.id === "D17") && ["B22", "B22A"].every(g => standForGate(F, g)?.id === "B22") &&
+    ["E22A", "E22B"].every(g => standForGate(F, g)?.id === "E22") && standForGate(F, "WK2X")?.id === "WK2" && !F.standById.has("D17A"), "KDFW multi-line gates are one stand");
+  assert(F.standById.get("S99").noseHdg === 0 && F.standById.get("S90").noseHdg === 180, "KDFW South Pad rows nose away from Twy S2");
+  const want = { AAL1: "DFW-CS", ENY1: "DFW-BN", BAW1: "DFW-DS", DAL1: "DFW-ES", CKS1: "DFW-WC" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(F, [], operatorFor(F, cs, ""), cs).ramp === ramp, `KDFW ${cs} on ${ramp}`);
+  assert(airlineStands(F, { callsign: "AAL12", op: operatorFor(F, "AAL12", "") }).every(id => !/^(T|S|CT|A9|C9|B9)/.test(id)), "KDFW proposals skip hardstands and T stands");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
