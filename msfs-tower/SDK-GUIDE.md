@@ -88,7 +88,7 @@ each one is set once, even if several objects use it.
    * `TowerCab_Glass` → `TWR_Glass`
    * `TowerCab_Frame` → `TWR_Mullion`
    * `TowerCab_Railings` → `TWR_Metal`
-   * `TowerCab_Interior` → `TWR_Carpet`, `TWR_Ceiling`, `TWR_Console`, `TWR_Bezel`, `SCREEN_TWRINFO`, `SCREEN_DBRITE`
+   * `TowerCab_Interior` → `TWR_Carpet`, `TWR_Ceiling`, `TWR_Console`, `TWR_Bezel`, `$SCREEN_TWRINFO`, `$SCREEN_DBRITE`
 3. In the **Properties** editor (bottom right), click the **Material
    Properties** tab: the red checkered sphere, the last icon in the column.
 4. The list at the top shows that object's materials. Click one.
@@ -110,7 +110,7 @@ each one is set once, even if several objects use it.
 | `TWR_Bezel` | Standard | Base color `0D0D0D` |
 | `TWR_Carpet` | Standard | Base color `2E3847` |
 | `TWR_Ceiling` | Standard | Base color `CCCCC7` |
-| `SCREEN_DBRITE`, `SCREEN_TWRINFO` | Standard | Base color `000000`, **emissive `FFFFFF` (required)**: MSFS draws the gauge into the emissive channel, so with black emissive the screen stays blank. **Do not rename these two:** the names must match `texture=` in `panel.cfg`. |
+| `$SCREEN_DBRITE`, `$SCREEN_TWRINFO` | Standard | **Emissive 2000** (white, strength 2000; the gauge is drawn into the emissive channel, so a black or weak emissive means a blank screen). Leave the rest default. **Keep the `$` and the names exactly:** they must match `texture=` in `panel.cfg`. This is how Asobo's GaugeAircraft sample sets its screens up. |
 
 On **every** material also set **Metallic 0** (except `TWR_Metal`), a
 roughness around 0.6-0.9, and tick **Double Sided**. The exporter's defaults
@@ -248,7 +248,7 @@ frozen in the air by the placement tool, so they never come into play.
 | What you see | What to try |
 | --- | --- |
 | The cab is invisible | File names must match exactly: `model.cfg` → `tower_cab.xml` → `ModelFile="tower_cab.gltf"`. Check the Project Editor's build log for errors. |
-| A screen is black or shows the bare material | First check the screen material's **emissive is white** (the gauge is drawn into emissive; black emissive = blank screen, even `background_color` won't show). Then: its material name in Blender must match `texture=` in `panel.cfg` exactly (`SCREEN_DBRITE`, `SCREEN_TWRINFO`). Don't use a `$` prefix: in MSFS 2024 `$` marks a collision material. Also check the html_ui asset group (step 8.3) built into the package. |
+| A screen is black or shows the bare material | First check the screen material's **emissive is strong (2000)** (the gauge is drawn into emissive; black or weak emissive = blank screen, even `background_color` won't show). Then: its material name in Blender must match `texture=` in `panel.cfg` exactly (`$SCREEN_DBRITE`, `$SCREEN_TWRINFO`). Keep the `$` prefix on both sides, as in the SDK GaugeAircraft sample (`$SCREEN_1`). Also check the html_ui asset group (step 8.3) built into the package. |
 | Screen says `VATSIM FEED: NETWORK ERROR` | The sim's instrument engine couldn't reach `data.vatsim.net`. Check your firewall/AV. The rest of the cab still works. |
 | Screens look fine but are dark at night | Raise the emissive on the two screen materials (step 5). |
 | Text is upside-down or mirrored | Shouldn't happen (the UVs were tested upright), but if it does, rotate the screen's UVs 180° in Blender's UV editor and re-export. |

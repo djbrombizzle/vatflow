@@ -8,8 +8,10 @@ support stub underneath (meant to sit on top of the sim's own tower).
 
 Inside: console desks around the glass (rear side left open), a console
 "TWR INFO" display and a ceiling-hung "DBRITE" radar display. The two
-display surfaces use the materials SCREEN_TWRINFO and SCREEN_DBRITE, which
-must match the texture= names in panel.cfg.
+display surfaces use the materials $SCREEN_TWRINFO and $SCREEN_DBRITE, which
+must match the texture= names in panel.cfg. Like the SDK GaugeAircraft sample,
+they need the $ prefix and a strong emissive (2000) in the MSFS material panel:
+the gauge is drawn into the emissive channel.
 
 How to run
   Blender GUI:  Scripting tab -> Open -> this file -> Run Script
@@ -67,8 +69,8 @@ COLORS = {
     "TWR_Carpet": (0.18, 0.22, 0.28, 1.0),
     "TWR_Ceiling": (0.80, 0.80, 0.78, 1.0),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
-    "SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
-    "SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
 }
 
 # ---------------------------------------------------------------------------
@@ -113,7 +115,7 @@ def material(name):
         bsdf.inputs["Alpha"].default_value = rgba[3]
         bsdf.inputs["Roughness"].default_value = 0.05
         mat.blend_method = "BLEND"
-    if name.startswith("SCREEN_"):
+    if name.startswith("$SCREEN_"):
         bsdf.inputs["Roughness"].default_value = 0.2
     if name == "TWR_Metal":
         bsdf.inputs["Metallic"].default_value = 0.8
@@ -358,7 +360,7 @@ def build():
     tilt = math.radians(25)
     c = out * (a_inner - 0.45) + Vector((0, 0, P["console_h"] + 0.24))
     nrm = -out * math.cos(tilt) + Vector((0, 0, math.sin(tilt)))
-    center, up, _ = screen(inside, c, nrm, 0.60, 0.30, "SCREEN_TWRINFO")
+    center, up, _ = screen(inside, c, nrm, 0.60, 0.30, "$SCREEN_TWRINFO")
     inside.beam(center - up * 0.19, Vector((center.x, center.y, P["console_h"])), 0.03, "TWR_Bezel")
 
     # DBRITE radar hanging from the ceiling, front-right
@@ -367,7 +369,7 @@ def build():
     tilt = math.radians(28)
     c = out * (a_inner - 1.3) + Vector((0, 0, 2.45))
     nrm = -out * math.cos(tilt) - Vector((0, 0, math.sin(tilt)))
-    center, up, _ = screen(inside, c, nrm, 0.80, 0.60, "SCREEN_DBRITE")
+    center, up, _ = screen(inside, c, nrm, 0.80, 0.60, "$SCREEN_DBRITE")
     top = center + up * 0.34
     inside.beam(top, Vector((top.x, top.y, z_glass1 - 0.01)), 0.03, "TWR_Bezel")
     inside.finish()
