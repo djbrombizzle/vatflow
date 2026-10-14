@@ -10,8 +10,8 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
 * Each monitor gets a rotation animation "<NODE>_TRACK" for travelling round the
   circular ceiling track: frame = degrees (0..360, frame 0 = where it was built, the
   rest position), keyed at 24 fps like the Asobo exporter.
-* Each window shade (TowerCab_Shade_k) keeps its own transform and gets "<NODE>_ROLL",
-  a scale along the glass: frame 0 = rolled up, 100 = down.
+* Each window shade is SHADE_STRIPS strips (TowerCab_Shade_k_sNN); behaviors show the
+  strips past the shade's position, so it unrolls in steps (no animation involved).
 * Also writes tower_cab_interior.xml: the LOD entry plus the model behaviors that let you
   drag the monitors round the track and the shades up and down.
 * Materials are written the way the working sim build has them: screens exactly like
@@ -33,10 +33,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "..", "blender", "build_tower_cab.py")
 FPS = 24.0
 TRACK_FRAMES = 360   # one frame per degree round the track
-SHADE_ROLLED_UP = 0.01   # shade length fraction left showing when rolled up
+SHADE_STRIPS = 20        # keep in sync with build_tower_cab.py
 TRACK_DRAG_SPEED = 0.125
 SHADE_DRAG_SPEED = 0.2
-SHADE_ROLL_LAG = 80      # animation lag: shade travel speed in frames (percent) per second
 MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
@@ -123,7 +122,7 @@ class Writer:
     def add_object(self, obj):
         # Animated parts that scale (the shades) keep their own transform so the scale
         # runs along their local axes; everything else is baked into world space.
-        local = "vatflow_shade" in obj
+        local = False
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
@@ -174,19 +173,6 @@ class Writer:
             self.g["animations"].append({
                 "name": obj.name + "_TRACK",
                 "channels": [{"sampler": 0, "target": {"node": node_i, "path": "rotation"}}],
-                "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
-            })
-
-        if "vatflow_shade" in obj:
-            # Roll the shade: scale along its local "down the glass" axis (Blender -Y,
-            # glTF Z). Frame 0 = rolled up, 100 = fully down.
-            times = [0.0, 100 / FPS]
-            keys = [[1.0, 1.0, SHADE_ROLLED_UP], [1.0, 1.0, 1.0]]
-            t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
-            k_acc = self.accessor(keys, 5126, "VEC3")
-            self.g["animations"].append({
-                "name": obj.name + "_ROLL",
-                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "scale"}}],
                 "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
             })
 
@@ -241,20 +227,24 @@ def write_behaviors(path, node_names):
                          + anim_template(node + "_TRACK", "(L:%s) dnor" % var, TRACK_FRAMES, True)
                          + drag_template("X", var, TRACK_DRAG_SPEED, True, "%s - drag left/right to move it along the track" % label)
                          + "\t\t</Component>\n")
-        elif node.startswith("TowerCab_Shade_"):        # roll-down shade + its roller
+        elif node.startswith("TowerCab_ShadeRoller_"):  # click the roller: fully up / down
             k = node.rsplit("_", 1)[1]
             var = "VATFLOW_SHADE_%s" % k
-            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_%s\" Node=\"%s\">\n" % (k, node)
-                         + anim_template(node + "_ROLL", "(L:%s) 0 max 100 min" % var, 100, False, SHADE_ROLL_LAG)
-                         + drag_template("Y", var, SHADE_DRAG_SPEED, False, "Window shade - drag to set the height", 100)
-                         + "\t\t</Component>\n")
-            # Clicking the roller sends the shade all the way up (or down if it's mostly up);
-            # a drag on a shrinking shade can lose the cursor before it's fully rolled up.
-            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_ROLLER_%s\" Node=\"TowerCab_ShadeRoller_%s\">\n" % (k, k)
+            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_ROLLER_%s\" Node=\"%s\">\n" % (k, node)
                          + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Interaction_LeftSingle_Code\">\n"
                          + "\t\t\t\t<LEFT_SINGLE_CODE>(L:%s) 50 &gt; if{ 0 } els{ 100 } (&gt;L:%s)</LEFT_SINGLE_CODE>\n" % (var, var)
                          + "\t\t\t\t<TOOLTIPID>Window shade - click the roller to raise / lower it fully</TOOLTIPID>\n"
                          + "\t\t\t</UseTemplate>\n"
+                         + "\t\t</Component>\n")
+        elif node.startswith("TowerCab_Shade_"):        # one strip of a shade: shown past its step
+            k, strip = node.split("_")[2], int(node.rsplit("_s", 1)[1])
+            var = "VATFLOW_SHADE_%s" % k
+            step = strip * 100.0 / SHADE_STRIPS
+            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_%s_S%02d\" Node=\"%s\">\n" % (k, strip, node)
+                         + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Visibility_Code\">\n"
+                         + "\t\t\t\t<VISIBILITY_CODE>(L:%s) %g &gt;</VISIBILITY_CODE>\n" % (var, step)
+                         + "\t\t\t</UseTemplate>\n"
+                         + drag_template("Y", var, SHADE_DRAG_SPEED, False, "Window shade - drag to set the height", 100)
                          + "\t\t</Component>\n")
     xml = (
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
@@ -264,9 +254,10 @@ def write_behaviors(path, node_names):
         + "\t\tGenerated by tools/export_interior_gltf.py together with tower_cab_interior.gltf.\n"
         + "\t\tOverhead monitors: node animation named node plus _TRACK, 360 frames = degrees round the\n"
         + "\t\tceiling track, position in an L: var, dragged left/right (wraps round).\n"
-        + "\t\tShades: node animation named node plus _ROLL, frame 0 = up, 100 = down; drag the shade to\n"
-        + "\t\tset its height, click the roller to raise / lower it fully. Built on the SDK templates\n"
-        + "\t\tASOBO_GT_Anim_Code, ASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code and\n"
+        + "\t\tShades: 20 strips each, shown past the shade position L:VATFLOW_SHADE_k (0 = up, 100 = down)\n"
+        + "\t\twith ASOBO_GT_Visibility_Code; drag a strip to set the height, click the roller to raise /\n"
+        + "\t\tlower it fully. Built on the SDK templates ASOBO_GT_Anim_Code, ASOBO_GT_Visibility_Code,\n"
+        + "\t\tASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code and\n"
         + "\t\tASOBO_GT_Interaction_LeftSingle_Code (Asobo Generic Interactions).\n"
         + "\t\tIf a drag goes the wrong way set REVERSE_INTERACTION to True; DRAG_SPEED sets the speed.\n"
         + "\t-->\n"

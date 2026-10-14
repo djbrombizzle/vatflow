@@ -309,16 +309,19 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     return obj
 
 
+SHADE_STRIPS = 20   # each shade shows in 5 % steps
+
+
 def window_shade(k, coll, a0, a1, z0, z1):
     """
-    Roll-down shade for window face k: a dark tinted fabric sheet parallel to the
-    leaning glass, hanging from a roller just inside the head of the window.
+    Roll-down shade for window face k: dark tinted fabric parallel to the leaning glass,
+    hanging from a roller just inside the head of the window.
 
-    Two objects: the roller (static, TowerCab_ShadeRoller_k) and the shade
-    (TowerCab_Shade_k). The shade mesh is built in its own local frame (origin on the
-    roller, local -Y running down the glass) and gets custom property vatflow_shade,
-    so the exporter keeps its transform and animates its local Y scale: frame 0 =
-    rolled up, frame 100 = fully down.
+    The roller is one object (TowerCab_ShadeRoller_k). The shade is SHADE_STRIPS
+    horizontal strips (TowerCab_Shade_k_sNN, NN = 0 at the top), each its own object
+    with custom properties vatflow_shade = k and vatflow_strip = NN. Model behaviors show
+    strip NN when the shade position (0-100 %) is past NN * 100 / SHADE_STRIPS, so the
+    shade unrolls from the top in steps and is gone when fully up. No animation needed.
     """
     top_c = (corner(k, a1, z1) + corner(k + 1, a1, z1)) / 2
     bot_c = (corner(k, a0, z0) + corner(k + 1, a0, z0)) / 2
@@ -335,20 +338,21 @@ def window_shade(k, coll, a0, a1, z0, z1):
     roller.beam(origin - along * (half_w + 0.05), origin + along * (half_w + 0.05), 0.045, "TWR_Mount", segs=8)
     for s in (-1, 1):                                       # end brackets up to the head
         e = origin + along * s * (half_w + 0.05)
-        roller.beam(e, e - down * 0.10 + inward * 0.0, 0.02, "TWR_Mount")
+        roller.beam(e, e - down * 0.10, 0.02, "TWR_Mount")
     roller.finish()
 
-    X, Y = along, -down
-    Z = X.cross(Y).normalized()
-    shade = Builder("TowerCab_Shade_%d" % k, coll)
-    w, L = half_w, length
-    shade.face([Vector((-w, 0, 0)), Vector((w, 0, 0)), Vector((w, -L, 0)), Vector((-w, -L, 0))], "TWR_Shade")
-    shade.beam(Vector((-w, -L, 0)), Vector((w, -L, 0)), 0.018, "TWR_Mount", segs=6)   # pull bar
-    obj = shade.finish()
-    obj.matrix_world = Matrix(((X.x, Y.x, Z.x, origin.x), (X.y, Y.y, Z.y, origin.y),
-                               (X.z, Y.z, Z.z, origin.z), (0, 0, 0, 1)))
-    obj["vatflow_shade"] = 1
-    return obj
+    h = length / SHADE_STRIPS
+    for i in range(SHADE_STRIPS):
+        strip = Builder("TowerCab_Shade_%d_s%02d" % (k, i), coll)
+        t0 = origin + down * (0.045 + i * h)
+        t1 = origin + down * (0.045 + (i + 1) * h + 0.004)          # tiny overlap, no gaps
+        strip.face([t0 - along * half_w, t0 + along * half_w, t1 + along * half_w, t1 - along * half_w], "TWR_Shade")
+        last = i == SHADE_STRIPS - 1
+        seam = origin + down * (0.045 + (i + 1) * h)
+        strip.beam(seam - along * half_w, seam + along * half_w, 0.018 if last else 0.006, "TWR_Mount", segs=6)
+        obj = strip.finish()
+        obj["vatflow_shade"] = k
+        obj["vatflow_strip"] = i
 
 
 def ceiling_track(builder, radius, ceiling_z, segments=48):
