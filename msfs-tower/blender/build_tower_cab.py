@@ -77,7 +77,7 @@ COLORS = {
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_ASDEX": (0.0, 0.0, 0.0, 1.0),
     "TWR_Mount": (0.03, 0.03, 0.035, 1.0),
-    "TWR_Shade": (0.12, 0.12, 0.13, 0.6),
+    "TWR_Shade": (0.07, 0.07, 0.08, 0.82),
 }
 
 # ---------------------------------------------------------------------------
@@ -493,6 +493,11 @@ def build():
         inside.beam(corner(k, a0, z_glass0), corner(k, a1, z_glass1), P["mullion_r"] * 0.85, "TWR_Mullion")
         inside.beam(corner(k, a0, z_glass0), corner(k + 1, a0, z_glass0), 0.034, "TWR_Mullion")
         inside.beam(corner(k, a1, z_glass1), corner(k + 1, a1, z_glass1), 0.034, "TWR_Mullion")
+
+    # Window sill seen from inside: closes the gap between the console tops and the
+    # bottom of the glass (the exterior sill wall isn't drawn in the cockpit view).
+    # Its outer face stays 1 cm inside the exterior wall so they don't fight.
+    inside.ring(a_inner, a0 - 0.01, a_inner, a0 - 0.01, 0.0, z_glass0, "TWR_Console")
 
     # Roll-down shades, one per window
     for k in range(n):
