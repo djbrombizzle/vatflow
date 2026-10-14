@@ -22,8 +22,8 @@ Inside the cab there are two working screens fed by live data:
   ARR/DEP). Positions are dead-reckoned between feed updates and repainted on a
   4.8 s radar sweep.
 * **Overhead monitors** hang in square-tube yokes (side knobs, handle bar) from
-  trolleys on ceiling rails, like the real DCA cab, and are built to slide
-  along their rails (mouse drag coming next).
+  trolleys on a circular ceiling track, like the real DCA cab, and are built to travel
+  all the way round the cab on a 360-degree ceiling track (mouse drag coming next).
 * **ASDE-X** (hanging from the ceiling, front left): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and

@@ -7,9 +7,10 @@ glass, a deep roof fascia, a railed roof with antenna masts, and a plain
 support stub underneath (meant to sit on top of the sim's own tower).
 
 Inside: console desks around the glass (rear side left open), a console
-"TWR INFO" display and two overhead monitors on ceiling rails: "DBRITE"
-radar (front right) and "ASDE-X" surface map (front left). Each overhead
-monitor is its own object so it can slide along its rail. The three
+"TWR INFO" display and two overhead monitors hanging from a circular ceiling
+track that runs all the way round the cab: "DBRITE" radar (starts front
+right) and "ASDE-X" surface map (starts front left). Each overhead monitor
+is its own object so it can travel the full 360 degrees. The three
 display surfaces use the materials $SCREEN_TWRINFO, $SCREEN_DBRITE and $SCREEN_ASDEX, which
 must match the texture= names in panel.cfg. Like the SDK GaugeAircraft sample,
 they need the $ prefix and a strong emissive (2000) in the MSFS material panel:
@@ -60,6 +61,7 @@ P = {
     "console_depth": 0.75,
     "console_h": 0.92,
     "eye_h": 1.65,           # standing eye height (used for the camera marker)
+    "track_radius": 3.0,     # circular ceiling track for the overhead monitors
 }
 
 COLORS = {
@@ -255,33 +257,35 @@ def screen(b, center, normal, width, height, mat_name, bezel=0.04, depth=0.05):
     return c, up, n
 
 
-def monitor_mount(name, coll, rail_builder, face_k, width, height, mat_screen,
-                  center_out, center_z, tilt_deg, ceiling_z):
+def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_deg,
+                  ceiling_z, rail_radius):
     """
     Ceiling-hung tower monitor like the real DCA cab: the display in a square-tube
-    yoke with side pivot knobs and a handle bar, hanging from a trolley on a ceiling
-    rail that runs parallel to window face face_k.
+    yoke with side pivot knobs and a handle bar, hanging from a trolley on the
+    circular ceiling track (radius rail_radius) that runs all the way round the cab.
 
-    The rail goes into rail_builder (static). The monitor, yoke, post and trolley
-    become their own object `name` so it can slide along the rail; the object gets
-    custom properties vatflow_slide_axis (unit vector along the rail, Blender space)
-    and vatflow_slide_range (meters either side of center), used by the exporter to
-    build the slide animation.
+    The monitor starts facing the cab centre from window face face_k. It becomes its
+    own object `name` (custom property vatflow_track = 1) so the exporter can give it
+    a 360-degree animation round the vertical axis: moving along a circular track is
+    a rotation about the cab centre.
     """
     ang = face_angle(face_k)
     out = Vector((math.cos(ang), math.sin(ang), 0))
-    along = Vector((-math.sin(ang), math.cos(ang), 0))      # parallel to the window face
     tilt = math.radians(tilt_deg)
-    c = out * center_out + Vector((0, 0, center_z))
     nrm = -out * math.cos(tilt) - Vector((0, 0, math.sin(tilt)))
-
-    b = Builder(name, coll)
-    center, up, n = screen(b, c, nrm, width, height, mat_screen, bezel=0.035, depth=0.08)
+    n = nrm.normalized()
     right = Vector((0, 0, 1)).cross(n).normalized()          # same frame as screen()
+    up = n.cross(right).normalized()
     hw, hh = width / 2 + 0.035, height / 2 + 0.035          # housing half sizes
     gap = 0.07
     fw, fh = hw + gap, hh + gap                             # yoke half sizes
     back = -n * 0.04
+    # place the monitor so the top of its yoke sits exactly under the track
+    center_out = rail_radius - (back + up * fh).dot(out)
+    c = out * center_out + Vector((0, 0, center_z))
+
+    b = Builder(name, coll)
+    screen(b, c, nrm, width, height, mat_screen, bezel=0.035, depth=0.08)
     F = [c + back - right * fw - up * fh, c + back + right * fw - up * fh,
          c + back + right * fw + up * fh, c + back - right * fw + up * fh]
     for i in range(4):                                      # square-tube yoke
@@ -300,18 +304,20 @@ def monitor_mount(name, coll, rail_builder, face_k, width, height, mat_screen,
     b.beam(top, Vector((top.x, top.y, trolley_z)), 0.03, "TWR_Mount", segs=6)
     b.box((top.x, top.y, trolley_z + 0.03), (0.20, 0.12, 0.06), "TWR_Mount", rot_z=ang + math.pi / 2)
     obj = b.finish()
-
-    # static rail along the window face, through the trolley
-    r_xy = Vector((top.x, top.y, 0)).length
-    half = 0.95 * r_xy * math.tan(math.pi / P["sides"])
-    mid = Vector((top.x, top.y, ceiling_z - 0.035))
-    rail_builder.beam(mid - along * half, mid + along * half, 0.035, "TWR_Mount")
-    for s in (-1, 1):                                       # hangers at the rail ends
-        e = mid + along * s * (half - 0.05)
-        rail_builder.beam(e, Vector((e.x, e.y, ceiling_z + 0.005)), 0.025, "TWR_Mount")
-    obj["vatflow_slide_axis"] = list(along)
-    obj["vatflow_slide_range"] = max(0.0, half - fw - 0.05)
+    obj["vatflow_track"] = 1
     return obj
+
+
+def ceiling_track(builder, radius, ceiling_z, segments=48):
+    """Circular ceiling track all the way round the cab, with hangers every 45 degrees."""
+    z = ceiling_z - 0.035
+    pts = [Vector((radius * math.cos(2 * math.pi * i / segments), radius * math.sin(2 * math.pi * i / segments), z))
+           for i in range(segments)]
+    for i in range(segments):
+        builder.beam(pts[i], pts[(i + 1) % segments], 0.035, "TWR_Mount")
+    for i in range(0, segments, segments // 8):
+        p = pts[i]
+        builder.beam(p, Vector((p.x, p.y, ceiling_z + 0.005)), 0.025, "TWR_Mount")
 
 
 # ---------------------------------------------------------------------------
@@ -426,12 +432,16 @@ def build():
     center, up, _ = screen(inside, c, nrm, 0.60, 0.30, "$SCREEN_TWRINFO")
     inside.beam(center - up * 0.19, Vector((center.x, center.y, P["console_h"])), 0.03, "TWR_Bezel")
 
-    # Overhead monitors on ceiling rails (each slides along its window face):
-    # DBRITE radar front-right, ASDE-X surface display front-left (portrait).
-    monitor_mount("TowerCab_DbriteMount", int_coll, inside, n - 1, 0.80, 0.60, "$SCREEN_DBRITE",
-                  a_inner - 1.3, 2.50, 20, z_glass1 - 0.01)
-    monitor_mount("TowerCab_AsdexMount", int_coll, inside, 1, 0.60, 0.80, "$SCREEN_ASDEX",
-                  a_inner - 1.3, 2.55, 20, z_glass1 - 0.01)
+    # Overhead monitors on a circular ceiling track all the way round the cab
+    # (each can travel the full 360 degrees): DBRITE radar starts front-right,
+    # ASDE-X surface display (portrait) starts front-left.
+    track_r = P["track_radius"]
+    ceiling_z = z_glass1 - 0.01
+    ceiling_track(inside, track_r, ceiling_z)
+    monitor_mount("TowerCab_DbriteMount", int_coll, n - 1, 0.80, 0.60, "$SCREEN_DBRITE",
+                  2.50, 20, ceiling_z, track_r)
+    monitor_mount("TowerCab_AsdexMount", int_coll, 1, 0.60, 0.80, "$SCREEN_ASDEX",
+                  2.55, 20, ceiling_z, track_r)
     inside.finish()
 
     # Eye point marker (not exported): where the MSFS eyepoint should be

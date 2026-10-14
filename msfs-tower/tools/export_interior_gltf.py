@@ -7,9 +7,10 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
 
 * One glTF node per object in TowerCab_Interior: the static interior plus each overhead
   monitor (TowerCab_DbriteMount, TowerCab_AsdexMount) as its own node.
-* Each monitor gets a translation animation "<NODE>_SLIDE" along its rail:
-  frame 0 = one end, frame 50 = centre (the rest position), frame 100 = other end,
-  keyed at 24 fps like the Asobo exporter. Model behaviors drive it (tower_cab_interior.xml).
+* Each monitor gets a rotation animation "<NODE>_TRACK" for travelling round the
+  circular ceiling track: frame = degrees (0..360, frame 0 = where it was built, the
+  rest position), keyed at 24 fps like the Asobo exporter. Model behaviors drive it
+  (tower_cab_interior.xml).
 * Materials are written the way the working sim build has them: screens exactly like
   the SDK GaugeAircraft sample ("$SCREEN_*" with emissive 2000), everything else plain PBR,
   double sided.
@@ -28,7 +29,7 @@ import bmesh
 HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "..", "blender", "build_tower_cab.py")
 FPS = 24.0
-ANIM_FRAMES = 100
+TRACK_FRAMES = 360   # one frame per degree round the track
 
 
 def srgb_to_linear(c):
@@ -144,16 +145,19 @@ class Writer:
         node_i = len(self.g["nodes"]) - 1
         self.g["scenes"][0]["nodes"].append(node_i)
 
-        if "vatflow_slide_axis" in obj:
-            axis = to_gltf(list(obj["vatflow_slide_axis"]))
-            r = float(obj["vatflow_slide_range"])
-            times = [0.0, ANIM_FRAMES / 2 / FPS, ANIM_FRAMES / FPS]
-            keys = [[a * -r for a in axis], [0.0, 0.0, 0.0], [a * r for a in axis]]
+        if "vatflow_track" in obj:
+            # Travel round the circular ceiling track = rotation about the cab's vertical
+            # axis (glTF +Y) through the origin. Frame = degrees: 0..360, keyed every 10.
+            times, keys = [], []
+            for deg in range(0, TRACK_FRAMES + 1, 10):
+                h = math.radians(deg) / 2
+                times.append(deg / FPS)
+                keys.append([0.0, math.sin(h), 0.0, math.cos(h)])
             t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
-            k_acc = self.accessor(keys, 5126, "VEC3")
+            k_acc = self.accessor(keys, 5126, "VEC4")
             self.g["animations"].append({
-                "name": obj.name + "_SLIDE",
-                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "translation"}}],
+                "name": obj.name + "_TRACK",
+                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "rotation"}}],
                 "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
             })
 
