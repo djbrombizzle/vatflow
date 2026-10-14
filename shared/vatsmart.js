@@ -19,7 +19,7 @@
  */
 import {
   buildMitMonitor, rollingGateDemand, gateMitTimeline, gateMitSchedule, programGateMitNm,
-  calcGateMit, normRate, gateKey, NO_GATE, MIT_NOMINAL_KT,
+  calcGateMit, normRate, gateKey, NO_GATE, MIT_NOMINAL_KT, overShareWarnings,
 } from "./mit-monitor.js";
 import { buildMergePoints } from "./merge-points.js";
 import { weatherAarFactor, THUNDER_LIKELY, THUNDER_POSSIBLE, TMI_TIERS, peakFromEvent, likelyEvents, pickBasisEvent } from "./event-planner.js";
@@ -326,6 +326,7 @@ export function buildSituation({
     gates, counts, edct, gs, restrictions, wx, taxi, upcoming, reference, actual,
   };
   sit.airportLL = airportLL;
+  sit.overShare = cap.capacity > 0 ? overShareWarnings(roll.windows, cap.capacity, program) : [];
   sit.slots = slotBalance(live, now, cap.capacity);
   sit.merges = merge && cap.capacity ? buildMergePoints({ ...merge, flights: live, aptLL, windows: roll.windows, capacity: cap.capacity, now }) : [];
   sit.config = config || { closed: [], runways: null, ends: [], wind: null };
@@ -910,14 +911,16 @@ export function recommend(s) {
     if (!next || shut.has(g.name)) continue;
     const soon = next.at - s.now <= NEAR_START_MIN * MIN;
     const when = next.i === 0 ? "now" : `at ${fmtZ(next.at)}`;
-    const verb = { start: `Start ${next.to} MIT on ${g.name}`, tighten: `Tighten ${g.name} to ${next.to} MIT`,
+    const os = (s.overShare || []).find(o => o.gate === g.name);
+    const verb = { start: os ? `${g.name} over its share with no MIT: start ${next.to} MIT` : `Start ${next.to} MIT on ${g.name}`, tighten: `Tighten ${g.name} to ${next.to} MIT`,
       relax: `Relax ${g.name} to ${next.to} MIT`, stop: `Stop MIT on ${g.name}` }[next.kind];
     const later = g.schedule.slice(1, 3).map(x => `${x.kind} ${x.to ? x.to + " MIT " : ""}at ${fmtZ(x.at)}`).join(", ");
-    add({ id: "gate-" + g.name, sev: soon && next.kind !== "relax" && next.kind !== "stop" ? "action" : soon ? "watch" : "info",
+    add({ id: "gate-" + g.name, sev: os || (soon && next.kind !== "relax" && next.kind !== "stop") ? "action" : soon ? "watch" : "info",
       title: `${verb} ${when}`,
       why: (next.kind === "stop" || next.kind === "relax"
         ? `${g.name} is held to ${next.from} MIT but its demand no longer needs it` + (next.to ? ` (${next.to} MIT is enough).` : ".")
-        : `${g.name} carries ${g.peakDemand}/hr at the peak; ${next.to} MIT keeps ${apt} at ${cap}/hr.`) +
+        : (os ? `${g.name} wants ${os.demand}/hr from ${fmtZ(os.at)} against a ${os.slice}/hr share of ${cap}/hr and nothing holds it in trail, so the excess will arrive at the field and hold close in. ` : "") +
+          `${g.name} carries ${g.peakDemand}/hr at the peak; ${next.to} MIT keeps ${apt} at ${cap}/hr.`) +
         (later ? ` Then ${later}.` : "") + (next.i > 0 ? " Pass it to the adjacent facility ahead of time." : ""),
       at: next.at, link: LINK.tmu });
   }

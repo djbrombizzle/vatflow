@@ -124,7 +124,9 @@ t("busy field: tier, gate MIT start and a missing program", () => {
   assert.ok(ids.includes("tier"));
   assert.ok(ids.includes("no-prog"));
   const g = s.recs.find(r => r.id === "gate-GRNCH");
-  assert.ok(g && /Start \d+ MIT on GRNCH now/.test(g.title), g && g.title);
+  assert.ok(g && /^GRNCH over its share with no MIT: start \d+ MIT now/.test(g.title), g && g.title);
+  assert.equal(g.sev, "action");
+  assert.deepEqual(s.overShare.map(o => o.gate), ["GRNCH"]);         // the page's OVER SHARE, NO MIT banner
   assert.equal(s.recs[0].sev, "action");
 });
 

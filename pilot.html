@@ -106,6 +106,24 @@
   #help code { color: var(--amber); font-family: inherit; }
   #help table { margin: 2px 0 6px; }
   #help td { color: var(--fg); }
+  /* where's ATC now */
+  #atcCards { padding-bottom: 0; }
+  .atcform { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .atcform input[type=text] { width: 80px; text-transform: uppercase; }
+  .atcform select { background: #0d0d0d; border: 1px solid #444; color: #fff; font-family: inherit; font-size: 12px; padding: 5px 6px; }
+  .atcform .lab { font-size: 10px; color: var(--fg-dim); letter-spacing: 0.06em; }
+  .atcwrap { overflow-x: auto; }
+  #atcTable td.apt { color: #fff; font-weight: 600; white-space: nowrap; }
+  #atcTable td.num { white-space: nowrap; }
+  .pos { display: inline-block; padding: 1px 6px; margin: 0 4px 3px 0; border: 1px solid #444; font-size: 10.5px; white-space: nowrap; }
+  .pos.TWR, .pos.GND, .pos.DEL { border-color: #2d5a32; color: var(--green); }
+  .pos.APP { border-color: #22585a; color: var(--cyan); }
+  .pos.CTR { border-color: #6a5420; color: var(--amber); }
+  .chip { display: inline-block; padding: 1px 6px; margin: 0 4px 3px 0; font-size: 10px; letter-spacing: 0.04em; border: 1px solid #555; color: var(--fg-dim); white-space: nowrap; }
+  .chip.ev { border-color: #7a3a7a; color: #e0a0e0; }
+  .chip.pt { border-color: #7a5c1d; color: var(--amber); }
+  .chip.ctr { border-color: #333; }
+  .atcmore { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -181,6 +199,29 @@
     WDR for that runway; the pre-pushback and WDR use it from then on.
   </div>
 
+  <div class="cards" id="atcCards">
+    <div class="card wide" id="atcCard">
+      <h2>Where's ATC now</h2>
+      <p class="hint">Airports with controllers online within reach of your departure field, best covered first. Pick one as your
+        destination and you fly to ATC instead of hoping someone logs on. No sign-in needed.</p>
+      <form class="atcform" id="atcForm">
+        <span class="lab">FROM</span><input type="text" id="atcFrom" maxlength="4" placeholder="KIAD" autocomplete="off" spellcheck="false">
+        <span class="lab">WITHIN</span><select id="atcRange">
+          <option value="300">300 nm (about 1 h)</option><option value="500">500 nm (about 1.5 h)</option>
+          <option value="800" selected>800 nm (about 2 h)</option><option value="1200">1200 nm (about 3 h)</option>
+          <option value="2500">2500 nm (anywhere)</option></select>
+        <button type="submit" class="b primary">SHOW</button>
+        <span class="msgline" id="atcMsg"></span>
+      </form>
+      <div class="pills" id="atcOrigin"></div>
+      <div class="atcwrap"><table id="atcTable">
+        <thead><tr><th>AIRPORT</th><th>FLIGHT</th><th>ATC ONLINE</th><th>INBOUND</th><th>NOTES</th></tr></thead>
+        <tbody id="atcRows"></tbody>
+      </table></div>
+      <div class="atcmore hidden" id="atcMoreWrap"><button type="button" class="b" id="atcMore">SHOW ALL</button></div>
+    </div>
+  </div>
+
   <div id="signedOut" class="signin hidden">
     <p>Sign in with your VATSIM account to set up your pilot profile. VATFLOW only uses your CID to find your
       flight on the network.</p>
@@ -231,6 +272,7 @@
   </div>
 </div>
 
+<script src="approach-sector-data.js"></script>
 <script type="module">
 document.getElementById("helpBtn").addEventListener("click", e => {
   const open = document.getElementById("help").classList.toggle("hidden") === false;
@@ -239,6 +281,8 @@ document.getElementById("helpBtn").addEventListener("click", e => {
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { initVatflowAuth, getSession, getStoredToken, login } from "./shared/vatflow-auth.js";
 import { rampHubBase } from "./shared/ramp-live.js";
+import { getAirport, loadAirports } from "./shared/fca-metering.js";
+import { atcNowBoard, approachIndex, artccLocator, fmtFlight, DEFAULT_RADIUS_NM } from "./shared/atc-now.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "pilot");
 
@@ -285,6 +329,7 @@ function renderStatus(d) {
   $("deleteBtn").classList.toggle("hidden", !p);
 
   const st = d.status || {};
+  if (st.connected && st.dep) atcFromFlight(st.dep);
   const pills = [];
   if (!p) pills.push(`<span class="pill warn">No profile saved yet</span>`);
   else if (!p.enabled) pills.push(`<span class="pill warn">Messages turned off</span>`);
@@ -395,6 +440,103 @@ $("previewBtn").addEventListener("click", async () => {
     $("previewMsg").className = "msgline err"; $("previewMsg").textContent = e.message;
   } finally { $("previewBtn").disabled = false; }
 });
+/* ---------------- where's ATC now (public, no sign-in) ---------------- */
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const EVENTS_URL = "https://my.vatsim.net/api/v2/events/latest";
+const ATC_LS = "vatflow.pilot.atc";
+const ATC_SHOW = 12;
+const atc = { feed: null, events: [], artccFor: () => null, from: "", radius: DEFAULT_RADIUS_NM, typed: false, all: false, airports: false };
+try { Object.assign(atc, JSON.parse(localStorage.getItem(ATC_LS) || "{}")); atc.all = false; atc.airports = false; } catch (_) {}
+const saveAtc = () => { try { localStorage.setItem(ATC_LS, JSON.stringify({ from: atc.from, radius: atc.radius, typed: atc.typed })); } catch (_) {} };
+const apIdx = typeof TRACON_PREFIX_MAP !== "undefined" && typeof VATSPY_APPROACH_MAP !== "undefined"
+  ? approachIndex(TRACON_PREFIX_MAP, VATSPY_APPROACH_MAP) : {};
+$("atcFrom").value = atc.from;
+$("atcRange").value = String(atc.radius);
+
+/* the pilot's own connected flight sets FROM until they type one themselves */
+function atcFromFlight(dep) {
+  dep = String(dep || "").toUpperCase();
+  if (atc.typed || !dep || dep === atc.from) return;
+  atc.from = dep; $("atcFrom").value = dep; saveAtc(); renderAtc();
+}
+$("atcForm").addEventListener("submit", e => {
+  e.preventDefault();
+  let v = $("atcFrom").value.toUpperCase().trim();
+  if (v.length === 3) v = "K" + v;
+  atc.from = v; atc.typed = !!v; atc.radius = +$("atcRange").value || DEFAULT_RADIUS_NM; atc.all = false;
+  $("atcFrom").value = v; saveAtc(); renderAtc();
+});
+$("atcRange").addEventListener("change", () => { atc.radius = +$("atcRange").value || DEFAULT_RADIUS_NM; saveAtc(); renderAtc(); });
+$("atcMore").addEventListener("click", () => { atc.all = !atc.all; renderAtc(); });
+
+const posTag = p => `<span class="pos ${p.kind}" title="${esc(p.freq)}">${esc(p.callsign)}</span>`;
+function atcNotes(r) {
+  const n = [];
+  if (r.partner && r.positions.length) n.push(`<span class="chip pt" title="The ZDC traffic study found this is one of the routes DC pilots fly most">POPULAR FROM ${esc(atc.from)}</span>`);
+  if (r.event) {
+    const soon = r.event.startMs > Date.now();
+    n.push(`<span class="chip ev" title="${esc(r.event.name)}">${soon ? "EVENT " + z(r.event.startMs / 1000) : "EVENT NOW"}: ${esc(r.event.name)}</span>`);
+  }
+  if (r.atis != null) n.push(`<span class="chip">ATIS ${esc(r.atis || "on")}</span>`);
+  if (!r.local && r.positions.length) n.push(`<span class="chip ctr">center only</span>`);
+  return n.join("");
+}
+function renderAtc() {
+  const msg = $("atcMsg");
+  if (!atc.from) { msg.className = "msgline"; msg.textContent = "Type your departure field."; $("atcRows").innerHTML = ""; $("atcOrigin").innerHTML = ""; $("atcMoreWrap").classList.add("hidden"); return; }
+  if (!atc.feed || !atc.airports) { msg.className = "msgline"; msg.textContent = "Loading the VATSIM feed…"; return; }
+  const b = atcNowBoard({ feed: atc.feed, from: atc.from, airportLL: getAirport, artccFor: atc.artccFor, apIdx,
+    events: atc.events, radiusNm: atc.radius });
+  if (!b) { msg.className = "msgline err"; msg.textContent = `Unknown airport ${atc.from}.`; $("atcRows").innerHTML = ""; $("atcOrigin").innerHTML = ""; return; }
+  msg.className = "msgline"; msg.textContent = `${b.rows.length} staffed within ${atc.radius} nm · feed ${new Date(atc.feedAt).toISOString().slice(11, 16)}Z`;
+  const f = b.from;
+  $("atcOrigin").innerHTML = `<span class="pill${f.positions.length ? " ok" : ""}"><span class="lab">${esc(f.icao)}</span>` +
+    (f.positions.length ? f.positions.map(p => esc(p.callsign)).join(", ") : "no ATC online at your departure") + `</span>` +
+    (f.departing ? `<span class="pill"><span class="lab">ON THE GROUND</span>${f.departing}</span>` : "");
+  const rows = atc.all ? b.rows : b.rows.slice(0, ATC_SHOW);
+  $("atcRows").innerHTML = rows.map(r => `<tr>
+      <td class="apt">${esc(r.icao)}</td>
+      <td class="num">${r.distNm} nm<br><span style="color:var(--fg-dim)">~${fmtFlight(r.flightMin)}</span></td>
+      <td>${r.positions.map(posTag).join("") || '<span style="color:var(--fg-dim)">none yet</span>'}</td>
+      <td class="num">${r.inbound || "—"}</td>
+      <td>${atcNotes(r)}</td></tr>`).join("") ||
+    `<tr><td colspan="5" class="empty">No airports with ATC online within ${atc.radius} nm. Try a longer range.</td></tr>`;
+  $("atcMoreWrap").classList.toggle("hidden", b.rows.length <= ATC_SHOW);
+  $("atcMore").textContent = atc.all ? "SHOW FEWER" : `SHOW ALL ${b.rows.length}`;
+}
+async function atcFeed() {
+  try {
+    const r = await fetch(VATSIM_URL, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    atc.feed = { controllers: d.controllers || [], atis: d.atis || [], pilots: d.pilots || [] };
+    atc.feedAt = Date.now();
+  } catch (e) { $("atcMsg").className = "msgline err"; $("atcMsg").textContent = "VATSIM feed: " + e.message; return; }
+  renderAtc();
+}
+async function atcEvents() {
+  try {
+    const r = await fetch(EVENTS_URL);
+    const json = await r.json();
+    atc.events = (Array.isArray(json) ? json : (json.data || [])).map(raw => {
+      const startMs = Date.parse(raw.start_time), endMs = Date.parse(raw.end_time);
+      if (!isFinite(startMs) || !isFinite(endMs)) return null;
+      const set = new Set();
+      for (const a of raw.airports || []) if (a && a.icao) set.add(String(a.icao).toUpperCase());
+      for (const x of raw.routes || []) if (x && x.arrival) set.add(String(x.arrival).toUpperCase());
+      return { name: raw.name || "Event", startMs, endMs, airports: [...set] };
+    }).filter(Boolean);
+    renderAtc();
+  } catch (e) { console.warn("VATSIM events:", e); }
+}
+loadAirports().then(() => { atc.airports = true; renderAtc(); }).catch(() => { $("atcMsg").className = "msgline err"; $("atcMsg").textContent = "Couldn't load the airport list."; });
+fetch("data/artcc-boundaries-low.geojson").then(r => r.ok ? r.json() : null)
+  .then(geo => { if (geo) { atc.artccFor = artccLocator(geo); renderAtc(); } }).catch(() => {});
+atcFeed(); atcEvents();
+setInterval(atcFeed, 60000);
+setInterval(atcEvents, 30 * 60000);
+renderAtc();
+
 $("signInBtn").addEventListener("click", () => login());
 
 function show() {

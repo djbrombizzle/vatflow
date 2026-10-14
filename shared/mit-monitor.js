@@ -248,6 +248,34 @@ export function programGateMitNm(prog, gate) {
   return { nm: 0, gateRule: false };
 }
 
+/**
+ * Early warning: gates that go over their share of the AAR soon while nothing
+ * holds them in trail (no gate rule and no airport-wide MIT/trail). The GTOUT
+ * lesson from the KMCO FNO (Oct 2026): one feed loaded to 20/hr with no MIT while
+ * the rest of the field had room, and the delay landed inside 40 nm.
+ *   windows   rollingGateDemand(...).windows
+ *   aar       the rate to hold (program AAR, or VATSMART's weather-adjusted capacity)
+ *   prog      the program (null = none, every gate counts as unrestricted)
+ *   withinMin only windows starting this soon (default 60)
+ * Returns [{ gate, i, at, offsetMin, demand, slice, mit, total }] soonest first, then tightest.
+ */
+export const OVER_SHARE_WITHIN_MIN = 60;
+export function overShareWarnings(windows, aar, prog, { withinMin = OVER_SHARE_WITHIN_MIN, kt } = {}) {
+  if (!(aar > 0)) return [];
+  const out = new Map();
+  windows.forEach((w, i) => {
+    if (w.offsetMin > withinMin) return;
+    const calc = calcGateMit(aar, w.entries, w.unassigned, kt);
+    for (const r of calc.rows) {
+      if (!r.limited || r.gate === NO_GATE || out.has(r.gate)) continue;
+      if (prog && programGateMitNm(prog, r.gate).nm > 0) continue;
+      out.set(r.gate, { gate: r.gate, i, at: w.start, offsetMin: w.offsetMin, demand: r.demand,
+        slice: Math.round(r.slice * 10) / 10, mit: r.mit, total: calc.demand });
+    }
+  });
+  return [...out.values()].sort((a, b) => a.i - b.i || b.mit - a.mit || a.gate.localeCompare(b.gate));
+}
+
 /** Tighten / relax / hold, with a 5 nm dead band. */
 export function gateMitAction(recNm, nowNm) {
   if (recNm === nowNm) return { kind: "hold", txt: "Hold" };

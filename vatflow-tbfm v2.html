@@ -31,8 +31,9 @@ import * as EventPlanner from "./shared/event-planner.js";
 window.VF_EventPlan = EventPlanner;
 </script>
 <script type="module">
-import { rollingGateDemand, gateMitTimeline, gateMitSchedule } from "./shared/mit-monitor.js";
+import { rollingGateDemand, gateMitTimeline, gateMitSchedule, overShareWarnings } from "./shared/mit-monitor.js";
 window.VF_RollingDemand = rollingGateDemand;
+window.VF_OverShare = overShareWarnings;
 window.VF_GateMitTimeline = gateMitTimeline;
 window.VF_GateMitSchedule = gateMitSchedule;
 </script>
@@ -1008,6 +1009,11 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .homerow.warn { border-left-color: var(--warn); }
 .homerow.hi { border-left-color: var(--alert); }
 .homerow.muted { border-left-color: var(--text-muted); }
+.osbanner { border: 1px solid var(--alert); background: rgba(255, 80, 80, 0.08); padding: 8px 12px; margin: 10px 0; font-size: 12px; line-height: 1.6; }
+.osbanner .osh { color: var(--alert); font-weight: 700; letter-spacing: 0.08em; margin-right: 10px; }
+.osbanner .osg { white-space: nowrap; margin-right: 14px; cursor: pointer; }
+.osbanner .osg:hover { text-decoration: underline; }
+.osbanner .osnote { color: var(--text-muted); font-size: 11px; }
 .homefield { font-family: var(--font-display); font-size: 21px; letter-spacing: 0.04em; color: var(--text); }
 .hometxt { font-size: 14px; color: var(--text-dim); }
 .homemeta {
@@ -7774,6 +7780,7 @@ function renderHome() {
 
   /* active TMU programs */
   h += '<div class="homesec">Flow programs</div>';
+  h += renderOverShareBanner(overShareAll());
   if (!codes.length) {
     h += '<div class="homenone">No active flow programs. Set one on the TMU tab.</div>';
   } else {
@@ -8993,6 +9000,36 @@ function renderEventPlanner() {
   return h;
 }
 
+/* Early warning across every program: a gate over its share of the AAR within the
+   next hour while no MIT holds it (no gate rule, no airport-wide MIT/trail). */
+function overShareAll() {
+  const fn = window.VF_OverShare;
+  if (!fn) return [];
+  const out = [];
+  for (const code of Object.keys(tmuRates).sort()) {
+    const prog = tmuRates[code];
+    if (!(prog && prog.aar > 0)) continue;
+    const live = liveGateDemand(code, prog);
+    if (!live) continue;
+    const warn = fn(live.windows, prog.aar, prog);
+    if (warn.length) out.push({ code, warn });
+  }
+  return out;
+}
+function renderOverShareBanner(all) {
+  if (!all.length) return "";
+  let h = '<div class="osbanner"><span class="osh">OVER SHARE, NO MIT</span>';
+  for (const a of all) {
+    for (const o of a.warn) {
+      h += '<span class="osg" data-tmuview="' + esc(a.code) + '" title="Open ' + esc(a.code) + ' on the Apt Dashboard">' +
+        '<b>' + esc(a.code) + ' ' + esc(o.gate) + '</b> ' + o.demand + '/hr vs ' + o.slice + '/hr share ' +
+        (o.offsetMin ? 'from ' + fmtZ(o.at) + 'z' : 'now') + ': start <b>' + o.mit + ' MIT</b></span>';
+    }
+  }
+  return h + '<br><span class="osnote">These gates bring more than their share of the AAR in the next hour and nothing holds them in trail, ' +
+    'so the excess arrives at the field and holds close in. Add a gate rule in Programs (or apply the Rate calculator\u2019s MIT per gate) and pass it upstream.</span></div>';
+}
+
 function renderTMU() {
   const subBar = '<div class="subtabs">' +
     '<span class="subtab' + (tmuSub === "programs" ? " active" : "") + '" data-tmusub="programs">Programs</span>' +
@@ -9027,6 +9064,8 @@ function renderTMUPrograms() {
   }
 
   const codes = Object.keys(tmuRates).sort();
+  const overShare = overShareAll();
+  h += renderOverShareBanner(overShare);
   if (!codes.length) {
     h += '<div class="emptystate"><h2>No TMU programs active</h2>' +
       '<p>Set an arrival rate for any airport above. Dashboards show demand vs AAR and <b>recommended</b> delay for informational purposes only.<br>' +
@@ -9050,6 +9089,8 @@ function renderTMUPrograms() {
         st = flow.demandHr > r.aar
           ? '<span class="tmu-over">Over capacity</span>'
           : '<span class="tmu-ok">OK</span>';
+        const os = overShare.find(a => a.code === code);
+        if (os) st += '<div class="tmu-over" style="font-size:10px;">' + esc(os.warn.map(o => o.gate).join(", ")) + ' over share, no MIT</div>';
       }
       const trailTxt = r.mit > 0 ? r.mit + " MIT" : r.trail > 0 ? r.trail + " MIN" : "AUTO";
       h += '<tr class="tmurow">' +
@@ -11336,6 +11377,8 @@ window.VATFLOW = {
     maybeAnnounceGroundStops();
     ensureBoundariesIfNeeded();
     if (icao) syncMeterSelectors();
+    /* Home only polls the feed when it opens with programs; ones that arrive from the hub later need it too */
+    if (activeTab === "home" && Object.keys(tmuRates).length) ensurePolling();
     renderContent();
   },
   applyTaxiRemote(taxiWire) {
