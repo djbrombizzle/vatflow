@@ -318,10 +318,12 @@ def window_shade(k, coll, a0, a1, z0, z1):
     hanging from a roller just inside the head of the window.
 
     The roller is one object (TowerCab_ShadeRoller_k). The shade is SHADE_STRIPS
-    horizontal strips (TowerCab_Shade_k_sNN, NN = 0 at the top), each its own object
-    with custom properties vatflow_shade = k and vatflow_strip = NN. Model behaviors show
-    strip NN when the shade position (0-100 %) is past NN * 100 / SHADE_STRIPS, so the
-    shade unrolls from the top in steps and is gone when fully up. No animation needed.
+    seamless horizontal strips (TowerCab_Shade_k_sNN, NN = 0 at the top) plus a pull bar
+    per step (TowerCab_ShadeBar_k_sNN), each its own object with custom properties
+    vatflow_shade = k and vatflow_strip = NN. Model behaviors show strip NN when the shade
+    position (0-100 %) is past NN * 100 / SHADE_STRIPS and bar NN only while strip NN is
+    the lowest one showing, so the shade unrolls from the top and is gone when fully up.
+    No animation needed.
     """
     top_c = (corner(k, a1, z1) + corner(k + 1, a1, z1)) / 2
     bot_c = (corner(k, a0, z0) + corner(k + 1, a0, z0)) / 2
@@ -341,16 +343,21 @@ def window_shade(k, coll, a0, a1, z0, z1):
         roller.beam(e, e - down * 0.10, 0.02, "TWR_Mount")
     roller.finish()
 
+    # Strips butt edge to edge (no overlap: two layers of translucent fabric would show
+    # as a darker line) and carry no seams, so a lowered shade reads as one sheet.
+    # Each step also has its own pull bar, shown only while it is the bottom edge.
     h = length / SHADE_STRIPS
     for i in range(SHADE_STRIPS):
-        strip = Builder("TowerCab_Shade_%d_s%02d" % (k, i), coll)
         t0 = origin + down * (0.045 + i * h)
-        t1 = origin + down * (0.045 + (i + 1) * h + 0.004)          # tiny overlap, no gaps
+        t1 = origin + down * (0.045 + (i + 1) * h)
+        strip = Builder("TowerCab_Shade_%d_s%02d" % (k, i), coll)
         strip.face([t0 - along * half_w, t0 + along * half_w, t1 + along * half_w, t1 - along * half_w], "TWR_Shade")
-        last = i == SHADE_STRIPS - 1
-        seam = origin + down * (0.045 + (i + 1) * h)
-        strip.beam(seam - along * half_w, seam + along * half_w, 0.018 if last else 0.006, "TWR_Mount", segs=6)
         obj = strip.finish()
+        obj["vatflow_shade"] = k
+        obj["vatflow_strip"] = i
+        bar = Builder("TowerCab_ShadeBar_%d_s%02d" % (k, i), coll)
+        bar.beam(t1 - along * half_w, t1 + along * half_w, 0.018, "TWR_Mount", segs=6)
+        obj = bar.finish()
         obj["vatflow_shade"] = k
         obj["vatflow_strip"] = i
 

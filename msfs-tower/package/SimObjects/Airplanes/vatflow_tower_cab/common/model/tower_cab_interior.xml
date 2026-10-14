@@ -83,9 +83,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR00" Node="TowerCab_ShadeBar_0_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 0 &gt; (L:VATFLOW_SHADE_0) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S01" Node="TowerCab_Shade_0_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR01" Node="TowerCab_ShadeBar_0_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 5 &gt; (L:VATFLOW_SHADE_0) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -117,9 +151,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR02" Node="TowerCab_ShadeBar_0_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 10 &gt; (L:VATFLOW_SHADE_0) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S03" Node="TowerCab_Shade_0_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR03" Node="TowerCab_ShadeBar_0_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 15 &gt; (L:VATFLOW_SHADE_0) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -151,9 +219,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR04" Node="TowerCab_ShadeBar_0_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 20 &gt; (L:VATFLOW_SHADE_0) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S05" Node="TowerCab_Shade_0_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR05" Node="TowerCab_ShadeBar_0_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 25 &gt; (L:VATFLOW_SHADE_0) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -185,9 +287,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR06" Node="TowerCab_ShadeBar_0_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 30 &gt; (L:VATFLOW_SHADE_0) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S07" Node="TowerCab_Shade_0_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR07" Node="TowerCab_ShadeBar_0_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 35 &gt; (L:VATFLOW_SHADE_0) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -219,9 +355,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR08" Node="TowerCab_ShadeBar_0_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 40 &gt; (L:VATFLOW_SHADE_0) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S09" Node="TowerCab_Shade_0_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR09" Node="TowerCab_ShadeBar_0_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 45 &gt; (L:VATFLOW_SHADE_0) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -253,9 +423,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR10" Node="TowerCab_ShadeBar_0_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 50 &gt; (L:VATFLOW_SHADE_0) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S11" Node="TowerCab_Shade_0_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR11" Node="TowerCab_ShadeBar_0_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 55 &gt; (L:VATFLOW_SHADE_0) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -287,9 +491,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR12" Node="TowerCab_ShadeBar_0_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 60 &gt; (L:VATFLOW_SHADE_0) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S13" Node="TowerCab_Shade_0_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR13" Node="TowerCab_ShadeBar_0_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 65 &gt; (L:VATFLOW_SHADE_0) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -321,9 +559,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR14" Node="TowerCab_ShadeBar_0_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 70 &gt; (L:VATFLOW_SHADE_0) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S15" Node="TowerCab_Shade_0_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR15" Node="TowerCab_ShadeBar_0_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 75 &gt; (L:VATFLOW_SHADE_0) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -355,9 +627,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR16" Node="TowerCab_ShadeBar_0_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 80 &gt; (L:VATFLOW_SHADE_0) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S17" Node="TowerCab_Shade_0_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR17" Node="TowerCab_ShadeBar_0_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 85 &gt; (L:VATFLOW_SHADE_0) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -389,7 +695,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_0_BAR18" Node="TowerCab_ShadeBar_0_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 90 &gt; (L:VATFLOW_SHADE_0) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_0_S19" Node="TowerCab_Shade_0_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_0</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_0) (&gt;L:VATFLOW_SHADE_0)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_0_BAR19" Node="TowerCab_ShadeBar_0_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_0) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -430,9 +770,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR00" Node="TowerCab_ShadeBar_1_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 0 &gt; (L:VATFLOW_SHADE_1) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S01" Node="TowerCab_Shade_1_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR01" Node="TowerCab_ShadeBar_1_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 5 &gt; (L:VATFLOW_SHADE_1) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -464,9 +838,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR02" Node="TowerCab_ShadeBar_1_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 10 &gt; (L:VATFLOW_SHADE_1) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S03" Node="TowerCab_Shade_1_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR03" Node="TowerCab_ShadeBar_1_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 15 &gt; (L:VATFLOW_SHADE_1) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -498,9 +906,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR04" Node="TowerCab_ShadeBar_1_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 20 &gt; (L:VATFLOW_SHADE_1) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S05" Node="TowerCab_Shade_1_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR05" Node="TowerCab_ShadeBar_1_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 25 &gt; (L:VATFLOW_SHADE_1) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -532,9 +974,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR06" Node="TowerCab_ShadeBar_1_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 30 &gt; (L:VATFLOW_SHADE_1) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S07" Node="TowerCab_Shade_1_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR07" Node="TowerCab_ShadeBar_1_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 35 &gt; (L:VATFLOW_SHADE_1) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -566,9 +1042,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR08" Node="TowerCab_ShadeBar_1_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 40 &gt; (L:VATFLOW_SHADE_1) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S09" Node="TowerCab_Shade_1_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR09" Node="TowerCab_ShadeBar_1_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 45 &gt; (L:VATFLOW_SHADE_1) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -600,9 +1110,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR10" Node="TowerCab_ShadeBar_1_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 50 &gt; (L:VATFLOW_SHADE_1) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S11" Node="TowerCab_Shade_1_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR11" Node="TowerCab_ShadeBar_1_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 55 &gt; (L:VATFLOW_SHADE_1) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -634,9 +1178,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR12" Node="TowerCab_ShadeBar_1_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 60 &gt; (L:VATFLOW_SHADE_1) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S13" Node="TowerCab_Shade_1_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR13" Node="TowerCab_ShadeBar_1_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 65 &gt; (L:VATFLOW_SHADE_1) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -668,9 +1246,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR14" Node="TowerCab_ShadeBar_1_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 70 &gt; (L:VATFLOW_SHADE_1) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S15" Node="TowerCab_Shade_1_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR15" Node="TowerCab_ShadeBar_1_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 75 &gt; (L:VATFLOW_SHADE_1) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -702,9 +1314,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR16" Node="TowerCab_ShadeBar_1_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 80 &gt; (L:VATFLOW_SHADE_1) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S17" Node="TowerCab_Shade_1_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR17" Node="TowerCab_ShadeBar_1_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 85 &gt; (L:VATFLOW_SHADE_1) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -736,7 +1382,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_1_BAR18" Node="TowerCab_ShadeBar_1_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 90 &gt; (L:VATFLOW_SHADE_1) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_1_S19" Node="TowerCab_Shade_1_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_1</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_1) (&gt;L:VATFLOW_SHADE_1)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_1_BAR19" Node="TowerCab_ShadeBar_1_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_1) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -777,9 +1457,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR00" Node="TowerCab_ShadeBar_2_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 0 &gt; (L:VATFLOW_SHADE_2) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S01" Node="TowerCab_Shade_2_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR01" Node="TowerCab_ShadeBar_2_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 5 &gt; (L:VATFLOW_SHADE_2) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -811,9 +1525,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR02" Node="TowerCab_ShadeBar_2_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 10 &gt; (L:VATFLOW_SHADE_2) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S03" Node="TowerCab_Shade_2_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR03" Node="TowerCab_ShadeBar_2_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 15 &gt; (L:VATFLOW_SHADE_2) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -845,9 +1593,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR04" Node="TowerCab_ShadeBar_2_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 20 &gt; (L:VATFLOW_SHADE_2) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S05" Node="TowerCab_Shade_2_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR05" Node="TowerCab_ShadeBar_2_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 25 &gt; (L:VATFLOW_SHADE_2) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -879,9 +1661,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR06" Node="TowerCab_ShadeBar_2_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 30 &gt; (L:VATFLOW_SHADE_2) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S07" Node="TowerCab_Shade_2_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR07" Node="TowerCab_ShadeBar_2_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 35 &gt; (L:VATFLOW_SHADE_2) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -913,9 +1729,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR08" Node="TowerCab_ShadeBar_2_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 40 &gt; (L:VATFLOW_SHADE_2) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S09" Node="TowerCab_Shade_2_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR09" Node="TowerCab_ShadeBar_2_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 45 &gt; (L:VATFLOW_SHADE_2) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -947,9 +1797,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR10" Node="TowerCab_ShadeBar_2_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 50 &gt; (L:VATFLOW_SHADE_2) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S11" Node="TowerCab_Shade_2_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR11" Node="TowerCab_ShadeBar_2_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 55 &gt; (L:VATFLOW_SHADE_2) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -981,9 +1865,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR12" Node="TowerCab_ShadeBar_2_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 60 &gt; (L:VATFLOW_SHADE_2) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S13" Node="TowerCab_Shade_2_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR13" Node="TowerCab_ShadeBar_2_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 65 &gt; (L:VATFLOW_SHADE_2) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1015,9 +1933,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR14" Node="TowerCab_ShadeBar_2_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 70 &gt; (L:VATFLOW_SHADE_2) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S15" Node="TowerCab_Shade_2_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR15" Node="TowerCab_ShadeBar_2_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 75 &gt; (L:VATFLOW_SHADE_2) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1049,9 +2001,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR16" Node="TowerCab_ShadeBar_2_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 80 &gt; (L:VATFLOW_SHADE_2) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S17" Node="TowerCab_Shade_2_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR17" Node="TowerCab_ShadeBar_2_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 85 &gt; (L:VATFLOW_SHADE_2) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1083,7 +2069,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_2_BAR18" Node="TowerCab_ShadeBar_2_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 90 &gt; (L:VATFLOW_SHADE_2) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_2_S19" Node="TowerCab_Shade_2_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_2</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_2) (&gt;L:VATFLOW_SHADE_2)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_2_BAR19" Node="TowerCab_ShadeBar_2_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_2) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -1124,9 +2144,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR00" Node="TowerCab_ShadeBar_3_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 0 &gt; (L:VATFLOW_SHADE_3) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S01" Node="TowerCab_Shade_3_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR01" Node="TowerCab_ShadeBar_3_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 5 &gt; (L:VATFLOW_SHADE_3) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1158,9 +2212,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR02" Node="TowerCab_ShadeBar_3_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 10 &gt; (L:VATFLOW_SHADE_3) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S03" Node="TowerCab_Shade_3_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR03" Node="TowerCab_ShadeBar_3_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 15 &gt; (L:VATFLOW_SHADE_3) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1192,9 +2280,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR04" Node="TowerCab_ShadeBar_3_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 20 &gt; (L:VATFLOW_SHADE_3) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S05" Node="TowerCab_Shade_3_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR05" Node="TowerCab_ShadeBar_3_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 25 &gt; (L:VATFLOW_SHADE_3) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1226,9 +2348,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR06" Node="TowerCab_ShadeBar_3_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 30 &gt; (L:VATFLOW_SHADE_3) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S07" Node="TowerCab_Shade_3_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR07" Node="TowerCab_ShadeBar_3_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 35 &gt; (L:VATFLOW_SHADE_3) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1260,9 +2416,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR08" Node="TowerCab_ShadeBar_3_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 40 &gt; (L:VATFLOW_SHADE_3) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S09" Node="TowerCab_Shade_3_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR09" Node="TowerCab_ShadeBar_3_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 45 &gt; (L:VATFLOW_SHADE_3) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1294,9 +2484,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR10" Node="TowerCab_ShadeBar_3_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 50 &gt; (L:VATFLOW_SHADE_3) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S11" Node="TowerCab_Shade_3_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR11" Node="TowerCab_ShadeBar_3_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 55 &gt; (L:VATFLOW_SHADE_3) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1328,9 +2552,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR12" Node="TowerCab_ShadeBar_3_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 60 &gt; (L:VATFLOW_SHADE_3) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S13" Node="TowerCab_Shade_3_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR13" Node="TowerCab_ShadeBar_3_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 65 &gt; (L:VATFLOW_SHADE_3) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1362,9 +2620,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR14" Node="TowerCab_ShadeBar_3_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 70 &gt; (L:VATFLOW_SHADE_3) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S15" Node="TowerCab_Shade_3_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR15" Node="TowerCab_ShadeBar_3_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 75 &gt; (L:VATFLOW_SHADE_3) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1396,9 +2688,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR16" Node="TowerCab_ShadeBar_3_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 80 &gt; (L:VATFLOW_SHADE_3) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S17" Node="TowerCab_Shade_3_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR17" Node="TowerCab_ShadeBar_3_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 85 &gt; (L:VATFLOW_SHADE_3) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1430,7 +2756,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_3_BAR18" Node="TowerCab_ShadeBar_3_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 90 &gt; (L:VATFLOW_SHADE_3) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_3_S19" Node="TowerCab_Shade_3_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_3</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_3) (&gt;L:VATFLOW_SHADE_3)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_3_BAR19" Node="TowerCab_ShadeBar_3_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_3) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -1471,9 +2831,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR00" Node="TowerCab_ShadeBar_4_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 0 &gt; (L:VATFLOW_SHADE_4) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S01" Node="TowerCab_Shade_4_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR01" Node="TowerCab_ShadeBar_4_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 5 &gt; (L:VATFLOW_SHADE_4) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1505,9 +2899,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR02" Node="TowerCab_ShadeBar_4_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 10 &gt; (L:VATFLOW_SHADE_4) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S03" Node="TowerCab_Shade_4_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR03" Node="TowerCab_ShadeBar_4_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 15 &gt; (L:VATFLOW_SHADE_4) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1539,9 +2967,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR04" Node="TowerCab_ShadeBar_4_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 20 &gt; (L:VATFLOW_SHADE_4) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S05" Node="TowerCab_Shade_4_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR05" Node="TowerCab_ShadeBar_4_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 25 &gt; (L:VATFLOW_SHADE_4) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1573,9 +3035,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR06" Node="TowerCab_ShadeBar_4_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 30 &gt; (L:VATFLOW_SHADE_4) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S07" Node="TowerCab_Shade_4_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR07" Node="TowerCab_ShadeBar_4_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 35 &gt; (L:VATFLOW_SHADE_4) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1607,9 +3103,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR08" Node="TowerCab_ShadeBar_4_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 40 &gt; (L:VATFLOW_SHADE_4) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S09" Node="TowerCab_Shade_4_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR09" Node="TowerCab_ShadeBar_4_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 45 &gt; (L:VATFLOW_SHADE_4) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1641,9 +3171,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR10" Node="TowerCab_ShadeBar_4_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 50 &gt; (L:VATFLOW_SHADE_4) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S11" Node="TowerCab_Shade_4_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR11" Node="TowerCab_ShadeBar_4_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 55 &gt; (L:VATFLOW_SHADE_4) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1675,9 +3239,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR12" Node="TowerCab_ShadeBar_4_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 60 &gt; (L:VATFLOW_SHADE_4) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S13" Node="TowerCab_Shade_4_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR13" Node="TowerCab_ShadeBar_4_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 65 &gt; (L:VATFLOW_SHADE_4) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1709,9 +3307,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR14" Node="TowerCab_ShadeBar_4_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 70 &gt; (L:VATFLOW_SHADE_4) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S15" Node="TowerCab_Shade_4_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR15" Node="TowerCab_ShadeBar_4_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 75 &gt; (L:VATFLOW_SHADE_4) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1743,9 +3375,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR16" Node="TowerCab_ShadeBar_4_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 80 &gt; (L:VATFLOW_SHADE_4) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S17" Node="TowerCab_Shade_4_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR17" Node="TowerCab_ShadeBar_4_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 85 &gt; (L:VATFLOW_SHADE_4) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1777,7 +3443,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_4_BAR18" Node="TowerCab_ShadeBar_4_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 90 &gt; (L:VATFLOW_SHADE_4) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_4_S19" Node="TowerCab_Shade_4_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_4</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_4) (&gt;L:VATFLOW_SHADE_4)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_4_BAR19" Node="TowerCab_ShadeBar_4_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_4) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -1818,9 +3518,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR00" Node="TowerCab_ShadeBar_5_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 0 &gt; (L:VATFLOW_SHADE_5) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S01" Node="TowerCab_Shade_5_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR01" Node="TowerCab_ShadeBar_5_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 5 &gt; (L:VATFLOW_SHADE_5) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1852,9 +3586,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR02" Node="TowerCab_ShadeBar_5_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 10 &gt; (L:VATFLOW_SHADE_5) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S03" Node="TowerCab_Shade_5_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR03" Node="TowerCab_ShadeBar_5_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 15 &gt; (L:VATFLOW_SHADE_5) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1886,9 +3654,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR04" Node="TowerCab_ShadeBar_5_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 20 &gt; (L:VATFLOW_SHADE_5) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S05" Node="TowerCab_Shade_5_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR05" Node="TowerCab_ShadeBar_5_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 25 &gt; (L:VATFLOW_SHADE_5) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1920,9 +3722,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR06" Node="TowerCab_ShadeBar_5_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 30 &gt; (L:VATFLOW_SHADE_5) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S07" Node="TowerCab_Shade_5_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR07" Node="TowerCab_ShadeBar_5_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 35 &gt; (L:VATFLOW_SHADE_5) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1954,9 +3790,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR08" Node="TowerCab_ShadeBar_5_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 40 &gt; (L:VATFLOW_SHADE_5) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S09" Node="TowerCab_Shade_5_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR09" Node="TowerCab_ShadeBar_5_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 45 &gt; (L:VATFLOW_SHADE_5) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -1988,9 +3858,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR10" Node="TowerCab_ShadeBar_5_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 50 &gt; (L:VATFLOW_SHADE_5) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S11" Node="TowerCab_Shade_5_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR11" Node="TowerCab_ShadeBar_5_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 55 &gt; (L:VATFLOW_SHADE_5) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2022,9 +3926,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR12" Node="TowerCab_ShadeBar_5_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 60 &gt; (L:VATFLOW_SHADE_5) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S13" Node="TowerCab_Shade_5_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR13" Node="TowerCab_ShadeBar_5_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 65 &gt; (L:VATFLOW_SHADE_5) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2056,9 +3994,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR14" Node="TowerCab_ShadeBar_5_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 70 &gt; (L:VATFLOW_SHADE_5) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S15" Node="TowerCab_Shade_5_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR15" Node="TowerCab_ShadeBar_5_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 75 &gt; (L:VATFLOW_SHADE_5) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2090,9 +4062,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR16" Node="TowerCab_ShadeBar_5_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 80 &gt; (L:VATFLOW_SHADE_5) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S17" Node="TowerCab_Shade_5_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR17" Node="TowerCab_ShadeBar_5_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 85 &gt; (L:VATFLOW_SHADE_5) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2124,7 +4130,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_5_BAR18" Node="TowerCab_ShadeBar_5_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 90 &gt; (L:VATFLOW_SHADE_5) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_5_S19" Node="TowerCab_Shade_5_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_5</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_5) (&gt;L:VATFLOW_SHADE_5)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_5_BAR19" Node="TowerCab_ShadeBar_5_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_5) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -2165,9 +4205,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR00" Node="TowerCab_ShadeBar_6_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 0 &gt; (L:VATFLOW_SHADE_6) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S01" Node="TowerCab_Shade_6_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR01" Node="TowerCab_ShadeBar_6_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 5 &gt; (L:VATFLOW_SHADE_6) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2199,9 +4273,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR02" Node="TowerCab_ShadeBar_6_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 10 &gt; (L:VATFLOW_SHADE_6) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S03" Node="TowerCab_Shade_6_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR03" Node="TowerCab_ShadeBar_6_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 15 &gt; (L:VATFLOW_SHADE_6) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2233,9 +4341,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR04" Node="TowerCab_ShadeBar_6_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 20 &gt; (L:VATFLOW_SHADE_6) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S05" Node="TowerCab_Shade_6_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR05" Node="TowerCab_ShadeBar_6_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 25 &gt; (L:VATFLOW_SHADE_6) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2267,9 +4409,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR06" Node="TowerCab_ShadeBar_6_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 30 &gt; (L:VATFLOW_SHADE_6) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S07" Node="TowerCab_Shade_6_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR07" Node="TowerCab_ShadeBar_6_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 35 &gt; (L:VATFLOW_SHADE_6) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2301,9 +4477,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR08" Node="TowerCab_ShadeBar_6_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 40 &gt; (L:VATFLOW_SHADE_6) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S09" Node="TowerCab_Shade_6_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR09" Node="TowerCab_ShadeBar_6_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 45 &gt; (L:VATFLOW_SHADE_6) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2335,9 +4545,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR10" Node="TowerCab_ShadeBar_6_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 50 &gt; (L:VATFLOW_SHADE_6) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S11" Node="TowerCab_Shade_6_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR11" Node="TowerCab_ShadeBar_6_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 55 &gt; (L:VATFLOW_SHADE_6) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2369,9 +4613,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR12" Node="TowerCab_ShadeBar_6_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 60 &gt; (L:VATFLOW_SHADE_6) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S13" Node="TowerCab_Shade_6_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR13" Node="TowerCab_ShadeBar_6_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 65 &gt; (L:VATFLOW_SHADE_6) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2403,9 +4681,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR14" Node="TowerCab_ShadeBar_6_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 70 &gt; (L:VATFLOW_SHADE_6) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S15" Node="TowerCab_Shade_6_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR15" Node="TowerCab_ShadeBar_6_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 75 &gt; (L:VATFLOW_SHADE_6) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2437,9 +4749,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR16" Node="TowerCab_ShadeBar_6_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 80 &gt; (L:VATFLOW_SHADE_6) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S17" Node="TowerCab_Shade_6_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR17" Node="TowerCab_ShadeBar_6_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 85 &gt; (L:VATFLOW_SHADE_6) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2471,7 +4817,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_6_BAR18" Node="TowerCab_ShadeBar_6_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 90 &gt; (L:VATFLOW_SHADE_6) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_6_S19" Node="TowerCab_Shade_6_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_6</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_6) (&gt;L:VATFLOW_SHADE_6)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_6_BAR19" Node="TowerCab_ShadeBar_6_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_6) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>
@@ -2512,9 +4892,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR00" Node="TowerCab_ShadeBar_7_s00">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 0 &gt; (L:VATFLOW_SHADE_7) 5 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S01" Node="TowerCab_Shade_7_s01">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 5 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR01" Node="TowerCab_ShadeBar_7_s01">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 5 &gt; (L:VATFLOW_SHADE_7) 10 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2546,9 +4960,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR02" Node="TowerCab_ShadeBar_7_s02">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 10 &gt; (L:VATFLOW_SHADE_7) 15 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S03" Node="TowerCab_Shade_7_s03">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 15 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR03" Node="TowerCab_ShadeBar_7_s03">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 15 &gt; (L:VATFLOW_SHADE_7) 20 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2580,9 +5028,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR04" Node="TowerCab_ShadeBar_7_s04">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 20 &gt; (L:VATFLOW_SHADE_7) 25 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S05" Node="TowerCab_Shade_7_s05">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 25 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR05" Node="TowerCab_ShadeBar_7_s05">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 25 &gt; (L:VATFLOW_SHADE_7) 30 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2614,9 +5096,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR06" Node="TowerCab_ShadeBar_7_s06">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 30 &gt; (L:VATFLOW_SHADE_7) 35 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S07" Node="TowerCab_Shade_7_s07">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 35 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR07" Node="TowerCab_ShadeBar_7_s07">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 35 &gt; (L:VATFLOW_SHADE_7) 40 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2648,9 +5164,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR08" Node="TowerCab_ShadeBar_7_s08">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 40 &gt; (L:VATFLOW_SHADE_7) 45 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S09" Node="TowerCab_Shade_7_s09">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 45 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR09" Node="TowerCab_ShadeBar_7_s09">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 45 &gt; (L:VATFLOW_SHADE_7) 50 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2682,9 +5232,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR10" Node="TowerCab_ShadeBar_7_s10">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 50 &gt; (L:VATFLOW_SHADE_7) 55 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S11" Node="TowerCab_Shade_7_s11">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 55 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR11" Node="TowerCab_ShadeBar_7_s11">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 55 &gt; (L:VATFLOW_SHADE_7) 60 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2716,9 +5300,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR12" Node="TowerCab_ShadeBar_7_s12">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 60 &gt; (L:VATFLOW_SHADE_7) 65 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S13" Node="TowerCab_Shade_7_s13">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 65 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR13" Node="TowerCab_ShadeBar_7_s13">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 65 &gt; (L:VATFLOW_SHADE_7) 70 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2750,9 +5368,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR14" Node="TowerCab_ShadeBar_7_s14">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 70 &gt; (L:VATFLOW_SHADE_7) 75 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S15" Node="TowerCab_Shade_7_s15">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 75 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR15" Node="TowerCab_ShadeBar_7_s15">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 75 &gt; (L:VATFLOW_SHADE_7) 80 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2784,9 +5436,43 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR16" Node="TowerCab_ShadeBar_7_s16">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 80 &gt; (L:VATFLOW_SHADE_7) 85 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S17" Node="TowerCab_Shade_7_s17">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 85 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR17" Node="TowerCab_ShadeBar_7_s17">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 85 &gt; (L:VATFLOW_SHADE_7) 90 &lt;= and</VISIBILITY_CODE>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
@@ -2818,7 +5504,41 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_SHADE_7_BAR18" Node="TowerCab_ShadeBar_7_s18">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 90 &gt; (L:VATFLOW_SHADE_7) 95 &lt;= and</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_SHADE_7_S19" Node="TowerCab_Shade_7_s19">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 95 &gt;</VISIBILITY_CODE>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingYAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_SHADE_7</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_SHADE_7) (&gt;L:VATFLOW_SHADE_7)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Window shade - drag to set the height</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_SHADE_7_BAR19" Node="TowerCab_ShadeBar_7_s19">
 			<UseTemplate Name="ASOBO_GT_Visibility_Code">
 				<VISIBILITY_CODE>(L:VATFLOW_SHADE_7) 95 &gt;</VISIBILITY_CODE>
 			</UseTemplate>

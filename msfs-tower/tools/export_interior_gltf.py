@@ -236,6 +236,19 @@ def write_behaviors(path, node_names):
                          + "\t\t\t\t<TOOLTIPID>Window shade - click the roller to raise / lower it fully</TOOLTIPID>\n"
                          + "\t\t\t</UseTemplate>\n"
                          + "\t\t</Component>\n")
+        elif node.startswith("TowerCab_ShadeBar_"):     # pull bar: only on the lowest visible strip
+            k, strip = node.split("_")[2], int(node.rsplit("_s", 1)[1])
+            var = "VATFLOW_SHADE_%s" % k
+            lo, hi = strip * 100.0 / SHADE_STRIPS, (strip + 1) * 100.0 / SHADE_STRIPS
+            code = "(L:%s) %g &gt; (L:%s) %g &lt;= and" % (var, lo, var, hi)
+            if strip == SHADE_STRIPS - 1:
+                code = "(L:%s) %g &gt;" % (var, lo)
+            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_%s_BAR%02d\" Node=\"%s\">\n" % (k, strip, node)
+                         + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Visibility_Code\">\n"
+                         + "\t\t\t\t<VISIBILITY_CODE>%s</VISIBILITY_CODE>\n" % code
+                         + "\t\t\t</UseTemplate>\n"
+                         + drag_template("Y", var, SHADE_DRAG_SPEED, False, "Window shade - drag to set the height", 100)
+                         + "\t\t</Component>\n")
         elif node.startswith("TowerCab_Shade_"):        # one strip of a shade: shown past its step
             k, strip = node.split("_")[2], int(node.rsplit("_s", 1)[1])
             var = "VATFLOW_SHADE_%s" % k
