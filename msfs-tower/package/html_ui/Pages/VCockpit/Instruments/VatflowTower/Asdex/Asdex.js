@@ -188,6 +188,7 @@ if (typeof BaseInstrument !== "undefined") {
     connectedCallback() {
       super.connectedCallback();
       this.dim = VatflowDimmer.attach(this, "ASDEX");
+      VatflowDimmer.initMonitorPose("ASDEX");
       this.view = new AsdexView(this.querySelector("#asdex-canvas"), VATFLOW_TWR,
         typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
       this.tick = VatflowDraw.loop(this.view, 1000);

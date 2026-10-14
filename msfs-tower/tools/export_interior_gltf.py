@@ -24,6 +24,7 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
 """
 
 import json
+import re
 import math
 import os
 import runpy
@@ -42,6 +43,11 @@ TRACK_DRAG_SPEED = 0.125
 SHADE_DRAG_SPEED = 0.2
 KNOB_FRAMES = 90         # brightness knob: L:VATFLOW_DIM_* 0 (full bright) .. 90 (darkest)
 KNOB_DRAG_SPEED = 0.2
+LIFT_FRAMES = 40         # monitor height: frame = cm below the top of its travel
+LIFT_TOP_M = 0.15        # frame 0 is 15 cm above where it is built (built = frame 15)
+LIFT_DRAG_SPEED = 0.1
+TWIST_FRAMES = 100       # monitor swivel: frame 50 = as built, 1 degree per frame
+TWIST_DRAG_SPEED = 0.2
 MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
@@ -66,6 +72,8 @@ PBR = {
     "TWR_KeyGrey": ("5A5E63", 0.0, 0.5, 1),
     "TWR_KeyGreen": ("1E7A35", 0.0, 0.5, 1),
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
+    "TWR_FloorWear": ("FFFFFF", 0.0, 1.0, 0.999),     # alpha comes from the texture
+    "TWR_GlassSmudge": ("FFFFFF", 0.0, 0.6, 0.999),
     "TWR_Console": ("2A2C30", 0.0, 0.6, 1),
     "TWR_Bezel": ("0D0D0D", 0.1, 0.4, 1),
     "TWR_Mount": ("1C1C1F", 0.5, 0.45, 1),
@@ -77,16 +85,22 @@ PBR = {
 }
 
 
-# Textured materials: texture file (in common/texture, made by make_textures.py) and the
-# meters one copy covers. UVs for those are projected from world position (box mapping);
-# None = a decal stretched once over the face, using the UVs the build script gave it.
+# Textured materials (files in common/texture, made by make_textures.py):
+#   albd  base colour (alpha too, for the BLEND decals)
+#   comp  occlusion (R) / roughness (G) / metallic (B), the glTF "ORM" layout
+#   norm  normal map, DirectX convention (green = down), as the asset header declares
+#   m     meters one copy covers: UVs projected from world position (box mapping), so the
+#         patterns line up across parts; None = stretched once over the face (decals)
 TEXTURED = {
-    "TWR_Carpet": ("TWR_Carpet_albd.png", 2.4),
-    "TWR_Ceiling": ("TWR_Ceiling_albd.png", 1.2),
-    "TWR_Console": ("TWR_Console_albd.png", 1.0),
-    "TWR_Keypad": ("TWR_Keypad_albd.png", None),
-    "TWR_Keyboard": ("TWR_Keyboard_albd.png", None),
-    "TWR_Speaker": ("TWR_Speaker_albd.png", None),
+    "TWR_Carpet": {"albd": "TWR_Carpet_albd.png", "comp": "TWR_Carpet_comp.png", "norm": "TWR_Carpet_norm.png", "m": 2.4},
+    "TWR_Ceiling": {"albd": "TWR_Ceiling_albd.png", "m": 1.2},
+    "TWR_Console": {"albd": "TWR_Console_albd.png", "comp": "TWR_Console_comp.png", "norm": "TWR_Console_norm.png", "m": 1.0},
+    "TWR_Keypad": {"albd": "TWR_Keypad_albd.png", "m": None},
+    "TWR_Keyboard": {"albd": "TWR_Keyboard_albd.png", "m": None},
+    "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
+    # wear decals (alpha blended layers just above the floor / inside the glass)
+    "TWR_FloorWear": {"albd": "TWR_FloorWear_albd.png", "m": 3.6},
+    "TWR_GlassSmudge": {"albd": "TWR_GlassSmudge_albd.png", "m": None},
 }
 IDST_KEYS = {"1": "IDST - select the aircraft above", "2": "IDST - select the aircraft below",
              "3": "IDST - issue the release for the selected aircraft", "4": "IDST - cancel the selected release"}
@@ -117,6 +131,32 @@ def material_json(name):
     }
 
 
+def tangent(p, uv, n):
+    """Per-triangle tangent (glTF space) pointing along +U, with handedness in w."""
+    e1 = [p[1][i] - p[0][i] for i in range(3)]
+    e2 = [p[2][i] - p[0][i] for i in range(3)]
+    du1, dv1 = uv[1][0] - uv[0][0], uv[1][1] - uv[0][1]
+    du2, dv2 = uv[2][0] - uv[0][0], uv[2][1] - uv[0][1]
+    det = du1 * dv2 - du2 * dv1
+    if abs(det) < 1e-12:
+        t = [1.0, 0.0, 0.0] if abs(n[0]) < 0.9 else [0.0, 0.0, 1.0]
+        b = None
+    else:
+        r = 1.0 / det
+        t = [(e1[i] * dv2 - e2[i] * dv1) * r for i in range(3)]
+        b = [(e2[i] * du1 - e1[i] * du2) * r for i in range(3)]
+    # Gram-Schmidt against the normal
+    d = sum(t[i] * n[i] for i in range(3))
+    t = [t[i] - n[i] * d for i in range(3)]
+    ln = math.sqrt(sum(x * x for x in t)) or 1.0
+    t = [x / ln for x in t]
+    w = 1.0
+    if b is not None:
+        c = [n[1] * t[2] - n[2] * t[1], n[2] * t[0] - n[0] * t[2], n[0] * t[1] - n[1] * t[0]]
+        w = -1.0 if sum(c[i] * b[i] for i in range(3)) < 0 else 1.0
+    return [t[0], t[1], t[2], w]
+
+
 def to_gltf(v):
     """Blender (x, y, z), Z up, nose -Y  ->  glTF (x, z, -y)."""
     return [v[0], v[2], -v[1]]
@@ -135,16 +175,34 @@ class Writer:
         self.blob = bytearray()
         self.mat_index = {}
 
+    def texture(self, uri):
+        """Index of a glTF texture for a file in common/texture (one per file)."""
+        self.tex_index = getattr(self, "tex_index", {})
+        if uri not in self.tex_index:
+            # glTF image uri is the bare file name; MSFS finds it in the texture folder
+            self.g.setdefault("images", []).append({"uri": uri})
+            self.g.setdefault("samplers", [{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}])
+            self.g.setdefault("textures", []).append({"sampler": 0, "source": len(self.g["images"]) - 1})
+            self.tex_index[uri] = len(self.g["textures"]) - 1
+        return self.tex_index[uri]
+
     def material(self, name):
         if name not in self.mat_index:
             m = material_json(name)
-            if name in TEXTURED:
-                # glTF image uri is the bare file name; MSFS finds it in the texture folder
-                self.g.setdefault("images", []).append({"uri": TEXTURED[name][0]})
-                self.g.setdefault("samplers", [{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}])
-                self.g.setdefault("textures", []).append({"sampler": 0, "source": len(self.g["images"]) - 1})
-                m["pbrMetallicRoughness"]["baseColorTexture"] = {"index": len(self.g["textures"]) - 1}
-                m["pbrMetallicRoughness"]["baseColorFactor"] = [1.0, 1.0, 1.0, m["pbrMetallicRoughness"]["baseColorFactor"][3]]
+            t = TEXTURED.get(name)
+            if t:
+                pbr = m["pbrMetallicRoughness"]
+                pbr["baseColorTexture"] = {"index": self.texture(t["albd"])}
+                pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+                if "comp" in t:
+                    # same texture for occlusion (R) and roughness / metallic (G / B), as the
+                    # Asobo exporter writes it; the factors then scale the texture values
+                    ci = self.texture(t["comp"])
+                    pbr["metallicRoughnessTexture"] = {"index": ci}
+                    pbr["metallicFactor"], pbr["roughnessFactor"] = 1.0, 1.0
+                    m["occlusionTexture"] = {"index": ci}
+                if "norm" in t:
+                    m["normalTexture"] = {"index": self.texture(t["norm"]), "scale": 1.0}
             self.g["materials"].append(m)
             self.mat_index[name] = len(self.g["materials"]) - 1
         return self.mat_index[name]
@@ -170,10 +228,15 @@ class Writer:
         return len(self.g["accessors"]) - 1
 
     def add_object(self, obj):
-        # Animated parts that scale (the shades) keep their own transform so the scale
-        # runs along their local axes; everything else is baked into world space.
-        local = False
-        pivot = obj.get("vatflow_pivot")     # turning knobs: mesh around their own pivot
+        """
+        One node per object. Meshes are written in world space, or relative to the
+        object's "vatflow_pivot" (a world point) for parts that turn about their own axis.
+        "vatflow_parent" hangs the node under another object's node (translation =
+        pivot minus the parent's pivot; nothing is rotated at rest). "vatflow_anim" adds
+        its animation: track, lift, twist or knob (see the constants at the top).
+        """
+        pivot = obj.get("vatflow_pivot")
+        pv = list(pivot) if pivot is not None else [0.0, 0.0, 0.0]
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
@@ -181,21 +244,25 @@ class Writer:
         by_mat = {}
         for f in bm.faces:
             name = obj.material_slots[f.material_index].material.name
-            d = by_mat.setdefault(name, {"pos": [], "nrm": [], "uv": []})
-            nn = to_gltf(f.normal) if local else to_gltf((obj.matrix_world.to_3x3() @ f.normal).normalized())
-            wn = (obj.matrix_world.to_3x3() @ f.normal)
+            d = by_mat.setdefault(name, {"pos": [], "nrm": [], "uv": [], "tan": []})
+            wn = (obj.matrix_world.to_3x3() @ f.normal).normalized()
+            nn = to_gltf(wn)
+            tri_p, tri_uv = [], []
             for loop in f.loops:
                 wp = obj.matrix_world @ loop.vert.co
-                if pivot is not None:
-                    d["pos"].append(to_gltf([wp[0] - pivot[0], wp[1] - pivot[1], wp[2] - pivot[2]]))
-                else:
-                    d["pos"].append(to_gltf(loop.vert.co if local else wp))
+                d["pos"].append(to_gltf([wp[0] - pv[0], wp[1] - pv[1], wp[2] - pv[2]]))
                 d["nrm"].append(nn)
-                if name in TEXTURED and TEXTURED[name][1]:
-                    uv = box_uv(wp, wn, TEXTURED[name][1])
+                t = TEXTURED.get(name)
+                if t and t["m"]:
+                    uv = box_uv(wp, wn, t["m"])
                 else:
                     uv = loop[uv_layer].uv if uv_layer else (0.0, 0.0)
-                d["uv"].append([uv[0], 1.0 - uv[1]])          # glTF V runs down
+                guv = [uv[0], 1.0 - uv[1]]                    # glTF V runs down
+                d["uv"].append(guv)
+                tri_p.append(to_gltf(wp))
+                tri_uv.append(guv)
+            tan = tangent(tri_p, tri_uv, nn)
+            d["tan"].extend([tan] * 3)
         bm.free()
         prims = []
         for name, d in by_mat.items():
@@ -205,53 +272,72 @@ class Writer:
                 "NORMAL": self.accessor(d["nrm"], 5126, "VEC3", 34962),
                 "TEXCOORD_0": self.accessor(d["uv"], 5126, "VEC2", 34962),
             }
+            if name in TEXTURED and "norm" in TEXTURED[name]:
+                attrs["TANGENT"] = self.accessor(d["tan"], 5126, "VEC4", 34962)
             if name.startswith("$SCREEN_"):
                 attrs["TEXCOORD_1"] = attrs["TEXCOORD_0"]        # like the SDK sample screens
             idx = self.accessor(list(range(count)), 5123 if count < 65535 else 5125, "SCALAR", 34963)
             prims.append({"attributes": attrs, "indices": idx, "material": self.material(name)})
         self.g["meshes"].append({"name": obj.name, "primitives": prims})
         node = {"extensions": {"ASOBO_unique_id": {"id": obj.name}}, "mesh": len(self.g["meshes"]) - 1, "name": obj.name}
-        if local:
-            loc, rot, _scale = obj.matrix_world.decompose()
-            node["translation"] = to_gltf(loc)
-            node["rotation"] = [rot.x, rot.z, -rot.y, rot.w]     # same axis change as to_gltf
-        if pivot is not None:
-            node["translation"] = to_gltf(list(pivot))
         self.g["nodes"].append(node)
         node_i = len(self.g["nodes"]) - 1
+        self.node_info = getattr(self, "node_info", {})
+        self.node_info[obj.name] = {"index": node_i, "pivot": pv, "parent": obj.get("vatflow_parent"),
+                                    "anim": obj.get("vatflow_anim")}
 
-        if pivot is not None:
-            # Knob turn: frame = L: var value (0 = full bright .. 90 = darkest), 3 deg per
-            # frame anticlockwise seen from above (about glTF +Y), so brighter = clockwise.
-            times, keys = [], []
-            for fr in range(0, KNOB_FRAMES + 1, 10):
-                h = math.radians(fr * 3.0) / 2
-                times.append(fr / FPS)
-                keys.append([0.0, math.sin(h), 0.0, math.cos(h)])
-            t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
-            k_acc = self.accessor(keys, 5126, "VEC4")
-            self.g["animations"].append({
-                "name": obj.name + "_TURN",
-                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "rotation"}}],
-                "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
-            })
-        self.g["scenes"][0]["nodes"].append(node_i)
+    def link_nodes(self):
+        """Parents, rest translations and animations, once every node exists."""
+        roots = []
+        for name, info in self.node_info.items():
+            node = self.g["nodes"][info["index"]]
+            parent = self.node_info.get(info["parent"]) if info["parent"] else None
+            base = [info["pivot"][i] - (parent["pivot"][i] if parent else 0.0) for i in range(3)]
+            base_g = to_gltf(base)
+            if any(abs(v) > 1e-9 for v in base_g):
+                node["translation"] = base_g
+            if parent:
+                self.g["nodes"][parent["index"]].setdefault("children", []).append(info["index"])
+            else:
+                roots.append(info["index"])
+            anim = info["anim"]
+            if anim == "track":
+                # travel round the circular ceiling track = rotation about the cab's vertical
+                # axis (glTF +Y) through the origin. Frame = degrees 0..360.
+                self.rotation_anim(name + "_TRACK", info["index"], TRACK_FRAMES, lambda fr: fr)
+            elif anim == "knob":
+                # brightness knob: frame = L: var (0 full bright .. 90 darkest), 3 deg per frame
+                # anticlockwise seen from above, so brighter = clockwise
+                self.rotation_anim(name + "_TURN", info["index"], KNOB_FRAMES, lambda fr: fr * 3.0)
+            elif anim == "twist":
+                # monitor swivel about the vertical post: frame 50 = as built, 1 deg per frame
+                self.rotation_anim(name + "_TWIST", info["index"], TWIST_FRAMES, lambda fr: fr - TWIST_FRAMES / 2,
+                                   base=base_g)
+            elif anim == "lift":
+                # monitor height: frame = cm below the top of the travel (built = frame 15)
+                times, keys = [], []
+                for fr in range(0, LIFT_FRAMES + 1, 5):
+                    times.append(fr / FPS)
+                    keys.append([base_g[0], base_g[1] + LIFT_TOP_M - fr / 100.0, base_g[2]])
+                self.add_anim(name + "_LIFT", info["index"], "translation", times, keys, "VEC3")
+        self.g["scenes"][0]["nodes"] = roots
 
-        if "vatflow_track" in obj:
-            # Travel round the circular ceiling track = rotation about the cab's vertical
-            # axis (glTF +Y) through the origin. Frame = degrees: 0..360, keyed every 10.
-            times, keys = [], []
-            for deg in range(0, TRACK_FRAMES + 1, 10):
-                h = math.radians(deg) / 2
-                times.append(deg / FPS)
-                keys.append([0.0, math.sin(h), 0.0, math.cos(h)])
-            t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
-            k_acc = self.accessor(keys, 5126, "VEC4")
-            self.g["animations"].append({
-                "name": obj.name + "_TRACK",
-                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "rotation"}}],
-                "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
-            })
+    def rotation_anim(self, anim_name, node_i, frames, deg_of_frame, base=None):
+        times, keys = [], []
+        for fr in range(0, frames + 1, 10 if frames > 50 else 5):
+            h = math.radians(deg_of_frame(fr)) / 2
+            times.append(fr / FPS)
+            keys.append([0.0, math.sin(h), 0.0, math.cos(h)])
+        self.add_anim(anim_name, node_i, "rotation", times, keys, "VEC4")
+
+    def add_anim(self, anim_name, node_i, path, times, keys, typ):
+        t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
+        k_acc = self.accessor(keys, 5126, typ)
+        self.g["animations"].append({
+            "name": anim_name,
+            "channels": [{"sampler": 0, "target": {"node": node_i, "path": path}}],
+            "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
+        })
 
     def save(self, out_dir, base):
         while len(self.blob) % 4:
@@ -297,13 +383,28 @@ def write_behaviors(path, node_names):
     """tower_cab_interior.xml: LOD + model behaviors for every moving part in the export."""
     comps = []
     for node in node_names:
-        if node.endswith("Mount"):                      # overhead monitor on the 360 track
-            label = node.replace("TowerCab_", "").replace("Mount", "").upper()
-            var = "VATFLOW_%s_TRACK_DEG" % label
-            comps.append("\t\t<Component ID=\"VATFLOW_%s_TRACK\" Node=\"%s\">\n" % (label, node)
-                         + anim_template(node + "_TRACK", "(L:%s) dnor" % var, TRACK_FRAMES, True)
-                         + drag_template("X", var, TRACK_DRAG_SPEED, True, "%s - drag left/right to move it along the track" % label)
-                         + "\t\t</Component>\n")
+        m = re.match(r"TowerCab_(\w+?)Mount(_Lift|_Screen|_Swivel|_Handle)?$", node)
+        if m:                                           # overhead monitor parts
+            label, part = m.group(1).upper(), m.group(2) or ""
+            track, height, twist = ("VATFLOW_%s_%s" % (label, v) for v in ("TRACK_DEG", "HEIGHT", "TWIST"))
+            body = ""
+            if part == "":                              # trolley: travels round the track
+                body = anim_template(node + "_TRACK", "(L:%s) dnor" % track, TRACK_FRAMES, True)
+            elif part == "_Lift":                       # telescoping post
+                body = anim_template(node + "_LIFT", "(L:%s)" % height, LIFT_FRAMES, False)
+            else:                                       # swivelling parts, each grabbed for one thing
+                body = anim_template(node + "_TWIST", "(L:%s)" % twist, TWIST_FRAMES, False)
+                if part == "_Screen":
+                    body += drag_template("X", track, TRACK_DRAG_SPEED, True,
+                                          "%s - drag left/right to move it along the track" % label)
+                elif part == "_Handle":
+                    body += drag_template("Y", height, LIFT_DRAG_SPEED, False,
+                                          "%s - drag the handle up/down to set the height" % label, LIFT_FRAMES)
+                else:
+                    body += drag_template("X", twist, TWIST_DRAG_SPEED, False,
+                                          "%s - drag the side knob left/right to swivel the screen" % label, TWIST_FRAMES)
+            comps.append("\t\t<Component ID=\"VATFLOW_%s_MON%s\" Node=\"%s\">\n" % (label, part.upper(), node)
+                         + body + "\t\t</Component>\n")
         elif node.startswith("TowerCab_DimKnob_"):      # screen brightness knob
             grp = node.rsplit("_", 1)[1]
             var = "VATFLOW_DIM_%s" % grp
@@ -360,8 +461,11 @@ def write_behaviors(path, node_names):
         + "\t<LODS>\n\t\t<LOD minSize=\"0\" ModelFile=\"tower_cab_interior.gltf\"/>\n\t</LODS>\n"
         + "\t<!--\n"
         + "\t\tGenerated by tools/export_interior_gltf.py together with tower_cab_interior.gltf.\n"
-        + "\t\tOverhead monitors: node animation named node plus _TRACK, 360 frames = degrees round the\n"
-        + "\t\tceiling track, position in an L: var, dragged left/right (wraps round).\n"
+        + "\t\tOverhead monitors: trolley node animation _TRACK, 360 frames = degrees round the ceiling\n"
+        + "\t\ttrack (L:VATFLOW_x_TRACK_DEG, drag the screen left/right, wraps round); post _LIFT, frame =\n"
+        + "\t\tcm below the top of the travel (L:VATFLOW_x_HEIGHT, drag the handle up/down); screen, handle\n"
+        + "\t\tand side knobs _TWIST, frame 50 = straight (L:VATFLOW_x_TWIST, drag a side knob). The DBRITE /\n"
+        + "\t\tASDE-X screens set HEIGHT 15 and TWIST 50 when the flight starts (dimmer.js initMonitorPose).\n"
         + "\t\tShades: 20 strips each, shown past the shade position L:VATFLOW_SHADE_k (0 = up, 100 = down)\n"
         + "\t\twith ASOBO_GT_Visibility_Code; drag a strip to set the height, click the roller to raise /\n"
         + "\t\tlower it fully. Built on the SDK templates ASOBO_GT_Anim_Code, ASOBO_GT_Visibility_Code,\n"
@@ -388,6 +492,7 @@ def main(out_dir):
     for obj in bpy.data.collections["TowerCab_Interior"].objects:
         if obj.type == "MESH":
             w.add_object(obj)
+    w.link_nodes()
     w.save(out_dir, "tower_cab_interior")
     write_behaviors(os.path.join(out_dir, "tower_cab_interior.xml"), [n["name"] for n in w.g["nodes"]])
     print("Wrote %s: nodes %s, animations %s" % (

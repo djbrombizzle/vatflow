@@ -81,6 +81,8 @@ COLORS = {
     "TWR_KeyGrey": (0.35, 0.37, 0.40, 1.0),
     "TWR_KeyGreen": (0.10, 0.45, 0.18, 1.0),
     "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
+    "TWR_FloorWear": (0.10, 0.12, 0.16, 0.25),    # wear layers: alpha comes from their textures
+    "TWR_GlassSmudge": (0.77, 0.75, 0.71, 0.10),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
@@ -130,6 +132,9 @@ def material(name):
     bsdf.inputs["Roughness"].default_value = 0.6
     mat.diffuse_color = rgba
     mat.use_backface_culling = False  # exported as doubleSided; visible from inside and out
+    if name in ("TWR_FloorWear", "TWR_GlassSmudge"):
+        bsdf.inputs["Alpha"].default_value = rgba[3]
+        mat.blend_method = "BLEND"
     if name == "TWR_Glass":
         bsdf.inputs["Alpha"].default_value = rgba[3]
         bsdf.inputs["Roughness"].default_value = 0.05
@@ -319,6 +324,7 @@ def console_equipment(inside, coll, k, a_inner, top):
         kb.box(p + out * 0.009 + Vector((0, 0, 0.0255)), (0.004, 0.016, 0.002), "TWR_KeyGrey", rot_z=rot)
         obj = kb.finish()
         obj["vatflow_pivot"] = tuple(p)
+        obj["vatflow_anim"] = "knob"
 
     # keypad + trackball in front of TWR INFO
     deck(-0.10, 0.63, (0.26, 0.15, 0.04), "TWR_Bezel", "TWR_Keypad")
@@ -338,17 +344,26 @@ def console_equipment(inside, coll, k, a_inner, top):
     inside.beam(p, p + Vector((0, 0, 0.11)), 0.04, "TWR_Metal", segs=12)
 
 
+MONITOR_RAISE_M = 0.15     # height adjust: up to 15 cm above where it is built...
+MONITOR_LOWER_M = 0.25     # ...and 25 cm below (keep in sync with the exporter)
+
+
 def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_deg,
                   ceiling_z, rail_radius):
     """
     Ceiling-hung tower monitor like the real DCA cab: the display in a square-tube
-    yoke with side pivot knobs and a handle bar, hanging from a trolley on the
-    circular ceiling track (radius rail_radius) that runs all the way round the cab.
+    yoke with side pivot knobs and a handle bar, hanging on a telescoping post from a
+    trolley on the circular ceiling track (radius rail_radius) that runs all the way
+    round the cab. The monitor starts facing the cab centre from window face face_k.
 
-    The monitor starts facing the cab centre from window face face_k. It becomes its
-    own object `name` (custom property vatflow_track = 1) so the exporter can give it
-    a 360-degree animation round the vertical axis: moving along a circular track is
-    a rotation about the cab centre.
+    Five objects, exported as a node hierarchy (custom properties for the exporter):
+      name            trolley + outer sleeve   travels round the track      (vatflow_anim = track)
+      name_Lift       inner post               slides up / down in the sleeve (lift)
+      name_Screen     display, yoke            swivels about the post        (twist)
+      name_Handle     handle bar under it      swivels with it; drag = height
+      name_Swivel     side pivot knobs         swivels with it; drag = swivel
+    Lift, Screen, Handle and Swivel hang under the trolley; Screen / Handle / Swivel are
+    separate nodes (not children of each other) so each can be grabbed on its own.
     """
     ang = face_angle(face_k)
     out = Vector((math.cos(ang), math.sin(ang), 0))
@@ -364,29 +379,54 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     # place the monitor so the top of its yoke sits exactly under the track
     center_out = rail_radius - (back + up * fh).dot(out)
     c = out * center_out + Vector((0, 0, center_z))
+    top = c + back + up * fh                                # where the post meets the yoke
+    pivot = (top.x, top.y, top.z)                           # swivel axis: vertical through here
+    trolley_z = ceiling_z - 0.10
+    sleeve_bottom = top.z + MONITOR_RAISE_M + 0.12          # yoke clears the sleeve when raised
 
+    # trolley + outer sleeve (travels round the track)
     b = Builder(name, coll)
+    b.beam(Vector((top.x, top.y, sleeve_bottom)), Vector((top.x, top.y, trolley_z)), 0.034, "TWR_Mount", segs=8)
+    b.box((top.x, top.y, trolley_z + 0.03), (0.20, 0.12, 0.06), "TWR_Mount", rot_z=ang + math.pi / 2)
+    mount = b.finish()
+    mount["vatflow_anim"] = "track"
+
+    # inner post: from the yoke up into the sleeve, long enough to stay in it when lowered
+    b = Builder(name + "_Lift", coll)
+    b.beam(top, Vector((top.x, top.y, sleeve_bottom + MONITOR_LOWER_M + 0.08)), 0.024, "TWR_Mount", segs=8)
+    lift = b.finish()
+    lift["vatflow_anim"] = "lift"
+    lift["vatflow_parent"] = name
+
+    b = Builder(name + "_Screen", coll)
     screen(b, c, nrm, width, height, mat_screen, bezel=0.035, depth=0.08)
     F = [c + back - right * fw - up * fh, c + back + right * fw - up * fh,
          c + back + right * fw + up * fh, c + back - right * fw + up * fh]
     for i in range(4):                                      # square-tube yoke
         b.beam(F[i], F[(i + 1) % 4], 0.022, "TWR_Mount")
-    for s in (-1, 1):                                       # pivot knobs on the sides
-        b.beam(c + back + right * s * hw, c + back + right * s * (fw + 0.03), 0.02, "TWR_Mount", segs=8)
-        b.beam(c + back + right * s * (fw + 0.03), c + back + right * s * (fw + 0.07), 0.05, "TWR_Mount", segs=10)
-    drop = -up * 0.11 + n * 0.07                            # handle bar under the yoke
+    for sgn in (-1, 1):                                     # pivot stubs on the sides
+        b.beam(c + back + right * sgn * hw, c + back + right * sgn * (fw + 0.03), 0.02, "TWR_Mount", segs=8)
+    scr = b.finish()
+
+    b = Builder(name + "_Swivel", coll)                     # the big side knobs
+    for sgn in (-1, 1):
+        b.beam(c + back + right * sgn * (fw + 0.03), c + back + right * sgn * (fw + 0.07), 0.05, "TWR_Mount", segs=10)
+    swv = b.finish()
+
+    b = Builder(name + "_Handle", coll)                     # handle bar under the yoke
+    drop = -up * 0.11 + n * 0.07
     hl = c + back - up * fh - right * fw * 0.7
     hr = c + back - up * fh + right * fw * 0.7
     b.beam(hl, hl + drop, 0.018, "TWR_Mount", segs=6)
     b.beam(hr, hr + drop, 0.018, "TWR_Mount", segs=6)
     b.beam(hl + drop, hr + drop, 0.018, "TWR_Mount", segs=6)
-    top = c + back + up * fh                                # post up to the trolley
-    trolley_z = ceiling_z - 0.10
-    b.beam(top, Vector((top.x, top.y, trolley_z)), 0.03, "TWR_Mount", segs=6)
-    b.box((top.x, top.y, trolley_z + 0.03), (0.20, 0.12, 0.06), "TWR_Mount", rot_z=ang + math.pi / 2)
-    obj = b.finish()
-    obj["vatflow_track"] = 1
-    return obj
+    hnd = b.finish()
+
+    for o in (scr, swv, hnd):
+        o["vatflow_anim"] = "twist"
+        o["vatflow_parent"] = name + "_Lift"
+        o["vatflow_pivot"] = pivot
+    return mount
 
 
 SHADE_STRIPS = 20   # each shade shows in 5 % steps
@@ -590,6 +630,21 @@ def build():
     # bottom of the glass (the exterior sill wall isn't drawn in the cockpit view).
     # Its outer face stays 1 cm inside the exterior wall so they don't fight.
     inside.ring(a_inner, a0 - 0.01, a_inner, a0 - 0.01, 0.0, z_glass0, "TWR_Console")
+
+    # Wear layers. Traffic wear on the carpet: a strip in front of every console
+    # (3 mm up, alpha blended, mapped by world position like the carpet).
+    a_wear0, a_wear1 = a_inner - P["console_depth"], a_inner - P["console_depth"] - 1.1
+    for k in console_sides:
+        inside.face([corner(k, a_wear1, 0.003), corner(k + 1, a_wear1, 0.003),
+                     corner(k + 1, a_wear0, 0.003), corner(k, a_wear0, 0.003)], "TWR_FloorWear")
+    # Smudges / grime on the inside of the glass: one see-through layer 1.5 cm inside each
+    # pane, the texture stretched over it (bottom of the texture = bottom of the pane),
+    # shifted sideways per pane so neighbouring windows don't look copied.
+    for k in range(n):
+        u0 = (k * 0.37) % 1.0
+        inside.face([corner(k, a0 - 0.015, z_glass0), corner(k + 1, a0 - 0.015, z_glass0),
+                     corner(k + 1, a1 - 0.015, z_glass1), corner(k, a1 - 0.015, z_glass1)], "TWR_GlassSmudge",
+                    uvs=[(u0, 0), (u0 + 1, 0), (u0 + 1, 1), (u0, 1)])
 
     # Roll-down shades, one per window
     for k in range(n):

@@ -285,6 +285,7 @@ if (typeof BaseInstrument !== "undefined") {
     connectedCallback() {
       super.connectedCallback();
       this.dim = VatflowDimmer.attach(this, "DBRITE");
+      VatflowDimmer.initMonitorPose("DBRITE");
       this.view = new DbriteView(this.querySelector("#dbrite-canvas"), VATFLOW_TWR,
         typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
       this.tick = VatflowDraw.loop(this.view, 1000);

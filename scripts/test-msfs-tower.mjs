@@ -266,6 +266,12 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   for (const k of [1, 2, 3, 4]) {
     assert.ok(xml.includes(`Node="TowerCab_IdstKey_${k}"`) && xml.includes(`${k} (&gt;L:VATFLOW_IDST_KEY)`), "IDST key " + k);
   }
+  for (const m of ["DBRITE", "ASDEX"]) {
+    const cap = m === "DBRITE" ? "Dbrite" : "Asdex";
+    assert.ok(xml.includes(`Node="TowerCab_${cap}Mount_Screen"`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TRACK_DEG</POSITION_VAR>`), m + " track drag on the screen");
+    assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_HEIGHT)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_HEIGHT</POSITION_VAR>`), m + " height");
+    assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_TWIST)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TWIST</POSITION_VAR>`), m + " swivel");
+  }
   for (const g of ["ALL", "DBRITE", "ASDEX", "CONSOLE"]) {
     assert.ok(xml.includes(`Node="TowerCab_DimKnob_${g}"`) && xml.includes(`<POSITION_VAR>VATFLOW_DIM_${g}</POSITION_VAR>`), "knob " + g);
   }
@@ -291,6 +297,15 @@ t("screen brightness: knobs combine, never fully black, label only when a knob t
   assert.equal(shade.style.opacity, String(1 - 0.4));
   assert.equal(label.style.display, "block");
   assert.equal(label.textContent, "BRT 40%");
+  // overhead monitor pose: set once per flight to as built (height 15, swivel 50)
+  const vars = {};
+  dctx.SimVar = { GetSimVarValue: (n) => vars[n] || 0, SetSimVarValue: (n, u, v) => { vars[n] = v; } };
+  D.initMonitorPose("DBRITE");
+  assert.equal(vars["L:VATFLOW_DBRITE_HEIGHT"], 15);
+  assert.equal(vars["L:VATFLOW_DBRITE_TWIST"], 50);
+  vars["L:VATFLOW_DBRITE_HEIGHT"] = 33;                    // you moved it; a screen reload keeps that
+  D.initMonitorPose("DBRITE");
+  assert.equal(vars["L:VATFLOW_DBRITE_HEIGHT"], 33);
 });
 
 console.log(`\n${passed} passed`);

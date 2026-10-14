@@ -23,7 +23,9 @@ Inside the cab there are two working screens fed by live data:
   4.8 s radar sweep.
 * **Overhead monitors** hang in square-tube yokes (side knobs, handle bar) from
   trolleys on a circular ceiling track, like the real DCA cab, and are built to travel
-  all the way round the cab: grab one with the mouse and drag left/right. Every window has a roll-down shade: drag the shade to set its height, click its roller to raise or lower it fully (each shade is 20 strips shown or hidden by its position, no animation) (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
+  all the way round the cab: grab the screen with the mouse and drag left/right. Drag
+  the handle bar under it up/down to raise or lower it (telescoping post, 15 cm up to
+  25 cm down), and a side knob left/right to swivel it (up to 50 degrees each way). Every window has a roll-down shade: drag the shade to set its height, click its roller to raise or lower it fully (each shade is 20 strips shown or hidden by its position, no animation) (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
 * **ASDE-X** (hanging from the ceiling, front left): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
@@ -43,6 +45,9 @@ Inside the cab there are two working screens fed by live data:
 * **Brightness**: the four knobs on the console's knob panel (left to right: all
   screens, DBRITE, ASDE-X, console screens). Drag right for brighter, left for dimmer;
   the screen shows its brightness while you turn (`common/dimmer.js`).
+* **Wear**: roughness and normal maps on the carpet (fibre, sunken seams) and console
+  tops (shiny finger smudges, dull scuffs, fine scratches), a traffic-wear layer on the
+  carpet in front of the consoles, and grime / smudges / streaks on the inside of the glass.
 * **Console equipment** round those two, after the DCA local position: voice switch
   panel (keys light while that position is online on VATSIM), red LED Zulu clock,
   keypad, trackball, keyboard, knob panel, speaker. The ceiling is black, like the real cab.

@@ -11,6 +11,8 @@
  * that opacity over the page: the sim makes the screen glow from the page's pixels, so
  * darker pixels also mean less glow at night. While a knob turns, the screen shows its
  * brightness for two seconds.
+ *
+ * Also sets the overhead monitors' starting height / swivel (initMonitorPose).
  */
 var VatflowDimmer = (function () {
   var MIN = 0.05;
@@ -61,5 +63,21 @@ var VatflowDimmer = (function () {
     };
   }
 
-  return { attach: attach, level: level };
+  /**
+   * Overhead monitor pose. Its height and swivel are model animations driven by
+   * L:VATFLOW_<label>_HEIGHT (0..40, cm below the top of its travel; 15 = as built) and
+   * L:VATFLOW_<label>_TWIST (0..100, 50 = straight). L: vars start at 0 when a flight
+   * loads, so the monitor's own screen sets the as-built pose once (not again if the
+   * screen reloads during the flight, which would undo your adjustment).
+   */
+  function initMonitorPose(label) {
+    if (typeof SimVar === "undefined") return;
+    var flag = "L:VATFLOW_" + label + "_POSE_SET";
+    if (SimVar.GetSimVarValue(flag, "number")) return;
+    SimVar.SetSimVarValue("L:VATFLOW_" + label + "_HEIGHT", "number", 15);
+    SimVar.SetSimVarValue("L:VATFLOW_" + label + "_TWIST", "number", 50);
+    SimVar.SetSimVarValue(flag, "number", 1);
+  }
+
+  return { attach: attach, level: level, initMonitorPose: initMonitorPose };
 })();
