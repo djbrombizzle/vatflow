@@ -1440,7 +1440,8 @@ try {
 } catch (_) {
   airports = [{ icao: "KCVG", name: "Cincinnati/Northern Kentucky" }];
 }
-$("airportSel").innerHTML = airports.map(a => `<option value="${esc(a.icao)}">${esc(a.icao)}</option>`).join("");
+// Listed alphabetically; the index order (first = default airport) is kept for everything else.
+$("airportSel").innerHTML = [...airports].sort((a, b) => a.icao.localeCompare(b.icao)).map(a => `<option value="${esc(a.icao)}">${esc(a.icao)}</option>`).join("");
 {
   const want = (new URLSearchParams(location.search).get("icao") || LS.get("vatflow.ramp.airport", "") || "").toUpperCase();
   const first = airports.some(a => a.icao === want) ? want : airports[0].icao;
