@@ -118,15 +118,30 @@ seen from inside and outside.
 All materials are already double-sided (backface culling off), so the glass
 and walls render from inside and outside.
 
-## 6. Export two glTF files
+## 6. Export two glTF files (MSFS Multi-Exporter)
 
-1. In the Outliner, right-click `TowerCab_Exterior` → **Select Objects**.
-2. **File → Export →** the Microsoft Flight Simulator 2024 glTF option added
-   by the add-on. Tick **Selected Objects** only.
-   Name: `tower_cab.gltf`. If the exporter offers *Generate texturelib* /
-   *Keep original*, tick them.
-3. Repeat for `TowerCab_Interior` → `tower_cab_interior.gltf`.
-4. Each export writes a `.gltf` and a `.bin`. Keep both.
+Don't use File → Export → glTF 2.0: that writes a plain glTF without the
+MSFS extensions. The MSFS 2024 add-on exports from its own **Multi-Exporter**
+in the 3D view's sidebar.
+
+1. Hover over the 3D view and press **N** (or click the small **<** arrow at
+   the top right edge of the 3D view). A sidebar opens with vertical tabs on
+   its right edge.
+2. Click the MSFS 2024 exporter tab (the Multi-Exporter).
+3. Switch to the **Presets** panel (it exports by collection, which is how
+   the cab is organised).
+4. **Add Preset** → name `tower_cab`, enabled, collections: **only**
+   `TowerCab_Exterior`. In its settings set the **Export Path** (🖿 button) to
+   the folder where the model files go (step 8.1: your project's
+   `common\model\`; any folder is fine for now, you can copy them later).
+5. **Add Preset** → name `tower_cab_interior`, enabled, collections: **only**
+   `TowerCab_Interior`, same export path.
+6. Make sure **Microsoft Flight Simulator 2024** is ticked in the
+   exporter's **Settings** sub-panel (it is by default).
+7. Click **Export**. You get `tower_cab.gltf/.bin` and
+   `tower_cab_interior.gltf/.bin`. The Presets panel doesn't write `.xml`
+   files; that's fine, `tower_cab.xml` and `tower_cab_interior.xml` come from
+   this repo (step 8.1).
 
 ## 7. Make your project from the SimpleAircraft sample
 
