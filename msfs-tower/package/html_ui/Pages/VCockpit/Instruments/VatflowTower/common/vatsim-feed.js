@@ -100,5 +100,34 @@ var VatflowFeed = (function () {
     return function () { stopped = true; if (timer) clearTimeout(timer); };
   }
 
-  return { httpGet: httpGet, toNm: toNm, pad: pad, summarize: summarize, poll: poll };
+  /** METAR text -> { raw, wind: {dir, kt, gust}|null, windRaw: "19007"|"19007G15"|null, altim: "29.95"|null } */
+  function parseMetar(text) {
+    var out = { raw: text || "", wind: null, windRaw: null, altim: null };
+    var w = /\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b/.exec(out.raw);
+    if (w) {
+      out.wind = { dir: w[1], kt: parseInt(w[2], 10), gust: w[3] ? parseInt(w[3], 10) : null };
+      out.windRaw = w[1] + w[2] + (w[3] ? "G" + w[3] : "");
+    }
+    var a = /\bA(\d{4})\b/.exec(out.raw);
+    if (a) out.altim = (parseInt(a[1], 10) / 100).toFixed(2);
+    return out;
+  }
+
+  /** Polls VATSIM METARs for each ICAO every 5 min; onData({ICAO: parsed}) after each round. */
+  function pollMetars(icaos, onData) {
+    var latest = {};
+    function round() {
+      var left = icaos.length;
+      icaos.forEach(function (icao) {
+        httpGet("https://metar.vatsim.net/metar.php?id=" + icao, function (err, text) {
+          if (!err && /\S/.test(text)) latest[icao] = parseMetar(String(text).trim());
+          if (--left === 0) { onData(latest); setTimeout(round, 5 * 60 * 1000); }
+        });
+      });
+    }
+    round();
+  }
+
+  return { httpGet: httpGet, toNm: toNm, pad: pad, summarize: summarize, poll: poll,
+    parseMetar: parseMetar, pollMetars: pollMetars };
 })();

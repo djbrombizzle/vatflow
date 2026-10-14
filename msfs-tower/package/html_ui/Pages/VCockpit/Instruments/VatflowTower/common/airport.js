@@ -29,8 +29,16 @@ var VATFLOW_TWR = {
   dbrite: {
     rangeNm: 15,
     ringNm: 5,
-    minGroundspeedKt: 40,  // hide parked / taxiing traffic (that is the window's job)
+    minGroundspeedKt: 40,  // hide parked / taxiing traffic (that is the ASDE-X's job)
     maxAltFt: 18000,
-    historyDots: 5
+    historyDots: 5,
+    // Altimeter/wind lines in the top-left list (STARS "altimeter" list)
+    altimeterStations: ["KDCA", "KADW", "KDAA"],
+    towerLabel: "DCA TOWER"
+  },
+  asdex: {
+    maxAglFt: 2000,        // show arrivals on short final and departures just off
+    maxDistNm: 4,
+    marginPx: 30
   }
 };

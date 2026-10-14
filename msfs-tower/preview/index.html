@@ -6,6 +6,7 @@
 <title>Tower Cab Screens</title>
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.css">
 <style>
   :root { --bg: #1b1f24; --fg: #d7dde4; --muted: #8b96a3; }
   body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
@@ -15,6 +16,8 @@
   .screen { border: 6px solid #050505; border-radius: 4px; }
   .dbrite { width: 1024px; height: 768px; max-width: 100%; aspect-ratio: 4 / 3; }
   .twrinfo { width: 1024px; height: 512px; max-width: 100%; }
+  .asdex { width: 768px; height: 1024px; max-width: 100%; }
+  .asdex canvas { display: block; width: 100%; height: 100%; }
   .dbrite canvas { display: block; width: 100%; height: 100%; }
 </style>
 </head>
@@ -25,10 +28,14 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <div class="screens">
   <div class="screen twrinfo"><vatflow-twrinfo id="twrinfo-host"></vatflow-twrinfo></div>
   <div class="screen dbrite"><vatflow-dbrite><canvas id="dbrite-canvas" width="1024" height="768"></canvas></vatflow-dbrite></div>
+  <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="768" height="1024"></canvas></vatflow-asdex></div>
 </div>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/draw.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/maps-kdca.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.js"></script>
 <script>
 (function () {
@@ -48,7 +55,11 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
       { cs: "UAL663", lat: 38.83, lon: -77.035, alt: 1800, gs: 180, hdg: 185, t: "B738", d: "KDCA", a: "KORD" },
       { cs: "SWA331", lat: 38.76, lon: -77.06, alt: 6000, gs: 250, hdg: 205, t: "B737", d: "KDCA", a: "KBNA" },
       { cs: "N172SP", lat: 38.79, lon: -76.92, alt: 2500, gs: 105, hdg: 60, t: "C172", d: "KCGS", a: "KHEF" },
-      { cs: "RPA4501", lat: 38.85, lon: -77.04, alt: 15, gs: 8, hdg: 10, t: "E175", d: "KDCA", a: "KLGA" }
+      { cs: "RPA4501", lat: 38.8545, lon: -77.0400, alt: 15, gs: 12, hdg: 175, t: "E175", d: "KDCA", a: "KLGA" },
+      { cs: "AAL2311", lat: 38.8448, lon: -77.0370, alt: 15, gs: 0, hdg: 6, t: "A319", d: "KDCA", a: "KCLT" },
+      { cs: "DAL1999", lat: 38.8600, lon: -77.0400, alt: 15, gs: 15, hdg: 200, t: "A321", d: "KATL", a: "KDCA" },
+      { cs: "JIA5180", lat: 38.8488, lon: -77.0412, alt: 15, gs: 0, hdg: 90, t: "CRJ9", d: "KDCA", a: "KPHL" },
+      { cs: "UAL1101", lat: 38.8700, lon: -77.0395, alt: 600, gs: 140, hdg: 186, t: "B39M", d: "KORD", a: "KDCA" }
     ].map(function (p) {
       return { callsign: p.cs, latitude: p.lat, longitude: p.lon, altitude: p.alt, groundspeed: p.gs, heading: p.hdg,
         transponder: "1200", flight_plan: { aircraft_short: p.t, departure: p.d, arrival: p.a } };
@@ -67,7 +78,8 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 
   // TWR INFO: inject the gauge template exactly as MSFS would
   var host = document.getElementById("twrinfo-host");
-  var dbrite = new DbriteView(document.getElementById("dbrite-canvas"), cfg);
+  var dbrite = new DbriteView(document.getElementById("dbrite-canvas"), cfg, VATFLOW_MAPS);
+  var asdex = new AsdexView(document.getElementById("asdex-canvas"), cfg, VATFLOW_MAPS);
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.html");
   xhr.onload = function () {
@@ -76,19 +88,21 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     var info = new TwrInfoView(host.querySelector("#ti-root"), cfg);
     if (DEMO) {
       info.setMetar("KDCA 141152Z 19007KT 10SM SCT100 19/18 A2995 RMK AO2 SLP142");
-      var push = function () { var s = VatflowFeed.summarize(demoFeed(), cfg); info.setFeed(s); dbrite.setData(s); };
+      var push = function () { var s = VatflowFeed.summarize(demoFeed(), cfg); info.setFeed(s); dbrite.setData(s); asdex.setData(s); };
+      dbrite.setMetars({ KDCA: VatflowFeed.parseMetar("KDCA 141152Z 19007KT 10SM A2995"), KADW: VatflowFeed.parseMetar("KADW 141155Z 22007KT 10SM A2995"), KDAA: VatflowFeed.parseMetar("KDAA 141155Z 00000KT 10SM A2993") });
       push();
       setInterval(push, cfg.feedRefreshSec * 1000);
     } else {
       info.startMetar();
-      VatflowFeed.poll(cfg, function (s) { info.setFeed(s); dbrite.setData(s); },
-        function (e) { info.setFeedError(e); dbrite.setError(e); });
+      VatflowFeed.poll(cfg, function (s) { info.setFeed(s); dbrite.setData(s); asdex.setData(s); },
+        function (e) { info.setFeedError(e); dbrite.setError(e); asdex.setError(e); });
+      VatflowFeed.pollMetars(cfg.dbrite.altimeterStations, function (m) { dbrite.setMetars(m); });
     }
     setInterval(function () { info.render(mockSim()); }, 500);
   };
   xhr.send();
 
-  setInterval(function () { dbrite.draw(Date.now(), zuluSec()); }, 250);
+  setInterval(function () { dbrite.draw(Date.now(), zuluSec()); asdex.draw(Date.now(), zuluSec()); }, 250);
 })();
 </script>
 </body>

@@ -12,11 +12,12 @@ import vm from "node:vm";
 
 const BASE = new URL("../msfs-tower/package/html_ui/Pages/VCockpit/Instruments/VatflowTower/", import.meta.url);
 const ctx = vm.createContext({ Date, Math, JSON, String, parseInt, isNaN });
-for (const f of ["common/airport.js", "common/vatsim-feed.js", "Dbrite/Dbrite.js", "TwrInfo/TwrInfo.js"]) {
+for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/draw.js", "common/maps-kdca.js",
+  "Dbrite/Dbrite.js", "TwrInfo/TwrInfo.js", "Asdex/Asdex.js"]) {
   vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), ctx, { filename: f });
 }
-const { VATFLOW_TWR: cfg, VatflowFeed, DbriteView, TwrInfoView } = vm.runInContext(
-  "({ VATFLOW_TWR, VatflowFeed, DbriteView, TwrInfoView })", ctx);
+const { VATFLOW_TWR: cfg, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS: maps } = vm.runInContext(
+  "({ VATFLOW_TWR, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS })", ctx);
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -96,6 +97,44 @@ t("METAR parse: wind, gusts, variable, altimeter", () => {
   assert.equal(g.wind.gust, 25);
   assert.equal(TwrInfoView.parseMetar("KDCA 141352Z VRB03KT 10SM A2990").wind.dir, "VRB");
   assert.equal(TwrInfoView.parseMetar("").wind, null);
+});
+
+t("maps: KDCA field outline, runways and nearby airports are present", () => {
+  const a = maps.asdex, d = maps.dbrite;
+  assert.equal(a.land.length, 1);
+  assert.ok(a.land[0].length / 2 > 50, "field outline should not be simplified away");
+  assert.ok(a.taxiways.length > 50 && a.runways.length >= 3 && a.buildings.length >= 3);
+  const ids = d.airports.map((x) => x.id);
+  for (const id of ["KDCA", "KADW", "KDAA"]) assert.ok(ids.includes(id), id);
+  // DCA's runway 01/19 is ~7169 ft: check one OSM centerline length in meters
+  const r = a.runways.find((x) => x.ref === "01/19");
+  const len = Math.hypot(r.p[0] - r.p[r.p.length - 2], r.p[1] - r.p[r.p.length - 1]);
+  assert.ok(Math.abs(len - 7169 * 0.3048) < 60, "01/19 length " + len);
+});
+
+t("ASDE-X: fits the field in the canvas and filters to the surface area", () => {
+  const v = new AsdexView({ width: 768, height: 1024, getContext: () => ({}) }, cfg, maps);
+  const ring = maps.asdex.land[0];
+  for (let i = 0; i < ring.length; i += 2) {
+    const p = v.px(ring[i], ring[i + 1]);
+    assert.ok(p.x >= 0 && p.x <= 768 && p.y >= 0 && p.y <= 1024, "outline point off screen");
+  }
+  const north = v.px(0, 1000), south = v.px(0, -1000);
+  assert.ok(north.y < south.y, "north is up");
+  const s = VatflowFeed.summarize(feed, cfg);
+  v.setData(s);
+  assert.deepEqual(plain(Object.keys(v.targets)), ["UAL2"]);   // AAL1 is 2400 ft / 5 nm out, NOFP 3000 ft
+});
+
+t("DBRITE list: time/altimeter line and one line per altimeter station", () => {
+  const v = new DbriteView({ width: 1, height: 1, getContext: () => ({}) }, cfg, maps);
+  v.setMetars({ KDCA: VatflowFeed.parseMetar("KDCA 141152Z 19007KT 10SM A2995"),
+    KADW: VatflowFeed.parseMetar("KADW 141155Z 22007G15KT 10SM A2993") });
+  const lines = plain(v.listLines(12 * 3600 + 52 * 60 + 3)).map((l) => l.s);
+  assert.equal(lines[0], "1252/03 29.95");
+  assert.ok(lines.includes("DCA 29.95 19007"));
+  assert.ok(lines.includes("ADW 29.93 22007G15"));
+  assert.ok(lines.includes("DAA --.-- -----"));
 });
 
 console.log(`\n${passed} passed`);

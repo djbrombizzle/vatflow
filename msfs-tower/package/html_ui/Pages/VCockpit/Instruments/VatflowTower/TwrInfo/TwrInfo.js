@@ -12,14 +12,7 @@
 var TwrInfoView = (function () {
   var METAR_REFRESH_MS = 5 * 60 * 1000;
 
-  function parseMetar(text) {
-    var out = { raw: text || "", wind: null, altim: null };
-    var w = /\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b/.exec(out.raw);
-    if (w) out.wind = { dir: w[1], kt: parseInt(w[2], 10), gust: w[3] ? parseInt(w[3], 10) : null };
-    var a = /\bA(\d{4})\b/.exec(out.raw);
-    if (a) out.altim = (parseInt(a[1], 10) / 100).toFixed(2);
-    return out;
-  }
+  var parseMetar = VatflowFeed.parseMetar;
 
   function TwrInfoView(root, cfg) {
     this.root = root;

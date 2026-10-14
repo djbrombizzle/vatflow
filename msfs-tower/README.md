@@ -14,11 +14,17 @@ Inside the cab there are two working screens fed by live data:
 
 ![screens](docs/preview_demo.png)
 
-* **DBRITE** (hanging from the ceiling, front right): live VATSIM traffic
-  within 15 nm, north up, with range rings, DCA's runways, history trails and
-  STARS-style data blocks (callsign / altitude + speed, alternating with type +
+* **DBRITE** (hanging from the ceiling, front right): STARS-style tower
+  radar. Live VATSIM traffic within 15 nm, north up, grey range rings, an
+  olive video map (runways of every airport in range, airport/heliport/navaid
+  symbols), green altimeter list for DCA/ADW/DAA from the METARs, history
+  trails and data blocks (callsign / altitude + speed, alternating with type +
   ARR/DEP). Positions are dead-reckoned between feed updates and repainted on a
   4.8 s radar sweep.
+* **ASDE-X** (hanging from the ceiling, front left): the DCA surface in ASDE-X
+  colours (teal water, grey field, dark movement area, black runways, light
+  terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
+  arrivals/departures below 2,000 ft as heading arrows with callsign/type.
 * **TWR INFO** (on the front-left console): Zulu time, the real KDCA METAR wind
   (magnetic) and altimeter, the VATSIM ATIS letter, who is online at DCA /
   Potomac / ZDC, arrivals inside 50 nm and departures on the ground. The sim's
@@ -39,7 +45,9 @@ can only be checked inside MSFS 2024 are listed in the
 | `package/SimObjects/Airplanes/vatflow_tower_cab/common/model/` | `model.cfg` + LOD files that point at the exported cab. |
 | `package/SimObjects/Airplanes/vatflow_tower_cab/common/panel/panel.cfg` | Puts the two HTML screens onto the screen materials. |
 | `package/html_ui/Pages/VCockpit/Instruments/VatflowTower/` | The screens: `Dbrite/`, `TwrInfo/`, shared `common/airport.js` (all the KDCA specifics) and `common/vatsim-feed.js`. |
-| `placement/tower_place.py` + `towers.json` | Windows tool: teleport + freeze on the tower, nudge it into place, save. |
+| `placement/` | Windows tool: teleport + freeze on the tower, nudge it into place, save. Double-click `1-setup.bat`, `2-adjust-KDCA.bat`, then `3-place-KDCA.bat` every session (see `placement/README.txt`). |
+| `tools/build_kdca_maps.py` | Builds `common/maps-kdca.js` (ASDE-X and DBRITE map geometry) from OpenStreetMap and OurAirports. |
+| `tools/add_asdex_screen.py` | Adds the ASDE-X screen to an already exported `tower_cab_interior.gltf`, no Blender needed. |
 | `preview/index.html` | Runs the screens in a normal browser (live or `?demo`). |
 
 Tests for the screen logic: `node scripts/test-msfs-tower.mjs` (from the repo root).

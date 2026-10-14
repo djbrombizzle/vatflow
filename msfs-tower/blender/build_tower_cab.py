@@ -7,8 +7,9 @@ glass, a deep roof fascia, a railed roof with antenna masts, and a plain
 support stub underneath (meant to sit on top of the sim's own tower).
 
 Inside: console desks around the glass (rear side left open), a console
-"TWR INFO" display and a ceiling-hung "DBRITE" radar display. The two
-display surfaces use the materials $SCREEN_TWRINFO and $SCREEN_DBRITE, which
+"TWR INFO" display and two ceiling-hung displays: "DBRITE" radar (front
+right) and "ASDE-X" surface map (front left). The three
+display surfaces use the materials $SCREEN_TWRINFO, $SCREEN_DBRITE and $SCREEN_ASDEX, which
 must match the texture= names in panel.cfg. Like the SDK GaugeAircraft sample,
 they need the $ prefix and a strong emissive (2000) in the MSFS material panel:
 the gauge is drawn into the emissive channel.
@@ -71,6 +72,7 @@ COLORS = {
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_ASDEX": (0.0, 0.0, 0.0, 1.0),
 }
 
 # ---------------------------------------------------------------------------
@@ -371,6 +373,16 @@ def build():
     nrm = -out * math.cos(tilt) - Vector((0, 0, math.sin(tilt)))
     center, up, _ = screen(inside, c, nrm, 0.80, 0.60, "$SCREEN_DBRITE")
     top = center + up * 0.34
+    inside.beam(top, Vector((top.x, top.y, z_glass1 - 0.01)), 0.03, "TWR_Bezel")
+
+    # ASDE-X surface display hanging from the ceiling, front-left (portrait).
+    # Same geometry as tools/add_asdex_screen.py, which adds it to an existing export.
+    ang = face_angle(1)  # -45deg
+    out = Vector((math.cos(ang), math.sin(ang), 0))
+    c = out * (a_inner - 1.3) + Vector((0, 0, 2.55))
+    nrm = -out * math.cos(tilt) - Vector((0, 0, math.sin(tilt)))
+    center, up, _ = screen(inside, c, nrm, 0.60, 0.80, "$SCREEN_ASDEX")
+    top = center + up * 0.44
     inside.beam(top, Vector((top.x, top.y, z_glass1 - 0.01)), 0.03, "TWR_Bezel")
     inside.finish()
 
