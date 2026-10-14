@@ -77,20 +77,43 @@ Blender's **-Y** axis.
 
 ## 5. Set the MSFS materials
 
-The 2024 exporter ignores Blender's own shader settings and uses only its
-**MSFS material panel**. Do this once per material: select an object, open
-the **Material Properties** tab (red sphere icon), pick the material in the
-list, and scroll to the MSFS 2024 material section.
+This is done **in Blender**. The 2024 exporter ignores Blender's own shader
+settings and uses only its **MSFS material panel**. Materials are shared, so
+each one is set once, even if several objects use it.
+
+1. **Layout** tab (top of the window).
+2. In the **Outliner** (top right), expand a collection and click an object.
+   Which object holds which materials:
+   * `TowerCab_Shell` → `TWR_Concrete`
+   * `TowerCab_Glass` → `TWR_Glass`
+   * `TowerCab_Frame` → `TWR_Mullion`
+   * `TowerCab_Railings` → `TWR_Metal`
+   * `TowerCab_Interior` → `TWR_Carpet`, `TWR_Ceiling`, `TWR_Console`, `TWR_Bezel`, `SCREEN_TWRINFO`, `SCREEN_DBRITE`
+3. In the **Properties** editor (bottom right), click the **Material
+   Properties** tab: the red checkered sphere, the last icon in the column.
+4. The list at the top shows that object's materials. Click one.
+5. Scroll down past *Surface* to the panel with **MSFS** in its name (the MSFS
+   material parameters). If there's no such panel, the add-on isn't enabled
+   (step 3).
+6. Set **Material Type** and the values from the table below. To type a
+   color, click the color swatch → **Hex** → paste the hex value.
+7. Next material in the list, then the next object, until all ten are done.
+   Then save the .blend.
 
 | Material | MSFS material type | Settings |
 | --- | --- | --- |
-| `TWR_Concrete` | Standard | Base color off-white (≈ 220, 214, 202) |
-| `TWR_Mullion` | Standard | Base color near-black |
-| `TWR_Glass` | **Glass** (or Standard with alpha blend) | Light blue-grey, very transparent |
-| `TWR_Metal` | Standard | Light grey, metallic ≈ 0.8 |
-| `TWR_Console`, `TWR_Bezel` | Standard | Dark grey / black |
-| `TWR_Carpet`, `TWR_Ceiling` | Standard | Blue-grey / light grey |
-| `SCREEN_DBRITE`, `SCREEN_TWRINFO` | Standard | Base color white. Emissive white (so the screen glows at night). **Do not rename these two:** the names must match `texture=` in `panel.cfg`. |
+| `TWR_Concrete` | Standard | Base color `DCD6CA` |
+| `TWR_Mullion` | Standard | Base color `1A1A1C` |
+| `TWR_Glass` | **Glass** (if listed; otherwise Standard with alpha mode **Blend**) | Base color `A0B4BE`, alpha ≈ 0.15, roughness ≈ 0.05 |
+| `TWR_Metal` | Standard | Base color `C8C8C4`, metallic 0.8, roughness 0.4 |
+| `TWR_Console` | Standard | Base color `2A2C30` |
+| `TWR_Bezel` | Standard | Base color `0D0D0D` |
+| `TWR_Carpet` | Standard | Base color `2E3847` |
+| `TWR_Ceiling` | Standard | Base color `CCCCC7` |
+| `SCREEN_DBRITE`, `SCREEN_TWRINFO` | Standard | Base color `FFFFFF`, emissive `FFFFFF` (so the screen glows at night). **Do not rename these two:** the names must match `texture=` in `panel.cfg`. |
+
+If a material has a **double sided** option, tick it: the walls and glass are
+seen from inside and outside.
 
 All materials are already double-sided (backface culling off), so the glass
 and walls render from inside and outside.
