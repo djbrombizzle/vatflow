@@ -204,6 +204,8 @@ var DbriteView = (function () {
   DbriteView.prototype.draw = function (nowMs, zuluSec) {
     this.sweep(nowMs);
     var ctx = this.ctx, cfg = this.cfg, W = this.canvas.width, H = this.canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
     var range = cfg.dbrite.rangeNm;
     var cx = W / 2, cy = H / 2;
     var scale = (Math.min(W, H) / 2 - 8) / range;
@@ -284,17 +286,14 @@ if (typeof BaseInstrument !== "undefined") {
       super.connectedCallback();
       this.view = new DbriteView(this.querySelector("#dbrite-canvas"), VATFLOW_TWR,
         typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
-      this.lastDraw = 0;
+      this.tick = VatflowDraw.loop(this.view, 1000);
       var view = this.view;
       VatflowFeed.poll(VATFLOW_TWR, function (d) { view.setData(d); }, function (e) { view.setError(e); });
       VatflowFeed.pollMetars(VATFLOW_TWR.dbrite.altimeterStations, function (m) { view.setMetars(m); });
     }
     Update() {
       super.Update();
-      var now = Date.now();
-      if (now - this.lastDraw < 250) return;
-      this.lastDraw = now;
-      this.view.draw(now, SimVar.GetSimVarValue("E:ZULU TIME", "seconds"));
+      this.tick(false);
     }
   }
   registerInstrument("vatflow-dbrite", VatflowDbrite);

@@ -11,13 +11,14 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const BASE = new URL("../msfs-tower/package/html_ui/Pages/VCockpit/Instruments/VatflowTower/", import.meta.url);
-const ctx = vm.createContext({ Date, Math, JSON, String, parseInt, isNaN });
+const timers = [];
+const ctx = vm.createContext({ Date, Math, JSON, String, parseInt, isNaN, setInterval: (fn, ms) => timers.push({ fn, ms }) });
 for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/draw.js", "common/maps-kdca.js",
   "Dbrite/Dbrite.js", "TwrInfo/TwrInfo.js", "Asdex/Asdex.js"]) {
   vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), ctx, { filename: f });
 }
-const { VATFLOW_TWR: cfg, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS: maps } = vm.runInContext(
-  "({ VATFLOW_TWR, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS })", ctx);
+const { VATFLOW_TWR: cfg, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS: maps, VatflowDraw } = vm.runInContext(
+  "({ VATFLOW_TWR, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS, VatflowDraw })", ctx);
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -147,6 +148,41 @@ t("DBRITE finals: 01 extends south along the runway, 19 offset outward on 147 ma
   assert.ok(Math.abs(out - 317) < 0.01, "19 final outward bearing " + out);   // 137 true inbound
   assert.ok(f19.a.y > 0.4, "starts at the north (19) threshold");
   assert.equal(DbriteView.finalLine(cfg, { rwy: "36" }), null);
+});
+
+t("draw loop: an error is shown on screen and the next frame still draws; watchdog redraws", () => {
+  const calls = [];
+  const fakeCtx = new Proxy({}, { get: (o, k) => (k in o ? o[k] : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+  const texts = [];
+  fakeCtx.fillText = (s) => texts.push(String(s));
+  let fail = true;
+  const view = { ctx: fakeCtx, canvas: { height: 768 }, draw: () => { calls.push(1); if (fail) throw new Error("boom"); } };
+  timers.length = 0;
+  const tick = VatflowDraw.loop(view, 1000);
+  tick(false);
+  assert.equal(calls.length, 1);
+  assert.ok(texts.some((x) => x === "ERR boom"), "error drawn on the screen");
+  fail = false;
+  tick(true);                                   // next frame runs normally
+  assert.equal(calls.length, 2);
+  assert.equal(timers.length, 1);               // watchdog installed
+  tick(false);                                  // throttled: too soon
+  assert.equal(calls.length, 2);
+});
+
+t("radar screens draw without errors against a stub canvas for every target in a busy feed", () => {
+  const stub = new Proxy({}, { get: (o, k) => (k in o ? o[k] : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+  const canvas = { width: 1024, height: 768, getContext: () => stub };
+  const pilots = [];
+  for (let i = 0; i < 200; i++) {
+    pilots.push(pilot("T" + i, 38.85 + Math.sin(i) * 0.1, -77.04 + Math.cos(i) * 0.1, i % 3 ? i * 50 : -20,
+      i % 5 ? i : 0, (i * 37) % 360, i % 7 ? { aircraft_short: null, arrival: "KDCA" } : null));
+  }
+  pilots.push({ callsign: "WEIRD", latitude: 38.85, longitude: -77.04 });   // missing fields
+  const s = VatflowFeed.summarize({ general: {}, pilots, controllers: [], atis: [] }, cfg);
+  const d = new DbriteView(canvas, cfg, maps), a = new AsdexView({ width: 768, height: 1024, getContext: () => stub }, cfg, maps);
+  d.setData(s); a.setData(s);
+  for (let k = 0; k < 20; k++) { d.draw(Date.now() + k * 5000, 3600 * 19 + k); a.draw(Date.now() + k * 5000, 3600 * 19 + k); }
 });
 
 console.log(`\n${passed} passed`);

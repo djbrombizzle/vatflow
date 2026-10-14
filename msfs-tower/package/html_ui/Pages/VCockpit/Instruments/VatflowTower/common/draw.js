@@ -31,5 +31,51 @@ var VatflowDraw = (function () {
     return { hh: pad(Math.floor(sec / 3600) % 24, 2), mm: pad(Math.floor(sec / 60) % 60, 2), ss: pad(Math.floor(sec) % 60, 2) };
   }
 
-  return { mono: mono, path: path, zulu: zulu };
+  function zuluNow() {
+    try {
+      if (typeof SimVar !== "undefined") return SimVar.GetSimVarValue("E:ZULU TIME", "seconds");
+    } catch (e) { /* fall through to the PC clock */ }
+    var d = new Date();
+    return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+  }
+
+  function showError(view, e) {
+    try {
+      var ctx = view.ctx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "left";
+      ctx.font = "18px monospace";
+      ctx.fillStyle = "#ff4040";
+      ctx.fillText("ERR " + String((e && e.message) || e).slice(0, 70), 14, view.canvas.height - 44);
+    } catch (e2) { /* nothing more we can do */ }
+  }
+
+  /**
+   * Redraw scheduler for a canvas gauge. Returns tick(): call it from the sim's Update();
+   * it draws at most every intervalMs. A watchdog timer also draws if Update() stops
+   * being called, and a drawing error is shown on the screen (and logged) instead of
+   * freezing the picture, so the next frame still runs.
+   */
+  function loop(view, intervalMs) {
+    var last = 0, busy = false;
+    function tick(force) {
+      var now = Date.now();
+      if (busy || (!force && now - last < intervalMs)) return;
+      busy = true;
+      last = now;
+      try {
+        view.draw(now, zuluNow());
+      } catch (e) {
+        showError(view, e);
+        if (typeof console !== "undefined") console.error("VATFLOW gauge error", (e && e.stack) || e);
+      } finally {
+        busy = false;
+      }
+    }
+    setInterval(function () { if (Date.now() - last > intervalMs * 2.5) tick(true); }, intervalMs);
+    return tick;
+  }
+
+  return { mono: mono, path: path, zulu: zulu, zuluNow: zuluNow, loop: loop };
 })();

@@ -146,6 +146,8 @@ var AsdexView = (function () {
   AsdexView.prototype.draw = function (nowMs, zuluSec) {
     var ctx = this.ctx, cfg = this.cfg, W = this.canvas.width, H = this.canvas.height;
     var CW = 12, mono = VatflowDraw.mono;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
     this.drawMap(ctx);
 
     ctx.font = "18px monospace";
@@ -187,16 +189,13 @@ if (typeof BaseInstrument !== "undefined") {
       super.connectedCallback();
       this.view = new AsdexView(this.querySelector("#asdex-canvas"), VATFLOW_TWR,
         typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
-      this.lastDraw = 0;
+      this.tick = VatflowDraw.loop(this.view, 1000);
       var view = this.view;
       VatflowFeed.poll(VATFLOW_TWR, function (d) { view.setData(d); }, function (e) { view.setError(e); });
     }
     Update() {
       super.Update();
-      var now = Date.now();
-      if (now - this.lastDraw < 500) return;
-      this.lastDraw = now;
-      this.view.draw(now, SimVar.GetSimVarValue("E:ZULU TIME", "seconds"));
+      this.tick(false);
     }
   }
   registerInstrument("vatflow-asdex", VatflowAsdex);
