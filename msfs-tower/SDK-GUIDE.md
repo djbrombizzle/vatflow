@@ -36,8 +36,12 @@ placement tool freezes it in place anyway.
    `C:\MSFS 2024 SDK\`. We'll call it `<SDK>`.
 2. From the same menu, also install the **Samples**. They land in
    `<SDK>\Samples\`.
-3. Check that a **SimpleAircraft** sample folder exists somewhere under
-   `<SDK>\Samples\` and contains `SimpleAircraftProject.xml`.
+3. Check that a **SimpleAircraft** sample folder exists and contains
+   `SimpleAircraftProject.xml`. `<SDK>\Samples\` has three folders
+   (`DevmodeProjects`, `ModelBehavior`, `VisualStudio`); the aircraft samples
+   are inside **`DevmodeProjects`**, possibly a folder or two deeper. The quick
+   way: open `<SDK>\Samples\DevmodeProjects` in File Explorer and type
+   `SimpleAircraftProject.xml` in the search box at the top right.
 
 ## 3. Install the MSFS exporter in Blender
 
