@@ -1,0 +1,31 @@
+<link rel="stylesheet" href="TwrInfo.css" />
+<script type="text/html" id="VatflowTwrInfo">
+  <div id="ti-root">
+    <div class="ti-row ti-top">
+      <span id="ti-icao" class="ti-icao">----</span>
+      <span class="ti-label">ATIS</span><span id="ti-atis" class="ti-atis">-</span>
+      <span id="ti-zulu" class="ti-zulu">----:--Z</span>
+    </div>
+    <div class="ti-row ti-main">
+      <div class="ti-dial"><div id="ti-windArrow" class="ti-arrow"></div><span class="ti-n">N</span></div>
+      <div class="ti-block">
+        <div class="ti-label">WIND (MAG)</div>
+        <div id="ti-wind" class="ti-big">---</div>
+      </div>
+      <div class="ti-block">
+        <div class="ti-label">ALTIMETER</div>
+        <div id="ti-altim" class="ti-big">--.--</div>
+      </div>
+    </div>
+    <div id="ti-metar" class="ti-metar">METAR: WAITING</div>
+    <div id="ti-atc" class="ti-atc"></div>
+    <div class="ti-row ti-bottom">
+      <span id="ti-counts"></span>
+      <span id="ti-sim" class="ti-sim"></span>
+    </div>
+    <div id="ti-status" class="ti-status"></div>
+  </div>
+</script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.js"></script>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tower Cab Screens</title>
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.css">
+<style>
+  :root { --bg: #1b1f24; --fg: #d7dde4; --muted: #8b96a3; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  .screens { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .screen { border: 6px solid #050505; border-radius: 4px; }
+  .dbrite { width: 1024px; height: 768px; max-width: 100%; aspect-ratio: 4 / 3; }
+  .twrinfo { width: 1024px; height: 512px; max-width: 100%; }
+  .dbrite canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<h1>Tower cab screens: browser preview</h1>
+<p>Runs the same gauge code the sim loads, with the sim's values mocked. Live VATSIM data; add <code>?demo</code> to the URL for made-up traffic.
+Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-tower/</code>, then open <code>/preview/</code>).</p>
+<div class="screens">
+  <div class="screen twrinfo"><vatflow-twrinfo id="twrinfo-host"></vatflow-twrinfo></div>
+  <div class="screen dbrite"><vatflow-dbrite><canvas id="dbrite-canvas" width="1024" height="768"></canvas></vatflow-dbrite></div>
+</div>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.js"></script>
+<script>
+(function () {
+  var DEMO = /[?&]demo\b/.test(location.search);
+  var cfg = VATFLOW_TWR;
+
+  function zuluSec() { var d = new Date(); return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds(); }
+  function mockSim() { return { zuluSec: zuluSec(), windDirTrue: 185, windKt: 8, slpMb: 1013.9 }; }
+
+  // Synthetic traffic: arrivals on the river visual / RNAV 19, departures off 01, overflights
+  function demoFeed() {
+    var now = Date.now() / 1000;
+    var pilots = [
+      { cs: "AAL1842", lat: 38.93, lon: -77.06, alt: 2400, gs: 160, hdg: 175, t: "A321", d: "KBOS", a: "KDCA" },
+      { cs: "DAL2219", lat: 38.99, lon: -77.08, alt: 3500, gs: 190, hdg: 170, t: "B712", d: "KATL", a: "KDCA" },
+      { cs: "JBU1124", lat: 39.06, lon: -77.12, alt: 5000, gs: 220, hdg: 160, t: "A320", d: "KFLL", a: "KDCA" },
+      { cs: "UAL663", lat: 38.83, lon: -77.035, alt: 1800, gs: 180, hdg: 185, t: "B738", d: "KDCA", a: "KORD" },
+      { cs: "SWA331", lat: 38.76, lon: -77.06, alt: 6000, gs: 250, hdg: 205, t: "B737", d: "KDCA", a: "KBNA" },
+      { cs: "N172SP", lat: 38.79, lon: -76.92, alt: 2500, gs: 105, hdg: 60, t: "C172", d: "KCGS", a: "KHEF" },
+      { cs: "RPA4501", lat: 38.85, lon: -77.04, alt: 15, gs: 8, hdg: 10, t: "E175", d: "KDCA", a: "KLGA" }
+    ].map(function (p) {
+      return { callsign: p.cs, latitude: p.lat, longitude: p.lon, altitude: p.alt, groundspeed: p.gs, heading: p.hdg,
+        transponder: "1200", flight_plan: { aircraft_short: p.t, departure: p.d, arrival: p.a } };
+    });
+    return {
+      general: { update_timestamp: new Date(now * 1000).toISOString() },
+      pilots: pilots,
+      controllers: [
+        { callsign: "DCA_TWR", frequency: "119.100", name: "Demo" },
+        { callsign: "PCT_APP", frequency: "124.200", name: "Demo" },
+        { callsign: "DC_CTR", frequency: "133.700", name: "Demo" }
+      ],
+      atis: [{ callsign: "KDCA_ATIS", atis_code: "K", text_atis: ["DEMO ATIS"] }]
+    };
+  }
+
+  // TWR INFO: inject the gauge template exactly as MSFS would
+  var host = document.getElementById("twrinfo-host");
+  var dbrite = new DbriteView(document.getElementById("dbrite-canvas"), cfg);
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.html");
+  xhr.onload = function () {
+    var doc = new DOMParser().parseFromString(xhr.responseText, "text/html");
+    host.innerHTML = doc.getElementById("VatflowTwrInfo").innerHTML;
+    var info = new TwrInfoView(host.querySelector("#ti-root"), cfg);
+    if (DEMO) {
+      info.setMetar("KDCA 141152Z 19007KT 10SM SCT100 19/18 A2995 RMK AO2 SLP142");
+      var push = function () { var s = VatflowFeed.summarize(demoFeed(), cfg); info.setFeed(s); dbrite.setData(s); };
+      push();
+      setInterval(push, cfg.feedRefreshSec * 1000);
+    } else {
+      info.startMetar();
+      VatflowFeed.poll(cfg, function (s) { info.setFeed(s); dbrite.setData(s); },
+        function (e) { info.setFeedError(e); dbrite.setError(e); });
+    }
+    setInterval(function () { info.render(mockSim()); }, 500);
+  };
+  xhr.send();
+
+  setInterval(function () { dbrite.draw(Date.now(), zuluSec()); }, 250);
+})();
+</script>
+</body>
+</html>

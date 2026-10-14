@@ -1,0 +1,53 @@
+/* Designed for a 1024x512 screen (panel.cfg VCockpit size). */
+vatflow-twrinfo, #ti-root {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#ti-root {
+  box-sizing: border-box;
+  position: relative;
+  padding: 18px 26px;
+  background: #06121e;
+  color: #e8eef5;
+  font-family: monospace;
+  font-size: 22px;
+  overflow: hidden;
+}
+
+.ti-row { display: flex; align-items: center; }
+.ti-top { font-size: 34px; font-weight: bold; border-bottom: 2px solid #1f3a55; padding-bottom: 8px; }
+.ti-icao { color: #7fc8ff; margin-right: 40px; }
+.ti-label { color: #7f93a8; font-size: 20px; margin-right: 10px; }
+.ti-atis { color: #ffd166; font-size: 46px; margin-right: auto; }
+.ti-zulu { color: #e8eef5; }
+
+.ti-main { margin: 14px 0 10px; }
+.ti-dial {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border: 3px solid #1f3a55;
+  border-radius: 60px;
+  margin-right: 30px;
+  flex: none;
+}
+.ti-n { position: absolute; top: 2px; left: 0; width: 120px; text-align: center; color: #7f93a8; font-size: 16px; }
+.ti-arrow {
+  position: absolute;
+  left: 57px;
+  top: 10px;
+  width: 6px;
+  height: 50px;
+  background: #ffd166;
+  transform-origin: 3px 50px;
+}
+.ti-block { margin-right: 50px; }
+.ti-big { font-size: 64px; font-weight: bold; color: #ffffff; }
+
+.ti-metar { font-size: 20px; color: #b9c7d6; min-height: 52px; }
+.ti-atc { font-size: 22px; color: #8fe3a7; margin-top: 8px; min-height: 56px; }
+.ti-bottom { justify-content: space-between; margin-top: 8px; font-size: 20px; color: #b9c7d6; }
+.ti-sim { color: #6d8296; }
+.ti-status { position: absolute; right: 26px; bottom: 6px; color: #ff8a80; font-size: 18px; }
