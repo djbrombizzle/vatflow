@@ -204,9 +204,10 @@ t("TWR INFO actual wind: 2-minute vector average, magnetic, gusts only 10 kt ove
 });
 
 t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancels a release", () => {
-  const ictx = vm.createContext({ Date, Math, JSON, String, Number, Object, Array, Promise, Map, Set, parseInt, parseFloat, isNaN, isFinite, console,
-    setTimeout: () => 0, setInterval: () => 0, globalThis: undefined });
-  ictx.globalThis = ictx;
+  const ictx = vm.createContext({ console,
+    setTimeout: () => 0, setInterval: () => 0 });
+  // MSFS's instrument browser has no globalThis (or Promise.finally): the bundle must not need them
+  vm.runInContext("delete globalThis.globalThis; delete Promise.prototype.finally;", ictx);
   for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/vatflow-metering.js", "Idst/Idst.js"]) {
     vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), ictx, { filename: f });
   }

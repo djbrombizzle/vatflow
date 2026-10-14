@@ -15,7 +15,9 @@ import { fetchWinds, bindWindAirportLookup } from "../../shared/winds-aloft.js";
 import { fetchArtccBoundaries } from "../../shared/artcc-scope.js";
 import { verifyTowerAtc } from "../../shared/tower-atc-auth.js";
 
-globalThis.VatflowMetering = {
+// esbuild --global-name turns these exports into a plain global `var VatflowMetering`
+// (MSFS's instrument browser has no globalThis).
+export {
   loadAirports, seedAirports, getAirport, fpFields, computeTowerDepartures, markReady, clearReady,
   mergeRemoteFca, getRelease, fmtZulu, COMPLIANCE_EARLY_MS, COMPLIANCE_LATE_MS,
   loadNavData, fetchWinds, bindWindAirportLookup, fetchArtccBoundaries, verifyTowerAtc,

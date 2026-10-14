@@ -17,22 +17,29 @@
  * IdstView is plain DOM code (also used by preview/index.html); the MSFS wrapper at
  * the bottom only exists when BaseInstrument is defined.
  */
-// The bundled engine loads its reference data with fetch(); minimal fallback in case
-// the instrument browser has none.
-if (typeof fetch === "undefined") {
-  var fetch = function (url) {
-    return new Promise(function (resolve, reject) {
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", url, true);
-      xhr.onload = function () {
-        var t = xhr.responseText;
-        resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status,
-          text: function () { return Promise.resolve(t); },
-          json: function () { return Promise.resolve(JSON.parse(t)); } });
-      };
-      xhr.onerror = function () { reject(new Error("network error")); };
-      xhr.send();
-    });
+// MSFS's instrument browser is older than Chrome: give the bundled engine what it may lack.
+// Its reference-data downloads go through XMLHttpRequest (what the other screens use and
+// what works in the sim) instead of fetch().
+var VatflowXhrFetch = function (url) {
+  return new Promise(function (resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.timeout = 30000;
+    xhr.onload = function () {
+      var t = xhr.responseText;
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status,
+        text: function () { return Promise.resolve(t); },
+        json: function () { return Promise.resolve(JSON.parse(t)); } });
+    };
+    xhr.onerror = function () { reject(new Error("network error " + url)); };
+    xhr.ontimeout = function () { reject(new Error("timeout " + url)); };
+    xhr.send();
+  });
+};
+if (typeof window !== "undefined") window.fetch = VatflowXhrFetch;
+if (typeof Promise !== "undefined" && !Promise.prototype.finally) {
+  Promise.prototype.finally = function (fn) {
+    return this.then(function (v) { fn(); return v; }, function (e) { fn(); throw e; });
   };
 }
 
@@ -100,7 +107,8 @@ var IdstView = (function () {
     this.msgMs = 0;
     this.feedMs = 0;
     this.fcaMs = 0;
-    this.err = { feed: null, fca: null };
+    this.err = { feed: null, fca: null, engine: null };
+    this.airports = 0;
     this.auth = { verified: false, callsign: null };
     var ids = ["icao", "auth", "zulu", "list", "msg", "up", "down", "issue", "cancel", "status"];
     this.el = {};
@@ -129,13 +137,7 @@ var IdstView = (function () {
   /** Starts the data: airports + nav (for route expansion), VATSIM feed, FCA programs. */
   IdstView.prototype.start = function () {
     var self = this, base = this.icfg.siteBase || "https://vatflow.io/";
-    if (!M) { this.say("ENGINE MISSING (vatflow-metering.js)"); return; }
-    M.loadAirports(function () {
-      M.bindWindAirportLookup(function (icao) { return M.getAirport(icao); });
-      M.loadNavData(base + "data/nav").catch(function () {});
-      M.fetchWinds().catch(function () {});
-      M.fetchArtccBoundaries(base).catch(function () {});
-    }).catch(function (e) { self.err.feed = "AIRPORTS " + e.message; });
+    if (!M) { this.err.engine = "ENGINE NOT LOADED (common/vatflow-metering.js)"; return; }
     (function feed() {
       VatflowFeed.httpGet(self.cfg.feedUrl, function (err, text) {
         if (err) self.err.feed = err.message;
@@ -148,6 +150,22 @@ var IdstView = (function () {
     (function fcas() {
       self.loadFcas(function () { setTimeout(fcas, (self.icfg.fcaRefreshSec || 15) * 1000); });
     })();
+    // reference data for the release engine (airport positions, routes, ARTCC boundaries)
+    function guard(name, fn) {
+      try {
+        var pr = fn();
+        if (pr && pr.then) pr.then(null, function (e) { self.err.engine = name + " " + ((e && e.message) || e); });
+      } catch (e) { self.err.engine = name + " " + ((e && e.message) || e); }
+    }
+    guard("AIRPORTS", function () {
+      return M.loadAirports(function (n) {
+        self.airports = n;
+        guard("WINDS-BIND", function () { M.bindWindAirportLookup(function (icao) { return M.getAirport(icao); }); });
+        guard("NAV", function () { return M.loadNavData(base + "data/nav"); });
+        guard("ARTCC", function () { return M.fetchArtccBoundaries(base); });
+        guard("WINDS", function () { return M.fetchWinds(); });
+      });
+    });
   };
 
   IdstView.prototype.setFeed = function (feed) {
@@ -296,7 +314,7 @@ var IdstView = (function () {
     else { el.auth.className = "id-auth no"; el.auth.textContent = "VIEW ONLY - CID OFFLINE"; }
 
     var rows = [];
-    try { rows = this.compute(); } catch (e) { this.err.feed = "ENGINE " + e.message; }
+    try { rows = this.compute(); this.err.compute = null; } catch (e) { this.err.compute = e.message; }
     this.rows = rows;
     if (this.sel && !this.selectedRow()) this.sel = null;
 
@@ -326,11 +344,13 @@ var IdstView = (function () {
     var active = this.fcas.filter(function (f) { return f.enabled; }).length;
     var errs = [];
     if (this.err.feed) errs.push("VATSIM " + this.err.feed);
+    if (this.err.compute) errs.push("ENGINE " + this.err.compute);
     if (this.err.fca) errs.push("VATFLOW " + this.err.fca);
+    if (this.err.engine && !/^WINDS/.test(this.err.engine)) errs.push(this.err.engine);
     el.status.textContent = errs.length ? errs.join("   ").toUpperCase()
       : "PROGRAMS " + active + " ACTIVE   " + rows.length + " METERED DEP   VATSIM " +
         (this.feedMs ? Math.round((now - this.feedMs) / 1000) + "S" : "--") + "   VATFLOW " +
-        (this.fcaMs ? Math.round((now - this.fcaMs) / 1000) + "S" : "--");
+        (this.fcaMs ? Math.round((now - this.fcaMs) / 1000) + "S" : "--") + "   APTS " + this.airports;
   };
 
   return IdstView;
