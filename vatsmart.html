@@ -56,6 +56,9 @@
   .empty { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; max-width: 640px; color: var(--muted); font-size: 13px; line-height: 1.6; }
   .empty b { color: var(--text); }
 
+  .osbanner { background: rgba(224, 112, 112, 0.12); border: 1px solid #a04848; border-radius: 8px; padding: 9px 12px; margin-bottom: 12px; font-size: 12.5px; line-height: 1.5; }
+  .osbanner b.h { font-family: var(--mono); letter-spacing: 0.1em; color: #f08a8a; margin-right: 8px; }
+  .osbanner .g { white-space: nowrap; margin-right: 14px; }
   .kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
   .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
   .kpi .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
@@ -286,6 +289,7 @@
     It never changes a program. Set rates on <b>Airport TMU</b> and issue ground delays from an <b>FCA</b> (FCA Builder / IDST).
   </div>
 
+  <div class="osbanner" id="osBanner" hidden></div>
   <div id="app" hidden>
     <div class="kpis" id="kpis"></div>
     <div class="row main">
@@ -848,6 +852,7 @@ function renderPills() {
 
 function render() {
   renderPills(); renderPfBtn();
+  $("osBanner").hidden = true;
   if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true; $("tabs").hidden = true; return; }
   if (!st.aptLL) st.aptLL = getAirport(st.airport);
   if (!st.aptLL) {
@@ -881,7 +886,7 @@ function render() {
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
     : "Plan against this AAR on this page only. Set a program on Airport TMU so other pages see it.";
-  renderKpis(sit); renderRecs(sit); renderMap(sit); renderMerges(sit); renderChart(sit); renderLandings(sit); renderHolding(sit); renderSlots(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
+  renderOverShare(sit); renderKpis(sit); renderRecs(sit); renderMap(sit); renderMerges(sit); renderChart(sit); renderLandings(sit); renderHolding(sit); renderSlots(sit); renderGates(sit); renderRoutes(sit); renderTmis(sit); renderWx(sit); renderTaxi(sit); renderEvent(sit);
 }
 
 function taxiNow(now) {
@@ -929,6 +934,15 @@ function landedKpi(s) {
     "Arrivals that touched down in the last 60 minutes, from the live feed while this page was open. Compare with the AAR: if the runways land fewer, plan against what they land.");
 }
 
+/* early warning: a gate over its share of the rate in the next hour with no MIT holding it */
+function renderOverShare(s) {
+  const w = s.overShare || [];
+  $("osBanner").hidden = !w.length;
+  if (!w.length) return;
+  $("osBanner").innerHTML = `<b class="h">OVER SHARE, NO MIT</b>` + w.map(o =>
+    `<span class="g"><b>${esc(o.gate)}</b> ${o.demand}/hr vs ${o.slice}/hr share ${o.offsetMin ? "from " + fmtZ(o.at) : "now"}: start ${o.mit} MIT</span>`).join("") +
+    `<br><span style="color:var(--muted)">These gates bring more than their share of ${s.cap.capacity}/hr and nothing holds them in trail. Start the MIT and pass it upstream, or set it on Airport TMU so every page sees it.</span>`;
+}
 function renderRecs(s) {
   const counts = { action: 0, watch: 0, info: 0 };
   s.recs.forEach(r => counts[r.sev]++);

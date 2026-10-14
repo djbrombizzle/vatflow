@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   arrivalGate, gateKey, calcGateMit, programGateMitNm, gateMitAction, normPrograms,
-  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, gateMitTimeline, gateMitSchedule, NO_GATE,
+  isExcludedFromProgram, wakeFromFp, buildMitMonitor, gateSpacing, rollingGateDemand, gateMitTimeline, gateMitSchedule, overShareWarnings, NO_GATE,
 } from "../shared/mit-monitor.js";
 
 let passed = 0;
@@ -218,6 +218,23 @@ t("rollingGateDemand: prefiles are counted apart from connected traffic", () => 
   const x = rollingGateDemand({ flights, now, horizonMin: 60, includePrefiled: false }).windows[0];
   assert.equal(x.total, 2); assert.equal(x.prefiled, 2); assert.equal(x.unassigned, 0);
   assert.deepEqual(x.entries, [["GRNCH", 1], ["OMN", 1]]);
+});
+
+t("overShareWarnings: a gate over its share in the next hour with no MIT is flagged, one held in trail is not", () => {
+  const now = 0, flights = [];
+  for (let i = 0; i < 20; i++) flights.push({ eta: (5 + i * 2.5) * 60000, gate: "GTOUT" }); // 20/hr on one gate
+  for (let i = 0; i < 8; i++) flights.push({ eta: (5 + i * 7) * 60000, gate: "GRNCH" });
+  for (let i = 0; i < 30; i++) flights.push({ eta: (130 + i) * 60000, gate: "OMN" });       // over, but 2 h out
+  const { windows } = rollingGateDemand({ flights, now, horizonMin: 180 });
+  const w = overShareWarnings(windows, 24, { aar: 24, gates: [] });
+  assert.deepEqual(w.map(x => x.gate), ["GTOUT"]);
+  assert.equal(w[0].offsetMin, 0); assert.equal(w[0].demand, 20); assert.equal(w[0].slice, 16);
+  assert.ok(w[0].mit >= 15);
+  assert.deepEqual(overShareWarnings(windows, 24, { aar: 24, gates: [{ name: "GTOUT1", mit: 20 }] }), []);   // gate rule
+  assert.deepEqual(overShareWarnings(windows, 24, { aar: 24, mit: 15, gates: [] }), []);                     // airport-wide MIT
+  assert.deepEqual(overShareWarnings(windows, 40, { aar: 40, gates: [] }), []);                              // under the AAR
+  assert.deepEqual(overShareWarnings(windows, 0, null), []);
+  assert.deepEqual(overShareWarnings(windows, 24, null, { withinMin: 180 }).map(x => x.gate), ["GTOUT", "OMN"]);
 });
 
 console.log(`\n${passed} passed`);
