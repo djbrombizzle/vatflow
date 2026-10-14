@@ -53,12 +53,13 @@ var VatflowDraw = (function () {
 
   /**
    * Redraw scheduler for a canvas gauge. Returns tick(): call it from the sim's Update();
-   * it draws at most every intervalMs. A watchdog timer also draws if Update() stops
+   * it draws at most every intervalMs and then nudges the canvas style so MSFS repaints
+   * the screen (see below). A watchdog timer also draws if Update() stops
    * being called, and a drawing error is shown on the screen (and logged) instead of
    * freezing the picture, so the next frame still runs.
    */
   function loop(view, intervalMs) {
-    var last = 0, busy = false;
+    var last = 0, busy = false, flip = false;
     function tick(force) {
       var now = Date.now();
       if (busy || (!force && now - last < intervalMs)) return;
@@ -66,6 +67,11 @@ var VatflowDraw = (function () {
       last = now;
       try {
         view.draw(now, zuluNow());
+        // MSFS only re-renders a VCockpit page onto the 3D screen when the page's DOM
+        // changes; new pixels inside a <canvas> alone don't count, so the screen froze
+        // on its first frame. An invisible style change after each frame marks it dirty.
+        flip = !flip;
+        view.canvas.style.opacity = flip ? "0.999" : "1";
       } catch (e) {
         showError(view, e);
         if (typeof console !== "undefined") console.error("VATFLOW gauge error", (e && e.stack) || e);

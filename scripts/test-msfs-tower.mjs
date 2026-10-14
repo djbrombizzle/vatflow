@@ -156,7 +156,7 @@ t("draw loop: an error is shown on screen and the next frame still draws; watchd
   const texts = [];
   fakeCtx.fillText = (s) => texts.push(String(s));
   let fail = true;
-  const view = { ctx: fakeCtx, canvas: { height: 768 }, draw: () => { calls.push(1); if (fail) throw new Error("boom"); } };
+  const view = { ctx: fakeCtx, canvas: { height: 768, style: {} }, draw: () => { calls.push(1); if (fail) throw new Error("boom"); } };
   timers.length = 0;
   const tick = VatflowDraw.loop(view, 1000);
   tick(false);
@@ -165,6 +165,10 @@ t("draw loop: an error is shown on screen and the next frame still draws; watchd
   fail = false;
   tick(true);                                   // next frame runs normally
   assert.equal(calls.length, 2);
+  const o1 = view.canvas.style.opacity;
+  tick(true);
+  assert.notEqual(view.canvas.style.opacity, o1, "each frame changes the DOM so MSFS repaints");
+  calls.pop();
   assert.equal(timers.length, 1);               // watchdog installed
   tick(false);                                  // throttled: too soon
   assert.equal(calls.length, 2);
