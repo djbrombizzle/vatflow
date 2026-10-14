@@ -237,7 +237,9 @@ function spotsFor(L, stand, flow, key) {
     const v = ((src || {})[stand.chart] || {})[stand.pushTo];
     return v == null ? null : [].concat(v);
   };
-  return pick(f && f[key]) || pick(L[key]) || [];
+  // Entry spots can also come per ramp ("rampSpots": KMIA gives its spots by apron frequency, not by lane).
+  const byRamp = key === "laneSpots" ? (L.rampSpots || {})[stand.ramp] : null;
+  return pick(f && f[key]) || pick(L[key]) || (byRamp ? [].concat(byRamp) : []);
 }
 
 function nearestSpot(L, stand, ids) {

@@ -225,14 +225,14 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS and KDFW");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW and KMIA");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
     assert(new Set(A.stands.map(s => s.id)).size === A.stands.length, `${a.icao} stand ids unique`);
     assert(A.stands.every(s => Number.isFinite(s.lat) && s.noseHdg != null), `${a.icao} stands have lat/lon and a push lane`);
     // Every stand whose push lane has reporting points / call spots gets one.
-    assert(A.stands.every(s => entrySpotFor(A, s) || !((A.laneSpots || {})[s.chart] || {})[s.pushTo]), `${a.icao} every stand has an entry spot`);
+    assert(A.stands.every(s => entrySpotFor(A, s) || !((A.laneSpots || {})[s.chart] || {})[s.pushTo] && !(A.rampSpots || {})[s.ramp]), `${a.icao} every stand has an entry spot`);
     assert(A.stands.every(s => composeStandTelex(A, s.id).length <= TELEX_MAX), `${a.icao} telex budget`);
     assert((A.airlines || []).every(x => x.ramps.every(id => A.rampById.has(id))), `${a.icao} airline ramps exist`);
     assert((A.views || []).length && A.demo.fleet.every(f => !f.stand || A.standById.has(f.stand)) &&
@@ -606,5 +606,28 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   const want = { AAL1: "DFW-CS", ENY1: "DFW-BN", BAW1: "DFW-DS", DAL1: "DFW-ES", CKS1: "DFW-WC" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(F, [], operatorFor(F, cs, ""), cs).ramp === ramp, `KDFW ${cs} on ${ramp}`);
   assert(airlineStands(F, { callsign: "AAL12", op: operatorFor(F, "AAL12", "") }).every(id => !/^(T|S|CT|A9|C9|B9)/.test(id)), "KDFW proposals skip hardstands and T stands");
+}
+/* ---------- KMIA ---------- */
+{
+  const M = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KMIA.json", import.meta.url))));
+  const count = r => M.stands.filter(s => s.ramp === r).length;
+  assert(M.stands.length === 255 && count("MIA-C") === 17 && count("MIA-D60") === 16 && count("MIA-ER") === 9 && count("MIA-WCC") === 21,
+    "KMIA 255 stands: Central Base, Concourses D-J, D60, E Remote and West Cargo");
+  assert(M.stands.every(s => !s.approx && s.noseHdg != null), "every KMIA stand has real coordinates and a heading");
+  // Spots carry the apron frequency (10-9B): the entry spot comes from the stand's ramp.
+  assert(composeStandTelex(M, "C100") === "KMIA MIAMI GATES: PARK STAND C100. ENTER AT SPOT 1. CTC MIAMI GATES 128.025 AT SPOT 1 FOR TAXI.", "KMIA C100 telex: " + composeStandTelex(M, "C100"));
+  assert(composeStandTelex(M, "D40").includes("SPOT 8. CTC AMERICAN APRON 130.325") && composeStandTelex(M, "D55").includes("CTC AMERICAN APRON 130.95 AT SPOT 13"),
+    "KMIA D north on 130.325, D south on 130.95");
+  assert(composeStandTelex(M, "D60M").includes("CTC MIAMI GATES 130.5 AT SPOT 11") && composeStandTelex(M, "E28").includes("130.95 AT SPOT 15"), "KMIA D60 and E Remote");
+  assert(composeStandTelex(M, "H9").includes("130.5 AT SPOT 21") && composeStandTelex(M, "J9").includes("132.375 AT SPOT 24"), "KMIA H west on 130.5, J on 132.375");
+  assert(composeStandTelex(M, "W51").includes("CTC MIAMI GROUND 121.8 AT SPOT 75") && !/ CTC /.test(composeStandTelex(M, "W12")), "KMIA cargo spots 73/75 on 121.8, Cargo City no freq");
+  assert(M.stands.every(s => !M.rampSpots[s.ramp] || M.rampSpots[s.ramp].includes(entrySpotFor(M, s).id)), "KMIA entry spot is one of the stand's own ramp's");
+  // One stand per gate whose A line ends at the base gate.
+  assert(["D8", "D8A"].every(g => standForGate(M, g)?.id === "D8") && standForGate(M, "G5A")?.id === "G5" && !M.standById.has("D8A") &&
+    M.standById.has("D10A") && M.standById.get("J17").label === "J17/A", "KMIA multi-line gates");
+  assert(!["D5A", "D60D", "H3A", "C113"].some(id => M.standById.has(id)), "KMIA OSM-only gates left out");
+  const want = { AAL1: "MIA-DN", ENY1: "MIA-D60", BAW1: "MIA-E", DAL1: "MIA-HE", UAL1: "MIA-G", DLH1: "MIA-J", FDX1: "MIA-WCC" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(M, [], operatorFor(M, cs, ""), cs).ramp === ramp, `KMIA ${cs} on ${ramp}`);
+  assert(airlineStands(M, { callsign: "AAL12", op: operatorFor(M, "AAL12", "") }).every(id => M.standById.get(id).ramp !== "MIA-ER"), "KMIA proposals skip E Remote");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
