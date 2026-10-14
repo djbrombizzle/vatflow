@@ -177,17 +177,19 @@ All paths below are inside `PackageSources\SimObjects\Airplanes\<aircraft folder
    project's `PackageSources\html_ui`. Then, in the Project Editor, select the
    package → **Add asset group** → type **Copy**, name `html_ui`, source folder
    `PackageSources\html_ui\`, output folder `html_ui\`.
-4. **Eye point.** Open the files in `common\config\` with Notepad and search
-   for `eyepoint` (normally in `flight_model.cfg`, section `[VIEWS]`). The
-   values are **feet**: forward, right, up from the aircraft's reference
-   datum. In the same file, search for `reference_datum_position` and set it
-   to `0, 0, 0` so the datum is our model origin (the cab floor center).
-   Then set:
+4. **Eye point.** In the 2024 SimpleAircraft the eye point is in
+   `common\config\cameras.cfg` (`eyepoint = ...`, feet: forward, right, up,
+   measured from the reference datum). The datum is in
+   `common\config\flight_model.cfg` (`reference_datum_position`, feet,
+   relative to the model origin); **leave the datum alone**.
+   We want the eye 1.6 ft forward of the cab center and 5.4 ft above the
+   floor (standing, 1.65 m). Subtract the datum from that:
+   `eyepoint = 1.6 - datum_fwd, 0 - datum_lat, 5.4 - datum_up`.
+   For SimpleAircraft (`reference_datum_position = 3.6, 0, 0`):
    ```
-   eyepoint = 1.6, 0, 5.4     ; 0.5 m forward of center, standing eye height 1.65 m
+   eyepoint = -2.0, 0, 5.4
    ```
-   (Seated instead: `eyepoint = 1.6, 0, 4.0`.) You can fine-tune this later
-   in the sim with the camera controls.
+   (Seated: `-2.0, 0, 4.0`.) Fine-tune later in the sim if needed.
 5. **Name.** In `presets\...\config\aircraft.cfg`, search for `title` and set
    it to `"VATFLOW Tower Cab KDCA"` so you can find it in the aircraft list.
 6. **Build All** again.
