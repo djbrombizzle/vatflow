@@ -40,6 +40,8 @@ TRACK_FRAMES = 360   # one frame per degree round the track
 SHADE_STRIPS = 20        # keep in sync with build_tower_cab.py
 TRACK_DRAG_SPEED = 0.125
 SHADE_DRAG_SPEED = 0.2
+KNOB_FRAMES = 90         # brightness knob: L:VATFLOW_DIM_* 0 (full bright) .. 90 (darkest)
+KNOB_DRAG_SPEED = 0.2
 MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
@@ -171,6 +173,7 @@ class Writer:
         # Animated parts that scale (the shades) keep their own transform so the scale
         # runs along their local axes; everything else is baked into world space.
         local = False
+        pivot = obj.get("vatflow_pivot")     # turning knobs: mesh around their own pivot
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
@@ -183,7 +186,10 @@ class Writer:
             wn = (obj.matrix_world.to_3x3() @ f.normal)
             for loop in f.loops:
                 wp = obj.matrix_world @ loop.vert.co
-                d["pos"].append(to_gltf(loop.vert.co if local else wp))
+                if pivot is not None:
+                    d["pos"].append(to_gltf([wp[0] - pivot[0], wp[1] - pivot[1], wp[2] - pivot[2]]))
+                else:
+                    d["pos"].append(to_gltf(loop.vert.co if local else wp))
                 d["nrm"].append(nn)
                 if name in TEXTURED and TEXTURED[name][1]:
                     uv = box_uv(wp, wn, TEXTURED[name][1])
@@ -209,8 +215,26 @@ class Writer:
             loc, rot, _scale = obj.matrix_world.decompose()
             node["translation"] = to_gltf(loc)
             node["rotation"] = [rot.x, rot.z, -rot.y, rot.w]     # same axis change as to_gltf
+        if pivot is not None:
+            node["translation"] = to_gltf(list(pivot))
         self.g["nodes"].append(node)
         node_i = len(self.g["nodes"]) - 1
+
+        if pivot is not None:
+            # Knob turn: frame = L: var value (0 = full bright .. 90 = darkest), 3 deg per
+            # frame anticlockwise seen from above (about glTF +Y), so brighter = clockwise.
+            times, keys = [], []
+            for fr in range(0, KNOB_FRAMES + 1, 10):
+                h = math.radians(fr * 3.0) / 2
+                times.append(fr / FPS)
+                keys.append([0.0, math.sin(h), 0.0, math.cos(h)])
+            t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
+            k_acc = self.accessor(keys, 5126, "VEC4")
+            self.g["animations"].append({
+                "name": obj.name + "_TURN",
+                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "rotation"}}],
+                "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
+            })
         self.g["scenes"][0]["nodes"].append(node_i)
 
         if "vatflow_track" in obj:
@@ -241,7 +265,7 @@ class Writer:
             json.dump(self.g, f, indent=1)
 
 
-def drag_template(axis, var, speed, looping, tooltip, anim_length=None):
+def drag_template(axis, var, speed, looping, tooltip, anim_length=None, reverse=False):
     keep = "(L:%s) (&gt;L:%s)" % (var, var)
     extra = "\t\t\t\t<IS_LOOPING>True</IS_LOOPING>\n" if looping else "\t\t\t\t<ANIM_LENGTH>%d</ANIM_LENGTH>\n" % anim_length
     return (
@@ -252,7 +276,7 @@ def drag_template(axis, var, speed, looping, tooltip, anim_length=None):
         + "\t\t\t\t<DOWN_CODE>%s</DOWN_CODE>\n" % keep
         + extra
         + "\t\t\t\t<DRAG_SPEED>%s</DRAG_SPEED>\n" % speed
-        + "\t\t\t\t<REVERSE_INTERACTION>False</REVERSE_INTERACTION>\n"
+        + "\t\t\t\t<REVERSE_INTERACTION>%s</REVERSE_INTERACTION>\n" % ("True" if reverse else "False")
         + "\t\t\t\t<CURSOR>Grab</CURSOR>\n"
         + "\t\t\t\t<TOOLTIPID>%s</TOOLTIPID>\n" % tooltip
         + "\t\t\t</UseTemplate>\n")
@@ -279,6 +303,16 @@ def write_behaviors(path, node_names):
             comps.append("\t\t<Component ID=\"VATFLOW_%s_TRACK\" Node=\"%s\">\n" % (label, node)
                          + anim_template(node + "_TRACK", "(L:%s) dnor" % var, TRACK_FRAMES, True)
                          + drag_template("X", var, TRACK_DRAG_SPEED, True, "%s - drag left/right to move it along the track" % label)
+                         + "\t\t</Component>\n")
+        elif node.startswith("TowerCab_DimKnob_"):      # screen brightness knob
+            grp = node.rsplit("_", 1)[1]
+            var = "VATFLOW_DIM_%s" % grp
+            what = {"ALL": "all screens", "DBRITE": "DBRITE", "ASDEX": "ASDE-X",
+                    "CONSOLE": "console screens (TWR INFO, IDST, voice switch, clock)"}[grp]
+            comps.append("\t\t<Component ID=\"VATFLOW_DIM_%s\" Node=\"%s\">\n" % (grp, node)
+                         + anim_template(node + "_TURN", "(L:%s)" % var, KNOB_FRAMES, False)
+                         + drag_template("X", var, KNOB_DRAG_SPEED, False,
+                                         "Brightness, %s - drag right brighter, left dimmer" % what, KNOB_FRAMES, reverse=True)
                          + "\t\t</Component>\n")
         elif node.startswith("TowerCab_IdstKey_"):      # IDST hardware key -> the gauge reads it
             k = node.rsplit("_", 1)[1]
@@ -333,6 +367,8 @@ def write_behaviors(path, node_names):
         + "\t\tlower it fully. Built on the SDK templates ASOBO_GT_Anim_Code, ASOBO_GT_Visibility_Code,\n"
         + "\t\tASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code and\n"
         + "\t\tASOBO_GT_Interaction_LeftSingle_Code (Asobo Generic Interactions).\n"
+        + "\t\tBrightness knobs: drag sets L:VATFLOW_DIM_ALL / _DBRITE / _ASDEX / _CONSOLE (0 = full bright,\n"
+        + "\t\t90 = darkest); common/dimmer.js in each screen reads them. Node animation <NODE>_TURN.\n"
         + "\t\tIDST keys: click sets L:VATFLOW_IDST_KEY (1 up, 2 down, 3 issue, 4 cancel); the IDST gauge\n"
         + "\t\treads it and sets it back to 0.\n"
         + "\t\tIf a drag goes the wrong way set REVERSE_INTERACTION to True; DRAG_SPEED sets the speed.\n"

@@ -40,6 +40,9 @@ Inside the cab there are two working screens fed by live data:
   Click an aircraft (or use the four keys next to the keyboard: up, down, issue,
   cancel) and ISSUE RELEASE. Writing needs `idst.cid` in `common/airport.js` set to
   your VATSIM CID, connected as a controller (the web page's rule).
+* **Brightness**: the four knobs on the console's knob panel (left to right: all
+  screens, DBRITE, ASDE-X, console screens). Drag right for brighter, left for dimmer;
+  the screen shows its brightness while you turn (`common/dimmer.js`).
 * **Console equipment** round those two, after the DCA local position: voice switch
   panel (keys light while that position is online on VATSIM), red LED Zulu clock,
   keypad, trackball, keyboard, knob panel, speaker. The ceiling is black, like the real cab.

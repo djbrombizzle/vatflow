@@ -176,14 +176,16 @@ var IdstView = (function () {
     this.err.feed = null;
   };
 
-  /** rows: [{id, data}] from Supabase; merges into the local copies (releases are unioned). */
+  /**
+   * rows: [{id, data}] from Supabase. The server copy replaces the local one as is, so a
+   * release cancelled on the web page (or anywhere else) disappears here too. The screen
+   * keeps no releases of its own: every issue / cancel is written straight to the server.
+   */
   IdstView.prototype.setFcaRows = function (rows) {
-    var local = {};
-    for (var i = 0; i < this.fcas.length; i++) local[this.fcas[i].id] = this.fcas[i];
     var out = [];
     for (var j = 0; j < rows.length; j++) {
       var rf = normalizeFca(rows[j].data || {});
-      if (rf) out.push(M.mergeRemoteFca(local[rf.id], rf) || rf);
+      if (rf) out.push(rf);
     }
     this.fcas = out;
     this.fcaMs = Date.now();
@@ -195,7 +197,7 @@ var IdstView = (function () {
     request("GET", this.icfg.supabaseUrl + "/rest/v1/fcas?select=id,data", this.restHeaders(false), null,
       function (err, text) {
         if (err) self.err.fca = err.message;
-        else {
+        else if (!self.busy) {   // an issue / cancel in flight has fresher data than this poll
           try { self.setFcaRows(JSON.parse(text)); } catch (e) { self.err.fca = e.message; }
         }
         if (done) done();
@@ -237,9 +239,11 @@ var IdstView = (function () {
         var rows;
         try { rows = JSON.parse(text); } catch (e) { rows = []; }
         if (!rows.length) { self.busy = false; self.say("PROGRAM NO LONGER EXISTS"); return; }
-        self.setFcaRows(self.fcas.filter(function (f) { return f.id !== fcaId; })
-          .map(function (f) { return { id: f.id, data: f }; }).concat(rows));
-        var fca = self.fcas.filter(function (f) { return f.id === fcaId; })[0];
+        // start from the server's current copy of this program (not the local one, which
+        // could still hold a release someone has since cancelled)
+        var fca = normalizeFca(rows[0].data || {});
+        if (!fca) { self.busy = false; self.say("PROGRAM DATA UNREADABLE"); return; }
+        self.fcas = self.fcas.map(function (f) { return f.id === fcaId ? fca : f; });
         var result = change(fca);
         if (result === null) { self.busy = false; self.say("NO SLOT - NOT CROSSING THE PROGRAM LINE?"); return; }
         var body = JSON.stringify({ id: fca.id, data: fca, updated_at: new Date().toISOString() });
@@ -363,6 +367,7 @@ if (typeof BaseInstrument !== "undefined") {
     get isInteractive() { return true; }
     connectedCallback() {
       super.connectedCallback();
+      this.dim = VatflowDimmer.attach(this, "CONSOLE");
       this.view = new IdstView(this.querySelector("#id-root"), VATFLOW_TWR);
       this.view.start();
       this.lastDraw = 0;
@@ -375,6 +380,7 @@ if (typeof BaseInstrument !== "undefined") {
     }
     Update() {
       super.Update();
+      this.dim();
       // hardware keys under the screen (model behaviors) -> L:VATFLOW_IDST_KEY
       var k = SimVar.GetSimVarValue("L:VATFLOW_IDST_KEY", "number");
       if (k) {

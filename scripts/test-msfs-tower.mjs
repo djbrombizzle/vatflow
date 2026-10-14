@@ -238,6 +238,14 @@ t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancel
   assert.match(els["#id-list"].innerHTML, /RPA1[\s\S]*\d{4}Z/);
   view.key(4);                                   // cancel
   assert.equal(view.fcas[0].releases.RPA1, undefined);
+  // a release issued and later cancelled elsewhere (web page): the next poll's server copy wins
+  const program = (releases) => [{ id: "fca_t", data: JSON.parse(JSON.stringify(Object.assign({}, plain(view.fcas[0]), { releases }))) }];
+  view.setFcaRows(program({ RPA1: { ctaMs: Date.now() + 9e5, edctMs: Date.now() + 3e5, transitSec: 600, assignedMs: Date.now() } }));
+  view.render();
+  assert.equal(view.rows[0].frozen, true, "release issued on the web shows up");
+  view.setFcaRows(program({}));
+  view.render();
+  assert.equal(view.rows[0].frozen, false, "release cancelled on the web goes away");
   view.demo = false;                             // live: no CID -> nothing is written
   view.key(3);
   assert.match(view.msg, /CID/);
@@ -250,7 +258,7 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
   assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
-    assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("import-script"), m[1]);
+    assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("common/dimmer.js"), m[1] + " loads the dimmer");
   }
   const build = readFileSync(new URL("../msfs-tower/blender/build_tower_cab.py", import.meta.url), "utf8");
   for (const sname of screens) assert.ok(build.includes('"' + sname + '"'), sname + " in the build script");
@@ -258,6 +266,31 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   for (const k of [1, 2, 3, 4]) {
     assert.ok(xml.includes(`Node="TowerCab_IdstKey_${k}"`) && xml.includes(`${k} (&gt;L:VATFLOW_IDST_KEY)`), "IDST key " + k);
   }
+  for (const g of ["ALL", "DBRITE", "ASDEX", "CONSOLE"]) {
+    assert.ok(xml.includes(`Node="TowerCab_DimKnob_${g}"`) && xml.includes(`<POSITION_VAR>VATFLOW_DIM_${g}</POSITION_VAR>`), "knob " + g);
+  }
+});
+
+t("screen brightness: knobs combine, never fully black, label only when a knob turns", () => {
+  const dctx = vm.createContext({});
+  vm.runInContext(readFileSync(new URL("common/dimmer.js", BASE), "utf8"), dctx);
+  const D = dctx.VatflowDimmer;
+  assert.equal(D.level(0, 0), 1);
+  assert.ok(Math.abs(D.level(50, 50) - 0.25) < 1e-9);
+  assert.equal(D.level(90, 90), 0.05);
+  assert.ok(Math.abs(D.level(-5, 500) - 0.1) < 1e-9);      // clamped to 0..90
+  const made = [];
+  const doc = { createElement: () => { const e = { style: {}, textContent: "" }; made.push(e); return e; } };
+  const host = { style: {}, children: [], appendChild(e) { this.children.push(e); } };
+  const update = D.attach(host, "CONSOLE", doc);
+  const [shade, label] = made;
+  update(0, 0);
+  assert.equal(shade.style.opacity, "0");
+  assert.notEqual(label.style.display, "block", "no label on the first frame");
+  update(0, 60);
+  assert.equal(shade.style.opacity, String(1 - 0.4));
+  assert.equal(label.style.display, "block");
+  assert.equal(label.textContent, "BRT 40%");
 });
 
 console.log(`\n${passed} passed`);

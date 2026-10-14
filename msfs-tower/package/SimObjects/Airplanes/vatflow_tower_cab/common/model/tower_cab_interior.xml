@@ -12,6 +12,8 @@
 		lower it fully. Built on the SDK templates ASOBO_GT_Anim_Code, ASOBO_GT_Visibility_Code,
 		ASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code and
 		ASOBO_GT_Interaction_LeftSingle_Code (Asobo Generic Interactions).
+		Brightness knobs: drag sets L:VATFLOW_DIM_ALL / _DBRITE / _ASDEX / _CONSOLE (0 = full bright,
+		90 = darkest); common/dimmer.js in each screen reads them. Node animation <NODE>_TURN.
 		IDST keys: click sets L:VATFLOW_IDST_KEY (1 up, 2 down, 3 issue, 4 cancel); the IDST gauge
 		reads it and sets it back to 0.
 		If a drag goes the wrong way set REVERSE_INTERACTION to True; DRAG_SPEED sets the speed.
@@ -44,6 +46,86 @@
 			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
 				<LEFT_SINGLE_CODE>4 (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>
 				<TOOLTIPID>IDST - cancel the selected release</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_DIM_ALL" Node="TowerCab_DimKnob_ALL">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_DimKnob_ALL_TURN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_DIM_ALL)</ANIM_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DIM_ALL</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DIM_ALL) (&gt;L:VATFLOW_DIM_ALL)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DIM_ALL) (&gt;L:VATFLOW_DIM_ALL)</DOWN_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>True</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Brightness, all screens - drag right brighter, left dimmer</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_DIM_DBRITE" Node="TowerCab_DimKnob_DBRITE">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_DimKnob_DBRITE_TURN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_DIM_DBRITE)</ANIM_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DIM_DBRITE</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DIM_DBRITE) (&gt;L:VATFLOW_DIM_DBRITE)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DIM_DBRITE) (&gt;L:VATFLOW_DIM_DBRITE)</DOWN_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>True</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Brightness, DBRITE - drag right brighter, left dimmer</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_DIM_ASDEX" Node="TowerCab_DimKnob_ASDEX">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_DimKnob_ASDEX_TURN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_DIM_ASDEX)</ANIM_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DIM_ASDEX</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DIM_ASDEX) (&gt;L:VATFLOW_DIM_ASDEX)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DIM_ASDEX) (&gt;L:VATFLOW_DIM_ASDEX)</DOWN_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>True</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Brightness, ASDE-X - drag right brighter, left dimmer</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_DIM_CONSOLE" Node="TowerCab_DimKnob_CONSOLE">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_DimKnob_CONSOLE_TURN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_DIM_CONSOLE)</ANIM_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DIM_CONSOLE</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DIM_CONSOLE) (&gt;L:VATFLOW_DIM_CONSOLE)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DIM_CONSOLE) (&gt;L:VATFLOW_DIM_CONSOLE)</DOWN_CODE>
+				<ANIM_LENGTH>90</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
+				<REVERSE_INTERACTION>True</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>Brightness, console screens (TWR INFO, IDST, voice switch, clock) - drag right brighter, left dimmer</TOOLTIPID>
 			</UseTemplate>
 		</Component>
 

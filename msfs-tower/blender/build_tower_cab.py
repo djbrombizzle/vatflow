@@ -308,11 +308,17 @@ def console_equipment(inside, coll, k, a_inner, top):
         kb = Builder("TowerCab_IdstKey_%d" % key, coll)
         kb.box(at(r, depth, top + 0.02 + 0.01), (0.065, 0.05, 0.02), mat, rot_z=rot)
         kb.finish()
-    # knob panel
+    # knob panel: screen brightness knobs (left to right: all screens, DBRITE, ASDE-X,
+    # console screens). Each is its own node turning about its pivot (see exporter).
     deck(1.33, 0.30, (0.22, 0.14, 0.03), "TWR_PanelGrey")
-    for i in range(4):
+    for i, name in enumerate(("ALL", "DBRITE", "ASDEX", "CONSOLE")):
         p = at(1.25 + i * 0.053, 0.30, top + 0.03)
-        inside.beam(p, p + Vector((0, 0, 0.025)), 0.018, "TWR_Knob", segs=10)
+        kb = Builder("TowerCab_DimKnob_" + name, coll)
+        kb.beam(p, p + Vector((0, 0, 0.025)), 0.019, "TWR_Knob", segs=12)
+        # white pointer line on top, pointing at the window at full brightness
+        kb.box(p + out * 0.009 + Vector((0, 0, 0.0255)), (0.004, 0.016, 0.002), "TWR_KeyGrey", rot_z=rot)
+        obj = kb.finish()
+        obj["vatflow_pivot"] = tuple(p)
 
     # keypad + trackball in front of TWR INFO
     deck(-0.10, 0.63, (0.26, 0.15, 0.04), "TWR_Bezel", "TWR_Keypad")

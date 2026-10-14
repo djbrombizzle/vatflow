@@ -30,6 +30,7 @@
 <body>
 <h1>Tower cab screens: browser preview</h1>
 <p>Runs the same gauge code the sim loads, with the sim's values mocked. Live VATSIM data; add <code>?demo</code> to the URL for made-up traffic.
+Add <code>&amp;dim=60</code> to try the brightness knobs (0 = full bright .. 90).
 Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-tower/</code>, then open <code>/preview/</code>).</p>
 <div class="screens">
   <div class="screen twrinfo"><vatflow-twrinfo id="twrinfo-host"></vatflow-twrinfo></div>
@@ -44,6 +45,7 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/draw.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/dimmer.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/maps-kdca.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.js"></script>
@@ -118,6 +120,18 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
   xhr.send();
 
   setInterval(function () { dbrite.draw(Date.now(), zuluSec()); asdex.draw(Date.now(), zuluSec()); }, 250);
+
+  // brightness: ?dim=N dims every screen as if the ALL knob were at N
+  var dimMatch = /[?&]dim=(\d+)/.exec(location.search);
+  if (dimMatch) {
+    setTimeout(function () {
+      var hosts = document.querySelectorAll(".screen");
+      for (var i = 0; i < hosts.length; i++) {
+        var upd = VatflowDimmer.attach(hosts[i], "ALL");
+        upd(0, 0); upd(parseInt(dimMatch[1], 10), 0);
+      }
+    }, 1500);
+  }
 
   // IDST, clock and voice switch: inject the gauge templates the same way
   function inject(gauge, templateId, hostId, then) {

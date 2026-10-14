@@ -187,6 +187,7 @@ if (typeof BaseInstrument !== "undefined") {
     get isInteractive() { return false; }
     connectedCallback() {
       super.connectedCallback();
+      this.dim = VatflowDimmer.attach(this, "ASDEX");
       this.view = new AsdexView(this.querySelector("#asdex-canvas"), VATFLOW_TWR,
         typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
       this.tick = VatflowDraw.loop(this.view, 1000);
@@ -195,6 +196,7 @@ if (typeof BaseInstrument !== "undefined") {
     }
     Update() {
       super.Update();
+      this.dim();
       this.tick(false);
     }
   }

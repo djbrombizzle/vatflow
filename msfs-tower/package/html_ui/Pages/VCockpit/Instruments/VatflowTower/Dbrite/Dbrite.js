@@ -284,6 +284,7 @@ if (typeof BaseInstrument !== "undefined") {
     get isInteractive() { return false; }
     connectedCallback() {
       super.connectedCallback();
+      this.dim = VatflowDimmer.attach(this, "DBRITE");
       this.view = new DbriteView(this.querySelector("#dbrite-canvas"), VATFLOW_TWR,
         typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
       this.tick = VatflowDraw.loop(this.view, 1000);
@@ -293,6 +294,7 @@ if (typeof BaseInstrument !== "undefined") {
     }
     Update() {
       super.Update();
+      this.dim();
       this.tick(false);
     }
   }

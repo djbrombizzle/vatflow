@@ -43,6 +43,7 @@ if (typeof BaseInstrument !== "undefined") {
     get isInteractive() { return false; }
     connectedCallback() {
       super.connectedCallback();
+      this.dim = VatflowDimmer.attach(this, "CONSOLE");
       var view = this.view = new VscsView(this.querySelector("#vs-root"));
       var cfg = { feedUrl: VATFLOW_TWR.feedUrl, feedRefreshSec: 60 };
       (function tick() {
@@ -51,6 +52,10 @@ if (typeof BaseInstrument !== "undefined") {
           setTimeout(tick, cfg.feedRefreshSec * 1000);
         });
       })();
+    }
+    Update() {
+      super.Update();
+      this.dim();
     }
   }
   registerInstrument("vatflow-vscs", VatflowVscs);

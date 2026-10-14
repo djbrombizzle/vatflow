@@ -142,6 +142,7 @@ if (typeof BaseInstrument !== "undefined") {
     get isInteractive() { return false; }
     connectedCallback() {
       super.connectedCallback();
+      this.dim = VatflowDimmer.attach(this, "CONSOLE");
       this.view = new TwrInfoView(this.querySelector("#ti-root"), VATFLOW_TWR);
       this.view.startMetar();
       this.lastDraw = 0;
@@ -150,6 +151,7 @@ if (typeof BaseInstrument !== "undefined") {
     }
     Update() {
       super.Update();
+      this.dim();
       var now = Date.now();
       if (now - this.lastDraw < 500) return;
       this.lastDraw = now;

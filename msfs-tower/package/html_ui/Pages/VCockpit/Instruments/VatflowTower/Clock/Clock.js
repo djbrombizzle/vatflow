@@ -18,10 +18,12 @@ if (typeof BaseInstrument !== "undefined") {
     get isInteractive() { return false; }
     connectedCallback() {
       super.connectedCallback();
+      this.dim = VatflowDimmer.attach(this, "CONSOLE");
       this.view = new ClockView(this.querySelector("#ck-root"));
     }
     Update() {
       super.Update();
+      this.dim();
       this.view.render(SimVar.GetSimVarValue("E:ZULU TIME", "seconds"));
     }
   }
