@@ -36,12 +36,9 @@ placement tool freezes it in place anyway.
    `C:\MSFS 2024 SDK\`. We'll call it `<SDK>`.
 2. From the same menu, also install the **Samples**. They land in
    `<SDK>\Samples\`.
-3. Check that a **SimpleAircraft** sample folder exists and contains
-   `SimpleAircraftProject.xml`. `<SDK>\Samples\` has three folders
-   (`DevmodeProjects`, `ModelBehavior`, `VisualStudio`); the aircraft samples
-   are inside **`DevmodeProjects`**, possibly a folder or two deeper. The quick
-   way: open `<SDK>\Samples\DevmodeProjects` in File Explorer and type
-   `SimpleAircraftProject.xml` in the search box at the top right.
+3. Check that the **SimpleAircraft** sample is there:
+   `<SDK>\Samples\DevmodeProjects\SimObjects\Aircraft\SimpleAircraft\`
+   It should contain `SimpleAircraftProject.xml`.
 
 ## 3. Install the MSFS exporter in Blender
 
@@ -104,8 +101,12 @@ and walls render from inside and outside.
 
 ## 7. Make your project from the SimpleAircraft sample
 
-1. **Copy** the whole SimpleAircraft sample folder to a work folder, e.g.
-   `C:\MSFS-Projects\VatflowTowerCab\`. Never edit the original sample.
+1. **Copy** the whole folder
+   `C:\MSFS 2024 SDK\Samples\DevmodeProjects\SimObjects\Aircraft\SimpleAircraft`
+   to a work folder, e.g. `C:\MSFS-Projects\VatflowTowerCab\`, so that
+   `C:\MSFS-Projects\VatflowTowerCab\SimpleAircraftProject.xml` exists.
+   Never edit the original sample. Keep the path short and without odd
+   characters.
 2. In MSFS: Developer Mode toolbar → **File → Open project…** → pick
    `SimpleAircraftProject.xml` **in your copy**.
 3. In the Project Editor, click **Build All**. Go to the aircraft selection
