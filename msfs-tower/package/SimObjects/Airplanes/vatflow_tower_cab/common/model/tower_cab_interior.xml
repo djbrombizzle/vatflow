@@ -3,4 +3,59 @@
 	<LODS>
 		<LOD minSize="0" ModelFile="tower_cab_interior.gltf"/>
 	</LODS>
+	<!--
+		Overhead monitors on the circular ceiling track.
+
+		Each monitor node (TowerCab_DbriteMount, TowerCab_AsdexMount) has a 360-frame
+		animation "<node>_TRACK" (frame = degrees round the track, written by
+		tools/export_interior_gltf.py). Its position lives in an L: variable in degrees;
+		dragging the monitor left/right with the mouse changes it, wrapping round 0-360.
+
+		Built from the SDK's own templates:
+		  ASOBO_GT_Anim_Code with ANIM_LENGTH 360 + ANIM_WRAP, as Asobo's glider yaw string
+		  ASOBO_GT_Interaction_DraggingXAxis_Code with IS_LOOPING (Asobo\Generic\Interactions.xml)
+		Tuning: DRAG_SPEED = degrees per unit of mouse movement; if dragging right moves the
+		monitor left, set REVERSE_INTERACTION to True.
+	-->
+	<CompileBehaviors Version="2">
+		<Include ModelBehaviorFile="Asobo\Common.xml"/>
+
+		<Component ID="VATFLOW_DBRITE_TRACK" Node="TowerCab_DbriteMount">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_DbriteMount_TRACK</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) dnor</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DBRITE_TRACK_DEG</POSITION_VAR>
+				<IS_LOOPING>True</IS_LOOPING>
+				<DRAG_SPEED>0.25</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>DBRITE - drag left/right to move it along the track</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_ASDEX_TRACK" Node="TowerCab_AsdexMount">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_AsdexMount_TRACK</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) dnor</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_ASDEX_TRACK_DEG</POSITION_VAR>
+				<IS_LOOPING>True</IS_LOOPING>
+				<DRAG_SPEED>0.25</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>ASDE-X - drag left/right to move it along the track</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+	</CompileBehaviors>
 </ModelInfo>
