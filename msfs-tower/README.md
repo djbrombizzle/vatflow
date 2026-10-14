@@ -23,7 +23,7 @@ Inside the cab there are two working screens fed by live data:
   4.8 s radar sweep.
 * **Overhead monitors** hang in square-tube yokes (side knobs, handle bar) from
   trolleys on a circular ceiling track, like the real DCA cab, and are built to travel
-  all the way round the cab on a 360-degree ceiling track (mouse drag coming next).
+  all the way round the cab (mouse drag coming next).
 * **ASDE-X** (hanging from the ceiling, front left): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
@@ -50,7 +50,7 @@ can only be checked inside MSFS 2024 are listed in the
 | `package/html_ui/Pages/VCockpit/Instruments/VatflowTower/` | The screens: `Dbrite/`, `TwrInfo/`, shared `common/airport.js` (all the KDCA specifics) and `common/vatsim-feed.js`. |
 | `placement/` | Windows tool: teleport + freeze on the tower, nudge it into place, save. Double-click `1-setup.bat`, `2-adjust-KDCA.bat`, then `3-place-KDCA.bat` every session (see `placement/README.txt`). |
 | `tools/build_kdca_maps.py` | Builds `common/maps-kdca.js` (ASDE-X and DBRITE map geometry) from OpenStreetMap and OurAirports. |
-| `tools/export_interior_gltf.py` | Builds the cab with the Blender script (headless) and writes `tower_cab_interior.gltf/.bin` directly: static interior plus each overhead monitor as its own node with a `<NODE>_SLIDE` rail animation, materials already set the way the sim needs them. No Blender export or MSFS material panel needed for the interior. |
+| `tools/export_interior_gltf.py` | Builds the cab with the Blender script (headless) and writes `tower_cab_interior.gltf/.bin` directly: static interior plus each overhead monitor as its own node with a `<NODE>_TRACK` 360-degree track animation, materials already set the way the sim needs them. No Blender export or MSFS material panel needed for the interior. |
 | `preview/index.html` | Runs the screens in a normal browser (live or `?demo`). |
 
 Tests for the screen logic: `node scripts/test-msfs-tower.mjs` (from the repo root).
