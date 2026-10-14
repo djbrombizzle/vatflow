@@ -12,6 +12,8 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
   rest position), keyed at 24 fps like the Asobo exporter.
 * Each window shade is SHADE_STRIPS strips (TowerCab_Shade_k_sNN); behaviors show the
   strips past the shade's position, so it unrolls in steps (no animation involved).
+* Carpet, ceiling and console materials use the textures from make_textures.py
+  (common/texture), mapped by world position so the patterns line up across parts.
 * Also writes tower_cab_interior.xml: the LOD entry plus the model behaviors that let you
   drag the monitors round the track and the shades up and down.
 * Materials are written the way the working sim build has them: screens exactly like
@@ -62,6 +64,27 @@ PBR = {
 }
 
 
+# Textured materials: texture file (in common/texture, made by make_textures.py) and the
+# meters one copy covers. UVs for these are projected from world position (box mapping).
+TEXTURED = {
+    "TWR_Carpet": ("TWR_Carpet_albd.png", 2.4),
+    "TWR_Ceiling": ("TWR_Ceiling_albd.png", 1.2),
+    "TWR_Console": ("TWR_Console_albd.png", 1.0),
+}
+
+
+def box_uv(p, n, meters):
+    """World-space box mapping (Blender coords): project on the plane the face mostly faces."""
+    ax, ay, az = abs(n[0]), abs(n[1]), abs(n[2])
+    if az >= ax and az >= ay:
+        u, v = p[0], p[1]
+    elif ax >= ay:
+        u, v = p[1], p[2]
+    else:
+        u, v = p[0], p[2]
+    return [u / meters, v / meters]
+
+
 def material_json(name):
     if name.startswith("$SCREEN_"):
         return {"emissiveFactor": [2000.0, 2000.0, 2000.0], "name": name}
@@ -95,7 +118,15 @@ class Writer:
 
     def material(self, name):
         if name not in self.mat_index:
-            self.g["materials"].append(material_json(name))
+            m = material_json(name)
+            if name in TEXTURED:
+                # glTF image uri is the bare file name; MSFS finds it in the texture folder
+                self.g.setdefault("images", []).append({"uri": TEXTURED[name][0]})
+                self.g.setdefault("samplers", [{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}])
+                self.g.setdefault("textures", []).append({"sampler": 0, "source": len(self.g["images"]) - 1})
+                m["pbrMetallicRoughness"]["baseColorTexture"] = {"index": len(self.g["textures"]) - 1}
+                m["pbrMetallicRoughness"]["baseColorFactor"] = [1.0, 1.0, 1.0, m["pbrMetallicRoughness"]["baseColorFactor"][3]]
+            self.g["materials"].append(m)
             self.mat_index[name] = len(self.g["materials"]) - 1
         return self.mat_index[name]
 
@@ -132,10 +163,15 @@ class Writer:
             name = obj.material_slots[f.material_index].material.name
             d = by_mat.setdefault(name, {"pos": [], "nrm": [], "uv": []})
             nn = to_gltf(f.normal) if local else to_gltf((obj.matrix_world.to_3x3() @ f.normal).normalized())
+            wn = (obj.matrix_world.to_3x3() @ f.normal)
             for loop in f.loops:
-                d["pos"].append(to_gltf(loop.vert.co if local else obj.matrix_world @ loop.vert.co))
+                wp = obj.matrix_world @ loop.vert.co
+                d["pos"].append(to_gltf(loop.vert.co if local else wp))
                 d["nrm"].append(nn)
-                uv = loop[uv_layer].uv if uv_layer else (0.0, 0.0)
+                if name in TEXTURED:
+                    uv = box_uv(wp, wn, TEXTURED[name][1])
+                else:
+                    uv = loop[uv_layer].uv if uv_layer else (0.0, 0.0)
                 d["uv"].append([uv[0], 1.0 - uv[1]])          # glTF V runs down
         bm.free()
         prims = []

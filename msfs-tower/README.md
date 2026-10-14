@@ -49,6 +49,7 @@ can only be checked inside MSFS 2024 are listed in the
 | `package/SimObjects/Airplanes/vatflow_tower_cab/common/panel/panel.cfg` | Puts the two HTML screens onto the screen materials. |
 | `package/html_ui/Pages/VCockpit/Instruments/VatflowTower/` | The screens: `Dbrite/`, `TwrInfo/`, shared `common/airport.js` (all the KDCA specifics) and `common/vatsim-feed.js`. |
 | `placement/` | Windows tool: teleport + freeze on the tower, nudge it into place, save. Double-click `1-setup.bat`, `2-adjust-KDCA.bat`, then `3-place-KDCA.bat` every session (see `placement/README.txt`). |
+| `tools/make_textures.py` | Generates the interior textures (carpet tiles, acoustic ceiling grid, console laminate) into `common/texture/`, with the `.png.xml` MSFS compiles them from. |
 | `tools/build_kdca_maps.py` | Builds `common/maps-kdca.js` (ASDE-X and DBRITE map geometry) from OpenStreetMap and OurAirports. |
 | `tools/export_interior_gltf.py` | Builds the cab with the Blender script (headless) and writes `tower_cab_interior.gltf/.bin` directly: static interior plus each overhead monitor as its own node with a `<NODE>_TRACK` 360-degree track animation, materials already set the way the sim needs them. No Blender export or MSFS material panel needed for the interior. |
 | `preview/index.html` | Runs the screens in a normal browser (live or `?demo`). |
