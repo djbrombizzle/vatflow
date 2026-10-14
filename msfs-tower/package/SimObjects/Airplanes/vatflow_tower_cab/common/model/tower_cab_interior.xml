@@ -7,8 +7,8 @@
 		Overhead monitors on the circular ceiling track.
 
 		Each monitor node (TowerCab_DbriteMount, TowerCab_AsdexMount) has a 360-frame
-		animation "<node>_TRACK" (frame = degrees round the track, written by
-		tools/export_interior_gltf.py). Its position lives in an L: variable in degrees;
+		animation named after the node plus _TRACK (frame = degrees round the track,
+		written by tools/export_interior_gltf.py). Its position lives in an L: variable in degrees;
 		dragging the monitor left/right with the mouse changes it, wrapping round 0-360.
 
 		Built from the SDK's own templates:
@@ -31,6 +31,9 @@
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
 				<POSITION_VAR>VATFLOW_DBRITE_TRACK_DEG</POSITION_VAR>
+				<!-- the template runs these after each drag step; nothing extra to do -->
+				<UP_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</DOWN_CODE>
 				<IS_LOOPING>True</IS_LOOPING>
 				<DRAG_SPEED>0.25</DRAG_SPEED>
 				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
@@ -50,6 +53,9 @@
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
 				<POSITION_VAR>VATFLOW_ASDEX_TRACK_DEG</POSITION_VAR>
+				<!-- the template runs these after each drag step; nothing extra to do -->
+				<UP_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</DOWN_CODE>
 				<IS_LOOPING>True</IS_LOOPING>
 				<DRAG_SPEED>0.25</DRAG_SPEED>
 				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
