@@ -16,8 +16,9 @@ placement tool freezes it in place anyway.
 ## 0. What you need
 
 * MSFS 2024 on a Windows PC.
-* **Blender 4.2 LTS** (free, blender.org). The MSFS 2024 exporter supports
-  3.3, 3.6, 4.2 and 4.5 LTS; 4.2 is the safe pick.
+* **Blender 4.5 LTS** (free, blender.org → Download → LTS). The MSFS 2024
+  exporter only supports 3.6, 4.2 and 4.5 LTS. **Newer Blender (5.x) is not
+  supported**; it can sit next to 4.5 on the same PC.
 * **Python 3.11 or newer** for Windows (python.org; tick "Add to PATH").
 * **vPilot** (for VATSIM traffic in the sim).
 * This folder (`msfs-tower/`) on that PC: download the repo from GitHub, or
@@ -42,13 +43,18 @@ placement tool freezes it in place anyway.
 
 ## 3. Install the MSFS exporter in Blender
 
-1. Find the add-on in `<SDK>\Tools\Blender\addons\`. It is called
-   `io_scene_gltf2_msfs_2024`.
-2. If it is a folder rather than a .zip, right-click → *Send to → Compressed
-   (zipped) folder*.
-3. Blender → **Edit → Preferences → Add-ons → Install from disk** (the small
-   arrow at the top right in 4.2) → pick the zip → tick it to enable it.
-4. If you ever installed the MSFS **2020** exporter, disable it. The two
+Don't install it from a zip: the add-on needs a shared helper folder
+(`_addons_common`) that sits next to it in the SDK, and a zip install leaves
+that behind (error: `No module named '_addons_common'`). Instead point Blender
+at the SDK's Blender folder:
+
+1. Use **Blender 4.5 LTS** (or 4.2 LTS), not 5.x.
+2. **Edit → Preferences → File Paths → Script Directories → Add (+)**.
+   Path: `<SDK>\Tools\Blender` (the folder that *contains* `addons`), name it `MSFS 2024 SDK`.
+3. **Restart Blender.**
+4. **Edit → Preferences → Add-ons**, search `msfs`, tick
+   **io_scene_gltf2_msfs_2024** (the core exporter).
+5. If you ever installed the MSFS **2020** exporter, disable it. The two
    shouldn't be enabled together.
 
 ## 4. Build the cab in Blender (one click)
