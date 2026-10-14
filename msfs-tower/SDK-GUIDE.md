@@ -112,8 +112,11 @@ each one is set once, even if several objects use it.
 | `TWR_Ceiling` | Standard | Base color `CCCCC7` |
 | `SCREEN_DBRITE`, `SCREEN_TWRINFO` | Standard | Base color `FFFFFF`, emissive `FFFFFF` (so the screen glows at night). **Do not rename these two:** the names must match `texture=` in `panel.cfg`. |
 
-If a material has a **double sided** option, tick it: the walls and glass are
-seen from inside and outside.
+On **every** material also set **Metallic 0** (except `TWR_Metal`), a
+roughness around 0.6-0.9, and tick **Double Sided**. The exporter's defaults
+are metallic 1 and single-sided, and it ignores Blender's own backface
+setting, so without this the cab looks dark and chrome-like and the glass
+disappears when seen from inside.
 
 All materials are already double-sided (backface culling off), so the glass
 and walls render from inside and outside.
