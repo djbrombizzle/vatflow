@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.css">
 <style>
   :root { --bg: #1b1f24; --fg: #d7dde4; --muted: #8b96a3; }
   body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
@@ -17,6 +20,9 @@
   .dbrite { width: 1024px; height: 768px; max-width: 100%; aspect-ratio: 4 / 3; }
   .twrinfo { width: 1024px; height: 512px; max-width: 100%; }
   .asdex { width: 768px; height: 1024px; max-width: 100%; }
+  .idst { width: 1024px; height: 768px; max-width: 100%; }
+  .clock { width: 512px; height: 128px; }
+  .vscs { width: 512px; height: 384px; }
   .asdex canvas { display: block; width: 100%; height: 100%; }
   .dbrite canvas { display: block; width: 100%; height: 100%; }
 </style>
@@ -28,6 +34,11 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <div class="screens">
   <div class="screen twrinfo"><vatflow-twrinfo id="twrinfo-host"></vatflow-twrinfo></div>
   <div class="screen dbrite"><vatflow-dbrite><canvas id="dbrite-canvas" width="1024" height="768"></canvas></vatflow-dbrite></div>
+  <div class="screen idst"><vatflow-idst id="idst-host"></vatflow-idst></div>
+  <div>
+    <div class="screen clock"><vatflow-clock id="clock-host"></vatflow-clock></div>
+    <div class="screen vscs" style="margin-top:16px"><vatflow-vscs id="vscs-host"></vatflow-vscs></div>
+  </div>
   <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="768" height="1024"></canvas></vatflow-asdex></div>
 </div>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
@@ -37,6 +48,10 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-metering.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.js"></script>
 <script>
 (function () {
   var DEMO = /[?&]demo\b/.test(location.search);
@@ -103,6 +118,48 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
   xhr.send();
 
   setInterval(function () { dbrite.draw(Date.now(), zuluSec()); asdex.draw(Date.now(), zuluSec()); }, 250);
+
+  // IDST, clock and voice switch: inject the gauge templates the same way
+  function inject(gauge, templateId, hostId, then) {
+    var x = new XMLHttpRequest();
+    x.open("GET", "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/" + gauge);
+    x.onload = function () {
+      var doc = new DOMParser().parseFromString(x.responseText, "text/html");
+      var host = document.getElementById(hostId);
+      host.innerHTML = doc.getElementById(templateId).innerHTML;
+      then(host);
+    };
+    x.send();
+  }
+  inject("Clock/Clock.html", "VatflowClock", "clock-host", function (host) {
+    var clock = new ClockView(host);
+    setInterval(function () { clock.render(zuluSec()); }, 250);
+  });
+  inject("Vscs/Vscs.html", "VatflowVscs", "vscs-host", function (host) {
+    var vscs = new VscsView(host);
+    if (DEMO) { vscs.setFeed(demoFeed()); return; }
+    (function tick() {
+      VatflowFeed.httpGet(cfg.feedUrl, function (e, t) { if (!e) vscs.setFeed(JSON.parse(t)); setTimeout(tick, 60000); });
+    })();
+  });
+  inject("Idst/Idst.html", "VatflowIdst", "idst-host", function (host) {
+    var idst = new IdstView(host.querySelector("#id-root"), cfg);
+    if (DEMO) {
+      // a made-up northeast program (line across the routes to the New York area)
+      idst.demo = true;
+      VatflowMetering.loadAirports(function () {
+        idst.setFeed(demoFeed());
+        idst.setFcaRows([{ id: "fca_demo", data: { id: "fca_demo", name: "NE GATES DEMO", color: "#f5a623",
+          enabled: true, mode: "mit", mit: 10, rate: 30, dir: "any", dests: ["KLGA", "KPHL", "KEWR", "KJFK"],
+          origins: [], scope: [], fixes: [], minFL: 0, maxFL: 600, order: [], excluded: [], releases: {},
+          points: [[39.6, -77.4], [39.6, -75.6]] } }]);
+      });
+    } else {
+      idst.start();
+    }
+    setInterval(function () { idst.render(); }, 1000);
+    window.idst = idst;
+  });
 })();
 </script>
 </body>

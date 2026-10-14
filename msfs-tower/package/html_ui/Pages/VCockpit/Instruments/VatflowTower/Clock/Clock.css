@@ -1,0 +1,6 @@
+/* 512x128: red LED Zulu clock on the console. */
+vatflow-clock, #ck-root { display: block; width: 100%; height: 100%; }
+#ck-root { position: relative; background: #0a0000; font-family: monospace; font-weight: bold; overflow: hidden; }
+.ck-time { position: absolute; left: 0; top: 0; width: 512px; height: 128px; line-height: 128px;
+  text-align: center; font-size: 104px; letter-spacing: 2px; }
+.ck-time { color: #ff2a1a; }

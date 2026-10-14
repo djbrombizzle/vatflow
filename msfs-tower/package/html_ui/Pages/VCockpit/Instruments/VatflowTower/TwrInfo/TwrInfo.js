@@ -1,10 +1,11 @@
 /*
  * VATFLOW Tower Cab - TWR INFO display (in-cab screen SCREEN_TWRINFO).
  *
- * Shows what a local controller glances at: Zulu time, the real-world METAR
- * wind and altimeter (what VATSIM controllers issue), the VATSIM ATIS letter,
- * who is online at DCA / Potomac / ZDC, and inbound/outbound counts. The sim's
- * own wind and pressure at the cab are shown small underneath for comparison.
+ * Laid out like the IDS in the cab: "AW" (actual wind) in big type, which is the
+ * sim's own wind at the cab (2-minute average, magnetic, with gusts when the
+ * peak is 10 kt or more above it), the altimeter, Zulu time, the VATSIM ATIS
+ * letter, the real-world METAR, who is online at DCA / Potomac / ZDC, and
+ * inbound/outbound counts.
  *
  * TwrInfoView is plain DOM code (also used by preview/index.html); the MSFS
  * wrapper at the bottom only exists when BaseInstrument is defined.
@@ -13,6 +14,34 @@ var TwrInfoView = (function () {
   var METAR_REFRESH_MS = 5 * 60 * 1000;
 
   var parseMetar = VatflowFeed.parseMetar;
+  var AVG_MS = 2 * 60 * 1000;      // AW: 2-minute average
+  var GUST_MS = 10 * 60 * 1000;    // gust: peak over 10 minutes...
+  var GUST_OVER_KT = 10;           // ...reported when 10 kt or more above the average
+
+  /**
+   * Actual wind from samples [{t, dir (true, from), kt}].
+   * Returns { dir (true, rounded to 10 deg, 1..360), kt, gust|null, calm } or null.
+   */
+  function actualWind(samples, now) {
+    var x = 0, y = 0, n = 0, peak = 0;
+    for (var i = 0; i < samples.length; i++) {
+      var s = samples[i];
+      if (now - s.t <= AVG_MS) {
+        var r = s.dir * Math.PI / 180;
+        x += Math.sin(r) * s.kt; y += Math.cos(r) * s.kt; n++;
+      }
+      if (now - s.t <= GUST_MS && s.kt > peak) peak = s.kt;
+    }
+    if (!n) return null;
+    var kt = Math.round(Math.sqrt(x * x + y * y) / n);
+    var avgSpeed = 0;
+    for (var j = 0; j < samples.length; j++) if (now - samples[j].t <= AVG_MS) avgSpeed += samples[j].kt;
+    avgSpeed /= n;
+    if (kt < 3) return { dir: 0, kt: 0, gust: null, calm: true };
+    var dir = Math.round(((Math.atan2(x, y) * 180 / Math.PI) + 360) % 360 / 10) * 10 || 360;
+    var gust = peak - avgSpeed >= GUST_OVER_KT ? Math.round(peak) : null;
+    return { dir: dir, kt: kt, gust: gust, calm: false };
+  }
 
   function TwrInfoView(root, cfg) {
     this.root = root;
@@ -24,7 +53,10 @@ var TwrInfoView = (function () {
     var ids = ["icao", "zulu", "atis", "wind", "windArrow", "altim", "metar", "atc", "counts", "sim", "status"];
     for (var i = 0; i < ids.length; i++) this.el[ids[i]] = root.querySelector("#ti-" + ids[i]);
     this.el.icao.textContent = cfg.icao;
+    this.samples = [];
   }
+
+  TwrInfoView.actualWind = actualWind;
 
   TwrInfoView.parseMetar = parseMetar;
 
@@ -53,23 +85,29 @@ var TwrInfoView = (function () {
       el.zulu.textContent = pad(Math.floor(z / 3600) % 24, 2) + pad(Math.floor(z / 60) % 60, 2) + ":" + pad(Math.floor(z) % 60, 2) + "Z";
     }
 
-    var m = this.metar;
-    if (m && m.wind) {
-      var w = m.wind;
-      var calm = w.kt === 0;
-      // METAR wind is true; towers issue magnetic
-      var mag = w.dir === "VRB" ? "VRB" : pad(((parseInt(w.dir, 10) - cfg.magVarDeg) % 360 + 360) % 360 || 360, 3);
-      el.wind.textContent = calm ? "CALM" : mag + "@" + w.kt + (w.gust ? "G" + w.gust : "");
-      if (w.dir !== "VRB" && !calm) {
-        el.windArrow.style.display = "block";
-        // arrow points where the wind blows FROM, on a north-up dial
-        el.windArrow.style.transform = "rotate(" + parseInt(w.dir, 10) + "deg)";
-      } else {
-        el.windArrow.style.display = "none";
-      }
-    } else {
-      el.wind.textContent = "---";
+    var m = this.metar, now = Date.now();
+    if (typeof sim.windDirTrue === "number" && typeof sim.windKt === "number" && !isNaN(sim.windKt)) {
+      var last = this.samples[this.samples.length - 1];
+      if (!last || now - last.t >= 1000) this.samples.push({ t: now, dir: sim.windDirTrue, kt: sim.windKt });
+      while (this.samples.length && now - this.samples[0].t > GUST_MS) this.samples.shift();
     }
+    var aw = actualWind(this.samples, now);
+    if (aw && aw.calm) {
+      el.wind.textContent = "CALM";
+      el.windArrow.style.display = "none";
+    } else if (aw) {
+      // towers issue magnetic
+      var magDir = Math.round((((aw.dir - cfg.magVarDeg) % 360) + 360) % 360 / 10) * 10 || 360;
+      el.wind.textContent = pad(magDir, 3) + " " + pad(aw.kt, 2) + (aw.gust ? "G" + aw.gust : "");
+      el.windArrow.style.display = "block";
+      // arrow points where the wind blows FROM, on a north-up dial
+      el.windArrow.style.transform = "rotate(" + aw.dir + "deg)";
+    } else {
+      el.wind.textContent = "--- --";
+      el.windArrow.style.display = "none";
+    }
+    var big = el.wind.textContent.length > 6 ? "78px" : "";   // gusts: keep it on one line
+    if (el.wind.style.fontSize !== big) el.wind.style.fontSize = big;
     el.altim.textContent = m && m.altim ? m.altim : "--.--";
     el.metar.textContent = m ? m.raw : "METAR: WAITING";
 
@@ -85,10 +123,14 @@ var TwrInfoView = (function () {
     }
     el.status.textContent = this.feedError ? "VATSIM FEED: " + this.feedError.toUpperCase() : (f ? "" : "VATSIM FEED: WAITING");
 
-    if (typeof sim.windDirTrue === "number" && typeof sim.slpMb === "number") {
-      var simMag = ((Math.round(sim.windDirTrue - cfg.magVarDeg) % 360) + 360) % 360 || 360;
-      el.sim.textContent = "SIM AT CAB " + pad(simMag, 3) + "@" + Math.round(sim.windKt) + "  " + (sim.slpMb * 0.0295300).toFixed(2);
+    var parts2 = [];
+    if (m && m.wind) {
+      var w = m.wind;
+      var metMag = w.dir === "VRB" ? "VRB" : pad(((parseInt(w.dir, 10) - cfg.magVarDeg) % 360 + 360) % 360 || 360, 3);
+      parts2.push("METAR WIND " + (w.kt === 0 ? "CALM" : metMag + "@" + w.kt + (w.gust ? "G" + w.gust : "")));
     }
+    if (typeof sim.slpMb === "number" && !isNaN(sim.slpMb)) parts2.push("SIM ALTIMETER " + (sim.slpMb * 0.0295300).toFixed(2));
+    el.sim.textContent = parts2.join("    ");
   };
 
   return TwrInfoView;

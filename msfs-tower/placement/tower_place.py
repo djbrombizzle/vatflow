@@ -5,7 +5,8 @@ Puts the tower cab "aircraft" at a saved tower position and freezes it there,
 so it does not fall, drift or get pushed around by wind.
 
   python tower_place.py list               show saved towers
-  python tower_place.py place KDCA         teleport + freeze at the saved spot
+  python tower_place.py place KDCA         teleport + freeze at the saved spot (engine off)
+  python tower_place.py place KDCA --fan   ...then keep a quiet cab fan sound playing until you close the window
   python tower_place.py adjust KDCA        place, then nudge it with the keyboard and save
   python tower_place.py capture KDCA       save wherever the cab is right now (e.g. after slewing)
   python tower_place.py release            unfreeze (to slew or move it yourself)
@@ -26,6 +27,7 @@ M_PER_DEG_LAT = 111320.0
 FT_PER_M = 3.28084
 
 FREEZE_EVENTS = (b"FREEZE_LATITUDE_LONGITUDE_SET", b"FREEZE_ALTITUDE_SET", b"FREEZE_ATTITUDE_SET")
+FAN_WAV = os.path.join(HERE, "cab_fan.wav")
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +123,16 @@ class Sim:
         )
         time.sleep(0.5)
         self.freeze(True)
+        self.engine_off()
+
+    def engine_off(self):
+        """The cab is a SimObject 'aircraft' with a piston engine: shut it down so the
+        propeller sound stops."""
+        for name in (b"ENGINE_AUTO_SHUTDOWN", b"MIXTURE_SET"):
+            try:
+                self._Event(name, self.sm)(0)
+            except Exception as e:  # not fatal: the cab is placed either way
+                print("  (could not send %s: %s)" % (name.decode(), e))
 
     def read(self, simvar, unit):
         req = self._Request((simvar, unit), self.sm, _time=0)
@@ -165,12 +177,34 @@ def cmd_list(towers):
             print("      " + towers[icao]["note"])
 
 
-def cmd_place(towers, icao):
+def play_fan():
+    """Loops cab_fan.wav (Windows only) until the window is closed or Ctrl+C."""
+    try:
+        import winsound
+    except ImportError:
+        print("The fan sound needs Windows.")
+        return
+    if not os.path.exists(FAN_WAV):
+        print("cab_fan.wav is missing next to this script.")
+        return
+    winsound.PlaySound(FAN_WAV, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_LOOP)
+    print("Cab fan sound playing. Minimize this window; close it (or press Ctrl+C) to stop the fan.")
+    print("Louder / quieter: Windows volume mixer, entry 'Python'.")
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        winsound.PlaySound(None, 0)
+
+
+def cmd_place(towers, icao, fan=False):
     t = get_tower(towers, icao)
     sim = Sim()
     sim.place(t)
-    print("Placed and frozen: " + describe(icao.upper(), t))
+    print("Placed and frozen, engine off: " + describe(icao.upper(), t))
     sim.close()
+    if fan:
+        play_fan()
 
 
 def cmd_adjust(towers, icao):
@@ -240,8 +274,10 @@ def main(argv):
         cmd_list(towers)
     elif cmd == "release":
         cmd_release()
-    elif cmd in ("place", "adjust", "capture") and len(argv) >= 3:
-        {"place": cmd_place, "adjust": cmd_adjust, "capture": cmd_capture}[cmd](towers, argv[2])
+    elif cmd == "place" and len(argv) >= 3:
+        cmd_place(towers, argv[2], fan="--fan" in argv[3:])
+    elif cmd in ("adjust", "capture") and len(argv) >= 3:
+        {"adjust": cmd_adjust, "capture": cmd_capture}[cmd](towers, argv[2])
     else:
         print(__doc__)
 

@@ -28,10 +28,23 @@ Inside the cab there are two working screens fed by live data:
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
   arrivals/departures below 2,000 ft as heading arrows with callsign/type.
-* **TWR INFO** (on the front-left console): Zulu time, the real KDCA METAR wind
-  (magnetic) and altimeter, the VATSIM ATIS letter, who is online at DCA /
-  Potomac / ZDC, arrivals inside 50 nm and departures on the ground. The sim's
-  own wind and pressure at the cab are shown small for comparison.
+* **TWR INFO** (on the front-left console, amber like the IDS): **AW**, the actual
+  wind, in big type: the sim's own wind at the cab (2-minute average, magnetic,
+  gusts when the 10-minute peak is 10 kt or more above it). Also the altimeter,
+  Zulu time, the VATSIM ATIS letter, the real KDCA METAR, who is online at DCA /
+  Potomac / ZDC, arrivals inside 50 nm and departures on the ground.
+* **IDST** (fixed to the console right of TWR INFO): VATFLOW release times for DCA
+  departures in an active FCA program, the same data and release engine as
+  vatflow.io/idst.html (`common/vatflow-metering.js` is a bundle of
+  `shared/fca-metering.js`, rebuilt with `node msfs-tower/tools/build_idst_bundle.mjs`).
+  Click an aircraft (or use the four keys next to the keyboard: up, down, issue,
+  cancel) and ISSUE RELEASE. Writing needs `idst.cid` in `common/airport.js` set to
+  your VATSIM CID, connected as a controller (the web page's rule).
+* **Console equipment** round those two, after the DCA local position: voice switch
+  panel (keys light while that position is online on VATSIM), red LED Zulu clock,
+  keypad, trackball, keyboard, knob panel, speaker. The ceiling is black, like the real cab.
+* **Sound**: `3-place-KDCA.bat` turns the cab's engine off (no propeller) and loops a
+  quiet fan sound (`placement/cab_fan.wav`, made by `tools/make_fan_sound.py`).
 
 Status: everything that can be built without the sim is built and tested here
 (the Blender script runs in headless Blender, the screens run in a browser
@@ -46,10 +59,12 @@ can only be checked inside MSFS 2024 are listed in the
 | [`SDK-GUIDE.md`](SDK-GUIDE.md) | **Start here.** Step-by-step: SDK, Blender, export, build, fly. |
 | `blender/build_tower_cab.py` | Builds the cab in Blender from parameters (8 sides, leaning glass, catwalk, roof, antennas, consoles, screens). Run it, export, done. |
 | `package/SimObjects/Airplanes/vatflow_tower_cab/common/model/` | `model.cfg` + LOD files that point at the exported cab. |
-| `package/SimObjects/Airplanes/vatflow_tower_cab/common/panel/panel.cfg` | Puts the two HTML screens onto the screen materials. |
+| `package/SimObjects/Airplanes/vatflow_tower_cab/common/panel/panel.cfg` | Puts the six HTML screens (DBRITE, TWR INFO, ASDE-X, IDST, clock, voice switch) onto the screen materials. |
 | `package/html_ui/Pages/VCockpit/Instruments/VatflowTower/` | The screens: `Dbrite/`, `TwrInfo/`, shared `common/airport.js` (all the KDCA specifics) and `common/vatsim-feed.js`. |
 | `placement/` | Windows tool: teleport + freeze on the tower, nudge it into place, save. Double-click `1-setup.bat`, `2-adjust-KDCA.bat`, then `3-place-KDCA.bat` every session (see `placement/README.txt`). |
-| `tools/make_textures.py` | Generates the interior textures (carpet tiles, acoustic ceiling grid, console laminate) into `common/texture/`, with the `.png.xml` MSFS compiles them from. |
+| `tools/make_textures.py` | Generates the interior textures (carpet tiles, black ceiling grid, console laminate, keypad, keyboard, speaker grille) into `common/texture/`, with the `.png.xml` MSFS compiles them from. |
+| `tools/build_idst_bundle.mjs` | Bundles the VATFLOW release engine (`shared/fca-metering.js` and friends, via `tools/idst-entry.js`) into `common/vatflow-metering.js` for the IDST screen. |
+| `tools/make_fan_sound.py` | Writes `placement/cab_fan.wav`, the seamless quiet fan loop. |
 | `tools/build_kdca_maps.py` | Builds `common/maps-kdca.js` (ASDE-X and DBRITE map geometry) from OpenStreetMap and OurAirports. |
 | `tools/export_interior_gltf.py` | Builds the cab with the Blender script (headless) and writes `tower_cab_interior.gltf/.bin` directly: static interior plus each overhead monitor as its own node with a `<NODE>_TRACK` 360-degree track animation, materials already set the way the sim needs them. No Blender export or MSFS material panel needed for the interior. |
 | `preview/index.html` | Runs the screens in a normal browser (live or `?demo`). |

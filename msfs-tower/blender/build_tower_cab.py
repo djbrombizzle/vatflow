@@ -71,11 +71,23 @@ COLORS = {
     "TWR_Metal": (0.78, 0.78, 0.76, 1.0),
     "TWR_Console": (0.16, 0.17, 0.19, 1.0),
     "TWR_Carpet": (0.18, 0.22, 0.28, 1.0),
-    "TWR_Ceiling": (0.80, 0.80, 0.78, 1.0),
+    "TWR_Ceiling": (0.04, 0.04, 0.045, 1.0),     # the real cab ceiling is black
+    "TWR_Keypad": (0.20, 0.20, 0.20, 1.0),
+    "TWR_Keyboard": (0.05, 0.05, 0.05, 1.0),
+    "TWR_Speaker": (0.30, 0.28, 0.24, 1.0),
+    "TWR_PanelTan": (0.42, 0.38, 0.31, 1.0),
+    "TWR_PanelGrey": (0.55, 0.56, 0.57, 1.0),
+    "TWR_Knob": (0.08, 0.08, 0.09, 1.0),
+    "TWR_KeyGrey": (0.35, 0.37, 0.40, 1.0),
+    "TWR_KeyGreen": (0.10, 0.45, 0.18, 1.0),
+    "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_ASDEX": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_IDST": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_CLOCK": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_VSCS": (0.0, 0.0, 0.0, 1.0),
     "TWR_Mount": (0.03, 0.03, 0.035, 1.0),
     "TWR_Shade": (0.07, 0.07, 0.08, 0.82),
 }
@@ -204,7 +216,8 @@ class Builder:
         self.face(list(reversed(ring0)), mat_name)
         self.face(ring1, mat_name)
 
-    def box(self, center, size, mat_name, rot_z=0.0):
+    def box(self, center, size, mat_name, rot_z=0.0, top_mat=None):
+        """Box; top_mat puts a texture (UV 0..1, v toward the box's +y) on the top face."""
         cx, cy, cz = center
         sx, sy, sz = (s / 2 for s in size)
         c, s = math.cos(rot_z), math.sin(rot_z)
@@ -216,7 +229,10 @@ class Builder:
         t = [v(-sx, -sy, sz), v(sx, -sy, sz), v(sx, sy, sz), v(-sx, sy, sz)]
         self.quad_strip(b, t, mat_name)
         self.face(list(reversed(b)), mat_name)
-        self.face(t, mat_name)
+        if top_mat:
+            self.face(t, top_mat, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
+        else:
+            self.face(t, mat_name)
 
     def cylinder(self, r, z0, z1, mat_name, segs=24):
         lo = [Vector((r * math.cos(2 * math.pi * i / segs), r * math.sin(2 * math.pi * i / segs), z0)) for i in range(segs)]
@@ -237,7 +253,7 @@ class Builder:
         return obj
 
 
-def screen(b, center, normal, width, height, mat_name, bezel=0.04, depth=0.05):
+def screen(b, center, normal, width, height, mat_name, bezel=0.04, depth=0.05, bezel_mat="TWR_Bezel"):
     """A display: UV-mapped screen quad (0..1, upright) in front of a bezel box."""
     n = Vector(normal).normalized()
     up_world = Vector((0, 0, 1))
@@ -253,9 +269,67 @@ def screen(b, center, normal, width, height, mat_name, bezel=0.04, depth=0.05):
     bw, bh = hw + bezel, hh + bezel
     f = [c - right * bw - up * bh, c + right * bw - up * bh, c + right * bw + up * bh, c - right * bw + up * bh]
     k = [p - n * depth for p in f]
-    b.quad_strip(f, k, "TWR_Bezel")
-    b.face(list(reversed(k)), "TWR_Bezel")
+    b.quad_strip(f, k, bezel_mat)
+    b.face(list(reversed(k)), bezel_mat)
     return c, up, n
+
+
+def console_equipment(inside, coll, k, a_inner, top):
+    """
+    The desk equipment round the TWR INFO screen on console face k, laid out like the
+    DCA local control position: voice switch panel and red LED clock on the left, keypad
+    and trackball in front of TWR INFO, the IDST release screen with its keyboard and
+    four hardware keys on the right, and a knob panel. Positions are (right, depth, z):
+    right = to the controller's right when facing the window, depth = in from the window wall.
+    """
+    ang = face_angle(k)
+    out = Vector((math.cos(ang), math.sin(ang), 0))
+    right = Vector((math.sin(ang), -math.cos(ang), 0))
+    rot = ang - math.pi / 2          # box local +x = right, +y = toward the window
+
+    def at(r, depth, z):
+        return out * (a_inner - depth) + right * r + Vector((0, 0, z))
+
+    def facing(tilt_deg):            # screen normal: toward the controller, tilted back
+        t = math.radians(tilt_deg)
+        return -out * math.cos(t) + Vector((0, 0, math.sin(t)))
+
+    def deck(r, depth, size, body, top_mat=None, z0=top):
+        inside.box(at(r, depth, z0 + size[2] / 2), size, body, rot_z=rot, top_mat=top_mat)
+
+    # IDST release screen, fixed to the console right of TWR INFO
+    center, up, _ = screen(inside, at(0.80, 0.42, top + 0.27), facing(20), 0.52, 0.39, "$SCREEN_IDST", bezel=0.035)
+    inside.beam(center - up * 0.2, at(0.80, 0.42, top), 0.03, "TWR_Bezel")
+    deck(0.78, 0.66, (0.44, 0.14, 0.03), "TWR_Bezel", "TWR_Keyboard")
+    # IDST hardware keys (2 x 2): up / issue on the far row, down / cancel on the near row
+    deck(1.17, 0.64, (0.17, 0.15, 0.02), "TWR_Bezel")
+    for key, r, depth, mat in ((1, 1.13, 0.605, "TWR_KeyGrey"), (3, 1.21, 0.605, "TWR_KeyGreen"),
+                               (2, 1.13, 0.675, "TWR_KeyGrey"), (4, 1.21, 0.675, "TWR_KeyRed")):
+        kb = Builder("TowerCab_IdstKey_%d" % key, coll)
+        kb.box(at(r, depth, top + 0.02 + 0.01), (0.065, 0.05, 0.02), mat, rot_z=rot)
+        kb.finish()
+    # knob panel
+    deck(1.33, 0.30, (0.22, 0.14, 0.03), "TWR_PanelGrey")
+    for i in range(4):
+        p = at(1.25 + i * 0.053, 0.30, top + 0.03)
+        inside.beam(p, p + Vector((0, 0, 0.025)), 0.018, "TWR_Knob", segs=10)
+
+    # keypad + trackball in front of TWR INFO
+    deck(-0.10, 0.63, (0.26, 0.15, 0.04), "TWR_Bezel", "TWR_Keypad")
+    deck(0.14, 0.63, (0.13, 0.15, 0.04), "TWR_Bezel")
+    p = at(0.14, 0.63, top + 0.04)
+    inside.beam(p, p + Vector((0, 0, 0.022)), 0.032, "TWR_Knob", segs=10)
+
+    # voice switch touch panel (beige frame) and the red LED clock
+    center, up, _ = screen(inside, at(-0.85, 0.42, top + 0.20), facing(35), 0.42, 0.315, "$SCREEN_VSCS",
+                           bezel=0.05, bezel_mat="TWR_PanelTan")
+    inside.beam(center - up * 0.2, at(-0.85, 0.42, top), 0.03, "TWR_PanelTan")
+    deck(-1.30, 0.32, (0.30, 0.12, 0.14), "TWR_Bezel")
+    screen(inside, at(-1.30, 0.38 + 0.001, top + 0.07), facing(0), 0.24, 0.06, "$SCREEN_CLOCK", bezel=0.012, depth=0.005)
+    # speaker grille and a coffee mug
+    deck(-1.30, 0.62, (0.24, 0.16, 0.06), "TWR_PanelTan", "TWR_Speaker")
+    p = at(-0.50, 0.64, top)
+    inside.beam(p, p + Vector((0, 0, 0.11)), 0.04, "TWR_Metal", segs=12)
 
 
 def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_deg,
@@ -485,6 +559,7 @@ def build():
     nrm = -out * math.cos(tilt) + Vector((0, 0, math.sin(tilt)))
     center, up, _ = screen(inside, c, nrm, 0.60, 0.30, "$SCREEN_TWRINFO")
     inside.beam(center - up * 0.19, Vector((center.x, center.y, P["console_h"])), 0.03, "TWR_Bezel")
+    console_equipment(inside, int_coll, 1, a_inner, P["console_h"])
 
     # Overhead monitors on a circular ceiling track all the way round the cab
     # (each can travel the full 360 degrees): DBRITE radar starts front-right,

@@ -13,7 +13,9 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
 * Each window shade is SHADE_STRIPS strips (TowerCab_Shade_k_sNN); behaviors show the
   strips past the shade's position, so it unrolls in steps (no animation involved).
 * Carpet, ceiling and console materials use the textures from make_textures.py
-  (common/texture), mapped by world position so the patterns line up across parts.
+  (common/texture), mapped by world position so the patterns line up across parts;
+  keypad, keyboard and speaker grille textures are stretched once over their top face.
+* The four IDST hardware keys (TowerCab_IdstKey_1..4) are their own nodes so they can be clicked.
 * Also writes tower_cab_interior.xml: the LOD entry plus the model behaviors that let you
   drag the monitors round the track and the shades up and down.
 * Materials are written the way the working sim build has them: screens exactly like
@@ -52,7 +54,16 @@ def hexlin(h):
 # name: (base colour hex, metallic, roughness, alpha)
 PBR = {
     "TWR_Carpet": ("2E3847", 0.0, 0.95, 1),
-    "TWR_Ceiling": ("CCCCC7", 0.0, 0.9, 1),
+    "TWR_Ceiling": ("0A0A0B", 0.0, 0.9, 1),
+    "TWR_Keypad": ("333333", 0.0, 0.5, 1),
+    "TWR_Keyboard": ("0D0D0D", 0.0, 0.5, 1),
+    "TWR_Speaker": ("4D4840", 0.0, 0.7, 1),
+    "TWR_PanelTan": ("6E6350", 0.0, 0.6, 1),
+    "TWR_PanelGrey": ("8A8C8E", 0.3, 0.5, 1),
+    "TWR_Knob": ("18181A", 0.4, 0.4, 1),
+    "TWR_KeyGrey": ("5A5E63", 0.0, 0.5, 1),
+    "TWR_KeyGreen": ("1E7A35", 0.0, 0.5, 1),
+    "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
     "TWR_Console": ("2A2C30", 0.0, 0.6, 1),
     "TWR_Bezel": ("0D0D0D", 0.1, 0.4, 1),
     "TWR_Mount": ("1C1C1F", 0.5, 0.45, 1),
@@ -65,12 +76,18 @@ PBR = {
 
 
 # Textured materials: texture file (in common/texture, made by make_textures.py) and the
-# meters one copy covers. UVs for these are projected from world position (box mapping).
+# meters one copy covers. UVs for those are projected from world position (box mapping);
+# None = a decal stretched once over the face, using the UVs the build script gave it.
 TEXTURED = {
     "TWR_Carpet": ("TWR_Carpet_albd.png", 2.4),
     "TWR_Ceiling": ("TWR_Ceiling_albd.png", 1.2),
     "TWR_Console": ("TWR_Console_albd.png", 1.0),
+    "TWR_Keypad": ("TWR_Keypad_albd.png", None),
+    "TWR_Keyboard": ("TWR_Keyboard_albd.png", None),
+    "TWR_Speaker": ("TWR_Speaker_albd.png", None),
 }
+IDST_KEYS = {"1": "IDST - select the aircraft above", "2": "IDST - select the aircraft below",
+             "3": "IDST - issue the release for the selected aircraft", "4": "IDST - cancel the selected release"}
 
 
 def box_uv(p, n, meters):
@@ -168,7 +185,7 @@ class Writer:
                 wp = obj.matrix_world @ loop.vert.co
                 d["pos"].append(to_gltf(loop.vert.co if local else wp))
                 d["nrm"].append(nn)
-                if name in TEXTURED:
+                if name in TEXTURED and TEXTURED[name][1]:
                     uv = box_uv(wp, wn, TEXTURED[name][1])
                 else:
                     uv = loop[uv_layer].uv if uv_layer else (0.0, 0.0)
@@ -263,6 +280,14 @@ def write_behaviors(path, node_names):
                          + anim_template(node + "_TRACK", "(L:%s) dnor" % var, TRACK_FRAMES, True)
                          + drag_template("X", var, TRACK_DRAG_SPEED, True, "%s - drag left/right to move it along the track" % label)
                          + "\t\t</Component>\n")
+        elif node.startswith("TowerCab_IdstKey_"):      # IDST hardware key -> the gauge reads it
+            k = node.rsplit("_", 1)[1]
+            comps.append("\t\t<Component ID=\"VATFLOW_IDST_KEY_%s\" Node=\"%s\">\n" % (k, node)
+                         + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Interaction_LeftSingle_Code\">\n"
+                         + "\t\t\t\t<LEFT_SINGLE_CODE>%s (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>\n" % k
+                         + "\t\t\t\t<TOOLTIPID>%s</TOOLTIPID>\n" % IDST_KEYS[k]
+                         + "\t\t\t</UseTemplate>\n"
+                         + "\t\t</Component>\n")
         elif node.startswith("TowerCab_ShadeRoller_"):  # click the roller: fully up / down
             k = node.rsplit("_", 1)[1]
             var = "VATFLOW_SHADE_%s" % k
@@ -308,6 +333,8 @@ def write_behaviors(path, node_names):
         + "\t\tlower it fully. Built on the SDK templates ASOBO_GT_Anim_Code, ASOBO_GT_Visibility_Code,\n"
         + "\t\tASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code and\n"
         + "\t\tASOBO_GT_Interaction_LeftSingle_Code (Asobo Generic Interactions).\n"
+        + "\t\tIDST keys: click sets L:VATFLOW_IDST_KEY (1 up, 2 down, 3 issue, 4 cancel); the IDST gauge\n"
+        + "\t\treads it and sets it back to 0.\n"
         + "\t\tIf a drag goes the wrong way set REVERSE_INTERACTION to True; DRAG_SPEED sets the speed.\n"
         + "\t-->\n"
         + "\t<CompileBehaviors Version=\"2\">\n"

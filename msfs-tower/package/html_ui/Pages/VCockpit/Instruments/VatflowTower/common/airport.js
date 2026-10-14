@@ -42,6 +42,17 @@ var VATFLOW_TWR = {
       { rwy: "19", courseMag: 147, lengthNm: 10 }   // offset final down the river
     ]
   },
+  // In-cab IDST (VATFLOW release times). Same data as vatflow.io/idst.html.
+  idst: {
+    // YOUR VATSIM CID. Issuing or cancelling a release is only allowed while this CID
+    // is connected as a controller on VATSIM (the same check the IDST web page uses).
+    cid: "",
+    supabaseUrl: "https://qoaipsfcidpymboojfwa.supabase.co",
+    supabaseKey: "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79",
+    siteBase: "https://vatflow.io/",       // nav data + ARTCC boundaries for route expansion
+    fcaRefreshSec: 15,
+    feedRefreshSec: 30
+  },
   asdex: {
     maxAglFt: 2000,        // show arrivals on short final and departures just off
     maxDistNm: 4,

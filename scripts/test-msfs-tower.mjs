@@ -189,4 +189,74 @@ t("radar screens draw without errors against a stub canvas for every target in a
   for (let k = 0; k < 20; k++) { d.draw(Date.now() + k * 5000, 3600 * 19 + k); a.draw(Date.now() + k * 5000, 3600 * 19 + k); }
 });
 
+t("TWR INFO actual wind: 2-minute vector average, magnetic, gusts only 10 kt over the average", () => {
+  const now = 1_000_000;
+  const steady = [];
+  for (let i = 0; i < 120; i++) steady.push({ t: now - i * 1000, dir: 350 + (i % 2 ? 20 : 0), kt: 12 });
+  const w = plain(TwrInfoView.actualWind(steady, now));
+  assert.equal(w.dir, 360);                      // 350 and 010 average to north, not 180
+  assert.ok(w.kt >= 11 && w.kt <= 12);
+  assert.equal(w.gust, null);
+  const gusty = steady.concat([{ t: now - 300000, dir: 0, kt: 25 }]);
+  assert.equal(TwrInfoView.actualWind(gusty, now).gust, 25);
+  assert.equal(TwrInfoView.actualWind([{ t: now, dir: 90, kt: 2 }], now).calm, true);
+  assert.equal(TwrInfoView.actualWind([{ t: now - 200000, dir: 90, kt: 9 }], now), null);  // too old for the average
+});
+
+t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancels a release", () => {
+  const ictx = vm.createContext({ Date, Math, JSON, String, Number, Object, Array, Promise, Map, Set, parseInt, parseFloat, isNaN, isFinite, console,
+    setTimeout: () => 0, setInterval: () => 0, globalThis: undefined });
+  ictx.globalThis = ictx;
+  for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/vatflow-metering.js", "Idst/Idst.js"]) {
+    vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), ictx, { filename: f });
+  }
+  const M = ictx.VatflowMetering;
+  M.seedAirports({ KDCA: [38.8521, -77.0377], KLGA: [40.7772, -73.8726], KATL: [33.6367, -84.4281] });
+  const el = () => ({ textContent: "", innerHTML: "", className: "", style: {}, addEventListener() {} });
+  const els = {};
+  const root = { querySelector: (sel) => (els[sel] = els[sel] || el()) };
+  const view = new ictx.IdstView(root, ictx.VATFLOW_TWR);
+  view.demo = true;
+  view.setFeed({ pilots: [
+    pilot("RPA1", 38.8545, -77.04, 15, 0, 175, { departure: "KDCA", arrival: "KLGA", aircraft_short: "E175", altitude: "25000", cruise_tas: "440" }),
+    pilot("DAL2", 38.8440, -77.037, 15, 0, 0, { departure: "KDCA", arrival: "KATL", aircraft_short: "B712", altitude: "33000", cruise_tas: "450" }),
+  ], controllers: [] });
+  view.setFcaRows([{ id: "fca_t", data: { id: "fca_t", name: "NE", enabled: true, mode: "mit", mit: 10, rate: 30, dir: "any",
+    dests: ["KLGA"], origins: [], scope: [], fixes: [], minFL: 0, maxFL: 600, order: [], excluded: [], releases: {},
+    points: [[39.6, -77.4], [39.6, -75.6]] } }]);
+  view.render();
+  assert.deepEqual(plain(view.rows.map((r) => r.callsign)), ["RPA1"], "only the departure crossing the program line");
+  assert.equal(view.rows[0].frozen, false);
+  view.key(2);                                   // select first row
+  assert.equal(view.sel, "RPA1");
+  view.key(3);                                   // issue
+  const rel = plain(view.fcas[0].releases.RPA1);
+  assert.ok(rel.edctMs >= Date.now() && rel.ctaMs > rel.edctMs && rel.assignedMs, "release frozen with EDCT + CTA");
+  view.render();
+  assert.equal(view.rows[0].frozen, true);
+  assert.match(els["#id-list"].innerHTML, /RPA1[\s\S]*\d{4}Z/);
+  view.key(4);                                   // cancel
+  assert.equal(view.fcas[0].releases.RPA1, undefined);
+  view.demo = false;                             // live: no CID -> nothing is written
+  view.key(3);
+  assert.match(view.msg, /CID/);
+  assert.equal(view.fcas[0].releases.RPA1, undefined);
+});
+
+t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST keys set the L: var", () => {
+  const MODEL = new URL("../msfs-tower/package/SimObjects/Airplanes/vatflow_tower_cab/common/", import.meta.url);
+  const panel = readFileSync(new URL("panel/panel.cfg", MODEL), "utf8");
+  const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
+  assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS"]);
+  for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
+    assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("import-script"), m[1]);
+  }
+  const build = readFileSync(new URL("../msfs-tower/blender/build_tower_cab.py", import.meta.url), "utf8");
+  for (const sname of screens) assert.ok(build.includes('"' + sname + '"'), sname + " in the build script");
+  const xml = readFileSync(new URL("model/tower_cab_interior.xml", MODEL), "utf8");
+  for (const k of [1, 2, 3, 4]) {
+    assert.ok(xml.includes(`Node="TowerCab_IdstKey_${k}"`) && xml.includes(`${k} (&gt;L:VATFLOW_IDST_KEY)`), "IDST key " + k);
+  }
+});
+
 console.log(`\n${passed} passed`);

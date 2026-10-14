@@ -12,10 +12,40 @@
 		lower it fully. Built on the SDK templates ASOBO_GT_Anim_Code, ASOBO_GT_Visibility_Code,
 		ASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code and
 		ASOBO_GT_Interaction_LeftSingle_Code (Asobo Generic Interactions).
+		IDST keys: click sets L:VATFLOW_IDST_KEY (1 up, 2 down, 3 issue, 4 cancel); the IDST gauge
+		reads it and sets it back to 0.
 		If a drag goes the wrong way set REVERSE_INTERACTION to True; DRAG_SPEED sets the speed.
 	-->
 	<CompileBehaviors Version="2">
 		<Include ModelBehaviorFile="Asobo\Common.xml"/>
+
+		<Component ID="VATFLOW_IDST_KEY_1" Node="TowerCab_IdstKey_1">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>1 (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>IDST - select the aircraft above</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_IDST_KEY_3" Node="TowerCab_IdstKey_3">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>3 (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>IDST - issue the release for the selected aircraft</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_IDST_KEY_2" Node="TowerCab_IdstKey_2">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>2 (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>IDST - select the aircraft below</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_IDST_KEY_4" Node="TowerCab_IdstKey_4">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>4 (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>IDST - cancel the selected release</TOOLTIPID>
+			</UseTemplate>
+		</Component>
 
 		<Component ID="VATFLOW_DBRITE_TRACK" Node="TowerCab_DbriteMount">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
