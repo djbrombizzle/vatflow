@@ -23,7 +23,7 @@ Inside the cab there are two working screens fed by live data:
   4.8 s radar sweep.
 * **Overhead monitors** hang in square-tube yokes (side knobs, handle bar) from
   trolleys on a circular ceiling track, like the real DCA cab, and are built to travel
-  all the way round the cab: grab one with the mouse and drag left/right (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
+  all the way round the cab: grab one with the mouse and drag left/right. Every window has a roll-down shade: drag the shade or its roller down/up (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
 * **ASDE-X** (hanging from the ceiling, front left): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and

@@ -36,7 +36,7 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 # ---------------------------------------------------------------------------
 # Parameters (meters / degrees). KDCA defaults, sized from the cab photo.
@@ -77,6 +77,7 @@ COLORS = {
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_ASDEX": (0.0, 0.0, 0.0, 1.0),
     "TWR_Mount": (0.03, 0.03, 0.035, 1.0),
+    "TWR_Shade": (0.12, 0.12, 0.13, 0.6),
 }
 
 # ---------------------------------------------------------------------------
@@ -308,6 +309,48 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     return obj
 
 
+def window_shade(k, coll, a0, a1, z0, z1):
+    """
+    Roll-down shade for window face k: a dark tinted fabric sheet parallel to the
+    leaning glass, hanging from a roller just inside the head of the window.
+
+    Two objects: the roller (static, TowerCab_ShadeRoller_k) and the shade
+    (TowerCab_Shade_k). The shade mesh is built in its own local frame (origin on the
+    roller, local -Y running down the glass) and gets custom property vatflow_shade,
+    so the exporter keeps its transform and animates its local Y scale: frame 0 =
+    rolled up, frame 100 = fully down.
+    """
+    top_c = (corner(k, a1, z1) + corner(k + 1, a1, z1)) / 2
+    bot_c = (corner(k, a0, z0) + corner(k + 1, a0, z0)) / 2
+    along = (corner(k + 1, a0, z0) - corner(k, a0, z0)).normalized()
+    down = (bot_c - top_c).normalized()
+    inward = along.cross(down).normalized()
+    if inward.dot(Vector((-top_c.x, -top_c.y, 0))) < 0:
+        inward = -inward
+    origin = top_c + inward * 0.12 + down * 0.10
+    length = (bot_c - top_c).length - 0.25
+    half_w = (corner(k + 1, a0, z0) - corner(k, a0, z0)).length * 0.45
+
+    roller = Builder("TowerCab_ShadeRoller_%d" % k, coll)
+    roller.beam(origin - along * (half_w + 0.05), origin + along * (half_w + 0.05), 0.045, "TWR_Mount", segs=8)
+    for s in (-1, 1):                                       # end brackets up to the head
+        e = origin + along * s * (half_w + 0.05)
+        roller.beam(e, e - down * 0.10 + inward * 0.0, 0.02, "TWR_Mount")
+    roller.finish()
+
+    X, Y = along, -down
+    Z = X.cross(Y).normalized()
+    shade = Builder("TowerCab_Shade_%d" % k, coll)
+    w, L = half_w, length
+    shade.face([Vector((-w, 0, 0)), Vector((w, 0, 0)), Vector((w, -L, 0)), Vector((-w, -L, 0))], "TWR_Shade")
+    shade.beam(Vector((-w, -L, 0)), Vector((w, -L, 0)), 0.018, "TWR_Mount", segs=6)   # pull bar
+    obj = shade.finish()
+    obj.matrix_world = Matrix(((X.x, Y.x, Z.x, origin.x), (X.y, Y.y, Z.y, origin.y),
+                               (X.z, Y.z, Z.z, origin.z), (0, 0, 0, 1)))
+    obj["vatflow_shade"] = 1
+    return obj
+
+
 def ceiling_track(builder, radius, ceiling_z, segments=48):
     """Circular ceiling track all the way round the cab, with hangers every 45 degrees."""
     z = ceiling_z - 0.035
@@ -442,6 +485,18 @@ def build():
                   2.50, 20, ceiling_z, track_r)
     monitor_mount("TowerCab_AsdexMount", int_coll, 1, 0.60, 0.80, "$SCREEN_ASDEX",
                   2.55, 20, ceiling_z, track_r)
+
+    # Window frames seen from inside: MSFS doesn't draw the exterior model's mullions
+    # in the cockpit view, so the interior gets its own, slightly thinner so the two
+    # copies don't fight when seen from outside.
+    for k in range(n):
+        inside.beam(corner(k, a0, z_glass0), corner(k, a1, z_glass1), P["mullion_r"] * 0.85, "TWR_Mullion")
+        inside.beam(corner(k, a0, z_glass0), corner(k + 1, a0, z_glass0), 0.034, "TWR_Mullion")
+        inside.beam(corner(k, a1, z_glass1), corner(k + 1, a1, z_glass1), 0.034, "TWR_Mullion")
+
+    # Roll-down shades, one per window
+    for k in range(n):
+        window_shade(k, int_coll, a0, a1, z_glass0, z_glass1)
     inside.finish()
 
     # Eye point marker (not exported): where the MSFS eyepoint should be

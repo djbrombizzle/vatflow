@@ -9,8 +9,11 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
   monitor (TowerCab_DbriteMount, TowerCab_AsdexMount) as its own node.
 * Each monitor gets a rotation animation "<NODE>_TRACK" for travelling round the
   circular ceiling track: frame = degrees (0..360, frame 0 = where it was built, the
-  rest position), keyed at 24 fps like the Asobo exporter. Model behaviors drive it
-  (tower_cab_interior.xml).
+  rest position), keyed at 24 fps like the Asobo exporter.
+* Each window shade (TowerCab_Shade_k) keeps its own transform and gets "<NODE>_ROLL",
+  a scale along the glass: frame 0 = rolled up, 100 = down.
+* Also writes tower_cab_interior.xml: the LOD entry plus the model behaviors that let you
+  drag the monitors round the track and the shades up and down.
 * Materials are written the way the working sim build has them: screens exactly like
   the SDK GaugeAircraft sample ("$SCREEN_*" with emissive 2000), everything else plain PBR,
   double sided.
@@ -30,6 +33,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "..", "blender", "build_tower_cab.py")
 FPS = 24.0
 TRACK_FRAMES = 360   # one frame per degree round the track
+SHADE_ROLLED_UP = 0.03   # shade length fraction left showing when rolled up
+TRACK_DRAG_SPEED = 0.125
+SHADE_DRAG_SPEED = 0.2
+MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
 def srgb_to_linear(c):
@@ -51,6 +58,7 @@ PBR = {
     "TWR_Metal": ("C8C8C4", 0.8, 0.4, 1),
     "TWR_Mullion": ("1A1A1C", 0.2, 0.5, 1),
     "TWR_Glass": ("A0B4BE", 0.0, 0.05, 0.15),
+    "TWR_Shade": ("1F1F21", 0.0, 0.8, 0.6),
 }
 
 
@@ -112,6 +120,9 @@ class Writer:
         return len(self.g["accessors"]) - 1
 
     def add_object(self, obj):
+        # Animated parts that scale (the shades) keep their own transform so the scale
+        # runs along their local axes; everything else is baked into world space.
+        local = "vatflow_shade" in obj
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
@@ -120,9 +131,9 @@ class Writer:
         for f in bm.faces:
             name = obj.material_slots[f.material_index].material.name
             d = by_mat.setdefault(name, {"pos": [], "nrm": [], "uv": []})
-            nn = to_gltf(f.normal)
+            nn = to_gltf(f.normal) if local else to_gltf((obj.matrix_world.to_3x3() @ f.normal).normalized())
             for loop in f.loops:
-                d["pos"].append(to_gltf(obj.matrix_world @ loop.vert.co))
+                d["pos"].append(to_gltf(loop.vert.co if local else obj.matrix_world @ loop.vert.co))
                 d["nrm"].append(nn)
                 uv = loop[uv_layer].uv if uv_layer else (0.0, 0.0)
                 d["uv"].append([uv[0], 1.0 - uv[1]])          # glTF V runs down
@@ -141,6 +152,10 @@ class Writer:
             prims.append({"attributes": attrs, "indices": idx, "material": self.material(name)})
         self.g["meshes"].append({"name": obj.name, "primitives": prims})
         node = {"extensions": {"ASOBO_unique_id": {"id": obj.name}}, "mesh": len(self.g["meshes"]) - 1, "name": obj.name}
+        if local:
+            loc, rot, _scale = obj.matrix_world.decompose()
+            node["translation"] = to_gltf(loc)
+            node["rotation"] = [rot.x, rot.z, -rot.y, rot.w]     # same axis change as to_gltf
         self.g["nodes"].append(node)
         node_i = len(self.g["nodes"]) - 1
         self.g["scenes"][0]["nodes"].append(node_i)
@@ -161,6 +176,19 @@ class Writer:
                 "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
             })
 
+        if "vatflow_shade" in obj:
+            # Roll the shade: scale along its local "down the glass" axis (Blender -Y,
+            # glTF Z). Frame 0 = rolled up, 100 = fully down.
+            times = [0.0, 100 / FPS]
+            keys = [[1.0, 1.0, SHADE_ROLLED_UP], [1.0, 1.0, 1.0]]
+            t_acc = self.accessor(times, 5126, "SCALAR", minmax=True)
+            k_acc = self.accessor(keys, 5126, "VEC3")
+            self.g["animations"].append({
+                "name": obj.name + "_ROLL",
+                "channels": [{"sampler": 0, "target": {"node": node_i, "path": "scale"}}],
+                "samplers": [{"input": t_acc, "interpolation": "LINEAR", "output": k_acc}],
+            })
+
     def save(self, out_dir, base):
         while len(self.blob) % 4:
             self.blob.append(0)
@@ -173,6 +201,77 @@ class Writer:
             json.dump(self.g, f, indent=1)
 
 
+def drag_template(axis, var, speed, looping, tooltip, anim_length=None):
+    keep = "(L:%s) (&gt;L:%s)" % (var, var)
+    extra = "\t\t\t\t<IS_LOOPING>True</IS_LOOPING>\n" if looping else "\t\t\t\t<ANIM_LENGTH>%d</ANIM_LENGTH>\n" % anim_length
+    return (
+        "\t\t\t<UseTemplate Name=\"ASOBO_GT_Interaction_Dragging%sAxis_Code\">\n" % axis
+        + "\t\t\t\t<POSITION_TYPE>L</POSITION_TYPE>\n"
+        + "\t\t\t\t<POSITION_VAR>%s</POSITION_VAR>\n" % var
+        + "\t\t\t\t<UP_CODE>%s</UP_CODE>\n" % keep
+        + "\t\t\t\t<DOWN_CODE>%s</DOWN_CODE>\n" % keep
+        + extra
+        + "\t\t\t\t<DRAG_SPEED>%s</DRAG_SPEED>\n" % speed
+        + "\t\t\t\t<REVERSE_INTERACTION>False</REVERSE_INTERACTION>\n"
+        + "\t\t\t\t<CURSOR>Grab</CURSOR>\n"
+        + "\t\t\t\t<TOOLTIPID>%s</TOOLTIPID>\n" % tooltip
+        + "\t\t\t</UseTemplate>\n")
+
+
+def anim_template(name, code, length, wrap):
+    return (
+        "\t\t\t<UseTemplate Name=\"ASOBO_GT_Anim_Code\">\n"
+        + "\t\t\t\t<ANIM_NAME>%s</ANIM_NAME>\n" % name
+        + "\t\t\t\t<ANIM_CODE>%s</ANIM_CODE>\n" % code
+        + "\t\t\t\t<ANIM_LENGTH>%d</ANIM_LENGTH>\n" % length
+        + ("\t\t\t\t<ANIM_WRAP>True</ANIM_WRAP>\n" if wrap else "")
+        + "\t\t\t\t<ANIM_LAG>0</ANIM_LAG>\n"
+        + "\t\t\t</UseTemplate>\n")
+
+
+def write_behaviors(path, node_names):
+    """tower_cab_interior.xml: LOD + model behaviors for every moving part in the export."""
+    comps = []
+    for node in node_names:
+        if node.endswith("Mount"):                      # overhead monitor on the 360 track
+            label = node.replace("TowerCab_", "").replace("Mount", "").upper()
+            var = "VATFLOW_%s_TRACK_DEG" % label
+            comps.append("\t\t<Component ID=\"VATFLOW_%s_TRACK\" Node=\"%s\">\n" % (label, node)
+                         + anim_template(node + "_TRACK", "(L:%s) dnor" % var, TRACK_FRAMES, True)
+                         + drag_template("X", var, TRACK_DRAG_SPEED, True, "%s - drag left/right to move it along the track" % label)
+                         + "\t\t</Component>\n")
+        elif node.startswith("TowerCab_Shade_"):        # roll-down shade + its roller
+            k = node.rsplit("_", 1)[1]
+            var = "VATFLOW_SHADE_%s" % k
+            tip = "Window shade - drag down to lower, up to raise"
+            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_%s\" Node=\"%s\">\n" % (k, node)
+                         + anim_template(node + "_ROLL", "(L:%s) 0 max 100 min" % var, 100, False)
+                         + drag_template("Y", var, SHADE_DRAG_SPEED, False, tip, 100)
+                         + "\t\t</Component>\n")
+            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_ROLLER_%s\" Node=\"TowerCab_ShadeRoller_%s\">\n" % (k, k)
+                         + drag_template("Y", var, SHADE_DRAG_SPEED, False, tip, 100)
+                         + "\t\t</Component>\n")
+    xml = (
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        + "<ModelInfo guid=\"%s\" version=\"1.1\">\n" % MODEL_GUID
+        + "\t<LODS>\n\t\t<LOD minSize=\"0\" ModelFile=\"tower_cab_interior.gltf\"/>\n\t</LODS>\n"
+        + "\t<!--\n"
+        + "\t\tGenerated by tools/export_interior_gltf.py together with tower_cab_interior.gltf.\n"
+        + "\t\tOverhead monitors: node animation named node plus _TRACK, 360 frames = degrees round the\n"
+        + "\t\tceiling track, position in an L: var, dragged left/right (wraps round).\n"
+        + "\t\tShades: node animation named node plus _ROLL, frame 0 = up, 100 = down, dragged up/down on\n"
+        + "\t\tthe shade or its roller. Built on the SDK templates ASOBO_GT_Anim_Code and\n"
+        + "\t\tASOBO_GT_Interaction_DraggingXAxis_Code / DraggingYAxis_Code (Asobo Generic Interactions).\n"
+        + "\t\tIf a drag goes the wrong way set REVERSE_INTERACTION to True; DRAG_SPEED sets the speed.\n"
+        + "\t-->\n"
+        + "\t<CompileBehaviors Version=\"2\">\n"
+        + "\t\t<Include ModelBehaviorFile=\"Asobo\\Common.xml\"/>\n\n"
+        + "\n".join(comps)
+        + "\t</CompileBehaviors>\n</ModelInfo>\n")
+    with open(path, "w", encoding="utf-8", newline="\r\n") as f:
+        f.write(xml)
+
+
 def main(out_dir):
     runpy.run_path(BUILD, run_name="__main__")
     os.makedirs(out_dir, exist_ok=True)
@@ -181,6 +280,7 @@ def main(out_dir):
         if obj.type == "MESH":
             w.add_object(obj)
     w.save(out_dir, "tower_cab_interior")
+    write_behaviors(os.path.join(out_dir, "tower_cab_interior.xml"), [n["name"] for n in w.g["nodes"]])
     print("Wrote %s: nodes %s, animations %s" % (
         os.path.join(out_dir, "tower_cab_interior.gltf"),
         [n["name"] for n in w.g["nodes"]],
