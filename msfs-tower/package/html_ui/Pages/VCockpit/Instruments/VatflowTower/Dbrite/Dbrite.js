@@ -2,7 +2,7 @@
  * VATFLOW Tower Cab - DBRITE radar display (in-cab screen $SCREEN_DBRITE).
  *
  * STARS-style tower display: black background, olive video map (runways of
- * every airport in range, airport/heliport/navaid symbols), grey range rings,
+ * every airport in range, airport/navaid symbols, extended finals), grey range rings,
  * green lists and data blocks. Live VATSIM traffic; the feed only updates
  * every ~15 s, so targets are dead-reckoned and repainted on a 4.8 s sweep,
  * leaving history trails.
@@ -107,10 +107,6 @@ var DbriteView = (function () {
         b = px({ x: r[2], y: r[3] });
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      for (i = 0; i < m.heliports.length; i++) {
-        p = px({ x: m.heliports[i][0], y: m.heliports[i][1] });
-        star(ctx, p.x, p.y, 5);
-      }
       for (i = 0; i < m.navaids.length; i++) {
         var n = m.navaids[i];
         p = px(n);
@@ -134,18 +130,6 @@ var DbriteView = (function () {
     }
   };
 
-  function star(ctx, x, y, r) {
-    ctx.beginPath();
-    for (var k = 0; k < 10; k++) {
-      var rr = k % 2 ? r * 0.45 : r;
-      var a = -Math.PI / 2 + k * Math.PI / 5;
-      if (k === 0) ctx.moveTo(x + rr * Math.cos(a), y + rr * Math.sin(a));
-      else ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a));
-    }
-    ctx.closePath();
-    ctx.stroke();
-  }
-
   function hexagon(ctx, x, y, r) {
     ctx.beginPath();
     for (var k = 0; k < 6; k++) {
@@ -159,6 +143,46 @@ var DbriteView = (function () {
   }
 
   function dot(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+
+  /**
+   * Extended final for cfg.dbrite.finals entry f, in nm from the ARP:
+   * { a: threshold, b: far end, ticks: [{x,y,len}] } or null if the runway is unknown.
+   * The line runs outward from the landing threshold, opposite the inbound course.
+   */
+  DbriteView.finalLine = function (cfg, f) {
+    for (var i = 0; i < cfg.runways.length; i++) {
+      var rw = cfg.runways[i], k = rw.ids.indexOf(f.rwy);
+      if (k < 0) continue;
+      var thr = k === 0 ? rw.a : rw.b, far = k === 0 ? rw.b : rw.a;
+      var a = VatflowFeed.toNm(cfg.arp, thr[0], thr[1]);
+      var e = VatflowFeed.toNm(cfg.arp, far[0], far[1]);
+      var inbound = typeof f.courseMag === "number"
+        ? (f.courseMag + cfg.magVarDeg) * Math.PI / 180            // magnetic -> true
+        : Math.atan2(e.x - a.x, e.y - a.y);                          // along the runway
+      var ux = -Math.sin(inbound), uy = -Math.cos(inbound);         // outward unit vector
+      var len = f.lengthNm || 10, ticks = [];
+      for (var d = 1; d <= len; d++) ticks.push({ x: a.x + ux * d, y: a.y + uy * d, len: d % 5 === 0 ? 0.35 : 0.18 });
+      return { a: a, b: { x: a.x + ux * len, y: a.y + uy * len }, ticks: ticks, ux: ux, uy: uy };
+    }
+    return null;
+  };
+
+  DbriteView.prototype.drawFinals = function (ctx, px, scale) {
+    var finals = this.cfg.dbrite.finals || [];
+    ctx.strokeStyle = C.map;
+    ctx.lineWidth = 1.5;
+    for (var i = 0; i < finals.length; i++) {
+      var L = DbriteView.finalLine(this.cfg, finals[i]);
+      if (!L) continue;
+      var a = px(L.a), b = px(L.b);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      for (var j = 0; j < L.ticks.length; j++) {   // perpendicular tick every nm, longer every 5 nm
+        var t = L.ticks[j], h = t.len / 2;
+        var p1 = px({ x: t.x - L.uy * h, y: t.y + L.ux * h }), p2 = px({ x: t.x + L.uy * h, y: t.y - L.ux * h });
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      }
+    }
+  };
 
   /** Lines of the top-left preview area. */
   DbriteView.prototype.listLines = function (zuluSec) {
@@ -200,6 +224,7 @@ var DbriteView = (function () {
     }
 
     this.drawMap(ctx, px, scale);
+    this.drawFinals(ctx, px, scale);
 
     // traffic
     var alt = Math.floor(nowMs / 2000) % 2 === 0;

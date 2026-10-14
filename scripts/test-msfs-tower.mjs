@@ -137,4 +137,16 @@ t("DBRITE list: time/altimeter line and one line per altimeter station", () => {
   assert.ok(lines.includes("DAA --.-- -----"));
 });
 
+t("DBRITE finals: 01 extends south along the runway, 19 offset outward on 147 mag (137 true)", () => {
+  const f01 = DbriteView.finalLine(cfg, { rwy: "01", lengthNm: 10 });
+  assert.ok(f01.b.y < f01.a.y - 9.9, "01 final runs south from the 01 threshold");
+  assert.ok(Math.abs(f01.b.x - f01.a.x) < 1, "01 final follows the runway (356 true)");
+  assert.equal(f01.ticks.length, 10);
+  const f19 = DbriteView.finalLine(cfg, { rwy: "19", courseMag: 147, lengthNm: 10 });
+  const out = (Math.atan2(f19.b.x - f19.a.x, f19.b.y - f19.a.y) * 180 / Math.PI + 360) % 360;
+  assert.ok(Math.abs(out - 317) < 0.01, "19 final outward bearing " + out);   // 137 true inbound
+  assert.ok(f19.a.y > 0.4, "starts at the north (19) threshold");
+  assert.equal(DbriteView.finalLine(cfg, { rwy: "36" }), null);
+});
+
 console.log(`\n${passed} passed`);

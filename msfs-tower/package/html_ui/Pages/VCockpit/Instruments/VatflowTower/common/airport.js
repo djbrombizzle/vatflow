@@ -34,7 +34,13 @@ var VATFLOW_TWR = {
     historyDots: 5,
     // Altimeter/wind lines in the top-left list (STARS "altimeter" list)
     altimeterStations: ["KDCA", "KADW", "KDAA"],
-    towerLabel: "DCA TOWER"
+    towerLabel: "DCA TOWER",
+    // Extended final approach courses drawn on the scope, from the landing threshold outward.
+    // courseMag: inbound course (magnetic); without it the line follows the runway centerline.
+    finals: [
+      { rwy: "01", lengthNm: 10 },
+      { rwy: "19", courseMag: 147, lengthNm: 10 }   // offset final down the river
+    ]
   },
   asdex: {
     maxAglFt: 2000,        // show arrivals on short final and departures just off
