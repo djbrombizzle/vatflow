@@ -188,6 +188,23 @@ for (const t of ["CANCEL PUSH", "NO PUSH REQ", "UNABLE PUSH", "PUSHED BACK", "DI
   const want = { SWA1: "FLL-C", DAL1: "FLL-D", JBU1: "FLL-EN", NKS1: "FLL-G", ACA1: "FLL-A" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(F, [], operatorFor(F, cs, ""), cs).ramp === ramp, `KFLL ${cs} on ${ramp}`);
 }
+/* ---------- KIND (FedEx hub) ---------- */
+{
+  const I = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIND.json", import.meta.url))));
+  const count = r => I.stands.filter(s => s.ramp === r).length;
+  assert(I.stands.length === 82 && count("FDX-E") === 12 && count("FDX-P") === 8 && count("FDX-C") === 19 && count("FDX-W") === 26 && count("FDX-S") === 17,
+    "KIND 82 FedEx stands from the two diagrams");
+  assert(I.stands.every(s => !s.approx && s.noseHdg != null), "every KIND stand has coordinates and a heading");
+  assert(["1", "2", "3", "4", "5", "6", "7", "7E", "7W", "8"].every(id => I.spotById.has(id)), "KIND spots 1-8, 7E, 7W");
+  // Even rows nose southeast (to the sort building), odd rows northwest, as drawn.
+  near(I.standById.get("40").noseHdg, 134, 4, "KIND 40 noses SE");
+  near(I.standById.get("41").noseHdg, 316, 4, "KIND 41 noses NW");
+  assert(composeStandTelex(I, "12") === "KIND FEDEX RAMP: PARK STAND 12. ENTER AT SPOT 2.", "KIND 12 telex: " + composeStandTelex(I, "12"));
+  // In-only spots for arrivals, out-only spots for departures.
+  const io = id => { const s = I.standById.get(id); return entrySpotFor(I, s).id + "/" + exitSpotFor(I, s).id; };
+  assert(io("12") === "2/3" && io("44") === "4/5" && io("85") === "1/1" && io("65") === "6/7E" && io("110") === "8/7W", `KIND in/out spots (${["12", "44", "85", "65", "110"].map(io)})`);
+  assert(suggestStand(I, [], operatorFor(I, "FDX123", ""), "FDX123").group === "FedEx", "KIND suggests a FedEx stand for FDX");
+}
 console.log(`test-ramp-core: ${passed} passed`);
 
 /* ---------- demo simulator ---------- */
@@ -241,7 +258,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA and KFLL");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL and KIND");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
