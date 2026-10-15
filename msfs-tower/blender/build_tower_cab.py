@@ -90,6 +90,7 @@ COLORS = {
     "$SCREEN_TMUDEP": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_CLOCK2": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMP": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_TMUIDS": (0.0, 0.0, 0.0, 1.0),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
@@ -327,42 +328,57 @@ CEILING_LIGHTS = [(0.0, 0.0), (1.9, 0.0), (-1.9, 0.0), (0.0, 1.9), (0.0, -1.9)]
 
 def tmu_desk(inside, coll, a_inner, top):
     """
-    TMU position in the back-left corner (window face 3), after the DCA TMU desk: on the
-    console two monitors with keyboards (arrivals / departures lists) and a red LED
-    clock; a return desk with light oak edging and a blue-grey top runs into the room
-    from the console's right end, separating the corner, with flight strip bays on it.
+    TMU position in the back-left corner (window face 3), after the DCA TMU desk.
+    On the console, three monitors with keyboards: vZDC IDS (mirrored from the PC),
+    arrivals and departures lists. A desk with light oak edging and a blue-grey top runs
+    from the console corner (between faces 2 and 3) diagonally into the room toward the
+    middle, separating the corner; on it the red LED clock cabinet (console end) and
+    flight strip bays.
     """
     at, facing, rot, out, right = face_frame(3, a_inner)
-    desk_monitor(inside, at, facing, rot, -0.75, 0.40, top, 0.44, 0.33, "$SCREEN_TMUARR")
-    desk_monitor(inside, at, facing, rot, -0.05, 0.40, top, 0.44, 0.33, "$SCREEN_TMUDEP")
-    # clock box (grey cabinet with the LED window), like the DCA TMU desk
-    inside.box(at(0.62, 0.30, top + 0.11), (0.42, 0.30, 0.22), "TWR_PanelGrey", rot_z=rot)
-    screen(inside, at(0.62, 0.45 + 0.001, top + 0.15), facing(0), 0.22, 0.055, "$SCREEN_CLOCK2", bezel=0.012, depth=0.005)
+    desk_monitor(inside, at, facing, rot, -1.00, 0.40, top, 0.44, 0.33, "$SCREEN_TMUIDS")
+    desk_monitor(inside, at, facing, rot, -0.10, 0.40, top, 0.44, 0.33, "$SCREEN_TMUARR")
+    desk_monitor(inside, at, facing, rot, 0.80, 0.40, top, 0.44, 0.33, "$SCREEN_TMUDEP")
 
-    # return desk: from the console's inner edge into the room, 0.7 m wide, 1.8 m long
-    d0, d1 = P["console_depth"], P["console_depth"] + 1.8
-    rc, w = 1.08, 0.70
-    mid = (d0 + d1) / 2
-    length = d1 - d0
-    inside.box(at(rc, mid, top - 0.02), (w, length, 0.04), "TWR_DeskTop", rot_z=rot)              # top
-    inside.box(at(rc, mid, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=rot)  # oak edge band
-    inside.box(at(rc, mid, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_Wood", rot_z=rot)  # body
-    inside.box(at(rc, mid, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_Bezel", rot_z=rot)       # dark kick plinth
-    # strip bays on the return: three sloped boards with strips, facing the console side
+    # the desk: along the line from the console corner toward the cab centre
+    ca = corner_angle(3)                                        # corner between faces 2 and 3
+    toward = Vector((-math.cos(ca), -math.sin(ca), 0))          # inward, along the desk
+    side = Vector((-toward.y, toward.x, 0))                     # across the desk
+    start = corner(3, a_inner - P["console_depth"], 0.0)        # console's inner corner
+    start = Vector((start.x, start.y, 0)) - toward * 0.05       # tucked under the console edge
+    length, w = 2.2, 0.70
+    drot = math.atan2(-toward.x, toward.y)                      # box local +y = along the desk
+
+    def P2(s_, t_, z):                                          # s along the desk, t across
+        return start + toward * s_ + side * t_ + Vector((0, 0, z))
+
+    mid = length / 2
+    inside.box(P2(mid, 0, top - 0.02), (w, length, 0.04), "TWR_DeskTop", rot_z=drot)             # top
+    inside.box(P2(mid, 0, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=drot) # oak edge band
+    inside.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_Wood", rot_z=drot)
+    inside.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_Bezel", rot_z=drot)      # dark kick plinth
+
+    # red LED clock cabinet at the console end of the desk, facing the TMU corner (-side)
+    inside.box(P2(0.35, 0, top + 0.11), (0.30, 0.42, 0.22), "TWR_PanelGrey", rot_z=drot)
+    clock_face = P2(0.35, -0.151, top + 0.15)
+    screen(inside, clock_face, -side, 0.22, 0.055, "$SCREEN_CLOCK2", bezel=0.012, depth=0.005)
+
+    # flight strip bays along the rest of the desk, sloping up away from the TMU corner
+    # (so they read from the corner side, where the TMU controller stands)
     for i in range(3):
-        dc = d0 + 0.35 + i * 0.55
+        sc = 0.85 + i * 0.47
+        s0, s1 = sc - 0.21, sc + 0.21
         lo, hi = top + 0.005, top + 0.11
-        x0, x1 = rc - 0.25, rc + 0.25
-        y0, y1 = dc - 0.22, dc + 0.22
-        board = [at(x0, y0, hi), at(x1, y0, hi), at(x1, y1, lo), at(x0, y1, lo)]
+        t_lo, t_hi = -0.25, 0.25                                # low edge on the corner side (-side)
+        board = [P2(s0, t_hi, hi), P2(s1, t_hi, hi), P2(s1, t_lo, lo), P2(s0, t_lo, lo)]
         inside.face(board, "TWR_StripBay")
-        for side in (x0, x1):                                   # side rails
-            inside.face([at(side, y0, hi), at(side, y1, lo), at(side, y1, top), at(side, y0, top)], "TWR_StripBay")
-        for k in range(7):                                      # strips across the board
+        for s_end in (s0, s1):                                  # side rails
+            inside.face([P2(s_end, t_hi, hi), P2(s_end, t_lo, lo), P2(s_end, t_lo, top), P2(s_end, t_hi, top)], "TWR_StripBay")
+        for k in range(7):                                      # strips in the bay
             f0, f1 = 0.04 + k * 0.13, 0.04 + k * 0.13 + 0.10
-            ya, yb = y0 + (y1 - y0) * f0, y0 + (y1 - y0) * f1
+            ta, tb = t_hi + (t_lo - t_hi) * f0, t_hi + (t_lo - t_hi) * f1
             za, zb = hi + (lo - hi) * f0 + 0.004, hi + (lo - hi) * f1 + 0.004
-            inside.face([at(x0 + 0.02, ya, za), at(x1 - 0.02, ya, za), at(x1 - 0.02, yb, zb), at(x0 + 0.02, yb, zb)], "TWR_Strip")
+            inside.face([P2(s0 + 0.02, ta, za), P2(s1 - 0.02, ta, za), P2(s1 - 0.02, tb, zb), P2(s0 + 0.02, tb, zb)], "TWR_Strip")
 
 
 def ramp_computer(inside, a_inner, top):

@@ -48,9 +48,16 @@ Inside the cab there are two working screens fed by live data:
 * **Ceiling lights**: five recessed light panels (softly self-lit) with cabin lights at
   the same spots in `common/config/systems.cfg` (`LIGHT_ASOBO_CabinBounceLarge`), switched on
   by the placement tool.
-* **TMU desk** in the back-left corner, after the DCA TMU position: two yellow list
-  monitors (arrivals by ETA, ground departures with P-time) with keyboards, a red LED
-  clock, and an oak-edged return desk with flight strip bays separating the corner.
+* **TMU desk** in the back-left corner, after the DCA TMU position: three monitors on
+  the console (vZDC IDS, arrivals by ETA, ground departures with P-time) with keyboards,
+  and an oak-edged desk running from the console corner diagonally into the room,
+  separating the corner, with the red LED clock and flight strip bays on it.
+* **vZDC IDS** (TMU desk, third screen): the IDS needs a VATSIM SSO login and a modern
+  browser, so `placement/web_mirror.py` (`4-ids-screen.bat`) opens it in Edge on the PC
+  (log in once; the login is kept) and serves a picture of it to the screen
+  (`Mirror/`, from `http://127.0.0.1:8777`); clicks and scrolling on the screen go back
+  to the page. The page is laid out 1600 px wide (the IDS refuses smaller windows) and
+  scaled to the screen.
 * **Ramp list** computer left of the clock (right-hand end of the front-left window):
   the vatflow.io gates page for KDCA (inbound gate proposals, departures on the ground),
   from `shared/ramp-core.js` bundled into `common/vatflow-ramp.js` plus the KDCA layout.

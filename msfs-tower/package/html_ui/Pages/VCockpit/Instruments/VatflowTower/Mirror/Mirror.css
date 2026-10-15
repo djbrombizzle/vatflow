@@ -1,0 +1,5 @@
+/* 1024x768: a web page mirrored from the PC (placement/web_mirror.py). */
+vatflow-mirror, #mi-root { display: block; width: 100%; height: 100%; }
+#mi-root { position: relative; background: #121212; overflow: hidden; font-family: monospace; }
+.mi-img { position: absolute; left: 0; top: 0; width: 1024px; height: 768px; }
+.mi-msg { position: absolute; left: 40px; right: 40px; top: 300px; color: #e0e0e0; font-size: 26px; text-align: center; line-height: 40px; }

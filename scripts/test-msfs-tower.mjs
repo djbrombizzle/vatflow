@@ -257,7 +257,7 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   const panel = readFileSync(new URL("panel/panel.cfg", MODEL), "utf8");
   const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
   assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS",
-    "$SCREEN_TMUARR", "$SCREEN_TMUDEP", "$SCREEN_CLOCK2", "$SCREEN_RAMP"]);
+    "$SCREEN_TMUARR", "$SCREEN_TMUDEP", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_TMUIDS"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
     assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("common/dimmer.js"), m[1] + " loads the dimmer");
   }
@@ -351,6 +351,27 @@ t("TMU screens: arrivals by ETA with distance and altitude, ground departures wi
   assert.deepEqual(d.map((r) => r.cs), ["GND2", "GND1"], "by P-time");
   assert.equal(d[0].status, "TAXI");
   assert.equal(d[1].route, "WOOLY5 COLIN Q99");
+});
+
+t("mirror screen: polls the PC mirror for pictures, maps clicks to screen pixels, explains when it is off", () => {
+  const mctx = vm.createContext({ console, Date, Math, JSON });
+  const sent = [];
+  mctx.XMLHttpRequest = function () {
+    this.open = (m, u) => { this.u = u; }; this.setRequestHeader = () => {}; this.send = (b) => sent.push([this.u, JSON.parse(b)]);
+  };
+  for (const f of ["common/airport.js", "Mirror/Mirror.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), mctx, { filename: f });
+  const handlers = {};
+  const img = { addEventListener: (n, fn) => { handlers[n] = fn; }, getBoundingClientRect: () => ({ left: 0, top: 0, width: 512, height: 384 }) };
+  const msg = { textContent: "" };
+  const view = new mctx.MirrorView({ querySelector: (q) => (q === "#mi-img" ? img : msg) }, mctx.VATFLOW_TWR.mirror);
+  view.tick(1000);
+  assert.match(img.src, /^http:\/\/127\.0\.0\.1:8777\/frame\.jpg\?t=1000$/);
+  view.tick(7000);
+  assert.match(msg.textContent, /4-ids-screen\.bat/, "how to start the mirror");
+  img.onload();
+  assert.equal(msg.textContent, "");
+  handlers.mouseup({ clientX: 256, clientY: 192 });          // middle of a half-size screen
+  assert.deepEqual(plain(sent[0]), ["http://127.0.0.1:8777/click", { x: 512, y: 384 }]);
 });
 
 console.log(`\n${passed} passed`);
