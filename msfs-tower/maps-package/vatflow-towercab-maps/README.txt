@@ -24,4 +24,3 @@ In the cab
   ASDE-X: MAPS picks the facility's ASDE-X map (the default), a cab map, or the built-in one.
   Choices are kept per airport.
 
-The video maps are the ARTCC's own work: share them only with the ARTCC's OK.

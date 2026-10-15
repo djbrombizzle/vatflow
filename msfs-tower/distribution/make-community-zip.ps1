@@ -1,6 +1,6 @@
 # VATFLOW Tower Cab - builds the zips for testers from the project:
 #   vatflow-towercab-test.zip   the cab (from the built package in Packages\)
-#   vatflow-towercab-maps.zip   the ARTCC video maps package (optional ARTCC files inside)
+#   vatflow-towercab-maps.zip   the ARTCC video maps package, empty (testers add their own ARTCC file)
 #   make-community-zip.ps1 <project folder>
 param([string]$Proj)
 $ErrorActionPreference = "Stop"
@@ -52,8 +52,9 @@ Install
   2. Unzip. Move the folder "$Name" into your MSFS 2024 Community folder.
      (Not sure where it is? MSFS > Options > General > Developers, or search your PC for a
      folder named "Community" next to "Official".)
-  3. Optional, ARTCC video maps: unzip vatflow-towercab-maps.zip into Community too
-     (see its README).
+  3. Optional, ARTCC video maps: unzip vatflow-towercab-maps.zip into Community too, put
+     your ARTCC's .json file (e.g. ZTL.json) in its "ARTCC files" folder and double-click
+     update-maps.bat there (see its README).
   4. Start MSFS. New Community packages are only read when the sim starts.
 
 Fly
@@ -94,24 +95,14 @@ foreach ($c in @((Join-Path $env:APPDATA "Microsoft Flight Simulator 2024\UserCf
 if (-not $maps) { $p = Join-Path $Proj "maps-package\vatflow-towercab-maps"; if (Test-Path $p) { $maps = $p } }
 if (-not $maps) { Write-Host "Maps: no vatflow-towercab-maps package found, skipped."; exit 0 }
 
-$fac = Join-Path $maps "html_ui\Pages\VCockpit\Instruments\VatflowTower\facilities"
-$have = @(Get-ChildItem $fac -Filter *.json -ErrorAction SilentlyContinue | ForEach-Object { $_.BaseName })
-$keep = $false
-if ($have.Count) {
-  Write-Host ""
-  Write-Host ("ARTCC files in your maps package: {0}" -f ($have -join ", "))
-  $a = Read-Host "Include them in the testers' zip? Only with each ARTCC's OK. (y = include, Enter = leave out)"
-  $keep = $a -match '^[yY]'
-}
+# the testers' maps package goes out empty: each tester adds their own ARTCC file
 $stage = Join-Path $env:TEMP "vatflow-towercab-maps-zip"
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory $stage | Out-Null
 $mdst = Join-Path $stage "vatflow-towercab-maps"
 Copy-Item $maps $mdst -Recurse
-if (-not $keep) {
-  Get-ChildItem (Join-Path $mdst "html_ui\Pages\VCockpit\Instruments\VatflowTower\facilities") -Filter *.json -ErrorAction SilentlyContinue | Remove-Item -Force
-  Get-ChildItem (Join-Path $mdst "ARTCC files") -Filter *.json -ErrorAction SilentlyContinue | Remove-Item -Force
-}
+Get-ChildItem (Join-Path $mdst "html_ui\Pages\VCockpit\Instruments\VatflowTower\facilities") -Filter *.json -ErrorAction SilentlyContinue | Remove-Item -Force
+Get-ChildItem (Join-Path $mdst "ARTCC files") -Filter *.json -ErrorAction SilentlyContinue | Remove-Item -Force
 # file list for what is in the zip now
 $items = Get-ChildItem (Join-Path $mdst "html_ui") -Recurse -File | Sort-Object FullName | ForEach-Object {
   [ordered]@{ path = $_.FullName.Substring($mdst.Length + 1).Replace("\", "/"); size = $_.Length; date = $_.LastWriteTimeUtc.ToFileTimeUtc() }
@@ -121,7 +112,7 @@ $mzip = Join-Path $desktop "vatflow-towercab-maps.zip"
 if (Test-Path $mzip) { Remove-Item $mzip -Force }
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $mzip
 Remove-Item $stage -Recurse -Force
-Write-Host ("Maps: {0}  ({1})" -f $mzip, $(if ($keep) { "with " + ($have -join ", ") } else { "no ARTCC files: testers add their own with update-maps.bat" }))
+Write-Host "Maps: $mzip  (no ARTCC files: testers add their own)"
 Write-Host ""
 Write-Host "Note: on THIS PC don't put the cab zip in Community while the project is open in the editor"
 Write-Host "(the sim would see the cab twice). Test it on another PC, or close the project first."

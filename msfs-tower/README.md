@@ -119,8 +119,8 @@ updating the cab never touches them:
    (MAPS picks another). Choices are kept per airport.
 
 Only the ARTCC file is installed; the map drawings are downloaded live from vNAS
-(`common/vnas.js`) when a screen shows them. ARTCC files are the ARTCCs' own data, so they
-are not in this repo. The installer copies the package into Community
+(`common/vnas.js`) when a screen shows them. ARTCC files are not kept in this repo, and the
+tester zips go out without them: each tester adds their own. The installer copies the package into Community
 (`maps-package/install-maps-package.ps1`, which finds the folder from the sim's `UserCfg.opt`).
 
 ## Sharing it with friends (Community folder)
