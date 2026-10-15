@@ -197,6 +197,17 @@
 				<ANIM_WRAP>True</ANIM_WRAP>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DBRITE_TRACK_DEG</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</DOWN_CODE>
+				<IS_LOOPING>True</IS_LOOPING>
+				<DRAG_SPEED>0.125</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>DBRITE - drag left/right to move it along the track</TOOLTIPID>
+			</UseTemplate>
 		</Component>
 
 		<Component ID="VATFLOW_DBRITE_MON_LIFT" Node="TowerCab_DbriteMount_Lift">
@@ -204,6 +215,15 @@
 				<ANIM_NAME>TowerCab_DbriteMount_Lift_LIFT</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_DBRITE_HEIGHT)</ANIM_CODE>
 				<ANIM_LENGTH>40</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_DBRITE_MON_DISPLAY" Node="TowerCab_DbriteMount_Display">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_DbriteMount_Display_TWIST</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_DBRITE_TWIST)</ANIM_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 		</Component>
@@ -276,6 +296,17 @@
 				<ANIM_WRAP>True</ANIM_WRAP>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_ASDEX_TRACK_DEG</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</DOWN_CODE>
+				<IS_LOOPING>True</IS_LOOPING>
+				<DRAG_SPEED>0.125</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>ASDEX - drag left/right to move it along the track</TOOLTIPID>
+			</UseTemplate>
 		</Component>
 
 		<Component ID="VATFLOW_ASDEX_MON_LIFT" Node="TowerCab_AsdexMount_Lift">
@@ -283,6 +314,15 @@
 				<ANIM_NAME>TowerCab_AsdexMount_Lift_LIFT</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_ASDEX_HEIGHT)</ANIM_CODE>
 				<ANIM_LENGTH>40</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_ASDEX_MON_DISPLAY" Node="TowerCab_AsdexMount_Display">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_AsdexMount_Display_TWIST</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_ASDEX_TWIST)</ANIM_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 		</Component>

@@ -276,6 +276,8 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   for (const m of ["DBRITE", "ASDEX"]) {
     const cap = m === "DBRITE" ? "Dbrite" : "Asdex";
     assert.ok(xml.includes(`Node="TowerCab_${cap}Mount_Screen"`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TRACK_DEG</POSITION_VAR>`), m + " track drag on the screen");
+    const disp = new RegExp(`Node="TowerCab_${cap}Mount_Display">([\\s\\S]*?)</Component>`).exec(xml);
+    assert.ok(disp && !/Dragging/.test(disp[1]), m + " display: no drag, so clicks reach the page (MAPS, MENU)");
     assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_HEIGHT)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_HEIGHT</POSITION_VAR>`), m + " height");
     assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_TWIST)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TWIST</POSITION_VAR>`), m + " swivel");
   }

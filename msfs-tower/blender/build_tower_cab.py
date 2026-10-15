@@ -509,10 +509,11 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     Five objects, exported as a node hierarchy (custom properties for the exporter):
       name            trolley + outer sleeve   travels round the track      (vatflow_anim = track)
       name_Lift       inner post               slides up / down in the sleeve (lift)
-      name_Screen     display, yoke            swivels about the post        (twist)
+      name_Display    the display              swivels about the post        (twist; clicks go to the page)
+      name_Screen     yoke frame               swivels with it; drag = move round the track
       name_Handle     handle bar under it      swivels with it; drag = height
       name_Swivel     side pivot knobs         swivels with it; drag = swivel
-    Lift, Screen, Handle and Swivel hang under the trolley; Screen / Handle / Swivel are
+    Lift, Display, Screen, Handle and Swivel hang under the trolley; Display / Screen / Handle / Swivel are
     separate nodes (not children of each other) so each can be grabbed on its own.
     """
     ang = face_angle(face_k)
@@ -548,8 +549,13 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     lift["vatflow_anim"] = "lift"
     lift["vatflow_parent"] = name
 
-    b = Builder(name + "_Screen", coll)
+    # the display on its own node with no drag behaviour, so clicks on it reach the screen's
+    # page (menus, MAPS); the yoke round it is what you grab to move the monitor round the track
+    b = Builder(name + "_Display", coll)
     screen(b, c, nrm, width, height, mat_screen, bezel=0.035, depth=0.08)
+    dsp = b.finish()
+
+    b = Builder(name + "_Screen", coll)
     F = [c + back - right * fw - up * fh, c + back + right * fw - up * fh,
          c + back + right * fw + up * fh, c + back - right * fw + up * fh]
     for i in range(4):                                      # square-tube yoke
@@ -572,7 +578,7 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     b.beam(hl + drop, hr + drop, 0.018, "TWR_Mount", segs=6)
     hnd = b.finish()
 
-    for o in (scr, swv, hnd):
+    for o in (dsp, scr, swv, hnd):
         o["vatflow_anim"] = "twist"
         o["vatflow_parent"] = name + "_Lift"
         o["vatflow_pivot"] = pivot
