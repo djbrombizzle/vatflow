@@ -277,27 +277,4 @@ var DbriteView = (function () {
 
   return DbriteView;
 })();
-
-if (typeof BaseInstrument !== "undefined") {
-  class VatflowDbrite extends BaseInstrument {
-    get templateID() { return "VatflowDbrite"; }
-    get isInteractive() { return false; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "DBRITE");
-      VatflowDimmer.initMonitorPose("DBRITE");
-      this.view = new DbriteView(this.querySelector("#dbrite-canvas"), VATFLOW_TWR,
-        typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
-      this.tick = VatflowDraw.loop(this.view, 1000);
-      var view = this.view;
-      VatflowFeed.poll(VATFLOW_TWR, function (d) { view.setData(d); }, function (e) { view.setError(e); });
-      VatflowFeed.pollMetars(VATFLOW_TWR.dbrite.altimeterStations, function (m) { view.setMetars(m); });
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      this.tick(false);
-    }
-  }
-  registerInstrument("vatflow-dbrite", VatflowDbrite);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

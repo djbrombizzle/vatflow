@@ -89,29 +89,4 @@ var RampView = (function () {
 
   return RampView;
 })();
-
-if (typeof BaseInstrument !== "undefined") {
-  class VatflowRampList extends BaseInstrument {
-    get templateID() { return "VatflowRampList"; }
-    get isInteractive() { return false; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "CONSOLE");
-      this.view = new RampView(this.querySelector("#rp-root"), typeof VATFLOW_RAMP_LAYOUT !== "undefined" ? VATFLOW_RAMP_LAYOUT : null);
-      this.view.start(VATFLOW_TWR.feedUrl);
-      this.lastDraw = 0;
-      var self = this;
-      setInterval(function () { if (Date.now() - self.lastDraw > 2500) self.draw(); }, 1000);
-    }
-    draw() {
-      this.lastDraw = Date.now();
-      try { this.view.render(); } catch (e) { console.error("VATFLOW ramp error", (e && e.stack) || e); }
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      if (Date.now() - this.lastDraw >= 2000) this.draw();
-    }
-  }
-  registerInstrument("vatflow-ramplist", VatflowRampList);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

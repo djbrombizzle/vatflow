@@ -1,11 +1,16 @@
 /*
  * VATFLOW Tower Cab - airport configuration shared by the in-cab displays.
  * Plain script (no modules) so it loads both in MSFS (Coherent GT) and in a
- * normal browser preview. To make a cab for another airport, copy this file
- * and change the values; nothing else in the gauges is airport-specific.
+ * normal browser preview.
+ *
+ * The cab works at any airport: common/site.js finds the airport the cab is at and
+ * rewrites the airport fields below (icao ... dbrite.finals) for it. The values here
+ * are KDCA's, used until then and in the browser preview. Hand-tuned settings for one
+ * airport go in VATFLOW_TWR_OVERRIDES at the end of this file.
  */
 var VATFLOW_TWR = {
   icao: "KDCA",
+  lid: "DCA",
   name: "WASHINGTON NATIONAL",
   // Airport reference point (DBRITE center) and field elevation
   arp: { lat: 38.8521, lon: -77.0377 },
@@ -47,8 +52,9 @@ var VATFLOW_TWR = {
   },
   // In-cab IDST (VATFLOW release times). Same data as vatflow.io/idst.html.
   idst: {
-    // YOUR VATSIM CID. Issuing or cancelling a release is only allowed while this CID
-    // is connected as a controller on VATSIM (the same check the IDST web page uses).
+    // Your VATSIM CID: typed in on the cab's SETUP screen and kept in the sim's storage
+    // (common/store.js), never in this file. Issuing or cancelling a release is only
+    // allowed while this CID is connected as a controller on VATSIM.
     cid: "",
     supabaseUrl: "https://qoaipsfcidpymboojfwa.supabase.co",
     supabaseKey: "sb_publishable_6Pj7jeRN0AQBcjl44MoCNA_zjsvFs79",
@@ -60,5 +66,24 @@ var VATFLOW_TWR = {
     maxAglFt: 2000,        // show arrivals on short final and departures just off
     maxDistNm: 4,
     marginPx: 30
+  }
+};
+
+// Hand-tuned per-airport settings, applied over the generic ones (common/site.js).
+var VATFLOW_TWR_OVERRIDES = {
+  KDCA: {
+    magVarDeg: -10,
+    atcPatterns: [/^DCA_/, /^PCT_/, /^DC_(?:[A-Z0-9]+_)*CTR$/],
+    dbrite: {
+      altimeterStations: ["KDCA", "KADW", "KDAA"],
+      towerLabel: "DCA TOWER",
+      finals: [
+        { rwy: "01", lengthNm: 10 },
+        { rwy: "19", courseMag: 147, lengthNm: 10 }   // offset final down the river
+      ]
+    }
+  },
+  KATL: {
+    magVarDeg: -5
   }
 };

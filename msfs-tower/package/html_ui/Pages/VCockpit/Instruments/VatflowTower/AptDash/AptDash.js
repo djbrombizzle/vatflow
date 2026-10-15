@@ -190,35 +190,4 @@ var AptListView = (function () {
   };
   return AptListView;
 })();
-
-/** MSFS wrappers: which = "demand" | "list". */
-function vatflowRegisterAptDash(which, tag, templateId) {
-  if (typeof BaseInstrument === "undefined") return;
-  class VatflowAptDash extends BaseInstrument {
-    get templateID() { return templateId; }
-    get isInteractive() { return false; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "CONSOLE");
-      this.data = new VatflowAptData(VATFLOW_TWR);
-      this.data.start();
-      if (which === "demand") {
-        this.view = new AptDemandView(this.querySelector("canvas"), VATFLOW_TWR, this.data);
-        this.tick = VatflowDraw.loop(this.view, 2000);
-      } else {
-        this.view = new AptListView(this.querySelector("#al-root"), VATFLOW_TWR, this.data);
-        this.last = 0;
-      }
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      if (this.tick) this.tick(false);
-      else if (Date.now() - this.last >= 2000) {
-        this.last = Date.now();
-        try { this.view.render(); } catch (e) { console.error("VATFLOW apt list", (e && e.stack) || e); }
-      }
-    }
-  }
-  registerInstrument(tag, VatflowAptDash);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

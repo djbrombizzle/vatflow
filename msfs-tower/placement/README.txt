@@ -1,5 +1,9 @@
-VATFLOW Tower Cab - placement
-=============================
+VATFLOW Tower Cab - placement (Python tool, now only a backup)
+==============================================================
+
+You don't need this any more: in the sim, any cab screen's MENU > TOWER SETUP places the
+cab, moves it with buttons and saves the spot (and by default the cab goes up into the
+tower by itself when a flight starts). Use these scripts only if that doesn't work.
 
 First time
   1-setup.bat        installs what the tool needs (needs Python; it tells you if it's missing)

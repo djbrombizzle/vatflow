@@ -8,7 +8,7 @@
  *
  * Select an aircraft (click its row, or the up/down keys) and press ISSUE RELEASE:
  * the engine slots it behind airborne traffic and other releases and freezes the time.
- * CANCEL removes the release. Both need your VATSIM CID (common/airport.js, idst.cid)
+ * CANCEL removes the release. Both need your VATSIM CID (typed on the TOWER SETUP screen)
  * connected as a controller, as on the web page.
  *
  * Input: clicks on the screen, or the hardware keys under it, which set
@@ -212,7 +212,7 @@ var IdstView = (function () {
 
   IdstView.prototype.canWrite = function () {
     if (this.demo) return !this.busy;
-    if (!this.icfg.cid) { this.say("SET YOUR VATSIM CID IN common/airport.js (idst.cid) TO ISSUE"); return false; }
+    if (!this.icfg.cid) { this.say("SET YOUR VATSIM CID ON A SCREEN: MENU > TOWER SETUP > VATSIM CID"); return false; }
     if (!this.auth.verified) { this.say("CID " + this.icfg.cid + " IS NOT CONNECTED AS A CONTROLLER ON VATSIM"); return false; }
     if (this.busy) { this.say("WAIT..."); return false; }
     return true;
@@ -359,36 +359,4 @@ var IdstView = (function () {
 
   return IdstView;
 })();
-
-if (typeof BaseInstrument !== "undefined") {
-  class VatflowIdst extends BaseInstrument {
-    get templateID() { return "VatflowIdst"; }
-    // Lets the sim pass mouse clicks on the screen through to the page.
-    get isInteractive() { return true; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "CONSOLE");
-      this.view = new IdstView(this.querySelector("#id-root"), VATFLOW_TWR);
-      this.view.start();
-      this.lastDraw = 0;
-      var self = this;
-      setInterval(function () { if (Date.now() - self.lastDraw > 2500) self.draw(); }, 1000);
-    }
-    draw() {
-      this.lastDraw = Date.now();
-      try { this.view.render(); } catch (e) { console.error("VATFLOW IDST error", (e && e.stack) || e); }
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      // hardware keys under the screen (model behaviors) -> L:VATFLOW_IDST_KEY
-      var k = SimVar.GetSimVarValue("L:VATFLOW_IDST_KEY", "number");
-      if (k) {
-        SimVar.SetSimVarValue("L:VATFLOW_IDST_KEY", "number", 0);
-        this.view.key(Math.round(k));
-      }
-      if (Date.now() - this.lastDraw >= 1000) this.draw();
-    }
-  }
-  registerInstrument("vatflow-idst", VatflowIdst);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

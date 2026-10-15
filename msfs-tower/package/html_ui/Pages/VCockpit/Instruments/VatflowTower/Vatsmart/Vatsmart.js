@@ -283,23 +283,4 @@ var VatsmartView = (function () {
 
   return VatsmartView;
 })();
-
-if (typeof BaseInstrument !== "undefined") {
-  class VatflowVatsmart extends BaseInstrument {
-    get templateID() { return "VatflowVatsmart"; }
-    get isInteractive() { return false; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "CONSOLE");
-      this.view = new VatsmartView(this.querySelector("#vs-root"), this.querySelector("#vs-chart"), VATFLOW_TWR);
-      this.view.start();
-      this.tick = VatflowDraw.loop(this.view, 1000);
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      this.tick(false);
-    }
-  }
-  registerInstrument("vatflow-vatsmart", VatflowVatsmart);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

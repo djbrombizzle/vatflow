@@ -4,7 +4,7 @@
  * Laid out like the IDS in the cab: "AW" (actual wind) in big type, which is the
  * sim's own wind at the cab (2-minute average, magnetic, with gusts when the
  * peak is 10 kt or more above it), the altimeter, Zulu time, the VATSIM ATIS
- * letter, the real-world METAR, who is online at DCA / Potomac / ZDC, and
+ * letter, the real-world METAR, who is online at this airport (VATFLOW_TWR.atcPatterns), and
  * inbound/outbound counts.
  *
  * TwrInfoView is plain DOM code (also used by preview/index.html); the MSFS
@@ -118,7 +118,7 @@ var TwrInfoView = (function () {
       for (var i = 0; i < f.controllers.length; i++) {
         parts.push(f.controllers[i].callsign + " " + f.controllers[i].freq);
       }
-      el.atc.textContent = parts.length ? parts.join("   ") : "NO DCA / PCT / ZDC ATC ONLINE";
+      el.atc.textContent = parts.length ? parts.join("   ") : "NO " + (this.cfg.lid || this.cfg.icao) + " ATC ONLINE";
       el.counts.textContent = "ARR " + f.arrivals + " (50NM)   DEP " + f.departures + " (ON GND)";
     }
     el.status.textContent = this.feedError ? "VATSIM FEED: " + this.feedError.toUpperCase() : (f ? "" : "VATSIM FEED: WAITING");
@@ -143,17 +143,23 @@ if (typeof BaseInstrument !== "undefined") {
     connectedCallback() {
       super.connectedCallback();
       this.dim = VatflowDimmer.attach(this, "CONSOLE");
-      this.view = new TwrInfoView(this.querySelector("#ti-root"), VATFLOW_TWR);
-      this.view.startMetar();
       this.lastDraw = 0;
-      var view = this.view;
-      VatflowFeed.poll(VATFLOW_TWR, function (d) { view.setFeed(d); }, function (e) { view.setFeedError(e); });
+      var self = this;
+      // which airport the cab is at decides the METAR, ATIS and ATC shown
+      VatflowSite.resolve(function () {
+        var view = self.view = new TwrInfoView(self.querySelector("#ti-root"), VATFLOW_TWR);
+        view.startMetar();
+        VatflowFeed.poll(VATFLOW_TWR, function (d) { view.setFeed(d); }, function (e) { view.setFeedError(e); });
+      });
+      // this screen is always there, so it is the one that puts the cab in the tower when a
+      // flight starts (AUTO PLACE on the SETUP screen)
+      VatflowPlace.autoPlace();
     }
     Update() {
       super.Update();
       this.dim();
       var now = Date.now();
-      if (now - this.lastDraw < 500) return;
+      if (!this.view || now - this.lastDraw < 500) return;
       this.lastDraw = now;
       this.view.render({
         zuluSec: SimVar.GetSimVarValue("E:ZULU TIME", "seconds"),

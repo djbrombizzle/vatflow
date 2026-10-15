@@ -399,31 +399,4 @@ var RampMapView = (function () {
   return RampMapView;
 })();
 
-/** MSFS wrapper for one ramp map screen; RampMapED.js etc. each register theirs. */
-/**
- * faceDeg: how far the screen's window is turned left of the cab's front window
- * (45 per window face). The map's top = cab heading (true, from the sim) - faceDeg.
- */
-function vatflowRegisterRampMap(viewId, tag, templateId, faceDeg) {
-  if (typeof BaseInstrument === "undefined") return;
-  class VatflowRampMap extends BaseInstrument {
-    get templateID() { return templateId; }
-    get isInteractive() { return false; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "CONSOLE");
-      var data = new VatflowRampData(typeof VATFLOW_RAMP_LAYOUT !== "undefined" ? VATFLOW_RAMP_LAYOUT : null);
-      this.view = new RampMapView(this.querySelector("canvas"), null, viewId, data);
-      this.view.upHdg = VatflowDraw.windowHeading(faceDeg);
-      data.start(VATFLOW_TWR.feedUrl);
-      this.tick = VatflowDraw.loop(this.view, 2000);
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      this.view.upHdg = VatflowDraw.windowHeading(faceDeg);
-      this.tick(false);
-    }
-  }
-  registerInstrument(tag, VatflowRampMap);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

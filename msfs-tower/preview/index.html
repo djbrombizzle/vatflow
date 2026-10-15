@@ -4,158 +4,110 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tower Cab Screens</title>
-<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Screen/Screen.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Setup/Setup.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vatsmart/Vatsmart.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/AptDash/AptDash.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/RampMap/RampMap.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.css">
-<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.css">
-<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/AptDash/AptDash.css">
-<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vatsmart/Vatsmart.css">
 <style>
   :root { --bg: #1b1f24; --fg: #d7dde4; --muted: #8b96a3; }
   body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
   h1 { font-size: 18px; margin: 0 0 4px; }
   p { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
-  .screens { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-  .screen { border: 6px solid #050505; border-radius: 4px; }
-  .dbrite { width: 1024px; height: 768px; max-width: 100%; aspect-ratio: 4 / 3; }
-  .twrinfo { width: 1024px; height: 512px; max-width: 100%; }
-  .asdex { width: 1024px; height: 768px; max-width: 100%; }
-  .idst { width: 1024px; height: 768px; max-width: 100%; }
+  .screens { display: flex; flex-wrap: wrap; gap: 28px 16px; align-items: flex-start; }
+  .screen { border: 6px solid #050505; border-radius: 4px; position: relative; }
+  .big { width: 1024px; height: 768px; }
+  .twrinfo { width: 1024px; height: 512px; }
   .clock { width: 512px; height: 128px; }
   .vscs { width: 512px; height: 384px; }
-  .ramp, .tmu { width: 1024px; height: 768px; max-width: 100%; }
-  .asdex canvas { display: block; width: 100%; height: 100%; }
-  .dbrite canvas { display: block; width: 100%; height: 100%; }
+  .label { position: absolute; left: 0; top: -8px; transform: translateY(-100%); font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
 <h1>Tower cab screens: browser preview</h1>
-<p>Runs the same gauge code the sim loads, with the sim's values mocked. Live VATSIM data; add <code>?demo</code> to the URL for made-up traffic.
-Add <code>&amp;dim=60</code> to try the brightness knobs (0 = full bright .. 90).
-Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-tower/</code>, then open <code>/preview/</code>).</p>
+<p>Runs the same gauge code the sim loads (the screen host on every 1024x768 screen: use each screen's MENU tab).
+Live VATSIM data. Pick the airport with <code>?apt=KATL</code> (default KDCA); add <code>&amp;dim=60</code> to try the brightness knobs.
+Serve <code>msfs-tower/</code> over HTTP (<code>python -m http.server</code>) and open <code>/preview/</code>.</p>
 <div class="screens">
   <div class="screen twrinfo"><vatflow-twrinfo id="twrinfo-host"></vatflow-twrinfo></div>
-  <div class="screen dbrite"><vatflow-dbrite><canvas id="dbrite-canvas" width="1024" height="768"></canvas></vatflow-dbrite></div>
-  <div class="screen idst"><vatflow-idst id="idst-host"></vatflow-idst></div>
   <div>
     <div class="screen clock"><vatflow-clock id="clock-host"></vatflow-clock></div>
     <div class="screen vscs" style="margin-top:16px"><vatflow-vscs id="vscs-host"></vatflow-vscs></div>
   </div>
-  <div class="screen ramp"><vatflow-ramplist id="ramp-host"></vatflow-ramplist></div>
-  <div class="screen ramp"><canvas id="rampmap-ED" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
-  <div class="screen ramp"><canvas id="rampmap-CB" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
-  <div class="screen ramp"><canvas id="rampmap-AS" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
-  <div class="screen tmu"><vatflow-vatsmart id="vatsmart-host"></vatflow-vatsmart></div>
-  <div class="screen tmu"><canvas id="aptdemand-canvas" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
-  <div class="screen tmu"><vatflow-aptlist id="aptlist-host"></vatflow-aptlist></div>
-  <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="1024" height="768"></canvas></vatflow-asdex></div>
 </div>
+<div class="screens" id="hosts" style="margin-top:28px"></div>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/compat.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/store.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airports/KDCA.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airports/KATL.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/towers.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/draw.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/dimmer.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/maps-kdca.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/osm-airport.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/site.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/placement.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-hub.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-metering.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-smart.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/apt-flow.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-ramp.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-kdca.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-data.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vatsmart/Vatsmart.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/AptDash/AptDash.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/RampMap/RampMap.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-hub.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/apt-flow.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/AptDash/AptDash.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-smart.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vatsmart/Vatsmart.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Setup/Setup.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Screen/Screen.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.js"></script>
 <script>
 (function () {
-  var DEMO = /[?&]demo\b/.test(location.search);
   var cfg = VATFLOW_TWR;
+  // the 1024x768 screens (tools/build_screens.py)
+  var SCREENS = [
+    { id: "DBRITE", group: "DBRITE", mount: "DBRITE", faceDeg: -45, def: "dbrite", alt: "setup" },
+    { id: "ASDEX", group: "ASDEX", mount: "ASDEX", faceDeg: 45, def: "asdex", alt: "setup" },
+    { id: "IDST", group: "CONSOLE", faceDeg: 45, def: "idst", alt: "setup" },
+    { id: "APTDEMAND", group: "CONSOLE", faceDeg: 135, def: "aptdemand", alt: "setup" },
+    { id: "APTLIST", group: "CONSOLE", faceDeg: 135, def: "aptlist", alt: "setup" },
+    { id: "RAMP", group: "CONSOLE", faceDeg: 90, def: "ramp", alt: "setup" },
+    { id: "VATSMART", group: "CONSOLE", faceDeg: 135, def: "vatsmart", alt: "setup" },
+    { id: "RAMPMAP_ED", group: "CONSOLE", faceDeg: 90, def: "rampED", alt: "aptlist" },
+    { id: "RAMPMAP_CB", group: "CONSOLE", faceDeg: 0, def: "rampCB", alt: "asdex" },
+    { id: "RAMPMAP_AS", group: "CONSOLE", faceDeg: 0, def: "rampAS", alt: "dbrite" }
+  ];
 
   function zuluSec() { var d = new Date(); return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds(); }
   function mockSim() { return { zuluSec: zuluSec(), windDirTrue: 185, windKt: 8, slpMb: 1013.9 }; }
 
-  // Synthetic traffic: arrivals on the river visual / RNAV 19, departures off 01, overflights
-  function demoFeed() {
-    var now = Date.now() / 1000;
-    var pilots = [
-      { cs: "AAL1842", lat: 38.93, lon: -77.06, alt: 2400, gs: 160, hdg: 175, t: "A321", d: "KBOS", a: "KDCA" },
-      { cs: "DAL2219", lat: 38.99, lon: -77.08, alt: 3500, gs: 190, hdg: 170, t: "B712", d: "KATL", a: "KDCA" },
-      { cs: "JBU1124", lat: 39.06, lon: -77.12, alt: 5000, gs: 220, hdg: 160, t: "A320", d: "KFLL", a: "KDCA" },
-      { cs: "UAL663", lat: 38.83, lon: -77.035, alt: 1800, gs: 180, hdg: 185, t: "B738", d: "KDCA", a: "KORD" },
-      { cs: "SWA331", lat: 38.76, lon: -77.06, alt: 6000, gs: 250, hdg: 205, t: "B737", d: "KDCA", a: "KBNA" },
-      { cs: "N172SP", lat: 38.79, lon: -76.92, alt: 2500, gs: 105, hdg: 60, t: "C172", d: "KCGS", a: "KHEF" },
-      { cs: "RPA4501", lat: 38.8545, lon: -77.0400, alt: 15, gs: 12, hdg: 175, t: "E175", d: "KDCA", a: "KLGA" },
-      { cs: "AAL2311", lat: 38.8448, lon: -77.0370, alt: 15, gs: 0, hdg: 6, t: "A319", d: "KDCA", a: "KCLT" },
-      { cs: "DAL1999", lat: 38.8600, lon: -77.0400, alt: 15, gs: 15, hdg: 200, t: "A321", d: "KATL", a: "KDCA" },
-      { cs: "JIA5180", lat: 38.8488, lon: -77.0412, alt: 15, gs: 0, hdg: 90, t: "CRJ9", d: "KDCA", a: "KPHL" },
-      { cs: "UAL1101", lat: 38.8700, lon: -77.0395, alt: 600, gs: 140, hdg: 186, t: "B39M", d: "KORD", a: "KDCA" }
-    ].map(function (p) {
-      return { callsign: p.cs, latitude: p.lat, longitude: p.lon, altitude: p.alt, groundspeed: p.gs, heading: p.hdg,
-        transponder: "1200", flight_plan: { aircraft_short: p.t, departure: p.d, arrival: p.a } };
-    });
-    return {
-      general: { update_timestamp: new Date(now * 1000).toISOString() },
-      pilots: pilots,
-      controllers: [
-        { callsign: "DCA_TWR", frequency: "119.100", name: "Demo" },
-        { callsign: "PCT_APP", frequency: "124.200", name: "Demo" },
-        { callsign: "DC_CTR", frequency: "133.700", name: "Demo" }
-      ],
-      atis: [{ callsign: "KDCA_ATIS", atis_code: "K", text_atis: ["DEMO ATIS"] }]
-    };
-  }
+  // one screen host each, as in the sim
+  var hosts = [];
+  SCREENS.forEach(function (s) {
+    var box = document.createElement("div");
+    box.className = "screen big";
+    box.innerHTML = '<span class="label">' + s.id + '</span><div class="scr-root" style="width:1024px;height:768px"></div>';
+    document.getElementById("hosts").appendChild(box);
+    var h = new ScreenHost(box.querySelector(".scr-root"), s, cfg);
+    h.start();
+    hosts.push(h);
+  });
+  window.hosts = hosts;
+  setInterval(function () { hosts.forEach(function (h) { h.update(); }); }, 100);
 
-  // TWR INFO: inject the gauge template exactly as MSFS would
-  var host = document.getElementById("twrinfo-host");
-  var dbrite = new DbriteView(document.getElementById("dbrite-canvas"), cfg, VATFLOW_MAPS);
-  var asdex = new AsdexView(document.getElementById("asdex-canvas"), cfg, VATFLOW_MAPS);
-  asdex.setUp(VatflowDraw.windowHeading(45));          // where the ASDE-X monitor starts: front-left window
-  var xhr = new XMLHttpRequest();
-  xhr.open("GET", "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.html");
-  xhr.onload = function () {
-    var doc = new DOMParser().parseFromString(xhr.responseText, "text/html");
-    host.innerHTML = doc.getElementById("VatflowTwrInfo").innerHTML;
-    var info = new TwrInfoView(host.querySelector("#ti-root"), cfg);
-    if (DEMO) {
-      info.setMetar("KDCA 141152Z 19007KT 10SM SCT100 19/18 A2995 RMK AO2 SLP142");
-      var push = function () { var s = VatflowFeed.summarize(demoFeed(), cfg); info.setFeed(s); dbrite.setData(s); asdex.setData(s); };
-      dbrite.setMetars({ KDCA: VatflowFeed.parseMetar("KDCA 141152Z 19007KT 10SM A2995"), KADW: VatflowFeed.parseMetar("KADW 141155Z 22007KT 10SM A2995"), KDAA: VatflowFeed.parseMetar("KDAA 141155Z 00000KT 10SM A2993") });
-      push();
-      setInterval(push, cfg.feedRefreshSec * 1000);
-    } else {
-      info.startMetar();
-      VatflowFeed.poll(cfg, function (s) { info.setFeed(s); dbrite.setData(s); asdex.setData(s); },
-        function (e) { info.setFeedError(e); dbrite.setError(e); asdex.setError(e); });
-      VatflowFeed.pollMetars(cfg.dbrite.altimeterStations, function (m) { dbrite.setMetars(m); });
-    }
-    setInterval(function () { info.render(mockSim()); }, 500);
-  };
-  xhr.send();
-
-  setInterval(function () { dbrite.draw(Date.now(), zuluSec()); asdex.draw(Date.now(), zuluSec()); }, 250);
-
-  // brightness: ?dim=N dims every screen as if the ALL knob were at N
-  var dimMatch = /[?&]dim=(\d+)/.exec(location.search);
-  if (dimMatch) {
-    setTimeout(function () {
-      var hosts = document.querySelectorAll(".screen");
-      for (var i = 0; i < hosts.length; i++) {
-        var upd = VatflowDimmer.attach(hosts[i], "ALL");
-        upd(0, 0); upd(parseInt(dimMatch[1], 10), 0);
-      }
-    }, 1500);
-  }
-
-  // IDST, clock and voice switch: inject the gauge templates the same way
   function inject(gauge, templateId, hostId, then) {
     var x = new XMLHttpRequest();
     x.open("GET", "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/" + gauge);
@@ -167,63 +119,36 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     };
     x.send();
   }
-  inject("Clock/Clock.html", "VatflowClock", "clock-host", function (host) {
-    var clock = new ClockView(host);
-    setInterval(function () { clock.render(zuluSec()); }, 250);
+  VatflowSite.resolve(function () {
+    inject("TwrInfo/TwrInfo.html", "VatflowTwrInfo", "twrinfo-host", function (host) {
+      var info = new TwrInfoView(host.querySelector("#ti-root"), cfg);
+      info.startMetar();
+      VatflowFeed.poll(cfg, function (s) { info.setFeed(s); }, function (e) { info.setFeedError(e); });
+      setInterval(function () { info.render(mockSim()); }, 500);
+    });
+    inject("Clock/Clock.html", "VatflowClock", "clock-host", function (host) {
+      var clock = new ClockView(host);
+      setInterval(function () { clock.render(zuluSec()); }, 250);
+    });
+    inject("Vscs/Vscs.html", "VatflowVscs", "vscs-host", function (host) {
+      var vscs = new VscsView(host, cfg);
+      (function tick() {
+        VatflowFeed.httpGet(cfg.feedUrl, function (e, t) { if (!e) vscs.setFeed(JSON.parse(t)); setTimeout(tick, 60000); });
+      })();
+    });
   });
-  inject("Vscs/Vscs.html", "VatflowVscs", "vscs-host", function (host) {
-    var vscs = new VscsView(host);
-    if (DEMO) { vscs.setFeed(demoFeed()); return; }
-    (function tick() {
-      VatflowFeed.httpGet(cfg.feedUrl, function (e, t) { if (!e) vscs.setFeed(JSON.parse(t)); setTimeout(tick, 60000); });
-    })();
-  });
-  inject("Ramp/Ramp.html", "VatflowRampList", "ramp-host", function (host) {
-    var ramp = new RampView(host.querySelector("#rp-root"), VATFLOW_RAMP_LAYOUT);
-    if (DEMO) ramp.setPilots(demoFeed()); else ramp.start(cfg.feedUrl);
-    setInterval(function () { ramp.render(); }, 1000);
-  });
-  // ramp maps: one shared live data source, three views
-  var rampData = new VatflowRampData(VATFLOW_RAMP_LAYOUT);
-  if (DEMO) rampData.setPilots(demoFeed()); else rampData.start(cfg.feedUrl);
-  ["ED", "CB", "AS"].forEach(function (id) {
-    var map = new RampMapView(document.getElementById("rampmap-" + id), null, id, rampData);
-    map.upHdg = VatflowDraw.windowHeading(id === "ED" ? 90 : 0);   // E / D: left window; C / B, A: front
-    setInterval(function () { map.draw(); }, 2000);
-  });
-  // TMU desk: VATSMART, APT Dashboard demand vs AAR and aircraft list (live data only)
-  inject("Vatsmart/Vatsmart.html", "VatflowVatsmart", "vatsmart-host", function (host) {
-    var vs = new VatsmartView(host.querySelector("#vs-root"), host.querySelector("#vs-chart"), cfg);
-    vs.start();
-    setInterval(function () { vs.draw(); }, 1000);
-    window.vatsmart = vs;
-  });
-  var aptData = new VatflowAptData(cfg);
-  aptData.start();
-  var aptDemand = new AptDemandView(document.getElementById("aptdemand-canvas"), cfg, aptData);
-  setInterval(function () { aptDemand.draw(); }, 2000);
-  inject("AptDash/AptList.html", "VatflowAptList", "aptlist-host", function (host) {
-    var list = new AptListView(host.querySelector("#al-root"), cfg, aptData);
-    setInterval(function () { list.render(); }, 2000);
-  });
-  inject("Idst/Idst.html", "VatflowIdst", "idst-host", function (host) {
-    var idst = new IdstView(host.querySelector("#id-root"), cfg);
-    if (DEMO) {
-      // a made-up northeast program (line across the routes to the New York area)
-      idst.demo = true;
-      VatflowMetering.loadAirports(function () {
-        idst.setFeed(demoFeed());
-        idst.setFcaRows([{ id: "fca_demo", data: { id: "fca_demo", name: "NE GATES DEMO", color: "#f5a623",
-          enabled: true, mode: "mit", mit: 10, rate: 30, dir: "any", dests: ["KLGA", "KPHL", "KEWR", "KJFK"],
-          origins: [], scope: [], fixes: [], minFL: 0, maxFL: 600, order: [], excluded: [], releases: {},
-          points: [[39.6, -77.4], [39.6, -75.6]] } }]);
-      });
-    } else {
-      idst.start();
-    }
-    setInterval(function () { idst.render(); }, 1000);
-    window.idst = idst;
-  });
+
+  // brightness: ?dim=N dims every screen as if the ALL knob were at N
+  var dimMatch = /[?&]dim=(\d+)/.exec(location.search);
+  if (dimMatch) {
+    setTimeout(function () {
+      var boxes = document.querySelectorAll(".screen");
+      for (var i = 0; i < boxes.length; i++) {
+        var upd = VatflowDimmer.attach(boxes[i], "ALL");
+        upd(0, 0); upd(parseInt(dimMatch[1], 10), 0);
+      }
+    }, 1500);
+  }
 })();
 </script>
 </body>

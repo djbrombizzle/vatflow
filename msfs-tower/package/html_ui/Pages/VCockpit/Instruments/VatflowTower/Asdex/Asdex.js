@@ -210,32 +210,4 @@ var AsdexView = (function () {
 
   return AsdexView;
 })();
-
-if (typeof BaseInstrument !== "undefined") {
-  class VatflowAsdex extends BaseInstrument {
-    get templateID() { return "VatflowAsdex"; }
-    get isInteractive() { return false; }
-    connectedCallback() {
-      super.connectedCallback();
-      this.dim = VatflowDimmer.attach(this, "ASDEX");
-      VatflowDimmer.initMonitorPose("ASDEX");
-      this.view = new AsdexView(this.querySelector("#asdex-canvas"), VATFLOW_TWR,
-        typeof VATFLOW_MAPS !== "undefined" ? VATFLOW_MAPS : null);
-      this.tick = VatflowDraw.loop(this.view, 1000);
-      var view = this.view;
-      VatflowFeed.poll(VATFLOW_TWR, function (d) { view.setData(d); }, function (e) { view.setError(e); });
-    }
-    Update() {
-      super.Update();
-      this.dim();
-      // which window the monitor looks out of: built at window face 1 (45 deg left of the
-      // front), plus how far it has been moved round the track and swivelled
-      var track = SimVar.GetSimVarValue("L:VATFLOW_ASDEX_TRACK_DEG", "number") || 0;
-      var twist = SimVar.GetSimVarValue("L:VATFLOW_ASDEX_POSE_SET", "number")
-        ? SimVar.GetSimVarValue("L:VATFLOW_ASDEX_TWIST", "number") : 50;
-      this.view.setUp(VatflowDraw.windowHeading(45 + track + (twist - 50)));
-      this.tick(false);
-    }
-  }
-  registerInstrument("vatflow-asdex", VatflowAsdex);
-}
+// In the sim this view runs inside the screen host (Screen/Screen.js).

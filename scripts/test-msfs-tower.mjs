@@ -13,12 +13,12 @@ import vm from "node:vm";
 const BASE = new URL("../msfs-tower/package/html_ui/Pages/VCockpit/Instruments/VatflowTower/", import.meta.url);
 const timers = [];
 const ctx = vm.createContext({ Date, Math, JSON, String, parseInt, isNaN, setInterval: (fn, ms) => timers.push({ fn, ms }) });
-for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/draw.js", "common/maps-kdca.js",
+for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/draw.js", "common/airports/KDCA.js",
   "Dbrite/Dbrite.js", "TwrInfo/TwrInfo.js", "Asdex/Asdex.js"]) {
   vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), ctx, { filename: f });
 }
-const { VATFLOW_TWR: cfg, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS: maps, VatflowDraw } = vm.runInContext(
-  "({ VATFLOW_TWR, VatflowFeed, DbriteView, TwrInfoView, AsdexView, VATFLOW_MAPS, VatflowDraw })", ctx);
+const { VATFLOW_TWR: cfg, VatflowFeed, DbriteView, TwrInfoView, AsdexView, maps, VatflowDraw } = vm.runInContext(
+  "({ VATFLOW_TWR, VatflowFeed, DbriteView, TwrInfoView, AsdexView, maps: VATFLOW_AIRPORTS.KDCA.maps, VatflowDraw })", ctx);
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -260,7 +260,11 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
     "$SCREEN_APTDEMAND", "$SCREEN_APTLIST", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_VATSMART",
     "$SCREEN_RAMPMAP_ED", "$SCREEN_RAMPMAP_CB", "$SCREEN_RAMPMAP_AS"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
-    assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("common/dimmer.js"), m[1] + " loads the dimmer");
+    const page = readFileSync(new URL(m[1], BASE), "utf8");
+    assert.ok(page.includes("common/dimmer.js"), m[1] + " loads the dimmer");
+    for (const imp of page.matchAll(/(?:import-script|href)="\/Pages\/VCockpit\/Instruments\/VatflowTower\/([^"]+)"/g)) {
+      assert.ok(readFileSync(new URL(imp[1], BASE), "utf8").length > 0, m[1] + " -> " + imp[1] + " exists");
+    }
   }
   const build = readFileSync(new URL("../msfs-tower/blender/build_tower_cab.py", import.meta.url), "utf8");
   for (const sname of screens) assert.ok(build.includes('"' + sname + '"'), sname + " in the build script");
@@ -405,5 +409,242 @@ t("window orientation: maps turn so the view out of the screen's window is up", 
   const p0 = a.px(0, 0), p1 = a.px(Math.sin(76 * Math.PI / 180) * 500, Math.cos(76 * Math.PI / 180) * 500);
   assert.ok(Math.abs(p1.x - p0.x) < 1e-6 && p1.y < p0.y, "on the canvas too");
 });
+
+// ---- generic airport, placement, screen host ----------------------------------------
+const GEN = ["common/store.js", "common/airport.js", "common/airports/KDCA.js", "common/airports/KATL.js", "common/towers.js",
+  "common/vatsim-feed.js", "common/draw.js", "common/osm-airport.js", "common/site.js", "common/placement.js"];
+function genContext(extra) {
+  const g = vm.createContext(Object.assign({ console, Date, Math, JSON, setTimeout, clearTimeout, setInterval, clearInterval }, extra || {}));
+  for (const f of GEN) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), g, { filename: f });
+  return g;
+}
+
+t("site: VATSpy list parse, nearest airport, KATL gets its own METAR / ATC / DBRITE labels", () => {
+  const g = genContext();
+  const list = g.VatflowSite.parseVatspy("[Countries]\nUS|United States|\n[Airports]\nKATL|Hartsfield Jackson|33.6367|-84.4281|ATL|KZTL|0\n" +
+    "KPDK|Dekalb Peachtree|33.8756|-84.3020|PDK|KZTL|0\nXXXX|Pseudo|33.64|-84.43||KZTL|1\n[FIRs]\nKZTL|Atlanta|ATL|KZTL\n");
+  assert.deepEqual(plain(list.map((a) => a.icao)), ["KATL", "KPDK"], "pseudo airports and other sections skipped");
+  assert.equal(g.VatflowSite.nearest(list, 33.64, -84.42, 15).icao, "KATL");
+  assert.equal(g.VatflowSite.nearest(list, 40, -80, 15), null);
+  const c = g.VATFLOW_TWR, b = g.VATFLOW_AIRPORTS.KATL;
+  g.VatflowSite.apply(c, { icao: "KATL", name: b.name, lid: b.lid, arp: b.arp, elevFt: b.elevFt, data: b }, g.VATFLOW_TWR_OVERRIDES);
+  assert.equal(c.icao, "KATL");
+  assert.equal(c.elevFt, 1026);
+  assert.equal(c.metarUrl, "https://metar.vatsim.net/metar.php?id=KATL");
+  assert.ok(c.atcPatterns.some((r) => r.test("ATL_TWR")) && !c.atcPatterns.some((r) => r.test("DCA_TWR")));
+  assert.equal(c.dbrite.towerLabel, "ATL TOWER");
+  assert.deepEqual(plain(c.dbrite.altimeterStations), ["KATL"]);
+  assert.equal(c.runways.length, 5, "KATL's five runways");
+  assert.equal(c.dbrite.finals.length, 10, "a final on every runway end");
+  assert.equal(c.magVarDeg, -5, "KATL override");
+  const d = g.VATFLOW_AIRPORTS.KDCA;
+  g.VatflowSite.apply(c, { icao: "KDCA", name: d.name, lid: d.lid, arp: d.arp, elevFt: d.elevFt, data: d }, g.VATFLOW_TWR_OVERRIDES);
+  assert.equal(c.dbrite.towerLabel, "DCA TOWER");
+  assert.equal(c.dbrite.finals.length, 2, "KDCA keeps its hand-tuned finals");
+  assert.equal(c.magVarDeg, -10);
+  assert.ok(c.atcPatterns.some((r) => r.test("PCT_APP")));
+});
+
+t("site: bundled KATL data has runways, the OSM tower and maps; KDCA maps match the DBRITE / ASDE-X format", () => {
+  const g = genContext(), a = g.VATFLOW_AIRPORTS.KATL;
+  assert.deepEqual(plain(a.runways.map((r) => r.ids.join("/"))).sort(), ["08L/26R", "08R/26L", "09L/27R", "09R/27L", "10/28"]);
+  assert.match(a.tower.src, /Atlanta Tower/);
+  assert.ok(a.tower.floorFtMsl > 1300 && a.tower.floorFtMsl < 1450, "cab floor near the top of a 121 m tower");
+  assert.ok(a.maps.asdex.taxiways.length > 100 && a.maps.asdex.runways.length >= 5 && a.maps.dbrite.airports.length > 5);
+  assert.ok(g.VATFLOW_AIRPORTS.KDCA.maps.asdex.land.length === 1);
+});
+
+t("OSM airport builder: runway ends named the right way round, tower floor from its height, maps", () => {
+  const g = genContext();
+  const arp = { lat: 40, lon: -80 };
+  const k = 111320 * Math.cos(40 * Math.PI / 180);
+  const at = (x, y) => ({ lat: 40 + y / 111320, lon: -80 + x / k });
+  const osm = { elements: [
+    { type: "way", tags: { aeroway: "runway", ref: "09/27", width: "45" }, geometry: [at(-1000, 0), at(1000, 0)] },
+    { type: "way", tags: { aeroway: "runway", ref: "18/36" }, geometry: [at(0, -800), at(0, 800)] },   // drawn south -> north
+    { type: "way", tags: { aeroway: "taxiway" }, geometry: [at(-500, 100), at(500, 100)] },
+    { type: "way", tags: { aeroway: "apron" }, geometry: [at(0, 200), at(100, 200), at(100, 300), at(0, 200)] },
+    { type: "way", tags: { man_made: "tower", "tower:type": "airport_control", height: "40", name: "Test Tower" },
+      geometry: [at(200, 300), at(210, 300), at(210, 310), at(200, 310), at(200, 300)] },
+    { type: "way", tags: { aeroway: "runway", ref: "05/23" }, geometry: [at(20000, 20000), at(21000, 21000)] }
+  ] };
+  const d = g.VatflowOsmAirport.build(osm, { icao: "KTST", name: "TEST", lid: "TST", arp, elevFt: 1000 }, [{ icao: "KNBR", lat: 40.1, lon: -80.1 }]);
+  const r = plain(d.runways);
+  assert.equal(r.length, 2, "only the field's runways");
+  assert.deepEqual(r[0].ids, ["09", "27"]);
+  assert.ok(r[0].a[1] < r[0].b[1], "09 threshold is the west end");
+  assert.ok(r[1].a[0] > r[1].b[0], "18 threshold is the north end even though the way is drawn northbound");
+  assert.equal(d.tower.floorFtMsl, Math.round(1000 + (40 - 6) * 3.28084));
+  assert.match(d.tower.src, /Test Tower/);
+  assert.ok(Math.abs(d.tower.headingTrue - 214) < 3, "front window looks at the field");
+  assert.equal(d.maps.asdex.runways.length, 2);
+  assert.equal(d.maps.asdex.taxiways.length, 1);
+  assert.equal(d.maps.dbrite.runways.length, 3, "DBRITE shows runways around too");
+  assert.equal(d.maps.dbrite.airports[0].id, "KNBR");
+  assert.match(g.VatflowOsmAirport.query(40, -80), /out geom;$/);
+});
+
+t("placement: nudges are relative to the cab's heading; spot priority saved > list > OSM > centre", () => {
+  const g = genContext(), P = g.VatflowPlace;
+  const p = { lat: 33.64, lon: -84.42, floorFtMsl: 1400, headingTrue: 90 };
+  const m = P.move(p, 10, 0, 4, 5);
+  assert.ok(Math.abs(m.lat - p.lat) < 1e-7 && m.lon > p.lon, "forward = east when facing 090");
+  assert.equal(m.floorFtMsl, 1404);
+  assert.equal(m.headingTrue, 95);
+  const e = P.error(p, m);
+  assert.ok(Math.abs(e.fwd - 10) < 0.01 && Math.abs(e.right) < 0.01 && e.up === 4 && e.turn === 5);
+  const site = { icao: "KATL", arp: { lat: 33.6367, lon: -84.4281 }, elevFt: 1026 };
+  const data = g.VATFLOW_AIRPORTS.KATL;
+  assert.equal(P.target("KATL", site, data).kind, "osm");
+  assert.equal(P.target("KATL", site, null).kind, "centre");
+  assert.equal(P.target("KDCA", { icao: "KDCA" }, g.VATFLOW_AIRPORTS.KDCA).kind, "list");
+  assert.equal(P.target("KDCA", { icao: "KDCA" }, null).pos.floorFtMsl, 215);
+  P.save("KATL", m);
+  const sv = P.target("KATL", site, data);
+  assert.equal(sv.kind, "saved");
+  assert.equal(sv.pos.floorFtMsl, 1404);
+  P.forget("KATL");
+  assert.equal(P.target("KATL", site, data).kind, "osm");
+});
+
+t("VSCS: KDCA keeps its panel; other airports get their own lines, lit with the live frequency", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("Vscs/Vscs.js", BASE), "utf8"), g);
+  const grid = { innerHTML: "" };
+  const c = Object.assign({}, g.VATFLOW_TWR, { icao: "KATL", lid: "ATL" });
+  const v = new g.VscsView({ querySelector: () => grid }, c);
+  v.setFeed({ controllers: [{ callsign: "ATL_N_TWR", frequency: "119.500" }, { callsign: "DCA_TWR", frequency: "119.100" }], atis: [] });
+  assert.match(grid.innerHTML, /vs-key on">LC<br>119\.500/);
+  assert.ok(!/119\.100/.test(grid.innerHTML));
+  assert.equal(g.VscsView.keysFor(g.VATFLOW_TWR)[0][1], "119.100", "KDCA panel");
+});
+
+// async tests (fake sim + timers)
+const tests = [];
+const ta = (name, fn) => tests.push([name, fn]);
+
+/** A tiny sim: position, freeze, slew axes; directAllowed decides if pages may set the position. */
+function fakeSim(start, directAllowed) {
+  const st = Object.assign({ slew: false, frozen: false, axes: {}, L: {}, sets: 0 }, start);
+  const SimVar = {
+    GetSimVarValue(name) {
+      if (name.startsWith("L:")) return st.L[name.slice(2)] || 0;
+      return { "PLANE LATITUDE": st.lat, "PLANE LONGITUDE": st.lon, "PLANE ALTITUDE": st.alt, "PLANE HEADING DEGREES TRUE": st.hdg,
+        "PLANE HEADING DEGREES MAGNETIC": st.hdg + 5, "IS LATITUDE LONGITUDE FREEZE ON": st.frozen ? 1 : 0,
+        "GROUND ALTITUDE": 1026, "SIM ON GROUND": 1 }[name];
+    },
+    SetSimVarValue(name, unit, v) {
+      if (name.startsWith("L:")) st.L[name.slice(2)] = v;
+      else if (name === "K:SLEW_ON") st.slew = true;
+      else if (name === "K:SLEW_OFF") st.slew = false;
+      else if (name.startsWith("K:AXIS_SLEW_")) st.axes[name.slice(12)] = v;
+      else if (name === "K:FREEZE_LATITUDE_LONGITUDE_SET") st.frozen = !!v;
+      else if (name.startsWith("A:PLANE") && directAllowed) {
+        st.sets++;
+        const k = { "A:PLANE LATITUDE": "lat", "A:PLANE LONGITUDE": "lon", "A:PLANE ALTITUDE": "alt", "A:PLANE HEADING DEGREES TRUE": "hdg" }[name];
+        if (k) st[k] = v;
+      }
+      return Promise.resolve();
+    }
+  };
+  // slew physics: full axis = 40 m/s, 60 ft/s, 30 deg/s; ahead / alt axes are negative = forward / up
+  function step(dt) {
+    if (!st.slew) return;
+    const a = (k) => (st.axes[k] || 0) / 16383;
+    const fwd = -a("AHEAD_SET") * 40 * dt, right = a("SIDEWAYS_SET") * 40 * dt, h = st.hdg * Math.PI / 180;
+    st.lat += (fwd * Math.cos(h) - right * Math.sin(h)) / 111320;
+    st.lon += (fwd * Math.sin(h) + right * Math.cos(h)) / (111320 * Math.cos(st.lat * Math.PI / 180));
+    st.alt += -a("ALT_SET") * 60 * dt;
+    st.hdg = ((st.hdg + a("HEADING_SET") * 30 * dt) % 360 + 360) % 360;
+  }
+  return { st, SimVar, step };
+}
+
+/** Runs the context's timers on a fake clock, stepping the sim between them. */
+function fakeClock(sim) {
+  let now = 1e12, q = [], seq = 0;
+  class FDate extends Date { static now() { return now; } }
+  const api = {
+    Date: FDate,
+    setTimeout: (fn, ms) => { q.push({ at: now + (ms || 0), fn, id: ++seq }); return seq; },
+    clearTimeout: (id) => { q = q.filter((x) => x.id !== id); },
+    run(maxMs, until) {
+      const end = now + maxMs;
+      while (q.length && now < end) {
+        q.sort((a, b) => a.at - b.at);
+        const x = q.shift();
+        const dt = Math.max(0, x.at - now) / 1000;
+        if (sim) sim.step(dt);
+        now = Math.max(now, x.at);
+        x.fn();
+        if (until && until()) return true;
+      }
+      return until ? until() : true;
+    }
+  };
+  return api;
+}
+
+for (const direct of [true, false]) {
+  ta("placement in the sim: " + (direct ? "sets the position directly" : "steers by slew when the page can't set it") + ", then freezes", async () => {
+    const sim = fakeSim({ lat: 33.6400, lon: -84.4300, alt: 1026, hdg: 90 }, direct);
+    const clk = fakeClock(sim);
+    const g = genContext({ SimVar: sim.SimVar, Date: clk.Date, setTimeout: clk.setTimeout, clearTimeout: clk.clearTimeout });
+    const target = { lat: 33.6417086, lon: -84.4216904, floorFtMsl: 1403, headingTrue: 227 };
+    const states = [];
+    g.VatflowPlace.onState((s) => states.push(s));
+    g.VatflowPlace.place(target);
+    const ok = clk.run(400000, () => sim.st.L.VATFLOW_PLACED === 1);
+    assert.ok(ok, "placed (" + states.join(",") + ")");
+    assert.equal(sim.st.L.VATFLOW_PLACE_METHOD, direct ? 1 : 2);
+    const e = g.VatflowPlace.error({ lat: sim.st.lat, lon: sim.st.lon, floorFtMsl: sim.st.alt, headingTrue: sim.st.hdg }, target);
+    assert.ok(e.distM < 1 && Math.abs(e.up) < 1.5 && Math.abs(e.turn) < 0.6, "on the spot: " + JSON.stringify(plain(e)));
+    assert.ok(sim.st.frozen && !sim.st.slew, "frozen, slew off");
+    if (!direct) assert.equal(sim.st.sets, 0);
+    // a nudge afterwards: 2 m forward
+    const before = { lat: sim.st.lat, lon: sim.st.lon, floorFtMsl: sim.st.alt, headingTrue: sim.st.hdg };
+    sim.st.L.VATFLOW_PLACED = 0;
+    g.VatflowPlace.place(g.VatflowPlace.move(before, 2, 0, 0, 0), true);
+    assert.ok(clk.run(120000, () => sim.st.L.VATFLOW_PLACED === 1), "nudged");
+    const n = g.VatflowPlace.error(before, { lat: sim.st.lat, lon: sim.st.lon, floorFtMsl: sim.st.alt, headingTrue: sim.st.hdg });
+    assert.ok(Math.abs(n.fwd - 2) < 0.6 && Math.abs(n.right) < 0.6, "moved 2 m forward: " + JSON.stringify(plain(n)));
+  });
+}
+
+ta("site in the sim: the cab's position picks the bundled airport (KATL), magnetic variation from the sim", async () => {
+  const sim = fakeSim({ lat: 33.641, lon: -84.43, alt: 1026, hdg: 100 }, true);
+  const g = genContext({ SimVar: sim.SimVar });
+  const s = await new Promise((res) => g.VatflowSite.resolve(res));
+  assert.equal(s.icao, "KATL");
+  assert.equal(g.VATFLOW_TWR.icao, "KATL");
+  assert.equal(g.VATFLOW_TWR.magVarDeg, -5, "override wins over the sim's -5");
+  assert.equal(g.VATFLOW_MAPS, g.VATFLOW_AIRPORTS.KATL.maps);
+});
+
+ta("screen host: an app's timers stop when another app is picked", async () => {
+  const h = vm.createContext({ console, Date, Math, JSON, setTimeout, clearTimeout, setInterval, clearInterval });
+  vm.runInContext(readFileSync(new URL("Screen/Screen.js", BASE), "utf8"), h);
+  const owner = { dead: false };
+  let ticks = 0, chained = 0;
+  h.VatflowOwner.run(owner, () => {
+    vm.runInContext("setInterval", h)(() => ticks++, 5);
+    const st = vm.runInContext("setTimeout", h);
+    (function loop() { chained++; st(loop, 5); })();
+  });
+  await new Promise((r) => setTimeout(r, 60));
+  assert.ok(ticks > 2 && chained > 2);
+  owner.dead = true;
+  await new Promise((r) => setTimeout(r, 15));
+  const t0 = ticks, c0 = chained;
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(ticks, t0, "interval stopped");
+  assert.equal(chained, c0, "setTimeout chain stopped");
+  assert.deepEqual(plain(Object.keys(h.VatflowApps.APPS)).sort(), ["aptdemand", "aptlist", "asdex", "dbrite", "idst", "ramp", "rampAS",
+    "rampCB", "rampED", "setup", "vatsmart"]);
+  assert.ok(!plain(h.VatflowApps.list({ icao: "KATL" })).includes("ramp"), "KDCA ramp apps only at KDCA");
+  assert.ok(plain(h.VatflowApps.list({ icao: "KDCA" })).includes("rampCB"));
+});
+
+for (const [name, fn] of tests) { await fn(); passed++; console.log("ok  " + name); }
 
 console.log(`\n${passed} passed`);

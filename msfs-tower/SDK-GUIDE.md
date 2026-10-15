@@ -270,3 +270,14 @@ run here. They are the likely spots if something misbehaves:
 4. **Freeze events** (`FREEZE_LATITUDE_LONGITUDE_SET` etc.) holding the cab
    still in 2024. If it creeps, re-running `place` fixes it, and slew mode is
    the fallback.
+5. **Placement from an instrument page** (TOWER SETUP, `common/placement.js`). Whether the
+   sim lets a page set `PLANE LATITUDE` etc. directly is not documented; the SETUP screen
+   shows which way it worked: "IN THE TOWER (MOVED DIRECTLY)" or "(MOVED BY SLEW)". If it
+   uses slew, the slew axes' directions are worked out on the spot (a short wiggle at the
+   start). If neither moves the cab, the Python tool in `placement/` still does.
+6. **Per-user storage** (`GetStoredData` / `SetStoredData`, `common/store.js`) for the CID,
+   saved tower spots and each screen's app. If something isn't remembered after a restart,
+   this is where to look.
+7. **OpenStreetMap from the sim** for airports that aren't bundled (Overpass API,
+   `common/osm-airport.js`). If its servers are busy the radar screens show "NO MAP" and
+   retry on the next flight; bundled airports (KDCA, KATL) never need it.

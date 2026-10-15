@@ -1,10 +1,31 @@
-# VATFLOW Tower Cab for MSFS 2024 (KDCA first)
+# VATFLOW Tower Cab for MSFS 2024
 
-A spawnable "aircraft" that is really the top of the Reagan National (KDCA)
-tower. You load it in Microsoft Flight Simulator 2024 like a plane, a small
-tool parks it on top of the sim's own DCA tower and freezes it there, and you
-work VATSIM traffic from a real tower-cab viewpoint with live VATSIM traffic
-outside the glass.
+A spawnable "aircraft" that is really a tower cab, modelled on the Reagan National
+(KDCA) tower. You load it in Microsoft Flight Simulator 2024 like a plane at any
+airport, it moves itself up onto the sim's own tower and freezes there, and you work
+VATSIM traffic from a real tower-cab viewpoint with live VATSIM traffic outside the glass.
+
+* **Any airport**: the cab finds the airport it is at (`common/site.js`) and sets every
+  screen up for it: METAR, ATIS, ATC, DBRITE and ASDE-X maps, IDST, VATSMART and the APT
+  dashboard. KDCA and KATL ship with their data (`common/airports/`, built by
+  `tools/build_airport_data.py`); any other airport gets it from OpenStreetMap the first
+  time (`common/osm-airport.js`) and keeps it in the sim's storage. KDCA also has its
+  hand-tuned settings (`VATFLOW_TWR_OVERRIDES` in `common/airport.js`) and the ramp screens.
+* **Into the tower from inside the sim**: the **TOWER SETUP** screen (any screen's MENU)
+  places the cab, moves it with on-screen buttons (forward / back / left / right / up /
+  down / turn, three step sizes) and saves the spot for that airport. With AUTO PLACE on
+  (the default) the cab goes up by itself a few seconds after a flight starts. Spots come
+  from your saved one, else the tower list (`common/towers.js`), else the airport's
+  control tower in OpenStreetMap, else the airport centre. `common/placement.js` moves the
+  aircraft directly if the sim lets an instrument page set its position, otherwise it
+  steers it there in slew mode; then it freezes it, turns the engine off and the ceiling
+  lights on. The old Python tool in `placement/` still works as a backup.
+* **Screen menu**: every 1024x768 screen runs the screen host (`Screen/`): a MENU tab in its
+  bottom-right corner picks the app it shows (DBRITE, ASDE-X, IDST, VATSMART, demand vs
+  AAR, aircraft list, the KDCA ramp list and maps, TOWER SETUP). Each screen remembers its
+  choice. While the cab isn't in the tower, a banner on the screens leads to TOWER SETUP.
+* **Your VATSIM CID** is typed on the TOWER SETUP screen and kept in the sim's storage
+  (per user), never in the files, so the package can be shared.
 
 | Outside | Inside (standing eye point) |
 | --- | --- |
@@ -77,9 +98,22 @@ Inside the cab there are two working screens fed by live data:
   keypad, trackball, keyboard, knob panel, speaker. The ceiling is black, like the real cab.
 * **Sound**: no aircraft sounds at all: `common/sound/sound.xml` is empty (no Wwise
   packages), and the installer moves the sample aircraft's sound folders to
-  `backup-sound\` in the project (`tools/silence-sounds.ps1`). `3-place-KDCA.bat` also turns
-  the engine off and loops a quiet fan sound (`placement/cab_fan.wav`, made by
+  `backup-sound\` in the project (`tools/silence-sounds.ps1`). The Python tool's
+  `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
   `tools/make_fan_sound.py`).
+
+## Sharing it with friends (Community folder)
+
+1. In MSFS open the project, **Clean All**, **Build All**.
+2. Double-click `distribution\make-community-zip.bat` in the project. It takes the built
+   package from `Packages\`, checks there is no VATSIM CID in it, names it
+   `vatflow-towercab` (title "VATFLOW Tower Cab (test)") and writes
+   `vatflow-towercab-test.zip` with install instructions to your Desktop.
+3. Friends unzip it into their Community folder, pick the aircraft "VATFLOW Tower Cab"
+   and start at a parking spot at their airport. No SDK, Python or tools needed.
+
+Don't install the zip on the PC where the project is open in the editor: the sim would
+see the cab twice.
 
 Status: everything that can be built without the sim is built and tested here
 (the Blender script runs in headless Blender, the screens run in a browser
@@ -94,15 +128,17 @@ can only be checked inside MSFS 2024 are listed in the
 | [`SDK-GUIDE.md`](SDK-GUIDE.md) | **Start here.** Step-by-step: SDK, Blender, export, build, fly. |
 | `blender/build_tower_cab.py` | Builds the cab in Blender from parameters (8 sides, leaning glass, catwalk, roof, antennas, consoles, screens). Run it, export, done. |
 | `package/SimObjects/Airplanes/vatflow_tower_cab/common/model/` | `model.cfg` + LOD files that point at the exported cab. |
-| `package/SimObjects/Airplanes/vatflow_tower_cab/common/panel/panel.cfg` | Puts the six HTML screens (DBRITE, TWR INFO, ASDE-X, IDST, clock, voice switch) onto the screen materials. |
-| `package/html_ui/Pages/VCockpit/Instruments/VatflowTower/` | The screens: `Dbrite/`, `TwrInfo/`, shared `common/airport.js` (all the KDCA specifics) and `common/vatsim-feed.js`. |
-| `placement/` | Windows tool: teleport + freeze on the tower, nudge it into place, save. Double-click `1-setup.bat`, `2-adjust-KDCA.bat`, then `3-place-KDCA.bat` every session (see `placement/README.txt`). |
+| `package/SimObjects/Airplanes/vatflow_tower_cab/common/panel/panel.cfg` | Puts the HTML screens onto the screen materials: the screen host (`Screen/S_<id>.html`) on every 1024x768 screen, plus TWR INFO, the clocks and the voice switch. |
+| `package/html_ui/Pages/VCockpit/Instruments/VatflowTower/` | The screens. `Screen/` the screen host and its app list, `Setup/` TOWER SETUP, the apps (`Dbrite/`, `Asdex/`, `Idst/`, `Vatsmart/`, `AptDash/`, `Ramp/`, `RampMap/`), `TwrInfo/`, `Clock/`, `Vscs/`; `common/` the shared code: `airport.js` (defaults + per-airport overrides), `site.js` (which airport), `airports/` (bundled airport data), `osm-airport.js`, `towers.js`, `placement.js`, `store.js`, `vatsim-feed.js` ... |
+| `placement/` | The older Windows tool (Python + SimConnect): teleport + freeze on the tower, nudge it into place, save. Not needed any more (TOWER SETUP does it in the sim); kept as a backup. |
+| `distribution/` | `make-community-zip.bat` / `.ps1`: the Community-folder zip for friends. |
 | `tools/make_textures.py` | Generates the interior textures (carpet tiles, black ceiling grid, console laminate, light oak, keypad, keyboard, speaker grille) into `common/texture/`, with the `.png.xml` MSFS compiles them from. |
 | `tools/build_vatflow_bundles.mjs` | Bundles VATFLOW code from `shared/` for the screens: the release engine (`common/vatflow-metering.js`, IDST) and the ramp logic (`common/vatflow-ramp.js`) plus `common/ramp-kdca.js` from `data/ramp/KDCA.json`. |
 | `tools/make_fan_sound.py` | Writes `placement/cab_fan.wav`, the seamless quiet fan loop. |
-| `tools/build_kdca_maps.py` | Builds `common/maps-kdca.js` (ASDE-X and DBRITE map geometry) from OpenStreetMap and OurAirports. |
+| `tools/build_airport_data.py` | Builds `common/airports/<ICAO>.js` (runways, control tower, ASDE-X and DBRITE maps) from OpenStreetMap and OurAirports, for airports bundled with the cab. Add one: `python tools/build_airport_data.py KJFK <ourairports-dir> package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airports`, then add it to `tools/build_screens.py` (SCRIPTS) and the TWR INFO / VSCS pages. |
+| `tools/build_screens.py` | Writes the screen host pages `Screen/S_<id>.html` / `.js` (which screens exist, their default app, which window they look out of). |
 | `tools/export_interior_gltf.py` | Builds the cab with the Blender script (headless) and writes `tower_cab_interior.gltf/.bin` directly: static interior plus each overhead monitor as its own node with a `<NODE>_TRACK` 360-degree track animation, materials already set the way the sim needs them. No Blender export or MSFS material panel needed for the interior. |
-| `preview/index.html` | Runs the screens in a normal browser (live or `?demo`). |
+| `preview/index.html` | Runs the screens in a normal browser with live data, through the same screen host (`?apt=KATL` picks the airport). |
 
 Tests for the screen logic: `node scripts/test-msfs-tower.mjs` (from the repo root).
 
@@ -132,10 +168,11 @@ become another in-cab screen the same way: a page in
 `html_ui/.../VatflowTower/` plus a `[VCockpit]` entry and a screen material
 named to match.
 
-## Another airport later
+## Another airport
 
-1. Copy `common/airport.js` values for the new field (ARP, runways from
-   OurAirports, magnetic variation, ATC callsign patterns).
-2. Change the parameters at the top of `build_tower_cab.py` (sides, size,
-   glass lean, roof depth) to match the photo of that tower.
-3. Add the tower to `placement/towers.json` (or just `capture` it in the sim).
+Nothing to do: spawn the cab at a parking spot there. The cab finds the airport, the
+screens set themselves up, and TOWER SETUP places it on the airport's OpenStreetMap
+control tower (or the airport centre if none is mapped): nudge it onto the sim's tower
+and SAVE. To ship a tuned spot to everyone, add the numbers TOWER SETUP shows to
+`common/towers.js`. A tower that is much bigger or smaller than DCA's would need a
+resized cab (the parameters at the top of `build_tower_cab.py`).
