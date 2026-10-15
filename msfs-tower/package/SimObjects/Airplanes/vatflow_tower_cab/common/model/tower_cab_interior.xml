@@ -217,6 +217,17 @@
 				<ANIM_LENGTH>40</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_DBRITE_TRACK_DEG</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</DOWN_CODE>
+				<IS_LOOPING>True</IS_LOOPING>
+				<DRAG_SPEED>0.125</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>DBRITE - drag the post left/right to move it along the track</TOOLTIPID>
+			</UseTemplate>
 		</Component>
 
 		<Component ID="VATFLOW_DBRITE_MON_DISPLAY" Node="TowerCab_DbriteMount_Display">
@@ -228,29 +239,29 @@
 			</UseTemplate>
 		</Component>
 
-		<Component ID="VATFLOW_DBRITE_MON_SCREEN" Node="TowerCab_DbriteMount_Screen">
+		<Component ID="VATFLOW_DBRITE_MON_SWIVELL" Node="TowerCab_DbriteMount_SwivelL">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
-				<ANIM_NAME>TowerCab_DbriteMount_Screen_TWIST</ANIM_NAME>
+				<ANIM_NAME>TowerCab_DbriteMount_SwivelL_TWIST</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_DBRITE_TWIST)</ANIM_CODE>
 				<ANIM_LENGTH>100</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
-				<POSITION_VAR>VATFLOW_DBRITE_TRACK_DEG</POSITION_VAR>
-				<UP_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</UP_CODE>
-				<DOWN_CODE>(L:VATFLOW_DBRITE_TRACK_DEG) (&gt;L:VATFLOW_DBRITE_TRACK_DEG)</DOWN_CODE>
-				<IS_LOOPING>True</IS_LOOPING>
-				<DRAG_SPEED>0.125</DRAG_SPEED>
+				<POSITION_VAR>VATFLOW_DBRITE_TWIST</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_DBRITE_TWIST) (&gt;L:VATFLOW_DBRITE_TWIST)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_DBRITE_TWIST) (&gt;L:VATFLOW_DBRITE_TWIST)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
 				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
 				<CURSOR>Grab</CURSOR>
-				<TOOLTIPID>DBRITE - drag left/right to move it along the track</TOOLTIPID>
+				<TOOLTIPID>DBRITE - drag the side knob left/right to swivel the screen</TOOLTIPID>
 			</UseTemplate>
 		</Component>
 
-		<Component ID="VATFLOW_DBRITE_MON_SWIVEL" Node="TowerCab_DbriteMount_Swivel">
+		<Component ID="VATFLOW_DBRITE_MON_SWIVELR" Node="TowerCab_DbriteMount_SwivelR">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
-				<ANIM_NAME>TowerCab_DbriteMount_Swivel_TWIST</ANIM_NAME>
+				<ANIM_NAME>TowerCab_DbriteMount_SwivelR_TWIST</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_DBRITE_TWIST)</ANIM_CODE>
 				<ANIM_LENGTH>100</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
@@ -316,6 +327,17 @@
 				<ANIM_LENGTH>40</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
+				<POSITION_TYPE>L</POSITION_TYPE>
+				<POSITION_VAR>VATFLOW_ASDEX_TRACK_DEG</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</DOWN_CODE>
+				<IS_LOOPING>True</IS_LOOPING>
+				<DRAG_SPEED>0.125</DRAG_SPEED>
+				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
+				<CURSOR>Grab</CURSOR>
+				<TOOLTIPID>ASDEX - drag the post left/right to move it along the track</TOOLTIPID>
+			</UseTemplate>
 		</Component>
 
 		<Component ID="VATFLOW_ASDEX_MON_DISPLAY" Node="TowerCab_AsdexMount_Display">
@@ -327,29 +349,29 @@
 			</UseTemplate>
 		</Component>
 
-		<Component ID="VATFLOW_ASDEX_MON_SCREEN" Node="TowerCab_AsdexMount_Screen">
+		<Component ID="VATFLOW_ASDEX_MON_SWIVELL" Node="TowerCab_AsdexMount_SwivelL">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
-				<ANIM_NAME>TowerCab_AsdexMount_Screen_TWIST</ANIM_NAME>
+				<ANIM_NAME>TowerCab_AsdexMount_SwivelL_TWIST</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_ASDEX_TWIST)</ANIM_CODE>
 				<ANIM_LENGTH>100</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 			<UseTemplate Name="ASOBO_GT_Interaction_DraggingXAxis_Code">
 				<POSITION_TYPE>L</POSITION_TYPE>
-				<POSITION_VAR>VATFLOW_ASDEX_TRACK_DEG</POSITION_VAR>
-				<UP_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</UP_CODE>
-				<DOWN_CODE>(L:VATFLOW_ASDEX_TRACK_DEG) (&gt;L:VATFLOW_ASDEX_TRACK_DEG)</DOWN_CODE>
-				<IS_LOOPING>True</IS_LOOPING>
-				<DRAG_SPEED>0.125</DRAG_SPEED>
+				<POSITION_VAR>VATFLOW_ASDEX_TWIST</POSITION_VAR>
+				<UP_CODE>(L:VATFLOW_ASDEX_TWIST) (&gt;L:VATFLOW_ASDEX_TWIST)</UP_CODE>
+				<DOWN_CODE>(L:VATFLOW_ASDEX_TWIST) (&gt;L:VATFLOW_ASDEX_TWIST)</DOWN_CODE>
+				<ANIM_LENGTH>100</ANIM_LENGTH>
+				<DRAG_SPEED>0.2</DRAG_SPEED>
 				<REVERSE_INTERACTION>False</REVERSE_INTERACTION>
 				<CURSOR>Grab</CURSOR>
-				<TOOLTIPID>ASDEX - drag left/right to move it along the track</TOOLTIPID>
+				<TOOLTIPID>ASDEX - drag the side knob left/right to swivel the screen</TOOLTIPID>
 			</UseTemplate>
 		</Component>
 
-		<Component ID="VATFLOW_ASDEX_MON_SWIVEL" Node="TowerCab_AsdexMount_Swivel">
+		<Component ID="VATFLOW_ASDEX_MON_SWIVELR" Node="TowerCab_AsdexMount_SwivelR">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
-				<ANIM_NAME>TowerCab_AsdexMount_Swivel_TWIST</ANIM_NAME>
+				<ANIM_NAME>TowerCab_AsdexMount_SwivelR_TWIST</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_ASDEX_TWIST)</ANIM_CODE>
 				<ANIM_LENGTH>100</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>

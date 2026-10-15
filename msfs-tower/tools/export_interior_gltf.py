@@ -403,7 +403,7 @@ def write_behaviors(path, node_names):
     """tower_cab_interior.xml: LOD + model behaviors for every moving part in the export."""
     comps = []
     for node in node_names:
-        m = re.match(r"TowerCab_(\w+?)Mount(_Lift|_Display|_Screen|_Swivel|_Handle)?$", node)
+        m = re.match(r"TowerCab_(\w+?)Mount(_Lift|_Display|_SwivelL|_SwivelR|_Handle)?$", node)
         if m:                                           # overhead monitor parts
             label, part = m.group(1).upper(), m.group(2) or ""
             track, height, twist = ("VATFLOW_%s_%s" % (label, v) for v in ("TRACK_DEG", "HEIGHT", "TWIST"))
@@ -412,15 +412,14 @@ def write_behaviors(path, node_names):
                 body = anim_template(node + "_TRACK", "(L:%s) dnor" % track, TRACK_FRAMES, True)
                 body += drag_template("X", track, TRACK_DRAG_SPEED, True,
                                       "%s - drag left/right to move it along the track" % label)
-            elif part == "_Lift":                       # telescoping post
+            elif part == "_Lift":                       # telescoping post: drag it to move round the track
                 body = anim_template(node + "_LIFT", "(L:%s)" % height, LIFT_FRAMES, False)
+                body += drag_template("X", track, TRACK_DRAG_SPEED, True,
+                                      "%s - drag the post left/right to move it along the track" % label)
             else:                                       # swivelling parts, each grabbed for one thing
                 body = anim_template(node + "_TWIST", "(L:%s)" % twist, TWIST_FRAMES, False)
                 if part == "_Display":
                     pass                                # no drag: clicks go to the screen's page
-                elif part == "_Screen":
-                    body += drag_template("X", track, TRACK_DRAG_SPEED, True,
-                                          "%s - drag left/right to move it along the track" % label)
                 elif part == "_Handle":
                     body += drag_template("Y", height, LIFT_DRAG_SPEED, False,
                                           "%s - drag the handle up/down to set the height" % label, LIFT_FRAMES)

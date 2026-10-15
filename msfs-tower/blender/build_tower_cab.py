@@ -509,11 +509,11 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     Five objects, exported as a node hierarchy (custom properties for the exporter):
       name            trolley + outer sleeve   travels round the track      (vatflow_anim = track)
       name_Lift       inner post               slides up / down in the sleeve (lift)
-      name_Display    the display              swivels about the post        (twist; clicks go to the page)
-      name_Screen     yoke frame               swivels with it; drag = move round the track
+      name_Display    display + yoke           swivels about the post        (twist; no drag, clicks go to the page)
       name_Handle     handle bar under it      swivels with it; drag = height
-      name_Swivel     side pivot knobs         swivels with it; drag = swivel
-    Lift, Display, Screen, Handle and Swivel hang under the trolley; Display / Screen / Handle / Swivel are
+      name_SwivelL/R  side pivot knobs         swivel with it; drag = swivel
+    The trolley and the post are dragged left / right to move the monitor round the track.
+    Lift, Display, Handle and SwivelL / R hang under the trolley; Display / Handle / SwivelL / R are
     separate nodes (not children of each other) so each can be grabbed on its own.
     """
     ang = face_angle(face_k)
@@ -549,25 +549,25 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     lift["vatflow_anim"] = "lift"
     lift["vatflow_parent"] = name
 
-    # the display on its own node with no drag behaviour, so clicks on it reach the screen's
-    # page (menus, MAPS); the yoke round it is what you grab to move the monitor round the track
+    # The display and its yoke: one node with no drag behaviour. The sim picks what you click
+    # by each node's bounding box, so a draggable part must not have a box covering the screen,
+    # or clicks on the screen (MENU, MAPS) turn into drags. The grab points are small parts
+    # round it: the post / trolley (track), the side knobs (swivel), the handle (height).
     b = Builder(name + "_Display", coll)
     screen(b, c, nrm, width, height, mat_screen, bezel=0.035, depth=0.08)
-    dsp = b.finish()
-
-    b = Builder(name + "_Screen", coll)
     F = [c + back - right * fw - up * fh, c + back + right * fw - up * fh,
          c + back + right * fw + up * fh, c + back - right * fw + up * fh]
     for i in range(4):                                      # square-tube yoke
         b.beam(F[i], F[(i + 1) % 4], 0.022, "TWR_Mount")
     for sgn in (-1, 1):                                     # pivot stubs on the sides
         b.beam(c + back + right * sgn * hw, c + back + right * sgn * (fw + 0.03), 0.02, "TWR_Mount", segs=8)
-    scr = b.finish()
+    dsp = b.finish()
 
-    b = Builder(name + "_Swivel", coll)                     # the big side knobs
-    for sgn in (-1, 1):
+    knobs = []                                              # the big side knobs, one node each
+    for side, sgn in (("L", -1), ("R", 1)):
+        b = Builder(name + "_Swivel" + side, coll)
         b.beam(c + back + right * sgn * (fw + 0.03), c + back + right * sgn * (fw + 0.07), 0.05, "TWR_Mount", segs=10)
-    swv = b.finish()
+        knobs.append(b.finish())
 
     b = Builder(name + "_Handle", coll)                     # handle bar under the yoke
     drop = -up * 0.11 + n * 0.07
@@ -578,7 +578,7 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     b.beam(hl + drop, hr + drop, 0.018, "TWR_Mount", segs=6)
     hnd = b.finish()
 
-    for o in (dsp, scr, swv, hnd):
+    for o in [dsp, hnd] + knobs:
         o["vatflow_anim"] = "twist"
         o["vatflow_parent"] = name + "_Lift"
         o["vatflow_pivot"] = pivot

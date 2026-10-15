@@ -275,7 +275,11 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   }
   for (const m of ["DBRITE", "ASDEX"]) {
     const cap = m === "DBRITE" ? "Dbrite" : "Asdex";
-    assert.ok(xml.includes(`Node="TowerCab_${cap}Mount_Screen"`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TRACK_DEG</POSITION_VAR>`), m + " track drag on the screen");
+    const comp = (part) => (new RegExp(`Node="TowerCab_${cap}Mount${part}">([\\s\\S]*?)</Component>`).exec(xml) || [])[1] || "";
+    assert.match(comp("_Lift"), new RegExp(`<POSITION_VAR>VATFLOW_${m}_TRACK_DEG</POSITION_VAR>`), m + " track drag on the post");
+    assert.match(comp(""), new RegExp(`<POSITION_VAR>VATFLOW_${m}_TRACK_DEG</POSITION_VAR>`), m + " track drag on the trolley");
+    for (const k of ["_SwivelL", "_SwivelR"]) assert.match(comp(k), new RegExp(`<POSITION_VAR>VATFLOW_${m}_TWIST</POSITION_VAR>`), m + k + " swivel");
+    assert.ok(!xml.includes(`TowerCab_${cap}Mount_Screen`), m + ": no draggable yoke covering the screen");
     const disp = new RegExp(`Node="TowerCab_${cap}Mount_Display">([\\s\\S]*?)</Component>`).exec(xml);
     assert.ok(disp && !/Dragging/.test(disp[1]), m + " display: no drag, so clicks reach the page (MAPS, MENU)");
     assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_HEIGHT)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_HEIGHT</POSITION_VAR>`), m + " height");
