@@ -16,7 +16,26 @@ function Add-Artcc([string]$path) {
   Write-Host ("  {0}: {1} video maps" -f $id, @($j.videoMaps).Count)
 }
 
-$ids = Read-Host "ARTCC ids to download from vNAS now (e.g. ZTL or ZTL ZDC; Enter to skip)"
+# CRC keeps the ARTCC files you have opened in CRC (with your VATSIM login) under
+# %LOCALAPPDATA%\CRC (its ARTCCs folder): offer to copy them in
+$crc = Join-Path $env:LOCALAPPDATA "CRC"
+if (Test-Path $crc) {
+  $found = @(Get-ChildItem $crc -Recurse -Filter *.json -ErrorAction SilentlyContinue |
+    Where-Object { $_.BaseName -match '^Z[A-Z]{2}$' -and $_.Length -gt 10000 } | Sort-Object BaseName)
+  if ($found.Count) {
+    Write-Host ("ARTCC files found in CRC ({0}): {1}" -f $found[0].DirectoryName, (($found | ForEach-Object { $_.BaseName }) -join ", "))
+    $pick = Read-Host "Copy which? (e.g. ZTL, several: ZTL ZDC, ALL for all of them, Enter to skip)"
+    $want = @($pick.ToUpper() -split "[\s,;]+" | Where-Object { $_ })
+    foreach ($f in $found) {
+      if ($want -contains "ALL" -or $want -contains $f.BaseName.ToUpper()) {
+        Copy-Item $f.FullName (Join-Path $drop ($f.BaseName.ToUpper() + ".json")) -Force
+        Write-Host "  copied $($f.BaseName) from CRC"
+      }
+    }
+  } else { Write-Host "No ARTCC files found in $crc (open your ARTCC in CRC once, or download below)." }
+}
+
+$ids = Read-Host "ARTCC ids to download from vNAS instead (e.g. ZTL; Enter to skip)"
 foreach ($id in ($ids -split "[\s,;]+" | Where-Object { $_ })) {
   $id = $id.ToUpper()
   $out = Join-Path $drop "$id.json"

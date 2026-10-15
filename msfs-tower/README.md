@@ -108,8 +108,10 @@ The DBRITE and ASDE-X can show the ARTCC's own vNAS video maps instead of the bu
 They live in a separate Community package, `vatflow-towercab-maps` (`maps-package/`), so
 updating the cab never touches them:
 
-1. Put the ARTCC file (e.g. `ZTL.json`, the vNAS ARTCC configuration) in its
-   `ARTCC files` folder, or let `update-maps.bat` download it from vNAS (type `ZTL`).
+1. The ARTCC file (e.g. `ZTL.json`, the vNAS ARTCC configuration) is the one CRC keeps in
+   `%LOCALAPPDATA%\CRC` (its `ARTCCs` folder). `update-maps.bat` lists those and copies the
+   ones you pick; a `.json` put in the package's `ARTCC files` folder works too, or it can
+   download an ARTCC from vNAS (type `ZTL`).
 2. Double-click `update-maps.bat`: it puts the file where the cab reads it
    (`html_ui/.../VatflowTower/facilities/`) and rebuilds the package's `layout.json`.
 3. In the cab, the **MAPS** tab (next to MENU) on the DBRITE lists the TRACON's STARS maps by

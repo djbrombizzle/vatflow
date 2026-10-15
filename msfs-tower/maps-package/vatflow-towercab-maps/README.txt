@@ -6,10 +6,13 @@ This folder is its own Community package: keep it in your MSFS Community folder 
 "vatflow-towercab". Updating the cab never touches it.
 
 Add or update an ARTCC
-  1. Put the ARTCC file in the "ARTCC files" folder here, e.g. ZTL.json
-     (vNAS: https://data-api.vnas.vatsim.net/api/artccs/ZTL - or let step 2 download it).
-  2. Double-click update-maps.bat. Type ARTCC ids to download them (ZTL ZDC ...) or just
-     press Enter to use what is in "ARTCC files".
+  1. The ARTCC file is the one CRC uses, e.g. ZTL.json. CRC keeps it on your PC under
+       %LOCALAPPDATA%\CRC   (in its ARTCCs folder)
+     (paste that into the File Explorer address bar). It is there once you have opened
+     that ARTCC in CRC.
+  2. Double-click update-maps.bat. It finds the ARTCC files in CRC's folder and asks which
+     to copy (type ZTL, or ALL). You can also put a .json yourself into the "ARTCC files"
+     folder here and just press Enter, or type an ARTCC id to download it from vNAS.
   3. Restart MSFS the first time this package is in Community (MSFS only reads Community
      when it starts); after that, adding or updating an ARTCC only needs a new flight.
      The map drawings are downloaded live from vNAS when a screen shows them, so only the
