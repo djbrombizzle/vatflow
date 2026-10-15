@@ -642,13 +642,13 @@ const ta = (name, fn) => tests.push([name, fn]);
 
 /** A tiny sim: position, freeze, slew axes; directAllowed decides if pages may set the position. */
 function fakeSim(start, directAllowed) {
-  const st = Object.assign({ slew: false, frozen: false, axes: {}, L: {}, sets: 0 }, start);
+  const st = Object.assign({ slew: false, frozen: false, axes: {}, L: {}, sets: 0, simT: 0, cam: 2, paused: false }, start);
   const SimVar = {
     GetSimVarValue(name) {
       if (name.startsWith("L:")) return st.L[name.slice(2)] || 0;
       return { "PLANE LATITUDE": st.lat, "PLANE LONGITUDE": st.lon, "PLANE ALTITUDE": st.alt, "PLANE HEADING DEGREES TRUE": st.hdg,
         "PLANE HEADING DEGREES MAGNETIC": st.hdg + 5, "IS LATITUDE LONGITUDE FREEZE ON": st.frozen ? 1 : 0,
-        "GROUND ALTITUDE": 1026, "SIM ON GROUND": 1 }[name];
+        "GROUND ALTITUDE": 1026, "SIM ON GROUND": 1, "E:SIMULATION TIME": st.simT, "CAMERA STATE": st.cam }[name];
     },
     SetSimVarValue(name, unit, v) {
       if (name.startsWith("L:")) st.L[name.slice(2)] = v;
@@ -666,7 +666,8 @@ function fakeSim(start, directAllowed) {
   };
   // slew physics: full axis = 40 m/s, 60 ft/s, 30 deg/s; ahead / alt axes are negative = forward / up
   function step(dt) {
-    if (!st.slew) return;
+    if (!st.paused) st.simT += dt;
+    if (!st.slew || st.paused) return;
     const a = (k) => (st.axes[k] || 0) / 16383;
     const fwd = -a("AHEAD_SET") * 40 * dt, right = a("SIDEWAYS_SET") * 40 * dt, h = st.hdg * Math.PI / 180;
     st.lat += (fwd * Math.cos(h) - right * Math.sin(h)) / 111320;
@@ -727,6 +728,37 @@ for (const direct of [true, false]) {
     assert.ok(Math.abs(n.fwd - 2) < 0.6 && Math.abs(n.right) < 0.6, "moved 2 m forward: " + JSON.stringify(plain(n)));
   });
 }
+
+ta("placement waits while the flight is still loading, and never moves the cab then", async () => {
+  const sim = fakeSim({ lat: 33.6400, lon: -84.4300, alt: 1026, hdg: 90, cam: 11, paused: true }, false);
+  const clk = fakeClock(sim);
+  const g = genContext({ SimVar: sim.SimVar, Date: clk.Date, setTimeout: clk.setTimeout, clearTimeout: clk.clearTimeout });
+  const target = { lat: 33.6417086, lon: -84.4216904, floorFtMsl: 1403, headingTrue: 227 };
+  g.VatflowPlace.place(target);
+  clk.run(60000, () => false);
+  assert.equal(sim.st.lat, 33.64, "not moved during loading");
+  assert.ok(!sim.st.slew, "no slew during loading");
+  sim.st.cam = 2; sim.st.paused = false;                 // the flight starts
+  assert.ok(clk.run(400000, () => sim.st.L.VATFLOW_PLACED === 1), "placed once the flight runs");
+  const e = g.VatflowPlace.error({ lat: sim.st.lat, lon: sim.st.lon, floorFtMsl: sim.st.alt, headingTrue: sim.st.hdg }, target);
+  assert.ok(e.distM < 1, "on the spot");
+});
+
+ta("slew steering stops by itself if the cab moves away from the spot", async () => {
+  const sim = fakeSim({ lat: 33.6400, lon: -84.4300, alt: 1026, hdg: 90 }, false);
+  const realStep = sim.step;
+  let pushes = 0;
+  sim.step = (dt) => { realStep(dt); if (sim.st.slew && ++pushes > 60) sim.st.lat -= 0.0005; };   // something drags it away
+  const clk = fakeClock(sim);
+  const g = genContext({ SimVar: sim.SimVar, Date: clk.Date, setTimeout: clk.setTimeout, clearTimeout: clk.clearTimeout });
+  const msgs = [];
+  g.VatflowPlace.onState((st, m) => msgs.push(st + ":" + m));
+  g.VatflowPlace.place({ lat: 33.6417086, lon: -84.4216904, floorFtMsl: 1403, headingTrue: 227 });
+  clk.run(400000, () => msgs.some((m) => m.startsWith("error:")));
+  assert.ok(msgs.some((m) => /MOVING AWAY/.test(m)), msgs.join(" | "));
+  assert.ok(!sim.st.slew && sim.st.frozen, "slew off, frozen where it stopped");
+  assert.notEqual(sim.st.L.VATFLOW_PLACED, 1);
+});
 
 ta("site in the sim: the cab's position picks the bundled airport (KATL), magnetic variation from the sim", async () => {
   const sim = fakeSim({ lat: 33.641, lon: -84.43, alt: 1026, hdg: 100 }, true);

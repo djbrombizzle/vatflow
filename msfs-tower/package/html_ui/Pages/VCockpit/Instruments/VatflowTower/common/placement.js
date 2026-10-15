@@ -60,6 +60,25 @@ var VatflowPlace = (function () {
     };
   }
 
+  /**
+   * True while the flight is really running: the sim clock moves and the camera is a flight
+   * camera (cockpit / external / drone ...), not the loading screen or a menu. Placing the
+   * cab during loading (when the sim doesn't answer yet) could send it off at slew speed.
+   */
+  var clock = { t: null, at: 0, live: false };
+  function live() {
+    if (!sim()) return false;
+    var t = SimVar.GetSimVarValue("E:SIMULATION TIME", "seconds"), cam = SimVar.GetSimVarValue("CAMERA STATE", "number");
+    var now = Date.now();
+    if (clock.t === null || now - clock.at >= 900) {
+      clock.live = clock.t !== null && typeof t === "number" && t > clock.t;
+      clock.t = t;
+      clock.at = now;
+    }
+    var camOk = !cam || (cam >= 2 && cam <= 6);
+    return clock.live && camOk;
+  }
+
   function freeze(on) { for (var i = 0; i < FREEZE.length; i++) setK(FREEZE[i], on ? 1 : 0); }
   function frozen() { return sim() && !!SimVar.GetSimVarValue("IS LATITUDE LONGITUDE FREEZE ON", "bool"); }
 
@@ -108,6 +127,16 @@ var VatflowPlace = (function () {
     if (!sim()) { notify("error", "ONLY IN THE SIM"); return; }
     stop();
     var me = job = { pos: pos, t0: Date.now() };
+    if (!live()) {                                  // still loading or paused: wait for the flight
+      notify("moving", "WAITING FOR THE FLIGHT TO START...");
+      (function wait() {
+        if (job !== me) return;
+        if (!live()) { setTimeout(wait, 1000); return; }
+        job = null;
+        place(pos, small);
+      })();
+      return;
+    }
     var method = getL("VATFLOW_PLACE_METHOD");     // remembered for this flight once known
     notify("moving", "MOVING...");
     if (method === 2) { slew(me); return; }
@@ -139,14 +168,28 @@ var VatflowPlace = (function () {
       up: { ev: "K:AXIS_SLEW_ALT_SET", sign: -1, tol: 0.8 },
       turn: { ev: "K:AXIS_SLEW_HEADING_SET", sign: 1, tol: 0.3 }
     };
-    var names = ["fwd", "right", "up", "turn"], cal = 0, calStart = null, last = here();
+    var names = ["fwd", "right", "up", "turn"], cal = 0, calStart = null, still = 0, start = null;
     notify("moving", "MOVING BY SLEW...");
     function allZero() { for (var i = 0; i < names.length; i++) setK(axes[names[i]].ev, 0); }
+    function abort(msg) {                           // stop where it is, frozen, and say why
+      allZero();
+      setK("K:SLEW_OFF", 1);
+      freeze(true);
+      job = null;
+      notify("error", msg);
+    }
     (function step() {
       if (job !== me) { allZero(); return; }
       var cur = here();
       if (!cur) { setTimeout(step, 100); return; }
+      if (!live()) { allZero(); calStart = null; setTimeout(step, 500); return; }   // paused: hold still
       var e = error(cur, me.pos);
+      if (!start) start = { d: e.distM, up: Math.abs(e.up) };
+      // safety: never let it run away (wrong direction, or the sim doing something else)
+      if (e.distM > start.d + 300 || Math.abs(e.up) > start.up + 500) {
+        abort("STOPPED: THE CAB WAS MOVING AWAY FROM THE SPOT. PRESS PLACE IN TOWER TO TRY AGAIN");
+        return;
+      }
       // calibrate one axis at a time: push it gently, see which way the error moved
       if (cal < names.length) {
         var ax = axes[names[cal]];
@@ -155,9 +198,14 @@ var VatflowPlace = (function () {
           var moved = e[names[cal]] - calStart.e[names[cal]];
           // the error shrinks when the cab moves toward the spot: positive command must reduce a positive error
           if (Math.abs(moved) > 0.01) ax.sign = moved < 0 ? ax.sign : -ax.sign;
+          else still++;
           setK(ax.ev, 0);
           cal++;
           calStart = null;
+          if (cal === names.length && still === names.length) {
+            abort("SLEW DID NOT MOVE THE CAB. USE THE PLACEMENT TOOL (placement\\3-place) OR TRY AGAIN");
+            return;
+          }
         }
         setTimeout(step, 50);
         return;
@@ -178,7 +226,6 @@ var VatflowPlace = (function () {
         setTimeout(function () { if (job === me) done("slew"); }, 300);
         return;
       }
-      last = cur;
       setTimeout(step, 100);
     })();
   }
@@ -232,8 +279,12 @@ var VatflowPlace = (function () {
     var t0 = Date.now();
     VatflowSite.resolve(function (site) {
       VatflowSite.loadData(function (data) {
+        var since = 0;
         (function check() {
-          if (Date.now() - t0 < 6000) { setTimeout(check, 1000); return; }
+          // the flight has to have been running for a few seconds (not the loading screen)
+          if (!live()) since = 0;
+          else if (!since) since = Date.now();
+          if (Date.now() - t0 < 6000 || !since || Date.now() - since < 8000) { setTimeout(check, 1000); return; }
           if (getL("VATFLOW_PLACED") !== 0 || job) return;
           if (typeof VatflowStore !== "undefined" && VatflowStore.get("AUTO_PLACE", true) === false) return;
           var t = target(site.icao, site, data);
@@ -250,6 +301,6 @@ var VatflowPlace = (function () {
 
   return {
     move: move, error: error, place: place, release: release, target: target, save: save, forget: forget,
-    here: here, frozen: frozen, onState: onState, autoPlace: autoPlace, busy: busy, state: state, method: method, stop: stop
+    here: here, frozen: frozen, live: live, onState: onState, autoPlace: autoPlace, busy: busy, state: state, method: method, stop: stop
   };
 })();
