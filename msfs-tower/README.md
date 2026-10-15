@@ -102,6 +102,27 @@ Inside the cab there are two working screens fed by live data:
   `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
   `tools/make_fan_sound.py`).
 
+## ARTCC video maps (the maps CRC shows)
+
+The DBRITE and ASDE-X can show the ARTCC's own vNAS video maps instead of the built-in ones.
+They live in a separate Community package, `vatflow-towercab-maps` (`maps-package/`), so
+updating the cab never touches them:
+
+1. Put the ARTCC file (e.g. `ZTL.json`, the vNAS ARTCC configuration) in its
+   `ARTCC files` folder, or let `update-maps.bat` download it from vNAS (type `ZTL`).
+2. Double-click `update-maps.bat`: it puts the file where the cab reads it
+   (`html_ui/.../VatflowTower/facilities/`) and rebuilds the package's `layout.json`.
+3. In the cab, the **MAPS** tab (next to MENU) on the DBRITE lists the TRACON's STARS maps by
+   number plus the tower cab maps: tap to turn them on / off. Presets are named after the
+   facility's runway configurations (WEST, EAST ...): SAVE, then a preset, stores what is on;
+   a preset switches to its maps. The ASDE-X uses the facility's ASDE-X map by default
+   (MAPS picks another). Choices are kept per airport.
+
+Only the ARTCC file is installed; the map drawings are downloaded live from vNAS
+(`common/vnas.js`) when a screen shows them. ARTCC files are the ARTCCs' own data, so they
+are not in this repo. The installer copies the package into Community
+(`maps-package/install-maps-package.ps1`, which finds the folder from the sim's `UserCfg.opt`).
+
 ## Sharing it with friends (Community folder)
 
 1. In MSFS open the project, **Clean All**, **Build All**.

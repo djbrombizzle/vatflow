@@ -55,6 +55,8 @@ Serve <code>msfs-tower/</code> over HTTP (<code>python -m http.server</code>) an
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/osm-airport.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/site.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/placement.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vnas.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/mappicker.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-hub.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-metering.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-smart.js"></script>
@@ -77,6 +79,8 @@ Serve <code>msfs-tower/</code> over HTTP (<code>python -m http.server</code>) an
 <script>
 (function () {
   var cfg = VATFLOW_TWR;
+  // ARTCC video map files: the maps package next to this preview (put e.g. ZTL.json there)
+  cfg.facilitiesBase = "../maps-package/vatflow-towercab-maps/html_ui/Pages/VCockpit/Instruments/VatflowTower/facilities/";
   // the 1024x768 screens (tools/build_screens.py)
   var SCREENS = [
     { id: "DBRITE", group: "DBRITE", mount: "DBRITE", faceDeg: -45, def: "dbrite", alt: "setup" },

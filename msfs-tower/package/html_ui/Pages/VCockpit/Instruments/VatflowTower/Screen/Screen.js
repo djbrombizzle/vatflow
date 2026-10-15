@@ -70,6 +70,69 @@ var VatflowApps = (function () {
     };
   }
   var kdcaOnly = function (cfg) { return cfg.icao === "KDCA"; };
+
+  var NO_MAPS = "NO ARTCC VIDEO MAPS INSTALLED FOR THIS AIRPORT. PUT THE ARTCC FILE (E.G. ZTL.JSON FROM VNAS) IN THE " +
+    "vatflow-towercab-maps PACKAGE'S \"ARTCC files\" FOLDER AND RUN update-maps.bat THERE (SEE ITS README). " +
+    "UNTIL THEN THE BUILT-IN MAP IS SHOWN.";
+
+  /**
+   * MAPS button for a radar app: lists the ARTCC's video maps for this airport (VatflowVnas)
+   * and hands the chosen ones, loaded and converted, to apply(list). kind: "dbrite" (any
+   * number of STARS / cab maps) or "asdex" (one map: the facility's ASDE-X map, a cab map,
+   * or the built-in one).
+   */
+  function videoMaps(el, ctx, kind, apply) {
+    var cfg = ctx.cfg, converted = {}, token = 0;
+    VatflowVnas.facility(cfg.icao, cfg.lid, function (info) {
+      var items = [], meta = {}, defaults = [], presets = [];
+      function add(e, label) {
+        if (!e || meta[e.id]) return;
+        meta[e.id] = e;
+        items.push({ id: e.id, label: label });
+      }
+      if (info && kind === "dbrite") {
+        (info.cabMaps || []).concat(info.cabMap ? [info.cabMap] : []).forEach(function (e) { add(e, "CAB  " + e.name); });
+        info.stars.forEach(function (e) { add(e, (e.stars ? (e.stars < 10 ? " " : "") + e.stars : "--") + " " + e.name); });
+        presets = info.configs.length ? info.configs : ["PRESET 1", "PRESET 2", "PRESET 3"];
+      } else if (info) {
+        items.push({ id: "osm", label: "BUILT-IN (OPENSTREETMAP)" });
+        add(info.asdexMap, "ASDE-X  " + (info.asdexMap ? info.asdexMap.name : ""));
+        info.asdexMaps.forEach(function (e) { add(e, "ASDE-X  " + e.name); });
+        info.cabMaps.forEach(function (e) { add(e, "CAB  " + e.name); });
+        defaults = [info.asdexMap ? info.asdexMap.id : "osm"];
+      }
+      var picker = new VatflowMapPicker(el, {
+        app: kind, icao: cfg.icao, multi: kind === "dbrite", items: items, defaults: defaults, presets: presets,
+        title: info ? info.artcc + (info.tracon ? " " + info.tracon : "") + " / " + info.lid + " " + (info.name || "") : cfg.icao,
+        note: NO_MAPS, onChange: load
+      });
+      function load(ids) {
+        var my = ++token, list = [], left = ids.length, failed = 0;
+        if (!info || !left) { apply([]); picker.setStatus(""); return; }
+        picker.setStatus("LOADING " + left + " MAP" + (left > 1 ? "S" : "") + " FROM VNAS...");
+        ids.forEach(function (id, i) {
+          if (id === "osm" || !meta[id]) { finish(); return; }
+          if (converted[id]) { list[i] = converted[id]; finish(); return; }
+          VatflowVnas.loadMap(info.artcc, id, function (err, gj) {
+            if (err || !gj) failed++;
+            else {
+              var m = meta[id];
+              converted[id] = kind === "asdex" ? VatflowVnas.toAsdex(gj, cfg.arp)
+                : Object.assign(VatflowVnas.toLines(gj, cfg.arp), { stars: m.tags.indexOf("STARS") >= 0 && !!m.stars, cat: m.cat });
+              list[i] = converted[id];
+            }
+            finish();
+          });
+        });
+        function finish() {
+          if (--left > 0 || my !== token) return;
+          apply(list.filter(Boolean));
+          picker.setStatus(failed ? failed + " MAP(S) COULD NOT BE LOADED FROM VNAS" : ids.length + " ON");
+        }
+      }
+      load(picker.selected());
+    });
+  }
   var rampLayout = function () { return typeof VATFLOW_RAMP_LAYOUT !== "undefined" ? VATFLOW_RAMP_LAYOUT : null; };
 
   var IDST_HTML = '<div id="id-root"><div class="id-top"><span class="id-title">VATFLOW IDST</span><span id="id-icao" class="id-icao">----</span>' +
@@ -119,6 +182,7 @@ var VatflowApps = (function () {
         var tick = VatflowDraw.loop(v, 1000);
         VatflowFeed.poll(ctx.cfg, function (d) { v.setData(d); }, function (e) { v.setError(e); });
         VatflowFeed.pollMetars(ctx.cfg.dbrite.altimeterStations, function (m) { v.setMetars(m); });
+        videoMaps(el, ctx, "dbrite", function (list) { v.setVideoMaps(list); tick(true); });
         return { update: function () { tick(false); } };
       }
     },
@@ -128,6 +192,7 @@ var VatflowApps = (function () {
         var v = new AsdexView(canvas(el, null, "asdex-canvas"), ctx.cfg, ctx.maps);
         var tick = VatflowDraw.loop(v, 1000);
         VatflowFeed.poll(ctx.cfg, function (d) { v.setData(d); }, function (e) { v.setError(e); });
+        videoMaps(el, ctx, "asdex", function (list) { v.setMap(list.length ? list[0].asdex || list[0] : (ctx.maps ? ctx.maps.asdex : null)); tick(true); });
         return { update: function () { v.setUp(ctx.upHeading()); tick(false); } };
       }
     },

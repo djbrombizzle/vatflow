@@ -40,6 +40,14 @@ var AsdexView = (function () {
   }
 
   AsdexView.colors = C;
+  // vNAS ASDE-X map colours when a polygon has none
+  var VC = { bg: "#141a1c", runway: "#4d4d4d", taxiway: "#424242", apron: "#4d4d4d", structure: "#5d6060" };
+
+  /** Swaps the map (maps.asdex: built-in / OpenStreetMap, or an ARTCC ASDE-X map from VatflowVnas.toAsdex). */
+  AsdexView.prototype.setMap = function (asdex) {
+    this.map = asdex || null;
+    this.fit();
+  };
 
   /** Turns the map so heading h (degrees true) is at the top; refits when it changes. */
   AsdexView.prototype.setUp = function (h) {
@@ -115,9 +123,18 @@ var AsdexView = (function () {
   AsdexView.prototype.drawMap = function (ctx) {
     var self = this, m = this.map, i;
     var proj = function (x, y) { return self.px(x, y); };
-    ctx.fillStyle = C.water;
+    ctx.fillStyle = m && m.vnas ? VC.bg : C.water;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!m) return;
+    if (m.vnas) {          // ARTCC ASDE-X map: filled polygons in the facility's colours
+      for (i = 0; i < m.polys.length; i++) {
+        var pg = m.polys[i];
+        ctx.fillStyle = pg.c || VC[pg.k] || VC.apron;
+        VatflowDraw.path(ctx, pg.p, proj, true);
+        ctx.fill();
+      }
+      return;
+    }
     ctx.fillStyle = C.land;
     for (i = 0; i < m.land.length; i++) { VatflowDraw.path(ctx, m.land[i], proj, true); ctx.fill(); }
     ctx.fillStyle = C.apron;

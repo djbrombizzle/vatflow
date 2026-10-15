@@ -37,7 +37,7 @@ SCRIPTS = [
     "common/compat.js", "common/store.js", "common/airport.js",
     "common/airports/KDCA.js", "common/airports/KATL.js", "common/towers.js",
     "common/vatsim-feed.js", "common/draw.js", "common/dimmer.js",
-    "common/osm-airport.js", "common/site.js", "common/placement.js",
+    "common/osm-airport.js", "common/site.js", "common/placement.js", "common/vnas.js", "common/mappicker.js",
     "common/vatflow-hub.js", "common/vatflow-metering.js", "common/vatflow-smart.js", "common/apt-flow.js",
     "common/vatflow-ramp.js", "common/ramp-kdca.js", "common/ramp-data.js",
     "Dbrite/Dbrite.js", "Asdex/Asdex.js", "Idst/Idst.js", "Vatsmart/Vatsmart.js", "AptDash/AptDash.js",

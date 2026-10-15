@@ -33,7 +33,7 @@ var VatflowSite = (function () {
       var lat = parseFloat(c[2]), lon = parseFloat(c[3]);
       if (isNaN(lat) || isNaN(lon)) continue;
       out.push({ icao: c[0].trim().toUpperCase(), name: (c[1] || "").trim().toUpperCase(), lat: lat, lon: lon,
-        lid: (c[4] || "").trim().toUpperCase() });
+        lid: (c[4] || "").trim().toUpperCase(), fir: (c[5] || "").trim().toUpperCase() });
     }
     return out;
   }

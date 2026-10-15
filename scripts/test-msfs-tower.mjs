@@ -519,6 +519,68 @@ t("VSCS: KDCA keeps its panel; other airports get their own lines, lit with the 
   assert.equal(g.VscsView.keysFor(g.VATFLOW_TWR)[0][1], "119.100", "KDCA panel");
 });
 
+t("vNAS video maps: the ARTCC file gives the tower's ASDE-X map, the TRACON's STARS maps and runway configs", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/vnas.js", BASE), "utf8"), g);
+  const art = { id: "ZTL", videoMaps: [
+    { id: "m1", name: "ATL CLASS B", tags: ["STARS"], starsId: 1, starsBrightnessCategory: "B" },
+    { id: "m17", name: "TERMINAL ARRIVAL RADAR WEST", tags: ["STARS"], starsId: 17, starsBrightnessCategory: "A" },
+    { id: "ax", name: "ATL ASDEX", tags: ["TOWER", "ASDEX"] },
+    { id: "cab", name: "ATL Cab", tags: ["TOWER", "CAB"] },
+    { id: "pdk", name: "PDK Cab", tags: ["CAB"] }],
+    facility: { id: "ZTL", type: "Artcc", childFacilities: [{ id: "A80", type: "Tracon", starsConfiguration: { videoMapIds: ["m17", "m1"] },
+      childFacilities: [{ id: "ATL", type: "Atct", childFacilities: [],
+        towerCabConfiguration: { videoMapId: "cab", towerLocation: { lat: 33.6417, lon: -84.4217 } },
+        asdexConfiguration: { videoMapId: "ax", defaultRotation: 0, runwayConfigurations: [{ name: "WEST" }, { name: "EAST" }] } }] }] } };
+  const d = plain(g.VatflowVnas.describe(art, "ATL"));
+  assert.equal(d.tracon, "A80");
+  assert.deepEqual(d.stars.map((m) => m.stars), [1, 17], "STARS maps by number");
+  assert.equal(d.asdexMap.name, "ATL ASDEX");
+  assert.equal(d.cabMap.name, "ATL Cab");
+  assert.deepEqual(d.cabMaps.map((m) => m.name), ["ATL Cab"], "only this airport's cab maps");
+  assert.deepEqual(d.configs, ["WEST", "EAST"]);
+  assert.equal(g.VatflowVnas.describe(art, "CLT"), null);
+  const arp = { lat: 33.6367, lon: -84.4281 };
+  const lines = plain(g.VatflowVnas.toLines({ features: [
+    { properties: { color: "#ff0000", thickness: 2 }, geometry: { type: "LineString", coordinates: [[-84.4281, 33.6367], [-84.4281, 33.6534]] } },
+    { properties: { text: ["SURFACE"] }, geometry: { type: "Point", coordinates: [-84.4281, 33.6367] } },
+    { properties: {}, geometry: null }] }, arp));
+  assert.equal(lines.lines.length, 1);
+  assert.ok(Math.abs(lines.lines[0].p[3] - 1.002) < 0.01, "1 nm north");
+  assert.equal(lines.lines[0].c, "#ff0000");
+  assert.equal(lines.texts[0].t, "SURFACE");
+  const ax = plain(g.VatflowVnas.toAsdex({ features: [
+    { properties: { asdex: "structure", color: "#5d6060" }, geometry: { type: "Polygon", coordinates: [[[-84.43, 33.64], [-84.42, 33.64], [-84.42, 33.641], [-84.43, 33.64]]] } },
+    { properties: { asdex: "runway" }, geometry: { type: "Polygon", coordinates: [[[-84.44, 33.63], [-84.41, 33.63], [-84.41, 33.631], [-84.44, 33.63]]] } }] }, arp));
+  assert.ok(ax.vnas);
+  assert.deepEqual(ax.polys.map((p) => p.k), ["runway", "structure"], "drawn runway first, buildings on top");
+  assert.equal(ax.land.length, 1, "outline to fit the screen");
+});
+
+t("MAPS picker: toggles maps, keeps the choice per airport, presets store and recall sets", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/mappicker.js", BASE), "utf8"), g);
+  const mk = () => { const e = { style: {}, children: [], textContent: "", innerHTML: "", ev: {} };
+    e.appendChild = (c) => e.children.push(c); e.addEventListener = (n, f) => { e.ev[n] = f; }; return e; };
+  const doc = { createElement: mk };
+  const host = Object.assign(mk(), { ownerDocument: doc });
+  const seen = [];
+  const opts = { app: "dbrite", icao: "KATL", multi: true, items: [{ id: "a", label: "1 A" }, { id: "b", label: "2 B" }],
+    defaults: [], presets: ["WEST", "EAST"], onChange: (ids) => seen.push(plain(ids)) };
+  const p = new g.VatflowMapPicker(host, opts);
+  p.toggle("a"); p.toggle("b"); p.toggle("a");
+  assert.deepEqual(seen.at(-1), ["b"]);
+  p.saveMode = true; p.preset("WEST");
+  p.set([]); p.preset("WEST");
+  assert.deepEqual(seen.at(-1), ["b"], "WEST recalled");
+  const again = new g.VatflowMapPicker(Object.assign(mk(), { ownerDocument: doc }), opts);
+  assert.deepEqual(plain(again.selected()), ["b"], "remembered for KATL");
+  const single = new g.VatflowMapPicker(Object.assign(mk(), { ownerDocument: doc }), Object.assign({}, opts, { app: "asdex", multi: false, defaults: ["x"] }));
+  assert.deepEqual(plain(single.selected()), ["x"], "default");
+  single.toggle("y");
+  assert.deepEqual(plain(single.selected()), ["y"], "one map at a time");
+});
+
 // async tests (fake sim + timers)
 const tests = [];
 const ta = (name, fn) => tests.push([name, fn]);

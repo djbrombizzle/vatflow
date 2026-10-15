@@ -36,9 +36,49 @@ var DbriteView = (function () {
     this.error = null;
     this.atis = null;
     this.metars = {};
+    this.vmaps = null;      // ARTCC video maps in use (setVideoMaps), instead of the built-in map
   }
 
   DbriteView.colors = C;
+  // STARS map brightness categories A / B
+  var CAT = { A: "#a6a61e", B: "#73731a" };
+
+  /**
+   * Video maps from the ARTCC (common/vnas.js toLines, nm from the ARP), drawn in order:
+   * [{lines, polys, texts, stars: bool, cat: "A" | "B"}]. STARS maps take their category
+   * colour; others (tower cab maps) keep their own colours. null / [] = the built-in map.
+   */
+  DbriteView.prototype.setVideoMaps = function (list) { this.vmaps = list && list.length ? list : null; };
+
+  DbriteView.prototype.drawVideoMaps = function (ctx, px) {
+    for (var m = 0; m < this.vmaps.length; m++) {
+      var vm = this.vmaps[m], base = vm.stars ? CAT[vm.cat] || CAT.A : null, i, j, q;
+      ctx.lineWidth = 1.2;
+      for (i = 0; i < vm.polys.length; i++) {
+        var pg = vm.polys[i];
+        ctx.strokeStyle = base || pg.c || C.map;
+        ctx.beginPath();
+        for (j = 0; j < pg.p.length; j += 2) { q = px({ x: pg.p[j], y: pg.p[j + 1] }); if (j) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }
+        ctx.closePath();
+        ctx.stroke();
+      }
+      for (i = 0; i < vm.lines.length; i++) {
+        var ln = vm.lines[i];
+        ctx.strokeStyle = base || ln.c || C.map;
+        ctx.lineWidth = Math.min(3, ln.w || 1) * 1.2;
+        ctx.beginPath();
+        for (j = 0; j < ln.p.length; j += 2) { q = px({ x: ln.p[j], y: ln.p[j + 1] }); if (j) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }
+        ctx.stroke();
+      }
+      ctx.font = "14px monospace";
+      for (i = 0; i < vm.texts.length; i++) {
+        var tx = vm.texts[i];
+        ctx.fillStyle = base || tx.c || C.map;
+        q = px(tx);
+        ctx.fillText(tx.t, q.x, q.y);
+      }
+    }
+  };
 
   DbriteView.prototype.setData = function (summary) {
     var base = Date.parse(summary.updated);
@@ -225,8 +265,11 @@ var DbriteView = (function () {
       ctx.stroke();
     }
 
-    this.drawMap(ctx, px, scale);
-    this.drawFinals(ctx, px, scale);
+    if (this.vmaps) this.drawVideoMaps(ctx, px);
+    else {
+      this.drawMap(ctx, px, scale);
+      this.drawFinals(ctx, px, scale);
+    }
 
     // traffic
     var alt = Math.floor(nowMs / 2000) % 2 === 0;
