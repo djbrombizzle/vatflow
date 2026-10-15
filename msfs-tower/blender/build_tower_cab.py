@@ -81,8 +81,15 @@ COLORS = {
     "TWR_KeyGrey": (0.35, 0.37, 0.40, 1.0),
     "TWR_KeyGreen": (0.10, 0.45, 0.18, 1.0),
     "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
-    "TWR_FloorWear": (0.10, 0.12, 0.16, 0.25),    # wear layers: alpha comes from their textures
-    "TWR_GlassSmudge": (0.77, 0.75, 0.71, 0.10),
+    "TWR_LightPanel": (1.0, 0.95, 0.85, 1.0),     # ceiling light diffusers (emissive in the sim)
+    "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
+    "TWR_DeskTop": (0.30, 0.35, 0.40, 1.0),       # blue-grey desk top (TMU desk)
+    "TWR_Strip": (0.92, 0.90, 0.84, 1.0),         # flight progress strips
+    "TWR_StripBay": (0.80, 0.66, 0.30, 1.0),      # strip bay rails
+    "$SCREEN_TMUARR": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_TMUDEP": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_CLOCK2": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_RAMP": (0.0, 0.0, 0.0, 1.0),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
@@ -132,9 +139,6 @@ def material(name):
     bsdf.inputs["Roughness"].default_value = 0.6
     mat.diffuse_color = rgba
     mat.use_backface_culling = False  # exported as doubleSided; visible from inside and out
-    if name in ("TWR_FloorWear", "TWR_GlassSmudge"):
-        bsdf.inputs["Alpha"].default_value = rgba[3]
-        mat.blend_method = "BLEND"
     if name == "TWR_Glass":
         bsdf.inputs["Alpha"].default_value = rgba[3]
         bsdf.inputs["Roughness"].default_value = 0.05
@@ -277,6 +281,95 @@ def screen(b, center, normal, width, height, mat_name, bezel=0.04, depth=0.05, b
     b.quad_strip(f, k, bezel_mat)
     b.face(list(reversed(k)), bezel_mat)
     return c, up, n
+
+
+def face_frame(k, a_inner):
+    """Helpers for placing things on console face k: at(right, depth, z), facing(tilt), rot."""
+    ang = face_angle(k)
+    out = Vector((math.cos(ang), math.sin(ang), 0))
+    right = Vector((math.sin(ang), -math.cos(ang), 0))
+    rot = ang - math.pi / 2          # box local +x = right, +y = toward the window
+
+    def at(r, depth, z):
+        return out * (a_inner - depth) + right * r + Vector((0, 0, z))
+
+    def facing(tilt_deg):            # screen normal: toward the controller, tilted back
+        t = math.radians(tilt_deg)
+        return -out * math.cos(t) + Vector((0, 0, math.sin(t)))
+
+    return at, facing, rot, out, right
+
+
+def desk_monitor(b, at, facing, rot, r, depth, top, w, h, mat_screen, tilt=15, keyboard=True):
+    """A desktop monitor on a stand (screen w x h m), optionally with a keyboard in front."""
+    center, up, _ = screen(b, at(r, depth, top + 0.08 + h / 2), facing(tilt), w, h, mat_screen, bezel=0.03)
+    b.beam(center - up * (h / 2 + 0.02), at(r, depth, top), 0.025, "TWR_Bezel")
+    b.box(at(r, depth, top + 0.005), (0.22, 0.16, 0.01), "TWR_Bezel", rot_z=rot)
+    if keyboard:
+        b.box(at(r, depth + 0.26, top + 0.015), (0.44, 0.15, 0.03), "TWR_Bezel", rot_z=rot, top_mat="TWR_Keyboard")
+
+
+def ceiling_lights(inside, z):
+    """Recessed ceiling light diffusers (emissive). The light they throw is the cabin
+    lights in systems.cfg (CEILING_LIGHTS below), placed at the same spots."""
+    for x, y in CEILING_LIGHTS:
+        h = 0.30
+        inside.face([Vector((x - h, y - h, z)), Vector((x - h, y + h, z)),
+                     Vector((x + h, y + h, z)), Vector((x + h, y - h, z))], "TWR_LightPanel")
+        for (x0, y0), (x1, y1) in (((x - h, y - h), (x + h, y - h)), ((x + h, y - h), (x + h, y + h)),
+                                   ((x + h, y + h), (x - h, y + h)), ((x - h, y + h), (x - h, y - h))):
+            inside.beam(Vector((x0, y0, z - 0.005)), Vector((x1, y1, z - 0.005)), 0.012, "TWR_Mount")
+
+
+# Ceiling light spots (Blender x, y in m): four round the cab plus one in the middle.
+CEILING_LIGHTS = [(0.0, 0.0), (1.9, 0.0), (-1.9, 0.0), (0.0, 1.9), (0.0, -1.9)]
+
+
+def tmu_desk(inside, coll, a_inner, top):
+    """
+    TMU position in the back-left corner (window face 3), after the DCA TMU desk: on the
+    console two monitors with keyboards (arrivals / departures lists) and a red LED
+    clock; a return desk with light oak edging and a blue-grey top runs into the room
+    from the console's right end, separating the corner, with flight strip bays on it.
+    """
+    at, facing, rot, out, right = face_frame(3, a_inner)
+    desk_monitor(inside, at, facing, rot, -0.75, 0.40, top, 0.44, 0.33, "$SCREEN_TMUARR")
+    desk_monitor(inside, at, facing, rot, -0.05, 0.40, top, 0.44, 0.33, "$SCREEN_TMUDEP")
+    # clock box (grey cabinet with the LED window), like the DCA TMU desk
+    inside.box(at(0.62, 0.30, top + 0.11), (0.42, 0.30, 0.22), "TWR_PanelGrey", rot_z=rot)
+    screen(inside, at(0.62, 0.45 + 0.001, top + 0.15), facing(0), 0.22, 0.055, "$SCREEN_CLOCK2", bezel=0.012, depth=0.005)
+
+    # return desk: from the console's inner edge into the room, 0.7 m wide, 1.8 m long
+    d0, d1 = P["console_depth"], P["console_depth"] + 1.8
+    rc, w = 1.08, 0.70
+    mid = (d0 + d1) / 2
+    length = d1 - d0
+    inside.box(at(rc, mid, top - 0.02), (w, length, 0.04), "TWR_DeskTop", rot_z=rot)              # top
+    inside.box(at(rc, mid, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=rot)  # oak edge band
+    inside.box(at(rc, mid, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_Wood", rot_z=rot)  # body
+    inside.box(at(rc, mid, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_Bezel", rot_z=rot)       # dark kick plinth
+    # strip bays on the return: three sloped boards with strips, facing the console side
+    for i in range(3):
+        dc = d0 + 0.35 + i * 0.55
+        lo, hi = top + 0.005, top + 0.11
+        x0, x1 = rc - 0.25, rc + 0.25
+        y0, y1 = dc - 0.22, dc + 0.22
+        board = [at(x0, y0, hi), at(x1, y0, hi), at(x1, y1, lo), at(x0, y1, lo)]
+        inside.face(board, "TWR_StripBay")
+        for side in (x0, x1):                                   # side rails
+            inside.face([at(side, y0, hi), at(side, y1, lo), at(side, y1, top), at(side, y0, top)], "TWR_StripBay")
+        for k in range(7):                                      # strips across the board
+            f0, f1 = 0.04 + k * 0.13, 0.04 + k * 0.13 + 0.10
+            ya, yb = y0 + (y1 - y0) * f0, y0 + (y1 - y0) * f1
+            za, zb = hi + (lo - hi) * f0 + 0.004, hi + (lo - hi) * f1 + 0.004
+            inside.face([at(x0 + 0.02, ya, za), at(x1 - 0.02, ya, za), at(x1 - 0.02, yb, zb), at(x0 + 0.02, yb, zb)], "TWR_Strip")
+
+
+def ramp_computer(inside, a_inner, top):
+    """Ramp list computer (vatflow gates page) on the console left of the clock: the
+    right-hand end of window face 2, next to the local controller's position."""
+    at, facing, rot, out, right = face_frame(2, a_inner)
+    desk_monitor(inside, at, facing, rot, 1.05, 0.40, top, 0.48, 0.36, "$SCREEN_RAMP")
 
 
 def console_equipment(inside, coll, k, a_inner, top):
@@ -606,6 +699,9 @@ def build():
     center, up, _ = screen(inside, c, nrm, 0.60, 0.30, "$SCREEN_TWRINFO")
     inside.beam(center - up * 0.19, Vector((center.x, center.y, P["console_h"])), 0.03, "TWR_Bezel")
     console_equipment(inside, int_coll, 1, a_inner, P["console_h"])
+    tmu_desk(inside, int_coll, a_inner, P["console_h"])
+    ramp_computer(inside, a_inner, P["console_h"])
+    ceiling_lights(inside, z_glass1 - 0.012)
 
     # Overhead monitors on a circular ceiling track all the way round the cab
     # (each can travel the full 360 degrees): DBRITE radar starts front-right,
@@ -630,21 +726,6 @@ def build():
     # bottom of the glass (the exterior sill wall isn't drawn in the cockpit view).
     # Its outer face stays 1 cm inside the exterior wall so they don't fight.
     inside.ring(a_inner, a0 - 0.01, a_inner, a0 - 0.01, 0.0, z_glass0, "TWR_Console")
-
-    # Wear layers. Traffic wear on the carpet: a strip in front of every console
-    # (3 mm up, alpha blended, mapped by world position like the carpet).
-    a_wear0, a_wear1 = a_inner - P["console_depth"], a_inner - P["console_depth"] - 1.1
-    for k in console_sides:
-        inside.face([corner(k, a_wear1, 0.003), corner(k + 1, a_wear1, 0.003),
-                     corner(k + 1, a_wear0, 0.003), corner(k, a_wear0, 0.003)], "TWR_FloorWear")
-    # Smudges / grime on the inside of the glass: one see-through layer 1.5 cm inside each
-    # pane, the texture stretched over it (bottom of the texture = bottom of the pane),
-    # shifted sideways per pane so neighbouring windows don't look copied.
-    for k in range(n):
-        u0 = (k * 0.37) % 1.0
-        inside.face([corner(k, a0 - 0.015, z_glass0), corner(k + 1, a0 - 0.015, z_glass0),
-                     corner(k + 1, a1 - 0.015, z_glass1), corner(k, a1 - 0.015, z_glass1)], "TWR_GlassSmudge",
-                    uvs=[(u0, 0), (u0 + 1, 0), (u0 + 1, 1), (u0, 1)])
 
     # Roll-down shades, one per window
     for k in range(n):

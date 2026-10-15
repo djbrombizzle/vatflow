@@ -256,7 +256,8 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   const MODEL = new URL("../msfs-tower/package/SimObjects/Airplanes/vatflow_tower_cab/common/", import.meta.url);
   const panel = readFileSync(new URL("panel/panel.cfg", MODEL), "utf8");
   const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
-  assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS"]);
+  assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS",
+    "$SCREEN_TMUARR", "$SCREEN_TMUDEP", "$SCREEN_CLOCK2", "$SCREEN_RAMP"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
     assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("common/dimmer.js"), m[1] + " loads the dimmer");
   }
@@ -306,6 +307,50 @@ t("screen brightness: knobs combine, never fully black, label only when a knob t
   vars["L:VATFLOW_DBRITE_HEIGHT"] = 33;                    // you moved it; a screen reload keeps that
   D.initMonitorPose("DBRITE");
   assert.equal(vars["L:VATFLOW_DBRITE_HEIGHT"], 33);
+});
+
+t("ramp list: bundled gates.html logic proposes gates for inbounds and lists ground departures", () => {
+  const rctx = vm.createContext({ console });
+  vm.runInContext("delete globalThis.globalThis;", rctx);    // as in MSFS
+  for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/vatflow-ramp.js", "common/ramp-kdca.js", "Ramp/Ramp.js"]) {
+    vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), rctx, { filename: f });
+  }
+  const el = () => ({ textContent: "", innerHTML: "", className: "" });
+  const els = {};
+  const view = new rctx.RampView({ querySelector: (q) => (els[q] = els[q] || el()) }, rctx.VATFLOW_RAMP_LAYOUT);
+  view.setPilots({ pilots: [
+    pilot("SWA1", 38.95, -77.05, 6000, 220, 180, { departure: "KBNA", arrival: "KDCA", aircraft_short: "B737" }),
+    pilot("AAL2", 38.8505, -77.0410, 15, 0, 90, { departure: "KDCA", arrival: "KCLT", aircraft_short: "A321", deptime: "2359" }),
+  ] });
+  view.setHub({ ok: true, state: rctx.VatflowRamp.emptyState("KDCA"), realGates: {} });
+  view.render(Date.UTC(2026, 9, 15, 12, 0, 0));
+  assert.match(els["#rp-in"].innerHTML, /SWA1[\s\S]*KBNA[\s\S]*class="c5 prop">A\d/, "Southwest gets a proposed A gate");
+  assert.match(els["#rp-out"].innerHTML, /AAL2[\s\S]*KCLT/);
+  assert.equal(els["#rp-inCount"].textContent, 1);
+  assert.match(els["#rp-status"].textContent, /LIVE/);
+});
+
+t("TMU screens: arrivals by ETA with distance and altitude, ground departures with P-time", () => {
+  const tctx = vm.createContext({ console, Date, Math });
+  for (const f of ["common/airport.js", "common/vatsim-feed.js", "Tmu/Tmu.js"]) {
+    vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), tctx, { filename: f });
+  }
+  const root = () => { const m = {}; return { querySelector: (q) => (m[q] = m[q] || { textContent: "", innerHTML: "" }) }; };
+  const pilots = [
+    pilot("FAR1", 40.0, -77.0, 35000, 450, 180, { arrival: "KDCA", departure: "KBOS", aircraft_short: "A320" }),
+    pilot("NEAR1", 39.0, -77.0, 9000, 250, 180, { arrival: "KDCA", departure: "KJFK", aircraft_short: "E175" }),
+    pilot("GND1", 38.851, -77.040, 15, 0, 90, { departure: "KDCA", arrival: "KATL", aircraft_short: "B712", deptime: "1230", route: "WOOLY5 COLIN Q99" }),
+    pilot("GND2", 38.853, -77.041, 15, 12, 90, { departure: "KDCA", arrival: "KORD", aircraft_short: "A319", deptime: "1215" }),
+  ];
+  const arr = new tctx.TmuView(root(), tctx.VATFLOW_TWR, "ARR");
+  arr.setFeed({ pilots });
+  assert.deepEqual(plain(arr.rows(Date.now()).map((r) => r.cs)), ["NEAR1", "FAR1"]);
+  const dep = new tctx.TmuView(root(), tctx.VATFLOW_TWR, "DEP");
+  dep.setFeed({ pilots });
+  const d = plain(dep.rows(Date.now()));
+  assert.deepEqual(d.map((r) => r.cs), ["GND2", "GND1"], "by P-time");
+  assert.equal(d[0].status, "TAXI");
+  assert.equal(d[1].route, "WOOLY5 COLIN Q99");
 });
 
 console.log(`\n${passed} passed`);

@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Tmu/Tmu.css">
 <style>
   :root { --bg: #1b1f24; --fg: #d7dde4; --muted: #8b96a3; }
   body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
@@ -23,6 +25,7 @@
   .idst { width: 1024px; height: 768px; max-width: 100%; }
   .clock { width: 512px; height: 128px; }
   .vscs { width: 512px; height: 384px; }
+  .ramp, .tmu { width: 1024px; height: 768px; max-width: 100%; }
   .asdex canvas { display: block; width: 100%; height: 100%; }
   .dbrite canvas { display: block; width: 100%; height: 100%; }
 </style>
@@ -40,6 +43,9 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     <div class="screen clock"><vatflow-clock id="clock-host"></vatflow-clock></div>
     <div class="screen vscs" style="margin-top:16px"><vatflow-vscs id="vscs-host"></vatflow-vscs></div>
   </div>
+  <div class="screen ramp"><vatflow-ramplist id="ramp-host"></vatflow-ramplist></div>
+  <div class="screen tmu"><vatflow-tmuarr id="tmuarr-host"></vatflow-tmuarr></div>
+  <div class="screen tmu"><vatflow-tmudep id="tmudep-host"></vatflow-tmudep></div>
   <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="768" height="1024"></canvas></vatflow-asdex></div>
 </div>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
@@ -54,6 +60,10 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Idst/Idst.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-ramp.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-kdca.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Tmu/Tmu.js"></script>
 <script>
 (function () {
   var DEMO = /[?&]demo\b/.test(location.search);
@@ -155,6 +165,21 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     (function tick() {
       VatflowFeed.httpGet(cfg.feedUrl, function (e, t) { if (!e) vscs.setFeed(JSON.parse(t)); setTimeout(tick, 60000); });
     })();
+  });
+  inject("Ramp/Ramp.html", "VatflowRampList", "ramp-host", function (host) {
+    var ramp = new RampView(host.querySelector("#rp-root"), VATFLOW_RAMP_LAYOUT);
+    if (DEMO) ramp.setPilots(demoFeed()); else ramp.start(cfg.feedUrl);
+    setInterval(function () { ramp.render(); }, 1000);
+  });
+  ["Arr", "Dep"].forEach(function (m) {
+    inject("Tmu/Tmu" + m + ".html", "VatflowTmu" + m, "tmu" + m.toLowerCase() + "-host", function (host) {
+      var tmu = new TmuView(host.querySelector("#tm-root"), cfg, m.toUpperCase());
+      if (DEMO) tmu.setFeed(demoFeed());
+      else (function tick() {
+        VatflowFeed.httpGet(cfg.feedUrl, function (e, t) { if (e) tmu.setError(e); else tmu.setFeed(JSON.parse(t)); setTimeout(tick, 30000); });
+      })();
+      setInterval(function () { tmu.render(); }, 1000);
+    });
   });
   inject("Idst/Idst.html", "VatflowIdst", "idst-host", function (host) {
     var idst = new IdstView(host.querySelector("#id-root"), cfg);

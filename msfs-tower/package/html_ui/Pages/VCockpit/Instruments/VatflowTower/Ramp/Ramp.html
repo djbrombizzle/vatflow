@@ -1,0 +1,26 @@
+<link rel="stylesheet" href="Ramp.css" />
+<script type="text/html" id="VatflowRampList">
+  <div id="rp-root">
+    <div class="rp-top"><span class="rp-title">GATES</span><span id="rp-icao" class="rp-icao">KDCA</span>
+      <span id="rp-status" class="rp-status">connecting...</span><span id="rp-zulu" class="rp-zulu">----Z</span></div>
+    <div class="rp-cols">
+      <div class="rp-sec">
+        <div class="rp-h">INBOUND <span id="rp-inCount"></span></div>
+        <div class="rp-row rp-head"><span class="c1">CALLSIGN</span><span class="c2">TYPE</span><span class="c3">FROM</span><span class="c4">ETA</span><span class="c5">GATE</span><span class="c6"></span></div>
+        <div id="rp-in"></div>
+      </div>
+      <div class="rp-sec">
+        <div class="rp-h">OUTBOUND <span id="rp-outCount"></span></div>
+        <div class="rp-row rp-head"><span class="c1">CALLSIGN</span><span class="c2">TYPE</span><span class="c3">TO</span><span class="c5">GATE</span><span class="c7">STATUS</span><span class="c4">P-TIME</span></div>
+        <div id="rp-out"></div>
+      </div>
+    </div>
+    <div class="rp-foot"><span class="asg">ASSIGNED</span> ramp board &nbsp; <span class="real">REAL</span> today's real flight &nbsp; <span class="prop">PROP</span> airline's gates</div>
+  </div>
+</script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-ramp.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/ramp-kdca.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/common/dimmer.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.js"></script>

@@ -5,7 +5,7 @@ Puts the tower cab "aircraft" at a saved tower position and freezes it there,
 so it does not fall, drift or get pushed around by wind.
 
   python tower_place.py list               show saved towers
-  python tower_place.py place KDCA         teleport + freeze at the saved spot (engine off)
+  python tower_place.py place KDCA         teleport + freeze at the saved spot (engine off, lights on)
   python tower_place.py place KDCA --fan   ...then keep a quiet cab fan sound playing until you close the window
   python tower_place.py adjust KDCA        place, then nudge it with the keyboard and save
   python tower_place.py capture KDCA       save wherever the cab is right now (e.g. after slewing)
@@ -124,6 +124,7 @@ class Sim:
         time.sleep(0.5)
         self.freeze(True)
         self.engine_off()
+        self.lights_on()
 
     def engine_off(self):
         """The cab is a SimObject 'aircraft' with a piston engine: shut it down so the
@@ -132,6 +133,15 @@ class Sim:
             try:
                 self._Event(name, self.sm)(0)
             except Exception as e:  # not fatal: the cab is placed either way
+                print("  (could not send %s: %s)" % (name.decode(), e))
+
+    def lights_on(self):
+        """Ceiling lights: the cab's cabin lights (systems.cfg). Sends both CABIN_LIGHTS_SET 1
+        and CABIN_LIGHTS_ON (an unknown name fails silently in SimConnect; both mean on)."""
+        for name in (b"CABIN_LIGHTS_SET", b"CABIN_LIGHTS_ON"):
+            try:
+                self._Event(name, self.sm)(1)
+            except Exception as e:  # not fatal
                 print("  (could not send %s: %s)" % (name.decode(), e))
 
     def read(self, simvar, unit):
@@ -201,7 +211,7 @@ def cmd_place(towers, icao, fan=False):
     t = get_tower(towers, icao)
     sim = Sim()
     sim.place(t)
-    print("Placed and frozen, engine off: " + describe(icao.upper(), t))
+    print("Placed and frozen, engine off, ceiling lights on: " + describe(icao.upper(), t))
     sim.close()
     if fan:
         play_fan()

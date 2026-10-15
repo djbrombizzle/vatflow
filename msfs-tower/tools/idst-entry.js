@@ -4,7 +4,7 @@
  * (shared/fca-metering.js and friends), bundled into one plain script because
  * MSFS gauges load scripts, not ES modules. Rebuild after changing shared/:
  *
- *   node msfs-tower/tools/build_idst_bundle.mjs
+ *   node msfs-tower/tools/build_vatflow_bundles.mjs
  */
 import {
   loadAirports, seedAirports, getAirport, fpFields, computeTowerDepartures, markReady, clearReady,

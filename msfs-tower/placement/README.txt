@@ -15,8 +15,9 @@ First time
 
 Every session
   3-place-KDCA.bat   jumps to the saved spot, freezes, turns the engine off (no propeller
-                     sound) and plays a quiet cab fan sound. Minimize the window; closing
-                     it stops the fan. Fan volume: Windows volume mixer, "Python".
+                     sound), switches the ceiling lights on and plays a quiet cab fan
+                     sound. Minimize the window; closing it stops the fan.
+                     Fan volume: Windows volume mixer, "Python".
 
 Other
   capture-KDCA.bat   saves wherever the cab is now (after moving it with slew mode)

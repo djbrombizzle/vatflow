@@ -13,13 +13,9 @@ Writes, for each texture, NAME.png plus the NAME.png.xml MSFS compiles it with
 
 Surface detail (roughness / normal), same size and layout as the base colour:
   TWR_Carpet_comp.png / _norm.png    - fibre and tile seams; seams darker (occlusion)
-  TWR_Console_comp.png / _norm.png   - shiny finger smudges, dull scuffs, fine scratches
   comp = occlusion (R) / roughness (G) / metallic (B); norm = DirectX normal map
 
-Wear layers (base colour with alpha, laid over other surfaces):
-  TWR_FloorWear_albd.png    3.6 m  - traffic wear: matted dark paths, fuzzed light patches
-  TWR_GlassSmudge_albd.png  1 pane - grime along the bottom, finger smudges, cleaning
-                                     streaks and dust on the inside of each window
+  TWR_Wood_albd.png     1.0 m  - light oak (TMU desk edging and panels)
 
 Decals, stretched once over the top of a desk item:
   TWR_Keypad_albd.png    - keypad with orange / green / teal / yellow keys
@@ -43,12 +39,9 @@ TEXTURES = {
     "TWR_Keypad_albd.png": None,
     "TWR_Keyboard_albd.png": None,
     "TWR_Speaker_albd.png": None,
+    "TWR_Wood_albd.png": 1.0,
     "TWR_Carpet_comp.png": 2.4,
     "TWR_Carpet_norm.png": 2.4,
-    "TWR_Console_comp.png": 1.0,
-    "TWR_Console_norm.png": 1.0,
-    "TWR_FloorWear_albd.png": 3.6,
-    "TWR_GlassSmudge_albd.png": None,
 }
 
 # Base colour: same as the SDK SimpleAircraft sample's SimpleAircraft_COCKPIT_albd.png.xml.
@@ -113,25 +106,6 @@ def normal_map(height, strength):
 def comp(ao, rough, metal=0.0):
     """Occlusion / roughness / metallic (0..1 each) -> comp texture (R, G, B)."""
     return np.dstack([ao, rough, np.full_like(ao, metal)]) * 255
-
-
-def blobs(size, count, rmin, rmax, aspect=1.0, wrap=True, rng=None):
-    """Soft elliptical spots (0..1), wrapping round the edges so the texture still tiles."""
-    rng = rng or RNG
-    y, x = np.mgrid[0:size, 0:size].astype(np.float32)
-    out = np.zeros((size, size), np.float32)
-    for _ in range(count):
-        cx, cy = rng.random() * size, rng.random() * size
-        r = rmin + rng.random() * (rmax - rmin)
-        a = rng.random() * np.pi
-        ddx, ddy = x - cx, y - cy
-        if wrap:
-            ddx = (ddx + size / 2) % size - size / 2
-            ddy = (ddy + size / 2) % size - size / 2
-        u = (ddx * np.cos(a) + ddy * np.sin(a)) / r
-        v = (-ddx * np.sin(a) + ddy * np.cos(a)) / (r * aspect)
-        out = np.maximum(out, np.clip(1 - (u * u + v * v), 0, 1) ** 1.5 * (0.5 + 0.5 * rng.random()))
-    return out
 
 
 def carpet(size=1024):
@@ -234,60 +208,15 @@ def carpet_detail(size=1024):
     return comp(ao, rough), normal_map(height, 6.0)
 
 
-def console_detail(size=512):
-    """comp + normal for the console laminate: shiny finger smudges, dull scuffs, scratches."""
-    rough = np.full((size, size), 0.62, np.float32) + (tile_noise(size, 5) - 0.5) * 0.08
-    smudge = blobs(size, 26, 10, 28, aspect=0.6)              # greasy finger / palm marks: shinier
-    scuff = blobs(size, 10, 20, 60, aspect=0.15)              # long dull scuffs from sleeves / papers
-    rough = rough - 0.30 * smudge + 0.18 * scuff
-    height = np.zeros((size, size), np.float32)
-    for _ in range(28):                                       # fine scratches: short straight lines
-        x0, y0 = RNG.random() * size, RNG.random() * size
-        a, ln = RNG.random() * np.pi, 15 + RNG.random() * 60
-        for k in np.linspace(0, 1, int(ln)):
-            xi, yi = int(x0 + np.cos(a) * ln * k) % size, int(y0 + np.sin(a) * ln * k) % size
-            height[yi, xi] -= 0.35
-    height = blur(height, 1)
-    rough = np.clip(rough - 0.12 * (height < -0.05), 0.15, 1)
-    return comp(np.ones((size, size), np.float32), rough), normal_map(height, 3.0)
-
-
-def floor_wear(size=1024):
-    """Traffic wear over the carpet (alpha layer): matted dark paths and fuzzed light patches."""
-    dark = np.clip((tile_noise(size, 3) - 0.45) * 2.2, 0, 1) * 0.30
-    light = np.clip((tile_noise(size, 6) - 0.62) * 3.0, 0, 1) * 0.16
-    rgba = np.zeros((size, size, 4), np.float32)
-    col_dark, col_light = hexrgb("1A202A"), hexrgb("7C8594")
-    mix = light / np.maximum(dark + light, 1e-6)
-    for i in range(3):
-        rgba[..., i] = col_dark[i] * (1 - mix) + col_light[i] * mix
-    rgba[..., 3] = np.clip(dark + light, 0, 0.4) * 255
-    return rgba
-
-
-def glass_smudge(size=1024):
-    """
-    Inside-of-window dirt for one pane (stretched over it, v up). Tiles left / right so
-    neighbouring panes can use shifted copies. Mostly clear: grime along the bottom,
-    finger smudges at sill height, faint cleaning streaks, dust.
-    """
+def wood(size=512):
+    """Light oak: long straight grain with a little waviness, tileable."""
     y, x = np.mgrid[0:size, 0:size].astype(np.float32)
-    up = 1.0 - y / size                                       # 0 at the bottom of the pane
-    grime = np.clip(1 - up / 0.12, 0, 1) ** 1.6 * (0.55 + 0.45 * tile_noise(size, 12)) * 0.20
-    fingers = blobs(size, 22, 8, 22, aspect=1.3) * np.clip(1 - np.abs(up - 0.12) / 0.10, 0, 1) * 0.10
-    streak = np.zeros((size, size), np.float32)
-    for _ in range(7):                                        # arcs left by a squeegee / cloth
-        cx, cy, r = RNG.random() * size, size * (0.3 + RNG.random()), size * (0.25 + RNG.random() * 0.3)
-        ddx = (x - cx + size / 2) % size - size / 2
-        d = np.abs(np.sqrt(ddx ** 2 + (y - cy) ** 2) - r)
-        streak = np.maximum(streak, np.clip(1 - d / 6, 0, 1) * (0.4 + 0.6 * RNG.random()))
-    streak *= 0.035
-    dust = blur((RNG.random((size, size)) > 0.9993).astype(np.float32), 1) * 0.5
-    alpha = np.clip(grime + fingers + streak + dust, 0, 0.35)
-    rgba = np.zeros((size, size, 4), np.float32)
-    rgba[..., 0], rgba[..., 1], rgba[..., 2] = 196, 192, 182          # light grey-brown film
-    rgba[..., 3] = alpha * 255
-    return rgba
+    wave = (tile_noise(size, 3) - 0.5) * 12
+    grain = np.sin((y + wave) * 2 * np.pi / size * 40) * 0.5 + 0.5
+    fine = blur(RNG.random((size, size)).astype(np.float32), 1)
+    v = 0.5 * grain ** 4 + 0.5 * fine
+    base, dark = hexrgb("B48E68"), hexrgb("9C7A56")
+    return base[None, None, :] * (1 - v[..., None] * 0.35) + dark[None, None, :] * (v[..., None] * 0.35)
 
 
 def main(out_dir):
@@ -298,14 +227,10 @@ def main(out_dir):
     save(keypad(), out_dir, "TWR_Keypad_albd.png")
     save(keyboard(), out_dir, "TWR_Keyboard_albd.png")
     save(speaker(), out_dir, "TWR_Speaker_albd.png")
+    save(wood(), out_dir, "TWR_Wood_albd.png")
     c, nrm = carpet_detail()
     save(c, out_dir, "TWR_Carpet_comp.png")
     save(nrm, out_dir, "TWR_Carpet_norm.png")
-    c, nrm = console_detail()
-    save(c, out_dir, "TWR_Console_comp.png")
-    save(nrm, out_dir, "TWR_Console_norm.png")
-    save(floor_wear(), out_dir, "TWR_FloorWear_albd.png")
-    save(glass_smudge(), out_dir, "TWR_GlassSmudge_albd.png")
     print("Wrote", ", ".join(sorted(TEXTURES)), "to", out_dir)
 
 

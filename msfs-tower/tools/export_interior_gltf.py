@@ -72,8 +72,11 @@ PBR = {
     "TWR_KeyGrey": ("5A5E63", 0.0, 0.5, 1),
     "TWR_KeyGreen": ("1E7A35", 0.0, 0.5, 1),
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
-    "TWR_FloorWear": ("FFFFFF", 0.0, 1.0, 0.999),     # alpha comes from the texture
-    "TWR_GlassSmudge": ("FFFFFF", 0.0, 0.6, 0.999),
+    "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
+    "TWR_Wood": ("A07A52", 0.0, 0.55, 1),
+    "TWR_DeskTop": ("4C5966", 0.0, 0.6, 1),
+    "TWR_Strip": ("EBE6D6", 0.0, 0.8, 1),
+    "TWR_StripBay": ("C9A24A", 0.4, 0.45, 1),
     "TWR_Console": ("2A2C30", 0.0, 0.6, 1),
     "TWR_Bezel": ("0D0D0D", 0.1, 0.4, 1),
     "TWR_Mount": ("1C1C1F", 0.5, 0.45, 1),
@@ -94,13 +97,11 @@ PBR = {
 TEXTURED = {
     "TWR_Carpet": {"albd": "TWR_Carpet_albd.png", "comp": "TWR_Carpet_comp.png", "norm": "TWR_Carpet_norm.png", "m": 2.4},
     "TWR_Ceiling": {"albd": "TWR_Ceiling_albd.png", "m": 1.2},
-    "TWR_Console": {"albd": "TWR_Console_albd.png", "comp": "TWR_Console_comp.png", "norm": "TWR_Console_norm.png", "m": 1.0},
+    "TWR_Console": {"albd": "TWR_Console_albd.png", "m": 1.0},
     "TWR_Keypad": {"albd": "TWR_Keypad_albd.png", "m": None},
     "TWR_Keyboard": {"albd": "TWR_Keyboard_albd.png", "m": None},
     "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
-    # wear decals (alpha blended layers just above the floor / inside the glass)
-    "TWR_FloorWear": {"albd": "TWR_FloorWear_albd.png", "m": 3.6},
-    "TWR_GlassSmudge": {"albd": "TWR_GlassSmudge_albd.png", "m": None},
+    "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
 }
 IDST_KEYS = {"1": "IDST - select the aircraft above", "2": "IDST - select the aircraft below",
              "3": "IDST - issue the release for the selected aircraft", "4": "IDST - cancel the selected release"}
@@ -118,9 +119,18 @@ def box_uv(p, n, meters):
     return [u / meters, v / meters]
 
 
+# Self-lit (emissive) materials besides the screens, in the same units as the screens'
+# 2000: the ceiling light diffusers glow softly ("lightly dimmed").
+EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0]}
+
+
 def material_json(name):
     if name.startswith("$SCREEN_"):
         return {"emissiveFactor": [2000.0, 2000.0, 2000.0], "name": name}
+    if name in EMISSIVE:
+        hx, met, rough, alpha = PBR[name]
+        return {"alphaMode": "OPAQUE", "doubleSided": True, "emissiveFactor": EMISSIVE[name], "name": name,
+                "pbrMetallicRoughness": {"baseColorFactor": hexlin(hx) + [1], "metallicFactor": met, "roughnessFactor": rough}}
     hx, met, rough, alpha = PBR[name]
     return {
         "alphaMode": "BLEND" if alpha < 1 else "OPAQUE",
