@@ -408,10 +408,11 @@ def write_behaviors(path, node_names):
             label, part = m.group(1).upper(), m.group(2) or ""
             track, height, twist = ("VATFLOW_%s_%s" % (label, v) for v in ("TRACK_DEG", "HEIGHT", "TWIST"))
             body = ""
-            if part == "":                              # trolley: travels round the track (drag it too)
+            if part == "":                              # trolley: travels round the track
+                # no drag here: the sim hands a click on a part with no behaviour of its own to
+                # the nearest parent that has one, so a drag on the trolley would take clicks
+                # on the display (MAPS, MENU) and move the monitor. The yoke frame drags it.
                 body = anim_template(node + "_TRACK", "(L:%s) dnor" % track, TRACK_FRAMES, True)
-                body += drag_template("X", track, TRACK_DRAG_SPEED, True,
-                                      "%s - drag left/right to move it along the track" % label)
             elif part == "_Lift":                       # telescoping post
                 body = anim_template(node + "_LIFT", "(L:%s)" % height, LIFT_FRAMES, False)
             else:                                       # swivelling parts, each grabbed for one thing

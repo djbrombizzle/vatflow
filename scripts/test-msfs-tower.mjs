@@ -278,6 +278,17 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
     assert.ok(xml.includes(`Node="TowerCab_${cap}Mount_Screen"`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TRACK_DEG</POSITION_VAR>`), m + " track drag on the screen");
     const disp = new RegExp(`Node="TowerCab_${cap}Mount_Display">([\\s\\S]*?)</Component>`).exec(xml);
     assert.ok(disp && !/Dragging/.test(disp[1]), m + " display: no drag, so clicks reach the page (MAPS, MENU)");
+    // the sim hands a click on a node with no behaviour to its nearest parent that has one, so the
+    // display's parents (trolley, post) must not drag either, or MAPS clicks would move the monitor
+    for (const up of ["", "_Lift"]) {
+      const c = new RegExp(`Node="TowerCab_${cap}Mount${up}">([\\s\\S]*?)</Component>`).exec(xml);
+      assert.ok(c && !/Dragging/.test(c[1]), m + " display parent" + (up || " (trolley)") + ": no drag, so MAPS clicks don't move the monitor");
+    }
+    // swivel only from the side knobs: no other node drags the TWIST var
+    const twistDrags = xml.match(new RegExp(`<POSITION_VAR>VATFLOW_${m}_TWIST</POSITION_VAR>`, "g")) || [];
+    assert.strictEqual(twistDrags.length, 1, m + " swivel: dragged only by the side knobs");
+    const knob = new RegExp(`Node="TowerCab_${cap}Mount_Swivel">([\\s\\S]*?)</Component>`).exec(xml);
+    assert.ok(knob && knob[1].includes(`<POSITION_VAR>VATFLOW_${m}_TWIST</POSITION_VAR>`), m + " swivel drag is on the side knobs");
     assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_HEIGHT)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_HEIGHT</POSITION_VAR>`), m + " height");
     assert.ok(xml.includes(`<ANIM_CODE>(L:VATFLOW_${m}_TWIST)</ANIM_CODE>`) && xml.includes(`<POSITION_VAR>VATFLOW_${m}_TWIST</POSITION_VAR>`), m + " swivel");
   }
