@@ -51,15 +51,19 @@ Inside the cab there are two working screens fed by live data:
   the same spots in `common/config/systems.cfg` (`LIGHT_ASOBO_CabinBounceLarge`), switched on
   by the placement tool.
 * **TMU desk** in the back-left corner, after the DCA TMU position: three monitors on
-  the console (vZDC IDS, arrivals by ETA, ground departures with P-time) with keyboards,
+  the console (VATSMART, APT Dashboard demand vs AAR, APT Dashboard aircraft list) with keyboards,
   and an oak-edged desk running from the console corner diagonally into the room,
   separating the corner, with the red LED clock and flight strip bays on it.
-* **vZDC IDS** (TMU desk, third screen): the IDS needs a VATSIM SSO login and a modern
-  browser, so `placement/web_mirror.py` (`4-ids-screen.bat`) opens it in Edge on the PC
-  (log in once; the login is kept) and serves a picture of it to the screen
-  (`Mirror/`, from `http://127.0.0.1:8777`); clicks and scrolling on the screen go back
-  to the page. The page is laid out 1600 px wide (the IDS refuses smaller windows) and
-  scaled to the screen.
+* **VATSMART** (TMU desk, left screen, `Vatsmart/`): vatflow.io's VATSMART for KDCA
+  run in the cab (bundled from the site's own modules into `common/vatflow-smart.js`):
+  capacity, demand, queue and TMI tiles, arrivals by landing time per gate, the
+  recommendations and the gate MIT plan. Live VATSIM feed, VATFLOW programs (hub),
+  NWS forecast and the METAR.
+* **APT Dashboard** (TMU desk, middle and right screens, `AptDash/`): the demand vs AAR
+  chart (15-minute bins against the program AAR) and the aircraft list (metered order,
+  gate, status, ETA / STA, delay and recommended wheels-up) from vatflow.io's APT
+  Dashboard for DCA, computed in the cab by `common/apt-flow.js` from the VATSIM feed and
+  the VATFLOW program rates (`common/vatflow-hub.js`, read-only).
 * **Ramp maps**: three screens with the map part of vatflow.io's ramp management page,
   one view each, on the console facing that part of the terminal: E / D (left of the
   ramp list), C / B and A / Hangars (right of the IDST, front window), each turned so its
@@ -107,8 +111,8 @@ Tests for the screen logic: `node scripts/test-msfs-tower.mjs` (from the repo ro
 Not CRC itself. MSFS can only draw its own instruments onto 3D screens: small
 HTML/JavaScript pages run by the sim's built-in Coherent GT engine (that is how
 every glass cockpit works). It cannot show another Windows program such as CRC,
-and it is not a general web browser, so CRC or vatflow.io can't be mirrored
-onto a cab screen.
+and it is not a general web browser, so CRC can't be mirrored onto a cab screen
+(the vatflow.io pages in the cab are rebuilt as instruments from the site's own code).
 
 What this project does instead:
 

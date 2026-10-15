@@ -86,11 +86,11 @@ COLORS = {
     "TWR_DeskTop": (0.30, 0.35, 0.40, 1.0),       # blue-grey desk top (TMU desk)
     "TWR_Strip": (0.92, 0.90, 0.84, 1.0),         # flight progress strips
     "TWR_StripBay": (0.80, 0.66, 0.30, 1.0),      # strip bay rails
-    "$SCREEN_TMUARR": (0.0, 0.0, 0.0, 1.0),
-    "$SCREEN_TMUDEP": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_APTDEMAND": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_APTLIST": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_CLOCK2": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMP": (0.0, 0.0, 0.0, 1.0),
-    "$SCREEN_TMUIDS": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_VATSMART": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMPMAP_ED": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMPMAP_CB": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMPMAP_AS": (0.0, 0.0, 0.0, 1.0),
@@ -332,16 +332,16 @@ CEILING_LIGHTS = [(0.0, 0.0), (1.9, 0.0), (-1.9, 0.0), (0.0, 1.9), (0.0, -1.9)]
 def tmu_desk(inside, coll, a_inner, top):
     """
     TMU position in the back-left corner (window face 3), after the DCA TMU desk.
-    On the console, three monitors with keyboards: vZDC IDS (mirrored from the PC),
-    arrivals and departures lists. A desk with light oak edging and a blue-grey top runs
+    On the console, three monitors with keyboards: VATSMART for KDCA,
+    the APT Dashboard's demand vs AAR chart and its aircraft list. A desk with light oak edging and a blue-grey top runs
     from the console corner (between faces 2 and 3) diagonally into the room toward the
     middle, separating the corner; on it the red LED clock cabinet (console end) and
     flight strip bays.
     """
     at, facing, rot, out, right = face_frame(3, a_inner)
-    desk_monitor(inside, at, facing, rot, -1.00, 0.40, top, 0.44, 0.33, "$SCREEN_TMUIDS")
-    desk_monitor(inside, at, facing, rot, -0.10, 0.40, top, 0.44, 0.33, "$SCREEN_TMUARR")
-    desk_monitor(inside, at, facing, rot, 0.80, 0.40, top, 0.44, 0.33, "$SCREEN_TMUDEP")
+    desk_monitor(inside, at, facing, rot, -1.00, 0.40, top, 0.44, 0.33, "$SCREEN_VATSMART")
+    desk_monitor(inside, at, facing, rot, -0.10, 0.40, top, 0.44, 0.33, "$SCREEN_APTDEMAND")
+    desk_monitor(inside, at, facing, rot, 0.80, 0.40, top, 0.44, 0.33, "$SCREEN_APTLIST")
 
     # the desk: along the line from the console corner toward the cab centre
     ca = corner_angle(3)                                        # corner between faces 2 and 3

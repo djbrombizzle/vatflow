@@ -257,7 +257,7 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   const panel = readFileSync(new URL("panel/panel.cfg", MODEL), "utf8");
   const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
   assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS",
-    "$SCREEN_TMUARR", "$SCREEN_TMUDEP", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_TMUIDS",
+    "$SCREEN_APTDEMAND", "$SCREEN_APTLIST", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_VATSMART",
     "$SCREEN_RAMPMAP_ED", "$SCREEN_RAMPMAP_CB", "$SCREEN_RAMPMAP_AS"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
     assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("common/dimmer.js"), m[1] + " loads the dimmer");
@@ -346,48 +346,51 @@ t("ramp list: bundled gates.html logic proposes gates for inbounds and lists gro
     Object.values(drawn).flat().some((t) => t === "AAL2"), "the parked departure is on a map");
 });
 
-t("TMU screens: arrivals by ETA with distance and altitude, ground departures with P-time", () => {
-  const tctx = vm.createContext({ console, Date, Math });
-  for (const f of ["common/airport.js", "common/vatsim-feed.js", "Tmu/Tmu.js"]) {
-    vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), tctx, { filename: f });
-  }
-  const root = () => { const m = {}; return { querySelector: (q) => (m[q] = m[q] || { textContent: "", innerHTML: "" }) }; };
+t("APT Dashboard flow: metered arrivals with ETA / STA, demand bins against the program AAR", () => {
+  const actx = vm.createContext({ console, Date, Math, JSON });
+  vm.runInContext("delete globalThis.globalThis;", actx);    // as in MSFS
+  for (const f of ["common/vatsim-feed.js", "common/apt-flow.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), actx, { filename: f });
+  const F = vm.runInContext("VatflowAptFlow", actx);
+  const now = Date.UTC(2026, 9, 15, 12, 0, 0);
+  const apts = { KDCA: [38.8521, -77.0377], KBOS: [42.3656, -71.0096], KATL: [33.6367, -84.4281] };
   const pilots = [
-    pilot("FAR1", 40.0, -77.0, 35000, 450, 180, { arrival: "KDCA", departure: "KBOS", aircraft_short: "A320" }),
-    pilot("NEAR1", 39.0, -77.0, 9000, 250, 180, { arrival: "KDCA", departure: "KJFK", aircraft_short: "E175" }),
-    pilot("GND1", 38.851, -77.040, 15, 0, 90, { departure: "KDCA", arrival: "KATL", aircraft_short: "B712", deptime: "1230", route: "WOOLY5 COLIN Q99" }),
-    pilot("GND2", 38.853, -77.041, 15, 12, 90, { departure: "KDCA", arrival: "KORD", aircraft_short: "A319", deptime: "1215" }),
+    pilot("AAL1", 39.40, -77.00, 11000, 300, 180, { arrival: "KDCA", departure: "KBOS", aircraft_short: "A321", flight_rules: "I" }),
+    pilot("DAL2", 33.64, -84.43, 1000, 0, 0, { arrival: "KDCA", departure: "KATL", aircraft_short: "B739", flight_rules: "I" }),
+    pilot("UAL3", 41.0, -87.0, 35000, 450, 90, { arrival: "KORD", departure: "KDCA", aircraft_short: "A320" }),
   ];
-  const arr = new tctx.TmuView(root(), tctx.VATFLOW_TWR, "ARR");
-  arr.setFeed({ pilots });
-  assert.deepEqual(plain(arr.rows(Date.now()).map((r) => r.cs)), ["NEAR1", "FAR1"]);
-  const dep = new tctx.TmuView(root(), tctx.VATFLOW_TWR, "DEP");
-  dep.setFeed({ pilots });
-  const d = plain(dep.rows(Date.now()));
-  assert.deepEqual(d.map((r) => r.cs), ["GND2", "GND1"], "by P-time");
-  assert.equal(d[0].status, "TAXI");
-  assert.equal(d[1].route, "WOOLY5 COLIN Q99");
+  const flow = F.computeFlow({ feed: { pilots, prefiles: [] }, target: "KDCA", now, lookup: (c) => apts[c] || null,
+    program: { aar: 32, jetsOnly: true, excludeWake: ["L"] }, edcts: {} });
+  const cs = plain(flow.flights.map((f) => f.callsign || f.cs));
+  assert.ok(cs.includes("AAL1") && cs.includes("DAL2") && !cs.includes("UAL3"), "KDCA arrivals only: " + cs);
+  assert.equal(flow.hasProgram, true);
+  const aal = flow.flights.find((f) => (f.callsign || f.cs) === "AAL1");
+  assert.ok(aal.eta > now && aal.eta < now + 30 * 60000, "AAL1 ~40 nm out lands within 30 min");
+  assert.ok(aal.sta >= aal.eta - 1000, "STA never before ETA (STA is whole seconds)");
+  const bins = F.buildDemandBins(flow, 32);
+  assert.equal(bins.binCap, 8, "AAR 32/hr = 8 per 15 min");
+  assert.equal(bins.counts.length, F.DEMAND_BIN_COUNT);
+  assert.ok(bins.counts.reduce((a, b) => a + b, 0) >= 1, "AAL1 counted in a bin");
+  assert.equal(F.fmtZ(now), "1200");
 });
 
-t("mirror screen: polls the PC mirror for pictures, maps clicks to screen pixels, explains when it is off", () => {
-  const mctx = vm.createContext({ console, Date, Math, JSON });
-  const sent = [];
-  mctx.XMLHttpRequest = function () {
-    this.open = (m, u) => { this.u = u; }; this.setRequestHeader = () => {}; this.send = (b) => sent.push([this.u, JSON.parse(b)]);
-  };
-  for (const f of ["common/airport.js", "Mirror/Mirror.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), mctx, { filename: f });
-  const handlers = {};
-  const img = { addEventListener: (n, fn) => { handlers[n] = fn; }, getBoundingClientRect: () => ({ left: 0, top: 0, width: 512, height: 384 }) };
-  const msg = { textContent: "" };
-  const view = new mctx.MirrorView({ querySelector: (q) => (q === "#mi-img" ? img : msg) }, mctx.VATFLOW_TWR.mirror);
-  view.tick(1000);
-  assert.match(img.src, /^http:\/\/127\.0\.0\.1:8777\/frame\.jpg\?t=1000$/);
-  view.tick(7000);
-  assert.match(msg.textContent, /4-ids-screen\.bat/, "how to start the mirror");
-  img.onload();
-  assert.equal(msg.textContent, "");
-  handlers.mouseup({ clientX: 256, clientY: 192 });          // middle of a half-size screen
-  assert.deepEqual(plain(sent[0]), ["http://127.0.0.1:8777/click", { x: 512, y: 384 }]);
+t("VATSMART bundle: loads without globalThis and analyses the KDCA situation", () => {
+  const sctx = vm.createContext({ console, Date, Math, JSON, setTimeout, clearTimeout });
+  vm.runInContext("delete globalThis.globalThis; delete Promise.prototype.finally;", sctx);
+  for (const f of ["common/compat.js", "common/airport.js", "common/vatflow-smart.js", "Vatsmart/Vatsmart.js"]) {
+    vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), sctx, { filename: f });
+  }
+  assert.equal(vm.runInContext("typeof Promise.prototype.finally", sctx), "function", "compat polyfill");
+  const S = vm.runInContext("VatflowSmart", sctx);
+  for (const k of ["buildSituation", "normPrograms", "gridWindow", "loadNavData", "gateEtaFor"]) assert.equal(typeof S[k], "function", k);
+  const el = () => ({ innerHTML: "", textContent: "" });
+  const els = {};
+  const root = { querySelector: (q) => (els[q] = els[q] || el()) };
+  const stub = new Proxy({}, { get: (o, k) => (k in o ? o[k] : () => ({ width: 10 })), set: (o, k, v) => { o[k] = v; return true; } });
+  const view = new (vm.runInContext("VatsmartView", sctx))(root, { width: 996, height: 236, getContext: () => stub }, vm.runInContext("VATFLOW_TWR", sctx));
+  view.st.hub = { rates: { KDCA: { aar: 32 } } };
+  view.st.pilots = [pilot("AAL1", 39.40, -77.00, 11000, 300, 180, { arrival: "KDCA", departure: "KBOS", aircraft_short: "A321", flight_rules: "I" })];
+  const sit = view.analyse(Date.UTC(2026, 9, 15, 12, 0, 0));
+  assert.ok(sit && Array.isArray(sit.recs), "situation with recommendations");
 });
 
 t("window orientation: maps turn so the view out of the screen's window is up", () => {

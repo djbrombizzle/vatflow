@@ -1,0 +1,45 @@
+/* 1024x768: VATSMART overview, vatsmart.html colours. */
+vatflow-vatsmart, #vs-root { display: block; width: 100%; height: 100%; }
+#vs-root { box-sizing: border-box; position: relative; padding: 0 14px; background: #080b10; color: #d4dde6;
+  font-family: monospace; overflow: hidden; }
+.vs-top { display: flex; align-items: center; height: 44px; border-bottom: 1px solid #1e2834; }
+.vs-brand { font-weight: bold; font-size: 20px; letter-spacing: 3px; margin-right: 12px; }
+.vs-brand span { color: #e8a838; }
+.vs-icao { font-weight: bold; font-size: 20px; margin-right: auto; }
+.vs-pills { margin-right: 14px; }
+.pill { font-size: 11px; padding: 2px 7px; margin-left: 5px; border: 1px solid #1e2834; border-radius: 9px; color: #5c6b78; }
+.pill.ok { color: #57d98a; border-color: #1f3a2a; } .pill.wait { color: #e8a838; } .pill.bad { color: #e07070; border-color: #3a1f1f; }
+.vs-zulu { font-weight: bold; font-size: 20px; }
+.vs-kpis { display: flex; flex-wrap: wrap; margin: 6px 0 0 -6px; }
+.vs-kpi { box-sizing: border-box; width: 243px; height: 72px; margin: 0 0 6px 6px; padding: 5px 9px; background: #0e1319;
+  border: 1px solid #1e2834; border-radius: 6px; overflow: hidden; }
+.vs-kpi .k { font-size: 10px; letter-spacing: 1px; color: #5c6b78; text-transform: uppercase; }
+.vs-kpi .v { font-size: 24px; font-weight: bold; line-height: 30px; }
+.vs-kpi .v small { font-size: 13px; color: #8a97a3; font-weight: normal; }
+.vs-kpi .s { font-size: 11px; color: #8a97a3; white-space: nowrap; overflow: hidden; }
+.vs-kpi.red .v { color: #e07070; } .vs-kpi.amber .v { color: #e8a838; } .vs-kpi.green .v { color: #57d98a; }
+.vs-chart { display: block; width: 996px; height: 236px; margin-top: 2px; border: 1px solid #1e2834; border-radius: 6px; }
+.vs-row { display: flex; margin-top: 6px; }
+.vs-panel { box-sizing: border-box; height: 312px; background: #0e1319; border: 1px solid #1e2834; border-radius: 6px; overflow: hidden; }
+.vs-left { width: 470px; margin-right: 8px; padding: 0 10px; }
+.vs-right { width: 518px; padding: 0 8px; }
+.vs-ph { font-size: 11px; letter-spacing: 2px; color: #8a97a3; padding: 7px 0 5px; border-bottom: 1px solid #1e2834; margin-bottom: 4px; }
+.vs-rec { padding: 5px 0; border-bottom: 1px solid #16202b; }
+.vs-rec .sev { font-size: 10px; padding: 1px 5px; border: 1px solid; border-radius: 3px; margin-right: 8px; }
+.sev.action { color: #e07070; } .sev.watch { color: #e8a838; } .sev.info { color: #3fb7b0; }
+.vs-rec .t { font-size: 14px; font-weight: bold; }
+.vs-rec .w { font-size: 12px; color: #8a97a3; margin-top: 3px; line-height: 16px; max-height: 48px; overflow: hidden; }
+.vs-more { font-size: 11px; color: #5c6b78; padding-top: 4px; }
+.vs-gr { display: flex; height: 27px; line-height: 27px; font-size: 13px; white-space: nowrap; border-bottom: 1px solid #16202b; }
+.vs-gh { font-size: 10px; color: #5c6b78; letter-spacing: 1px; }
+.vs-gt i { color: #5c6b78; font-size: 9px; }
+.vs-gr .g { width: 80px; overflow: hidden; } .vs-gr .g b { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 2px; }
+.vs-gr .n { width: 30px; text-align: right; padding-right: 2px; box-sizing: border-box; }
+.vs-gr .p { margin-left: 8px; }
+.vs-gr .p i { display: inline-block; width: 18px; height: 18px; line-height: 18px; margin-right: 2px; text-align: center; font-style: normal;
+  font-size: 11px; color: #5c6b78; background: #131b24; border-radius: 2px; }
+.vs-gr .p i.m { color: #0b0f14; background: #e8a838; font-weight: bold; }
+.vs-gr .p i.m2 { color: #fff; background: #c0504d; font-weight: bold; }
+.vs-gr .p i.pk { outline: 1px solid #e8a838; }
+.vs-gt .p i { background: none; }
+.vs-err { position: absolute; left: 14px; bottom: 4px; color: #e07070; font-size: 12px; }

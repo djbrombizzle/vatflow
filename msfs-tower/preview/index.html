@@ -11,7 +11,8 @@
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Clock/Clock.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.css">
 <link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.css">
-<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Tmu/Tmu.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/AptDash/AptDash.css">
+<link rel="stylesheet" href="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vatsmart/Vatsmart.css">
 <style>
   :root { --bg: #1b1f24; --fg: #d7dde4; --muted: #8b96a3; }
   body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
@@ -47,8 +48,9 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
   <div class="screen ramp"><canvas id="rampmap-ED" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
   <div class="screen ramp"><canvas id="rampmap-CB" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
   <div class="screen ramp"><canvas id="rampmap-AS" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
-  <div class="screen tmu"><vatflow-tmuarr id="tmuarr-host"></vatflow-tmuarr></div>
-  <div class="screen tmu"><vatflow-tmudep id="tmudep-host"></vatflow-tmudep></div>
+  <div class="screen tmu"><vatflow-vatsmart id="vatsmart-host"></vatflow-vatsmart></div>
+  <div class="screen tmu"><canvas id="aptdemand-canvas" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
+  <div class="screen tmu"><vatflow-aptlist id="aptlist-host"></vatflow-aptlist></div>
   <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="1024" height="768"></canvas></vatflow-asdex></div>
 </div>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
@@ -68,7 +70,11 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-data.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/RampMap/RampMap.js"></script>
-<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Tmu/Tmu.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-hub.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/apt-flow.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/AptDash/AptDash.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-smart.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vatsmart/Vatsmart.js"></script>
 <script>
 (function () {
   var DEMO = /[?&]demo\b/.test(location.search);
@@ -185,15 +191,20 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     map.upHdg = VatflowDraw.windowHeading(id === "ED" ? 90 : 0);   // E / D: left window; C / B, A: front
     setInterval(function () { map.draw(); }, 2000);
   });
-  ["Arr", "Dep"].forEach(function (m) {
-    inject("Tmu/Tmu" + m + ".html", "VatflowTmu" + m, "tmu" + m.toLowerCase() + "-host", function (host) {
-      var tmu = new TmuView(host.querySelector("#tm-root"), cfg, m.toUpperCase());
-      if (DEMO) tmu.setFeed(demoFeed());
-      else (function tick() {
-        VatflowFeed.httpGet(cfg.feedUrl, function (e, t) { if (e) tmu.setError(e); else tmu.setFeed(JSON.parse(t)); setTimeout(tick, 30000); });
-      })();
-      setInterval(function () { tmu.render(); }, 1000);
-    });
+  // TMU desk: VATSMART, APT Dashboard demand vs AAR and aircraft list (live data only)
+  inject("Vatsmart/Vatsmart.html", "VatflowVatsmart", "vatsmart-host", function (host) {
+    var vs = new VatsmartView(host.querySelector("#vs-root"), host.querySelector("#vs-chart"), cfg);
+    vs.start();
+    setInterval(function () { vs.draw(); }, 1000);
+    window.vatsmart = vs;
+  });
+  var aptData = new VatflowAptData(cfg);
+  aptData.start();
+  var aptDemand = new AptDemandView(document.getElementById("aptdemand-canvas"), cfg, aptData);
+  setInterval(function () { aptDemand.draw(); }, 2000);
+  inject("AptDash/AptList.html", "VatflowAptList", "aptlist-host", function (host) {
+    var list = new AptListView(host.querySelector("#al-root"), cfg, aptData);
+    setInterval(function () { list.render(); }, 2000);
   });
   inject("Idst/Idst.html", "VatflowIdst", "idst-host", function (host) {
     var idst = new IdstView(host.querySelector("#id-root"), cfg);

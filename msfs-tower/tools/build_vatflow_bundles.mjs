@@ -4,6 +4,7 @@
 //
 //   common/vatflow-metering.js  VatflowMetering  IDST release engine (shared/fca-metering.js ...)
 //   common/vatflow-ramp.js      VatflowRamp      ramp list logic (shared/ramp-core.js)
+//   common/vatflow-smart.js     VatflowSmart     VATSMART analysis (shared/vatsmart.js and friends)
 //   common/ramp-kdca.js         VATFLOW_RAMP_LAYOUT  data/ramp/KDCA.json, trimmed to what the list uses
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -23,6 +24,7 @@ function bundle(entry, globalName, outFile, source) {
 
 bundle("idst-entry.js", "VatflowMetering", "vatflow-metering.js", "shared/fca-metering.js");
 bundle("ramp-entry.js", "VatflowRamp", "vatflow-ramp.js", "shared/ramp-core.js");
+bundle("vatsmart-entry.js", "VatflowSmart", "vatflow-smart.js", "shared/vatsmart.js");
 
 const raw = JSON.parse(readFileSync(join(repo, "data", "ramp", "KDCA.json"), "utf8"));
 // the list needs the stands / ramps / airlines; the map also the views, buildings and spots

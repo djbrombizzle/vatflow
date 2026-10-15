@@ -19,13 +19,6 @@ Every session
                      sound. Minimize the window; closing it stops the fan.
                      Fan volume: Windows volume mixer, "Python".
 
-TMU desk IDS screen (vZDC IDS, needs a VATSIM login)
-  4-ids-screen.bat   opens the vZDC IDS for KDCA in Edge and mirrors it to the TMU desk's
-                     third screen (clicks and scrolling on that screen work too).
-                     First time: log in with VATSIM in the Edge window; it stays logged in.
-                     Then minimize the Edge window (don't close it). Run 1-setup.bat once
-                     first if you set up before this was added.
-
 Other
   capture-KDCA.bat   saves wherever the cab is now (after moving it with slew mode)
   release.bat        unfreezes the cab

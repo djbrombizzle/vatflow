@@ -56,13 +56,6 @@ var VATFLOW_TWR = {
     fcaRefreshSec: 15,
     feedRefreshSec: 30
   },
-  // TMU desk third screen: a web page mirrored from a browser on this PC by
-  // placement/web_mirror.py (4-ids-screen.bat): the vZDC IDS, which needs a VATSIM login.
-  mirror: {
-    base: "http://127.0.0.1:8777",
-    label: "vZDC IDS",
-    howTo: "RUN placement\\4-ids-screen.bat ON THIS PC (LOG IN ONCE IN THE EDGE WINDOW)"
-  },
   asdex: {
     maxAglFt: 2000,        // show arrivals on short final and departures just off
     maxDistNm: 4,
