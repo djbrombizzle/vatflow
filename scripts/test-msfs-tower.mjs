@@ -258,7 +258,8 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
   assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS",
     "$SCREEN_APTDEMAND", "$SCREEN_APTLIST", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_VATSMART",
-    "$SCREEN_RAMPMAP_ED", "$SCREEN_RAMPMAP_CB", "$SCREEN_RAMPMAP_AS"]);
+    "$SCREEN_RAMPMAP_ED", "$SCREEN_RAMPMAP_CB", "$SCREEN_RAMPMAP_AS",
+    "$SCREEN_STRIPS_1", "$SCREEN_STRIPS_2", "$SCREEN_STRIPS_3", "$SCREEN_SIGN_1", "$SCREEN_SIGN_2", "$SCREEN_SIGN_3"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
     const page = readFileSync(new URL(m[1], BASE), "utf8");
     assert.ok(page.includes("common/dimmer.js"), m[1] + " loads the dimmer");
@@ -581,6 +582,58 @@ t("MAPS picker: toggles maps, keeps the choice per airport, presets store and re
   assert.deepEqual(plain(single.selected()), ["y"], "one map at a time");
 });
 
+t("strip bays: departures print into the new-strips section, drop when airborne, deleted ones stay gone", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/strips.js", BASE), "utf8"), g);
+  const S = g.VatflowStrips, cfg = S.defaults(), st = S.normalize(S.emptyState(), cfg);
+  const site = { icao: "KATL", arp: { lat: 33.6367, lon: -84.4281 }, elevFt: 1026 };
+  const fp = (o) => Object.assign({ departure: "KATL", arrival: "KMDW", aircraft_faa: "B738/L", flight_rules: "I", altitude: "38000",
+    deptime: "1550", route: "VARNM2 RESPE IIU", assigned_transponder: "6020", revision_id: 1, remarks: "PBN/A1 RMK/TCAS /V/" }, o);
+  const p = (cs, lat, alt, gs, f) => ({ callsign: cs, cid: 1234567, latitude: lat, longitude: -84.43, altitude: alt, groundspeed: gs, flight_plan: f });
+  const now = 1e12;
+  const pilots = [p("SWA1", 33.64, 1026, 0, fp({})), p("N123", 33.641, 1026, 5, fp({ flight_rules: "V", altitude: "5500", aircraft_faa: "C172/G", route: "" })),
+    p("DAL2", 33.70, 9000, 250, fp({})), p("AAL3", 33.64, 1026, 0, fp({ departure: "KCLT" }))];
+  assert.equal(S.ingest(st, cfg, pilots, site, now), true);
+  assert.deepEqual(plain(st.bays[1][0]), ["SWA1", "N123"], "GROUND / PROPOSED, airborne and other airports skipped");
+  const s1 = plain(st.strips.SWA1);
+  assert.deepEqual([s1.type, s1.cid, s1.bcn, s1.ptime, s1.alt, s1.dep, s1.dest, s1.rmk], ["B738/L", "567", "6020", "P1550", "380", "ATL", "MDW", "TCAS"]);
+  assert.equal(st.strips.N123.alt, "VFR/055");
+  assert.ok(st.strips.N123.vfr);
+  // move SWA1 to LOCAL / RUNWAY, then it takes off: dropped
+  S.place(st, "SWA1", 2, 1, 0);
+  assert.deepEqual(plain(st.bays[2][1]), ["SWA1"]);
+  pilots[0] = p("SWA1", 33.66, 3000, 180, fp({}));
+  S.ingest(st, cfg, pilots, site, now + 20000);
+  assert.equal(st.strips.SWA1, undefined, "auto drop once airborne");
+  // deleted by the controller: not printed again until its plan is amended
+  S.remove(st, "N123", true);
+  S.ingest(st, cfg, pilots, site, now + 40000);
+  assert.equal(st.strips.N123, undefined);
+  pilots[1].flight_plan.revision_id = 2;
+  S.ingest(st, cfg, pilots, site, now + 60000);
+  assert.ok(st.strips.N123, "reprints after an amendment");
+  // gone from the network for 3 minutes: dropped
+  S.ingest(st, cfg, [], site, now + 60000 + 181000);
+  assert.equal(Object.keys(st.strips).length, 0);
+});
+
+t("strip bays: moving within a section, fewer separators merge sections, bay poses", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/strips.js", BASE), "utf8"), g);
+  const S = g.VatflowStrips, cfg = S.defaults(), st = S.normalize(S.emptyState(), cfg);
+  ["A", "B", "C"].forEach((id) => { st.strips[id] = { id }; st.bays[1][0].push(id); });
+  S.place(st, "A", 1, 0, 3);          // to the bottom of its own section
+  assert.deepEqual(plain(st.bays[1][0]), ["B", "C", "A"]);
+  S.place(st, "A", 1, 0, 1);          // in front of C
+  assert.deepEqual(plain(st.bays[1][0]), ["B", "A", "C"]);
+  S.place(st, "C", 1, 2, 0);          // into TAXI
+  cfg.bays[1].seps = ["PROPOSED"];    // TAXI and CLEARED removed: their strips join the last section left
+  S.normalize(st, cfg);
+  assert.deepEqual(plain(st.bays[1]), [["B", "A", "C"]]);
+  assert.deepEqual(plain(S.poseVars({ face: 7, slide: -0.5 })), { deg: 315, slide: 80 });
+  assert.deepEqual(plain(S.poseVars({ face: 3, slide: 5 })), { deg: 135, slide: 250 }, "slide limited to the console");
+});
+
 // async tests (fake sim + timers)
 const tests = [];
 const ta = (name, fn) => tests.push([name, fn]);
@@ -702,7 +755,7 @@ ta("screen host: an app's timers stop when another app is picked", async () => {
   assert.equal(ticks, t0, "interval stopped");
   assert.equal(chained, c0, "setTimeout chain stopped");
   assert.deepEqual(plain(Object.keys(h.VatflowApps.APPS)).sort(), ["aptdemand", "aptlist", "asdex", "dbrite", "idst", "ramp", "rampAS",
-    "rampCB", "rampED", "setup", "vatsmart"]);
+    "rampCB", "rampED", "setup", "stripsetup", "vatsmart"]);
   assert.ok(!plain(h.VatflowApps.list({ icao: "KATL" })).includes("ramp"), "KDCA ramp apps only at KDCA");
   assert.ok(plain(h.VatflowApps.list({ icao: "KDCA" })).includes("rampCB"));
 });

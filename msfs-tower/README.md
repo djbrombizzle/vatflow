@@ -102,6 +102,30 @@ Inside the cab there are two working screens fed by live data:
   `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
   `tools/make_fan_sound.py`).
 
+## Flight strip bays
+
+Three strip bays (TMU, GROUND, LOCAL by default) stand at the front of the consoles, each a
+sloped board with its strips drawn on it (`StripBay/`, screens `$SCREEN_STRIPS_1..3`) and a
+position sign on the console front below it (`$SCREEN_SIGN_1..3`).
+
+* **Strips print themselves**: a departure strip (FAA terminal departure strip: ACID,
+  type/equipment, CID, revision, beacon code, proposed time, requested altitude, departure
+  airport, route ending in the destination, remarks) appears when a pilot with a flight plan
+  out of this airport is on the ground here; `VFR` plans show `VFR` (or `VFR/055`) in the
+  altitude box, everything else is treated as IFR. Data: the VATSIM feed (bay 1's screen
+  reads it every 20 s for all three).
+* **Moving strips**: tap a strip to pick it up (any bay), then tap another strip (it goes in
+  front of it), a separator (top of that section) or the empty part of a bay (bottom).
+  PUT BACK, COCK (offset as a reminder) and DELETE act on the strip you hold.
+* **Dropping**: strips drop by themselves once airborne (AUTO DROP) or after 3 minutes off the
+  network; a deleted strip doesn't print again unless its flight plan is amended.
+* **STRIP BAYS screen** (any screen's MENU): each bay's name (its sign), where it stands (any
+  console face, and how far along it), and up to six separators typed on the on-screen
+  keyboard; which bay / section new strips print into; AUTO DROP on / off. Kept per airport.
+  The bays move with model animations (`L:VATFLOW_BAY_n_DEG`, `L:VATFLOW_BAY_n_SLIDE`).
+
+Model: `common/strips.js`. The strips are yours only: they don't sync with CRC or vNAS.
+
 ## ARTCC video maps (the maps CRC shows)
 
 The DBRITE and ASDE-X can show the ARTCC's own vNAS video maps instead of the built-in ones.

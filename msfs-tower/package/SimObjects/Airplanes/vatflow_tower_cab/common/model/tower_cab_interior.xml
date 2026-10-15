@@ -132,6 +132,63 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_BAY_1" Node="TowerCab_StripBay_1">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_StripBay_1_TRACK</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_BAY_1_DEG) dnor</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_BAY_1_SLIDE" Node="TowerCab_StripBay_1_Slide">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_StripBay_1_Slide_SLIDE</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_BAY_1_SLIDE)</ANIM_CODE>
+				<ANIM_LENGTH>260</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_BAY_2" Node="TowerCab_StripBay_2">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_StripBay_2_TRACK</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_BAY_2_DEG) dnor</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_BAY_2_SLIDE" Node="TowerCab_StripBay_2_Slide">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_StripBay_2_Slide_SLIDE</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_BAY_2_SLIDE)</ANIM_CODE>
+				<ANIM_LENGTH>260</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_BAY_3" Node="TowerCab_StripBay_3">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_StripBay_3_TRACK</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_BAY_3_DEG) dnor</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_BAY_3_SLIDE" Node="TowerCab_StripBay_3_Slide">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_StripBay_3_Slide_SLIDE</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_BAY_3_SLIDE)</ANIM_CODE>
+				<ANIM_LENGTH>260</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_DBRITE_MON" Node="TowerCab_DbriteMount">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
 				<ANIM_NAME>TowerCab_DbriteMount_TRACK</ANIM_NAME>

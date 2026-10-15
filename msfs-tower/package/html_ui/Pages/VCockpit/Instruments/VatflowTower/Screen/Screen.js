@@ -262,6 +262,14 @@ var VatflowApps = (function () {
     rampED: rampMap("ED", "RAMP MAP E / D"),
     rampCB: rampMap("CB", "RAMP MAP C / B"),
     rampAS: rampMap("AS", "RAMP MAP A / HANGARS"),
+    stripsetup: {
+      label: "STRIP BAYS", tag: "vatflow-stripsetup",
+      create: function (el) {
+        var v = new StripSetupView(el);
+        v.start();
+        return { update: function () {} };
+      }
+    },
     setup: {
       label: "TOWER SETUP", tag: "vatflow-setup",
       create: function (el, ctx) {
@@ -271,7 +279,7 @@ var VatflowApps = (function () {
       }
     }
   };
-  var ORDER = ["dbrite", "asdex", "idst", "vatsmart", "aptdemand", "aptlist", "ramp", "rampED", "rampCB", "rampAS", "setup"];
+  var ORDER = ["dbrite", "asdex", "idst", "vatsmart", "aptdemand", "aptlist", "ramp", "rampED", "rampCB", "rampAS", "stripsetup", "setup"];
 
   function list(cfg) {
     var out = [];

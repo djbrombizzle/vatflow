@@ -94,6 +94,12 @@ COLORS = {
     "$SCREEN_RAMPMAP_ED": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMPMAP_CB": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMPMAP_AS": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_STRIPS_1": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_STRIPS_2": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_STRIPS_3": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_SIGN_1": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_SIGN_2": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_SIGN_3": (0.0, 0.0, 0.0, 1.0),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
@@ -335,8 +341,7 @@ def tmu_desk(inside, coll, a_inner, top):
     On the console, three monitors with keyboards: VATSMART for KDCA,
     the APT Dashboard's demand vs AAR chart and its aircraft list. A desk with light oak edging and a blue-grey top runs
     from the console corner (between faces 2 and 3) diagonally into the room toward the
-    middle, separating the corner; on it the red LED clock cabinet (console end) and
-    flight strip bays.
+    middle, separating the corner; on it the red LED clock cabinet (console end).
     """
     at, facing, rot, out, right = face_frame(3, a_inner)
     desk_monitor(inside, at, facing, rot, -1.00, 0.40, top, 0.44, 0.33, "$SCREEN_VATSMART")
@@ -366,22 +371,47 @@ def tmu_desk(inside, coll, a_inner, top):
     clock_face = P2(0.35, -0.151, top + 0.15)
     screen(inside, clock_face, -side, 0.22, 0.055, "$SCREEN_CLOCK2", bezel=0.012, depth=0.005)
 
-    # flight strip bays along the rest of the desk, sloping up away from the TMU corner
-    # (so they read from the corner side, where the TMU controller stands)
-    for i in range(3):
-        sc = 0.85 + i * 0.47
-        s0, s1 = sc - 0.21, sc + 0.21
-        lo, hi = top + 0.005, top + 0.11
-        t_lo, t_hi = -0.25, 0.25                                # low edge on the corner side (-side)
-        board = [P2(s0, t_hi, hi), P2(s1, t_hi, hi), P2(s1, t_lo, lo), P2(s0, t_lo, lo)]
-        inside.face(board, "TWR_StripBay")
-        for s_end in (s0, s1):                                  # side rails
-            inside.face([P2(s_end, t_hi, hi), P2(s_end, t_lo, lo), P2(s_end, t_lo, top), P2(s_end, t_hi, top)], "TWR_StripBay")
-        for k in range(7):                                      # strips in the bay
-            f0, f1 = 0.04 + k * 0.13, 0.04 + k * 0.13 + 0.10
-            ta, tb = t_hi + (t_lo - t_hi) * f0, t_hi + (t_lo - t_hi) * f1
-            za, zb = hi + (lo - hi) * f0 + 0.004, hi + (lo - hi) * f1 + 0.004
-            inside.face([P2(s0 + 0.02, ta, za), P2(s1 - 0.02, ta, za), P2(s1 - 0.02, tb, zb), P2(s0 + 0.02, tb, zb)], "TWR_Strip")
+
+STRIP_BAYS = 3
+STRIP_BAY_W, STRIP_BAY_L, STRIP_BAY_SLOPE = 0.32, 0.56, 40.0   # board width, length up the slope, degrees
+
+
+def strip_bays(coll, a_inner, top):
+    """
+    Flight strip bays (TMU, ground, local by default), each a sloped board at the front of
+    the console with its strips drawn on it ($SCREEN_STRIPS_n, gauge StripBay/) and a
+    position sign on the console front below it ($SCREEN_SIGN_n). All are built at the
+    front console (face 0, centre) and placed from the cab's STRIP BAYS screen:
+      TowerCab_StripBay_n         turns round the cab, L:VATFLOW_BAY_n_DEG (45 per face)
+      TowerCab_StripBay_n_Slide   slides along that face, L:VATFLOW_BAY_n_SLIDE (cm + 130)
+    """
+    at, facing, rot, out, right = face_frame(0, a_inner)
+    s = math.radians(STRIP_BAY_SLOPE)
+    d0, z0 = 0.71, top + 0.035                        # low (near) edge of the board
+    d1, z1 = d0 - STRIP_BAY_L * math.cos(s), z0 + STRIP_BAY_L * math.sin(s)
+    for n in range(1, STRIP_BAYS + 1):
+        name = "TowerCab_StripBay_%d" % n
+        hub = Builder(name, coll)                     # tiny anchor inside the console body
+        hub.box(at(0, 0.45, top - 0.30), (0.01, 0.01, 0.01), "TWR_Console", rot_z=rot)
+        hub_obj = hub.finish()
+        hub_obj["vatflow_anim"] = "track"
+        b = Builder(name + "_Slide", coll)
+        c = at(0, (d0 + d1) / 2, (z0 + z1) / 2)
+        center, up, n_ = screen(b, c, facing(90 - STRIP_BAY_SLOPE), STRIP_BAY_W, STRIP_BAY_L, "$SCREEN_STRIPS_%d" % n,
+                                bezel=0.02, depth=0.03, bezel_mat="TWR_StripBay")
+        # lip along the bottom edge (stops the strips sliding off) and two back legs
+        lo = center - up * (STRIP_BAY_L / 2 + 0.02)
+        b.box(lo + n_ * 0.015 + Vector((0, 0, 0.005)), (STRIP_BAY_W + 0.04, 0.02, 0.03), "TWR_StripBay", rot_z=rot)
+        for side in (-1, 1):
+            hi = center + up * (STRIP_BAY_L / 2) - n_ * 0.03 + right * side * (STRIP_BAY_W / 2 - 0.02)
+            b.beam(hi, Vector((hi.x, hi.y, top)), 0.012, "TWR_StripBay")
+        # position sign on the console front, below the bay
+        screen(b, at(0, P["console_depth"] + 0.004, top - 0.085), facing(0), 0.30, 0.075, "$SCREEN_SIGN_%d" % n,
+               bezel=0.01, depth=0.004)
+        bay = b.finish()
+        bay["vatflow_anim"] = "slide"
+        bay["vatflow_parent"] = name
+        bay["vatflow_axis"] = tuple(right)
 
 
 def ramp_computer(inside, a_inner, top):
@@ -728,6 +758,7 @@ def build():
     console_equipment(inside, int_coll, 1, a_inner, P["console_h"])
     tmu_desk(inside, int_coll, a_inner, P["console_h"])
     ramp_computer(inside, a_inner, P["console_h"])
+    strip_bays(int_coll, a_inner, P["console_h"])
     ceiling_lights(inside, z_glass1 - 0.012)
 
     # Overhead monitors on a circular ceiling track all the way round the cab

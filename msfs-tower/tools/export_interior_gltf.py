@@ -48,6 +48,7 @@ LIFT_TOP_M = 0.15        # frame 0 is 15 cm above where it is built (built = fra
 LIFT_DRAG_SPEED = 0.1
 TWIST_FRAMES = 100       # monitor swivel: frame 50 = as built, 1 degree per frame
 TWIST_DRAG_SPEED = 0.2
+SLIDE_FRAMES = 260       # strip bay along its console face: frame = cm + 130 (130 = face centre)
 MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
@@ -294,7 +295,7 @@ class Writer:
         node_i = len(self.g["nodes"]) - 1
         self.node_info = getattr(self, "node_info", {})
         self.node_info[obj.name] = {"index": node_i, "pivot": pv, "parent": obj.get("vatflow_parent"),
-                                    "anim": obj.get("vatflow_anim")}
+                                    "anim": obj.get("vatflow_anim"), "axis": obj.get("vatflow_axis")}
 
     def link_nodes(self):
         """Parents, rest translations and animations, once every node exists."""
@@ -323,6 +324,15 @@ class Writer:
                 # monitor swivel about the vertical post: frame 50 = as built, 1 deg per frame
                 self.rotation_anim(name + "_TWIST", info["index"], TWIST_FRAMES, lambda fr: fr - TWIST_FRAMES / 2,
                                    base=base_g)
+            elif anim == "slide":
+                # strip bay along its console face: frame = cm + 130 along "vatflow_axis"
+                ax = to_gltf(list(info["axis"]))
+                times, keys = [], []
+                for fr in range(0, SLIDE_FRAMES + 1, 10):
+                    d = (fr - SLIDE_FRAMES / 2) / 100.0
+                    times.append(fr / FPS)
+                    keys.append([base_g[i] + ax[i] * d for i in range(3)])
+                self.add_anim(name + "_SLIDE", info["index"], "translation", times, keys, "VEC3")
             elif anim == "lift":
                 # monitor height: frame = cm below the top of the travel (built = frame 15)
                 times, keys = [], []
@@ -414,6 +424,13 @@ def write_behaviors(path, node_names):
                     body += drag_template("X", twist, TWIST_DRAG_SPEED, False,
                                           "%s - drag the side knob left/right to swivel the screen" % label, TWIST_FRAMES)
             comps.append("\t\t<Component ID=\"VATFLOW_%s_MON%s\" Node=\"%s\">\n" % (label, part.upper(), node)
+                         + body + "\t\t</Component>\n")
+        elif node.startswith("TowerCab_StripBay_"):     # strip bay: placed by the STRIP BAYS screen
+            m2 = re.match(r"TowerCab_StripBay_(\d+)(_Slide)?$", node)
+            k, slide = m2.group(1), m2.group(2)
+            body = (anim_template(node + "_SLIDE", "(L:VATFLOW_BAY_%s_SLIDE)" % k, SLIDE_FRAMES, False) if slide
+                    else anim_template(node + "_TRACK", "(L:VATFLOW_BAY_%s_DEG) dnor" % k, TRACK_FRAMES, True))
+            comps.append("\t\t<Component ID=\"VATFLOW_BAY_%s%s\" Node=\"%s\">\n" % (k, "_SLIDE" if slide else "", node)
                          + body + "\t\t</Component>\n")
         elif node.startswith("TowerCab_DimKnob_"):      # screen brightness knob
             grp = node.rsplit("_", 1)[1]
