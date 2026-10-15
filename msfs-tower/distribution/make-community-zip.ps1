@@ -49,9 +49,11 @@ VATFLOW Tower Cab (test build)
 
 Install
   1. Close MSFS 2024.
-  2. Unzip. Move the folder "$Name" into your MSFS 2024 Community folder.
-     (Not sure where it is? MSFS > Options > General > Developers, or search your PC for a
-     folder named "Community" next to "Official".)
+  2. Unzip. Move the folder "$Name" into your MSFS 2024 Community folder, the same
+     place as your other add-ons. Usually:
+       MS Store / Game Pass: %LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community
+       Steam:                %APPDATA%\Microsoft Flight Simulator 2024\Packages\Community
+     (or "Community" inside the folder you chose when installing the sim)
   3. Optional, ARTCC video maps: unzip vatflow-towercab-maps.zip into Community too, put
      your ARTCC's .json file (e.g. ZTL.json) in its "ARTCC files" folder and double-click
      update-maps.bat there (see its README).
