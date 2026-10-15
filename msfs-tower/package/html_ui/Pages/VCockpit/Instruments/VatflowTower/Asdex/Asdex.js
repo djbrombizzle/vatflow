@@ -1,8 +1,10 @@
 /*
  * VATFLOW Tower Cab - ASDE-X surface display (in-cab overhead screen $SCREEN_ASDEX).
  *
- * North-up map of the field in ASDE-X colours: teal water, grey field, dark
- * movement area, black runways, light-grey terminals. Live VATSIM traffic on
+ * Map of the field in ASDE-X colours (teal water, grey field, dark movement area, black
+ * runways, light-grey terminals), turned so its top is the view out of the window the
+ * monitor hangs in front of (it follows the monitor round the ceiling track and its
+ * swivel), with a north arrow. Live VATSIM traffic on
  * and near the airport (ground movements plus arrivals/departures below
  * cfg.asdex.maxAglFt) as heading-oriented targets with callsign/type blocks.
  *
@@ -33,12 +35,27 @@ var AsdexView = (function () {
     this.targets = {};
     this.feedMs = 0;
     this.error = null;
+    this.upHdg = 0;          // degrees true at the top of the screen
     this.fit();
   }
 
   AsdexView.colors = C;
 
-  /** Scale/offset so the field outline fills the canvas (north up). */
+  /** Turns the map so heading h (degrees true) is at the top; refits when it changes. */
+  AsdexView.prototype.setUp = function (h) {
+    h = ((h % 360) + 360) % 360;
+    if (Math.abs(h - this.upHdg) < 0.5) return;
+    this.upHdg = h;
+    this.fit();
+  };
+
+  /** Meters (x east, y north) turned so upHdg points up (still x right, y up). */
+  AsdexView.prototype.turn = function (x, y) {
+    var a = this.upHdg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    return { x: x * c - y * s, y: x * s + y * c };
+  };
+
+  /** Scale/offset so the (turned) field outline fills the canvas. */
   AsdexView.prototype.fit = function () {
     var W = this.canvas.width, H = this.canvas.height, m = this.cfg.asdex.marginPx;
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -46,8 +63,9 @@ var AsdexView = (function () {
     if (rings) {
       for (var r = 0; r < rings.length; r++) {
         for (var i = 0; i < rings[r].length; i += 2) {
-          minX = Math.min(minX, rings[r][i]); maxX = Math.max(maxX, rings[r][i]);
-          minY = Math.min(minY, rings[r][i + 1]); maxY = Math.max(maxY, rings[r][i + 1]);
+          var q = this.turn(rings[r][i], rings[r][i + 1]);
+          minX = Math.min(minX, q.x); maxX = Math.max(maxX, q.x);
+          minY = Math.min(minY, q.y); maxY = Math.max(maxY, q.y);
         }
       }
     } else {
@@ -60,7 +78,8 @@ var AsdexView = (function () {
 
   /** Meters (x east, y north from the ARP) -> canvas pixels. */
   AsdexView.prototype.px = function (x, y) {
-    return { x: this.cx + x * this.scale, y: this.cy - y * this.scale };
+    var q = this.turn(x, y);
+    return { x: this.cx + q.x * this.scale, y: this.cy - q.y * this.scale };
   };
 
   AsdexView.prototype.setData = function (summary) {
@@ -161,11 +180,22 @@ var AsdexView = (function () {
       n++;
       var air = t.alt - cfg.elevFt > 150 && t.gs > 50;
       ctx.fillStyle = air ? C.airborne : C.target;
-      arrow(ctx, q.x, q.y, t.hdg, 11);
+      arrow(ctx, q.x, q.y, t.hdg - this.upHdg, 11);
       ctx.fillStyle = air ? C.blockAir : C.block;
       mono(ctx, t.callsign, q.x + 14, q.y - 6, CW);
       mono(ctx, (t.type || "") + (air ? " " + VatflowFeed.pad(t.alt / 100, 3) : ""), q.x + 14, q.y + 14, CW);
     }
+
+    // north arrow
+    var nv = this.turn(0, 1), nx = W - 44, ny = 70;
+    ctx.strokeStyle = C.text; ctx.fillStyle = C.text; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(nx, ny, 22, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(nx + nv.x * 18, ny - nv.y * 18);
+    ctx.lineTo(nx - nv.x * 10 - nv.y * 7, ny + nv.y * 10 - nv.x * 7);
+    ctx.lineTo(nx - nv.x * 10 + nv.y * 7, ny + nv.y * 10 + nv.x * 7);
+    ctx.closePath(); ctx.fill();
+    mono(ctx, "N", nx + nv.x * 33 - CW / 2, ny - nv.y * 33 + 6, CW);
 
     ctx.fillStyle = C.text;
     mono(ctx, "ASDE-X " + cfg.icao, 14, 26, CW);
@@ -198,6 +228,12 @@ if (typeof BaseInstrument !== "undefined") {
     Update() {
       super.Update();
       this.dim();
+      // which window the monitor looks out of: built at window face 1 (45 deg left of the
+      // front), plus how far it has been moved round the track and swivelled
+      var track = SimVar.GetSimVarValue("L:VATFLOW_ASDEX_TRACK_DEG", "number") || 0;
+      var twist = SimVar.GetSimVarValue("L:VATFLOW_ASDEX_POSE_SET", "number")
+        ? SimVar.GetSimVarValue("L:VATFLOW_ASDEX_TWIST", "number") : 50;
+      this.view.setUp(VatflowDraw.windowHeading(45 + track + (twist - 50)));
       this.tick(false);
     }
   }

@@ -26,7 +26,9 @@ Inside the cab there are two working screens fed by live data:
   all the way round the cab: grab the screen with the mouse and drag left/right. Drag
   the handle bar under it up/down to raise or lower it (telescoping post, 15 cm up to
   25 cm down), and a side knob left/right to swivel it (up to 50 degrees each way). Every window has a roll-down shade: drag the shade to set its height, click its roller to raise or lower it fully (each shade is 20 strips shown or hidden by its position, no animation) (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
-* **ASDE-X** (hanging from the ceiling, front left): the DCA surface in ASDE-X
+* **ASDE-X** (hanging from the ceiling, front left; landscape 4:3 like the DBRITE, turned so
+  its top is the view out of the window it hangs in front of, following it round the
+  track and its swivel): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
   arrivals/departures below 2,000 ft as heading arrows with callsign/type.
@@ -60,7 +62,8 @@ Inside the cab there are two working screens fed by live data:
   scaled to the screen.
 * **Ramp maps**: three screens with the map part of vatflow.io's ramp management page,
   one view each, on the console facing that part of the terminal: E / D (left of the
-  ramp list), C / B and A / Hangars (right of the IDST, front window). A canvas port of
+  ramp list), C / B and A / Hangars (right of the IDST, front window), each turned so its
+  top is the view out of that window (cab heading from the sim; north arrow). A canvas port of
   ramp.html's map (`RampMap/`), same live data as the ramp list (`common/ramp-data.js`).
 * **Ramp list** computer left of the clock (right-hand end of the front-left window):
   the vatflow.io gates page for KDCA (inbound gate proposals, departures on the ground),

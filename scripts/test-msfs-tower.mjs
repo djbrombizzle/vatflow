@@ -390,4 +390,17 @@ t("mirror screen: polls the PC mirror for pictures, maps clicks to screen pixels
   assert.deepEqual(plain(sent[0]), ["http://127.0.0.1:8777/click", { x: 512, y: 384 }]);
 });
 
+t("window orientation: maps turn so the view out of the screen's window is up", () => {
+  assert.equal(VatflowDraw.windowHeading(0), 121, "front window = the cab heading (airport.js fallback)");
+  assert.equal(VatflowDraw.windowHeading(90), 31, "two faces left");
+  assert.equal(VatflowDraw.windowHeading(180), 301);
+  const stub = new Proxy({}, { get: (o, k) => (k in o ? o[k] : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+  const a = new AsdexView({ width: 1024, height: 768, getContext: () => stub }, cfg, maps);
+  a.setUp(76);
+  const up = a.turn(Math.sin(76 * Math.PI / 180), Math.cos(76 * Math.PI / 180));
+  assert.ok(Math.abs(up.x) < 1e-9 && Math.abs(up.y - 1) < 1e-9, "heading 076 points straight up");
+  const p0 = a.px(0, 0), p1 = a.px(Math.sin(76 * Math.PI / 180) * 500, Math.cos(76 * Math.PI / 180) * 500);
+  assert.ok(Math.abs(p1.x - p0.x) < 1e-6 && p1.y < p0.y, "on the canvas too");
+});
+
 console.log(`\n${passed} passed`);

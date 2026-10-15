@@ -83,5 +83,25 @@ var VatflowDraw = (function () {
     return tick;
   }
 
-  return { mono: mono, path: path, zulu: zulu, zuluNow: zuluNow, loop: loop };
+  /** The cab's heading (degrees true): the sim's, else the saved tower heading in airport.js. */
+  function cabHeading() {
+    try {
+      if (typeof SimVar !== "undefined") {
+        var h = SimVar.GetSimVarValue("PLANE HEADING DEGREES TRUE", "degrees");
+        if (typeof h === "number" && !isNaN(h)) return h;
+      }
+    } catch (e) { /* fall through */ }
+    return (typeof VATFLOW_TWR !== "undefined" && VATFLOW_TWR.cabHeadingTrue) || 0;
+  }
+
+  /**
+   * Which way (degrees true) you look out of a window turned leftDeg left of the cab's
+   * front window (45 per window face; 0 = front). Screens use it to turn their map so
+   * its top is the view out of their window.
+   */
+  function windowHeading(leftDeg) {
+    return ((cabHeading() - leftDeg) % 360 + 360) % 360;
+  }
+
+  return { mono: mono, path: path, zulu: zulu, zuluNow: zuluNow, loop: loop, cabHeading: cabHeading, windowHeading: windowHeading };
 })();

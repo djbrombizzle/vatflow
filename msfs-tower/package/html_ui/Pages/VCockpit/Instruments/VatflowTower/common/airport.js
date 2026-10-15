@@ -12,6 +12,9 @@ var VATFLOW_TWR = {
   elevFt: 15,
   // Magnetic variation, east positive (DCA ~10 W). Used to show wind as magnetic.
   magVarDeg: -10,
+  // The cab's heading (true) in placement/towers.json: the front window looks this way.
+  // Only used outside the sim (the browser preview); in the sim the screens read it.
+  cabHeadingTrue: 121,
   // Tower position (OpenStreetMap node 13191471771)
   tower: { lat: 38.8545923, lon: -77.0437097 },
   // Runway thresholds from OurAirports (same source vatflow uses)

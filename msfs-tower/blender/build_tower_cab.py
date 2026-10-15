@@ -732,13 +732,13 @@ def build():
 
     # Overhead monitors on a circular ceiling track all the way round the cab
     # (each can travel the full 360 degrees): DBRITE radar starts front-right,
-    # ASDE-X surface display (portrait) starts front-left.
+    # ASDE-X surface display starts front-left (both landscape 4:3).
     track_r = P["track_radius"]
     ceiling_z = z_glass1 - 0.01
     ceiling_track(inside, track_r, ceiling_z)
     monitor_mount("TowerCab_DbriteMount", int_coll, n - 1, 0.80, 0.60, "$SCREEN_DBRITE",
                   2.50, 20, ceiling_z, track_r)
-    monitor_mount("TowerCab_AsdexMount", int_coll, 1, 0.60, 0.80, "$SCREEN_ASDEX",
+    monitor_mount("TowerCab_AsdexMount", int_coll, 1, 0.80, 0.60, "$SCREEN_ASDEX",
                   2.55, 20, ceiling_z, track_r)
 
     # Window frames seen from inside: MSFS doesn't draw the exterior model's mullions

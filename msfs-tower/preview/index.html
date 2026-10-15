@@ -21,7 +21,7 @@
   .screen { border: 6px solid #050505; border-radius: 4px; }
   .dbrite { width: 1024px; height: 768px; max-width: 100%; aspect-ratio: 4 / 3; }
   .twrinfo { width: 1024px; height: 512px; max-width: 100%; }
-  .asdex { width: 768px; height: 1024px; max-width: 100%; }
+  .asdex { width: 1024px; height: 768px; max-width: 100%; }
   .idst { width: 1024px; height: 768px; max-width: 100%; }
   .clock { width: 512px; height: 128px; }
   .vscs { width: 512px; height: 384px; }
@@ -49,7 +49,7 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
   <div class="screen ramp"><canvas id="rampmap-AS" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
   <div class="screen tmu"><vatflow-tmuarr id="tmuarr-host"></vatflow-tmuarr></div>
   <div class="screen tmu"><vatflow-tmudep id="tmudep-host"></vatflow-tmudep></div>
-  <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="768" height="1024"></canvas></vatflow-asdex></div>
+  <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="1024" height="768"></canvas></vatflow-asdex></div>
 </div>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airport.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatsim-feed.js"></script>
@@ -112,6 +112,7 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
   var host = document.getElementById("twrinfo-host");
   var dbrite = new DbriteView(document.getElementById("dbrite-canvas"), cfg, VATFLOW_MAPS);
   var asdex = new AsdexView(document.getElementById("asdex-canvas"), cfg, VATFLOW_MAPS);
+  asdex.setUp(VatflowDraw.windowHeading(45));          // where the ASDE-X monitor starts: front-left window
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/TwrInfo/TwrInfo.html");
   xhr.onload = function () {
@@ -181,6 +182,7 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
   if (DEMO) rampData.setPilots(demoFeed()); else rampData.start(cfg.feedUrl);
   ["ED", "CB", "AS"].forEach(function (id) {
     var map = new RampMapView(document.getElementById("rampmap-" + id), null, id, rampData);
+    map.upHdg = VatflowDraw.windowHeading(id === "ED" ? 90 : 0);   // E / D: left window; C / B, A: front
     setInterval(function () { map.draw(); }, 2000);
   });
   ["Arr", "Dep"].forEach(function (m) {
