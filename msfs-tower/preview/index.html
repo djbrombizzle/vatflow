@@ -69,6 +69,7 @@ Serve <code>msfs-tower/</code> over HTTP (<code>python -m http.server</code>) an
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/apt-flow.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-ramp.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-kdca.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-airports.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-data.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Dbrite/Dbrite.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Asdex/Asdex.js"></script>
@@ -88,6 +89,7 @@ Serve <code>msfs-tower/</code> over HTTP (<code>python -m http.server</code>) an
 (function () {
   var cfg = VATFLOW_TWR;
   // ARTCC video map files: the maps package next to this preview (put e.g. ZTL.json there)
+  cfg.rampBase = "../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/ramp/";
   cfg.facilitiesBase = "../maps-package/vatflow-towercab-maps/html_ui/Pages/VCockpit/Instruments/VatflowTower/facilities/";
   // the 1024x768 screens (tools/build_screens.py)
   var SCREENS = [
@@ -98,9 +100,9 @@ Serve <code>msfs-tower/</code> over HTTP (<code>python -m http.server</code>) an
     { id: "APTLIST", group: "CONSOLE", faceDeg: 135, def: "aptlist", alt: "setup" },
     { id: "RAMP", group: "CONSOLE", faceDeg: 90, def: "ramp", alt: "setup" },
     { id: "VATSMART", group: "CONSOLE", faceDeg: 135, def: "vatsmart", alt: "setup" },
-    { id: "RAMPMAP_ED", group: "CONSOLE", faceDeg: 90, def: "rampED", alt: "aptlist" },
-    { id: "RAMPMAP_CB", group: "CONSOLE", faceDeg: 0, def: "rampCB", alt: "asdex" },
-    { id: "RAMPMAP_AS", group: "CONSOLE", faceDeg: 0, def: "rampAS", alt: "dbrite" }
+    { id: "RAMPMAP_ED", group: "CONSOLE", faceDeg: 90, def: "rampmap", alt: "aptlist", ramp: "ED", rampN: 0 },
+    { id: "RAMPMAP_CB", group: "CONSOLE", faceDeg: 0, def: "rampmap", alt: "asdex", ramp: "CB", rampN: 1 },
+    { id: "RAMPMAP_AS", group: "CONSOLE", faceDeg: 0, def: "rampmap", alt: "dbrite", ramp: "AS", rampN: 2 }
   ];
 
   function zuluSec() { var d = new Date(); return d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds(); }

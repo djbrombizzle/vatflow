@@ -355,6 +355,36 @@ t("ramp list: bundled gates.html logic proposes gates for inbounds and lists gro
   assert.ok(drawn.AS.includes("A1") && drawn.AS.includes("A9"), "A gates");
   assert.ok(drawn.AS.includes("AAL2 A321") || drawn.CB.includes("AAL2 A321") || drawn.ED.includes("AAL2 A321") ||
     Object.values(drawn).flat().some((t) => t === "AAL2"), "the parked departure is on a map");
+
+  // RAMP app: every airport on vatflow.io's ramp page, any mix of its ramps
+  vm.runInContext(readFileSync(new URL("common/ramp-airports.js", BASE), "utf8"), rctx);
+  const airports = plain(vm.runInContext("VATFLOW_RAMP_AIRPORTS", rctx));
+  assert.ok(airports.length >= 12 && airports.some((a) => a.icao === "KDFW"), "airports from data/ramp/index.json");
+  assert.ok(rctx.VatflowRampData.has("KIAD") && rctx.VatflowRampData.has("KATL") && !rctx.VatflowRampData.has("KBWI"));
+  for (const a of airports) {
+    const raw = JSON.parse(readFileSync(new URL("ramp/" + a.icao + ".json", BASE), "utf8"));
+    const data = new rctx.VatflowRampData(raw);
+    data.setPilots({ pilots: [] });
+    data.setHub({ ok: true, state: rctx.VatflowRamp.emptyState(a.icao), realGates: {} });
+    const views = plain(rctx.RampMapView.pickViews(raw)).map((v) => v.id);
+    const sets = [[], [views[0]], views.slice(0, 2), views];
+    for (const sel of sets) {
+      const texts = [];
+      const ctx = new Proxy({}, { get: (o, k) => (k in o ? o[k] : k === "fillText" ? (t) => texts.push(String(t)) : () => {}),
+        set: (o, k, v) => { o[k] = v; return true; } });
+      const map = new rctx.RampMapView({ width: 1024, height: 768, getContext: () => ctx }, null, sel, data);
+      const panels = map.panels();
+      assert.ok(panels.length >= 1, a.icao + " " + sel + ": something to draw");
+      for (const p of panels) assert.ok(isFinite(p.box.w) && p.box.w > 0 && isFinite(p.box.h) && p.box.h > 0, a.icao + " crop box");
+      map.draw(Date.UTC(2026, 9, 15, 12, 0, 0));
+      assert.ok(texts.some((t) => t.startsWith("RAMP")), a.icao + " header");
+      assert.ok(texts.length > 5, a.icao + " " + sel + ": gates labelled");
+    }
+    if (Object.keys(raw.charts).length > 1) {
+      assert.equal(new rctx.RampMapView({ width: 1024, height: 768, getContext: () => ({}) }, null, [], data).panels().length,
+        Object.keys(raw.charts).length, a.icao + ": the entire airport shows every chart side by side");
+    }
+  }
 });
 
 t("APT Dashboard flow: metered arrivals with ETA / STA, demand bins against the program AAR", () => {
@@ -792,10 +822,19 @@ ta("screen host: an app's timers stop when another app is picked", async () => {
   await new Promise((r) => setTimeout(r, 60));
   assert.equal(ticks, t0, "interval stopped");
   assert.equal(chained, c0, "setTimeout chain stopped");
-  assert.deepEqual(plain(Object.keys(h.VatflowApps.APPS)).sort(), ["aptdemand", "aptlist", "asdex", "dbrite", "idst", "ramp", "rampAS",
-    "rampCB", "rampED", "setup", "stripsetup", "vatsmart"]);
-  assert.ok(!plain(h.VatflowApps.list({ icao: "KATL" })).includes("ramp"), "KDCA ramp apps only at KDCA");
-  assert.ok(plain(h.VatflowApps.list({ icao: "KDCA" })).includes("rampCB"));
+  assert.deepEqual(plain(Object.keys(h.VatflowApps.APPS)).sort(), ["aptdemand", "aptlist", "asdex", "dbrite", "idst", "ramp", "rampmap",
+    "setup", "stripsetup", "vatsmart"]);
+  assert.ok(!plain(h.VatflowApps.list({ icao: "KATL" })).includes("ramp"), "KDCA ramp list only at KDCA");
+  assert.ok(plain(h.VatflowApps.list({ icao: "KATL" })).includes("rampmap"), "RAMP in every airport's MENU");
+  // a ramp map screen opens on its map where vatflow.io has the airport's ramps, else its alt
+  h.VatflowRampData = { has: (icao) => icao === "KDCA" || icao === "KIAD" || icao === "KATL" };
+  const scr = { id: "RAMPMAP_CB", def: "rampmap", alt: "asdex", ramp: "CB" };
+  assert.equal(h.VatflowApps.initial(scr, { icao: "KDCA" }, null), "rampmap");
+  assert.equal(h.VatflowApps.initial(scr, { icao: "KIAD" }, null), "rampmap");
+  assert.equal(h.VatflowApps.initial(scr, { icao: "KATL" }, null), "rampmap");
+  assert.equal(h.VatflowApps.initial(scr, { icao: "KBWI" }, null), "asdex", "no ramp layout: its alt");
+  assert.equal(h.VatflowApps.initial(scr, { icao: "KBWI" }, "rampmap"), "rampmap", "picked in MENU: kept");
+  assert.equal(h.VatflowApps.initial(scr, { icao: "KDCA" }, "rampED"), "rampmap", "old saved choice");
 });
 
 for (const [name, fn] of tests) { await fn(); passed++; console.log("ok  " + name); }

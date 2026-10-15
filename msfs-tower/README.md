@@ -85,11 +85,17 @@ Inside the cab there are two working screens fed by live data:
   gate, status, ETA / STA, delay and recommended wheels-up) from vatflow.io's APT
   Dashboard for DCA, computed in the cab by `common/apt-flow.js` from the VATSIM feed and
   the VATFLOW program rates (`common/vatflow-hub.js`, read-only).
-* **Ramp maps**: three screens with the map part of vatflow.io's ramp management page,
-  one view each, on the console facing that part of the terminal: E / D (left of the
-  ramp list), C / B and A / Hangars (right of the IDST, front window), each turned so its
-  top is the view out of that window (cab heading from the sim; north arrow). A canvas port of
-  ramp.html's map (`RampMap/`), same live data as the ramp list (`common/ramp-data.js`).
+* **RAMP** (any screen's MENU): the map part of vatflow.io's ramp management page for any
+  airport on that page. Pick the airport, then its ramps (tap to add or remove, or ENTIRE
+  AIRPORT), then SHOW; the RAMPS tab on the map changes it. Kept per screen. The airport
+  list and layouts are read live from vatflow.io (`data/ramp/`), with copies in the package
+  (`ramp/<ICAO>.json`, `common/ramp-airports.js`, from `tools/build_vatflow_bundles.mjs`).
+  One chart is turned so its top is the view out of that screen's window (north arrow);
+  several charts (cargo ramps) sit side by side, north up. A canvas port of ramp.html's map
+  (`RampMap/`), same live data as the ramp list (`common/ramp-data.js`). Three console
+  screens start on it where vatflow.io has the airport: at KDCA E / D (left of the ramp
+  list), C / B and A / Hangars (right of the IDST, front window); elsewhere the airport's
+  first three ramps.
 * **Ramp list** computer left of the clock (right-hand end of the front-left window):
   the vatflow.io gates page for KDCA (inbound gate proposals, departures on the ground),
   from `shared/ramp-core.js` bundled into `common/vatflow-ramp.js` plus the KDCA layout.
@@ -180,7 +186,7 @@ can only be checked inside MSFS 2024 are listed in the
 | `placement/` | The older Windows tool (Python + SimConnect): teleport + freeze on the tower, nudge it into place, save. Not needed any more (TOWER SETUP does it in the sim); kept as a backup. |
 | `distribution/` | `make-community-zip.bat` / `.ps1`: the Community-folder zip for friends. |
 | `tools/make_textures.py` | Generates the interior textures (carpet tiles, black ceiling grid, console laminate, light oak, keypad, keyboard, speaker grille) into `common/texture/`, with the `.png.xml` MSFS compiles them from. |
-| `tools/build_vatflow_bundles.mjs` | Bundles VATFLOW code from `shared/` for the screens: the release engine (`common/vatflow-metering.js`, IDST) and the ramp logic (`common/vatflow-ramp.js`) plus `common/ramp-kdca.js` from `data/ramp/KDCA.json`. |
+| `tools/build_vatflow_bundles.mjs` | Bundles VATFLOW code from `shared/` for the screens: the release engine (`common/vatflow-metering.js`, IDST) and the ramp logic (`common/vatflow-ramp.js`) plus `common/ramp-kdca.js` from `data/ramp/KDCA.json`, and every airport on the ramp page (`common/ramp-airports.js`, `ramp/<ICAO>.json`) for the RAMP app. |
 | `tools/make_fan_sound.py` | Writes `placement/cab_fan.wav`, the seamless quiet fan loop. |
 | `tools/build_airport_data.py` | Builds `common/airports/<ICAO>.js` (runways, control tower, ASDE-X and DBRITE maps) from OpenStreetMap and OurAirports, for airports bundled with the cab. Add one: `python tools/build_airport_data.py KJFK <ourairports-dir> package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airports`, then add it to `tools/build_screens.py` (SCRIPTS) and the TWR INFO / VSCS pages. |
 | `tools/build_screens.py` | Writes the screen host pages `Screen/S_<id>.html` / `.js` (which screens exist, their default app, which window they look out of). |

@@ -1,19 +1,22 @@
 /*
- * VATFLOW Tower Cab - ramp map screens ($SCREEN_RAMPMAP_ED / _CB / _AS): the map part of
- * vatflow.io's ramp management page for one view of the KDCA layout ("E / D", "C / B",
- * "A / Hangars"), each on the console facing that part of the terminal.
+ * VATFLOW Tower Cab - the RAMP app: the map part of vatflow.io's ramp management page, for
+ * any airport on that page and any of its ramps (one, several, or the whole airport). Picked
+ * on a screen with RampPicker (below): MENU > RAMP, then the airport, then the ramps.
+ * At KDCA the three RAMPMAP screens start on "E / D", "C / B" and "A / Hangars", each on the
+ * console facing that part of the terminal.
  *
  * A canvas port of ramp.html's renderMap: aprons (a box round each ramp's stands), taxi
  * lanes, terminal buildings, ramp names, call spots, stands (lead-in line and stop bar
  * when empty, dashed aircraft when assigned or proposed, filled when occupied, coloured
  * by state), aircraft moving on the ramp, and label blocks (gate, callsign + type,
  * P-time) placed so they don't overlap, with leader lines. Same colours as the page.
- * Turned so the top of the map is the view out of that screen's window (the cab's heading
- * from the sim, less the window's turn), with a north arrow. Text stays upright.
+ * One chart is turned so the top of the map is the view out of that screen's window (the
+ * cab's heading from the sim, less the window's turn); several charts (an airport's cargo
+ * ramps, say) sit side by side, north up. North arrow; text stays upright.
  * Live data: common/ramp-data.js (VATSIM feed + ramp hub state). View only.
  *
- * RampMapView is plain canvas code (also used by preview/index.html); the MSFS wrapper is
- * registered per screen by RampMapED.js / RampMapCB.js / RampMapAS.js.
+ * RampMapView is plain canvas code; the screen host (Screen/Screen.js) runs it as the
+ * "rampmap" app.
  */
 var RampMapView = (function () {
   var R = typeof VatflowRamp !== "undefined" ? VatflowRamp : null;
@@ -41,24 +44,83 @@ var RampMapView = (function () {
     return pad(d.getUTCHours(), 2) + pad(d.getUTCMinutes(), 2) + "Z";
   }
 
-  function RampMapView(canvas, layoutRaw, viewId, data) {
+  /**
+   * views: the layout's view ids to show (a list, one id, or "ALL" / null / [] for the whole
+   * airport). Each chart in it is cropped to its chosen ramps; several charts sit side by side.
+   */
+  function RampMapView(canvas, layoutRaw, views, data) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.data = data || new VatflowRampData(layoutRaw);
     this.L = this.data.L;
-    this.view = null;
-    var views = (this.L && this.L.views) || [];
-    for (var i = 0; i < views.length; i++) if (views[i].id === viewId) this.view = views[i];
+    this.setViews(views);
   }
 
-  /** Content box of the view's ramps on its chart, padded (ramp.html cropBox with ramps). */
-  RampMapView.prototype.cropBox = function () {
-    var v = this.view, L = this.L;
-    var st = L.stands.filter(function (s) { return s.chart === v.chart && v.ramps.indexOf(s.ramp) >= 0; });
-    var xs = st.map(function (s) { return s.x; }), ys = st.map(function (s) { return s.y; });
-    var x0 = Math.max(0, Math.min.apply(null, xs) - 70), y0 = Math.max(0, Math.min.apply(null, ys) - 70);
-    var x1 = Math.max.apply(null, xs) + 70, y1 = Math.max.apply(null, ys) + 70;
+  /** Views that name a chart (the ones you can pick; "All" is every one of them). */
+  RampMapView.pickViews = function (L) {
+    return ((L && L.views) || []).filter(function (v) { return v.chart; });
+  };
+
+  RampMapView.prototype.setViews = function (views) {
+    if (typeof views === "string") views = views === "ALL" ? [] : [views];
+    var pv = RampMapView.pickViews(this.L), want = views || [];
+    this.sel = pv.filter(function (v) { return want.indexOf(v.id) >= 0; });
+    if (!this.sel.length || this.sel.length === pv.length) this.sel = null;      // the whole airport
+  };
+
+  /** Header text: the chosen views, or ALL. */
+  RampMapView.prototype.title = function () {
+    if (!this.L) return "?";
+    return this.sel ? this.sel.map(function (v) { return v.label; }).join(" + ").toUpperCase() : "ALL RAMPS";
+  };
+
+  /**
+   * Content box of a chart (ramp.html cropBox): with `ramps`, those ramps' stands; else its
+   * stands, spots and named buildings. Padded.
+   */
+  RampMapView.prototype.cropBox = function (chart, ramps) {
+    var L = this.L, pts = [], pad = ramps ? 70 : 45;
+    L.stands.forEach(function (s) { if (s.chart === chart && (!ramps || ramps.indexOf(s.ramp) >= 0)) pts.push([s.x, s.y]); });
+    if (!ramps) {
+      (L.callSpots || []).concat(L.deiceSpots || []).forEach(function (s) { if (s.chart === chart) pts.push([s.x, s.y]); });
+      (L.buildings || []).forEach(function (b) {
+        if (b.chart !== chart || !b.name) return;
+        if (b.line) pts = pts.concat(b.line);
+        else if (b.poly) pts = pts.concat(b.poly);
+        else if (b.rect) pts.push([b.rect[0], b.rect[1]], [b.rect[0] + b.rect[2], b.rect[1] + b.rect[3]]);
+      });
+    }
+    if (!pts.length) {
+      var c = L.charts[chart] || {};
+      return { x0: 0, y0: 0, w: c.width || 600, h: c.height || 600 };
+    }
+    var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+    var x0 = Math.max(0, Math.min.apply(null, xs) - pad), y0 = Math.max(0, Math.min.apply(null, ys) - pad);
+    var x1 = Math.max.apply(null, xs) + pad, y1 = Math.max.apply(null, ys) + pad;
     return { x0: x0, y0: y0, w: x1 - x0, h: y1 - y0 };
+  };
+
+  /**
+   * [{chart, dx, dy, box}]: the chosen views' charts side by side, each cropped to its chosen
+   * ramps (ramp.html chartsForView). dx / dy move chart units into the joined picture.
+   */
+  RampMapView.prototype.panels = function () {
+    var L = this.L, self = this, byChart = {}, order = Object.keys(L.charts || {});
+    var chosen = this.sel || RampMapView.pickViews(L);
+    chosen.forEach(function (v) {
+      var ramps = v.ramps || null, cur = byChart[v.chart];
+      if (cur === null) return;
+      byChart[v.chart] = ramps ? (cur || []).concat(ramps) : null;     // no ramp list: the whole chart
+    });
+    if (!chosen.length) order.forEach(function (id) { byChart[id] = null; });
+    var x = 0, out = [];
+    order.forEach(function (id) {
+      if (!(id in byChart)) return;
+      var c = self.cropBox(id, byChart[id]);
+      out.push({ chart: id, dx: x - c.x0, dy: -c.y0, box: c });
+      x += c.w + 16;
+    });
+    return out;
   };
 
   /** A padded box round each ramp's stands on the chart (ramp.html rampBoxes). */
@@ -206,46 +268,54 @@ var RampMapView = (function () {
   RampMapView.prototype.draw = function (now) {
     now = now || Date.now();
     var ctx = this.ctx, W = this.canvas.width, H = this.canvas.height, L = this.L;
-    var up = ((this.upHdg || 0) % 360 + 360) % 360;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
     // header
+    var bad = this.data.problem(), status = bad ? bad.toUpperCase() : (L ? L.icao + " LIVE" : "");
+    ctx.textAlign = "right";
+    ctx.font = "bold 24px sans-serif";
+    ctx.fillStyle = "#d7e1ec";
+    ctx.fillText(zulu(now), W - 14, 30);
+    ctx.font = "15px sans-serif";
+    ctx.fillStyle = bad ? "#f0b35a" : "#7f91a6";
+    ctx.fillText(status, W - 110, 29);
+    var room = W - 130 - status.length * 15 * 0.55;
     ctx.textAlign = "left";
     ctx.font = "bold 24px sans-serif";
     ctx.fillStyle = "#d7e1ec";
     ctx.fillText("RAMP", 14, 30);
+    var t = (L ? L.icao + "  " : "") + this.title(), maxCh = Math.max(4, Math.floor((room - 100) / (24 * 0.6)));
     ctx.fillStyle = "#8cc4ff";
-    ctx.fillText(this.view ? this.view.label.toUpperCase() : "?", 90, 30);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#d7e1ec";
-    ctx.fillText(zulu(now), W - 14, 30);
-    var bad = this.data.problem();
-    ctx.font = "15px sans-serif";
-    ctx.fillStyle = bad ? "#f0b35a" : "#7f91a6";
-    ctx.fillText(bad ? bad.toUpperCase() : (L ? L.icao + " LIVE" : ""), W - 110, 29);
+    ctx.fillText(t.length > maxCh ? t.slice(0, maxCh - 3) + "..." : t, 100, 30);
     ctx.fillStyle = "#223042";
     ctx.fillRect(0, HEAD - 2, W, 2);
-    if (!L || !this.view || !R) return;
+    if (!L || !R) return;
 
-    var S = R.STATES, v = this.view, chart = v.chart, c = this.cropBox();
-    // turn: chart (x east, y south) -> screen, rotated so heading `up` points up
+    var S = R.STATES, panels = this.panels();
+    if (!panels.length) return;
+    // one chart turns so the window's view is at the top; several sit side by side, north up
+    var up = panels.length === 1 ? ((this.upHdg || 0) % 360 + 360) % 360 : 0;
+    var tw = 0, th = 0;
+    panels.forEach(function (p) { tw = Math.max(tw, p.dx + p.box.x0 + p.box.w); th = Math.max(th, p.box.h); });
     var a = -up * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
-    var mcx = c.x0 + c.w / 2, mcy = c.y0 + c.h / 2;
+    var mcx = tw / 2, mcy = th / 2;
     var ex = 0, ey = 0;
-    [[c.x0, c.y0], [c.x0 + c.w, c.y0], [c.x0, c.y0 + c.h], [c.x0 + c.w, c.y0 + c.h]].forEach(function (p) {
+    [[0, 0], [tw, 0], [0, th], [tw, th]].forEach(function (p) {
       var dx = p[0] - mcx, dy = p[1] - mcy;
       ex = Math.max(ex, Math.abs(dx * ca - dy * sa));
       ey = Math.max(ey, Math.abs(dx * sa + dy * ca));
     });
     var AW = W, AH = H - HEAD, acx = W / 2, acy = HEAD + AH / 2;
     var sc = Math.min(AW / (2 * ex), AH / (2 * ey));
-    function P(x, y) {                                       // chart -> screen
-      var dx = x - mcx, dy = y - mcy;
-      return { x: acx + sc * (dx * ca - dy * sa), y: acy + sc * (dx * sa + dy * ca) };
-    }
     function turn(ux, uy) { return { x: ux * ca - uy * sa, y: ux * sa + uy * ca }; }
+    function proj(p) {                                       // chart -> screen, for panel p
+      return function (x, y) {
+        var dx = x + p.dx - mcx, dy = y + p.dy - mcy;
+        return { x: acx + sc * (dx * ca - dy * sa), y: acy + sc * (dx * sa + dy * ca) };
+      };
+    }
 
     ctx.save();
     ctx.beginPath();
@@ -253,136 +323,160 @@ var RampMapView = (function () {
     ctx.clip();
     ctx.fillStyle = C.chart;
     ctx.fillRect(0, HEAD, AW, AH);
-    ctx.setTransform(sc * ca, sc * sa, -sc * sa, sc * ca, acx - sc * (mcx * ca - mcy * sa), acy - sc * (mcx * sa + mcy * ca));
 
     var rows = this.data.rows(now);
     var statuses = R.standStatuses(L, rows), conflicts = R.standConflicts(rows);
     var byStand = {};
     rows.forEach(function (r) { if (r.atStand) byStand[r.atStand] = r; });
-    var boxes = this.rampBoxes(chart);
+    var labels = [], obstacles = [], texts = [], self = this, multi = panels.length > 1;
 
-    // aprons: a box round each ramp's stands (KDCA has no mapped aprons)
-    var aprons = (L.aprons || []).filter(function (ap) { return ap.chart === chart; });
-    ctx.fillStyle = C.pave;
-    aprons.forEach(function (ap) { polyline(ctx, ap.pts); ctx.closePath(); ctx.fill(); });
-    if (!aprons.length) boxes.forEach(function (b) { roundRect(ctx, b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, 10); ctx.fill(); });
-    // taxi lanes, then their centre lines
-    var lanes = L.lanes.filter(function (l) { return l.chart === chart; });
-    ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.strokeStyle = C.lane; ctx.lineWidth = 20;
-    lanes.forEach(function (l) { polyline(ctx, l.pts); ctx.stroke(); });
-    ctx.strokeStyle = C.laneLine; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.7;
-    lanes.forEach(function (l) { polyline(ctx, l.pts); ctx.stroke(); });
-    ctx.globalAlpha = 1;
-    // buildings
-    (L.buildings || []).filter(function (b) { return b.chart === chart; }).forEach(function (b) {
-      if (b.line) {
-        ctx.strokeStyle = C.bldgEdge; ctx.lineWidth = (b.w || 12) + 2;
-        polyline(ctx, b.line); ctx.stroke();
-        ctx.strokeStyle = C.bldg; ctx.lineWidth = b.w || 12;
-        polyline(ctx, b.line); ctx.stroke();
-      } else if (b.poly) {
-        polyline(ctx, b.poly); ctx.closePath();
-        ctx.fillStyle = C.bldg; ctx.fill(); ctx.strokeStyle = C.bldgEdge; ctx.lineWidth = 1; ctx.stroke();
-      } else if (b.rect) {
-        roundRect(ctx, b.rect[0], b.rect[1], b.rect[2], b.rect[3], 3);
-        ctx.fillStyle = C.bldg; ctx.fill(); ctx.strokeStyle = C.bldgEdge; ctx.lineWidth = 1; ctx.stroke();
-      }
-    });
-    // call spot circles (their numbers are drawn upright below)
-    var spots = (L.callSpots || []).filter(function (sp) { return sp.chart === chart; });
-    spots.forEach(function (sp) {
-      ctx.beginPath(); ctx.arc(sp.x, sp.y, 10, 0, Math.PI * 2);
-      ctx.fillStyle = "#05080c"; ctx.fill(); ctx.strokeStyle = "#e6edf5"; ctx.lineWidth = 1.5; ctx.stroke();
-    });
+    panels.forEach(function (pn) {
+      var chart = pn.chart, P = proj(pn), boxes = self.rampBoxes(chart);
+      ctx.save();
+      ctx.setTransform(sc * ca, sc * sa, -sc * sa, sc * ca, acx - sc * (mcx * ca - mcy * sa), acy - sc * (mcx * sa + mcy * ca));
+      ctx.transform(1, 0, 0, 1, pn.dx, pn.dy);
+      if (multi) { ctx.beginPath(); ctx.rect(pn.box.x0, pn.box.y0, pn.box.w, pn.box.h); ctx.clip(); }
 
-    // stands and the aircraft on them (labels collected, placed later in screen space)
-    var labels = [], obstacles = [];
-    L.stands.filter(function (st) { return st.chart === chart; }).forEach(function (st) {
-      var status = statuses.get(st.id), occ = byStand[st.id];
-      var color = occ ? (stateColor(S, occ.state) || C.occupied) : status ? C[status.key] : C.empty;
-      var rot = st.noseHdg != null ? st.noseHdg : 0;
-      var cf = conflicts.get(st.id);
-      if (cf) {
-        ctx.beginPath(); ctx.arc(st.x, st.y, 20, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(239,77,77,.18)"; ctx.fill(); ctx.strokeStyle = "#ef4d4d"; ctx.lineWidth = 2.5; ctx.stroke();
-      }
-      if (occ) plane(ctx, st.x, st.y, rot, color);
-      else if (status) plane(ctx, st.x, st.y, rot, null, color, true);
-      else {
-        ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(rot * Math.PI / 180);
-        ctx.strokeStyle = C.lead; ctx.globalAlpha = 0.75; ctx.lineWidth = 1.3;
-        ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, 22); ctx.stroke();
-        ctx.globalAlpha = 0.9; ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.moveTo(-4, -13); ctx.lineTo(4, -13); ctx.stroke();
-        ctx.restore(); ctx.globalAlpha = 1;
-      }
-      var q = P(st.x, st.y);
-      obstacles.push({ x: q.x, y: q.y, r: (occ || status ? 12 : 8) * sc, soft: !(occ || status) });
-      var who = occ;
-      if (!who && status && (status.key === "assigned" || status.key === "proposed")) {
-        for (var i = 0; i < rows.length; i++) if (rows[i].callsign === status.callsign) who = rows[i];
-      }
-      var lines = [];
-      if (cf) lines.push({ t: "! " + cf.occupant, fill: "#ff8080", w: 800 });
-      lines.push({ t: st.label || st.id, fill: "#e6edf5", w: 650 });
-      if (who) lines.push({ t: [who.callsign, who.type].filter(Boolean).join(" "), small: true, w: 500,
-        fill: occ ? "#c3d0dd" : status && status.key === "proposed" ? "#a9c8e8" : "#8ec8ff" });
-      var due = false, late = false;
-      if (occ && occ.ptime != null) {
-        var cd = R.ptimeCountdown(occ.ptime, now);
-        late = cd.charAt(0) === "+";
-        due = late || Number(cd) <= 10;
-        lines.push({ t: "P" + zulu(occ.ptime) + " " + cd, small: true, w: 700, fill: late ? "#ff9b9b" : "#ffd27a" });
-      }
-      var rad = rot * Math.PI / 180, u = turn(Math.sin(rad), -Math.cos(rad));
-      var pri = cf ? 1 : due ? 2 : occ ? 3 : who ? 4 : 9;
-      labels.push({ x: q.x, y: q.y, ux: u.x, uy: u.y, lines: lines, pri: pri, must: pri <= 1 || late });
-    });
-    // aircraft moving on this chart (not on a stand)
-    rows.forEach(function (r) {
-      if (r.chart !== chart || r.atStand || r.x == null) return;
-      var color = stateColor(S, r.state) || C.taxi;
-      plane(ctx, r.x, r.y, r.hdg || 0, color);
-      var q = P(r.x, r.y), u = turn(0.7, -0.7);
-      obstacles.push({ x: q.x, y: q.y, r: 12 * sc });
-      var lines = [{ t: r.callsign, fill: color, w: 750 }];
-      if (r.unknownStand && r.ptime != null) lines.push({ t: "P" + zulu(r.ptime) + " " + R.ptimeCountdown(r.ptime, now), small: true, w: 700, fill: "#ffd27a" });
-      labels.push({ x: q.x, y: q.y, ux: u.x, uy: u.y, lines: lines, must: true, pri: 2 });
+      // aprons (else a box round each ramp's stands)
+      var aprons = (L.aprons || []).filter(function (ap) { return ap.chart === chart; });
+      ctx.fillStyle = C.pave;
+      aprons.forEach(function (ap) { polyline(ctx, ap.pts); ctx.closePath(); ctx.fill(); });
+      if (!aprons.length) boxes.forEach(function (b) { roundRect(ctx, b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, 10); ctx.fill(); });
+      // taxi lanes, then their centre lines
+      var lanes = (L.lanes || []).filter(function (l) { return l.chart === chart; });
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.strokeStyle = C.lane; ctx.lineWidth = 20;
+      lanes.forEach(function (l) { polyline(ctx, l.pts); ctx.stroke(); });
+      ctx.strokeStyle = C.laneLine; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.7;
+      lanes.forEach(function (l) { polyline(ctx, l.pts); ctx.stroke(); });
+      ctx.globalAlpha = 1;
+      // buildings
+      (L.buildings || []).filter(function (b) { return b.chart === chart; }).forEach(function (b) {
+        if (b.line) {
+          ctx.strokeStyle = C.bldgEdge; ctx.lineWidth = (b.w || 12) + 2;
+          polyline(ctx, b.line); ctx.stroke();
+          ctx.strokeStyle = C.bldg; ctx.lineWidth = b.w || 12;
+          polyline(ctx, b.line); ctx.stroke();
+        } else if (b.poly) {
+          polyline(ctx, b.poly); ctx.closePath();
+          ctx.fillStyle = C.bldg; ctx.fill(); ctx.strokeStyle = C.bldgEdge; ctx.lineWidth = 1; ctx.stroke();
+        } else if (b.rect) {
+          roundRect(ctx, b.rect[0], b.rect[1], b.rect[2], b.rect[3], 3);
+          ctx.fillStyle = C.bldg; ctx.fill(); ctx.strokeStyle = C.bldgEdge; ctx.lineWidth = 1; ctx.stroke();
+        }
+      });
+      // call spot circles (their numbers are drawn upright below)
+      var spots = (L.callSpots || []).filter(function (sp) { return sp.chart === chart; });
+      spots.forEach(function (sp) {
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "#05080c"; ctx.fill(); ctx.strokeStyle = "#e6edf5"; ctx.lineWidth = 1.5; ctx.stroke();
+      });
+
+      // stands and the aircraft on them (labels collected, placed later in screen space)
+      var bx = pn.box;
+      function inPanel(x, y) { return !multi || (x >= bx.x0 && x <= bx.x0 + bx.w && y >= bx.y0 && y <= bx.y0 + bx.h); }
+      L.stands.filter(function (st) { return st.chart === chart; }).forEach(function (st) {
+        var status = statuses.get(st.id), occ = byStand[st.id];
+        var color = occ ? (stateColor(S, occ.state) || C.occupied) : status ? C[status.key] : C.empty;
+        var rot = st.noseHdg != null ? st.noseHdg : 0;
+        var cf = conflicts.get(st.id);
+        if (cf) {
+          ctx.beginPath(); ctx.arc(st.x, st.y, 20, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(239,77,77,.18)"; ctx.fill(); ctx.strokeStyle = "#ef4d4d"; ctx.lineWidth = 2.5; ctx.stroke();
+        }
+        if (occ) plane(ctx, st.x, st.y, rot, color);
+        else if (status) plane(ctx, st.x, st.y, rot, null, color, true);
+        else {
+          ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(rot * Math.PI / 180);
+          ctx.strokeStyle = C.lead; ctx.globalAlpha = 0.75; ctx.lineWidth = 1.3;
+          ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, 22); ctx.stroke();
+          ctx.globalAlpha = 0.9; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.moveTo(-4, -13); ctx.lineTo(4, -13); ctx.stroke();
+          ctx.restore(); ctx.globalAlpha = 1;
+        }
+        if (!inPanel(st.x, st.y)) return;
+        var q = P(st.x, st.y);
+        obstacles.push({ x: q.x, y: q.y, r: (occ || status ? 12 : 8) * sc, soft: !(occ || status) });
+        var who = occ;
+        if (!who && status && (status.key === "assigned" || status.key === "proposed")) {
+          for (var i = 0; i < rows.length; i++) if (rows[i].callsign === status.callsign) who = rows[i];
+        }
+        var lines = [];
+        if (cf) lines.push({ t: "! " + cf.occupant, fill: "#ff8080", w: 800 });
+        lines.push({ t: st.label || st.id, fill: "#e6edf5", w: 650 });
+        if (who) lines.push({ t: [who.callsign, who.type].filter(Boolean).join(" "), small: true, w: 500,
+          fill: occ ? "#c3d0dd" : status && status.key === "proposed" ? "#a9c8e8" : "#8ec8ff" });
+        var due = false, late = false;
+        if (occ && occ.ptime != null) {
+          var cd = R.ptimeCountdown(occ.ptime, now);
+          late = cd.charAt(0) === "+";
+          due = late || Number(cd) <= 10;
+          lines.push({ t: "P" + zulu(occ.ptime) + " " + cd, small: true, w: 700, fill: late ? "#ff9b9b" : "#ffd27a" });
+        }
+        var rad = rot * Math.PI / 180, u = turn(Math.sin(rad), -Math.cos(rad));
+        var pri = cf ? 1 : due ? 2 : occ ? 3 : who ? 4 : 9;
+        labels.push({ x: q.x, y: q.y, ux: u.x, uy: u.y, lines: lines, pri: pri, must: pri <= 1 || late });
+      });
+      // aircraft moving on this chart (not on a stand)
+      rows.forEach(function (r) {
+        if (r.chart !== chart || r.atStand || r.x == null) return;
+        var color = stateColor(S, r.state) || C.taxi;
+        plane(ctx, r.x, r.y, r.hdg || 0, color);
+        if (!inPanel(r.x, r.y)) return;
+        var q = P(r.x, r.y), u = turn(0.7, -0.7);
+        obstacles.push({ x: q.x, y: q.y, r: 12 * sc });
+        var lines = [{ t: r.callsign, fill: color, w: 750 }];
+        if (r.unknownStand && r.ptime != null) lines.push({ t: "P" + zulu(r.ptime) + " " + R.ptimeCountdown(r.ptime, now), small: true, w: 700, fill: "#ffd27a" });
+        labels.push({ x: q.x, y: q.y, ux: u.x, uy: u.y, lines: lines, must: true, pri: 2 });
+      });
+      ctx.restore();
+      texts.push({ P: P, boxes: boxes, lanes: lanes, spots: spots, inPanel: inPanel, pn: pn });
     });
 
     // ---- text, upright, in screen pixels ----
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.textAlign = "center";
-    ctx.font = "bold 15px sans-serif";
-    ctx.fillStyle = "#c4d2e0";
-    boxes.forEach(function (b) {                             // ramp names above their stands
-      var top = P((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
-      // above the box on screen: the box's highest screen point
-      var minY = Infinity;
-      [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].forEach(function (p) { minY = Math.min(minY, P(p[0], p[1]).y); });
-      var y = minY - 6, tw = b.r.name.length * 15 * 0.6;
-      ctx.fillText(b.r.name, top.x, y);
-      obstacles.push({ box: { x0: top.x - tw / 2, x1: top.x + tw / 2, y0: y - 16, y1: y + 3 } });
-    });
-    ctx.font = "10px sans-serif";
-    ctx.fillStyle = C.lead; ctx.globalAlpha = 0.8;
-    lanes.forEach(function (l) {
-      if (l.label === "") return;
-      var p = l.pts[l.pts.length > 2 ? 1 : 0], q = P(p[0], p[1]);
-      ctx.fillText(l.label != null ? l.label : l.id, q.x + 10, q.y + 12);
-    });
-    ctx.globalAlpha = 1;
-    ctx.font = "bold " + Math.max(9, Math.round(9.5 * sc)) + "px sans-serif";
-    ctx.fillStyle = "#fff";
-    spots.forEach(function (sp) {
-      var q = P(sp.x, sp.y);
-      ctx.fillText(sp.id, q.x, q.y + 3.5 * Math.min(sc, 1.6));
-      obstacles.push({ x: q.x, y: q.y, r: 11 * sc });
+    texts.forEach(function (tx) {
+      var P = tx.P;
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillStyle = "#c4d2e0";
+      tx.boxes.forEach(function (b) {                        // ramp names above their stands
+        if (!tx.inPanel((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)) return;
+        var mid = P((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
+        var minY = Infinity;                                 // above the box on screen: its highest point
+        [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].forEach(function (p) { minY = Math.min(minY, P(p[0], p[1]).y); });
+        var y = Math.max(HEAD + 16, minY - 6), w = b.r.name.length * 15 * 0.6;
+        ctx.fillText(b.r.name, mid.x, y);
+        obstacles.push({ box: { x0: mid.x - w / 2, x1: mid.x + w / 2, y0: y - 16, y1: y + 3 } });
+      });
+      if (multi) {                                           // chart name under each of several charts
+        var c = L.charts[tx.pn.chart] || {}, bb = tx.pn.box, bot = P(bb.x0 + bb.w / 2, bb.y0 + bb.h);
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillStyle = "#7f91a6";
+        ctx.fillText(String(c.name || tx.pn.chart).toUpperCase(), bot.x, Math.min(H - 6, bot.y - 4));
+      }
+      ctx.font = "10px sans-serif";
+      ctx.fillStyle = C.lead; ctx.globalAlpha = 0.8;
+      tx.lanes.forEach(function (l) {
+        if (l.label === "") return;
+        var p = l.pts[l.pts.length > 2 ? 1 : 0];
+        if (!tx.inPanel(p[0], p[1])) return;
+        var q = P(p[0], p[1]);
+        ctx.fillText(l.label != null ? l.label : l.id, q.x + 10, q.y + 12);
+      });
+      ctx.globalAlpha = 1;
+      ctx.font = "bold " + Math.max(9, Math.round(9.5 * sc)) + "px sans-serif";
+      ctx.fillStyle = "#fff";
+      tx.spots.forEach(function (sp) {
+        if (!tx.inPanel(sp.x, sp.y)) return;
+        var q = P(sp.x, sp.y);
+        ctx.fillText(sp.id, q.x, q.y + 3.5 * Math.min(sc, 1.6));
+        obstacles.push({ x: q.x, y: q.y, r: 11 * sc });
+      });
     });
     placeLabels(ctx, labels, obstacles, 1, { x0: 0, y0: HEAD, x1: AW, y1: H });
 
-    // north arrow (the map is turned to the view out of the window)
+    // north arrow (one chart is turned to the view out of the window)
     var n = turn(0, -1), nx = W - 40, ny = HEAD + 40;
     ctx.strokeStyle = "#c4d2e0"; ctx.fillStyle = "#c4d2e0"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(nx, ny, 22, 0, Math.PI * 2); ctx.stroke();
@@ -399,4 +493,137 @@ var RampMapView = (function () {
   return RampMapView;
 })();
 
-// In the sim this view runs inside the screen host (Screen/Screen.js).
+
+/**
+ * The RAMP app's picker: a RAMPS tab on the map opens it (so does picking RAMP in MENU).
+ * First the airport (the airports on vatflow.io's ramp page), then its ramps: tap ramps to
+ * add or remove them, or ENTIRE AIRPORT, then SHOW.
+ * opts: { current() -> {icao, views} | null, here: the cab's airport, onPick({icao, views}) }
+ */
+var RampPicker = (function () {
+  var BTN = "box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;" +
+    "border:2px solid #35506b;background:#1b2a3a;color:#e8f1fa;font-family:monospace;";
+  var ON = "background:#7fc8ff;color:#0a0f16;border-color:#7fc8ff;";
+
+  function RampPicker(host, opts) {
+    this.host = host;
+    this.o = opts;
+    this.doc = host.ownerDocument || document;
+    this.tab = this.el("div", "position:absolute;right:90px;bottom:0;width:86px;height:34px;background:#1b2a3a;" +
+      "border:2px solid #35506b;color:#cfe0f0;font:bold 18px monospace;display:flex;align-items:center;" +
+      "justify-content:center;z-index:900;opacity:0.85;", "RAMPS");
+    this.panel = this.el("div", "position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(6,10,15,0.97);" +
+      "z-index:950;display:none;box-sizing:border-box;padding:16px 20px;font-family:monospace;color:#dfe7ef;");
+    var self = this;
+    this.on(this.tab, function () { self.open(); });
+    this.token = 0;
+  }
+
+  RampPicker.prototype.el = function (tag, css, text, parent) {
+    var e = this.doc.createElement(tag);
+    e.style.cssText = css;
+    if (text) e.textContent = text;
+    (parent || this.host).appendChild(e);
+    return e;
+  };
+
+  RampPicker.prototype.on = function (e, fn) {
+    e.addEventListener("mouseup", function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); fn(); });
+  };
+
+  RampPicker.prototype.isOpen = function () { return this.panel.style.display !== "none"; };
+
+  RampPicker.prototype.close = function () { this.token++; this.panel.style.display = "none"; };
+
+  /** Opens on the airport list. */
+  RampPicker.prototype.open = function () {
+    this.panel.style.display = "block";
+    this.airports();
+  };
+
+  RampPicker.prototype.head = function (right) {
+    var p = this.panel, self = this;
+    p.innerHTML = "";
+    var h = this.el("div", "display:flex;align-items:center;font:bold 26px monospace;border-bottom:2px solid #23384d;" +
+      "padding-bottom:8px;margin-bottom:12px;", null, p);
+    this.el("span", "color:#f5a623;margin-right:18px;white-space:nowrap;", "RAMP MAP", h);
+    this.el("span", "color:#7fc8ff;flex:1;white-space:nowrap;overflow:hidden;", right, h);
+    var x = this.el("div", BTN + "width:110px;height:40px;font:bold 18px monospace;flex:none;", "CLOSE", h);
+    this.on(x, function () { self.close(); });
+  };
+
+  RampPicker.prototype.note = function (text, color) {
+    return this.el("div", "width:100%;color:" + (color || "#7f93a8") + ";font:17px monospace;margin:4px 0 12px;", text, this.panel);
+  };
+
+  /** Step 1: the airport. */
+  RampPicker.prototype.airports = function () {
+    var self = this, my = ++this.token, cur = this.o.current && this.o.current();
+    this.head("PICK AN AIRPORT");
+    var msg = this.note("AIRPORTS ON THE VATFLOW RAMP PAGE (VATFLOW.IO/RAMP)");
+    var grid = this.el("div", "display:flex;flex-wrap:wrap;", null, this.panel);
+    VatflowRampData.airports(function (list) {
+      if (my !== self.token) return;
+      if (!list.length) { msg.textContent = "NO RAMP AIRPORTS - VATFLOW.IO COULD NOT BE REACHED"; return; }
+      list.forEach(function (a) {
+        var on = cur && cur.icao === a.icao;
+        var b = self.el("div", BTN + "width:308px;height:96px;margin:0 16px 16px 0;" + (on ? ON : ""), null, grid);
+        self.el("div", "font:bold 30px monospace;", a.icao + (a.icao === self.o.here ? " *" : ""), b);
+        self.el("div", "font:15px monospace;margin-top:4px;white-space:nowrap;overflow:hidden;max-width:290px;opacity:0.85;",
+          String(a.name || "").toUpperCase(), b);
+        self.on(b, function () { self.ramps(a.icao, a.name); });
+      });
+      if (self.o.here) msg.textContent += "   * = THIS TOWER";
+    });
+  };
+
+  /** Step 2: the airport's ramps. */
+  RampPicker.prototype.ramps = function (icao, name) {
+    var self = this, my = ++this.token, cur = this.o.current && this.o.current();
+    this.head(icao + "  " + String(name || "").toUpperCase());
+    var bar = this.el("div", "display:flex;margin-bottom:6px;", null, this.panel);
+    var back = this.el("div", BTN + "width:200px;height:44px;font:bold 18px monospace;", "< AIRPORTS", bar);
+    this.on(back, function () { self.airports(); });
+    var msg = this.note("LOADING " + icao + " RAMPS FROM VATFLOW.IO...");
+    var grid = this.el("div", "display:flex;flex-wrap:wrap;", null, this.panel);
+    VatflowRampData.layout(icao, function (raw) {
+      if (my !== self.token) return;
+      if (!raw) { msg.style.color = "#ffd166"; msg.textContent = "COULD NOT LOAD THE " + icao + " RAMP LAYOUT"; return; }
+      var views = RampMapView.pickViews(raw);
+      var chosen = cur && cur.icao === icao ? (cur.views || []).filter(function (id) {
+        return views.some(function (v) { return v.id === id; });
+      }) : [];
+      msg.textContent = "TAP RAMPS TO ADD OR REMOVE THEM, OR ENTIRE AIRPORT. THEN SHOW.";
+      var all = null, items = [];
+      function paint() {
+        var whole = !chosen.length;
+        all.style.cssText = BTN + "width:640px;height:64px;margin:0 16px 16px 0;font:bold 24px monospace;" + (whole ? ON : "");
+        items.forEach(function (it) {
+          var on = !whole && chosen.indexOf(it.v.id) >= 0;
+          it.b.style.cssText = BTN + "width:308px;height:80px;margin:0 16px 16px 0;font:bold 22px monospace;" + (on ? ON : "");
+          it.b.textContent = (on ? "[X] " : "[ ] ") + String(it.v.label).toUpperCase();
+        });
+      }
+      views.forEach(function (v) {
+        var b = self.el("div", "", null, grid);
+        items.push({ v: v, b: b });
+        self.on(b, function () {
+          var i = chosen.indexOf(v.id);
+          if (i >= 0) chosen.splice(i, 1); else chosen.push(v.id);
+          if (chosen.length === views.length) chosen = [];       // every ramp = the entire airport
+          paint();
+        });
+      });
+      var row = self.el("div", "display:flex;width:100%;margin-top:6px;", null, self.panel);
+      all = self.el("div", "", "ENTIRE AIRPORT", row);
+      self.on(all, function () { chosen = []; paint(); });
+      var go = self.el("div", BTN + "width:308px;height:64px;font:bold 26px monospace;background:#14532d;border-color:#3ee07a;", "SHOW", row);
+      self.on(go, function () { self.close(); self.o.onPick({ icao: icao, views: chosen.slice() }); });
+      paint();
+    });
+  };
+
+  return RampPicker;
+})();
+
+// In the sim these run inside the screen host (Screen/Screen.js).
