@@ -564,10 +564,25 @@ function inSelection(r, sel = selectedRamps()) {
   return ((al && al.ramps) || r.op.ramps || []).some(id => sel.has(id));
 }
 
-/** [chart, dx, dy, box]: the selected views' charts side by side, each cropped to its selected ramps. */
+/**
+ * [chart, dx, dy, box, ramps]: the selected views' charts side by side, each cropped to its
+ * selected ramps (ramps null = the whole chart). With "viewLayout": "panels" in the airport
+ * file, each selected view is its own panel instead, even when views share a chart: KDCA's
+ * piers run in one long diagonal line, so All puts E/D, C/B and A/Hangars next to each other.
+ */
 function chartsForView() {
   const byChart = new Map();
   const chosen = allSelected() ? pickViews() : pickViews().filter(v => ui.views.has(v.id));
+  if (L.viewLayout === "panels" && chosen.length) {
+    let x = 0;
+    return chosen.map(v => {
+      const ramps = viewRamps(v);
+      const c = cropBox(v.chart, ramps);
+      const out = [v.chart, x - c.x0, -c.y0, c, ramps];
+      x += c.w + 16;
+      return out;
+    });
+  }
   for (const v of chosen) {
     const cur = byChart.get(v.chart);
     if (cur === null) continue;
@@ -578,7 +593,7 @@ function chartsForView() {
   let x = 0;
   return Object.keys(L.charts).filter(id => byChart.has(id)).map(id => {
     const c = cropBox(id, byChart.get(id));
-    const out = [id, x - c.x0, -c.y0, c];
+    const out = [id, x - c.x0, -c.y0, c, byChart.get(id)];
     x += c.w + 16;
     return out;
   });
@@ -600,9 +615,9 @@ function saveViews() {
   LS.set(`vatflow.ramp.views.${L.icao}`, JSON.stringify([...ui.views]));
 }
 
-function rampBoxes(chart) {
+function rampBoxes(chart, only = null) {
   const out = [];
-  for (const r of L.ramps.filter(r => r.chart === chart)) {
+  for (const r of L.ramps.filter(r => r.chart === chart && (!only || only.includes(r.id)))) {
     const st = L.stands.filter(s => s.ramp === r.id);
     if (!st.length) continue;
     const xs = st.map(s => s.x), ys = st.map(s => s.y);
@@ -709,14 +724,18 @@ function renderMap(state) {
   const sel = ui.selected;
   const selRow = rows.find(r => r.callsign === sel);
   let h = "";
-  for (const [chart, ox, oy, c] of views) {
-    h += `<g transform="translate(${ox},${oy})"><clipPath id="clip${chart}"><rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" rx="8"/></clipPath><g clip-path="url(#clip${chart})">`;
+  ui.dropped = 0;
+  views.forEach(([chart, ox, oy, c, ramps], pi) => {
+    // A panel of one view (viewLayout "panels") draws only its own ramps' stands: the
+    // neighbouring pier's gates at its edge would be duplicates of the next panel's.
+    const only = L.viewLayout === "panels" ? ramps : null;
+    h += `<g transform="translate(${ox},${oy})"><clipPath id="clip${pi}"><rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" rx="8"/></clipPath><g clip-path="url(#clip${pi})">`;
     h += `<rect x="${c.x0}" y="${c.y0}" width="${c.w}" height="${c.h}" fill="#0c131c"/>`;
     // Aprons as mapped (KMCO, from OpenStreetMap); airports without them get a box around each ramp's stands.
     const aprons = (L.aprons || []).filter(a => a.chart === chart);
     for (const a of aprons) h += `<polygon points="${a.pts.map(p => p.join(",")).join(" ")}" fill="var(--pave)"/>`;
     if (!aprons.length) {
-      for (const b of rampBoxes(chart)) {
+      for (const b of rampBoxes(chart, only)) {
         h += `<rect x="${b.x0}" y="${b.y0}" width="${b.x1 - b.x0}" height="${b.y1 - b.y0}" rx="10" fill="var(--pave)"/>`;
       }
     }
@@ -753,7 +772,7 @@ function renderMap(state) {
       h += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="3" fill="var(--bldg)" stroke="#2b3a4c"/>`;
       if (b.name) h += `<text x="${x + w / 2}" y="${y + hh / 2 + 4}" text-anchor="middle" font-size="11" fill="#9fb0c2">${esc(b.name)}</text>`;
     }
-    for (const b of rampBoxes(chart)) {
+    for (const b of rampBoxes(chart, only)) {
       h += `<text x="${(b.x0 + b.x1) / 2}" y="${b.y0 - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="#c4d2e0">${esc(b.r.name)}</text>`;
     }
     // Lane names at the lane start ("label": "" for an unnamed apron lane, or a second piece of a taxiway).
@@ -771,9 +790,8 @@ function renderMap(state) {
     // so it never sits under an aircraft or on another label.
     const labels = [];
     const obstacles = [];
-    if (chart === views[0][0]) ui.dropped = 0;
     const now = Date.now();
-    for (const s of L.stands.filter(s => s.chart === chart)) {
+    for (const s of L.stands.filter(s => s.chart === chart && (!only || only.includes(s.ramp)))) {
       const st = statuses.get(s.id);
       const occ = byStand.get(s.id);
       const color = occ ? (STATE_COLOR[occ.state] || STAND_COLOR.occupied) : st ? STAND_COLOR[st.key] : STAND_COLOR.empty;
@@ -836,13 +854,13 @@ function renderMap(state) {
     }
     for (const sp of L.callSpots.filter(sp => sp.chart === chart)) obstacles.push({ x: sp.x, y: sp.y, r: 11 });
     // Ramp titles: keep gate labels off them.
-    for (const rb of rampBoxes(chart)) {
+    for (const rb of rampBoxes(chart, only)) {
       const tw = rb.r.name.length * 12 * 0.6;
       obstacles.push({ box: { x0: (rb.x0 + rb.x1) / 2 - tw / 2, x1: (rb.x0 + rb.x1) / 2 + tw / 2, y0: rb.y0 - 18, y1: rb.y0 - 2 } });
     }
     h += placeLabels(labels, obstacles, ui.fontK, { x0: c.x0, y0: c.y0, x1: c.x0 + c.w, y1: c.y0 + c.h });
     h += `</g></g>`;
-  }
+  });
   svg.innerHTML = h;
   const offMap = vrows.filter(r => r.state === STATES.INBOUND).length;
   // Credit for map data the airport file takes from elsewhere (KMCO: OpenStreetMap, ODbL).
