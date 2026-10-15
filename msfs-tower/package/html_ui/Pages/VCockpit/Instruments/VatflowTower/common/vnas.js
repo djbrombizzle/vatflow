@@ -18,7 +18,7 @@ var VatflowVnas = (function () {
   // ARTCC of the bundled airports (others: the airport's FIR in the VATSpy list, KZxx -> Zxx)
   var ARTCC = { KDCA: "ZDC", KATL: "ZTL" };
   var M_PER_DEG = 111320;
-  var artccs = {}, maps = {}, waits = {};
+  var artccs = {}, maps = {}, waits = {}, why = {};
 
   function base() {
     return (typeof VATFLOW_TWR !== "undefined" && VATFLOW_TWR.facilitiesBase) || "/Pages/VCockpit/Instruments/VatflowTower/facilities/";
@@ -38,16 +38,34 @@ var VatflowVnas = (function () {
     x.send();
   }
 
-  /** One request per url at a time; everyone asking gets the same answer. */
+  /** One request per url at a time; everyone asking gets the same answer (failures are retried next time). */
   function once(store, key, url, cb) {
-    if (store[key] !== undefined) { cb(store[key] ? null : new Error("not available"), store[key]); return; }
+    if (store[key]) { cb(null, store[key]); return; }
     if (waits[url]) { waits[url].push(cb); return; }
     waits[url] = [cb];
     get(url, function (err, d) {
-      store[key] = err ? null : d;
+      if (!err) store[key] = d;
       var w = waits[url]; delete waits[url];
       for (var i = 0; i < w.length; i++) w[i](err, d);
     });
+  }
+
+  /**
+   * The ARTCC file: from the maps package (two ways of naming the sim's own files), else
+   * straight from vNAS. why[artcc] keeps what each try said, for the MAPS screen.
+   */
+  function loadArtcc(artcc, cb) {
+    var urls = [base() + artcc + ".json", "coui://html_ui/Pages/VCockpit/Instruments/VatflowTower/facilities/" + artcc + ".json",
+      "https://data-api.vnas.vatsim.net/api/artccs/" + artcc];
+    var tried = [];
+    (function next(i) {
+      if (i >= urls.length) { why[artcc] = tried.join("; "); cb(null); return; }
+      once(artccs, artcc, urls[i], function (err, d) {
+        if (d && d.videoMaps) { why[artcc] = "LOADED FROM " + urls[i]; cb(d); return; }
+        tried.push(urls[i].replace(/^.*\/(Pages|api)\//, "$1/") + ": " + (err ? err.message : "not an ARTCC file"));
+        next(i + 1);
+      });
+    })(0);
   }
 
   function artccFor(icao, cb) {
@@ -116,9 +134,12 @@ var VatflowVnas = (function () {
   /** cb(info or null): needs the ARTCC file in the maps package. */
   function facility(icao, lid, cb) {
     artccFor(icao, function (artcc) {
-      if (!artcc) { cb(null); return; }
-      once(artccs, artcc, base() + artcc + ".json", function (err, art) {
-        cb(art ? describe(art, lid || icao.replace(/^K/, "")) : null);
+      if (!artcc) { why[icao] = "NO US ARTCC FOUND FOR " + icao; cb(null); return; }
+      loadArtcc(artcc, function (art) {
+        var d = art ? describe(art, lid || icao.replace(/^K/, "")) : null;
+        if (art && !d) why[artcc] = artcc + ".json HAS NO FACILITY " + (lid || icao);
+        why[icao] = artcc + ": " + why[artcc];
+        cb(d);
       });
     });
   }
@@ -191,5 +212,7 @@ var VatflowVnas = (function () {
     return out;
   }
 
-  return { facility: facility, describe: describe, loadMap: loadMap, toLines: toLines, toAsdex: toAsdex, ARTCC: ARTCC, FILES: FILES };
+  function reason(icao) { return why[icao] || ""; }
+
+  return { facility: facility, describe: describe, reason: reason, loadMap: loadMap, toLines: toLines, toAsdex: toAsdex, ARTCC: ARTCC, FILES: FILES };
 })();

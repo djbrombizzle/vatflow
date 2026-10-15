@@ -104,7 +104,7 @@ var VatflowApps = (function () {
       var picker = new VatflowMapPicker(el, {
         app: kind, icao: cfg.icao, multi: kind === "dbrite", items: items, defaults: defaults, presets: presets,
         title: info ? info.artcc + (info.tracon ? " " + info.tracon : "") + " / " + info.lid + " " + (info.name || "") : cfg.icao,
-        note: NO_MAPS, onChange: load
+        note: NO_MAPS + "   DETAILS: " + VatflowVnas.reason(cfg.icao), onChange: load
       });
       function load(ids) {
         var my = ++token, list = [], left = ids.length, failed = 0;
