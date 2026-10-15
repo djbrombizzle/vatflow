@@ -205,6 +205,22 @@ for (const t of ["CANCEL PUSH", "NO PUSH REQ", "UNABLE PUSH", "PUSHED BACK", "DI
   assert(io("12") === "2/3" && io("44") === "4/5" && io("85") === "1/1" && io("65") === "6/7E" && io("110") === "8/7W", `KIND in/out spots (${["12", "44", "85", "65", "110"].map(io)})`);
   assert(suggestStand(I, [], operatorFor(I, "FDX123", ""), "FDX123").group === "FedEx", "KIND suggests a FedEx stand for FDX");
 }
+/* ---------- KATL (Concourses T, A-F) ---------- */
+{
+  const A = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KATL.json", import.meta.url))));
+  assert(A.stands.length === 197 && A.stands.every(s => !s.approx && s.noseHdg != null), "KATL 197 stands with coordinates and headings");
+  // One ramp frequency per alley between concourses, from the 10-9B.
+  const freq = id => composeStandTelex(A, id).match(/CTC RAMP (\d) ([\d.]+)/).slice(1).join(" ");
+  const want = { T5: "1 131.45", A12: "1 131.45", A11: "2 131.85", B12: "2 131.85", B11: "3 129.275", C12: "3 129.275",
+    C13: "4 130.075", D12: "4 130.075", D9: "5 129.375", E12: "5 129.375", E15: "6 131.375", F12A: "8 128.975", F9: "9 131.875" };
+  for (const [id, f] of Object.entries(want)) assert(freq(id) === f, `KATL ${id} on Ramp ${f} (${freq(id)})`);
+  // 10-9B numbering where OSM differs, and the A lines that share a stand.
+  assert(["B30", "D40A", "D17", "E37", "F12A"].every(id => A.standById.has(id)) && !["B22", "D24", "D13", "T13A"].some(id => A.standById.has(id)), "KATL chart gate list");
+  assert(["T1A", "T2A", "E3A", "E27A", "E33A", "F3A"].every(g => standForGate(A, g)?.id === g.slice(0, -1)), "KATL A gates share their base stand");
+  assert(entrySpotFor(A, A.standById.get("A2")).id === "1S" && entrySpotFor(A, A.standById.get("C55")).id === "4N", "KATL nearest ramp entry point");
+  const al = { DAL1: "ATL-A", SWA1: "ATL-C", FFT1: "ATL-D", KLM1: "ATL-E" };
+  for (const [cs, r] of Object.entries(al)) assert(suggestStand(A, [], operatorFor(A, cs, ""), cs).ramp.startsWith(r), `KATL ${cs} on ${r}`);
+}
 console.log(`test-ramp-core: ${passed} passed`);
 
 /* ---------- demo simulator ---------- */
@@ -258,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL and KIND");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND and KATL");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
