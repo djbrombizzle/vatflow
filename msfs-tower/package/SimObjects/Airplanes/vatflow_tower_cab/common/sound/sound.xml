@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	VATFLOW Tower Cab: no aircraft sounds at all (engine, wind, rattles, airframe creaks).
+	The cab is a SimObject "aircraft" only so it can be placed and frozen on the tower;
+	nothing in it should make aircraft noise. No Wwise packages and no sounds listed means
+	the sim plays none for it. The cab fan is played by the placement tool instead
+	(placement/cab_fan.wav).
+-->
+<SoundInfo Version="0.1">
+	<WwisePackages>
+	</WwisePackages>
+</SoundInfo>

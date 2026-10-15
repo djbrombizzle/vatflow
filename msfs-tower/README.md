@@ -64,8 +64,11 @@ Inside the cab there are two working screens fed by live data:
 * **Console equipment** round those two, after the DCA local position: voice switch
   panel (keys light while that position is online on VATSIM), red LED Zulu clock,
   keypad, trackball, keyboard, knob panel, speaker. The ceiling is black, like the real cab.
-* **Sound**: `3-place-KDCA.bat` turns the cab's engine off (no propeller) and loops a
-  quiet fan sound (`placement/cab_fan.wav`, made by `tools/make_fan_sound.py`).
+* **Sound**: no aircraft sounds at all: `common/sound/sound.xml` is empty (no Wwise
+  packages), and the installer moves the sample aircraft's sound folders to
+  `backup-sound\` in the project (`tools/silence-sounds.ps1`). `3-place-KDCA.bat` also turns
+  the engine off and loops a quiet fan sound (`placement/cab_fan.wav`, made by
+  `tools/make_fan_sound.py`).
 
 Status: everything that can be built without the sim is built and tested here
 (the Blender script runs in headless Blender, the screens run in a browser
