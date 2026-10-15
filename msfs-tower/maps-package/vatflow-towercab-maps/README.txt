@@ -10,8 +10,11 @@ Add or update an ARTCC
      (vNAS: https://data-api.vnas.vatsim.net/api/artccs/ZTL - or let step 2 download it).
   2. Double-click update-maps.bat. Type ARTCC ids to download them (ZTL ZDC ...) or just
      press Enter to use what is in "ARTCC files".
-  3. Restart the flight. The map drawings themselves are downloaded live from vNAS when a
-     screen shows them, so only the ARTCC file is needed here.
+  3. Restart MSFS the first time this package is in Community (MSFS only reads Community
+     when it starts); after that, adding or updating an ARTCC only needs a new flight.
+     The map drawings are downloaded live from vNAS when a screen shows them, so only the
+     ARTCC file is needed here. If the MAPS screen says no maps are installed, the DETAILS
+     at its end say what the cab tried.
 
 In the cab
   DBRITE: MAPS tab (bottom right, next to MENU) lists the TRACON's STARS maps (by STARS
