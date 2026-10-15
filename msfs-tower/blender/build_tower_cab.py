@@ -61,7 +61,7 @@ P = {
     "console_depth": 0.75,
     "console_h": 0.92,
     "eye_h": 1.65,           # standing eye height (used for the camera marker)
-    "track_radius": 3.0,     # circular ceiling track for the overhead monitors
+    "track_radius": 3.85,    # circular ceiling track: over the console monitors, near the glass
 }
 
 COLORS = {
