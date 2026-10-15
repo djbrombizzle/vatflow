@@ -48,6 +48,9 @@ var DbriteView = (function () {
    * [{lines, polys, texts, stars: bool, cat: "A" | "B"}]. STARS maps take their category
    * colour; others (tower cab maps) keep their own colours. null / [] = the built-in map.
    */
+  /** Zoom / pan control (VatflowViewCtl), set by the screen host. */
+  DbriteView.prototype.setView = function (v) { this.view = v; };
+
   DbriteView.prototype.setVideoMaps = function (list) { this.vmaps = list && list.length ? list : null; };
 
   DbriteView.prototype.drawVideoMaps = function (ctx, px) {
@@ -116,7 +119,7 @@ var DbriteView = (function () {
 
   DbriteView.prototype.visible = function (t) {
     var c = this.cfg.dbrite;
-    return t.gs >= c.minGroundspeedKt && t.alt <= c.maxAltFt && t.distNm <= c.rangeNm * 1.05;
+    return t.gs >= c.minGroundspeedKt && t.alt <= c.maxAltFt && t.distNm <= (this.viewNm || c.rangeNm) * 1.05;
   };
 
   /** Advance the sweep if due; returns true when positions changed. */
@@ -232,7 +235,7 @@ var DbriteView = (function () {
       var z = VatflowDraw.zulu(zuluSec);
       lines.push({ s: z.hh + z.mm + "/" + z.ss + " " + (home && home.altim ? home.altim : "--.--"), c: C.list });
     }
-    lines.push({ s: "RNG " + cfg.dbrite.rangeNm + "NM" + (this.atis && this.atis.code ? "  ATIS " + this.atis.code : ""), c: C.list });
+    lines.push({ s: "RNG " + (this.shownRangeNm || cfg.dbrite.rangeNm) + "NM" + (this.atis && this.atis.code ? "  ATIS " + this.atis.code : ""), c: C.list });
     var st = cfg.dbrite.altimeterStations || [];
     for (var i = 0; i < st.length; i++) {
       var m = this.metars[st[i]];
@@ -248,7 +251,16 @@ var DbriteView = (function () {
     ctx.globalAlpha = 1;
     var range = cfg.dbrite.rangeNm;
     var cx = W / 2, cy = H / 2;
-    var scale = (Math.min(W, H) / 2 - 8) / range;
+    var scale = (Math.min(W, H) / 2 - 8) / range, s0 = scale;
+    if (this.view) {                                          // zoom / pan
+      var v = this.view.apply(scale, cx, cy);
+      scale = v.scale; cx = v.cx; cy = v.cy;
+    }
+    // how far out targets show: the screen's corners from the field
+    var far = 0;
+    [[0, 0], [W, 0], [0, H], [W, H]].forEach(function (k) { far = Math.max(far, Math.sqrt((k[0] - cx) * (k[0] - cx) + (k[1] - cy) * (k[1] - cy))); });
+    this.viewNm = Math.max(range, far / scale);
+    this.shownRangeNm = Math.round(range * s0 / scale);
     function px(p) { return { x: cx + p.x * scale, y: cy - p.y * scale }; }
     var CW = 13;               // character cell width (px) for 20px text
     var mono = VatflowDraw.mono;
@@ -259,7 +271,7 @@ var DbriteView = (function () {
     // range rings
     ctx.strokeStyle = C.ring;
     ctx.lineWidth = 1.5;
-    for (var r = cfg.dbrite.ringNm; r <= range * 1.6; r += cfg.dbrite.ringNm) {
+    for (var r = cfg.dbrite.ringNm; r <= this.viewNm * 1.05; r += cfg.dbrite.ringNm) {
       ctx.beginPath();
       ctx.arc(cx, cy, r * scale, 0, Math.PI * 2);
       ctx.stroke();

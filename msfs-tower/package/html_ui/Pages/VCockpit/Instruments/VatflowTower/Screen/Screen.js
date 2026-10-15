@@ -134,6 +134,16 @@ var VatflowApps = (function () {
       load(picker.selected());
     });
   }
+  /** Zoom / pan pad for a radar view (kept per screen). */
+  function zoomPan(el, ctx, app, view, redraw) {
+    var c = el.querySelector("canvas");
+    var vc = new VatflowViewCtl("VIEW_" + app + "_" + ctx.screen.id, c.width, c.height);
+    view.setView(vc);
+    vc.onChange = redraw;
+    vc.pad(el);
+    return vc;
+  }
+
   var rampLayout = function () { return typeof VATFLOW_RAMP_LAYOUT !== "undefined" ? VATFLOW_RAMP_LAYOUT : null; };
 
   var IDST_HTML = '<div id="id-root"><div class="id-top"><span class="id-title">VATFLOW IDST</span><span id="id-icao" class="id-icao">----</span>' +
@@ -191,6 +201,7 @@ var VatflowApps = (function () {
       create: function (el, ctx) {
         var v = new DbriteView(canvas(el, null, "dbrite-canvas"), ctx.cfg, ctx.maps);
         var tick = VatflowDraw.loop(v, 1000);
+        zoomPan(el, ctx, "dbrite", v, function () { tick(true); });
         VatflowFeed.poll(ctx.cfg, function (d) { v.setData(d); }, function (e) { v.setError(e); });
         VatflowFeed.pollMetars(ctx.cfg.dbrite.altimeterStations, function (m) { v.setMetars(m); });
         videoMaps(el, ctx, "dbrite", function (list) { v.setVideoMaps(list); tick(true); });
@@ -202,6 +213,7 @@ var VatflowApps = (function () {
       create: function (el, ctx) {
         var v = new AsdexView(canvas(el, null, "asdex-canvas"), ctx.cfg, ctx.maps);
         var tick = VatflowDraw.loop(v, 1000);
+        zoomPan(el, ctx, "asdex", v, function () { v.fit(); tick(true); });
         VatflowFeed.poll(ctx.cfg, function (d) { v.setData(d); }, function (e) { v.setError(e); });
         videoMaps(el, ctx, "asdex", function (list) { v.setMap(list.length ? list[0].asdex || list[0] : (ctx.maps ? ctx.maps.asdex : null)); tick(true); });
         return { update: function () { v.setUp(ctx.upHeading()); tick(false); } };

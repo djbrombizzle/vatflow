@@ -1,21 +1,23 @@
 /*
- * VATFLOW Tower Cab - a flight strip bay ($SCREEN_STRIPS_n) and its position sign
+ * VATFLOW Tower Cab - a flight strip bay ($SCREEN_STRIPS_n, 1536x896: three 512 columns) and its position sign
  * ($SCREEN_SIGN_n). Strips follow the FAA terminal departure strip:
  *
  *   | ACID      | BCN   | DEP | ROUTE ............................ DEST |  |  |  |
  *   | TYPE/EQ   | Pxxxx |     |                                          |  |  |  |
  *   | CID   REV | ALT   |     | RMK                                      |  |  |  |
  *
+ * The board is three columns wide; each separator's section sits in one column (set on the
+ * STRIP BAYS screen). A bay with no separators fills its columns left to right.
  * Tap a strip to pick it up (any bay), tap where it goes: another strip (it goes in front
- * of it), a separator (top of that section) or the empty part of the bay (bottom).
+ * of it), a separator (top of that section) or the empty part of a column (its bottom).
  * COCK offsets it as a reminder, DELETE removes it. The model is common/strips.js.
  */
 var StripBayView = (function () {
-  var W = 512, H = 896, HEAD = 36, FOOT = 60, SEP_H = 26, STRIP_H = 58, MIN_H = 38, GAP = 3;
+  var W = 1536, H = 896, COLS = 3, CW = W / COLS, HEAD = 36, FOOT = 60, SEP_H = 26, STRIP_H = 58, MIN_H = 38, GAP = 3;
   var C = {
     board: "#262b31", head: "#0f141a", headText: "#e8eef4", paper: "#ebe6d4", paperVfr: "#e4ecd8", ink: "#161616",
     rule: "#8f8878", sep: "#1c2733", sepText: "#f2f5f8", held: "#ffb000", hint: "#9fb3c6", amended: "#b3261e",
-    btn: "#1b2a3a", btnLine: "#4c6a88", btnText: "#e8f1fa", del: "#5a1a14"
+    btn: "#1b2a3a", btnLine: "#4c6a88", btnText: "#e8f1fa", del: "#5a1a14", rail: "#a8873c"
   };
 
   function StripBayView(canvas, n) {
@@ -63,7 +65,7 @@ var StripBayView = (function () {
     var held = this.st && this.st.held;
     for (i = 0; i < this.rows.length; i++) {
       var r = this.rows[i];
-      if (y < r.y0 || y > r.y1) continue;
+      if (y < r.y0 || y > r.y1 || x < r.x0 || x > r.x1) continue;
       if (r.type === "strip") {
         if (!held) this.act(function (st) { st.held = r.id; });
         else if (held === r.id) this.act(function (st) { st.held = null; });
@@ -76,23 +78,45 @@ var StripBayView = (function () {
     }
   };
 
-  /** Rows for the bay: separators and strips, squeezed to fit. */
+  /**
+   * Rows for the bay: separators and strips, column by column, squeezed to fit (each row
+   * has x0 / x1: its column). Columns with no section get no rows.
+   */
   StripBayView.prototype.layout = function () {
-    var secs = this.st.bays[this.n], seps = this.bay.seps, total = 0, nSeps = seps.length, s;
+    var secs = this.st.bays[this.n], seps = this.bay.seps, nSeps = seps.length, total = 0, s, c;
     for (s = 0; s < secs.length; s++) total += secs[s].length;
-    var avail = H - HEAD - FOOT - 8 - nSeps * (SEP_H + GAP);
-    var h = total ? Math.max(MIN_H, Math.min(STRIP_H, Math.floor(avail / total) - GAP)) : STRIP_H;
-    var rows = [], y = HEAD + 4, bottom = H - FOOT - 4, hidden = 0;
-    for (s = 0; s < secs.length; s++) {
-      if (nSeps) { rows.push({ type: "sep", sec: s, y0: y, y1: y + SEP_H, name: seps[s] }); y += SEP_H + GAP; }
-      for (var i = 0; i < secs[s].length; i++) {
-        if (y + h > bottom - (s < secs.length - 1 ? (secs.length - 1 - s) * (SEP_H + GAP) : 0)) { hidden++; continue; }
-        rows.push({ type: "strip", sec: s, idx: i, id: secs[s][i], y0: y, y1: y + h });
-        y += h + GAP;
+    var cols = VatflowStrips.cols(this.bay), rows = [], hidden = 0, bottom = H - FOOT - 4;
+    // what goes in each column: [{sec, from, to}] (a bay with no separators: its strips split in three)
+    var parts = [[], [], []];
+    if (!nSeps) {
+      var per = Math.max(1, Math.ceil(secs[0].length / COLS));
+      for (c = 0; c < COLS; c++) parts[c].push({ sec: 0, from: c * per, to: Math.min(secs[0].length, (c + 1) * per), sep: false });
+    } else {
+      for (s = 0; s < secs.length; s++) parts[cols[s]].push({ sec: s, from: 0, to: secs[s].length, sep: true });
+    }
+    for (c = 0; c < COLS; c++) {
+      var x0 = c * CW, x1 = x0 + CW, list = parts[c];
+      if (!list.length) continue;
+      var n = 0, nSep = 0;
+      list.forEach(function (p) { n += p.to - p.from; if (p.sep) nSep++; });
+      var avail = bottom - HEAD - 4 - nSep * (SEP_H + GAP);
+      var h = n ? Math.max(MIN_H, Math.min(STRIP_H, Math.floor(avail / n) - GAP)) : STRIP_H;
+      var y = HEAD + 4;
+      for (var k = 0; k < list.length; k++) {
+        var p = list[k], sepsBelow = 0;
+        for (var q = k + 1; q < list.length; q++) if (list[q].sep) sepsBelow++;
+        if (p.sep) { rows.push({ type: "sep", sec: p.sec, x0: x0, x1: x1, y0: y, y1: y + SEP_H, name: seps[p.sec] }); y += SEP_H + GAP; }
+        for (var i = p.from; i < p.to; i++) {
+          if (y + h > bottom - sepsBelow * (SEP_H + GAP)) { hidden++; continue; }
+          rows.push({ type: "strip", sec: p.sec, idx: i, id: secs[p.sec][i], x0: x0, x1: x1, y0: y, y1: y + h });
+          y += h + GAP;
+        }
+        // the empty space under a section that has another below it in this column: its bottom
+        if (k < list.length - 1) continue;
+        rows.push({ type: "end", sec: p.sec, x0: x0, x1: x1, y0: y, y1: bottom });
       }
     }
-    rows.push({ type: "end", sec: secs.length - 1, y0: y, y1: bottom });
-    return { rows: rows, h: h, total: total, hidden: hidden };
+    return { rows: rows, total: total, hidden: hidden };
   };
 
   function fit(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n) : s; }
@@ -187,36 +211,39 @@ var StripBayView = (function () {
     ctx.fillStyle = C.head;
     ctx.fillRect(0, 0, W, HEAD);
     ctx.fillStyle = C.headText;
-    ctx.font = "bold 20px monospace";
-    ctx.fillText(fit(this.bay.name, 16), 10, 25);
-    ctx.font = "16px monospace";
+    ctx.font = "bold 22px monospace";
+    ctx.fillText(fit(this.bay.name, 24), 12, 26);
+    ctx.font = "18px monospace";
     var z = VatflowDraw.zulu(VatflowDraw.zuluNow());
     ctx.textAlign = "right";
-    ctx.fillText(L.total + " STRIP" + (L.total === 1 ? "" : "S") + "   " + z.hh + z.mm + "Z", W - 10, 24);
+    ctx.fillText(L.total + " STRIP" + (L.total === 1 ? "" : "S") + "   " + z.hh + z.mm + "Z", W - 12, 25);
     ctx.textAlign = "left";
+    // rails between the columns
+    ctx.fillStyle = C.rail;
+    for (var c = 1; c < COLS; c++) ctx.fillRect(c * CW - 2, HEAD, 4, H - HEAD - FOOT);
     for (var i = 0; i < L.rows.length; i++) {
-      var r = L.rows[i];
+      var r = L.rows[i], x0 = r.x0, cw = r.x1 - r.x0;
       if (r.type === "sep") {
         ctx.fillStyle = C.sep;
-        ctx.fillRect(6, r.y0, W - 12, SEP_H);
+        ctx.fillRect(x0 + 6, r.y0, cw - 12, SEP_H);
         ctx.fillStyle = C.sepText;
         ctx.font = "bold 16px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(fit(r.name, 24) + (held ? "   ▾" : ""), W / 2, r.y0 + 18);
+        ctx.fillText(fit(r.name, 24) + (held ? "   \u25BE" : ""), x0 + cw / 2, r.y0 + 18);
         ctx.textAlign = "left";
       } else if (r.type === "strip") {
         var s = this.st.strips[r.id];
         var off = s.cocked ? 24 : 0;
-        StripBayView.drawStrip(ctx, s, 6 + off, r.y0, W - 12 - 24, r.y1 - r.y0, held === r.id);
+        StripBayView.drawStrip(ctx, s, x0 + 6 + off, r.y0, cw - 12 - 24, r.y1 - r.y0, held === r.id);
       } else if (held && r.y1 - r.y0 > 20) {
         ctx.strokeStyle = C.hint;
         ctx.setLineDash ? ctx.setLineDash([6, 6]) : null;
         ctx.lineWidth = 2;
-        ctx.strokeRect(8, r.y0 + 2, W - 16, Math.min(60, r.y1 - r.y0 - 4));
+        ctx.strokeRect(x0 + 8, r.y0 + 2, cw - 16, Math.min(60, r.y1 - r.y0 - 4));
         ctx.setLineDash ? ctx.setLineDash([]) : null;
         ctx.fillStyle = C.hint;
         ctx.font = "15px monospace";
-        ctx.fillText("TAP HERE: BOTTOM OF THE BAY", 18, r.y0 + 26);
+        ctx.fillText("TAP HERE: BOTTOM OF THIS COLUMN", x0 + 18, r.y0 + 26);
       }
     }
     if (L.hidden) {
@@ -229,9 +256,12 @@ var StripBayView = (function () {
     ctx.fillStyle = C.head;
     ctx.fillRect(0, fy, W, FOOT);
     if (held && this.st.strips[held]) {
-      this.button(ctx, "PUT BACK", 8, fy + 8, 156, 44, function (st) { st.held = null; });
-      this.button(ctx, "COCK", 178, fy + 8, 156, 44, function (st) { VatflowStrips.cock(st, st.held); st.held = null; });
-      this.button(ctx, "DELETE", 348, fy + 8, 156, 44, function (st) { VatflowStrips.remove(st, st.held, true); }, C.del);
+      this.button(ctx, "PUT BACK", 8, fy + 8, 200, 44, function (st) { st.held = null; });
+      this.button(ctx, "COCK", 222, fy + 8, 200, 44, function (st) { VatflowStrips.cock(st, st.held); st.held = null; });
+      this.button(ctx, "DELETE", 436, fy + 8, 200, 44, function (st) { VatflowStrips.remove(st, st.held, true); }, C.del);
+      ctx.fillStyle = C.held;
+      ctx.font = "bold 18px monospace";
+      ctx.fillText("HOLDING " + held + " - TAP WHERE IT GOES (ANY COLUMN, ANY BAY)", 660, fy + 37);
     } else {
       ctx.fillStyle = C.hint;
       ctx.font = "16px monospace";

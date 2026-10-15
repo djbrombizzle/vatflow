@@ -1,8 +1,9 @@
 /*
  * VATFLOW Tower Cab - flight strip bays: the shared model.
  *
- * Three bays (TMU, ground, local by default), each split into sections by up to six
- * separator strips. A departure strip prints into the "new strips" bay / section when a
+ * Three bays (TMU, ground, local by default), each a board three columns wide, split into
+ * sections by up to six separator strips; each separator says which column its section
+ * sits in (bay.cols, else spread evenly over the columns). A departure strip prints into the "new strips" bay / section when a
  * pilot with a flight plan out of this airport is on the ground here; it drops by itself
  * once airborne (AUTO DROP) or when the controller deletes it. Strips are picked up and
  * put down again, between bays too.
@@ -14,7 +15,7 @@
  * After a change the writer bumps L:VATFLOW_STRIPS_REV; the other screens reload.
  */
 var VatflowStrips = (function () {
-  var MAX_SEPS = 6, BAYS = 3, NM_PER_DEG = 60;
+  var MAX_SEPS = 6, BAYS = 3, COLS = 3, NM_PER_DEG = 60;
   // console faces (45 degrees apart, counter-clockwise from the front; 4 = stairs, no console)
   var FACES = [0, 1, 2, 3, 5, 6, 7];
   var FACE_NAMES = { 0: "FRONT", 1: "FRONT-LEFT", 2: "LEFT", 3: "BACK-LEFT", 5: "BACK-RIGHT", 6: "RIGHT", 7: "FRONT-RIGHT" };
@@ -23,19 +24,47 @@ var VatflowStrips = (function () {
   function defaults() {
     return {
       bays: [
-        { name: "TMU", face: 3, slide: 0.4, seps: ["PROPOSED", "RELEASED"] },
-        { name: "GROUND", face: 7, slide: -0.5, seps: ["PROPOSED", "CLEARED", "TAXI"] },
-        { name: "LOCAL", face: 0, slide: 0.55, seps: ["HOLD SHORT", "RUNWAY", "DEPARTED"] }
+        { name: "TMU", face: 2, slide: -0.6, seps: ["PROPOSED", "RELEASED", "DELAYED"] },
+        { name: "GROUND", face: 7, slide: 0.3, seps: ["PROPOSED", "CLEARED", "TAXI"] },
+        { name: "LOCAL", face: 0, slide: 0.8, seps: ["HOLD SHORT", "RUNWAY", "DEPARTED"] }
       ],
       newBay: 1, newSec: 0, autoDrop: true
     };
   }
+  // where the one-column bays stood by default (a saved layout still there moves to the new spot)
+  var OLD_POSE = [[3, 0.4], [7, -0.5], [0, 0.55]];
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   function config(icao) {
     var c = VatflowStore.get("STRIPCFG_" + icao, null);
-    return c && c.bays && c.bays.length === BAYS ? c : defaults();
+    if (!(c && c.bays && c.bays.length === BAYS)) return defaults();
+    var d = defaults();
+    for (var b = 0; b < BAYS; b++) {
+      if (c.bays[b].face === OLD_POSE[b][0] && c.bays[b].slide === OLD_POSE[b][1]) {
+        c.bays[b].face = d.bays[b].face;
+        c.bays[b].slide = d.bays[b].slide;
+      }
+    }
+    return c;
+  }
+
+  /** Column (0..2) of each separator's section: the bay's own choice, else spread evenly. */
+  function cols(bay) {
+    var n = bay.seps.length, out = [];
+    for (var i = 0; i < n; i++) {
+      var c = bay.cols && bay.cols[i];
+      out.push(c >= 0 && c < COLS ? c : Math.floor(i * COLS / n));
+    }
+    return out;
+  }
+
+  /** Column for a new separator: the one with the fewest (the rightmost of those). */
+  function freeCol(bay) {
+    var cs = cols(bay), count = [0, 0, 0], best = COLS - 1;
+    cs.forEach(function (c) { count[c]++; });
+    for (var c = COLS - 1; c >= 0; c--) if (count[c] < count[best]) best = c;
+    return best;
   }
 
   function emptyState() { return { strips: {}, bays: [[[]], [[]], [[]]], held: null, dismissed: {} }; }
@@ -227,7 +256,7 @@ var VatflowStrips = (function () {
   }
 
   return {
-    MAX_SEPS: MAX_SEPS, BAYS: BAYS, FACES: FACES, FACE_NAMES: FACE_NAMES, SLIDE_MAX: SLIDE_MAX,
+    MAX_SEPS: MAX_SEPS, BAYS: BAYS, COLS: COLS, cols: cols, freeCol: freeCol, FACES: FACES, FACE_NAMES: FACE_NAMES, SLIDE_MAX: SLIDE_MAX,
     defaults: defaults, config: config, saveConfig: saveConfig, state: state, emptyState: emptyState,
     normalize: normalize, update: update, rev: rev, bump: bump, ingest: ingest, fromPilot: fromPilot, altBox: altBox,
     remarks: remarks, where: where, place: place, remove: remove, cock: cock, poseVars: poseVars, applyPose: applyPose

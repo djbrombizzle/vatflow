@@ -36,8 +36,12 @@ var AsdexView = (function () {
     this.feedMs = 0;
     this.error = null;
     this.upHdg = 0;          // degrees true at the top of the screen
+    this.view = null;        // zoom / pan (VatflowViewCtl), set by the screen host
     this.fit();
   }
+
+  /** Zoom / pan control (VatflowViewCtl) applied on top of the fit. */
+  AsdexView.prototype.setView = function (v) { this.view = v; this.fit(); };
 
   AsdexView.colors = C;
   // vNAS ASDE-X map colours when a polygon has none
@@ -82,6 +86,10 @@ var AsdexView = (function () {
     this.scale = Math.min((W - 2 * m) / (maxX - minX), (H - 2 * m - 40) / (maxY - minY));
     this.cx = W / 2 - this.scale * (minX + maxX) / 2;
     this.cy = H / 2 + 20 + this.scale * (minY + maxY) / 2;
+    if (this.view) {
+      var v = this.view.apply(this.scale, this.cx, this.cy);
+      this.scale = v.scale; this.cx = v.cx; this.cy = v.cy;
+    }
   };
 
   /** Meters (x east, y north from the ARP) -> canvas pixels. */
@@ -215,7 +223,7 @@ var AsdexView = (function () {
     mono(ctx, "N", nx + nv.x * 33 - CW / 2, ny - nv.y * 33 + 6, CW);
 
     ctx.fillStyle = C.text;
-    mono(ctx, "ASDE-X " + cfg.icao, 14, 26, CW);
+    mono(ctx, "ASDE-X " + cfg.icao + (this.view && !this.view.isHome() ? "  ZOOM X" + this.view.zoom.toFixed(1) : ""), 14, 26, CW);
     if (typeof zuluSec === "number" && !isNaN(zuluSec)) {
       var z = VatflowDraw.zulu(zuluSec);
       var s = z.hh + z.mm + ":" + z.ss + "Z";

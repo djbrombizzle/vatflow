@@ -1,4 +1,4 @@
-/* Strip bay (512x896) and position sign (512x128): one canvas each. */
+/* Strip bay (1536x896, three columns) and position sign (512x128): one canvas each. */
 vatflow-strips-1, vatflow-strips-2, vatflow-strips-3, vatflow-sign-1, vatflow-sign-2, vatflow-sign-3 { display: block; width: 100%; height: 100%; }
 vatflow-strips-1 canvas, vatflow-strips-2 canvas, vatflow-strips-3 canvas,
 vatflow-sign-1 canvas, vatflow-sign-2 canvas, vatflow-sign-3 canvas { display: block; width: 100%; height: 100%; }

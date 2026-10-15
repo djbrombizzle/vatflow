@@ -41,7 +41,8 @@ Inside the cab there are two working screens fed by live data:
   symbols), green altimeter list for DCA/ADW/DAA from the METARs, history
   trails and data blocks (callsign / altitude + speed, alternating with type +
   ARR/DEP). Positions are dead-reckoned between feed updates and repainted on a
-  4.8 s radar sweep.
+  4.8 s radar sweep. Zoom (+ / -, down to 4x the range out) and pan (arrows, C = back to
+  the whole picture) with the pad in the corner (`common/viewctl.js`, kept per screen).
 * **Overhead monitors** hang in square-tube yokes (side knobs, handle bar) from
   trolleys on a circular ceiling track, like the real DCA cab, and are built to travel
   all the way round the cab: grab the screen with the mouse and drag left/right. Drag
@@ -52,7 +53,8 @@ Inside the cab there are two working screens fed by live data:
   track and its swivel): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
-  arrivals/departures below 2,000 ft as heading arrows with callsign/type.
+  arrivals/departures below 2,000 ft as heading arrows with callsign/type. Same zoom / pan
+  pad as the DBRITE.
 * **TWR INFO** (on the front-left console, amber like the IDS): **AW**, the actual
   wind, in big type: the sim's own wind at the cab (2-minute average, magnetic,
   gusts when the 10-minute peak is 10 kt or more above it). Also the altimeter,
@@ -111,7 +113,7 @@ Inside the cab there are two working screens fed by live data:
 ## Flight strip bays
 
 Three strip bays (TMU, GROUND, LOCAL by default) stand at the front of the consoles, each a
-sloped board with its strips drawn on it (`StripBay/`, screens `$SCREEN_STRIPS_1..3`) and a
+sloped board three columns wide (about 1 m) with its strips drawn on it (`StripBay/`, screens `$SCREEN_STRIPS_1..3`) and a
 position sign on the console front below it (`$SCREEN_SIGN_1..3`).
 
 * **Strips print themselves**: a departure strip (FAA terminal departure strip: ACID,
@@ -120,14 +122,19 @@ position sign on the console front below it (`$SCREEN_SIGN_1..3`).
   out of this airport is on the ground here; `VFR` plans show `VFR` (or `VFR/055`) in the
   altitude box, everything else is treated as IFR. Data: the VATSIM feed (bay 1's screen
   reads it every 20 s for all three).
+* **Columns**: each separator's section sits in one of the bay's three columns (C1 / C2 / C3
+  on the STRIP BAYS screen; by default spread evenly). A bay with no separators fills its
+  columns left to right. Default spots: TMU on the left console between the clock cabinet and
+  the ramp monitors, GROUND right of the front-right window's centre, LOCAL right of the
+  front ramp monitors.
 * **Moving strips**: tap a strip to pick it up (any bay), then tap another strip (it goes in
-  front of it), a separator (top of that section) or the empty part of a bay (bottom).
+  front of it), a separator (top of that section) or the empty part of a column (bottom).
   PUT BACK, COCK (offset as a reminder) and DELETE act on the strip you hold.
 * **Dropping**: strips drop by themselves once airborne (AUTO DROP) or after 3 minutes off the
   network; a deleted strip doesn't print again unless its flight plan is amended.
 * **STRIP BAYS screen** (any screen's MENU): each bay's name (its sign), where it stands (any
   console face, and how far along it), and up to six separators typed on the on-screen
-  keyboard; which bay / section new strips print into; AUTO DROP on / off. Kept per airport.
+  keyboard, each with its column; which bay / section new strips print into; AUTO DROP on / off. Kept per airport.
   The bays move with model animations (`L:VATFLOW_BAY_n_DEG`, `L:VATFLOW_BAY_n_SLIDE`).
 
 Model: `common/strips.js`. The strips are yours only: they don't sync with CRC or vNAS.

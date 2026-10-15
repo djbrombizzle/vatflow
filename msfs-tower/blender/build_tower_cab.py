@@ -373,13 +373,14 @@ def tmu_desk(inside, coll, a_inner, top):
 
 
 STRIP_BAYS = 3
-STRIP_BAY_W, STRIP_BAY_L, STRIP_BAY_SLOPE = 0.32, 0.56, 40.0   # board width, length up the slope, degrees
+STRIP_BAY_W, STRIP_BAY_L, STRIP_BAY_SLOPE = 0.96, 0.56, 40.0   # board width (3 columns), length up the slope, degrees
+STRIP_BAY_COLS = 3
 
 
 def strip_bays(coll, a_inner, top):
     """
-    Flight strip bays (TMU, ground, local by default), each a sloped board at the front of
-    the console with its strips drawn on it ($SCREEN_STRIPS_n, gauge StripBay/) and a
+    Flight strip bays (TMU, ground, local by default), each a sloped board three columns wide
+    at the front of the console with its strips drawn on it ($SCREEN_STRIPS_n, gauge StripBay/) and a
     position sign on the console front below it ($SCREEN_SIGN_n). All are built at the
     front console (face 0, centre) and placed from the cab's STRIP BAYS screen:
       TowerCab_StripBay_n         turns round the cab, L:VATFLOW_BAY_n_DEG (45 per face)
@@ -399,11 +400,14 @@ def strip_bays(coll, a_inner, top):
         c = at(0, (d0 + d1) / 2, (z0 + z1) / 2)
         center, up, n_ = screen(b, c, facing(90 - STRIP_BAY_SLOPE), STRIP_BAY_W, STRIP_BAY_L, "$SCREEN_STRIPS_%d" % n,
                                 bezel=0.02, depth=0.03, bezel_mat="TWR_StripBay")
-        # lip along the bottom edge (stops the strips sliding off) and two back legs
+        # lip along the bottom edge (stops the strips sliding off) and a back leg under each
+        # column edge (the column rails are drawn on the screen, so nothing covers its clicks)
         lo = center - up * (STRIP_BAY_L / 2 + 0.02)
         b.box(lo + n_ * 0.015 + Vector((0, 0, 0.005)), (STRIP_BAY_W + 0.04, 0.02, 0.03), "TWR_StripBay", rot_z=rot)
-        for side in (-1, 1):
-            hi = center + up * (STRIP_BAY_L / 2) - n_ * 0.03 + right * side * (STRIP_BAY_W / 2 - 0.02)
+        for i in range(STRIP_BAY_COLS + 1):
+            x = -STRIP_BAY_W / 2 + STRIP_BAY_W * i / STRIP_BAY_COLS
+            x = max(-STRIP_BAY_W / 2 + 0.02, min(STRIP_BAY_W / 2 - 0.02, x))
+            hi = center + up * (STRIP_BAY_L / 2) - n_ * 0.03 + right * x
             b.beam(hi, Vector((hi.x, hi.y, top)), 0.012, "TWR_StripBay")
         # position sign on the console front, below the bay
         screen(b, at(0, P["console_depth"] + 0.004, top - 0.085), facing(0), 0.30, 0.075, "$SCREEN_SIGN_%d" % n,

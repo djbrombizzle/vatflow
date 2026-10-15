@@ -653,6 +653,60 @@ t("strip bays: departures print into the new-strips section, drop when airborne,
   assert.equal(Object.keys(st.strips).length, 0);
 });
 
+t("strip bays: three columns - separators spread over them, old default spots move, 3-column layout", () => {
+  const g = genContext();
+  for (const f of ["common/draw.js", "common/strips.js", "StripBay/StripBay.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), g);
+  const S = g.VatflowStrips;
+  assert.deepEqual(plain(S.cols({ seps: ["A", "B", "C"] })), [0, 1, 2]);
+  assert.deepEqual(plain(S.cols({ seps: ["A", "B"] })), [0, 1]);
+  assert.deepEqual(plain(S.cols({ seps: ["A", "B", "C", "D", "E", "F"] })), [0, 0, 1, 1, 2, 2]);
+  assert.deepEqual(plain(S.cols({ seps: ["A", "B"], cols: [2, 2] })), [2, 2], "the controller's choice");
+  assert.equal(S.freeCol({ seps: ["A", "B"] }), 2, "a new separator goes to the emptiest column");
+  // a layout saved with the one-column bays' default spots moves to the new spots; moved bays stay
+  const store = {};
+  g.VatflowStore = { get: (k, d) => (k in store ? JSON.parse(store[k]) : d), set: (k, v) => { store[k] = JSON.stringify(v); } };
+  g.VatflowStore.set("STRIPCFG_KATL", { bays: [{ name: "TMU", face: 3, slide: 0.4, seps: [] }, { name: "GND", face: 6, slide: 0.2, seps: [] },
+    { name: "LCL", face: 0, slide: 0.55, seps: [] }], newBay: 1, newSec: 0, autoDrop: true });
+  const c = S.config("KATL"), d = S.defaults();
+  assert.deepEqual([c.bays[0].face, c.bays[0].slide], [d.bays[0].face, d.bays[0].slide]);
+  assert.deepEqual([c.bays[1].face, c.bays[1].slide], [6, 0.2]);
+  assert.deepEqual([c.bays[2].face, c.bays[2].slide], [d.bays[2].face, d.bays[2].slide]);
+  // drawing: each separator's section in its own column
+  const cfg = S.defaults(), st = S.normalize(S.emptyState(), cfg);
+  ["A", "B", "C"].forEach((id, i) => { st.strips[id] = { id, cs: id }; st.bays[2][i].push(id); });
+  const ctx = new Proxy({}, { get: (o, k) => (k in o ? o[k] : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+  const v = new g.StripBayView({ width: 1536, height: 896, getContext: () => ctx, addEventListener() {} }, 2);
+  g.VatflowStore.set("STRIPCFG_KATL", cfg);
+  g.VatflowStore.set("STRIPS_KATL", st);
+  v.setAirport("KATL");
+  const rows = plain(v.layout().rows).filter((r) => r.type === "strip");
+  assert.deepEqual(rows.map((r) => [r.id, r.x0]), [["A", 0], ["B", 512], ["C", 1024]]);
+  // tap B (column 2) then the empty part of column 3: B goes to the bottom of DEPARTED
+  v.draw();
+  v.click(600, rows[1].y0 + 5);
+  assert.equal(v.st.held, "B");
+  const end = plain(v.rows).find((r) => r.type === "end" && r.x0 === 1024);
+  v.click(1100, end.y0 + 10);
+  assert.deepEqual(plain(v.st.bays[2]), [["A"], [], ["C", "B"]]);
+});
+
+t("zoom / pan: the view scales about the screen centre and pans a share of the screen", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/viewctl.js", BASE), "utf8"), g);
+  const store = {};
+  g.VatflowStore = { get: (k, d) => (k in store ? store[k] : d), set: (k, v) => { store[k] = v; } };
+  const v = new g.VatflowViewCtl("VIEW_x", 1024, 768);
+  assert.deepEqual(plain(v.apply(2, 512, 384)), { scale: 2, cx: 512, cy: 384 });
+  v.zoomBy(1);
+  const a = plain(v.apply(2, 512, 384));
+  assert.ok(Math.abs(a.scale - 2.8) < 1e-9 && a.cx === 512 && a.cy === 384, "zoom about the centre");
+  v.pan(1, 0);
+  assert.ok(v.apply(2, 512, 384).cx < 512, "pan right: the picture moves left");
+  assert.equal(store.VIEW_x.zoom, v.zoom, "kept");
+  v.reset();
+  assert.ok(v.isHome());
+});
+
 t("strip bays: moving within a section, fewer separators merge sections, bay poses", () => {
   const g = genContext();
   vm.runInContext(readFileSync(new URL("common/strips.js", BASE), "utf8"), g);

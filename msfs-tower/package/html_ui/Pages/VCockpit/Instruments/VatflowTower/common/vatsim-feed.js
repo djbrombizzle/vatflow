@@ -51,7 +51,7 @@ var VatflowFeed = (function () {
       var fp = p.flight_plan || {};
       if (dist <= 50 && fp.arrival === cfg.icao && p.groundspeed > cfg.dbrite.minGroundspeedKt) out.arrivals++;
       if (dist <= 3 && fp.departure === cfg.icao && p.groundspeed < cfg.dbrite.minGroundspeedKt) out.departures++;
-      if (dist > cfg.dbrite.rangeNm * 1.5) continue;
+      if (dist > cfg.dbrite.rangeNm * 4) continue;       // the DBRITE can zoom out to 4x its range
       out.traffic.push({
         callsign: p.callsign, lat: p.latitude, lon: p.longitude, x: xy.x, y: xy.y, distNm: dist,
         alt: p.altitude, gs: p.groundspeed, hdg: p.heading,
