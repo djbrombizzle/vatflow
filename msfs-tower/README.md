@@ -58,6 +58,10 @@ Inside the cab there are two working screens fed by live data:
   (`Mirror/`, from `http://127.0.0.1:8777`); clicks and scrolling on the screen go back
   to the page. The page is laid out 1600 px wide (the IDS refuses smaller windows) and
   scaled to the screen.
+* **Ramp maps**: three screens with the map part of vatflow.io's ramp management page,
+  one view each, on the console facing that part of the terminal: E / D (left of the
+  ramp list), C / B and A / Hangars (right of the IDST, front window). A canvas port of
+  ramp.html's map (`RampMap/`), same live data as the ramp list (`common/ramp-data.js`).
 * **Ramp list** computer left of the clock (right-hand end of the front-left window):
   the vatflow.io gates page for KDCA (inbound gate proposals, departures on the ground),
   from `shared/ramp-core.js` bundled into `common/vatflow-ramp.js` plus the KDCA layout.

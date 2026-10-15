@@ -44,6 +44,9 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     <div class="screen vscs" style="margin-top:16px"><vatflow-vscs id="vscs-host"></vatflow-vscs></div>
   </div>
   <div class="screen ramp"><vatflow-ramplist id="ramp-host"></vatflow-ramplist></div>
+  <div class="screen ramp"><canvas id="rampmap-ED" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
+  <div class="screen ramp"><canvas id="rampmap-CB" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
+  <div class="screen ramp"><canvas id="rampmap-AS" width="1024" height="768" style="width:100%;height:100%"></canvas></div>
   <div class="screen tmu"><vatflow-tmuarr id="tmuarr-host"></vatflow-tmuarr></div>
   <div class="screen tmu"><vatflow-tmudep id="tmudep-host"></vatflow-tmudep></div>
   <div class="screen asdex"><vatflow-asdex><canvas id="asdex-canvas" width="768" height="1024"></canvas></vatflow-asdex></div>
@@ -62,7 +65,9 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Vscs/Vscs.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/vatflow-ramp.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-kdca.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/ramp-data.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Ramp/Ramp.js"></script>
+<script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/RampMap/RampMap.js"></script>
 <script src="../package/html_ui/Pages/VCockpit/Instruments/VatflowTower/Tmu/Tmu.js"></script>
 <script>
 (function () {
@@ -170,6 +175,13 @@ Serve this folder over HTTP (<code>python -m http.server</code> in <code>msfs-to
     var ramp = new RampView(host.querySelector("#rp-root"), VATFLOW_RAMP_LAYOUT);
     if (DEMO) ramp.setPilots(demoFeed()); else ramp.start(cfg.feedUrl);
     setInterval(function () { ramp.render(); }, 1000);
+  });
+  // ramp maps: one shared live data source, three views
+  var rampData = new VatflowRampData(VATFLOW_RAMP_LAYOUT);
+  if (DEMO) rampData.setPilots(demoFeed()); else rampData.start(cfg.feedUrl);
+  ["ED", "CB", "AS"].forEach(function (id) {
+    var map = new RampMapView(document.getElementById("rampmap-" + id), null, id, rampData);
+    setInterval(function () { map.draw(); }, 2000);
   });
   ["Arr", "Dep"].forEach(function (m) {
     inject("Tmu/Tmu" + m + ".html", "VatflowTmu" + m, "tmu" + m.toLowerCase() + "-host", function (host) {

@@ -25,7 +25,9 @@ bundle("idst-entry.js", "VatflowMetering", "vatflow-metering.js", "shared/fca-me
 bundle("ramp-entry.js", "VatflowRamp", "vatflow-ramp.js", "shared/ramp-core.js");
 
 const raw = JSON.parse(readFileSync(join(repo, "data", "ramp", "KDCA.json"), "utf8"));
-const keep = ["icao", "name", "field", "charts", "lanes", "stands", "ramps", "operators", "airlines"];
+// the list needs the stands / ramps / airlines; the map also the views, buildings and spots
+const keep = ["icao", "name", "field", "charts", "views", "lanes", "stands", "ramps", "buildings", "callSpots",
+  "deiceSpots", "aprons", "operators", "airlines"];
 const layout = {};
 for (const k of keep) if (raw[k] !== undefined) layout[k] = raw[k];
 writeFileSync(join(common, "ramp-kdca.js"),

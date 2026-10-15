@@ -91,6 +91,9 @@ COLORS = {
     "$SCREEN_CLOCK2": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_RAMP": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_TMUIDS": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_RAMPMAP_ED": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_RAMPMAP_CB": (0.0, 0.0, 0.0, 1.0),
+    "$SCREEN_RAMPMAP_AS": (0.0, 0.0, 0.0, 1.0),
     "TWR_Bezel": (0.05, 0.05, 0.05, 1.0),
     "$SCREEN_TWRINFO": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_DBRITE": (0.0, 0.0, 0.0, 1.0),
@@ -382,10 +385,18 @@ def tmu_desk(inside, coll, a_inner, top):
 
 
 def ramp_computer(inside, a_inner, top):
-    """Ramp list computer (vatflow gates page) on the console left of the clock: the
-    right-hand end of window face 2, next to the local controller's position."""
+    """
+    Ramp computers. The ramp list (vatflow gates page) left of the clock: the right-hand
+    end of window face 2, next to the local controller's position. Ramp maps, each on the
+    console facing that part of the terminal: E / D left of the ramp list (face 2);
+    C / B and A / Hangars right of the IDST, on the front window (face 0).
+    """
     at, facing, rot, out, right = face_frame(2, a_inner)
     desk_monitor(inside, at, facing, rot, 1.05, 0.40, top, 0.48, 0.36, "$SCREEN_RAMP")
+    desk_monitor(inside, at, facing, rot, 0.40, 0.40, top, 0.48, 0.36, "$SCREEN_RAMPMAP_ED", keyboard=False)
+    at, facing, rot, out, right = face_frame(0, a_inner)
+    desk_monitor(inside, at, facing, rot, -0.95, 0.40, top, 0.48, 0.36, "$SCREEN_RAMPMAP_CB", keyboard=False)
+    desk_monitor(inside, at, facing, rot, -0.15, 0.40, top, 0.48, 0.36, "$SCREEN_RAMPMAP_AS", keyboard=False)
 
 
 def console_equipment(inside, coll, k, a_inner, top):

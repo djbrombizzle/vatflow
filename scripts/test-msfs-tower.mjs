@@ -257,7 +257,8 @@ t("cab model: every panel.cfg screen has a matching $SCREEN material and IDST ke
   const panel = readFileSync(new URL("panel/panel.cfg", MODEL), "utf8");
   const screens = [...panel.matchAll(/^texture=(\$SCREEN_\w+)/gm)].map((m) => m[1]);
   assert.deepEqual(screens, ["$SCREEN_DBRITE", "$SCREEN_TWRINFO", "$SCREEN_ASDEX", "$SCREEN_IDST", "$SCREEN_CLOCK", "$SCREEN_VSCS",
-    "$SCREEN_TMUARR", "$SCREEN_TMUDEP", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_TMUIDS"]);
+    "$SCREEN_TMUARR", "$SCREEN_TMUDEP", "$SCREEN_CLOCK2", "$SCREEN_RAMP", "$SCREEN_TMUIDS",
+    "$SCREEN_RAMPMAP_ED", "$SCREEN_RAMPMAP_CB", "$SCREEN_RAMPMAP_AS"]);
   for (const m of panel.matchAll(/^htmlgauge00=VatflowTower\/([\w/]+\.html)/gm)) {
     assert.ok(readFileSync(new URL(m[1], BASE), "utf8").includes("common/dimmer.js"), m[1] + " loads the dimmer");
   }
@@ -312,7 +313,8 @@ t("screen brightness: knobs combine, never fully black, label only when a knob t
 t("ramp list: bundled gates.html logic proposes gates for inbounds and lists ground departures", () => {
   const rctx = vm.createContext({ console });
   vm.runInContext("delete globalThis.globalThis;", rctx);    // as in MSFS
-  for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/vatflow-ramp.js", "common/ramp-kdca.js", "Ramp/Ramp.js"]) {
+  for (const f of ["common/airport.js", "common/vatsim-feed.js", "common/vatflow-ramp.js", "common/ramp-kdca.js",
+    "common/ramp-data.js", "Ramp/Ramp.js", "RampMap/RampMap.js"]) {
     vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), rctx, { filename: f });
   }
   const el = () => ({ textContent: "", innerHTML: "", className: "" });
@@ -328,6 +330,20 @@ t("ramp list: bundled gates.html logic proposes gates for inbounds and lists gro
   assert.match(els["#rp-out"].innerHTML, /AAL2[\s\S]*KCLT/);
   assert.equal(els["#rp-inCount"].textContent, 1);
   assert.match(els["#rp-status"].textContent, /LIVE/);
+
+  // ramp maps: each view draws its own ramps' stands (canvas stub records the gate labels)
+  const drawn = { ED: [], CB: [], AS: [] };
+  for (const id of Object.keys(drawn)) {
+    const ctx = new Proxy({}, { get: (o, k) => (k in o ? o[k] : k === "fillText" || k === "strokeText"
+      ? (t) => drawn[id].push(String(t)) : () => {}), set: (o, k, v) => { o[k] = v; return true; } });
+    const map = new rctx.RampMapView({ width: 1024, height: 768, getContext: () => ctx }, null, id, view.data);
+    map.draw(Date.UTC(2026, 9, 15, 12, 0, 0));
+  }
+  assert.ok(drawn.ED.includes("E47") && drawn.ED.includes("D35"), "E / D gates");
+  assert.ok(drawn.CB.includes("B15") && drawn.CB.includes("C26"), "C / B gates");
+  assert.ok(drawn.AS.includes("A1") && drawn.AS.includes("A9"), "A gates");
+  assert.ok(drawn.AS.includes("AAL2 A321") || drawn.CB.includes("AAL2 A321") || drawn.ED.includes("AAL2 A321") ||
+    Object.values(drawn).flat().some((t) => t === "AAL2"), "the parked departure is on a map");
 });
 
 t("TMU screens: arrivals by ETA with distance and altitude, ground departures with P-time", () => {

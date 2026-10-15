@@ -47,7 +47,9 @@ var VatflowRamp = (() => {
     indexLayout: () => indexLayout,
     operatorFor: () => operatorFor,
     ptimeCountdown: () => ptimeCountdown,
-    standLabel: () => standLabel
+    standConflicts: () => standConflicts,
+    standLabel: () => standLabel,
+    standStatuses: () => standStatuses
   });
 
   // shared/ramp-core.js
@@ -352,6 +354,20 @@ var VatflowRamp = (() => {
     const min = Math.floor((ptime - now) / 6e4);
     return min >= 0 ? String(min) : `+${-min}`;
   }
+  function standStatuses(L, rows) {
+    const out = /* @__PURE__ */ new Map();
+    for (const r of rows) {
+      if (r.stand && !r.atStand && L.standById.has(r.stand) && !out.has(r.stand)) {
+        if (r.state === STATES.INBOUND || r.state === STATES.TAXI_IN) out.set(r.stand, { key: r.autoStand ? "proposed" : "assigned", callsign: r.callsign });
+      }
+    }
+    for (const r of rows) {
+      if (!r.atStand) continue;
+      const key = r.state === STATES.PUSH_REQ ? "pushreq" : r.state === STATES.PUSH_HELD ? "pushheld" : "occupied";
+      out.set(r.atStand, { key, callsign: r.callsign });
+    }
+    return out;
+  }
   function airlineFor(L, callsign) {
     const pfx = String(callsign || "").toUpperCase().slice(0, 3);
     return (L.airlines || []).find((a) => (a.match || []).includes(pfx)) || null;
@@ -456,6 +472,17 @@ var VatflowRamp = (() => {
     }
     for (const cs of [...memo.keys()]) if (!keep.has(cs)) memo.delete(cs);
     return rows;
+  }
+  function standConflicts(rows) {
+    const at = new Map(rows.filter((r) => r.atStand).map((r) => [r.atStand, r.callsign]));
+    const out = /* @__PURE__ */ new Map();
+    for (const r of rows) {
+      if (!r.stand || r.atStand) continue;
+      if (r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN) continue;
+      const occ = at.get(r.stand);
+      if (occ && occ !== r.callsign) out.set(r.stand, { inbound: r.callsign, occupant: occ });
+    }
+    return out;
   }
   return __toCommonJS(ramp_entry_exports);
 })();
