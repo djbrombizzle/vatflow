@@ -13,9 +13,11 @@
  *
  * Sim traffic: Coherent.call("GET_AIR_TRAFFIC") -> [{uId, name?, lat, lon, alt (m), heading}]
  * (what the sim's own traffic displays use; your own aircraft, the cab, is not in it). The
- * sim only answers it once the page has registered the traffic view listener
- * (RegisterViewListener("JS_LISTENER_TRAFFIC"), as the SDK's TrafficInstrument does);
- * before that the call fails with "GET_AIR_TRAFFIC not bound".
+ * sim only answers it once the page has registered the view listener it belongs to; before
+ * that the call fails with "GET_AIR_TRAFFIC not bound". Which listener that is isn't
+ * documented, so WAYS are tried in turn (traffic listener, maps listener; through
+ * Coherent.call or the listener's own call) and the first one that answers is kept. The
+ * radar's status line says which way is being tried while none has answered yet.
  * Ground speed is worked out from how far each one moved since the last read.
  */
 var VatflowTraffic = (function () {
@@ -23,17 +25,35 @@ var VatflowTraffic = (function () {
   var M_TO_FT = 3.28084;
   var MATCH_NM = 0.6, MATCH_FT = 1500, KEEP_NM = 2;
 
-  // the sim's traffic listener: registered once per page, ready when the sim calls back
-  var listener = null, listenerReady = false, listenerAt = 0;
-  function trafficListener() {
-    if (!listener && typeof RegisterViewListener === "function") {
-      try {
-        listenerAt = Date.now();
-        listener = RegisterViewListener("JS_LISTENER_TRAFFIC", function () { listenerReady = true; });
-      } catch (e) { listener = null; }
+  // view listeners, registered once per page; ready when the sim calls back (or after 3 s)
+  var LISTENERS = { TRAFFIC: "JS_LISTENER_TRAFFIC", MAPS: "JS_LISTENER_MAPS" };
+  var listeners = {};
+  function listen(key) {
+    var l = listeners[key];
+    if (!l && typeof RegisterViewListener === "function") {
+      l = listeners[key] = { at: Date.now(), ready: false, obj: null };
+      try { l.obj = RegisterViewListener(LISTENERS[key], function () { l.ready = true; }); }
+      catch (e) { l.failed = true; }
     }
-    // ready when the sim says so (or, if it never calls back, try after 3 s anyway)
-    return listenerReady || (listener && Date.now() - listenerAt > 3000);
+    return !!l && !l.failed && (l.ready || Date.now() - l.at > 3000);
+  }
+  // the ways to ask, in order; the one that works is kept for the page
+  var WAYS = [{ l: "TRAFFIC", via: "coherent" }, { l: "TRAFFIC", via: "listener" },
+              { l: "MAPS", via: "coherent" }, { l: "MAPS", via: "listener" }];
+  var way = 0, wayWorks = false;
+  function ask() {
+    var w = WAYS[way], l = listeners[w.l];
+    if (w.via === "listener") {
+      if (!l || !l.obj || typeof l.obj.call !== "function") return Promise.reject(new Error("no listener call"));
+      return l.obj.call("GET_AIR_TRAFFIC");
+    }
+    return Coherent.call("GET_AIR_TRAFFIC");
+  }
+  /** Status words while no way has answered: which one is being tried, and how it failed. */
+  function tryingText(e) {
+    var m = String((e && e.message) || e || "");
+    return "TRYING " + (way + 1) + "/" + WAYS.length + " " + WAYS[way].l + (WAYS[way].via === "listener" ? " L" : "") +
+      (/not bound/i.test(m) ? " - NOT BOUND" : m ? " - " + m.toUpperCase().slice(0, 18) : "");
   }
 
   /** Short words for the radars' status line (the sim's own errors are long). */
@@ -154,29 +174,39 @@ var VatflowTraffic = (function () {
         timer = setTimeout(tick, 2000);
         return;
       }
-      if (!trafficListener()) {
-        // the listener is still coming up (or this sim has none): try again shortly
-        if (typeof RegisterViewListener !== "function" && onError) onError(new Error("NO TRAFFIC LISTENER IN THIS SIM"));
-        else if (onError) onError(new Error("WAITING FOR THE SIM'S TRAFFIC LIST"));
+      for (var key in LISTENERS) listen(key);              // register them all up front
+      if (!listen(WAYS[way].l)) {
+        // this way's listener is still coming up: try again shortly
+        if (onError) onError(new Error(typeof RegisterViewListener !== "function" ? "NO VIEW LISTENERS IN THIS SIM" : tryingText("")));
         timer = setTimeout(tick, 500);
         return;
       }
       var done = false;
       function next() { if (!done) { done = true; if (!stopped) timer = setTimeout(tick, SIM_MS); } }
+      function failed(e) {
+        if (!wayWorks) {                                   // not this way: the next one (round again at the end)
+          if (onError) onError(new Error(tryingText(e)));
+          way = (way + 1) % WAYS.length;
+        } else if (onError) onError(shortError(e || "NO SIM TRAFFIC"));
+        next();
+      }
       try {
-        Coherent.call("GET_AIR_TRAFFIC").then(function (list) {
+        ask().then(function (list) {
           if (stopped) return;
+          if (!Array.isArray(list)) { failed(new Error("BAD ANSWER")); return; }
+          wayWorks = true;
           try {
             var feed = { general: { update_timestamp: new Date().toISOString() },
               pilots: toPilots(list, vatsim.pilots, state, Date.now()),
               controllers: vatsim.feed ? vatsim.feed.controllers : [], atis: vatsim.feed ? vatsim.feed.atis : [] };
             var s = VatflowFeed.summarize(feed, cfg);
             s.source = "SIM";
+            s.simCount = list.length;                      // everything the sim listed (status line)
             onData(s);
-          } catch (e) { if (onError) onError(e); }
+          } catch (e) { if (onError) onError(shortError(e)); }
           next();
-        }, function (e) { if (onError) onError(shortError(e || "NO SIM TRAFFIC")); next(); });
-      } catch (e) { if (onError) onError(shortError(e)); next(); }
+        }, failed);
+      } catch (e) { failed(e); }
       setTimeout(next, 5000);                 // never stall if the sim doesn't answer
     }
     tick();

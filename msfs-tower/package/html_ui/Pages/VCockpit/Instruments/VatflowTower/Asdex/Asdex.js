@@ -108,6 +108,7 @@ var AsdexView = (function () {
     }
     this.feedMs = base;
     this.source = summary.source || "VATSIM";
+    this.simCount = summary.simCount;
     this.error = null;
   };
 
@@ -232,7 +233,8 @@ var AsdexView = (function () {
     }
     var age = this.feedMs ? Math.round((Date.now() - this.feedMs) / 1000) : null;
     var src = typeof VatflowTraffic !== "undefined" ? VatflowTraffic.source() : (this.source || "VATSIM");
-    mono(ctx, this.error ? src + " " + this.error.toUpperCase() : (age === null ? src + " WAIT" : src + " " + age + "S TGT " + n), 14, H - 14, CW);
+    mono(ctx, this.error ? src + " " + this.error.toUpperCase() : (age === null ? src + " WAIT" : src + " " + age + "S TGT " + n +
+      (src === "SIM" && this.simCount != null ? " OF " + this.simCount + " IN SIM" : "")), 14, H - 14, CW);
   };
 
   return AsdexView;

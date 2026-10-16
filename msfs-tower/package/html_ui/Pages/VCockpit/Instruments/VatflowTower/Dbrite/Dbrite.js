@@ -98,6 +98,7 @@ var DbriteView = (function () {
     }
     this.feedMs = base;
     this.source = summary.source || "VATSIM";
+    this.simCount = summary.simCount;
     this.atis = summary.atis;
     this.error = null;
     this.lastSweep = 0;  // paint new targets on the next frame
@@ -329,7 +330,8 @@ var DbriteView = (function () {
     ctx.fillStyle = this.error ? C.listHi : C.list;
     var src = typeof VatflowTraffic !== "undefined" ? VatflowTraffic.source() : (this.source || "VATSIM");
     mono(ctx, this.error ? src + " " + this.error.toUpperCase()
-      : (feedAge === null ? src + " WAIT" : src + " " + feedAge + "S TGT " + shown), 16, H - 20, CW);
+      : (feedAge === null ? src + " WAIT" : src + " " + feedAge + "S TGT " + shown +
+        (src === "SIM" && this.simCount != null ? " OF " + this.simCount + " IN SIM" : "")), 16, H - 20, CW);
   };
 
   return DbriteView;

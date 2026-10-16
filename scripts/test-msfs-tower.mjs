@@ -1193,7 +1193,7 @@ ta("TRAFFIC: radars from the sim's traffic (tags from VATSIM when it matches), s
   g.VatflowFeed.httpGet = (url, cb) => setTimeout(() => cb(null, feedJson), 1);
   // the sim answers GET_AIR_TRAFFIC only after the page registers JS_LISTENER_TRAFFIC
   let calls = 0, registered = false;
-  g.RegisterViewListener = (name, ready) => { assert.equal(name, "JS_LISTENER_TRAFFIC"); registered = true; setTimeout(ready, 50); return {}; };
+  g.RegisterViewListener = (name, ready) => { if (name === "JS_LISTENER_TRAFFIC") registered = true; setTimeout(ready, 50); return {}; };
   g.Coherent = { call: (name) => { calls++; assert.equal(name, "GET_AIR_TRAFFIC");
     if (!registered) return Promise.reject(new Error("NoSuchMethod: GET_AIR_TRAFFIC not bound. Call Engine.TriggerEvent('Ready')"));
     return Promise.resolve([{ uId: 7, lat: 33.6402, lon: -84.4301, alt: 457, heading: 90 }]); } };
@@ -1215,6 +1215,35 @@ ta("TRAFFIC: radars from the sim's traffic (tags from VATSIM when it matches), s
   assert.equal(got[got.length - 1].source, "VATSIM", "switched while running");
   assert.ok(got.some((d) => d.source === "VATSIM" && d.traffic.length === 0), "the sim's targets are cleared at the switch");
   stop();
+});
+
+
+ta("TRAFFIC: when GET_AIR_TRAFFIC isn't bound the first way, the other ways are tried and the one that works kept", async () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/traffic.js", BASE), "utf8"), g);
+  const store = { TRAFFIC_SRC: "SIM" };
+  g.VatflowStore = { get: (k, d) => (k in store ? store[k] : d), set: (k, v) => { store[k] = v; } };
+  g.VatflowFeed.httpGet = (url, cb) => setTimeout(() => cb(new Error("offline")), 1);
+  const names = [];
+  let mapsCalls = 0;
+  // only the maps listener's own call answers; Coherent.call is never bound
+  g.RegisterViewListener = (name, ready) => {
+    names.push(name);
+    setTimeout(ready, 20);
+    return name === "JS_LISTENER_MAPS" ? { call: () => { mapsCalls++; return Promise.resolve([{ uId: 1, lat: 38.85, lon: -77.04, alt: 5, heading: 0 }]); } } : {};
+  };
+  g.Coherent = { call: () => Promise.reject(new Error("NoSuchMethod: GET_AIR_TRAFFIC not bound. Call Engine.TriggerEvent('Ready')")) };
+  const cfg = vm.runInContext("VATFLOW_TWR", g);
+  const got = [], errs = [];
+  const stop = g.VatflowTraffic.poll(cfg, (d) => got.push(d), (e) => errs.push(String(e.message)));
+  await new Promise((r) => setTimeout(r, 6000));
+  stop();
+  assert.deepEqual(plain(names).sort(), ["JS_LISTENER_MAPS", "JS_LISTENER_TRAFFIC"]);
+  assert.ok(errs.some((m) => /TRYING 1\/4 TRAFFIC - NOT BOUND/.test(m)), errs.join(" | "));
+  const sim = got.filter((d) => d.source === "SIM" && d.simCount === 1);
+  assert.ok(sim.length >= 1, "the maps listener's answer came through");
+  assert.equal(sim[sim.length - 1].traffic.length, 1);
+  assert.ok(mapsCalls >= 2, "and that way is kept");
 });
 
 for (const [name, fn] of tests) { await fn(); passed++; console.log("ok  " + name); }
