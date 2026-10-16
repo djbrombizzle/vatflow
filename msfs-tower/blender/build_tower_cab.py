@@ -95,7 +95,8 @@ COLORS = {
     "TWR_SwitchPlate": (0.85, 0.84, 0.80, 1.0),   # wall switch plate
     "TWR_SwitchRocker": (0.95, 0.94, 0.90, 1.0),
     "TWR_GuideSheet": (1.0, 1.0, 1.0, 1.0),        # the laminated quick guide on the TMU desk
-    "TWR_FanLabel": (1.0, 1.0, 1.0, 1.0),          # FAN label above the fan switch
+    "TWR_FanLabel": (1.0, 1.0, 1.0, 1.0),
+    "TWR_AlarmLit": (1.0, 0.08, 0.06, 1.0),        # windshear MUTE button, lit          # FAN label above the fan switch
     "TWR_Laminate": (0.88, 0.9, 0.92, 1.0),       # its clear laminate border
     "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
     "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
@@ -997,6 +998,19 @@ def build():
     c = out * (a_inner - 0.45) + Vector((0, 0, P["console_h"] + 0.24))
     nrm = -out * math.cos(tilt) + Vector((0, 0, math.sin(tilt)))
     center, up, _ = screen(inside, c, nrm, 0.60, 0.30, "$SCREEN_TWRINFO")
+    # windshear MUTE button on the monitor's bottom bezel, right-hand side: a dark red push
+    # button (TowerCab_WsMute) and its lit cap (TowerCab_WsMute_Lit), shown flashing while
+    # the TWR INFO screen sounds a windshear alarm; either one clicks MUTE
+    rgt = Vector((0, 0, 1)).cross(nrm).normalized()
+    mb = center - up * 0.170 + rgt * 0.20
+    for name, mat, grow in (("TowerCab_WsMute", "TWR_KeyRed", 0.0), ("TowerCab_WsMute_Lit", "TWR_AlarmLit", 0.002)):
+        b = Builder(name, int_coll)
+        hw, hh, dd = 0.05 + grow, 0.013 + grow, 0.008
+        f = mb + nrm * (0.002 + grow)
+        pts = [f - rgt * hw - up * hh, f + rgt * hw - up * hh, f + rgt * hw + up * hh, f - rgt * hw + up * hh]
+        b.quad_strip(pts, [p_ + nrm * dd for p_ in pts], mat)
+        b.face([p_ + nrm * dd for p_ in pts], mat)
+        b.finish()
     inside.beam(center - up * 0.19, Vector((center.x, center.y, P["console_h"])), 0.03, "TWR_Bezel")
     console_equipment(inside, int_coll, 1, a_inner, P["console_h"])
     tmu_desk(inside, int_coll, a_inner, P["console_h"])

@@ -65,6 +65,18 @@ Inside the cab there are two working screens fed by live data:
   5 kt or more above it, and the highest gust recorded in the past 10 minutes is shown, so
   never under 14 kt). Also the altimeter, Zulu time, the VATSIM ATIS letter and the real
   METAR. Pure black background, so it stays black when dimmed at night.
+  **Windshear alert**: when the wind at the cab suddenly gains or loses 15 kt or more (the
+  past 5 seconds against the 2-minute sustained wind), the lower half of the screen shows
+  WINDSHEAR ALERT and the gain / loss in huge bright red (MICROBURST ALERT for a loss of
+  30 kt or more), and an alarm beeps (`common/sound/windshear.wav`, made by
+  `tools/make_alert_sound.py`; played if the sim's screens can play sound). It stays up
+  until the wind has been steady for a minute. **MUTE** on the screen, or the red button on
+  the monitor's bottom bezel (it flashes while the alarm sounds; `L:VATFLOW_WS_ALERT`,
+  `L:VATFLOW_WS_MUTE`), silences and hides it until that alert is over.
+* **RVR** (any screen's MENU): the FAA's live runway visual range table for the cab's
+  airport (rvr.data.faa.gov, read every minute): touchdown / midpoint / rollout in feet with
+  trend arrows, amber under 2400 ft, red under 1200 ft, and the edge / centreline light steps.
+  US airports with RVR sensors only.
 * **IDST** (fixed to the console right of TWR INFO): VATFLOW release times for DCA
   departures in an active FCA program, the same data and release engine as
   vatflow.io/idst.html (`common/vatflow-metering.js` is a bundle of

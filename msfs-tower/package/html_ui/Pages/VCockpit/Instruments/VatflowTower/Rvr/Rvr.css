@@ -1,0 +1,20 @@
+/* RVR monitor (Rvr.js), 1024 x 768 screen */
+.rv-root { box-sizing: border-box; width: 100%; height: 100%; padding: 14px 24px; background: #000; color: #e6edf5;
+  font-family: monospace; display: flex; flex-direction: column; }
+.rv-top { display: flex; align-items: baseline; border-bottom: 2px solid #2a3a4c; padding-bottom: 6px; font-size: 26px; }
+.rv-title { font-weight: bold; color: #7fc8ff; margin-right: 24px; }
+.rv-apt { flex: 1; white-space: nowrap; overflow: hidden; }
+.rv-time { color: #a8b8c8; }
+.rv-body { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding-top: 14px; overflow: hidden; }
+.rv-msg { margin-top: 200px; font-size: 26px; color: #a8b8c8; text-align: center; }
+.rv-tab { border-collapse: collapse; font-size: 40px; }
+.rv-tab th, .rv-tab td { border: 2px solid #3a4c60; padding: 4px 18px; text-align: center; color: #e6edf5; font-family: monospace; font-size: 40px; }
+.rv-tab.rv-small th, .rv-tab.rv-small td { font-size: 28px; }
+.rv-tab tr:first-child th { color: #7fc8ff; font-size: 30px; }
+.rv-tab td { min-width: 70px; }
+.rv-tab td.rv-v { min-width: 150px; font-weight: bold; }
+.rv-tab td.amber { color: #ffb347; }
+.rv-tab td.red { color: #ff4b3a; }
+.rv-tab.rv-small { font-size: 28px; }
+.rv-tab.rv-small th, .rv-tab.rv-small td { padding: 1px 14px; }
+.rv-foot { font-size: 16px; color: #7f93a8; padding-top: 6px; }

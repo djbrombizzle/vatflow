@@ -77,6 +77,7 @@ PBR = {
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
     "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
     "TWR_KnobLit": ("FFC864", 0.0, 0.5, 1),
+    "TWR_AlarmLit": ("FF1A12", 0.0, 0.4, 1),       # windshear MUTE button while it flashes
     "TWR_CanRim": ("B8A98C", 0.8, 0.35, 1),
     "TWR_FanBody": ("3A2A1E", 0.6, 0.4, 1),
     "TWR_FanBlade": ("B9BBBE", 0.0, 0.55, 1),
@@ -157,7 +158,8 @@ def box_uv(p, n, meters):
 # Self-lit (emissive) materials besides the screens, in the same units as the screens'
 # 2000: the ceiling light diffusers glow softly ("lightly dimmed").
 EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0],
-            "TWR_KnobLit": [60.0, 42.0, 14.0]}          # knob pointers and the knob panel's faint amber edge light
+            "TWR_KnobLit": [60.0, 42.0, 14.0],
+            "TWR_AlarmLit": [1600.0, 90.0, 60.0]}       # windshear MUTE button: bright red when it flashes          # knob pointers and the knob panel's faint amber edge light
 
 
 def material_json(name):
@@ -501,6 +503,17 @@ def write_behaviors(path, node_names):
                          + anim_template(node + "_TURN", "(L:%s)" % var, KNOB_FRAMES, False)
                          + drag_template("X", var, KNOB_DRAG_SPEED, False,
                                          "Brightness, %s - drag right brighter, left dimmer" % what, KNOB_FRAMES, reverse=True)
+                         + "\t\t</Component>\n")
+        elif node in ("TowerCab_WsMute", "TowerCab_WsMute_Lit"):   # windshear MUTE (TWR INFO reads it)
+            lit = node.endswith("_Lit")
+            comps.append("\t\t<Component ID=\"VATFLOW_%s\" Node=\"%s\">\n" % ("WS_MUTE_LIT" if lit else "WS_MUTE", node)
+                         + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Interaction_LeftSingle_Code\">\n"
+                         + "\t\t\t\t<LEFT_SINGLE_CODE>1 (&gt;L:VATFLOW_WS_MUTE)</LEFT_SINGLE_CODE>\n"
+                         + "\t\t\t\t<TOOLTIPID>Windshear alarm - MUTE</TOOLTIPID>\n"
+                         + "\t\t\t</UseTemplate>\n"
+                         + ("\t\t\t<UseTemplate Name=\"ASOBO_GT_Visibility_Code\">\n"
+                            "\t\t\t\t<VISIBILITY_CODE>(L:VATFLOW_WS_ALERT) (E:ABSOLUTE TIME, seconds) 2 * flr 2 % and</VISIBILITY_CODE>\n"
+                            "\t\t\t</UseTemplate>\n" if lit else "")
                          + "\t\t</Component>\n")
         elif node.startswith("TowerCab_IdstKey_"):      # IDST hardware key -> the gauge reads it
             k = node.rsplit("_", 1)[1]

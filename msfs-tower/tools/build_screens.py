@@ -35,7 +35,7 @@ RAMP_VIEW = {"RAMPMAP_ED": "ED", "RAMPMAP_CB": "CB", "RAMPMAP_AS": "AS"}
 RAMP_N = {"RAMPMAP_ED": 0, "RAMPMAP_CB": 1, "RAMPMAP_AS": 2}
 
 CSS = ["Screen/Screen.css", "Setup/Setup.css", "StripSetup/StripSetup.css", "Dbrite/Dbrite.css", "Asdex/Asdex.css", "Idst/Idst.css",
-       "Vatsmart/Vatsmart.css", "AptDash/AptDash.css", "Ramp/Ramp.css", "RampMap/RampMap.css"]
+       "Vatsmart/Vatsmart.css", "AptDash/AptDash.css", "Ramp/Ramp.css", "RampMap/RampMap.css", "Rvr/Rvr.css"]
 
 SCRIPTS = [
     "common/compat.js", "common/store.js", "common/airport.js",
@@ -45,7 +45,7 @@ SCRIPTS = [
     "common/vatflow-hub.js", "common/vatflow-metering.js", "common/vatflow-smart.js", "common/apt-flow.js",
     "common/vatflow-ramp.js", "common/ramp-kdca.js", "common/ramp-airports.js", "common/ramp-data.js",
     "Dbrite/Dbrite.js", "Asdex/Asdex.js", "Idst/Idst.js", "Vatsmart/Vatsmart.js", "AptDash/AptDash.js",
-    "Ramp/Ramp.js", "RampMap/RampMap.js", "Setup/Setup.js", "StripSetup/StripSetup.js", "Screen/Screen.js",
+    "Ramp/Ramp.js", "RampMap/RampMap.js", "Rvr/Rvr.js", "Setup/Setup.js", "StripSetup/StripSetup.js", "Screen/Screen.js",
 ]
 
 

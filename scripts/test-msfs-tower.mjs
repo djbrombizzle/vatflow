@@ -225,6 +225,64 @@ t("TWR INFO actual wind: 2-minute average, magnetic, gusts the ASOS way", () => 
   assert.equal(TwrInfoView.actualWind(later, now + 2 * 60000, gusts).gust, null, "older than 10 minutes");
 });
 
+t("TWR INFO windshear: 15 kt sudden gain / loss alerts, stays a minute, MUTE silences it", () => {
+  const now = 2_000_000;
+  const run = (base, burst, n) => {
+    const out = [];
+    for (let i = 119; i >= 0; i--) out.push({ t: now - i * 1000, dir: 270, kt: i < n ? burst : base });
+    return out;
+  };
+  assert.equal(TwrInfoView.windshear(run(10, 12, 5), now), null, "steady wind");
+  assert.equal(TwrInfoView.windshear(run(10, 32, 5), now), 21, "21 kt gain (the burst is in the 2-minute mean too)");
+  assert.equal(TwrInfoView.windshear(run(30, 5, 5), now), -24, "24 kt loss");
+  assert.equal(TwrInfoView.windshear(run(10, 24, 5), now), null, "14 kt: not yet");
+  const young = run(10, 40, 5).slice(-30);
+  assert.equal(TwrInfoView.windshear(young, now), null, "no alert in the first minute of wind history");
+  // the screen: alert, keeps the biggest change, MUTE hides it, a minute of steady wind ends it
+  const els = {};
+  const el = (id) => els[id] || (els[id] = { id, style: {}, textContent: "", className: "", addEventListener(ev, fn) { this.fn = fn; } });
+  const root = { querySelector: (q) => el(q.slice(1)) };
+  const v = new TwrInfoView(root, Object.assign({}, cfg, { icao: "KATL" }));
+  v.checkWindshear(22, now);
+  assert.equal(els["ti-ws"].style.display, "flex");
+  assert.equal(els["ti-wsText"].textContent, "WINDSHEAR ALERT");
+  assert.equal(els["ti-wsKt"].textContent, "22 KT GAIN");
+  v.checkWindshear(-35, now + 1000);
+  assert.equal(els["ti-wsText"].textContent, "MICROBURST ALERT");
+  assert.equal(els["ti-wsKt"].textContent, "35 KT LOSS");
+  els["ti-wsMute"].fn();                                   // MUTE on the screen
+  assert.equal(els["ti-ws"].style.display, "none");
+  v.checkWindshear(20, now + 5000);
+  assert.equal(els["ti-ws"].style.display, "none", "muted until this alert is over");
+  v.checkWindshear(null, now + 30000);
+  assert.equal(v.ws.active, true);
+  v.checkWindshear(null, now + 66000);
+  assert.equal(v.ws.active, false, "a minute steady: over");
+  v.checkWindshear(18, now + 70000);
+  assert.equal(els["ti-ws"].style.display, "flex", "a new alert shows again");
+  assert.equal(els["ti-wsKt"].textContent, "18 KT GAIN");
+});
+
+t("RVR monitor: the FAA table for the cab's airport (TD / MP / RO, trends, lights)", () => {
+  const g = vm.createContext({});
+  vm.runInContext(readFileSync(new URL("Rvr/Rvr.js", BASE), "utf8"), g);
+  const R = vm.runInContext("RvrView", g);
+  assert.equal(R.faaId({ icao: "KATL", lid: "ATL" }), "ATL");
+  assert.equal(R.faaId({ icao: "KMCO" }), "MCO");
+  assert.ok(R.url({ icao: "KATL", lid: "ATL" }).startsWith("https://rvr.data.faa.gov/cgi-bin/rvr-details.pl?content=table&"));
+  assert.ok(R.url({ icao: "KATL", lid: "ATL" }).endsWith("&airport=ATL"));
+  const d = plain(R.parse("<head>\n<meta http-equiv=\"Refresh\" content=\"60; url=/cgi-bin/rvr-details.pl?content=table&airport=EUG&rrate=medium&layout=2x2&gifsize=large&fontsize=large&fs=lg&cache_this=ct1792161331\">\n<title>RVR Details</title>\n</head>\n<body>\n   <center>\n   <font size =\"+2\"><b>RVR DETAILS</b></font>\n   <br><br>\n   <strong>EUG &nbsp (MAHLON SWEET FIELD)</strong>\n   <br>\n   <strong><table><tr><th>14:35:22z</th><th>10/16/2026</th></tr></table></strong>\n   <br>\n   <a href=\"/cgi-bin/rvr-status.pl\"><font size=\"+0\" color=\"blue\">RVR Status Monitor</font></a> &nbsp; &nbsp; &nbsp; <a href=\"/cgi-bin/rvr-airports.pl\"><font size=\"+0\" color=\"blue\">Airport Name Lookup</font></a> &nbsp; &nbsp; &nbsp; <a href=\"/help.html\"><font size=\"+0\" color=\"blue\">Help</font></a>\n   <br><br>\n   <pre></pre>\n   <font size=6><table border>\n   <TR><TH>&nbsp;RWY&nbsp</TH> <TH>&nbsp;TD&nbsp;</TH> <TH>&nbsp;MP&nbsp</TH> <TH>&nbsp;RO&nbsp</TH> <TH>&nbsp;E&nbsp</TH><TH>&nbsp;C&nbsp</TH></TR>\n          <tr><th>16R</th>\n          <td align=\"center\">>6000 </td> \n          <td align=\"center\">1400&#9660;</td> \n          <td align=\"center\">1600&#9650;</td> \n          <td align=\"center\">5</td> \n          <td align=\"center\">5</td></tr>\n          <tr><th>34L</th>\n          <td align=\"center\">1600&#9650;</td> \n          <td align=\"center\">1400&#9660;</td> \n          <td align=\"center\">>6000 </td> \n          <td align=\"center\">5</td> \n          <td align=\"center\">5</td></tr>\n   </table></font>\n   <pre></pre>\n   <br><br>\n   <img src=\"/images/keysee.gif\"><br><br>\n   <strong>EUG&nbsp;&nbsp;16R\n</strong><br>\n   <img src=\"/cgi-bin/og.pl?pic=EUG-16R\n-l&cache_this=ct1792161331\"><br><pre></pre>\n   <strong>EUG&nbsp;&nbsp;34L\n</strong><br>\n   <img src=\"/cgi-bin/og.pl?pic=EUG-34L\n-l&cache_this=ct1792161331\"><br><pre></pre>\n   </center>\n</body>\n"));
+  assert.equal(d.time, d.time.toUpperCase());
+  assert.ok(/EUG/.test(d.name) || d.name.length > 3, "airport name");
+  assert.deepEqual(d.rows[0], { rwy: "16R", td: ">6000", mp: "1400\u25BC", ro: "1600\u25B2", e: "5", c: "5" });
+  assert.equal(d.rows.length, 2);
+  assert.equal(R.level(">6000"), "");
+  assert.equal(R.level("1400\u25BC"), "amber");
+  assert.equal(R.level("0600"), "red");
+  assert.equal(R.level("FFF"), "");
+  assert.equal(R.parse(""), null, "no RVR at this airport: the FAA sends an empty page");
+});
+
 t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancels a release", () => {
   const ictx = vm.createContext({ console,
     setTimeout: () => 0, setInterval: () => 0 });
@@ -969,9 +1027,10 @@ ta("screen host: an app's timers stop when another app is picked", async () => {
   assert.equal(ticks, t0, "interval stopped");
   assert.equal(chained, c0, "setTimeout chain stopped");
   assert.deepEqual(plain(Object.keys(h.VatflowApps.APPS)).sort(), ["aptdemand", "aptlist", "asdex", "dbrite", "idst", "ramp", "rampmap",
-    "setup", "stripsetup", "vatsmart"]);
+    "rvr", "setup", "stripsetup", "vatsmart"]);
   assert.ok(!plain(h.VatflowApps.list({ icao: "KATL" })).includes("ramp"), "KDCA ramp list only at KDCA");
   assert.ok(plain(h.VatflowApps.list({ icao: "KATL" })).includes("rampmap"), "RAMP in every airport's MENU");
+  assert.ok(plain(h.VatflowApps.list({ icao: "KMCO" })).includes("rvr"), "RVR in every airport's MENU");
   // a ramp map screen opens on its map where vatflow.io has the airport's ramps, else its alt
   h.VatflowRampData = { has: (icao) => icao === "KDCA" || icao === "KIAD" || icao === "KATL" };
   const scr = { id: "RAMPMAP_CB", def: "rampmap", alt: "asdex", ramp: "CB" };

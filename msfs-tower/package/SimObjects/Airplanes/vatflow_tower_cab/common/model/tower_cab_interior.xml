@@ -24,6 +24,23 @@
 	<CompileBehaviors Version="2">
 		<Include ModelBehaviorFile="Asobo\Common.xml"/>
 
+		<Component ID="VATFLOW_WS_MUTE" Node="TowerCab_WsMute">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>1 (&gt;L:VATFLOW_WS_MUTE)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>Windshear alarm - MUTE</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_WS_MUTE_LIT" Node="TowerCab_WsMute_Lit">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>1 (&gt;L:VATFLOW_WS_MUTE)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>Windshear alarm - MUTE</TOOLTIPID>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_WS_ALERT) (E:ABSOLUTE TIME, seconds) 2 * flr 2 % and</VISIBILITY_CODE>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_IDST_KEY_1" Node="TowerCab_IdstKey_1">
 			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
 				<LEFT_SINGLE_CODE>1 (&gt;L:VATFLOW_IDST_KEY)</LEFT_SINGLE_CODE>

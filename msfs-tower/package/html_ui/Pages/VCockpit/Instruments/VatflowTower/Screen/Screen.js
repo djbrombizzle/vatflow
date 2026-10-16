@@ -316,6 +316,15 @@ var VatflowApps = (function () {
         };
       }
     },
+    rvr: {
+      // the FAA's live RVR table for the cab's airport (Rvr/Rvr.js)
+      label: "RVR", tag: "vatflow-rvr",
+      create: function (el, ctx) {
+        var v = new RvrView(el, ctx.cfg);
+        v.start();
+        return { update: every(2000, function () { v.render(); }) };
+      }
+    },
     ramp: {
       label: "RAMP LIST", tag: "vatflow-ramplist", available: kdcaOnly,
       create: function (el, ctx) {
@@ -342,7 +351,7 @@ var VatflowApps = (function () {
       }
     }
   };
-  var ORDER = ["dbrite", "asdex", "idst", "vatsmart", "aptdemand", "aptlist", "rampmap", "ramp", "stripsetup", "setup"];
+  var ORDER = ["dbrite", "asdex", "idst", "vatsmart", "aptdemand", "aptlist", "rampmap", "ramp", "rvr", "stripsetup", "setup"];
   // apps since folded into others (a screen's saved choice may still name them)
   var RENAMED = { rampED: "rampmap", rampCB: "rampmap", rampAS: "rampmap" };
 
