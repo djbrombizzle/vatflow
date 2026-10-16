@@ -69,10 +69,18 @@ Inside the cab there are two working screens fed by live data:
   your VATSIM CID, connected as a controller (the web page's rule).
 * **Brightness**: the four knobs on the console's knob panel (left to right: all
   screens, DBRITE, ASDE-X, console screens). Drag right for brighter, left for dimmer;
-  the screen shows its brightness while you turn (`common/dimmer.js`).
+  the screen shows its brightness while you turn (`common/dimmer.js`). The pointers and
+  the panel's near edge glow faint amber, so they can be found in the dark. TOWER SETUP has
+  the same on buttons: BRIGHTNESS DIMMER / BRIGHTER (the ALL knob).
+* **Day / night (AUTO)**: TWR INFO works out the sun's height at the cab from the sim's
+  position and time (`VatflowDimmer.master`, `L:VATFLOW_NIGHT`). From dusk the screens dim to
+  40 % of their knob setting (AUTO on TOWER SETUP), and with CAB LIGHTS the ceiling lights go
+  off and the console task lights come on (night = sun below 0 deg). Both choices are kept.
 * **Ceiling lights**: five recessed light panels (softly self-lit) with cabin lights at
-  the same spots in `common/config/systems.cfg` (`LIGHT_ASOBO_CabinBounceLarge`), switched on
-  by the placement tool.
+  the same spots in `common/config/systems.cfg` (`LIGHT_ASOBO_CabinBounceLarge`, cabin circuits
+  1 and 2), switched on by the placement tool.
+* **Console task lights**: seven small warm lights (`LIGHT_ASOBO_CabinBounceSmall`, cabin
+  circuit 3 = `circuit.40`), one over each console in front of its screens, on at night.
 * **TMU desk** in the back-left corner, after the DCA TMU position: three monitors on
   the console (VATSMART, APT Dashboard demand vs AAR, APT Dashboard aircraft list) with keyboards,
   and an oak-edged desk running from the console corner diagonally into the room,

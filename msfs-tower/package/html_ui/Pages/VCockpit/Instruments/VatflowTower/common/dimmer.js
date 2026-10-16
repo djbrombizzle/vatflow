@@ -12,10 +12,19 @@
  * darker pixels also mean less glow at night. While a knob turns, the screen shows its
  * brightness for two seconds.
  *
+ * Day / night (AUTO, on unless switched off on the TOWER SETUP screen): one screen works
+ * out the sun's height at the cab from the sim's position and time (master()) and sets
+ *   L:VATFLOW_NIGHT  0 (sun above 6 deg) .. 100 (sun below -6 deg, full night)
+ * Every screen then dims to NIGHT_LEVEL of its knob brightness at night. With AUTO CAB
+ * LIGHTS the ceiling lights go off at night and the console task lights (cabin light
+ * circuit 3, systems.cfg) come on, like a real cab after dark.
+ *   L:VATFLOW_DIM_MANUAL     1 = no automatic screen dimming
+ *   L:VATFLOW_LIGHTS_MANUAL  1 = no automatic cab lights (all on)
+ *
  * Also sets the overhead monitors' starting height / swivel (initMonitorPose).
  */
 var VatflowDimmer = (function () {
-  var MIN = 0.05;
+  var MIN = 0.05, NIGHT_LEVEL = 0.4;
 
   function level(dimAll, dimOwn) {
     var a = Math.max(0, Math.min(90, dimAll || 0)), o = Math.max(0, Math.min(90, dimOwn || 0));
@@ -40,11 +49,13 @@ var VatflowDimmer = (function () {
     host.appendChild(label);
     var last = -1, shownAt = 0, init = false;
     return function update(dimAll, dimOwn) {
+      var night = 0;
       if (dimAll === undefined && typeof SimVar !== "undefined") {
         dimAll = SimVar.GetSimVarValue("L:VATFLOW_DIM_ALL", "number");
         dimOwn = SimVar.GetSimVarValue("L:VATFLOW_DIM_" + group, "number");
+        if (!SimVar.GetSimVarValue("L:VATFLOW_DIM_MANUAL", "number")) night = SimVar.GetSimVarValue("L:VATFLOW_NIGHT", "number") || 0;
       }
-      var b = level(dimAll, dimOwn), now = Date.now();
+      var b = Math.max(MIN, level(dimAll, dimOwn) * autoFactor(night)), now = Date.now();
       var pct = Math.round(b * 100);
       if (pct !== last) {
         shade.style.opacity = String(1 - b);
@@ -60,6 +71,70 @@ var VatflowDimmer = (function () {
         shownAt = 0;
       }
       return b;
+    };
+  }
+
+  /** Screen brightness factor for night 0..100 (AUTO). */
+  function autoFactor(night) {
+    var n = Math.max(0, Math.min(100, night || 0)) / 100;
+    return 1 - n * (1 - NIGHT_LEVEL);
+  }
+
+  /** The sun's height above the horizon in degrees at lat / lon (deg), for a time (ms, UTC). */
+  function sunElevation(lat, lon, ms) {
+    var d = new Date(ms), rad = Math.PI / 180;
+    var start = Date.UTC(d.getUTCFullYear(), 0, 1), day = Math.floor((ms - start) / 86400000) + 1;
+    var hours = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+    var g = 2 * Math.PI / 365 * (day - 1 + (hours - 12) / 24);
+    var decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) +
+      0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+    var eqt = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+    var solarMin = hours * 60 + eqt + 4 * lon;                 // true solar time, minutes
+    var ha = (solarMin / 4 - 180) * rad;
+    var se = Math.sin(lat * rad) * Math.sin(decl) + Math.cos(lat * rad) * Math.cos(decl) * Math.cos(ha);
+    return Math.asin(Math.max(-1, Math.min(1, se))) / rad;
+  }
+
+  /** 0 (day) .. 100 (night) from the sun's height: day above 6 deg, night below -6 deg. */
+  function nightFor(elevDeg) { return Math.round(Math.max(0, Math.min(1, (6 - elevDeg) / 12)) * 100); }
+
+  /**
+   * Day / night for the whole cab: call from one always-on gauge's Update (TWR INFO). Every
+   * 10 s: the sun at the cab (sim position and time) -> L:VATFLOW_NIGHT, and with AUTO CAB
+   * LIGHTS the light circuits: ceiling (cabin circuits 1, 2 = circuit.17 / .18) off at night,
+   * console task lights (cabin 3 = circuit.40) on.
+   */
+  var CIRC_CEILING = [17, 18], CIRC_CONSOLE = 40;
+  function master() {
+    var last = 0;
+    if (typeof SimVar !== "undefined" && typeof VatflowStore !== "undefined") {
+      SimVar.SetSimVarValue("L:VATFLOW_DIM_MANUAL", "number", VatflowStore.get("DIM_AUTO", true) === false ? 1 : 0);
+      SimVar.SetSimVarValue("L:VATFLOW_LIGHTS_MANUAL", "number", VatflowStore.get("LIGHTS_AUTO", true) === false ? 1 : 0);
+    }
+    function circuit(n, on) {
+      var is = !!SimVar.GetSimVarValue("CIRCUIT SWITCH ON:" + n, "bool");
+      if (is !== on) SimVar.SetSimVarValue("K:ELECTRICAL_CIRCUIT_TOGGLE", "number", n);
+    }
+    return function update() {
+      if (typeof SimVar === "undefined") return;
+      var now = Date.now();
+      if (now - last < 10000) return;
+      last = now;
+      try {
+        var lat = SimVar.GetSimVarValue("PLANE LATITUDE", "degree latitude");
+        var lon = SimVar.GetSimVarValue("PLANE LONGITUDE", "degree longitude");
+        var zs = SimVar.GetSimVarValue("E:ZULU TIME", "seconds");
+        var day = SimVar.GetSimVarValue("E:ZULU DAY OF YEAR", "number");
+        var year = SimVar.GetSimVarValue("E:ZULU YEAR", "number") || new Date().getUTCFullYear();
+        if (!isFinite(lat) || !isFinite(zs) || !day) return;
+        var ms = Date.UTC(year, 0, 1) + (day - 1) * 86400000 + zs * 1000;
+        var night = nightFor(sunElevation(lat, lon, ms));
+        SimVar.SetSimVarValue("L:VATFLOW_NIGHT", "number", night);
+        var dark = night >= 50;
+        if (SimVar.GetSimVarValue("L:VATFLOW_LIGHTS_MANUAL", "number")) dark = false;
+        CIRC_CEILING.forEach(function (n) { circuit(n, !dark); });
+        circuit(CIRC_CONSOLE, dark);
+      } catch (e) { if (typeof console !== "undefined") console.error("VATFLOW day/night", e); }
     };
   }
 
@@ -79,5 +154,8 @@ var VatflowDimmer = (function () {
     SimVar.SetSimVarValue(flag, "number", 1);
   }
 
-  return { attach: attach, level: level, initMonitorPose: initMonitorPose };
+  return {
+    attach: attach, level: level, initMonitorPose: initMonitorPose, autoFactor: autoFactor,
+    sunElevation: sunElevation, nightFor: nightFor, master: master, NIGHT_LEVEL: NIGHT_LEVEL
+  };
 })();

@@ -74,6 +74,7 @@ PBR = {
     "TWR_KeyGreen": ("1E7A35", 0.0, 0.5, 1),
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
     "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
+    "TWR_KnobLit": ("FFC864", 0.0, 0.5, 1),
     "TWR_Wood": ("A07A52", 0.0, 0.55, 1),
     "TWR_DeskTop": ("4C5966", 0.0, 0.6, 1),
     "TWR_Strip": ("EBE6D6", 0.0, 0.8, 1),
@@ -122,7 +123,8 @@ def box_uv(p, n, meters):
 
 # Self-lit (emissive) materials besides the screens, in the same units as the screens'
 # 2000: the ceiling light diffusers glow softly ("lightly dimmed").
-EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0]}
+EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0],
+            "TWR_KnobLit": [60.0, 42.0, 14.0]}          # knob pointers and the knob panel's faint amber edge light
 
 
 def material_json(name):

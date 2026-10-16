@@ -82,6 +82,7 @@ COLORS = {
     "TWR_KeyGreen": (0.10, 0.45, 0.18, 1.0),
     "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
     "TWR_LightPanel": (1.0, 0.95, 0.85, 1.0),     # ceiling light diffusers (emissive in the sim)
+    "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
     "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
     "TWR_DeskTop": (0.30, 0.35, 0.40, 1.0),       # blue-grey desk top (TMU desk)
     "TWR_Strip": (0.92, 0.90, 0.84, 1.0),         # flight progress strips
@@ -470,12 +471,14 @@ def console_equipment(inside, coll, k, a_inner, top):
     # knob panel: screen brightness knobs (left to right: all screens, DBRITE, ASDE-X,
     # console screens). Each is its own node turning about its pivot (see exporter).
     deck(1.33, 0.30, (0.22, 0.14, 0.03), "TWR_PanelGrey")
+    # faint backlit strip along the panel's near edge, so the knobs can be found in a dark cab
+    inside.box(at(1.33, 0.30 + 0.072, top + 0.015), (0.20, 0.004, 0.012), "TWR_KnobLit", rot_z=rot)
     for i, name in enumerate(("ALL", "DBRITE", "ASDEX", "CONSOLE")):
         p = at(1.25 + i * 0.053, 0.30, top + 0.03)
         kb = Builder("TowerCab_DimKnob_" + name, coll)
         kb.beam(p, p + Vector((0, 0, 0.025)), 0.019, "TWR_Knob", segs=12)
         # white pointer line on top, pointing at the window at full brightness
-        kb.box(p + out * 0.009 + Vector((0, 0, 0.0255)), (0.004, 0.016, 0.002), "TWR_KeyGrey", rot_z=rot)
+        kb.box(p + out * 0.009 + Vector((0, 0, 0.0255)), (0.004, 0.016, 0.002), "TWR_KnobLit", rot_z=rot)
         obj = kb.finish()
         obj["vatflow_pivot"] = tuple(p)
         obj["vatflow_anim"] = "knob"

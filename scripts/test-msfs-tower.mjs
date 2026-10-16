@@ -690,6 +690,39 @@ t("strip bays: three columns - separators spread over them, old default spots mo
   assert.deepEqual(plain(v.st.bays[2]), [["A"], [], ["C", "B"]]);
 });
 
+t("day / night: the sun's height at the cab dims the screens at night and switches the cab lights", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/dimmer.js", BASE), "utf8"), g);
+  const D = g.VatflowDimmer;
+  // KATL (33.64 N, 84.43 W), 15 Oct: local noon ~17:30Z high sun, 04:00Z night, sunset ~23:10Z
+  assert.ok(D.sunElevation(33.64, -84.43, Date.UTC(2026, 9, 15, 17, 30)) > 45);
+  assert.ok(D.sunElevation(33.64, -84.43, Date.UTC(2026, 9, 16, 4, 0)) < -30);
+  const dusk = D.sunElevation(33.64, -84.43, Date.UTC(2026, 9, 15, 23, 10));
+  assert.ok(Math.abs(dusk) < 3, "sunset about 23:10Z, got " + dusk);
+  assert.equal(D.nightFor(30), 0);
+  assert.equal(D.nightFor(-20), 100);
+  assert.equal(D.nightFor(0), 50);
+  assert.equal(D.autoFactor(0), 1);
+  assert.ok(Math.abs(D.autoFactor(100) - D.NIGHT_LEVEL) < 1e-9);
+  // the master sets L:VATFLOW_NIGHT and toggles the light circuits to night (ceiling off, console on)
+  const vars = { "PLANE LATITUDE": 33.64, "PLANE LONGITUDE": -84.43, "E:ZULU TIME": 4 * 3600, "E:ZULU DAY OF YEAR": 289,
+    "E:ZULU YEAR": 2026, "CIRCUIT SWITCH ON:17": 1, "CIRCUIT SWITCH ON:18": 1, "CIRCUIT SWITCH ON:40": 0 };
+  const toggled = [];
+  g.SimVar = { GetSimVarValue: (n) => vars[n] || 0,
+    SetSimVarValue: (n, u, v) => { if (n === "K:ELECTRICAL_CIRCUIT_TOGGLE") { toggled.push(v); vars["CIRCUIT SWITCH ON:" + v] = !vars["CIRCUIT SWITCH ON:" + v]; } else vars[n] = v; } };
+  g.VatflowStore = { get: (k, d) => d, set() {} };
+  D.master()();
+  assert.equal(vars["L:VATFLOW_NIGHT"], 100);
+  assert.deepEqual(toggled.sort((a, b) => a - b), [17, 18, 40]);
+  // a screen at night: 40 % of its knob brightness
+  const host = { style: {}, appendChild() {} };
+  const doc = { createElement: () => ({ style: {}, textContent: "" }) };
+  const upd = D.attach(host, "CONSOLE", doc);
+  assert.ok(Math.abs(upd() - 0.4) < 1e-9);
+  vars["L:VATFLOW_DIM_MANUAL"] = 1;
+  assert.equal(upd(), 1, "AUTO off: knobs only");
+});
+
 t("zoom / pan: the view scales about the screen centre and pans a share of the screen", () => {
   const g = genContext();
   vm.runInContext(readFileSync(new URL("common/viewctl.js", BASE), "utf8"), g);

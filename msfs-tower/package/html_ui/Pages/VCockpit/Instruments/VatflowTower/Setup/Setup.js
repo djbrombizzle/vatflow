@@ -41,6 +41,10 @@ var SetupView = (function () {
     '    <div class="su-hint">FWD / BACK / LEFT / RIGHT ARE AS SEEN LOOKING OUT THE FRONT WINDOW</div>' +
     '  </div>' +
     '</div>' +
+    '<div class="su-cid su-brt"><span class="su-k">BRIGHTNESS</span><span data-f="brt">-</span>' +
+    '  <div class="su-btn su-chip su-wide" data-k="dim">DIMMER</div><div class="su-btn su-chip su-wide" data-k="bright">BRIGHTER</div>' +
+    '  <div class="su-btn su-chip su-wide su-check" data-k="brtauto"><span data-f="brtauto">[X]</span> AUTO</div>' +
+    '  <div class="su-btn su-chip su-wide su-check" data-k="litauto"><span data-f="litauto">[X]</span> CAB LIGHTS</div></div>' +
     '<div class="su-cid"><span class="su-k">VATSIM CID</span><span data-f="cid">-</span><div class="su-btn su-chip" data-k="cid">EDIT</div>' +
     '  <div class="su-keys" data-f="keys"></div></div>' +
     '<div class="su-msg" data-f="msg"></div>' +
@@ -105,6 +109,7 @@ var SetupView = (function () {
     if (this.cidEdit !== null && k.indexOf("n") === 0) { this.cidKey(k.slice(1)); return; }
     if (k.indexOf("step") === 0) { this.step = +k.slice(4); return; }
     if (k === "cid") { this.cidEdit = this.cidEdit === null ? "" : null; return; }
+    if (this.brightKey(k)) return;
     if (!icao || icao === "----") { this.say("NO AIRPORT FOUND NEAR THE CAB"); return; }
     if (k === "place") {
       this.refreshTarget();
@@ -134,6 +139,30 @@ var SetupView = (function () {
       up: [0, 0, s[0] * 2, 0], down: [0, 0, -s[0] * 2, 0], tl: [0, 0, 0, -s[1]], tr: [0, 0, 0, s[1]]
     }[k];
     if (mv) this.goTo(VatflowPlace.move(base, mv[0], mv[1], mv[2], mv[3]), true);
+  };
+
+  /**
+   * Brightness row: DIMMER / BRIGHTER move the ALL screens knob (L:VATFLOW_DIM_ALL, 0 .. 90 =
+   * darkest), AUTO dims the screens at night, CAB LIGHTS switches the ceiling lights off and
+   * the console lights on at night (common/dimmer.js). The AUTO choices are kept.
+   */
+  SetupView.prototype.brightKey = function (k) {
+    var sim = typeof SimVar !== "undefined";
+    if (k === "dim" || k === "bright") {
+      var v = sim ? SimVar.GetSimVarValue("L:VATFLOW_DIM_ALL", "number") || 0 : (this.dimAll || 0);
+      v = Math.max(0, Math.min(90, Math.round((v + (k === "dim" ? 10 : -10)) / 10) * 10));
+      if (sim) SimVar.SetSimVarValue("L:VATFLOW_DIM_ALL", "number", v); else this.dimAll = v;
+      return true;
+    }
+    if (k === "brtauto" || k === "litauto") {
+      var key = k === "brtauto" ? "DIM_AUTO" : "LIGHTS_AUTO", on = VatflowStore.get(key, true) === false;
+      VatflowStore.set(key, on);
+      if (sim) SimVar.SetSimVarValue(k === "brtauto" ? "L:VATFLOW_DIM_MANUAL" : "L:VATFLOW_LIGHTS_MANUAL", "number", on ? 0 : 1);
+      this.say(k === "brtauto" ? (on ? "SCREENS DIM BY THEMSELVES AT NIGHT" : "SCREENS: KNOBS ONLY")
+        : (on ? "CAB LIGHTS: CONSOLE LIGHTS AT NIGHT, CEILING BY DAY (WITHIN 10 S)" : "CAB LIGHTS: ALWAYS ON"));
+      return true;
+    }
+    return false;
   };
 
   SetupView.prototype.auto = function () { return VatflowStore.get("AUTO_PLACE", true) !== false; };
@@ -183,6 +212,13 @@ var SetupView = (function () {
     var chips = this.root.querySelectorAll(".su-chip[data-k^=step]");
     for (var i = 0; i < chips.length; i++) chips[i].className = "su-btn su-chip" + (i === this.step ? " on" : "");
     f.auto.textContent = this.auto() ? "[X]" : "[ ]";
+    var sim = typeof SimVar !== "undefined", dimAuto = VatflowStore.get("DIM_AUTO", true) !== false;
+    var dimAll = sim ? SimVar.GetSimVarValue("L:VATFLOW_DIM_ALL", "number") || 0 : (this.dimAll || 0);
+    var night = sim ? SimVar.GetSimVarValue("L:VATFLOW_NIGHT", "number") || 0 : 0;
+    var pct = Math.round(VatflowDimmer.level(dimAll, 0) * (dimAuto ? VatflowDimmer.autoFactor(night) : 1) * 100);
+    f.brt.textContent = pct + "%" + (night >= 50 ? " NIGHT" : night > 0 ? " DUSK" : " DAY");
+    f.brtauto.textContent = dimAuto ? "[X]" : "[ ]";
+    f.litauto.textContent = VatflowStore.get("LIGHTS_AUTO", true) !== false ? "[X]" : "[ ]";
     var cid = VatflowStore.get("CID", "");
     f.cid.textContent = this.cidEdit !== null ? (this.cidEdit || "_") + "  (TYPE YOUR CID, THEN OK)" : (cid || "NOT SET - NEEDED TO ISSUE IDST RELEASES");
     var keys = "";

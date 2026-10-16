@@ -143,6 +143,7 @@ if (typeof BaseInstrument !== "undefined") {
     connectedCallback() {
       super.connectedCallback();
       this.dim = VatflowDimmer.attach(this, "CONSOLE");
+      this.dayNight = VatflowDimmer.master();     // day / night for every screen and the cab lights
       this.lastDraw = 0;
       var self = this;
       // which airport the cab is at decides the METAR, ATIS and ATC shown
@@ -158,6 +159,7 @@ if (typeof BaseInstrument !== "undefined") {
     Update() {
       super.Update();
       this.dim();
+      this.dayNight();
       var now = Date.now();
       if (!this.view || now - this.lastDraw < 500) return;
       this.lastDraw = now;
