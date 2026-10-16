@@ -290,6 +290,18 @@ t("RVR monitor: the FAA table for the cab's airport (TD / MP / RO, trends, light
   assert.throws(() => R.fromHub("<html>"));
 });
 
+t("windshear alarm sound: sound.xml plays the cab's own .wav (WaveData) while L:VATFLOW_WS_ALERT is 1", () => {
+  const dir = new URL("../msfs-tower/package/SimObjects/Airplanes/vatflow_tower_cab/common/sound/", import.meta.url);
+  const xml = readFileSync(new URL("sound.xml", dir), "utf8");
+  assert.ok(/<SimVarSounds>[\s\S]*WwiseData="False"[\s\S]*WwiseEvent="custom_warning_cockpit_sound_01"[\s\S]*FileName="vatflow_windshear"[\s\S]*LocalVar="VATFLOW_WS_ALERT"[\s\S]*Continuous="True"/.test(xml), "the alarm sound");
+  assert.ok(!/<MainPackage/.test(xml) && !/<EngineSound/.test(xml), "nothing else plays (no packages, no engines)");
+  const wav = readFileSync(new URL("vatflow_windshear.wav", dir));
+  assert.equal(wav.toString("ascii", 0, 4), "RIFF");
+  assert.equal(wav.readUInt16LE(20), 1, "PCM");
+  assert.equal(wav.readUInt16LE(34), 16, "16-bit");
+  assert.equal(wav.readUInt32LE(24), 44100);
+});
+
 t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancels a release", () => {
   const ictx = vm.createContext({ console,
     setTimeout: () => 0, setInterval: () => 0 });

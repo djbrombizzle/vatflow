@@ -1,11 +1,13 @@
 """
-Writes the windshear alert loop for the TWR INFO screen:
-package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/sound/windshear.wav
+Writes the windshear alarm loop the sim plays from the cab's sound folder (sound.xml,
+WaveData slot custom_warning_cockpit_sound_01, while L:VATFLOW_WS_ALERT is 1):
+package/SimObjects/Airplanes/vatflow_tower_cab/common/sound/vatflow_windshear.wav
+(16-bit PCM mono, 44.1 kHz, as the sim's WaveData sounds want)
 
 A repetitive high-pitched electronic beeping, like an LLWAS alarm in the background of a
 tower cab: one second, looped by the screen while the alert shows: three short 2.9 kHz
-beeps (square-ish, a little 5.8 kHz edge) with soft starts and ends, then a pause. Quiet
-enough (about -14 dBFS peak) to sit in the background.
+beeps (square-ish, a little 5.8 kHz edge) with soft starts and ends, then a pause, at about
+-11 dBFS peak: clearly heard in the background of the cab.
 
   python tools/make_alert_sound.py
 """
@@ -14,9 +16,9 @@ import os
 import struct
 import wave
 
-RATE = 22050
-OUT = os.path.join(os.path.dirname(__file__), "..", "package", "html_ui", "Pages", "VCockpit", "Instruments",
-                   "VatflowTower", "common", "sound", "windshear.wav")
+RATE = 44100
+OUT = os.path.join(os.path.dirname(__file__), "..", "package", "SimObjects", "Airplanes", "vatflow_tower_cab",
+                   "common", "sound", "vatflow_windshear.wav")
 
 
 def main():
@@ -32,7 +34,7 @@ def main():
                 env = min(1.0, u / 0.006, (length - u) / 0.006)
                 x = 2 * math.pi * 2900 * u
                 v = env * (math.sin(x) + 0.3 * math.sin(3 * x) + 0.12 * math.sin(2 * x))
-        data.append(int(max(-1, min(1, v / 1.42 * 0.2)) * 32767))
+        data.append(int(max(-1, min(1, v / 1.42 * 0.28)) * 32767))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with wave.open(OUT, "wb") as w:
         w.setnchannels(1)

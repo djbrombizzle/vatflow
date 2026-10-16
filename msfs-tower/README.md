@@ -77,8 +77,8 @@ Inside the cab there are two working screens fed by live data:
   **Windshear alert**: when the wind at the cab suddenly gains or loses 15 kt or more (the
   past 5 seconds against the 2-minute sustained wind), the lower half of the screen shows
   WINDSHEAR ALERT and the gain / loss in huge bright red (MICROBURST ALERT for a loss of
-  30 kt or more), and an alarm beeps (`common/sound/windshear.wav`, made by
-  `tools/make_alert_sound.py`; played if the sim's screens can play sound). It stays up
+  30 kt or more), and an alarm beeps (the sim plays `vatflow_windshear.wav` from the
+  cab's sound folder while `L:VATFLOW_WS_ALERT` is 1; see Sound below). It stays up
   until the wind has been steady for a minute. **MUTE** on the screen, or the red button on
   the monitor's bottom bezel (it flashes while the alarm sounds; `L:VATFLOW_WS_ALERT`,
   `L:VATFLOW_WS_MUTE`), silences and hides it until that alert is over.
@@ -141,16 +141,15 @@ Inside the cab there are two working screens fed by live data:
 * **Console equipment** round those two, after the DCA local position: voice switch
   panel (keys light while that position is online on VATSIM), red LED Zulu clock,
   keypad, trackball, keyboard, knob panel, speaker. The ceiling is black, like the real cab.
-* **Sound**: no aircraft sounds at all: `common/sound/sound.xml` is empty (no Wwise
-  packages), and the installer moves the sample aircraft's sound folders to
-  `backup-sound\` in the project (`tools/silence-sounds.ps1`). The Python tool's
-  `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
-  `tools/make_fan_sound.py`).
-  The one exception is the **windshear alarm**: the screens can't play sound, so it plays
-  through a small Wwise package (`VATFLOW_TowerCab.PC.PCK`) you build once
-  (`sound-package/README.md`). With it in the project's `sound-package` folder, the
-  installer puts it in the cab with `tools/sound-alarm.xml` as the sound.xml: the alarm loops
-  while `L:VATFLOW_WS_ALERT` is 1 and nothing else plays.
+* **Sound**: no aircraft sounds (engine, wind, rattles): `common/sound/sound.xml` has no
+  Wwise packages, and the installer moves the sample aircraft's sound folders to
+  `backup-sound\` in the project (`tools/silence-sounds.ps1`). The one sound is the
+  **windshear alarm**: a plain .wav, `vatflow_windshear.wav` (made by
+  `tools/make_alert_sound.py`), next to sound.xml in one of the sim's custom cockpit warning
+  slots (WaveData, `WwiseData="False"`, `custom_warning_cockpit_sound_01`), looping while the
+  TWR INFO screen sets `L:VATFLOW_WS_ALERT` to 1. No Wwise or extra program needed. The
+  Python tool's `3-place-KDCA.bat` can still loop a quiet fan sound
+  (`placement/cab_fan.wav`, made by `tools/make_fan_sound.py`).
 
 * **Look** (after photos of a real FAA cab): blue consoles (medium blue laminate worktop, a
   22 cm light grey laminate writing strip along the controller's edge with a dark rounded

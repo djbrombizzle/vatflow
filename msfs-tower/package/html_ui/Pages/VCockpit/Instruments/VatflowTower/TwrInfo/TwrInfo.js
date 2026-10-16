@@ -9,7 +9,8 @@
  * Windshear alert: when the wind at the cab suddenly gains or loses 15 kt or more against
  * its 2-minute sustained speed (windshear()), a huge bright red WINDSHEAR ALERT with the
  * gain / loss covers the lower half of the screen (MICROBURST ALERT for a loss of 30 kt or
- * more) and an alarm beeps (common/sound/windshear.wav, looped). It stays up until the wind
+ * more) and an alarm beeps. The screens can't play sound, so the sim does: sound.xml loops
+ * vatflow_windshear.wav (the cab's sound folder) while L:VATFLOW_WS_ALERT is 1. It stays up until the wind
  * has been steady for a minute. MUTE (on the screen, or the red button under the monitor,
  * which flashes while the alarm sounds) silences and hides it until that alert is over.
  *   L:VATFLOW_WS_ALERT  1 while the alarm sounds (the button flashes)
@@ -125,11 +126,9 @@ var TwrInfoView = (function () {
     this.el.wsKt = root.querySelector("#ti-wsKt");
     var mute = root.querySelector("#ti-wsMute");
     if (mute) mute.addEventListener("mouseup", function () { self.mute(); });
-    this.alarm = null;
   }
 
   TwrInfoView.windshear = windshear;
-  TwrInfoView.SOUND_URL = "/Pages/VCockpit/Instruments/VatflowTower/common/sound/windshear.wav";
 
   /** MUTE: silences and hides the alert showing now (a later one alerts again). */
   TwrInfoView.prototype.mute = function () {
@@ -137,18 +136,6 @@ var TwrInfoView = (function () {
     this.showAlert(Date.now());
   };
 
-  /** The alarm sound, looped while alerting; quietly nothing where the screen cannot play audio. */
-  TwrInfoView.prototype.sound = function (on) {
-    try {
-      if (on && !this.alarm && typeof Audio !== "undefined") {
-        this.alarm = new Audio(this.cfg.windshearSound || TwrInfoView.SOUND_URL);
-        this.alarm.loop = true;
-      }
-      if (!this.alarm) return;
-      if (on && this.alarm.paused) { var p = this.alarm.play(); if (p && p.catch) p.catch(function () {}); }
-      if (!on && !this.alarm.paused) { this.alarm.pause(); this.alarm.currentTime = 0; }
-    } catch (e) { this.alarm = null; }
-  };
 
   /** Updates the alert from the latest wind (d: windshear() now) and shows / sounds it. */
   TwrInfoView.prototype.checkWindshear = function (d, now) {
@@ -173,7 +160,6 @@ var TwrInfoView = (function () {
         el.ws.className = "ti-ws" + (Math.floor(now / 500) % 2 ? " flash" : "");
       }
     }
-    this.sound(on);
     if (typeof SimVar !== "undefined") SimVar.SetSimVarValue("L:VATFLOW_WS_ALERT", "number", on ? 1 : 0);
   };
 
