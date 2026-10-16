@@ -82,6 +82,12 @@ Inside the cab there are two working screens fed by live data:
   until the wind has been steady for a minute. **MUTE** on the screen, or the red button on
   the monitor's bottom bezel (it flashes while the alarm sounds; `L:VATFLOW_WS_ALERT`,
   `L:VATFLOW_WS_MUTE`), silences and hides it until that alert is over.
+* **WEB (TDLS TEST)** (any screen's MENU): a web page on a cab screen, to find out what the
+  sim's screen browser can run, starting with vNAS TDLS (tdls.virtualnas.net). KEYBOARD hands
+  the PC keyboard to the screen (the sim's FOCUS_INPUT_FIELD) for typing into the page; the
+  status line says whether the page loaded and what the browser supports. TDLS needs a VATSIM
+  login, and auth.vatsim.net refuses to be shown inside another page (X-Frame-Options
+  SAMEORIGIN, Cloudflare check), so the login is the likely stopping point.
 * **RVR** (any screen's MENU): the FAA's live runway visual range table for the cab's
   airport (rvr.data.faa.gov through the VATFLOW hub's `/hub/rvr`, which adds the CORS header the
   sim needs; read every minute): touchdown / midpoint / rollout in feet with
@@ -203,6 +209,8 @@ position name plate on the outer edge of the worktop in front of it (`$SCREEN_SI
   PUT BACK, COCK (offset as a reminder) and DELETE act on the strip you hold.
 * **Dropping**: strips drop by themselves once airborne (AUTO DROP) or after 3 minutes off the
   network; a deleted strip doesn't print again unless its flight plan is amended.
+* **Send to another bay**: with a strip picked up, TO <BAY> buttons (one per other bay, by
+  its name: TO GROUND, TO LOCAL ...) put it at the end of that bay's first section.
 * **STRIP BAYS screen** (any screen's MENU): each bay's name (its sign), where it stands (any
   console face, and how far along it), and up to six separators typed on the on-screen
   keyboard, each with its column; which bay / section new strips print into; AUTO DROP on / off. Kept per airport.

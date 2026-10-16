@@ -16,7 +16,7 @@ var StripBayView = (function () {
   var W = 1536, H = 896, COLS = 3, CW = W / COLS, HEAD = 36, FOOT = 60, SEP_H = 26, STRIP_H = 58, MIN_H = 38, GAP = 3;
   var C = {
     board: "#262b31", head: "#0f141a", headText: "#e8eef4", paper: "#ebe6d4", paperVfr: "#e4ecd8", ink: "#161616",
-    rule: "#8f8878", sep: "#1c2733", sepText: "#f2f5f8", held: "#ffb000", hint: "#9fb3c6", amended: "#b3261e",
+    rule: "#8f8878", sep: "#1c2733", sepText: "#f2f5f8", held: "#ffb000", hint: "#9fb3c6", send: "#1d4f7a", amended: "#b3261e",
     btn: "#1b2a3a", btnLine: "#4c6a88", btnText: "#e8f1fa", del: "#5a1a14", rail: "#a8873c"
   };
 
@@ -259,9 +259,19 @@ var StripBayView = (function () {
       this.button(ctx, "PUT BACK", 8, fy + 8, 200, 44, function (st) { st.held = null; });
       this.button(ctx, "COCK", 222, fy + 8, 200, 44, function (st) { VatflowStrips.cock(st, st.held); st.held = null; });
       this.button(ctx, "DELETE", 436, fy + 8, 200, 44, function (st) { VatflowStrips.remove(st, st.held, true); }, C.del);
+      // send it to another bay (the end of that bay's first section), e.g. TMU -> GROUND
+      var at = VatflowStrips.where(this.st, held), bx = 660, self = this;
+      this.cfg.bays.forEach(function (bay, b) {
+        if (at && at.bay === b) return;
+        self.button(ctx, "TO " + String(bay.name || "BAY " + (b + 1)).slice(0, 12), bx, fy + 8, 230, 44, function (st) {
+          VatflowStrips.place(st, st.held, b, 0, -1);
+          st.held = null;
+        }, C.send);
+        bx += 244;
+      });
       ctx.fillStyle = C.held;
       ctx.font = "bold 18px monospace";
-      ctx.fillText("HOLDING " + held + " - TAP WHERE IT GOES (ANY COLUMN, ANY BAY)", 660, fy + 37);
+      ctx.fillText("HOLDING " + held + ", OR TAP A SPOT", bx + 10, fy + 37);
     } else {
       ctx.fillStyle = C.hint;
       ctx.font = "16px monospace";

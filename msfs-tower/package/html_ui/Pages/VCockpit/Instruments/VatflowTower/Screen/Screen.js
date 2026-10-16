@@ -342,6 +342,59 @@ var VatflowApps = (function () {
         };
       }
     },
+    web: {
+      // a web page on a cab screen, to see what the sim's screen browser can run: vNAS TDLS
+      // (needs a VATSIM login). KEYBOARD hands the PC keyboard to the screen while it is on
+      // (the sim's FOCUS_INPUT_FIELD, as its own text boxes do), so you can type into the page.
+      label: "WEB (TDLS TEST)", tag: "vatflow-web",
+      create: function (el, ctx) {
+        var doc = el.ownerDocument || document, url = VatflowStore.get("WEB_URL", "https://tdls.virtualnas.net/login");
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;right:0;height:44px;background:#101820;display:flex;align-items:center;' +
+          'font:bold 18px monospace;color:#cfe0f0;z-index:5"><span style="margin:0 12px;color:#f5a623">WEB</span>' +
+          '<span class="wb-url" style="flex:1;white-space:nowrap;overflow:hidden;color:#7fc8ff"></span>' +
+          '<div class="wb-k" data-k="tdls">TDLS</div><div class="wb-k" data-k="reload">RELOAD</div><div class="wb-k" data-k="kbd">KEYBOARD</div></div>' +
+          '<iframe class="wb-frame" style="position:absolute;left:0;top:44px;width:100%;height:690px;border:0;background:#fff"></iframe>' +
+          '<div class="wb-st" style="position:absolute;left:0;right:110px;bottom:0;height:34px;background:#101820;color:#ffd166;' +
+          'font:15px monospace;display:flex;align-items:center;padding-left:10px;white-space:nowrap;overflow:hidden"></div>';
+        var ks = el.querySelectorAll(".wb-k");
+        for (var i = 0; i < ks.length; i++) ks[i].style.cssText = "margin-right:8px;padding:6px 12px;border:2px solid #35506b;background:#1b2a3a;cursor:pointer";
+        var frame = el.querySelector(".wb-frame"), st = el.querySelector(".wb-st"), urlEl = el.querySelector(".wb-url");
+        var loaded = 0, started = 0, kbd = false;
+        var caps = "MODULES " + ("noModule" in doc.createElement("script") ? "YES" : "NO") +
+          "  WEBSOCKET " + (typeof WebSocket !== "undefined" ? "YES" : "NO") + "  FETCH " + (typeof fetch !== "undefined" ? "YES" : "NO");
+        function go(u) { url = u; VatflowStore.set("WEB_URL", u); loaded = 0; started = Date.now(); urlEl.textContent = u; frame.src = u; }
+        frame.addEventListener("load", function () { loaded = Date.now(); });
+        function keyboard(on) {
+          kbd = on;
+          try {
+            if (typeof Coherent !== "undefined") {
+              if (on) Coherent.trigger("FOCUS_INPUT_FIELD", "vatflow-web", "", "", "", false);
+              else Coherent.trigger("UNFOCUS_INPUT_FIELD", "vatflow-web");
+            }
+          } catch (e) { /* not in this sim */ }
+          if (on) { try { frame.focus(); } catch (e) { /* cross-origin */ } }
+        }
+        el.addEventListener("mouseup", function (e) {
+          var t = e.target, k = t && t.getAttribute && t.getAttribute("data-k");
+          if (!k) return;
+          if (e.stopPropagation) e.stopPropagation();
+          if (k === "tdls") go("https://tdls.virtualnas.net/login");
+          else if (k === "reload") go(url);
+          else if (k === "kbd") keyboard(!kbd);
+        });
+        go(url);
+        return {
+          update: every(500, function (now) {
+            var s = loaded ? "PAGE LOADED (" + Math.round((loaded - started) / 1000) + " S)" :
+              "LOADING... " + Math.round((now - started) / 1000) + " S" + (now - started > 20000 ? " (NOTHING YET: BLOCKED?)" : "");
+            st.textContent = s + "   " + caps + "   KEYBOARD " + (kbd ? "ON - PC KEYS GO TO THE PAGE" : "OFF");
+            var kb = el.querySelector('[data-k="kbd"]');
+            if (kb) kb.style.background = kbd ? "#14532d" : "#1b2a3a";
+          }),
+          stop: function () { if (kbd) keyboard(false); }
+        };
+      }
+    },
     rvr: {
       // the FAA's live RVR table for the cab's airport (Rvr/Rvr.js)
       label: "RVR", tag: "vatflow-rvr",
@@ -377,7 +430,7 @@ var VatflowApps = (function () {
       }
     }
   };
-  var ORDER = ["dbrite", "asdex", "idst", "vatsmart", "aptdemand", "aptlist", "rampmap", "ramp", "rvr", "stripsetup", "setup"];
+  var ORDER = ["dbrite", "asdex", "idst", "vatsmart", "aptdemand", "aptlist", "rampmap", "ramp", "rvr", "stripsetup", "setup", "web"];
   // apps since folded into others (a screen's saved choice may still name them)
   var RENAMED = { rampED: "rampmap", rampCB: "rampmap", rampAS: "rampmap" };
 
