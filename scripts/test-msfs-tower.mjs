@@ -189,18 +189,40 @@ t("radar screens draw without errors against a stub canvas for every target in a
   for (let k = 0; k < 20; k++) { d.draw(Date.now() + k * 5000, 3600 * 19 + k); a.draw(Date.now() + k * 5000, 3600 * 19 + k); }
 });
 
-t("TWR INFO actual wind: 2-minute vector average, magnetic, gusts only 10 kt over the average", () => {
+t("TWR INFO actual wind: 2-minute average, magnetic, gusts the ASOS way", () => {
   const now = 1_000_000;
   const steady = [];
   for (let i = 0; i < 120; i++) steady.push({ t: now - i * 1000, dir: 350 + (i % 2 ? 20 : 0), kt: 12 });
-  const w = plain(TwrInfoView.actualWind(steady, now));
+  steady.reverse();
+  const w = plain(TwrInfoView.actualWind(steady, now, []));
   assert.equal(w.dir, 360);                      // 350 and 010 average to north, not 180
-  assert.ok(w.kt >= 11 && w.kt <= 12);
+  assert.equal(w.kt, 12);
   assert.equal(w.gust, null);
-  const gusty = steady.concat([{ t: now - 300000, dir: 0, kt: 25 }]);
-  assert.equal(TwrInfoView.actualWind(gusty, now).gust, 25);
   assert.equal(TwrInfoView.actualWind([{ t: now, dir: 90, kt: 2 }], now).calm, true);
   assert.equal(TwrInfoView.actualWind([{ t: now - 200000, dir: 90, kt: 9 }], now), null);  // too old for the average
+  // wind 10 kt with a 6-second burst to 18 kt half a minute ago: 5-second peak 18, sustained ~10.4
+  const run = (base, burst, burstAt) => {
+    const out = [];
+    for (let i = 119; i >= 0; i--) out.push({ t: now - i * 1000, dir: 270, kt: i >= burstAt && i < burstAt + 6 ? burst : base });
+    return out;
+  };
+  const g = TwrInfoView.gustNow(run(10, 18, 30), now);
+  assert.ok(g >= 17.9 && g <= 18, "5-second peak " + g);
+  assert.equal(plain(TwrInfoView.actualWind(run(10, 18, 30), now, [])).gust, 18);
+  // a 1-second spike is not a gust: the 5-second average stays low
+  assert.equal(TwrInfoView.gustNow(run(10, 30, 30).map((s, k, a) => ({ ...s, kt: now - s.t === 30000 ? 30 : 10 })), now), null);
+  // sustained under 9 kt: no gust, however strong the peak
+  assert.equal(TwrInfoView.gustNow(run(6, 20, 30), now), null);
+  // peak under 5 kt over: no gust
+  assert.equal(TwrInfoView.gustNow(run(12, 16, 30), now), null);
+  // peak older than a minute: not a new gust...
+  assert.equal(TwrInfoView.gustNow(run(10, 18, 70), now), null);
+  // ...but one recorded earlier is still reported for 10 minutes, and not after
+  const gusts = [{ t: now - 9 * 60000, kt: 21 }];
+  assert.equal(TwrInfoView.actualWind(steady, now, gusts).gust, 21);
+  assert.equal(TwrInfoView.actualWind(steady, now + 2 * 60000, gusts), null, "no samples then");
+  const later = steady.map((s) => ({ ...s, t: s.t + 2 * 60000 }));
+  assert.equal(TwrInfoView.actualWind(later, now + 2 * 60000, gusts).gust, null, "older than 10 minutes");
 });
 
 t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancels a release", () => {
@@ -320,6 +342,9 @@ t("screen brightness: knobs combine, never fully black, label only when a knob t
   assert.equal(op(), 0);
   assert.equal(update(0, 0, 900), 2, "never past 200 %");
   assert.equal(update(0, 0, 0), 1, "not set yet = 100 %");
+  // deepest dimming still keeps 8 % of the page, so dark colours do not round to one colour channel
+  assert.equal(D.shadeFor(0.05), 0.08);
+  assert.ok(D.shadeFor(0.5) > 0.08);
   // overhead monitor pose: set once per flight to as built (height 15, swivel 50)
   const vars = {};
   dctx.SimVar = { GetSimVarValue: (n) => vars[n] || 0, SetSimVarValue: (n, u, v) => { vars[n] = v; } };

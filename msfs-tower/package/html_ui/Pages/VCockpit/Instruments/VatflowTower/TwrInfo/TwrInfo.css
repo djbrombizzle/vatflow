@@ -9,7 +9,7 @@ vatflow-twrinfo, #ti-root {
   box-sizing: border-box;
   position: relative;
   padding: 14px 24px;
-  background: #0b0703;
+  background: #000;              /* pure black: a tinted near-black turns red when dimmed at night */
   color: #ffb347;
   font-family: monospace;
   font-size: 22px;
@@ -51,7 +51,5 @@ vatflow-twrinfo, #ti-root {
 .ti-altval { font-size: 72px; font-weight: bold; color: #ff4b3a; }
 
 .ti-sim { font-size: 20px; color: #d49a4f; height: 28px; }
-.ti-metar { font-size: 19px; color: #e6c38f; height: 50px; overflow: hidden; }
-.ti-atc { font-size: 20px; color: #9fe08a; margin-top: 4px; height: 52px; overflow: hidden; }
-.ti-bottom { justify-content: space-between; margin-top: 4px; font-size: 20px; color: #d49a4f; }
+.ti-metar { font-size: 22px; color: #e6c38f; height: 120px; overflow: hidden; }
 .ti-status { position: absolute; right: 24px; bottom: 6px; color: #ff8a80; font-size: 18px; }

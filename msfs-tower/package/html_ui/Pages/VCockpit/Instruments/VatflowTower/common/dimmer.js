@@ -37,10 +37,14 @@ var VatflowDimmer = (function () {
    * How much of the page shows through the black layer for brightness b (0.05 .. 2). The
    * layer works on page colours, which the sim turns into light about as colour^2.2; up to
    * 100 % that is the knobs' feel as before, above it the light grows in step with b.
+   * Never below SHADE_FLOOR of the page: deeper than that, the page's dark colours round to
+   * a single 1 in one colour channel (a dark brown becomes pure red) and the sim's night
+   * exposure makes that glow as a coloured screen.
    */
+  var SHADE_FLOOR = 0.08;
   function shadeFor(b) {
     var light = b <= 1 ? Math.pow(b, 2.2) : b;
-    return Math.min(1, Math.pow(light / HEADROOM, 1 / 2.2));
+    return Math.max(SHADE_FLOOR, Math.min(1, Math.pow(light / HEADROOM, 1 / 2.2)));
   }
 
   function level(dimAll, dimOwn) {

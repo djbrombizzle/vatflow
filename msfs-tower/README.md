@@ -60,9 +60,11 @@ Inside the cab there are two working screens fed by live data:
   pad as the DBRITE.
 * **TWR INFO** (on the front-left console, amber like the IDS): **AW**, the actual
   wind, in big type: the sim's own wind at the cab (2-minute average, magnetic,
-  gusts when the 10-minute peak is 10 kt or more above it). Also the altimeter,
-  Zulu time, the VATSIM ATIS letter, the real KDCA METAR, who is online at DCA /
-  Potomac / ZDC, arrivals inside 50 nm and departures on the ground.
+  gusts the way a US ASOS / AWOS reports them: a gust is recorded when the 2-minute
+  sustained wind is 9 kt or more and the highest 5-second average in the past minute is
+  5 kt or more above it, and the highest gust recorded in the past 10 minutes is shown, so
+  never under 14 kt). Also the altimeter, Zulu time, the VATSIM ATIS letter and the real
+  METAR. Pure black background, so it stays black when dimmed at night.
 * **IDST** (fixed to the console right of TWR INFO): VATFLOW release times for DCA
   departures in an active FCA program, the same data and release engine as
   vatflow.io/idst.html (`common/vatflow-metering.js` is a bundle of
