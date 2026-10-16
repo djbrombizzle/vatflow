@@ -39,7 +39,7 @@ CSS = ["Screen/Screen.css", "Setup/Setup.css", "StripSetup/StripSetup.css", "Dbr
 
 SCRIPTS = [
     "common/compat.js", "common/store.js", "common/airport.js",
-    "common/airports/KDCA.js", "common/airports/KATL.js", "common/towers.js",
+    "common/airports/KDCA.js", "common/airports/KATL.js", "common/towers.js", "common/faa-towers.js",
     "common/vatsim-feed.js", "common/draw.js", "common/viewctl.js", "common/dimmer.js",
     "common/osm-airport.js", "common/site.js", "common/placement.js", "common/vnas.js", "common/mappicker.js", "common/strips.js",
     "common/vatflow-hub.js", "common/vatflow-metering.js", "common/vatflow-smart.js", "common/apt-flow.js",

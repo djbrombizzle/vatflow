@@ -723,6 +723,29 @@ t("day / night: the sun's height at the cab dims the screens at night and switch
   assert.equal(upd(), 1, "AUTO off: knobs only");
 });
 
+t("tower spot: the FAA obstacle data gives the airport's control tower (tallest within 2.5 nm)", () => {
+  const g = genContext();
+  for (const f of ["common/faa-towers.js", "common/placement.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), g);
+  const P = g.VatflowPlace;
+  const m = (a, b) => Math.hypot((a.lat - b.lat) * 111320, (a.lon - b.lon) * 111320 * Math.cos(a.lat * Math.PI / 180));
+  // KDCA: matches the hand-tuned spot in the tower list within 10 m and 10 ft
+  const dca = P.faaTower({ icao: "KDCA", arp: { lat: 38.8521, lon: -77.0377 } });
+  assert.equal(dca.kind, "faa");
+  assert.ok(m(dca.pos, { lat: 38.8545923, lon: -77.0437097 }) < 10, "KDCA position");
+  assert.ok(Math.abs(dca.pos.floorFtMsl - 215) <= 10, "KDCA floor " + dca.pos.floorFtMsl);
+  // KATL's 395 ft tower, KMCO's 345 ft tower, KLAX's new 282 ft tower (not the old 183 ft one)
+  assert.match(P.faaTower({ arp: { lat: 33.6367, lon: -84.4281 } }).src, /395 FT/);
+  assert.match(P.faaTower({ arp: { lat: 28.4294, lon: -81.3090 } }).src, /345 FT/);
+  assert.match(P.faaTower({ arp: { lat: 33.9425, lon: -118.4081 } }).src, /282 FT/);
+  // the front window faces the airport: KATL's tower is north-east of the centre -> faces south-west
+  const atl = P.faaTower({ arp: { lat: 33.6367, lon: -84.4281 } }).pos.headingTrue;
+  assert.ok(atl > 180 && atl < 270, "KATL heading " + atl);
+  assert.equal(P.faaTower({ arp: { lat: 51.47, lon: -0.4543 } }), null, "outside the US: none (OpenStreetMap then)");
+  // order: saved spot > tower list > FAA > OpenStreetMap
+  g.VatflowStore = { get: () => null };
+  assert.equal(P.target("KMCO", { icao: "KMCO", arp: { lat: 28.4294, lon: -81.3090 } }, { tower: { lat: 1, lon: 1 } }).kind, "faa");
+});
+
 t("zoom / pan: the view scales about the screen centre and pans a share of the screen", () => {
   const g = genContext();
   vm.runInContext(readFileSync(new URL("common/viewctl.js", BASE), "utf8"), g);

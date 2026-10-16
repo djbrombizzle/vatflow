@@ -277,8 +277,8 @@ GUIDE = [
     ("h1", "TOWER CAB - QUICK GUIDE"),
     ("h2", "PUT THE CAB IN THE TOWER"),
     ("p", "1  On any big screen tap MENU (bottom right), then TOWER SETUP."),
-    ("p", "2  PLACE IN TOWER: the cab goes to this airport's saved spot, the built-in tower list or "
-          "OpenStreetMap's control tower, and freezes there."),
+    ("p", "2  PLACE IN TOWER: the cab goes to this airport's saved spot, else the FAA's control "
+          "tower position (US) or OpenStreetMap's tower, and freezes there."),
     ("h2", "MOVE IT ONTO THE REAL TOWER"),
     ("p", "3  Pick a step: FINE 0.5 m, MEDIUM 2 m or BIG 10 m."),
     ("p", "4  FWD / BACK / LEFT / RIGHT move it as seen out of the FRONT window. UP / DOWN change the "
@@ -287,7 +287,7 @@ GUIDE = [
     ("h2", "GOOD TO KNOW"),
     ("p", "- AUTO PLACE ON SPAWN: the cab goes up by itself about 10 s after the flight starts."),
     ("p", "- RELEASE unfreezes the cab (slew); PLACE IN TOWER freezes it again."),
-    ("p", "- FORGET SAVED SPOT goes back to the tower list / OpenStreetMap spot."),
+    ("p", "- FORGET SAVED SPOT goes back to the FAA / OpenStreetMap spot."),
     ("p", "- Keep crash damage OFF (Assistance), or touching the tower ends the flight."),
     ("p", "- \"NOT IN THE TOWER\" on a screen: tap it for TOWER SETUP."),
     ("p", "- Brightness: TOWER SETUP > BRIGHTNESS, or the knobs on the console. "

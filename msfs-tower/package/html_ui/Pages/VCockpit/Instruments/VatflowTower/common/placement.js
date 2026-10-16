@@ -245,11 +245,37 @@ var VatflowPlace = (function () {
    * Where the cab should go at airport icao: {pos, src, kind} with kind
    * "saved" | "list" | "osm" | "centre". site: VatflowSite.current(); data: its loadData().
    */
+  var FAA_NM = 2.5, FAA_FLOOR_BELOW_TOP_FT = 15;
+
+  /**
+   * The airport's control tower from the FAA obstacle data (common/faa-towers.js, US only):
+   * the tallest within FAA_NM of the airport (old towers are usually the shorter ones).
+   * Cab floor 15 ft below the tower's top; the front window faces the airport centre.
+   */
+  function faaTower(site) {
+    var list = typeof VATFLOW_FAA_TOWERS !== "undefined" ? VATFLOW_FAA_TOWERS : null;
+    if (!list || !site || !site.arp || !site.arp.lat) return null;
+    var a = site.arp, k = Math.cos(a.lat * Math.PI / 180), best = null;
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i], dn = (t[0] - a.lat) * 60, de = (t[1] - a.lon) * 60 * k;
+      if (dn * dn + de * de > FAA_NM * FAA_NM) continue;
+      if (!best || t[2] > best[2]) best = t;
+    }
+    if (!best) return null;
+    var hdg = Math.atan2((a.lon - best[1]) * k, a.lat - best[0]) * 180 / Math.PI;
+    return {
+      pos: { lat: best[0], lon: best[1], floorFtMsl: best[3] - FAA_FLOOR_BELOW_TOP_FT, headingTrue: Math.round((hdg + 360) % 360) },
+      src: "FAA OBSTACLE DATA (CONTROL TOWER, " + best[2] + " FT)", kind: "faa"
+    };
+  }
+
   function target(icao, site, data) {
     var saved = typeof VatflowStore !== "undefined" ? VatflowStore.get("TOWER_" + icao, null) : null;
     if (saved && saved.lat) return { pos: saved, src: "YOUR SAVED SPOT" + (saved.savedAt ? " (" + saved.savedAt + ")" : ""), kind: "saved" };
     var list = typeof VATFLOW_TOWERS !== "undefined" ? VATFLOW_TOWERS[icao] : null;
     if (list) return { pos: list, src: (list.src || "TOWER LIST").toUpperCase(), kind: "list" };
+    var faa = faaTower(site);
+    if (faa) return faa;
     var t = data && data.tower;
     if (t) return { pos: { lat: t.lat, lon: t.lon, floorFtMsl: t.floorFtMsl, headingTrue: t.headingTrue }, src: String(t.src || "OPENSTREETMAP").toUpperCase(), kind: "osm" };
     if (site && site.arp && site.arp.lat) {
@@ -270,7 +296,7 @@ var VatflowPlace = (function () {
   function forget(icao) { VatflowStore.set("TOWER_" + icao, null); }
 
   /**
-   * When a flight starts at an airport with a known tower spot (saved, tower list or
+   * When a flight starts at an airport with a known tower spot (saved, tower list, FAA or
    * OpenStreetMap) and AUTO PLACE is on: goes there by itself after a few seconds.
    * Run by one always-present screen (TWR INFO).
    */
@@ -300,7 +326,7 @@ var VatflowPlace = (function () {
   function method() { return getL("VATFLOW_PLACE_METHOD"); }
 
   return {
-    move: move, error: error, place: place, release: release, target: target, save: save, forget: forget,
+    move: move, error: error, place: place, release: release, target: target, faaTower: faaTower, save: save, forget: forget,
     here: here, frozen: frozen, live: live, onState: onState, autoPlace: autoPlace, busy: busy, state: state, method: method, stop: stop
   };
 })();

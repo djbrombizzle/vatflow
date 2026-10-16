@@ -1,6 +1,7 @@
 /*
  * VATFLOW Tower Cab - the shared tower list: tuned cab positions that ship with the cab.
- * The SETUP screen uses (first found): your saved spot, this list, the airport's
+ * The SETUP screen uses (first found): your saved spot, this list, the FAA's control tower
+ * position (US: common/faa-towers.js, from the FAA Digital Obstacle File), the airport's
  * OpenStreetMap control tower (common/airports/ or site.js), else the airport centre.
  *   lat / lon      cab centre, degrees
  *   floorFtMsl     cab floor height, feet above sea level (the aircraft's altitude)

@@ -15,8 +15,11 @@ VATSIM traffic from a real tower-cab viewpoint with live VATSIM traffic outside 
   places the cab, moves it with on-screen buttons (forward / back / left / right / up /
   down / turn, three step sizes) and saves the spot for that airport. With AUTO PLACE on
   (the default) the cab goes up by itself a few seconds after a flight starts. Spots come
-  from your saved one, else the tower list (`common/towers.js`), else the airport's
-  control tower in OpenStreetMap, else the airport centre. `common/placement.js` moves the
+  from your saved one, else the tower list (`common/towers.js`), else the FAA's position
+  of the airport's control tower (US: the FAA Digital Obstacle File, `common/faa-towers.js`
+  from `tools/build_faa_towers.py`; the tallest within 2.5 nm, cab floor 15 ft below its
+  top, front window facing the airport), else the airport's control tower in
+  OpenStreetMap, else the airport centre. `common/placement.js` moves the
   aircraft directly if the sim lets an instrument page set its position, otherwise it
   steers it there in slew mode; then it freezes it, turns the engine off and the ceiling
   lights on. The old Python tool in `placement/` still works as a backup.
@@ -216,6 +219,7 @@ can only be checked inside MSFS 2024 are listed in the
 | `tools/make_textures.py` | Generates the interior textures (carpet tiles, black ceiling grid, console laminate, light oak, keypad, keyboard, speaker grille) into `common/texture/`, with the `.png.xml` MSFS compiles them from. |
 | `tools/build_vatflow_bundles.mjs` | Bundles VATFLOW code from `shared/` for the screens: the release engine (`common/vatflow-metering.js`, IDST) and the ramp logic (`common/vatflow-ramp.js`) plus `common/ramp-kdca.js` from `data/ramp/KDCA.json`, and every airport on the ramp page (`common/ramp-airports.js`, `ramp/<ICAO>.json`) for the RAMP app. |
 | `tools/make_fan_sound.py` | Writes `placement/cab_fan.wav`, the seamless quiet fan loop. |
+| `tools/build_faa_towers.py` | Builds `common/faa-towers.js` (every US airport control tower with its height) from the FAA Digital Obstacle File; run it now and then for new towers. |
 | `tools/build_airport_data.py` | Builds `common/airports/<ICAO>.js` (runways, control tower, ASDE-X and DBRITE maps) from OpenStreetMap and OurAirports, for airports bundled with the cab. Add one: `python tools/build_airport_data.py KJFK <ourairports-dir> package/html_ui/Pages/VCockpit/Instruments/VatflowTower/common/airports`, then add it to `tools/build_screens.py` (SCRIPTS) and the TWR INFO / VSCS pages. |
 | `tools/build_screens.py` | Writes the screen host pages `Screen/S_<id>.html` / `.js` (which screens exist, their default app, which window they look out of). |
 | `tools/export_interior_gltf.py` | Builds the cab with the Blender script (headless) and writes `tower_cab_interior.gltf/.bin` directly: static interior plus each overhead monitor as its own node with a `<NODE>_TRACK` 360-degree track animation, materials already set the way the sim needs them. No Blender export or MSFS material panel needed for the interior. |
@@ -252,8 +256,8 @@ named to match.
 ## Another airport
 
 Nothing to do: spawn the cab at a parking spot there. The cab finds the airport, the
-screens set themselves up, and TOWER SETUP places it on the airport's OpenStreetMap
-control tower (or the airport centre if none is mapped): nudge it onto the sim's tower
+screens set themselves up, and TOWER SETUP places it on the airport's control tower (the
+FAA's position at US airports, else OpenStreetMap's, else the airport centre): nudge it onto the sim's tower
 and SAVE. To ship a tuned spot to everyone, add the numbers TOWER SETUP shows to
 `common/towers.js`. A tower that is much bigger or smaller than DCA's would need a
 resized cab (the parameters at the top of `build_tower_cab.py`).
