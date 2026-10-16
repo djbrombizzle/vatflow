@@ -24,6 +24,7 @@ Decals, stretched once over the top of a desk item:
   TWR_Keyboard_albd.png  - black keyboard
   TWR_Speaker_albd.png   - perforated speaker grille
   TWR_GuideSheet_albd.png - the quick guide (moving the cab) laminated on the TMU desk
+  TWR_FanLabel_albd.png   - the FAN label above the ceiling fan switch
 """
 
 import os
@@ -291,8 +292,32 @@ GUIDE = [
     ("p", "- Keep crash damage OFF (Assistance), or touching the tower ends the flight."),
     ("p", "- \"NOT IN THE TOWER\" on a screen: tap it for TOWER SETUP."),
     ("p", "- Brightness: TOWER SETUP > BRIGHTNESS, or the knobs on the console. "
-          "Ceiling fans: the switch on this desk's side."),
+          "Up to 200 % for bright days. Ceiling fans: the FAN switch on this desk's far end."),
 ]
+
+
+def font(size, bold=False):
+    """A TrueType font (DejaVu / Liberation), else Pillow's own."""
+    from PIL import ImageFont
+    for f in (("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"), ("LiberationSans-Bold.ttf" if bold else "LiberationSans-Regular.ttf")):
+        for base in ("/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/truetype/liberation", "C:/Windows/Fonts"):
+            try:
+                return ImageFont.truetype(os.path.join(base, f), size)
+            except OSError:
+                pass
+    return ImageFont.load_default()
+
+
+def fan_label(w=256, h=128):
+    """The engraved label above the ceiling fan switch: white FAN on a black plate."""
+    from PIL import ImageDraw
+    img = Image.new("RGB", (w, h), (18, 18, 20))
+    d = ImageDraw.Draw(img)
+    d.rectangle([5, 5, w - 6, h - 6], outline=(150, 150, 155), width=3)
+    f = font(78, True)
+    tw = d.textlength("FAN", font=f)
+    d.text(((w - tw) / 2, (h - 78) / 2 - 8), "FAN", font=f, fill=(240, 240, 240))
+    return np.array(img).astype(np.float32)
 
 
 def guide_sheet(w=792, h=1024):
@@ -302,19 +327,9 @@ def guide_sheet(w=792, h=1024):
     quad's UVs stretch it back. Needs a TrueType font (DejaVu / Liberation); falls back to
     Pillow's own.
     """
-    from PIL import ImageDraw, ImageFont
+    from PIL import ImageDraw
     img = Image.new("RGB", (w, h), (246, 245, 240))
     d = ImageDraw.Draw(img)
-
-    def font(size, bold=False):
-        for f in (("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"), ("LiberationSans-Bold.ttf" if bold else "LiberationSans-Regular.ttf")):
-            for base in ("/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/truetype/liberation", "C:/Windows/Fonts"):
-                try:
-                    return ImageFont.truetype(os.path.join(base, f), size)
-                except OSError:
-                    pass
-        return ImageFont.load_default()
-
     fonts = {"h1": font(36, True), "h2": font(24, True), "p": font(21)}
     margin, y = 54, 52
     d.rectangle([margin - 18, 30, w - margin + 18, 34], fill=(32, 78, 140))
@@ -356,6 +371,7 @@ def main(out_dir):
     save(keyboard(), out_dir, "TWR_Keyboard_albd.png")
     save(speaker(), out_dir, "TWR_Speaker_albd.png")
     save(guide_sheet(), out_dir, "TWR_GuideSheet_albd.png")
+    save(fan_label(), out_dir, "TWR_FanLabel_albd.png")
     save(wood(), out_dir, "TWR_Wood_albd.png")
     c, nrm = carpet_detail()
     save(c, out_dir, "TWR_Carpet_comp.png")

@@ -74,7 +74,9 @@ Inside the cab there are two working screens fed by live data:
   screens, DBRITE, ASDE-X, console screens). Drag right for brighter, left for dimmer;
   the screen shows its brightness while you turn (`common/dimmer.js`). The pointers and
   the panel's near edge glow faint amber, so they can be found in the dark. TOWER SETUP has
-  the same on buttons: BRIGHTNESS DIMMER / BRIGHTER (the ALL knob).
+  the same on buttons: BRIGHTNESS DIMMER / BRIGHTER (the ALL knob); with that knob full up,
+  BRIGHTER keeps going to 200 % for bright days (`L:VATFLOW_BOOST`, kept for the next flight;
+  the screens glow at twice the SDK's emissive and a black layer normally takes it back).
 * **Day / night (AUTO)**: TWR INFO works out the sun's height at the cab from the sim's
   position and time (`VatflowDimmer.master`, `L:VATFLOW_NIGHT`). From dusk the screens dim to
   40 % of their knob setting (AUTO on TOWER SETUP), and with CAB LIGHTS the ceiling lights go
@@ -126,7 +128,7 @@ Inside the cab there are two working screens fed by live data:
   bumper, blue perforated steel vent panels for the computers inside, dark blue kick plinth), the TMU desk in
   the same finish with an oak edge band, charcoal ceiling tiles in a light grey grid with
   round downlights, charcoal grey-blue carpet, a dark band round the ceiling edge, two
-  ceiling fans (switch on the TMU side of the TMU desk, `L:VATFLOW_FANS`; they turn only
+  ceiling fans (switch labelled FAN on the TMU desk's open end, `L:VATFLOW_FANS`; they turn only
   while on), overhead monitors on articulated arms (sleeve, elbow, arm, wrist), and a
   laminated quick guide on the TMU desk (how to put / move the cab in the tower; its text is
   `GUIDE` in `tools/make_textures.py`). Textures from `tools/make_textures.py`
@@ -138,7 +140,7 @@ Inside the cab there are two working screens fed by live data:
 
 Three strip bays (TMU, GROUND, LOCAL by default) stand at the front of the consoles, each a
 sloped board three columns wide (about 1 m) with its strips drawn on it (`StripBay/`, screens `$SCREEN_STRIPS_1..3`) and a
-position sign on the console front below it (`$SCREEN_SIGN_1..3`).
+position name plate on the outer edge of the worktop in front of it (`$SCREEN_SIGN_1..3`).
 
 * **Strips print themselves**: a departure strip (FAA terminal departure strip: ACID,
   type/equipment, CID, revision, beacon code, proposed time, requested altitude, departure

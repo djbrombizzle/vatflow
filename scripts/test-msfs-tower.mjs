@@ -303,13 +303,23 @@ t("screen brightness: knobs combine, never fully black, label only when a knob t
   const host = { style: {}, children: [], appendChild(e) { this.children.push(e); } };
   const update = D.attach(host, "CONSOLE", doc);
   const [shade, label] = made;
+  // screens glow at twice normal (emissive 4000); the layer brings 100 % back to the old glow
+  const op = (x) => Number(shade.style.opacity);
   update(0, 0);
-  assert.equal(shade.style.opacity, "0");
+  assert.ok(Math.abs(Math.pow(1 - op(), 2.2) * 2 - 1) < 0.01, "100 % = the old full glow");
   assert.notEqual(label.style.display, "block", "no label on the first frame");
   update(0, 60);
-  assert.equal(shade.style.opacity, String(1 - 0.4));
+  assert.ok(Math.abs(Math.pow(1 - op(), 2.2) * 2 - Math.pow(0.4, 2.2)) < 0.01, "dimmed like before");
   assert.equal(label.style.display, "block");
   assert.equal(label.textContent, "BRT 40%");
+  // BOOST (TOWER SETUP BRIGHTER past 100 %): up to 200 %, where the layer is gone
+  assert.equal(update(0, 0, 150), 1.5);
+  assert.equal(label.textContent, "BRT 150%");
+  assert.ok(Math.abs(Math.pow(1 - op(), 2.2) * 2 - 1.5) < 0.01, "150 % = 1.5 x the light");
+  assert.equal(update(0, 0, 200), 2);
+  assert.equal(op(), 0);
+  assert.equal(update(0, 0, 900), 2, "never past 200 %");
+  assert.equal(update(0, 0, 0), 1, "not set yet = 100 %");
   // overhead monitor pose: set once per flight to as built (height 15, swivel 50)
   const vars = {};
   dctx.SimVar = { GetSimVarValue: (n) => vars[n] || 0, SetSimVarValue: (n, u, v) => { vars[n] = v; } };

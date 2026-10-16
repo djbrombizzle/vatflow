@@ -132,6 +132,25 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_FAN_SWITCH" Node="TowerCab_FanSwitch">
+			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+				<LEFT_SINGLE_CODE>(L:VATFLOW_FANS) ! (&gt;L:VATFLOW_FANS)</LEFT_SINGLE_CODE>
+				<TOOLTIPID>Ceiling fans - click to switch on / off</TOOLTIPID>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_FAN_SWITCH_ON" Node="TowerCab_FanSwitch_On">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_FANS)</VISIBILITY_CODE>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_FAN_SWITCH_OFF" Node="TowerCab_FanSwitch_Off">
+			<UseTemplate Name="ASOBO_GT_Visibility_Code">
+				<VISIBILITY_CODE>(L:VATFLOW_FANS) !</VISIBILITY_CODE>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_BAY_1" Node="TowerCab_StripBay_1">
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
 				<ANIM_NAME>TowerCab_StripBay_1_TRACK</ANIM_NAME>
@@ -146,7 +165,7 @@
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
 				<ANIM_NAME>TowerCab_StripBay_1_Slide_SLIDE</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_BAY_1_SLIDE)</ANIM_CODE>
-				<ANIM_LENGTH>260</ANIM_LENGTH>
+				<ANIM_LENGTH>400</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 		</Component>
@@ -165,7 +184,7 @@
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
 				<ANIM_NAME>TowerCab_StripBay_2_Slide_SLIDE</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_BAY_2_SLIDE)</ANIM_CODE>
-				<ANIM_LENGTH>260</ANIM_LENGTH>
+				<ANIM_LENGTH>400</ANIM_LENGTH>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 		</Component>
@@ -184,7 +203,27 @@
 			<UseTemplate Name="ASOBO_GT_Anim_Code">
 				<ANIM_NAME>TowerCab_StripBay_3_Slide_SLIDE</ANIM_NAME>
 				<ANIM_CODE>(L:VATFLOW_BAY_3_SLIDE)</ANIM_CODE>
-				<ANIM_LENGTH>260</ANIM_LENGTH>
+				<ANIM_LENGTH>400</ANIM_LENGTH>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_FAN_1" Node="TowerCab_Fan_1">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_Fan_1_SPIN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_FANS) if{ (E:ABSOLUTE TIME, seconds) 150 * 360 % d (&gt;L:VATFLOW_FAN_DEG) } els{ (L:VATFLOW_FAN_DEG) }</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
+		<Component ID="VATFLOW_FAN_2" Node="TowerCab_Fan_2">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_Fan_2_SPIN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_FANS) if{ (E:ABSOLUTE TIME, seconds) 150 * 360 % d (&gt;L:VATFLOW_FAN_DEG) } els{ (L:VATFLOW_FAN_DEG) }</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
 				<ANIM_LAG>0</ANIM_LAG>
 			</UseTemplate>
 		</Component>

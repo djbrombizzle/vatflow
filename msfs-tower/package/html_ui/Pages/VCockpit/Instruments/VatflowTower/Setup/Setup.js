@@ -143,15 +143,23 @@ var SetupView = (function () {
 
   /**
    * Brightness row: DIMMER / BRIGHTER move the ALL screens knob (L:VATFLOW_DIM_ALL, 0 .. 90 =
-   * darkest), AUTO dims the screens at night, CAB LIGHTS switches the ceiling lights off and
+   * darkest); with that knob full up BRIGHTER goes on past 100 % to 200 % in 20 % steps
+   * (L:VATFLOW_BOOST, kept for the next flight) and DIMMER comes back down to 100 % first. AUTO dims the screens at night, CAB LIGHTS switches the ceiling lights off and
    * the console lights on at night (common/dimmer.js). The AUTO choices are kept.
    */
   SetupView.prototype.brightKey = function (k) {
     var sim = typeof SimVar !== "undefined";
     if (k === "dim" || k === "bright") {
       var v = sim ? SimVar.GetSimVarValue("L:VATFLOW_DIM_ALL", "number") || 0 : (this.dimAll || 0);
-      v = Math.max(0, Math.min(90, Math.round((v + (k === "dim" ? 10 : -10)) / 10) * 10));
-      if (sim) SimVar.SetSimVarValue("L:VATFLOW_DIM_ALL", "number", v); else this.dimAll = v;
+      var boost = Math.round(VatflowDimmer.boostFactor(sim ? SimVar.GetSimVarValue("L:VATFLOW_BOOST", "number") : this.boost) * 100);
+      if (k === "bright" && v <= 0) boost = Math.min(200, boost + 20);
+      else if (k === "dim" && boost > 100) boost = Math.max(100, boost - 20);
+      else v = Math.max(0, Math.min(90, Math.round((v + (k === "dim" ? 10 : -10)) / 10) * 10));
+      if (sim) {
+        SimVar.SetSimVarValue("L:VATFLOW_DIM_ALL", "number", v);
+        SimVar.SetSimVarValue("L:VATFLOW_BOOST", "number", boost);
+      } else { this.dimAll = v; this.boost = boost; }
+      VatflowStore.set("BOOST", boost);
       return true;
     }
     if (k === "brtauto" || k === "litauto") {
@@ -215,7 +223,8 @@ var SetupView = (function () {
     var sim = typeof SimVar !== "undefined", dimAuto = VatflowStore.get("DIM_AUTO", true) !== false;
     var dimAll = sim ? SimVar.GetSimVarValue("L:VATFLOW_DIM_ALL", "number") || 0 : (this.dimAll || 0);
     var night = sim ? SimVar.GetSimVarValue("L:VATFLOW_NIGHT", "number") || 0 : 0;
-    var pct = Math.round(VatflowDimmer.level(dimAll, 0) * (dimAuto ? VatflowDimmer.autoFactor(night) : 1) * 100);
+    var boost = VatflowDimmer.boostFactor(sim ? SimVar.GetSimVarValue("L:VATFLOW_BOOST", "number") : this.boost);
+    var pct = Math.round(VatflowDimmer.level(dimAll, 0) * (dimAuto ? VatflowDimmer.autoFactor(night) : 1) * boost * 100);
     f.brt.textContent = pct + "%" + (night >= 50 ? " NIGHT" : night > 0 ? " DUSK" : " DAY");
     f.brtauto.textContent = dimAuto ? "[X]" : "[ ]";
     f.litauto.textContent = VatflowStore.get("LIGHTS_AUTO", true) !== false ? "[X]" : "[ ]";

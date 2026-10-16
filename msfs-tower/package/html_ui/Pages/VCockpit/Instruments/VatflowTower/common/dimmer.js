@@ -7,10 +7,14 @@
  *   L:VATFLOW_DIM_ASDEX    overhead ASDE-X
  *   L:VATFLOW_DIM_CONSOLE  TWR INFO, IDST, voice switch, clock
  * Each is 0 (full bright, the default) .. 90 (darkest). A screen's brightness is
- * (1 - ALL/100) * (1 - own/100), never below 5 %. It dims by laying a black layer of
- * that opacity over the page: the sim makes the screen glow from the page's pixels, so
- * darker pixels also mean less glow at night. While a knob turns, the screen shows its
- * brightness for two seconds.
+ * (1 - ALL/100) * (1 - own/100), never below 5 %, times BOOST:
+ *   L:VATFLOW_BOOST  100 (normal, the default) .. 200 (twice as bright, for bright days);
+ *                    BRIGHTER on TOWER SETUP past 100 %, kept for the next flight
+ * The screens glow twice as strongly as they need to (emissive 4000, export_interior_gltf.py)
+ * and normally sit behind a black layer that takes that back to 100 %; above 100 % the
+ * layer thins out, at 200 % it is gone. The sim makes the screen glow from the page's
+ * pixels, so darker pixels also mean less glow at night. While a knob turns, the screen
+ * shows its brightness for two seconds.
  *
  * Day / night (AUTO, on unless switched off on the TOWER SETUP screen): one screen works
  * out the sun's height at the cab from the sim's position and time (master()) and sets
@@ -24,7 +28,20 @@
  * Also sets the overhead monitors' starting height / swivel (initMonitorPose).
  */
 var VatflowDimmer = (function () {
-  var MIN = 0.05, NIGHT_LEVEL = 0.4;
+  var MIN = 0.05, NIGHT_LEVEL = 0.4, MAX_BOOST = 2, HEADROOM = 2;
+
+  /** BOOST 100..200 (L: var; 0 = not set yet = 100) -> 1..2. */
+  function boostFactor(v) { return Math.max(1, Math.min(MAX_BOOST, (v || 100) / 100)); }
+
+  /**
+   * How much of the page shows through the black layer for brightness b (0.05 .. 2). The
+   * layer works on page colours, which the sim turns into light about as colour^2.2; up to
+   * 100 % that is the knobs' feel as before, above it the light grows in step with b.
+   */
+  function shadeFor(b) {
+    var light = b <= 1 ? Math.pow(b, 2.2) : b;
+    return Math.min(1, Math.pow(light / HEADROOM, 1 / 2.2));
+  }
 
   function level(dimAll, dimOwn) {
     var a = Math.max(0, Math.min(90, dimAll || 0)), o = Math.max(0, Math.min(90, dimOwn || 0));
@@ -34,7 +51,7 @@ var VatflowDimmer = (function () {
   /**
    * Puts the dimming layer over host (the gauge element). group: "DBRITE" | "ASDEX" | "CONSOLE".
    * Returns update(): call it from the gauge's Update() (reads the L: vars), or
-   * update(dimAll, dimOwn) to set it directly (browser preview, tests).
+   * update(dimAll, dimOwn, boost) to set it directly (browser preview, tests).
    */
   function attach(host, group, doc) {
     doc = doc || document;
@@ -48,17 +65,18 @@ var VatflowDimmer = (function () {
     host.appendChild(shade);
     host.appendChild(label);
     var last = -1, shownAt = 0, init = false;
-    return function update(dimAll, dimOwn) {
+    return function update(dimAll, dimOwn, boost) {
       var night = 0;
       if (dimAll === undefined && typeof SimVar !== "undefined") {
         dimAll = SimVar.GetSimVarValue("L:VATFLOW_DIM_ALL", "number");
         dimOwn = SimVar.GetSimVarValue("L:VATFLOW_DIM_" + group, "number");
+        boost = SimVar.GetSimVarValue("L:VATFLOW_BOOST", "number");
         if (!SimVar.GetSimVarValue("L:VATFLOW_DIM_MANUAL", "number")) night = SimVar.GetSimVarValue("L:VATFLOW_NIGHT", "number") || 0;
       }
-      var b = Math.max(MIN, level(dimAll, dimOwn) * autoFactor(night)), now = Date.now();
+      var b = Math.max(MIN, level(dimAll, dimOwn) * autoFactor(night) * boostFactor(boost)), now = Date.now();
       var pct = Math.round(b * 100);
       if (pct !== last) {
-        shade.style.opacity = String(1 - b);
+        shade.style.opacity = String(Math.round((1 - shadeFor(b)) * 1000) / 1000);
         if (init) {             // not on the first frame: only when someone turns a knob
           label.textContent = "BRT " + pct + "%";
           label.style.display = "block";
@@ -110,6 +128,7 @@ var VatflowDimmer = (function () {
     if (typeof SimVar !== "undefined" && typeof VatflowStore !== "undefined") {
       SimVar.SetSimVarValue("L:VATFLOW_DIM_MANUAL", "number", VatflowStore.get("DIM_AUTO", true) === false ? 1 : 0);
       SimVar.SetSimVarValue("L:VATFLOW_LIGHTS_MANUAL", "number", VatflowStore.get("LIGHTS_AUTO", true) === false ? 1 : 0);
+      SimVar.SetSimVarValue("L:VATFLOW_BOOST", "number", Math.round(boostFactor(VatflowStore.get("BOOST", 100)) * 100));
     }
     function circuit(n, on) {
       var is = !!SimVar.GetSimVarValue("CIRCUIT SWITCH ON:" + n, "bool");
@@ -156,6 +175,7 @@ var VatflowDimmer = (function () {
 
   return {
     attach: attach, level: level, initMonitorPose: initMonitorPose, autoFactor: autoFactor,
-    sunElevation: sunElevation, nightFor: nightFor, master: master, NIGHT_LEVEL: NIGHT_LEVEL
+    sunElevation: sunElevation, nightFor: nightFor, master: master, NIGHT_LEVEL: NIGHT_LEVEL,
+    boostFactor: boostFactor, shadeFor: shadeFor
   };
 })();

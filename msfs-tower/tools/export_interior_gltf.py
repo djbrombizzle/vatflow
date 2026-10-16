@@ -19,7 +19,7 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
 * Also writes tower_cab_interior.xml: the LOD entry plus the model behaviors that let you
   drag the monitors round the track and the shades up and down.
 * Materials are written the way the working sim build has them: screens exactly like
-  the SDK GaugeAircraft sample ("$SCREEN_*" with emissive 2000), everything else plain PBR,
+  the SDK GaugeAircraft sample ("$SCREEN_*" with emissive 2000, here 4000 for brightness up to 200 %), everything else plain PBR,
   double sided.
 """
 
@@ -84,6 +84,7 @@ PBR = {
     "TWR_SwitchPlate": ("DCD8CC", 0.0, 0.5, 1),
     "TWR_SwitchRocker": ("F2F0E8", 0.0, 0.45, 1),
     "TWR_GuideSheet": ("FFFFFF", 0.0, 0.18, 1),    # glossy: under laminate
+    "TWR_FanLabel": ("FFFFFF", 0.0, 0.4, 1),       # engraved FAN label above the fan switch
     "TWR_Laminate": ("E4E8EC", 0.0, 0.12, 1),
     "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_ConsoleSeg": ("FFFFFF", 0.0, 0.6, 1),
@@ -121,6 +122,7 @@ TEXTURED = {
     "TWR_Keyboard": {"albd": "TWR_Keyboard_albd.png", "m": None},
     "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
     "TWR_GuideSheet": {"albd": "TWR_GuideSheet_albd.png", "m": None},
+    "TWR_FanLabel": {"albd": "TWR_FanLabel_albd.png", "m": None},
     "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
     # console worktop / fronts: UVs made in the Blender script (planar_uvs), used as they are
     "TWR_ConsoleTop": {"albd": "TWR_ConsoleTop_albd.png", "m": None},
@@ -160,7 +162,9 @@ EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0],
 
 def material_json(name):
     if name.startswith("$SCREEN_"):
-        return {"emissiveFactor": [2000.0, 2000.0, 2000.0], "name": name}
+        # twice the SDK sample's 2000: the screens' black layer (common/dimmer.js) takes it
+        # back to normal and thins out up to 200 % brightness on bright days
+        return {"emissiveFactor": [4000.0, 4000.0, 4000.0], "name": name}
     if name in EMISSIVE:
         hx, met, rough, alpha = PBR[name]
         return {"alphaMode": "OPAQUE", "doubleSided": True, "emissiveFactor": EMISSIVE[name], "name": name,

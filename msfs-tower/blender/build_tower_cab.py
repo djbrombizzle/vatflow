@@ -95,6 +95,7 @@ COLORS = {
     "TWR_SwitchPlate": (0.85, 0.84, 0.80, 1.0),   # wall switch plate
     "TWR_SwitchRocker": (0.95, 0.94, 0.90, 1.0),
     "TWR_GuideSheet": (1.0, 1.0, 1.0, 1.0),        # the laminated quick guide on the TMU desk
+    "TWR_FanLabel": (1.0, 1.0, 1.0, 1.0),          # FAN label above the fan switch
     "TWR_Laminate": (0.88, 0.9, 0.92, 1.0),       # its clear laminate border
     "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
     "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
@@ -557,17 +558,22 @@ def tmu_desk(inside, coll, a_inner, top):
         cz = sc + Vector((0, 0, dz))
         pts = [cz - rgt * hw - upv * hh, cz + rgt * hw - upv * hh, cz + rgt * hw + upv * hh, cz - rgt * hw + upv * hh]
         inside.face(pts, mat, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
-    # ceiling fan switch on the TMU side of the desk (-side), near the console end: a plate
-    # (click it, TowerCab_FanSwitch) and its rocker shown up (on) or down (off)
-    sw = P2(0.55, -(w / 2 - 0.03) - 0.006, 0.62)
-    srot = drot
+    # ceiling fan switch on the desk's far end (the end out on the open floor), towards its
+    # +side corner: a plate (click it, TowerCab_FanSwitch) and its rocker shown up (on) or
+    # down (off), with an engraved FAN label above it
+    end = length - 0.02 + 0.006                                 # just proud of the end panel
+    sw = P2(end, w / 2 - 0.16, 0.62)
     b = Builder("TowerCab_FanSwitch", coll)
-    b.box(sw, (0.012, 0.08, 0.12), "TWR_SwitchPlate", rot_z=srot)
+    b.box(sw, (0.08, 0.012, 0.12), "TWR_SwitchPlate", rot_z=drot)
     b.finish()
     for state, dz in (("On", 0.012), ("Off", -0.012)):
         b = Builder("TowerCab_FanSwitch_" + state, coll)
-        b.box(sw - side * 0.01 + Vector((0, 0, dz)), (0.012, 0.022, 0.03), "TWR_SwitchRocker", rot_z=srot)
+        b.box(sw + toward * 0.01 + Vector((0, 0, dz)), (0.022, 0.012, 0.03), "TWR_SwitchRocker", rot_z=drot)
         b.finish()
+    lc, lr = sw + toward * 0.0065 + Vector((0, 0, 0.09)), side       # label: 8 x 4 cm, facing +toward
+    inside.face([lc - lr * 0.04 - Vector((0, 0, 0.02)), lc + lr * 0.04 - Vector((0, 0, 0.02)),
+                 lc + lr * 0.04 + Vector((0, 0, 0.02)), lc - lr * 0.04 + Vector((0, 0, 0.02))],
+                "TWR_FanLabel", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
     bevel_edges(desk_obj, 0.006)
     desk_obj["vatflow_frame"] = (start.x, start.y, 0.0, drot)
     planar_uvs(desk_obj, CONSOLE_MATS, 1.0,
@@ -618,9 +624,13 @@ def strip_bays(coll, a_inner, top):
             x = max(-STRIP_BAY_W / 2 + 0.02, min(STRIP_BAY_W / 2 - 0.02, x))
             hi = center + up * (STRIP_BAY_L / 2) - n_ * 0.03 + right * x
             b.beam(hi, Vector((hi.x, hi.y, top)), 0.012, "TWR_StripBay")
-        # position sign on the console front, below the bay
-        screen(b, at(STRIP_BAY_REST, P["console_depth"] + 0.004, top - 0.085), facing(0), 0.30, 0.075, "$SCREEN_SIGN_%d" % n,
-               bezel=0.01, depth=0.004)
+        # position sign: a name plate standing on the outer (controller's) edge of the worktop,
+        # in front of the bay's lip, leaning back 30 deg so it reads from the chair
+        lean = math.radians(30)
+        sh, sb = 0.06, 0.005
+        foot = at(STRIP_BAY_REST, P["console_depth"] + 0.035, top - 0.002)
+        tip = out * math.sin(lean) + Vector((0, 0, math.cos(lean)))
+        screen(b, foot + tip * (sh / 2 + sb), facing(30), 0.24, sh, "$SCREEN_SIGN_%d" % n, bezel=sb, depth=0.006)
         bay = b.finish()
         bay["vatflow_anim"] = "slide"
         bay["vatflow_parent"] = name
