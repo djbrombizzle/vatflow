@@ -25,6 +25,9 @@ Decals, stretched once over the top of a desk item:
   TWR_Speaker_albd.png   - perforated speaker grille
   TWR_GuideSheet_albd.png - the quick guide (moving the cab) laminated on the TMU desk
   TWR_FanLabel_albd.png   - the FAN label above the ceiling fan switch
+  TWR_FwdSign_albd.png    - the FWD placard on the front console (which way FWD moves the cab)
+  TWR_CarpetLogo_albd.png 2.4 m  - the carpet with "MADE AND POWERED BY VATFLOW TECHNOLOGIES"
+                          woven in (the floor patch at the back of the cab; carpet_logo)
 """
 
 import os
@@ -248,6 +251,61 @@ def speaker(size=256):
     return img
 
 
+# the woven-in logo on the carpet at the back of the cab (blender/build_tower_cab.py
+# carpet_logo() lays a patch of floor there with this texture; same numbers in both)
+LOGO_CENTER = (0.0, 1.75)      # meters, cab coordinates (+Y = the back, the stairs)
+LOGO_SIZE = (2.0, 0.85)
+CARPET_M = 2.4                 # one copy of the carpet texture covers 2.4 m (exporter TEXTURED)
+
+
+def carpet_logo(carpet_img):
+    """
+    "MADE AND POWERED BY / VATFLOW TECHNOLOGIES" dyed into the carpet: the same carpet
+    texture (so the patch matches the floor round it exactly), with the lettering and a thin
+    inlay border in lighter yarn. The letters keep the carpet's ribs, flecks and seams (the
+    carpet is recoloured, not covered) and a darker stitch line runs round them. Placed in
+    the texture where the floor's world-space mapping puts LOGO_CENTER, wrapping like the
+    carpet does. Reads from the cab's middle looking back.
+    """
+    from PIL import ImageDraw, ImageFilter
+    size = carpet_img.shape[0]
+    ppm = size / CARPET_M
+    W, H = int(round(LOGO_SIZE[0] * ppm)), int(round(LOGO_SIZE[1] * ppm))
+    k = 4                                                  # draw big, scale down: smooth edges
+    m = Image.new("L", (W * k, H * k), 0)
+    d = ImageDraw.Draw(m)
+    px = ppm * k
+    b, t = int(0.035 * px), max(2, int(0.012 * px))
+    d.rectangle([b, b, W * k - b, H * k - b], outline=255, width=t)
+    for text, cap, yc in (("MADE AND POWERED BY", 0.065, 0.28), ("VATFLOW TECHNOLOGIES", 0.17, 0.60)):
+        f = font(int(cap * px / 0.72), True)
+        tw = d.textlength(text, font=f)
+        if tw > 0.86 * W * k:                              # fit the width inside the border
+            cap *= 0.86 * W * k / tw
+            f = font(int(cap * px / 0.72), True)
+            tw = d.textlength(text, font=f)
+        top = f.getbbox(text)[1]
+        d.text(((W * k - tw) / 2, yc * H * k - (cap * px) / 2 - top), text, font=f, fill=255)
+    mask = np.array(m.resize((W, H), Image.LANCZOS)).astype(np.float32) / 255.0
+    halo = np.array(m.filter(ImageFilter.MaxFilter(9)).resize((W, H), Image.LANCZOS)).astype(np.float32) / 255.0
+    # where the patch's top-left corner falls in the repeating texture (glTF V runs down)
+    x0, ytop = LOGO_CENTER[0] - LOGO_SIZE[0] / 2, LOGO_CENTER[1] + LOGO_SIZE[1] / 2
+    col0 = int(round((x0 / CARPET_M) % 1.0 * size))
+    row0 = int(round((1.0 - (ytop / CARPET_M) % 1.0) % 1.0 * size))
+    full, fhalo = np.zeros((size, size), np.float32), np.zeros((size, size), np.float32)
+    full[:H, :W], fhalo[:H, :W] = mask, halo
+    full = np.roll(np.roll(full, row0, axis=0), col0, axis=1)
+    fhalo = np.roll(np.roll(fhalo, row0, axis=0), col0, axis=1)
+    img = carpet_img.copy()
+    base = hexrgb("2C3747")
+    yarn = hexrgb("9DAAC0")                                # light steel-blue yarn
+    dyed = img * (yarn / base)                             # the carpet's own texture, lighter
+    stitch = np.clip(fhalo - full, 0, 1)[..., None] * 0.22  # darker line round the letters
+    img = img * (1 - stitch)
+    img = img + full[..., None] * (dyed - img)
+    return img
+
+
 def carpet_detail(size=1024):
     """comp + normal for the carpet: fibre noise, alternating rib direction, sunken tile seams."""
     t = size // 4
@@ -320,6 +378,26 @@ def fan_label(w=256, h=128):
     return np.array(img).astype(np.float32)
 
 
+def fwd_sign(w=1024, h=512):
+    """
+    The FWD placard low on the front console: a big arrow pointing up (towards the front
+    window, which is FWD on TOWER SETUP's MOVE THE CAB pad) with FWD beside it.
+    """
+    from PIL import ImageDraw
+    img = Image.new("RGB", (w, h), (20, 30, 44))
+    d = ImageDraw.Draw(img)
+    d.rectangle([10, 10, w - 11, h - 11], outline=(255, 196, 40), width=10)
+    cx, top, bot = 230, 60, 450                       # arrow, pointing up
+    d.polygon([(cx, top), (cx + 150, top + 160), (cx + 55, top + 160), (cx + 55, bot),
+               (cx - 55, bot), (cx - 55, top + 160), (cx - 150, top + 160)], fill=(255, 196, 40))
+    f = font(200, True)
+    d.text((420, 70), "FWD", font=f, fill=(255, 255, 255))
+    s = font(38, True)
+    d.text((424, 320), "FRONT OF THE CAB", font=s, fill=(255, 196, 40))
+    d.text((424, 372), "TOWER SETUP > MOVE", font=font(34), fill=(200, 210, 220))
+    return np.array(img).astype(np.float32)
+
+
 def guide_sheet(w=792, h=1024):
     """
     The quick guide lying on the TMU desk under clear laminate: a printed US letter sheet
@@ -360,7 +438,9 @@ def guide_sheet(w=792, h=1024):
 
 def main(out_dir):
     os.makedirs(out_dir, exist_ok=True)
-    save(carpet(), out_dir, "TWR_Carpet_albd.png")
+    cp = carpet()
+    save(cp, out_dir, "TWR_Carpet_albd.png")
+    save(carpet_logo(cp), out_dir, "TWR_CarpetLogo_albd.png")
     save(ceiling(), out_dir, "TWR_Ceiling_albd.png")
     save(console(), out_dir, "TWR_Console_albd.png")
     save(console_top(), out_dir, "TWR_ConsoleTop_albd.png")
@@ -372,6 +452,7 @@ def main(out_dir):
     save(speaker(), out_dir, "TWR_Speaker_albd.png")
     save(guide_sheet(), out_dir, "TWR_GuideSheet_albd.png")
     save(fan_label(), out_dir, "TWR_FanLabel_albd.png")
+    save(fwd_sign(), out_dir, "TWR_FwdSign_albd.png")
     save(wood(), out_dir, "TWR_Wood_albd.png")
     c, nrm = carpet_detail()
     save(c, out_dir, "TWR_Carpet_comp.png")

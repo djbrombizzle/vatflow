@@ -87,7 +87,9 @@ PBR = {
     "TWR_SwitchPlate": ("DCD8CC", 0.0, 0.5, 1),
     "TWR_SwitchRocker": ("F2F0E8", 0.0, 0.45, 1),
     "TWR_GuideSheet": ("FFFFFF", 0.0, 0.18, 1),    # glossy: under laminate
-    "TWR_FanLabel": ("FFFFFF", 0.0, 0.4, 1),       # engraved FAN label above the fan switch
+    "TWR_FanLabel": ("FFFFFF", 0.0, 0.4, 1),
+    "TWR_FwdSign": ("FFFFFF", 0.0, 0.5, 1),        # FWD placard on the front console
+    "TWR_CarpetLogo": ("FFFFFF", 0.0, 0.95, 1),    # carpet with the VATFLOW logo woven in       # engraved FAN label above the fan switch
     "TWR_Laminate": ("E4E8EC", 0.0, 0.12, 1),
     "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_ConsoleSeg": ("FFFFFF", 0.0, 0.6, 1),
@@ -119,6 +121,8 @@ PBR = {
 #         patterns line up across parts; None = stretched once over the face (decals)
 TEXTURED = {
     "TWR_Carpet": {"albd": "TWR_Carpet_albd.png", "comp": "TWR_Carpet_comp.png", "norm": "TWR_Carpet_norm.png", "m": 2.4},
+    # the same carpet with the logo woven in (same mapping and weave, so it matches the floor)
+    "TWR_CarpetLogo": {"albd": "TWR_CarpetLogo_albd.png", "comp": "TWR_Carpet_comp.png", "norm": "TWR_Carpet_norm.png", "m": 2.4},
     "TWR_Ceiling": {"albd": "TWR_Ceiling_albd.png", "m": 1.2},
     "TWR_Console": {"albd": "TWR_Console_albd.png", "m": 1.0},
     "TWR_Keypad": {"albd": "TWR_Keypad_albd.png", "m": None},
@@ -126,6 +130,7 @@ TEXTURED = {
     "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
     "TWR_GuideSheet": {"albd": "TWR_GuideSheet_albd.png", "m": None},
     "TWR_FanLabel": {"albd": "TWR_FanLabel_albd.png", "m": None},
+    "TWR_FwdSign": {"albd": "TWR_FwdSign_albd.png", "m": None},
     "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
     # console worktop / fronts: UVs made in the Blender script (planar_uvs), used as they are
     "TWR_ConsoleTop": {"albd": "TWR_ConsoleTop_albd.png", "m": None},
@@ -181,8 +186,8 @@ def box_uv(p, n, meters):
 # Self-lit (emissive) materials besides the screens, in the same units as the screens'
 # 2000: the ceiling light diffusers glow softly ("lightly dimmed").
 EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0],
-            "TWR_KnobLit": [60.0, 42.0, 14.0],
-            "TWR_AlarmLit": [1600.0, 90.0, 60.0]}       # windshear MUTE button: bright red when it flashes          # knob pointers and the knob panel's faint amber edge light
+            "TWR_KnobLit": [60.0, 42.0, 14.0],          # knob pointers and the knob panel's faint amber edge light
+            "TWR_AlarmLit": [1600.0, 90.0, 60.0]}       # windshear MUTE button: bright red when it flashes
 
 
 def material_json(name):

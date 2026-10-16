@@ -97,6 +97,8 @@ COLORS = {
     "TWR_SwitchRocker": (0.95, 0.94, 0.90, 1.0),
     "TWR_GuideSheet": (1.0, 1.0, 1.0, 1.0),        # the laminated quick guide on the TMU desk
     "TWR_FanLabel": (1.0, 1.0, 1.0, 1.0),
+    "TWR_FwdSign": (1.0, 1.0, 1.0, 1.0),           # FWD placard on the front console
+    "TWR_CarpetLogo": (0.20, 0.22, 0.26, 1.0),     # carpet with the VATFLOW logo woven in
     "TWR_AlarmLit": (1.0, 0.08, 0.06, 1.0),        # windshear MUTE button, lit          # FAN label above the fan switch
     "TWR_Laminate": (0.88, 0.9, 0.92, 1.0),       # its clear laminate border
     "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
@@ -704,6 +706,37 @@ def props(coll, a_inner, top):
     prop(coll, "prop_binoculars", at(0.18, 0.22, top), rot + math.radians(70))
 
 
+def fwd_sign(inside, a_inner):
+    """
+    FWD placard low on the front console's front (window face 0, the way FWD moves the cab
+    on TOWER SETUP): an arrow pointing up towards the front window, 70 x 35 cm, a few mm
+    proud of the vent panels.
+    """
+    at, facing, rot, out, right = face_frame(0, a_inner)
+    c = at(0.0, P["console_depth"] + 0.004, 0.40)
+    hw, hh = 0.35, 0.175
+    up = Vector((0, 0, 1))
+    pts = [c - right * hw - up * hh, c - right * hw + up * hh, c + right * hw + up * hh, c + right * hw - up * hh]
+    inside.face(pts, "TWR_FwdSign", uvs=[(0, 0), (0, 1), (1, 1), (1, 0)])      # faces into the cab
+
+
+# the woven-in carpet logo at the back of the cab (same numbers as tools/make_textures.py)
+CARPET_LOGO_CENTER = (0.0, 1.75)
+CARPET_LOGO_SIZE = (2.0, 0.85)
+
+
+def carpet_logo(inside):
+    """
+    A patch of floor at the back of the cab (in front of the stair hatch) in TWR_CarpetLogo:
+    the carpet with "MADE AND POWERED BY VATFLOW TECHNOLOGIES" woven in. It sits 1.5 mm
+    above the floor and is mapped like the floor, so only the lettering shows.
+    """
+    (cx, cy), (w, h) = CARPET_LOGO_CENTER, CARPET_LOGO_SIZE
+    z = 0.0015
+    inside.face([Vector((cx - w / 2, cy - h / 2, z)), Vector((cx + w / 2, cy - h / 2, z)),
+                 Vector((cx + w / 2, cy + h / 2, z)), Vector((cx - w / 2, cy + h / 2, z))], "TWR_CarpetLogo")
+
+
 def ramp_computer(inside, a_inner, top):
     """
     Ramp computers. The ramp list (vatflow gates page) left of the clock: the right-hand
@@ -1081,6 +1114,8 @@ def build():
     console_equipment(inside, int_coll, 1, a_inner, P["console_h"])
     tmu_desk(inside, int_coll, a_inner, P["console_h"])
     props(int_coll, a_inner, P["console_h"])
+    fwd_sign(inside, a_inner)
+    carpet_logo(inside)
     ramp_computer(inside, a_inner, P["console_h"])
     strip_bays(int_coll, a_inner, P["console_h"])
     ceiling_lights(inside, z_glass1 - 0.012)

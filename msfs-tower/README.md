@@ -166,6 +166,13 @@ Inside the cab there are two working screens fed by live data:
   `tools/meshy_retexture.py prop` / `textures`; `prop()` in the Blender script places them).
   The cap's propeller is built in the script (`TowerCab_CapPropeller`) and turns lazily
   while the ceiling fans are on (`L:VATFLOW_CAP_DEG`).
+* **FWD placard** low on the front console's front (70 x 35 cm, `TWR_FwdSign`): an arrow up
+  towards the front window, the way FWD moves the cab on TOWER SETUP.
+* **Woven carpet logo** at the back of the cab in front of the stair hatch: "MADE AND
+  POWERED BY VATFLOW TECHNOLOGIES" with an inlay border, dyed into the carpet
+  (`TWR_CarpetLogo`: the same carpet texture, mapping and weave with the lettering in lighter
+  yarn, so the tiles and ribs run straight through it; `carpet_logo` in make_textures.py and
+  the Blender script).
 * **Smooth shading**: the exporter shades faces that meet at under 35 degrees as one
   curve (round parts, the Meshy props); box edges, bevels and the cab's 45-degree corners
   stay sharp. Round parts (downlights, fans, knobs, monitor arms) have 16-40 sides.
