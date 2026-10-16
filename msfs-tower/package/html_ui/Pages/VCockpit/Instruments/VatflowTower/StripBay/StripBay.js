@@ -338,8 +338,10 @@ function vatflowRegisterStripBay(n, sign) {
   registerInstrument(tag, VatflowStripScreen);
 }
 
-/** Reads the VATSIM feed every 20 s and prints / drops strips (one screen does this). */
+/** Reads the VATSIM feed every 20 s and prints / drops strips (one screen does this, once). */
 function vatflowStripFeed(site) {
+  if (vatflowStripFeed.running) return;      // the sim attached bay 1 again: the reader already runs
+  vatflowStripFeed.running = true;
   (function tick() {
     VatflowFeed.httpGet(VATFLOW_TWR.feedUrl, function (err, text) {
       if (!err) {

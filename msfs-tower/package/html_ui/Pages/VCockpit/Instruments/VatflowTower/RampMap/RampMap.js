@@ -274,6 +274,7 @@ var RampMapView = (function () {
 
     // header
     var bad = this.data.problem(), status = bad ? bad.toUpperCase() : (L ? L.icao + " LIVE" : "");
+    if (this.boots > 1) status += "  R" + this.boots;          // the screen has started again (should not)
     ctx.textAlign = "right";
     ctx.font = "bold 24px sans-serif";
     ctx.fillStyle = "#d7e1ec";

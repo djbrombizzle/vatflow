@@ -160,6 +160,25 @@ var VatflowRampData = (function () {
     });
   };
 
+  /**
+   * One live data set per airport, shared by every ramp screen and kept across screen
+   * restarts (so a screen that starts again shows its traffic at once, and the feed is
+   * read once, not once per screen).
+   */
+  var shared = {};
+  RampData.shared = function (icao, raw, feedUrl) {
+    if (!shared[icao]) {
+      shared[icao] = new RampData(raw);
+      // its timers must outlive the screen that asked first (VatflowOwner would stop them with it)
+      if (typeof VatflowOwner !== "undefined") VatflowOwner.run(null, function () { shared[icao].start(feedUrl); });
+      else shared[icao].start(feedUrl);
+    }
+    return shared[icao];
+  };
+
+  /** The layout if it is loaded already (no waiting). */
+  RampData.cached = function (icao) { return layouts[icao] || null; };
+
   /** Whether the package has a ramp layout for the airport (no network needed to say so). */
   RampData.has = function (icao) {
     var list = typeof VATFLOW_RAMP_AIRPORTS !== "undefined" ? VATFLOW_RAMP_AIRPORTS : [];

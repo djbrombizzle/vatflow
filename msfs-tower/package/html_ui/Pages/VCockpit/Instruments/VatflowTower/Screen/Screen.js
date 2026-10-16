@@ -280,34 +280,37 @@ var VatflowApps = (function () {
       create: function (el, ctx) {
         var key = "RAMPSEL_" + ctx.screen.id, cv = canvas(el, "rm-canvas"), cur = null, my = 0;
         // not picked yet: this airport, the screen's own view (worked out once the layout is in)
-        var sel = VatflowStore.get(key, null) || (VatflowRampData.has(ctx.cfg.icao) ? { icao: ctx.cfg.icao, views: null } : null);
+        var here = ctx.cfg.icao;
+        var sel = VatflowStore.get(key, null) || (VatflowRampData.has(here) ? { icao: here, views: null } : null);
         var tick = VatflowDraw.loop(note(cv, "RAMP MAP - TAP RAMPS TO PICK AN AIRPORT"), 2000);
         function show(s, remember) {                              // remember: picked, not the screen's default
           var token = ++my;
           sel = s;
           if (remember) VatflowStore.set(key, s);
-          if (cur) { cur.data.stop(); cur = null; }
-          tick = VatflowDraw.loop(note(cv, "LOADING " + s.icao + " RAMPS..."), 2000);
-          tick(true);
-          VatflowRampData.layout(s.icao, function (raw) {
+          cur = null;
+          function ready(raw) {
             if (token !== my) return;
             if (!raw) { tick = VatflowDraw.loop(note(cv, "COULD NOT LOAD THE " + s.icao + " RAMP LAYOUT"), 2000); tick(true); return; }
             if (!s.views) s.views = defaultViews(raw, ctx.screen);
-            var data = new VatflowRampData(raw);
-            cur = new RampMapView(cv, null, s.views, data);
+            cur = new RampMapView(cv, null, s.views, VatflowRampData.shared(s.icao, raw, ctx.cfg.feedUrl));
             cur.upHdg = ctx.upHeading();
-            data.start(ctx.cfg.feedUrl);
+            cur.boots = ctx.boots;
             tick = VatflowDraw.loop(cur, 2000);
             tick(true);
-          });
+          }
+          var have = VatflowRampData.cached(s.icao);
+          if (have) { ready(have); return; }                     // loaded already: no LOADING flash
+          tick = VatflowDraw.loop(note(cv, "LOADING " + s.icao + " RAMPS..."), 2000);
+          tick(true);
+          VatflowRampData.layout(s.icao, ready);
         }
         var picker = new RampPicker(el, { here: ctx.cfg.icao, current: function () { return sel; }, onPick: function (s) { show(s, true); } });
         if (sel) show(sel, false);
         if (ctx.fresh || !sel) picker.open();
         return {
           update: function () { if (cur) cur.upHdg = ctx.upHeading(); tick(false); },
-          menu: function () { picker.open(); },                   // RAMP picked again in MENU
-          stop: function () { if (cur) cur.data.stop(); }
+          menu: function () { picker.open(); }                    // RAMP picked again in MENU
+          // (no stop: the airport's live data is shared and stays running for the next screen)
         };
       }
     },
@@ -379,7 +382,18 @@ var ScreenHost = (function () {
   var ITEM_CSS = "box-sizing:border-box;width:308px;height:96px;margin:0 16px 16px 0;background:#1b2a3a;border:2px solid #35506b;" +
     "color:#e8f1fa;font:bold 24px monospace;display:flex;align-items:center;justify-content:center;text-align:center;";
 
+  // how many times each screen has started this flight (shown in its MENU: should stay 1).
+  // An L: var, so it counts a page the sim reloaded too.
+  var boots = {};
+  function countBoot(id) {
+    if (typeof SimVar === "undefined") return (boots[id] = (boots[id] || 0) + 1);
+    var n = (SimVar.GetSimVarValue("L:VATFLOW_BOOT_" + id, "number") || 0) + 1;
+    SimVar.SetSimVarValue("L:VATFLOW_BOOT_" + id, "number", n);
+    return n;
+  }
+
   function ScreenHost(root, screen, cfg, doc) {
+    this.boots = countBoot(screen.id);
     this.doc = doc || document;
     this.root = root;
     this.screen = screen;
@@ -429,7 +443,13 @@ var ScreenHost = (function () {
 
   ScreenHost.prototype.start = function () {
     var self = this;
-    VatflowSite.resolve(function () {
+    VatflowSite.resolve(function (site) {
+      if (self.dead) return;
+      // the airport settings must be this airport's, even if this screen got a fresh copy of the
+      // defaults (KDCA) after the airport was found
+      if (site && self.cfg.icao !== site.icao) {
+        VatflowSite.apply(self.cfg, site, typeof VATFLOW_TWR_OVERRIDES !== "undefined" ? VATFLOW_TWR_OVERRIDES : null);
+      }
       self.pick(VatflowApps.initial(self.screen, self.cfg, VatflowStore.get("SCREEN_" + self.screen.id, null)), false);
     });
   };
@@ -448,7 +468,8 @@ var ScreenHost = (function () {
       });
       var note = self.doc.createElement("div");
       note.style.cssText = "width:100%;color:#7f93a8;font:18px monospace;margin-top:6px;";
-      note.textContent = "SCREEN " + this.screen.id + " - " + (this.cfg.icao || "") + " - TAP AN APP, OR ANYWHERE ELSE TO CLOSE";
+      note.textContent = "SCREEN " + this.screen.id + " - " + (this.cfg.icao || "") + (this.boots > 1 ? " - STARTED " + this.boots + " TIMES" : "") +
+        " - TAP AN APP, OR ANYWHERE ELSE TO CLOSE";
       this.list.appendChild(note);
     }
     this.list.style.display = show ? "flex" : "none";
@@ -471,7 +492,7 @@ var ScreenHost = (function () {
     el.style.cssText = "display:block;width:100%;height:100%;";
     this.box.appendChild(el);
     // fresh: picked in MENU just now (not restored at startup)
-    var ctx = { cfg: this.cfg, maps: null, screen: this.screen, fresh: !!remember, upHeading: function () { return self.upHeading(); } };
+    var ctx = { cfg: this.cfg, maps: null, screen: this.screen, fresh: !!remember, boots: this.boots, upHeading: function () { return self.upHeading(); } };
     function create() {
       if (owner.dead) return;
       VatflowOwner.run(owner, function () {
@@ -513,7 +534,14 @@ var ScreenHost = (function () {
     this.appId = null;
   };
 
+  /** Stops for good (the screen was taken down). */
+  ScreenHost.prototype.shutdown = function () {
+    this.dead = true;
+    this.stopApp();
+  };
+
   ScreenHost.prototype.update = function () {
+    if (this.dead) return;
     if (this.app) {
       var self = this;
       VatflowOwner.run(this.owner, function () {
@@ -545,8 +573,17 @@ function vatflowRegisterScreen(screen) {
       super.connectedCallback();
       this.dim = VatflowDimmer.attach(this, screen.group);
       if (screen.mount) VatflowDimmer.initMonitorPose(screen.mount);
-      this.host = new ScreenHost(this.querySelector(".scr-root"), screen, VATFLOW_TWR);
+      // the sim can attach a screen again (or a second copy of it): the old one stops first,
+      // so two never run (and poll) at once
+      var old = vatflowRegisterScreen.hosts[screen.id];
+      if (old) old.shutdown();
+      if (this.host && this.host !== old) this.host.shutdown();
+      this.host = vatflowRegisterScreen.hosts[screen.id] = new ScreenHost(this.querySelector(".scr-root"), screen, VATFLOW_TWR);
       this.host.start();
+    }
+    disconnectedCallback() {
+      if (super.disconnectedCallback) super.disconnectedCallback();
+      if (this.host) this.host.shutdown();
     }
     Update() {
       super.Update();
@@ -556,3 +593,4 @@ function vatflowRegisterScreen(screen) {
   }
   registerInstrument(tag, VatflowScreen);
 }
+vatflowRegisterScreen.hosts = {};
