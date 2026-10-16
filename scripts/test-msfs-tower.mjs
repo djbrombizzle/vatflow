@@ -753,8 +753,9 @@ t("strip bays: moving within a section, fewer separators merge sections, bay pos
   cfg.bays[1].seps = ["PROPOSED"];    // TAXI and CLEARED removed: their strips join the last section left
   S.normalize(st, cfg);
   assert.deepEqual(plain(st.bays[1]), [["B", "A", "C"]]);
-  assert.deepEqual(plain(S.poseVars({ face: 7, slide: -0.5 })), { deg: 315, slide: 80 });
-  assert.deepEqual(plain(S.poseVars({ face: 3, slide: 5 })), { deg: 135, slide: 250 }, "slide limited to the console");
+  assert.deepEqual(plain(S.poseVars({ face: 7, slide: -0.5 })), { deg: 315, slide: 70 });
+  assert.deepEqual(plain(S.poseVars({ face: 3, slide: 5 })), { deg: 135, slide: 240 }, "slide limited to the console");
+  assert.deepEqual(plain(S.poseVars({ face: 0, slide: 0.8 })), { deg: 0, slide: 200 }, "LOCAL's spot is where the model rests");
 });
 
 // async tests (fake sim + timers)

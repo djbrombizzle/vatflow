@@ -48,7 +48,9 @@ LIFT_TOP_M = 0.15        # frame 0 is 15 cm above where it is built (built = fra
 LIFT_DRAG_SPEED = 0.1
 TWIST_FRAMES = 100       # monitor swivel: frame 50 = as built, 1 degree per frame
 TWIST_DRAG_SPEED = 0.2
-SLIDE_FRAMES = 260       # strip bay along its console face: frame = cm + 130 (130 = face centre)
+SLIDE_FRAMES = 400       # strip bay along its console face: frame = cm + 200 (200 = where it is built)
+FAN_FRAMES = 360         # ceiling fan: frame = degrees
+FAN_DEG_PER_S = 150      # how fast the fans turn while switched on (25 rpm)
 MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
@@ -76,6 +78,11 @@ PBR = {
     "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
     "TWR_KnobLit": ("FFC864", 0.0, 0.5, 1),
     "TWR_CanRim": ("B8A98C", 0.8, 0.35, 1),
+    "TWR_FanBody": ("3A2A1E", 0.6, 0.4, 1),
+    "TWR_FanBlade": ("B9BBBE", 0.0, 0.55, 1),
+    "TWR_Soffit": ("1B1C1F", 0.0, 0.8, 1),
+    "TWR_SwitchPlate": ("DCD8CC", 0.0, 0.5, 1),
+    "TWR_SwitchRocker": ("F2F0E8", 0.0, 0.45, 1),
     "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_ConsoleSeg": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_ConsoleTop": ("4E7CB4", 0.0, 0.45, 1),
@@ -347,6 +354,9 @@ class Writer:
                 # monitor swivel about the vertical post: frame 50 = as built, 1 deg per frame
                 self.rotation_anim(name + "_TWIST", info["index"], TWIST_FRAMES, lambda fr: fr - TWIST_FRAMES / 2,
                                    base=base_g)
+            elif anim == "spin":
+                # ceiling fan: turns about its own vertical axis, frame = degrees
+                self.rotation_anim(name + "_SPIN", info["index"], FAN_FRAMES, lambda fr: fr)
             elif anim == "slide":
                 # strip bay along its console face: frame = cm + 130 along "vatflow_axis"
                 ax = to_gltf(list(info["axis"]))
@@ -458,6 +468,23 @@ def write_behaviors(path, node_names):
                     else anim_template(node + "_TRACK", "(L:VATFLOW_BAY_%s_DEG) dnor" % k, TRACK_FRAMES, True))
             comps.append("\t\t<Component ID=\"VATFLOW_BAY_%s%s\" Node=\"%s\">\n" % (k, "_SLIDE" if slide else "", node)
                          + body + "\t\t</Component>\n")
+        elif re.match(r"TowerCab_Fan_\d+$", node):       # ceiling fan: turns while switched on
+            code = ("(L:VATFLOW_FANS) if{ (E:ABSOLUTE TIME, seconds) %d * 360 %% d (&gt;L:VATFLOW_FAN_DEG) } "
+                    "els{ (L:VATFLOW_FAN_DEG) }" % FAN_DEG_PER_S)
+            comps.append("\t\t<Component ID=\"VATFLOW_%s\" Node=\"%s\">\n" % (node.upper()[9:], node)
+                         + anim_template(node + "_SPIN", code, FAN_FRAMES, True) + "\t\t</Component>\n")
+        elif node == "TowerCab_FanSwitch":               # click: fans on / off
+            comps.append("\t\t<Component ID=\"VATFLOW_FAN_SWITCH\" Node=\"%s\">\n" % node
+                         + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Interaction_LeftSingle_Code\">\n"
+                         + "\t\t\t\t<LEFT_SINGLE_CODE>(L:VATFLOW_FANS) ! (&gt;L:VATFLOW_FANS)</LEFT_SINGLE_CODE>\n"
+                         + "\t\t\t\t<TOOLTIPID>Ceiling fans - click to switch on / off</TOOLTIPID>\n"
+                         + "\t\t\t</UseTemplate>\n\t\t</Component>\n")
+        elif node in ("TowerCab_FanSwitch_On", "TowerCab_FanSwitch_Off"):   # the rocker, up or down
+            on = node.endswith("_On")
+            comps.append("\t\t<Component ID=\"VATFLOW_FAN_SWITCH_%s\" Node=\"%s\">\n" % ("ON" if on else "OFF", node)
+                         + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Visibility_Code\">\n"
+                         + "\t\t\t\t<VISIBILITY_CODE>(L:VATFLOW_FANS)%s</VISIBILITY_CODE>\n" % ("" if on else " !")
+                         + "\t\t\t</UseTemplate>\n\t\t</Component>\n")
         elif node.startswith("TowerCab_DimKnob_"):      # screen brightness knob
             grp = node.rsplit("_", 1)[1]
             var = "VATFLOW_DIM_%s" % grp

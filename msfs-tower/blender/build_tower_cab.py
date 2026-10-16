@@ -62,7 +62,7 @@ P = {
     "console_depth": 0.75,
     "console_h": 0.92,
     "eye_h": 1.65,           # standing eye height (used for the camera marker)
-    "track_radius": 3.85,    # circular ceiling track: over the console monitors, near the glass
+    "track_radius": 4.20,    # circular ceiling track, near the glass (the monitors hang 35 cm in from it on their arms)
 }
 
 COLORS = {
@@ -89,6 +89,11 @@ COLORS = {
     "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
     "TWR_LightPanel": (1.0, 0.95, 0.85, 1.0),     # ceiling light diffusers (emissive in the sim)
     "TWR_CanRim": (0.55, 0.5, 0.42, 1.0),         # downlight rims: warm brushed metal
+    "TWR_FanBody": (0.12, 0.08, 0.05, 1.0),       # ceiling fan motor / brackets: dark bronze
+    "TWR_FanBlade": (0.62, 0.63, 0.64, 1.0),      # ceiling fan blades: light grey
+    "TWR_Soffit": (0.02, 0.02, 0.025, 1.0),       # dark band round the ceiling edge
+    "TWR_SwitchPlate": (0.85, 0.84, 0.80, 1.0),   # wall switch plate
+    "TWR_SwitchRocker": (0.95, 0.94, 0.90, 1.0),
     "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
     "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
     "TWR_DeskTop": (0.30, 0.35, 0.40, 1.0),       # blue-grey desk top (TMU desk)
@@ -327,6 +332,47 @@ def desk_monitor(b, at, facing, rot, r, depth, top, w, h, mat_screen, tilt=15, k
         b.box(at(r, depth + 0.26, top + 0.015), (0.44, 0.15, 0.03), "TWR_Bezel", rot_z=rot, top_mat="TWR_Keyboard")
 
 
+FANS = [(1.15, 1.15), (-1.15, -1.15)]    # ceiling fans (Blender x, y), diagonal like the real cab
+
+
+def ceiling_fans(inside, coll, ceiling_z):
+    """
+    Ceiling fans like the real cab: canopy and downrod (static), and the turning part
+    (TowerCab_Fan_n: bronze motor housing, five light grey blades on dark brackets). They
+    turn only while the switch on the TMU desk is on (L:VATFLOW_FANS; exporter "spin").
+    """
+    for i, (x, y) in enumerate(FANS):
+        hub = ceiling_z - 0.48
+        inside.beam(Vector((x, y, ceiling_z - 0.06)), Vector((x, y, ceiling_z)), 0.07, "TWR_FanBody", segs=12)   # canopy
+        inside.beam(Vector((x, y, hub + 0.06)), Vector((x, y, ceiling_z - 0.06)), 0.013, "TWR_FanBody", segs=8)  # downrod
+        b = Builder("TowerCab_Fan_%d" % (i + 1), coll)
+        b.beam(Vector((x, y, hub - 0.07)), Vector((x, y, hub + 0.07)), 0.10, "TWR_FanBody", segs=16)          # motor
+        b.beam(Vector((x, y, hub - 0.10)), Vector((x, y, hub - 0.07)), 0.05, "TWR_FanBody", segs=12)          # cap
+        for k in range(5):
+            a = 2 * math.pi * k / 5
+            d = Vector((math.cos(a), math.sin(a), 0))
+            b.box(Vector((x, y, hub - 0.02)) + d * 0.14, (0.10, 0.03, 0.012), "TWR_FanBody", rot_z=a)    # bracket
+            b.box(Vector((x, y, hub - 0.03)) + d * 0.43, (0.52, 0.13, 0.01), "TWR_FanBlade", rot_z=a)    # blade
+        fan = b.finish()
+        fan["vatflow_anim"] = "spin"
+        fan["vatflow_pivot"] = (x, y, hub)
+
+
+def soffit(inside, a1, ceiling_z):
+    """The dark band round the edge of the ceiling, above the windows: a smooth charcoal
+    strip 65 cm wide with a 12 cm deep lip at its inner edge (clear of the shade rollers)."""
+    n = P["sides"]
+    zi, zl = ceiling_z - 0.004, ceiling_z - 0.12
+    for k in range(n):
+        o0, o1 = corner(k, a1 - 0.02, zi), corner(k + 1, a1 - 0.02, zi)
+        i0, i1 = corner(k, a1 - 0.65, zi), corner(k + 1, a1 - 0.65, zi)
+        l0, l1 = corner(k, a1 - 0.65, zl), corner(k + 1, a1 - 0.65, zl)
+        inside.face([o0, o1, i1, i0], "TWR_Soffit")          # band under the ceiling, facing down
+        inside.face([i0, i1, l1, l0], "TWR_Soffit")          # lip
+        m0, m1 = corner(k, a1 - 0.64, zl), corner(k + 1, a1 - 0.64, zl)
+        inside.face([l0, l1, m1, m0], "TWR_Soffit")          # lip's lower edge
+
+
 def ceiling_lights(inside, z):
     """Round recessed downlights (emissive disc in a metal rim), like the real cab: one at
     each cabin light of systems.cfg (CEILING_LIGHTS) and a ring of smaller ones round the
@@ -343,7 +389,8 @@ def ceiling_lights(inside, z):
     for x, y in CEILING_LIGHTS:
         can(x, y, 0.11)
     for x, y in CEILING_CANS:
-        can(x, y, 0.07)
+        if all((x - fx) ** 2 + (y - fy) ** 2 > 0.75 ** 2 for fx, fy in FANS):    # none above a fan
+            can(x, y, 0.07)
 
 
 # Ceiling light spots (Blender x, y in m): four round the cab plus one in the middle.
@@ -500,6 +547,17 @@ def tmu_desk(inside, coll, a_inner, top):
     desk.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_ConsoleFront", rot_z=drot)
     desk.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_ConsoleKick", rot_z=drot) # dark kick plinth
     desk_obj = desk.finish()
+    # ceiling fan switch on the TMU side of the desk (-side), near the console end: a plate
+    # (click it, TowerCab_FanSwitch) and its rocker shown up (on) or down (off)
+    sw = P2(0.55, -(w / 2 - 0.03) - 0.006, 0.62)
+    srot = drot
+    b = Builder("TowerCab_FanSwitch", coll)
+    b.box(sw, (0.012, 0.08, 0.12), "TWR_SwitchPlate", rot_z=srot)
+    b.finish()
+    for state, dz in (("On", 0.012), ("Off", -0.012)):
+        b = Builder("TowerCab_FanSwitch_" + state, coll)
+        b.box(sw - side * 0.01 + Vector((0, 0, dz)), (0.012, 0.022, 0.03), "TWR_SwitchRocker", rot_z=srot)
+        b.finish()
     bevel_edges(desk_obj, 0.006)
     desk_obj["vatflow_frame"] = (start.x, start.y, 0.0, drot)
     planar_uvs(desk_obj, CONSOLE_MATS, 1.0,
@@ -514,6 +572,7 @@ def tmu_desk(inside, coll, a_inner, top):
 STRIP_BAYS = 3
 STRIP_BAY_W, STRIP_BAY_L, STRIP_BAY_SLOPE = 0.96, 0.56, 40.0   # board width (3 columns), length up the slope, degrees
 STRIP_BAY_COLS = 3
+STRIP_BAY_REST = 0.8       # built (and resting) this far right of the face centre: a clear spot (LOCAL's)
 
 
 def strip_bays(coll, a_inner, top):
@@ -523,7 +582,8 @@ def strip_bays(coll, a_inner, top):
     position sign on the console front below it ($SCREEN_SIGN_n). All are built at the
     front console (face 0, centre) and placed from the cab's STRIP BAYS screen:
       TowerCab_StripBay_n         turns round the cab, L:VATFLOW_BAY_n_DEG (45 per face)
-      TowerCab_StripBay_n_Slide   slides along that face, L:VATFLOW_BAY_n_SLIDE (cm + 130)
+      TowerCab_StripBay_n_Slide   slides along that face, L:VATFLOW_BAY_n_SLIDE (cm from where it
+                                  is built, STRIP_BAY_REST right of the face centre, + 200)
     """
     at, facing, rot, out, right = face_frame(0, a_inner)
     s = math.radians(STRIP_BAY_SLOPE)
@@ -536,7 +596,7 @@ def strip_bays(coll, a_inner, top):
         hub_obj = hub.finish()
         hub_obj["vatflow_anim"] = "track"
         b = Builder(name + "_Slide", coll)
-        c = at(0, (d0 + d1) / 2, (z0 + z1) / 2)
+        c = at(STRIP_BAY_REST, (d0 + d1) / 2, (z0 + z1) / 2)
         center, up, n_ = screen(b, c, facing(90 - STRIP_BAY_SLOPE), STRIP_BAY_W, STRIP_BAY_L, "$SCREEN_STRIPS_%d" % n,
                                 bezel=0.02, depth=0.03, bezel_mat="TWR_StripBay")
         # lip along the bottom edge (stops the strips sliding off) and a back leg under each
@@ -549,7 +609,7 @@ def strip_bays(coll, a_inner, top):
             hi = center + up * (STRIP_BAY_L / 2) - n_ * 0.03 + right * x
             b.beam(hi, Vector((hi.x, hi.y, top)), 0.012, "TWR_StripBay")
         # position sign on the console front, below the bay
-        screen(b, at(0, P["console_depth"] + 0.004, top - 0.085), facing(0), 0.30, 0.075, "$SCREEN_SIGN_%d" % n,
+        screen(b, at(STRIP_BAY_REST, P["console_depth"] + 0.004, top - 0.085), facing(0), 0.30, 0.075, "$SCREEN_SIGN_%d" % n,
                bezel=0.01, depth=0.004)
         bay = b.finish()
         bay["vatflow_anim"] = "slide"
@@ -639,6 +699,7 @@ def console_equipment(inside, coll, k, a_inner, top):
     inside.beam(p, p + Vector((0, 0, 0.11)), 0.04, "TWR_Metal", segs=12)
 
 
+MONITOR_ARM_M = 0.35       # the arm reaches this far in from the track to the monitor
 MONITOR_RAISE_M = 0.15     # height adjust: up to 15 cm above where it is built...
 MONITOR_LOWER_M = 0.25     # ...and 25 cm below (keep in sync with the exporter)
 
@@ -673,23 +734,35 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     fw, fh = hw + gap, hh + gap                             # yoke half sizes
     back = -n * 0.04
     # place the monitor so the top of its yoke sits exactly under the track
-    center_out = rail_radius - (back + up * fh).dot(out)
+    center_out = rail_radius - MONITOR_ARM_M - (back + up * fh).dot(out)
     c = out * center_out + Vector((0, 0, center_z))
-    top = c + back + up * fh                                # where the post meets the yoke
+    top = c + back + up * fh                                # where the arm meets the yoke
     pivot = (top.x, top.y, top.z)                           # swivel axis: vertical through here
     trolley_z = ceiling_z - 0.10
-    sleeve_bottom = top.z + MONITOR_RAISE_M + 0.12          # yoke clears the sleeve when raised
+    elbow_z = top.z + 0.14                                  # the arm's elbow, above the yoke
+    post = top + out * MONITOR_ARM_M                        # under the trolley, on the track
+    sleeve_bottom = elbow_z + MONITOR_RAISE_M + 0.06        # the elbow clears the sleeve when raised
 
     # trolley + outer sleeve (travels round the track)
     b = Builder(name, coll)
-    b.beam(Vector((top.x, top.y, sleeve_bottom)), Vector((top.x, top.y, trolley_z)), 0.034, "TWR_Mount", segs=8)
-    b.box((top.x, top.y, trolley_z + 0.03), (0.20, 0.12, 0.06), "TWR_Mount", rot_z=ang + math.pi / 2)
+    b.beam(Vector((post.x, post.y, sleeve_bottom)), Vector((post.x, post.y, trolley_z)), 0.036, "TWR_Mount", segs=10)
+    b.beam(Vector((post.x, post.y, sleeve_bottom - 0.01)), Vector((post.x, post.y, sleeve_bottom + 0.04)), 0.046, "TWR_Mount", segs=10)  # collar
+    b.box((post.x, post.y, trolley_z + 0.03), (0.20, 0.12, 0.06), "TWR_Mount", rot_z=ang + math.pi / 2)
     mount = b.finish()
     mount["vatflow_anim"] = "track"
 
-    # inner post: from the yoke up into the sleeve, long enough to stay in it when lowered
+    # the arm (slides up / down in the sleeve): inner post, elbow joint, the arm reaching in
+    # over the screen and a short drop to the yoke, like the articulated arms in real cabs.
+    # All of it is above the screen, so its box doesn't take the screen's clicks.
     b = Builder(name + "_Lift", coll)
-    b.beam(top, Vector((top.x, top.y, sleeve_bottom + MONITOR_LOWER_M + 0.08)), 0.024, "TWR_Mount", segs=8)
+    ez = Vector((0, 0, elbow_z))
+    b.beam(Vector((post.x, post.y, elbow_z)), Vector((post.x, post.y, sleeve_bottom + MONITOR_LOWER_M + 0.08)), 0.026, "TWR_Mount", segs=10)
+    b.beam(Vector((post.x, post.y, elbow_z - 0.045)), Vector((post.x, post.y, elbow_z + 0.045)), 0.042, "TWR_Mount", segs=12)  # elbow
+    arm0 = Vector((post.x, post.y, 0)) + ez
+    arm1 = Vector((top.x, top.y, 0)) + ez
+    b.beam(arm0, arm1, 0.024, "TWR_Mount", segs=8)
+    b.beam(arm1 + Vector((0, 0, -0.035)), arm1 + Vector((0, 0, 0.035)), 0.036, "TWR_Mount", segs=12)            # wrist
+    b.beam(top, arm1, 0.022, "TWR_Mount", segs=8)
     lift = b.finish()
     lift["vatflow_anim"] = "lift"
     lift["vatflow_parent"] = name
@@ -910,6 +983,8 @@ def build():
     ramp_computer(inside, a_inner, P["console_h"])
     strip_bays(int_coll, a_inner, P["console_h"])
     ceiling_lights(inside, z_glass1 - 0.012)
+    ceiling_fans(inside, int_coll, z_glass1 - 0.01)
+    soffit(inside, a1, z_glass1 - 0.01)
 
     # Overhead monitors on a circular ceiling track all the way round the cab
     # (each can travel the full 360 degrees): DBRITE radar starts front-right,

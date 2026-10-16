@@ -20,6 +20,7 @@ var VatflowStrips = (function () {
   var FACES = [0, 1, 2, 3, 5, 6, 7];
   var FACE_NAMES = { 0: "FRONT", 1: "FRONT-LEFT", 2: "LEFT", 3: "BACK-LEFT", 5: "BACK-RIGHT", 6: "RIGHT", 7: "FRONT-RIGHT" };
   var SLIDE_MAX = 1.2;
+  var SLIDE_REST = 0.8;   // the bay model is built (and rests) 0.8 m right of the face centre
 
   function defaults() {
     return {
@@ -245,7 +246,7 @@ var VatflowStrips = (function () {
   /** L: var values that put bay n (0..2) where its config says. */
   function poseVars(bayCfg) {
     var slide = Math.max(-SLIDE_MAX, Math.min(SLIDE_MAX, bayCfg.slide || 0));
-    return { deg: (45 * (bayCfg.face || 0)) % 360, slide: Math.round(130 + slide * 100) };
+    return { deg: (45 * (bayCfg.face || 0)) % 360, slide: Math.round(200 + (slide - SLIDE_REST) * 100) };
   }
 
   function applyPose(n, bayCfg) {
