@@ -146,6 +146,11 @@ Inside the cab there are two working screens fed by live data:
   `backup-sound\` in the project (`tools/silence-sounds.ps1`). The Python tool's
   `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
   `tools/make_fan_sound.py`).
+  The one exception is the **windshear alarm**: the screens can't play sound, so it plays
+  through a small Wwise package (`VATFLOW_TowerCab.PC.PCK`) you build once
+  (`sound-package/README.md`). With it in the project's `sound-package` folder, the
+  installer puts it in the cab with `tools/sound-alarm.xml` as the sound.xml: the alarm loops
+  while `L:VATFLOW_WS_ALERT` is 1 and nothing else plays.
 
 * **Look** (after photos of a real FAA cab): blue consoles (medium blue laminate worktop, a
   22 cm light grey laminate writing strip along the controller's edge with a dark rounded

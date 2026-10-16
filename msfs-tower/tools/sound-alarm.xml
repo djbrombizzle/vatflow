@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	VATFLOW Tower Cab: the windshear alarm only (no engine, wind, rattles or creaks).
+	Used instead of the silent sound.xml once the alarm's Wwise package
+	(VATFLOW_TowerCab.PC.PCK, sound-package/README.md) is in the project's sound-package
+	folder; tools/silence-sounds.ps1 copies both into the cab's sound folder.
+	The TWR INFO screen sets L:VATFLOW_WS_ALERT to 1 while its windshear alert sounds (0 when
+	muted / over); the looping event Play_VATFLOW_TowerCab_windshear_alarm plays meanwhile.
+-->
+<SoundInfo Version="0.1">
+	<WwisePackages>
+		<MainPackage Name="VATFLOW_TowerCab"/>
+	</WwisePackages>
+	<SimVarSounds>
+		<Sound WwiseData="True" WwiseEvent="windshear_alarm" LocalVar="VATFLOW_WS_ALERT" Continuous="True" ViewPoint="Inside">
+			<Range LowerBound="0.5" UpperBound="2"/>
+		</Sound>
+	</SimVarSounds>
+</SoundInfo>
