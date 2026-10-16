@@ -1,8 +1,8 @@
 # VATFLOW Tower Cab - copies the ARTCC video maps package into the MSFS 2024 Community folder.
-#   install-maps-package.ps1 <folder holding vatflow-towercab-maps>
-# Finds Community from the sim's UserCfg.opt (InstalledPackagesPath). Never overwrites ARTCC
-# files already there; the scripts and README are updated.
-param([string]$Src)
+#   install-maps-package.ps1 <folder holding vatflow-towercab-maps> [Community folder]
+# Finds Community from the sim's UserCfg.opt (InstalledPackagesPath) unless it is given (the
+# setup EXE gives it). Never overwrites ARTCC files already there; the scripts and README are updated.
+param([string]$Src, [string]$CommunityDir)
 $ErrorActionPreference = "Stop"
 $pkg = (Resolve-Path (Join-Path $Src "vatflow-towercab-maps")).Path
 $cands = @(
@@ -10,11 +10,14 @@ $cands = @(
   (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\UserCfg.opt")
 )
 $community = $null
+if ($CommunityDir -and (Test-Path $CommunityDir)) { $community = (Resolve-Path $CommunityDir).Path }
+if (-not $community) {
 foreach ($c in $cands) {
   if (Test-Path $c) {
     $line = Select-String -Path $c -Pattern '^\s*InstalledPackagesPath\s+"(.+)"' | Select-Object -First 1
     if ($line) { $p = Join-Path $line.Matches[0].Groups[1].Value "Community"; if (Test-Path $p) { $community = $p; break } }
   }
+}
 }
 if (-not $community) {
   Write-Host "Could not find your Community folder. Copy this folder into it yourself:"

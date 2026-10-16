@@ -1046,7 +1046,7 @@ ta("screen host: an app's timers stop when another app is picked", async () => {
   assert.equal(ticks, t0, "interval stopped");
   assert.equal(chained, c0, "setTimeout chain stopped");
   assert.deepEqual(plain(Object.keys(h.VatflowApps.APPS)).sort(), ["aptdemand", "aptlist", "asdex", "dbrite", "idst", "ramp", "rampmap",
-    "rvr", "setup", "stripsetup", "vatsmart", "web"]);
+    "rvr", "setup", "stripsetup", "vatsmart"]);
   assert.ok(!plain(h.VatflowApps.list({ icao: "KATL" })).includes("ramp"), "KDCA ramp list only at KDCA");
   assert.ok(plain(h.VatflowApps.list({ icao: "KATL" })).includes("rampmap"), "RAMP in every airport's MENU");
   assert.ok(plain(h.VatflowApps.list({ icao: "KMCO" })).includes("rvr"), "RVR in every airport's MENU");

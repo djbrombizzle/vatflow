@@ -82,12 +82,6 @@ Inside the cab there are two working screens fed by live data:
   until the wind has been steady for a minute. **MUTE** on the screen, or the red button on
   the monitor's bottom bezel (it flashes while the alarm sounds; `L:VATFLOW_WS_ALERT`,
   `L:VATFLOW_WS_MUTE`), silences and hides it until that alert is over.
-* **WEB (TDLS TEST)** (any screen's MENU): a web page on a cab screen, to find out what the
-  sim's screen browser can run, starting with vNAS TDLS (tdls.virtualnas.net). KEYBOARD hands
-  the PC keyboard to the screen (the sim's FOCUS_INPUT_FIELD) for typing into the page; the
-  status line says whether the page loaded and what the browser supports. TDLS needs a VATSIM
-  login, and auth.vatsim.net refuses to be shown inside another page (X-Frame-Options
-  SAMEORIGIN, Cloudflare check), so the login is the likely stopping point.
 * **RVR** (any screen's MENU): the FAA's live runway visual range table for the cab's
   airport (rvr.data.faa.gov through the VATFLOW hub's `/hub/rvr`, which adds the CORS header the
   sim needs; read every minute): touchdown / midpoint / rollout in feet with
@@ -261,15 +255,25 @@ Only the ARTCC file is installed; the map drawings are downloaded live from vNAS
 tester zips go out without them: each tester adds their own. The installer copies the package into Community
 (`maps-package/install-maps-package.ps1`, which finds the folder from the sim's `UserCfg.opt`).
 
-## Sharing it with friends (Community folder)
+## Sharing it with friends (one setup EXE)
 
 1. In MSFS open the project, **Clean All**, **Build All**.
 2. Double-click `distribution\make-community-zip.bat` in the project. It takes the built
    package from `Packages\`, checks there is no VATSIM CID in it, names it
-   `vatflow-towercab` (title "VATFLOW Tower Cab (test)") and writes
-   `vatflow-towercab-test.zip` with install instructions to your Desktop.
-3. Friends unzip it into their Community folder, pick the aircraft "VATFLOW Tower Cab"
-   and start at a parking spot at their airport. No SDK, Python or tools needed.
+   `vatflow-towercab` (title "VATFLOW Tower Cab (test)") and writes to your Desktop:
+   * **`VATFLOW-TowerCab-Setup.exe`**: the one file to give testers. It holds both
+     packages and `distribution/setup/setup.ps1`, packed by Windows' own IExpress (nothing to
+     install to make it).
+   * `vatflow-towercab-test.zip` (with install instructions) and `vatflow-towercab-maps.zip`
+     (the ARTCC video maps package, no ARTCC files): the same packages, to install by hand.
+3. Testers run the setup EXE. It waits until MSFS is closed, finds the Community folder from
+   the sim's `UserCfg.opt` (Steam or MS Store; asks which if both, or opens a folder picker if
+   neither), replaces any older cab there, adds or updates the maps package (ARTCC files
+   already in it stay) and offers to add ARTCC video maps right away (`update-maps`).
+   Running it again offers U = update or R = remove. Then: aircraft "VATFLOW Tower Cab", start
+   at a parking spot at their airport. No SDK, Python or tools needed.
+   The EXE isn't signed, so Windows SmartScreen may say "Windows protected your PC": More
+   info > Run anyway.
 
 Don't install the zip on the PC where the project is open in the editor: the sim would
 see the cab twice.
@@ -309,6 +313,10 @@ HTML/JavaScript pages run by the sim's built-in Coherent GT engine (that is how
 every glass cockpit works). It cannot show another Windows program such as CRC,
 and it is not a general web browser, so CRC can't be mirrored onto a cab screen
 (the vatflow.io pages in the cab are rebuilt as instruments from the site's own code).
+vNAS TDLS was tried on a cab screen (fix55): the page loads but stays blank (the sim's screen
+browser can't run the app), and its VATSIM login refuses to be shown inside another page, so
+a login made in a normal browser can't be carried over either. Run TDLS in a normal browser
+next to the sim; the cab's own strip bays (with STRIP SYNC) cover strips inside the cab.
 
 What this project does instead:
 

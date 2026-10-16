@@ -1,5 +1,7 @@
-# VATFLOW Tower Cab - builds the zips for testers from the project:
-#   vatflow-towercab-test.zip   the cab (from the built package in Packages\)
+# VATFLOW Tower Cab - builds what testers get, from the project, onto the Desktop:
+#   VATFLOW-TowerCab-Setup.exe  one installer with both packages (setup\setup.ps1, made with
+#                               Windows' own IExpress): finds Community, installs / updates / removes
+#   vatflow-towercab-test.zip   the cab (from the built package in Packages\), to install by hand
 #   vatflow-towercab-maps.zip   the ARTCC video maps package, empty (testers add their own ARTCC file)
 #   make-community-zip.ps1 <project folder>
 param([string]$Proj)
@@ -111,7 +113,13 @@ $readme = @"
 VATFLOW Tower Cab (test build)
 ==============================
 
-Install
+Install (easy way)
+  Run VATFLOW-TowerCab-Setup.exe. It finds your Community folder (or asks for it), installs
+  both packages and can add your ARTCC video maps. Windows may warn about an unknown
+  publisher: "More info" > "Run anyway". Run a newer setup to update; run it again and
+  pick R to uninstall.
+
+Install by hand (from the zips)
   1. Close MSFS 2024.
   2. Unzip. Move the folder "$Name" into your MSFS 2024 Community folder, the same
      place as your other add-ons. Usually:
@@ -168,7 +176,9 @@ foreach ($c in @((Join-Path $env:APPDATA "Microsoft Flight Simulator 2024\UserCf
   }
 }
 if (-not $maps) { $p = Join-Path $Proj "maps-package\vatflow-towercab-maps"; if (Test-Path $p) { $maps = $p } }
-if (-not $maps) { Write-Host "Maps: no vatflow-towercab-maps package found, skipped."; exit 0 }
+$mzip = $null
+if (-not $maps) { Write-Host "Maps: no vatflow-towercab-maps package found, skipped." }
+else {
 
 # the testers' maps package goes out empty: each tester adds their own ARTCC file
 $stage = Join-Path $env:TEMP "vatflow-towercab-maps-zip"
@@ -188,6 +198,52 @@ if (Test-Path $mzip) { Remove-Item $mzip -Force }
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $mzip
 Remove-Item $stage -Recurse -Force
 Write-Host "Maps: $mzip  (no ARTCC files: testers add their own)"
+}
+
+# ---- the one-file installer (IExpress, part of Windows) -------------------------------------
+$exe = Join-Path $desktop "VATFLOW-TowerCab-Setup.exe"
+$iexpress = Join-Path $env:SystemRoot "System32\iexpress.exe"
+$setupSrc = Join-Path $PSScriptRoot "setup"
+if (-not (Test-Path $iexpress)) { Write-Host "Setup EXE: skipped (no IExpress in Windows here); the zips work on their own." }
+elseif (-not (Test-Path (Join-Path $setupSrc "setup.ps1"))) { Write-Host "Setup EXE: skipped ($setupSrc missing: run the latest install.bat)." }
+else {
+  $stage = Join-Path $env:TEMP "vatflow-towercab-setup"
+  if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+  New-Item -ItemType Directory $stage | Out-Null
+  Copy-Item (Join-Path $setupSrc "setup.cmd"), (Join-Path $setupSrc "setup.ps1") $stage
+  Copy-Item (Join-Path $Proj "maps-package\install-maps-package.ps1") $stage
+  Copy-Item $zip (Join-Path $stage "$Name.zip")
+  if ($mzip) { Copy-Item $mzip (Join-Path $stage "vatflow-towercab-maps.zip") }
+  $tmpExe = Join-Path $env:TEMP "VATFLOW-TowerCab-Setup.exe"
+  if (Test-Path $tmpExe) { Remove-Item $tmpExe -Force }
+  $files = @(Get-ChildItem $stage -File | ForEach-Object { $_.Name })
+  if (Test-Path $exe) { Remove-Item $exe -Force }
+  $sed = New-Object Text.StringBuilder
+  foreach ($l in @("[Version]", "Class=IEXPRESS", "SEDVersion=3", "[Options]", "PackagePurpose=InstallApp",
+      "ShowInstallProgramWindow=1", "HideExtractAnimation=0", "UseLongFileName=1", "InsideCompressed=0",
+      "CAB_FixedSize=0", "CAB_ResvCodeSigning=0", "RebootMode=N", "InstallPrompt=%InstallPrompt%",
+      "DisplayLicense=%DisplayLicense%", "FinishMessage=%FinishMessage%", "TargetName=%TargetName%",
+      "FriendlyName=%FriendlyName%", "AppLaunched=%AppLaunched%", "PostInstallCmd=%PostInstallCmd%",
+      "AdminQuietInstCmd=%AdminQuietInstCmd%", "UserQuietInstCmd=%UserQuietInstCmd%", "SourceFiles=SourceFiles",
+      "[Strings]", "InstallPrompt=", "DisplayLicense=", "FinishMessage=", "TargetName=$tmpExe",
+      "FriendlyName=$Title setup", "AppLaunched=cmd /c setup.cmd", "PostInstallCmd=<None>",
+      "AdminQuietInstCmd=", "UserQuietInstCmd=")) { [void]$sed.AppendLine($l) }
+  for ($i = 0; $i -lt $files.Count; $i++) { [void]$sed.AppendLine("FILE$i=`"$($files[$i])`"") }
+  [void]$sed.AppendLine("[SourceFiles]")
+  [void]$sed.AppendLine("SourceFiles0=$stage\")
+  [void]$sed.AppendLine("[SourceFiles0]")
+  for ($i = 0; $i -lt $files.Count; $i++) { [void]$sed.AppendLine("%FILE$i%=") }
+  $sedFile = Join-Path $env:TEMP "vatflow-towercab-setup.sed"
+  [IO.File]::WriteAllText($sedFile, $sed.ToString(), [Text.Encoding]::Default)
+  Write-Host "Setup EXE: packing (IExpress, a minute or two)..."
+  Start-Process $iexpress -ArgumentList "/N", "/Q", "`"$sedFile`"" -Wait -WindowStyle Hidden
+  Remove-Item $stage -Recurse -Force
+  Remove-Item $sedFile -Force
+  # IExpress writes to TEMP (no spaces / OneDrive in the path), then it goes to the Desktop
+  if (Test-Path $tmpExe) { Move-Item $tmpExe $exe -Force }
+  if (Test-Path $exe) { Write-Host "Setup: $exe  (give testers this one file)" }
+  else { Write-Host "Setup EXE: IExpress made nothing; give testers the zips instead." }
+}
 Write-Host ""
 Write-Host "Note: on THIS PC don't put the cab zip in Community while the project is open in the editor"
 Write-Host "(the sim would see the cab twice). Test it on another PC, or close the project first."
