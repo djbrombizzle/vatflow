@@ -23,7 +23,7 @@
 var VatflowTraffic = (function () {
   var SIM_MS = 1000;
   var M_TO_FT = 3.28084;
-  var MATCH_NM = 0.6, MATCH_FT = 1500, KEEP_NM = 2;
+  var MATCH_NM = 0.6, MATCH_FT = 1500, KEEP_NM = 2, MATCH_HDG = 50;
 
   // view listeners, registered once per page; ready when the sim calls back (or after 3 s)
   var LISTENERS = { TRAFFIC: "JS_LISTENER_TRAFFIC", MAPS: "JS_LISTENER_MAPS" };
@@ -80,8 +80,30 @@ var VatflowTraffic = (function () {
    * state keeps each sim aircraft's last fix (ground speed) and its VATSIM match (sticky).
    * vatsim: the latest VATSIM pilots (or none).
    */
+  /**
+   * The VATSIM pilots where they are now: each one's last position (last_updated, often 15 s
+   * and more old) moved on along its heading at its ground speed (at most 60 s), and how far
+   * off that guess may be (slack, nm). In the air an aircraft goes a mile or more between
+   * VATSIM updates, so matching the raw positions missed every airborne one.
+   */
+  function projected(pilots, nowMs) {
+    var out = [];
+    for (var i = 0; i < pilots.length; i++) {
+      var p = pilots[i];
+      if (typeof p.latitude !== "number" || typeof p.longitude !== "number") continue;
+      var at = Date.parse(p.last_updated), age = isNaN(at) ? 15 : Math.max(0, Math.min(60, (nowMs - at) / 1000));
+      var gs = p.groundspeed || 0, moved = gs * age / 3600, h = (p.heading || 0) * Math.PI / 180;
+      var lat = p.latitude + moved * Math.cos(h) / 60;
+      var lon = p.longitude + moved * Math.sin(h) / (60 * Math.cos(p.latitude * Math.PI / 180));
+      out.push({ p: p, lat: lat, lon: lon, slack: MATCH_NM + moved * 0.35 });
+    }
+    return out;
+  }
+
+  function hdgOff(a, b) { var d = Math.abs(((a - b) % 360 + 360) % 360); return d > 180 ? 360 - d : d; }
+
   function toPilots(list, vatsim, state, nowMs) {
-    var out = [], used = {}, pilots = vatsim || [];
+    var out = [], used = {}, pilots = projected(vatsim || [], nowMs);
     state.seen = state.seen || {};
     var next = {};
     for (var i = 0; i < (list || []).length; i++) {
@@ -97,16 +119,20 @@ var VatflowTraffic = (function () {
       var match = null;
       if (prev && prev.cs) {
         for (var k = 0; k < pilots.length; k++) {
-          if (pilots[k].callsign === prev.cs && distNm(a.lat, a.lon, pilots[k].latitude, pilots[k].longitude) < KEEP_NM) { match = pilots[k]; break; }
+          var q = pilots[k];
+          if (q.p.callsign === prev.cs && distNm(a.lat, a.lon, q.lat, q.lon) < Math.max(KEEP_NM, q.slack * 2)) { match = q.p; break; }
         }
       }
       if (!match) {
-        var best = MATCH_NM;
+        var best = Infinity;
         for (var j = 0; j < pilots.length; j++) {
-          var p = pilots[j];
-          if (used[p.callsign] || typeof p.latitude !== "number") continue;
-          var dn = distNm(a.lat, a.lon, p.latitude, p.longitude);
-          if (dn < best && Math.abs((p.altitude || 0) - altFt) < MATCH_FT) { best = dn; match = p; }
+          var c = pilots[j], p = c.p;
+          if (used[p.callsign]) continue;
+          var dn = distNm(a.lat, a.lon, c.lat, c.lon);
+          if (dn >= c.slack || dn >= best || Math.abs((p.altitude || 0) - altFt) >= MATCH_FT) continue;
+          // moving: it must be going the same way (two jets passing don't swap tags)
+          if ((p.groundspeed || 0) > 50 && hdgOff(p.heading || 0, a.heading || 0) > MATCH_HDG) continue;
+          best = dn; match = p;
         }
       }
       if (match) used[match.callsign] = true;

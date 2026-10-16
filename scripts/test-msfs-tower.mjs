@@ -1195,6 +1195,15 @@ ta("TRAFFIC: radars from the sim's traffic (tags from VATSIM when it matches), s
   p = plain(T.toPilots([{ uId: 7, lat: 33.6402 + 0.05 / 60, lon: -84.4301, alt: 1520 / 3.28084, heading: 0 }], vat, st, t0 + 1000));
   assert.ok(Math.abs(p[0].groundspeed - 180) < 2, "gs " + p[0].groundspeed);
   assert.equal(p[0].callsign, "DAL123", "the match is kept");
+  // airborne: VATSIM's position is 15 s old (250 kt = about a mile back); moved on to now it matches
+  const air = [{ callsign: "AAL77", latitude: 33.60, longitude: -84.30, altitude: 5000, groundspeed: 250, heading: 90,
+    last_updated: new Date(t0 - 15000).toISOString(), flight_plan: { aircraft_short: "A321" } }];
+  const ahead = 250 * 15 / 3600 / (60 * Math.cos(33.6 * Math.PI / 180));        // 1.04 nm east, in degrees
+  p = plain(T.toPilots([{ uId: 88, lat: 33.60, lon: -84.30 + ahead, alt: 5000 / 3.28084, heading: 90 }], air, {}, t0));
+  assert.equal(p[0].callsign, "AAL77", "airborne VATSIM traffic gets its callsign");
+  // same place, opposite heading: not the same aircraft
+  p = plain(T.toPilots([{ uId: 89, lat: 33.60, lon: -84.30 + ahead, alt: 5000 / 3.28084, heading: 270 }], air, {}, t0));
+  assert.equal(p[0].callsign, "TFC89");
   // a VATSIM pilot far away doesn't tag a sim aircraft
   p = plain(T.toPilots([{ uId: 55, lat: 34.5, lon: -84.43, alt: 1500 / 3.28084, heading: 0 }], vat, {}, t0));
   assert.equal(p[0].callsign, "TFC55");
