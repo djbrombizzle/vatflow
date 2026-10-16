@@ -12,13 +12,36 @@
  * which). The ramp maps keep reading VATSIM.
  *
  * Sim traffic: Coherent.call("GET_AIR_TRAFFIC") -> [{uId, name?, lat, lon, alt (m), heading}]
- * (what the sim's own traffic displays use; your own aircraft, the cab, is not in it).
+ * (what the sim's own traffic displays use; your own aircraft, the cab, is not in it). The
+ * sim only answers it once the page has registered the traffic view listener
+ * (RegisterViewListener("JS_LISTENER_TRAFFIC"), as the SDK's TrafficInstrument does);
+ * before that the call fails with "GET_AIR_TRAFFIC not bound".
  * Ground speed is worked out from how far each one moved since the last read.
  */
 var VatflowTraffic = (function () {
   var SIM_MS = 1000;
   var M_TO_FT = 3.28084;
   var MATCH_NM = 0.6, MATCH_FT = 1500, KEEP_NM = 2;
+
+  // the sim's traffic listener: registered once per page, ready when the sim calls back
+  var listener = null, listenerReady = false, listenerAt = 0;
+  function trafficListener() {
+    if (!listener && typeof RegisterViewListener === "function") {
+      try {
+        listenerAt = Date.now();
+        listener = RegisterViewListener("JS_LISTENER_TRAFFIC", function () { listenerReady = true; });
+      } catch (e) { listener = null; }
+    }
+    // ready when the sim says so (or, if it never calls back, try after 3 s anyway)
+    return listenerReady || (listener && Date.now() - listenerAt > 3000);
+  }
+
+  /** Short words for the radars' status line (the sim's own errors are long). */
+  function shortError(e) {
+    var m = String((e && e.message) || e || "");
+    if (/not bound/i.test(m)) return new Error("WAITING FOR THE SIM'S TRAFFIC LIST");
+    return new Error(m.length > 40 ? m.slice(0, 40) : m);
+  }
 
   function source() {
     var s = typeof VatflowStore !== "undefined" ? VatflowStore.get("TRAFFIC_SRC", "VATSIM") : "VATSIM";
@@ -95,8 +118,12 @@ var VatflowTraffic = (function () {
     var lastFetch = 0, lastSrc = null;
     function tick() {
       if (stopped) return;
-      var src = source(), changed = src !== lastSrc;
+      var src = source(), changed = src !== lastSrc, first = lastSrc === null;
       lastSrc = src;
+      if (changed && !first) {
+        // switching: clear the other source's targets straight away (none until the new one comes)
+        onData({ updated: new Date().toISOString(), traffic: [], controllers: [], atis: null, arrivals: 0, departures: 0, source: src });
+      }
       if (src === "VATSIM") {
         if (!changed && Date.now() - lastFetch < cfg.feedRefreshSec * 1000) { timer = setTimeout(tick, 1000); return; }
         lastFetch = Date.now();
@@ -127,6 +154,13 @@ var VatflowTraffic = (function () {
         timer = setTimeout(tick, 2000);
         return;
       }
+      if (!trafficListener()) {
+        // the listener is still coming up (or this sim has none): try again shortly
+        if (typeof RegisterViewListener !== "function" && onError) onError(new Error("NO TRAFFIC LISTENER IN THIS SIM"));
+        else if (onError) onError(new Error("WAITING FOR THE SIM'S TRAFFIC LIST"));
+        timer = setTimeout(tick, 500);
+        return;
+      }
       var done = false;
       function next() { if (!done) { done = true; if (!stopped) timer = setTimeout(tick, SIM_MS); } }
       try {
@@ -141,8 +175,8 @@ var VatflowTraffic = (function () {
             onData(s);
           } catch (e) { if (onError) onError(e); }
           next();
-        }, function (e) { if (onError) onError(e || new Error("NO SIM TRAFFIC")); next(); });
-      } catch (e) { if (onError) onError(e); next(); }
+        }, function (e) { if (onError) onError(shortError(e || "NO SIM TRAFFIC")); next(); });
+      } catch (e) { if (onError) onError(shortError(e)); next(); }
       setTimeout(next, 5000);                 // never stall if the sim doesn't answer
     }
     tick();

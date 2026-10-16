@@ -62,7 +62,7 @@ Inside the cab there are two working screens fed by live data:
   either radar, or TOWER SETUP > TRAFFIC, switches both radars on every screen
   (VatflowStore `TRAFFIC_SRC`). **VATSIM** reads the network feed (about every 15 s,
   dead-reckoned in between). **SIM** reads the aircraft in your own sim once a second
-  (`Coherent.call("GET_AIR_TRAFFIC")`, what the sim's traffic displays use): AI traffic,
+  (`Coherent.call("GET_AIR_TRAFFIC")` after registering `JS_LISTENER_TRAFFIC`, as the SDK's traffic displays do): AI traffic,
   ADS-B / real-traffic injectors, multiplayer, and VATSIM traffic as vPilot shows it. A sim
   aircraft sitting where a VATSIM pilot is (within 0.6 nm / 1,500 ft) gets that pilot's
   callsign, type, route and squawk; others show their ATC id or `TFC` + a number. Ground

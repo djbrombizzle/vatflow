@@ -1191,22 +1191,29 @@ ta("TRAFFIC: radars from the sim's traffic (tags from VATSIM when it matches), s
   g.VatflowStore = { get: (k, d) => (k in store ? store[k] : d), set: (k, v) => { store[k] = v; } };
   const feedJson = JSON.stringify({ general: { update_timestamp: "2026-10-16T19:00:00Z" }, pilots: vat, controllers: [], atis: [] });
   g.VatflowFeed.httpGet = (url, cb) => setTimeout(() => cb(null, feedJson), 1);
-  let calls = 0;
+  // the sim answers GET_AIR_TRAFFIC only after the page registers JS_LISTENER_TRAFFIC
+  let calls = 0, registered = false;
+  g.RegisterViewListener = (name, ready) => { assert.equal(name, "JS_LISTENER_TRAFFIC"); registered = true; setTimeout(ready, 50); return {}; };
   g.Coherent = { call: (name) => { calls++; assert.equal(name, "GET_AIR_TRAFFIC");
+    if (!registered) return Promise.reject(new Error("NoSuchMethod: GET_AIR_TRAFFIC not bound. Call Engine.TriggerEvent('Ready')"));
     return Promise.resolve([{ uId: 7, lat: 33.6402, lon: -84.4301, alt: 457, heading: 90 }]); } };
   const cfg = vm.runInContext("VATFLOW_TWR", g);
   cfg.arp = { lat: 33.6367, lon: -84.4281 };            // KATL
   const got = [];
   T.setSource("SIM");
-  const stop = T.poll(cfg, (d) => got.push(d), (e) => { throw e; });
+  const errs = [];
+  const stop = T.poll(cfg, (d) => got.push(d), (e) => errs.push(String(e.message)));
   await new Promise((r) => setTimeout(r, 2300));
   assert.ok(calls >= 2, "read every second");
   const last = got[got.length - 1];
   assert.equal(last.source, "SIM");
   assert.equal(last.traffic[0].callsign, "DAL123", "tagged from the VATSIM feed");
+  assert.ok(registered, "the traffic listener is registered first");
+  assert.ok(errs.every((m) => m.length <= 40), "short errors only: " + errs.join(" | "));
   T.setSource("VATSIM");
   await new Promise((r) => setTimeout(r, 1300));
   assert.equal(got[got.length - 1].source, "VATSIM", "switched while running");
+  assert.ok(got.some((d) => d.source === "VATSIM" && d.traffic.length === 0), "the sim's targets are cleared at the switch");
   stop();
 });
 
