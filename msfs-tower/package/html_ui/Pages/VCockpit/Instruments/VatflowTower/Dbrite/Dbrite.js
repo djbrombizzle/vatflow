@@ -97,6 +97,7 @@ var DbriteView = (function () {
       if (!seen[cs]) { delete this.targets[cs]; delete this.history[cs]; }
     }
     this.feedMs = base;
+    this.source = summary.source || "VATSIM";
     this.atis = summary.atis;
     this.error = null;
     this.lastSweep = 0;  // paint new targets on the next frame
@@ -326,8 +327,9 @@ var DbriteView = (function () {
     mono(ctx, cfg.dbrite.towerLabel || cfg.icao, 16, H - 46, CW);
     var feedAge = this.feedMs ? Math.round((Date.now() - this.feedMs) / 1000) : null;
     ctx.fillStyle = this.error ? C.listHi : C.list;
-    mono(ctx, this.error ? "VATSIM " + this.error.toUpperCase()
-      : (feedAge === null ? "VATSIM WAIT" : "VATSIM " + feedAge + "S TGT " + shown), 16, H - 20, CW);
+    var src = typeof VatflowTraffic !== "undefined" ? VatflowTraffic.source() : (this.source || "VATSIM");
+    mono(ctx, this.error ? src + " " + this.error.toUpperCase()
+      : (feedAge === null ? src + " WAIT" : src + " " + feedAge + "S TGT " + shown), 16, H - 20, CW);
   };
 
   return DbriteView;

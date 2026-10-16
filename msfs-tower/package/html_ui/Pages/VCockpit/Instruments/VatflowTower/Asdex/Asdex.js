@@ -107,6 +107,7 @@ var AsdexView = (function () {
       if (this.visible(t)) this.targets[t.callsign] = { t: t, baseMs: base };
     }
     this.feedMs = base;
+    this.source = summary.source || "VATSIM";
     this.error = null;
   };
 
@@ -223,14 +224,15 @@ var AsdexView = (function () {
     mono(ctx, "N", nx + nv.x * 33 - CW / 2, ny - nv.y * 33 + 6, CW);
 
     ctx.fillStyle = C.text;
-    mono(ctx, "ASDE-X " + cfg.icao + (this.view && !this.view.isHome() ? "  ZOOM X" + this.view.zoom.toFixed(1) : ""), 14, 26, CW);
+    mono(ctx, "GROUND RADAR " + cfg.icao + (this.view && !this.view.isHome() ? "  ZOOM X" + this.view.zoom.toFixed(1) : ""), 14, 26, CW);
     if (typeof zuluSec === "number" && !isNaN(zuluSec)) {
       var z = VatflowDraw.zulu(zuluSec);
       var s = z.hh + z.mm + ":" + z.ss + "Z";
       mono(ctx, s, W - 14 - s.length * CW, 26, CW);
     }
     var age = this.feedMs ? Math.round((Date.now() - this.feedMs) / 1000) : null;
-    mono(ctx, this.error ? "VATSIM " + this.error.toUpperCase() : (age === null ? "VATSIM WAIT" : "VATSIM " + age + "S TGT " + n), 14, H - 14, CW);
+    var src = typeof VatflowTraffic !== "undefined" ? VatflowTraffic.source() : (this.source || "VATSIM");
+    mono(ctx, this.error ? src + " " + this.error.toUpperCase() : (age === null ? src + " WAIT" : src + " " + age + "S TGT " + n), 14, H - 14, CW);
   };
 
   return AsdexView;

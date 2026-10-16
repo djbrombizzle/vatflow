@@ -20,7 +20,13 @@
 .su-btn { box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center;
   background: #1b2a3a; border: 2px solid #35506b; color: #e8f1fa; font-weight: bold; margin-bottom: 10px;
   height: 46px; font-size: 20px; cursor: pointer; }
-.su-big { height: 62px; font-size: 24px; }
+.su-big { height: 56px; font-size: 24px; }
+.su-row2 { display: flex; }
+.su-half { flex: 1; font-size: 17px; }
+.su-half + .su-half { margin-left: 10px; }
+.su-tfc { align-items: center; }
+.su-tfc .su-k { width: 100px; font-size: 17px; }
+.su-tfc .su-chip { margin: 0 0 0 8px; }
 .su-go { background: #14532d; border-color: #3ee07a; }
 .su-check { justify-content: flex-start; padding-left: 14px; }
 .su-steps { display: flex; }

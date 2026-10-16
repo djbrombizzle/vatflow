@@ -38,7 +38,7 @@ Inside the cab there are two working screens fed by live data:
 
 ![screens](docs/preview_demo.png)
 
-* **DBRITE** (hanging from the ceiling, front right): STARS-style tower
+* **TOWER RADAR** (the DBRITE; hanging from the ceiling, front right): STARS-style tower
   radar. Live VATSIM traffic within 15 nm, north up, grey range rings, an
   olive video map (runways of every airport in range, airport/heliport/navaid
   symbols), green altimeter list for DCA/ADW/DAA from the METARs, history
@@ -51,13 +51,22 @@ Inside the cab there are two working screens fed by live data:
   all the way round the cab: grab the screen with the mouse and drag left/right. Drag
   the handle bar under it up/down to raise or lower it (telescoping post, 15 cm up to
   25 cm down), and a side knob left/right to swivel it (up to 50 degrees each way). Every window has a roll-down shade: drag the shade to set its height, click its roller to raise or lower it fully (each shade is 20 strips shown or hidden by its position, no animation) (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
-* **ASDE-X** (hanging from the ceiling, front left; landscape 4:3 like the DBRITE, turned so
+* **GROUND RADAR** (the ASDE-X; hanging from the ceiling, front left; landscape 4:3 like the DBRITE, turned so
   its top is the view out of the window it hangs in front of, following it round the
   track and its swivel): the DCA surface in ASDE-X
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
   arrivals/departures below 2,000 ft as heading arrows with callsign/type. Same zoom / pan
   pad as the DBRITE.
+* **Radar traffic: VATSIM or SIM** (`common/traffic.js`): the VATSIM / SIM tab left of MAPS on
+  either radar, or TOWER SETUP > TRAFFIC, switches both radars on every screen
+  (VatflowStore `TRAFFIC_SRC`). **VATSIM** reads the network feed (about every 15 s,
+  dead-reckoned in between). **SIM** reads the aircraft in your own sim once a second
+  (`Coherent.call("GET_AIR_TRAFFIC")`, what the sim's traffic displays use): AI traffic,
+  ADS-B / real-traffic injectors, multiplayer, and VATSIM traffic as vPilot shows it. A sim
+  aircraft sitting where a VATSIM pilot is (within 0.6 nm / 1,500 ft) gets that pilot's
+  callsign, type, route and squawk; others show their ATC id or `TFC` + a number. Ground
+  speed is worked out from how far each one moved. The ramp maps always use VATSIM.
 * **TWR INFO** (on the front-left console, amber like the IDS): **AW**, the actual
   wind, in big type: the sim's own wind at the cab (2-minute average, magnetic,
   gusts the way a US ASOS / AWOS reports them: a gust is recorded when the 2-minute

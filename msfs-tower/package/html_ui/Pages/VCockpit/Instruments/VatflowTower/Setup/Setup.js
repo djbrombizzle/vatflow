@@ -26,9 +26,10 @@ var SetupView = (function () {
     '  <div class="su-col">' +
     '    <div class="su-btn su-big su-go" data-k="place">PLACE IN TOWER</div>' +
     '    <div class="su-btn su-big" data-k="save">SAVE THIS SPOT</div>' +
-    '    <div class="su-btn" data-k="release">RELEASE</div>' +
-    '    <div class="su-btn" data-k="forget">FORGET SAVED SPOT</div>' +
+    '    <div class="su-row2"><div class="su-btn su-half" data-k="release">RELEASE</div><div class="su-btn su-half" data-k="forget">FORGET SPOT</div></div>' +
     '    <div class="su-btn su-check" data-k="auto"><span data-f="auto">[X]</span> AUTO PLACE ON SPAWN</div>' +
+    '    <div class="su-row2 su-tfc"><span class="su-k">TRAFFIC</span><div class="su-btn su-chip" data-k="tfcVATSIM">VATSIM</div>' +
+    '      <div class="su-btn su-chip" data-k="tfcSIM">SIM</div></div>' +
     '  </div>' +
     '  <div class="su-col su-pad">' +
     '    <div class="su-ph">MOVE THE CAB <span data-f="step"></span></div>' +
@@ -115,6 +116,11 @@ var SetupView = (function () {
     if (k.indexOf("step") === 0) { this.step = +k.slice(4); return; }
     if (k === "cid") { this.syncEdit = null; this.cidEdit = this.cidEdit === null ? "" : null; return; }
     if (this.syncCmd(k)) return;
+    if (k === "tfcVATSIM" || k === "tfcSIM") {
+      VatflowTraffic.setSource(k.slice(3));
+      this.say(k === "tfcSIM" ? "RADARS: TRAFFIC IN YOUR SIM (AI, INJECTED, VPILOT), UPDATED EVERY SECOND" : "RADARS: VATSIM FEED (ABOUT EVERY 15 S)");
+      return;
+    }
     if (this.brightKey(k)) return;
     if (!icao || icao === "----") { this.say("NO AIRPORT FOUND NEAR THE CAB"); return; }
     if (k === "place") {
@@ -282,6 +288,8 @@ var SetupView = (function () {
     f.litauto.textContent = VatflowStore.get("LIGHTS_AUTO", true) !== false ? "[X]" : "[ ]";
     var cid = VatflowStore.get("CID", "");
     f.cid.textContent = this.cidEdit !== null ? (this.cidEdit || "_") + "  (TYPE YOUR CID, THEN OK)" : (cid || "NOT SET - NEEDED TO ISSUE IDST RELEASES");
+    var src = VatflowTraffic.source(), tc = this.root.querySelectorAll(".su-tfc .su-chip");
+    for (var t = 0; t < tc.length; t++) tc[t].className = "su-btn su-chip" + (tc[t].getAttribute("data-k") === "tfc" + src ? " on" : "");
     var sc = VatflowStore.get("STRIPSYNC", null);
     f.sync.textContent = this.syncText();
     f.syncon.textContent = sc && sc.on ? "[X]" : "[ ]";

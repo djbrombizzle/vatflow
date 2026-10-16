@@ -474,25 +474,26 @@ def write_behaviors(path, node_names):
         if m:                                           # overhead monitor parts
             label, part = m.group(1).upper(), m.group(2) or ""
             track, height, twist = ("VATFLOW_%s_%s" % (label, v) for v in ("TRACK_DEG", "HEIGHT", "TWIST"))
+            shown = {"DBRITE": "Tower Radar", "ASDEX": "Ground Radar"}.get(label, label)   # names on the screens
             body = ""
             if part == "":                              # trolley: travels round the track (drag it too)
                 body = anim_template(node + "_TRACK", "(L:%s) dnor" % track, TRACK_FRAMES, True)
                 body += drag_template("X", track, TRACK_DRAG_SPEED, True,
-                                      "%s - drag left/right to move it along the track" % label)
+                                      "%s - drag left/right to move it along the track" % shown)
             elif part == "_Lift":                       # telescoping post: drag it to move round the track
                 body = anim_template(node + "_LIFT", "(L:%s)" % height, LIFT_FRAMES, False)
                 body += drag_template("X", track, TRACK_DRAG_SPEED, True,
-                                      "%s - drag the post left/right to move it along the track" % label)
+                                      "%s - drag the post left/right to move it along the track" % shown)
             else:                                       # swivelling parts, each grabbed for one thing
                 body = anim_template(node + "_TWIST", "(L:%s)" % twist, TWIST_FRAMES, False)
                 if part == "_Display":
                     pass                                # no drag: clicks go to the screen's page
                 elif part == "_Handle":
                     body += drag_template("Y", height, LIFT_DRAG_SPEED, False,
-                                          "%s - drag the handle up/down to set the height" % label, LIFT_FRAMES)
+                                          "%s - drag the handle up/down to set the height" % shown, LIFT_FRAMES)
                 else:
                     body += drag_template("X", twist, TWIST_DRAG_SPEED, False,
-                                          "%s - drag the side knob left/right to swivel the screen" % label, TWIST_FRAMES)
+                                          "%s - drag the side knob left/right to swivel the screen" % shown, TWIST_FRAMES)
             comps.append("\t\t<Component ID=\"VATFLOW_%s_MON%s\" Node=\"%s\">\n" % (label, part.upper(), node)
                          + body + "\t\t</Component>\n")
         elif node.startswith("TowerCab_StripBay_"):     # strip bay: placed by the STRIP BAYS screen
@@ -527,7 +528,7 @@ def write_behaviors(path, node_names):
         elif node.startswith("TowerCab_DimKnob_"):      # screen brightness knob
             grp = node.rsplit("_", 1)[1]
             var = "VATFLOW_DIM_%s" % grp
-            what = {"ALL": "all screens", "DBRITE": "DBRITE", "ASDEX": "ASDE-X",
+            what = {"ALL": "all screens", "DBRITE": "Tower Radar", "ASDEX": "Ground Radar",
                     "CONSOLE": "console screens (TWR INFO, IDST, voice switch, clock)"}[grp]
             comps.append("\t\t<Component ID=\"VATFLOW_DIM_%s\" Node=\"%s\">\n" % (grp, node)
                          + anim_template(node + "_TURN", "(L:%s)" % var, KNOB_FRAMES, False)

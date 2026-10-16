@@ -1161,6 +1161,55 @@ ta("STRIP SYNC: two cabs share strips through a hub room (moves, held, delete, b
   assert.deepEqual(plain(S.ordsFor(["a", "b", "x"], 0, 0, kv)), [1, 2, 3], "a new strip at the end");
 });
 
+
+ta("TRAFFIC: radars from the sim's traffic (tags from VATSIM when it matches), switchable while running", async () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/traffic.js", BASE), "utf8"), g);
+  const T = g.VatflowTraffic;
+  // matching: a sim aircraft where a VATSIM pilot is gets that pilot's callsign and plan
+  const vat = [{ callsign: "DAL123", latitude: 33.64, longitude: -84.43, altitude: 1500, transponder: "4521",
+    flight_plan: { aircraft_short: "B739", departure: "KATL", arrival: "KMCO" } }];
+  const st = {}, t0 = 1_000_000;
+  let p = plain(T.toPilots([{ uId: 7, lat: 33.6402, lon: -84.4301, alt: 1520 / 3.28084, heading: 90 },
+    { uId: 9001, lat: 33.70, lon: -84.40, alt: 300, heading: 270, name: "N123AB" },
+    { uId: 4242, lat: 33.65, lon: -84.45, alt: 0, heading: 10 }], vat, st, t0));
+  assert.equal(p[0].callsign, "DAL123");
+  assert.equal(p[0].flight_plan.arrival, "KMCO");
+  assert.equal(p[0].transponder, "4521");
+  assert.equal(Math.round(p[0].altitude / 10), 152, "meters to feet");
+  assert.equal(p[1].callsign, "N123AB", "the sim's ATC id when it has one");
+  assert.equal(p[2].callsign, "TFC242", "else TFC + a number");
+  // ground speed from how far it moved in a second (0.05 nm/s = 180 kt)
+  p = plain(T.toPilots([{ uId: 7, lat: 33.6402 + 0.05 / 60, lon: -84.4301, alt: 1520 / 3.28084, heading: 0 }], vat, st, t0 + 1000));
+  assert.ok(Math.abs(p[0].groundspeed - 180) < 2, "gs " + p[0].groundspeed);
+  assert.equal(p[0].callsign, "DAL123", "the match is kept");
+  // a VATSIM pilot far away doesn't tag a sim aircraft
+  p = plain(T.toPilots([{ uId: 55, lat: 34.5, lon: -84.43, alt: 1500 / 3.28084, heading: 0 }], vat, {}, t0));
+  assert.equal(p[0].callsign, "TFC55");
+  // the poller: SIM -> the sim's list every second, summary.source "SIM"; VATSIM -> the feed
+  const store = {};
+  g.VatflowStore = { get: (k, d) => (k in store ? store[k] : d), set: (k, v) => { store[k] = v; } };
+  const feedJson = JSON.stringify({ general: { update_timestamp: "2026-10-16T19:00:00Z" }, pilots: vat, controllers: [], atis: [] });
+  g.VatflowFeed.httpGet = (url, cb) => setTimeout(() => cb(null, feedJson), 1);
+  let calls = 0;
+  g.Coherent = { call: (name) => { calls++; assert.equal(name, "GET_AIR_TRAFFIC");
+    return Promise.resolve([{ uId: 7, lat: 33.6402, lon: -84.4301, alt: 457, heading: 90 }]); } };
+  const cfg = vm.runInContext("VATFLOW_TWR", g);
+  cfg.arp = { lat: 33.6367, lon: -84.4281 };            // KATL
+  const got = [];
+  T.setSource("SIM");
+  const stop = T.poll(cfg, (d) => got.push(d), (e) => { throw e; });
+  await new Promise((r) => setTimeout(r, 2300));
+  assert.ok(calls >= 2, "read every second");
+  const last = got[got.length - 1];
+  assert.equal(last.source, "SIM");
+  assert.equal(last.traffic[0].callsign, "DAL123", "tagged from the VATSIM feed");
+  T.setSource("VATSIM");
+  await new Promise((r) => setTimeout(r, 1300));
+  assert.equal(got[got.length - 1].source, "VATSIM", "switched while running");
+  stop();
+});
+
 for (const [name, fn] of tests) { await fn(); passed++; console.log("ok  " + name); }
 
 console.log(`\n${passed} passed`);
