@@ -51,6 +51,7 @@ TWIST_DRAG_SPEED = 0.2
 SLIDE_FRAMES = 400       # strip bay along its console face: frame = cm + 200 (200 = where it is built)
 FAN_FRAMES = 360         # ceiling fan: frame = degrees
 FAN_DEG_PER_S = 150      # how fast the fans turn while switched on (25 rpm)
+CAP_DEG_PER_S = 200                # the propeller cap, lazily in the fans' breeze
 MODEL_GUID = "{DB987680-9FBE-43DC-B341-084A38681F92}"
 
 
@@ -75,6 +76,7 @@ PBR = {
     "TWR_KeyGrey": ("5A5E63", 0.0, 0.5, 1),
     "TWR_KeyGreen": ("1E7A35", 0.0, 0.5, 1),
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
+    "TWR_PropBlade": ("F2C21A", 0.0, 0.35, 1),     # the propeller cap's yellow blade
     "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
     "TWR_KnobLit": ("FFC864", 0.0, 0.5, 1),
     "TWR_AlarmLit": ("FF1A12", 0.0, 0.4, 1),       # windshear MUTE button while it flashes
@@ -132,7 +134,11 @@ TEXTURED = {
 # Parts retextured by Meshy (tools/meshy_retexture.py): their mesh carries its own UVs and the
 # textures are in common/texture; used only when the files are there.
 TEXDIR = os.path.join(HERE, "..", "package", "SimObjects", "Airplanes", "vatflow_tower_cab", "common", "texture")
-for _name in ("TWR_TmuDesk", "TWR_ConsoleSeg"):
+# loose objects made with Meshy (build_tower_cab.py PROPS / prop()) work the same way
+PROP_MATS = ("TWR_PropCoffee", "TWR_PropHat", "TWR_PropBinoculars")
+for _name in PROP_MATS:
+    PBR[_name] = ("FFFFFF", 0.0, 0.6, 1)
+for _name in ("TWR_TmuDesk", "TWR_ConsoleSeg") + PROP_MATS:
     if os.path.exists(os.path.join(TEXDIR, _name + "_albd.png")):
         TEXTURED[_name] = {"albd": _name + "_albd.png", "m": None}
         if os.path.exists(os.path.join(TEXDIR, _name + "_comp.png")):
@@ -141,6 +147,23 @@ for _name in ("TWR_TmuDesk", "TWR_ConsoleSeg"):
             TEXTURED[_name]["norm"] = _name + "_norm.png"
 IDST_KEYS = {"1": "IDST - select the aircraft above", "2": "IDST - select the aircraft below",
              "3": "IDST - issue the release for the selected aircraft", "4": "IDST - cancel the selected release"}
+
+
+SMOOTH_COS = math.cos(math.radians(35))   # faces meeting flatter than this shade as one curve
+
+
+def smooth_normal(f, v):
+    """
+    The normal at corner v of face f: the area-weighted mean of the faces round v with the
+    same material that meet f at under 35 degrees. Curves (round parts, Meshy props) shade
+    smooth; box edges, bevels, the cab's 45-degree octagon corners and edges between
+    materials stay sharp.
+    """
+    n = f.normal * f.calc_area()
+    for g in v.link_faces:
+        if g is not f and g.material_index == f.material_index and g.normal.dot(f.normal) > SMOOTH_COS:
+            n = n + g.normal * g.calc_area()
+    return n.normalized() if n.length > 1e-12 else f.normal
 
 
 def box_uv(p, n, meters):
@@ -290,18 +313,20 @@ class Writer:
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
+        bm.normal_update()
         uv_layer = bm.loops.layers.uv.active
+        rot = obj.matrix_world.to_3x3()
         by_mat = {}
         for f in bm.faces:
             name = obj.material_slots[f.material_index].material.name
             d = by_mat.setdefault(name, {"pos": [], "nrm": [], "uv": [], "tan": []})
-            wn = (obj.matrix_world.to_3x3() @ f.normal).normalized()
+            wn = (rot @ f.normal).normalized()
             nn = to_gltf(wn)
             tri_p, tri_uv = [], []
             for loop in f.loops:
                 wp = obj.matrix_world @ loop.vert.co
                 d["pos"].append(to_gltf([wp[0] - pv[0], wp[1] - pv[1], wp[2] - pv[2]]))
-                d["nrm"].append(nn)
+                d["nrm"].append(to_gltf((rot @ smooth_normal(f, loop.vert)).normalized()))
                 t = TEXTURED.get(name)
                 if t and t["m"]:
                     uv = box_uv(wp, wn, t["m"])
@@ -481,6 +506,11 @@ def write_behaviors(path, node_names):
             code = ("(L:VATFLOW_FANS) if{ (E:ABSOLUTE TIME, seconds) %d * 360 %% d (&gt;L:VATFLOW_FAN_DEG) } "
                     "els{ (L:VATFLOW_FAN_DEG) }" % FAN_DEG_PER_S)
             comps.append("\t\t<Component ID=\"VATFLOW_%s\" Node=\"%s\">\n" % (node.upper()[9:], node)
+                         + anim_template(node + "_SPIN", code, FAN_FRAMES, True) + "\t\t</Component>\n")
+        elif node == "TowerCab_CapPropeller":           # the propeller cap: turns in the fans' breeze
+            code = ("(L:VATFLOW_FANS) if{ (E:ABSOLUTE TIME, seconds) %d * 360 %% d (&gt;L:VATFLOW_CAP_DEG) } "
+                    "els{ (L:VATFLOW_CAP_DEG) }" % CAP_DEG_PER_S)
+            comps.append("\t\t<Component ID=\"VATFLOW_CAP_PROPELLER\" Node=\"%s\">\n" % node
                          + anim_template(node + "_SPIN", code, FAN_FRAMES, True) + "\t\t</Component>\n")
         elif node == "TowerCab_FanSwitch":               # click: fans on / off
             comps.append("\t\t<Component ID=\"VATFLOW_FAN_SWITCH\" Node=\"%s\">\n" % node

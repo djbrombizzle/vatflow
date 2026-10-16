@@ -150,6 +150,16 @@ Inside the cab there are two working screens fed by live data:
   (colours sampled from the photos); one console segment is built and turned round the cab.
   `tools/meshy_retexture.py` can send a part to Meshy's retexture API instead (it suits
   detailed objects better than these flat panels).
+* **Props (Meshy text-to-3D)**: a coffee maker on the back-right console by the stairs,
+  binoculars on the front console by the window and a propeller cap on the TMU desk's far
+  end, each about 4,000-6,000 triangles with 1024 px PBR textures
+  (`blender/assets/prop_*.glb` + `TWR_Prop*` textures, made with
+  `tools/meshy_retexture.py prop` / `textures`; `prop()` in the Blender script places them).
+  The cap's propeller is built in the script (`TowerCab_CapPropeller`) and turns lazily
+  while the ceiling fans are on (`L:VATFLOW_CAP_DEG`).
+* **Smooth shading**: the exporter shades faces that meet at under 35 degrees as one
+  curve (round parts, the Meshy props); box edges, bevels and the cab's 45-degree corners
+  stay sharp. Round parts (downlights, fans, knobs, monitor arms) have 16-40 sides.
 
 ## Flight strip bays
 

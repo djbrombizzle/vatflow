@@ -7,6 +7,11 @@ Meshy retexture for one part of the cab (Meshy's API: https://docs.meshy.ai/en/a
   python tools/meshy_retexture.py fit <part> <meshy.glb> <asset name>
       Takes Meshy's result: scales / moves it back onto the part (fitting the boxes they
       both fill) and writes blender/assets/<asset name>.glb (mesh + UVs, cab coordinates).
+  python tools/meshy_retexture.py prop <meshy.glb> <asset name> <size m> [up|long]
+      A loose object for the cab (coffee maker, binoculars ...), e.g. from Meshy's text-to-3D:
+      stands it on its base, centred, scaled so its biggest size (or its height: "up") is
+      <size m>, and writes blender/assets/<asset name>.glb in its own frame (origin under its
+      middle, +Y its front). build_tower_cab.py puts it in the cab with prop().
   python3 tools/meshy_retexture.py textures <meshy png dir> <asset name> <texture dir>
       (plain Python with Pillow, no Blender) Meshy's texture_urls files (base_color.png,
       roughness.png, metallic.png, normal.png) as the sim wants them, at most 1024 px:
@@ -108,6 +113,35 @@ def fit(part, meshy_glb, asset):
     print("wrote %s: %d triangles" % (dst, sum(len(p.vertices) - 2 for p in src.data.polygons)))
 
 
+def prop(meshy_glb, asset, size, by="long"):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.gltf(filepath=meshy_glb)
+    new = [o for o in bpy.data.objects if o.type == "MESH"]
+    src = new[0]
+    if len(new) > 1:
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in new:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = src
+        bpy.ops.object.join()
+    src.data.transform(src.matrix_world)                     # glTF +Y up arrives as Blender +Z up
+    src.matrix_world = Matrix.Identity(4)
+    lo, hi = bounds(src)
+    dims = hi - lo
+    k = size / max(1e-9, dims.z if by == "up" else max(dims))
+    src.data.transform(Matrix.Diagonal((k, k, k, 1)) @ Matrix.Translation((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z)))
+    for o in list(bpy.data.objects):
+        if o != src:
+            bpy.data.objects.remove(o, do_unlink=True)
+    os.makedirs(ASSETS, exist_ok=True)
+    bpy.ops.object.select_all(action="DESELECT")
+    src.select_set(True)
+    dst = os.path.join(ASSETS, asset + ".glb")
+    bpy.ops.export_scene.gltf(filepath=dst, export_format="GLB", use_selection=True, export_materials="NONE")
+    lo, hi = bounds(src)
+    print("wrote %s: %d triangles, %.2f x %.2f x %.2f m" % (dst, sum(len(p.vertices) - 2 for p in src.data.polygons), *(hi - lo)))
+
+
 def textures(src_dir, asset, tex_dir):
     import numpy as np
     from PIL import Image
@@ -151,6 +185,8 @@ if __name__ == "__main__":
         export(args[1], args[2])
     elif args[:1] == ["fit"] and len(args) == 4:
         fit(*args[1:])
+    elif args[:1] == ["prop"] and len(args) in (4, 5):
+        prop(args[1], args[2], float(args[3]), args[4] if len(args) == 5 else "long")
     elif args[:1] == ["textures"] and len(args) == 4:
         textures(*args[1:])
     else:

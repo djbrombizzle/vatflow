@@ -87,6 +87,7 @@ COLORS = {
     "TWR_KeyGrey": (0.35, 0.37, 0.40, 1.0),
     "TWR_KeyGreen": (0.10, 0.45, 0.18, 1.0),
     "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
+    "TWR_PropBlade": (0.95, 0.75, 0.05, 1.0),        # the propeller cap's yellow blade
     "TWR_LightPanel": (1.0, 0.95, 0.85, 1.0),     # ceiling light diffusers (emissive in the sim)
     "TWR_CanRim": (0.55, 0.5, 0.42, 1.0),         # downlight rims: warm brushed metal
     "TWR_FanBody": (0.12, 0.08, 0.05, 1.0),       # ceiling fan motor / brackets: dark bronze
@@ -347,11 +348,11 @@ def ceiling_fans(inside, coll, ceiling_z):
     """
     for i, (x, y) in enumerate(FANS):
         hub = ceiling_z - 0.48
-        inside.beam(Vector((x, y, ceiling_z - 0.06)), Vector((x, y, ceiling_z)), 0.07, "TWR_FanBody", segs=12)   # canopy
-        inside.beam(Vector((x, y, hub + 0.06)), Vector((x, y, ceiling_z - 0.06)), 0.013, "TWR_FanBody", segs=8)  # downrod
+        inside.beam(Vector((x, y, ceiling_z - 0.06)), Vector((x, y, ceiling_z)), 0.07, "TWR_FanBody", segs=24)   # canopy
+        inside.beam(Vector((x, y, hub + 0.06)), Vector((x, y, ceiling_z - 0.06)), 0.013, "TWR_FanBody", segs=12)  # downrod
         b = Builder("TowerCab_Fan_%d" % (i + 1), coll)
-        b.beam(Vector((x, y, hub - 0.07)), Vector((x, y, hub + 0.07)), 0.10, "TWR_FanBody", segs=16)          # motor
-        b.beam(Vector((x, y, hub - 0.10)), Vector((x, y, hub - 0.07)), 0.05, "TWR_FanBody", segs=12)          # cap
+        b.beam(Vector((x, y, hub - 0.07)), Vector((x, y, hub + 0.07)), 0.10, "TWR_FanBody", segs=32)          # motor
+        b.beam(Vector((x, y, hub - 0.10)), Vector((x, y, hub - 0.07)), 0.05, "TWR_FanBody", segs=24)          # cap
         for k in range(5):
             a = 2 * math.pi * k / 5
             d = Vector((math.cos(a), math.sin(a), 0))
@@ -360,6 +361,24 @@ def ceiling_fans(inside, coll, ceiling_z):
         fan = b.finish()
         fan["vatflow_anim"] = "spin"
         fan["vatflow_pivot"] = (x, y, hub)
+
+
+def cap_propeller(coll, cap):
+    """A little two-blade propeller on the cap's top button (its highest point)."""
+    pts = [v.co for v in cap.data.vertices]
+    ztop = max(p.z for p in pts)
+    near = [p for p in pts if p.z > ztop - 0.004]
+    c = Vector((sum(p.x for p in near) / len(near), sum(p.y for p in near) / len(near), ztop - 0.003))
+    b = Builder("TowerCab_CapPropeller", coll)
+    b.beam(c, c + Vector((0, 0, 0.022)), 0.004, "TWR_FanBody", segs=8)                 # shaft
+    b.beam(c + Vector((0, 0, 0.018)), c + Vector((0, 0, 0.028)), 0.009, "TWR_KeyRed", segs=16)   # hub
+    for k, mat in ((0, "TWR_KeyRed"), (1, "TWR_PropBlade")):
+        d = Vector((math.cos(math.pi * k), math.sin(math.pi * k), 0))
+        b.box(c + Vector((0, 0, 0.024)) + d * 0.045, (0.075, 0.018, 0.003), mat, rot_z=math.pi * k + 0.0)
+    obj = b.finish()
+    obj["vatflow_anim"] = "spin"
+    obj["vatflow_pivot"] = tuple(c)
+    return obj
 
 
 def soffit(inside, a1, ceiling_z):
@@ -382,7 +401,7 @@ def ceiling_lights(inside, z):
     each cabin light of systems.cfg (CEILING_LIGHTS) and a ring of smaller ones round the
     room (CEILING_CANS)."""
     def can(x, y, r):
-        n = 12
+        n = 40
         rim = r * 1.35
         disc = [Vector((x + r * math.cos(2 * math.pi * i / n), y + r * math.sin(2 * math.pi * i / n), z - 0.004)) for i in range(n)]
         ring = [Vector((x + rim * math.cos(2 * math.pi * i / n), y + rim * math.sin(2 * math.pi * i / n), z - 0.002)) for i in range(n)]
@@ -443,6 +462,35 @@ def retextured_part(obj, asset):
     for o in [x for x in bpy.data.objects if x not in before and x != obj]:    # the imported objects
         bpy.data.objects.remove(o, do_unlink=True)
     bpy.data.meshes.remove(old)
+
+
+def prop(coll, asset, at, rot_z=0.0):
+    """
+    A loose object from blender/assets/<asset>.glb (tools/meshy_retexture.py prop: standing
+    on its base, its own frame), set down at `at` turned rot_z (radians) as its own object
+    TowerCab_<Asset> with one material TWR_<Asset> (textures in common/texture). Nothing when
+    the asset isn't there.
+    """
+    path = os.path.join(ASSETS, asset + ".glb")
+    if not os.path.exists(path):
+        return None
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
+    if not new:
+        return None
+    src = new[0]
+    src.data.transform(Matrix.Translation(at) @ Matrix.Rotation(rot_z, 4, "Z") @ src.matrix_world)
+    name = "".join(p.capitalize() for p in asset.split("_"))
+    mat = bpy.data.materials.get("TWR_" + name) or bpy.data.materials.new("TWR_" + name)
+    src.data.materials.clear()
+    src.data.materials.append(mat)
+    obj = bpy.data.objects.new("TowerCab_" + name, src.data)
+    obj.data.name = obj.name
+    coll.objects.link(obj)
+    for o in [x for x in bpy.data.objects if x not in before and x != obj]:
+        bpy.data.objects.remove(o, do_unlink=True)
+    return obj
 
 
 def planar_uvs(obj, mats, meters, frame=None):
@@ -562,6 +610,12 @@ def tmu_desk(inside, coll, a_inner, top):
     # ceiling fan switch on the desk's far end (the end out on the open floor), towards its
     # +side corner: a plate (click it, TowerCab_FanSwitch) and its rocker shown up (on) or
     # down (off), with an engraved FAN label above it
+    # a propeller cap left on the desk's far end: the cap is a Meshy prop (if the asset is
+    # there), the propeller on its top button is built here (TowerCab_CapPropeller) and
+    # turns while the ceiling fans are on (exporter "spin", like the fans)
+    cap = prop(coll, "prop_hat", P2(length - 0.32, 0.12, top), drot + math.radians(200))
+    if cap:
+        cap_propeller(coll, cap)
     end = length - 0.02 + 0.006                                 # just proud of the end panel
     sw = P2(end, w / 2 - 0.16, 0.62)
     b = Builder("TowerCab_FanSwitch", coll)
@@ -638,6 +692,18 @@ def strip_bays(coll, a_inner, top):
         bay["vatflow_axis"] = tuple(right)
 
 
+def props(coll, a_inner, top):
+    """
+    Loose objects made with Meshy (blender/assets/prop_*.glb, tools/meshy_retexture.py prop):
+    the coffee maker on the back-right console by the stairs, binoculars on the front
+    console by the window. Each is skipped when its asset isn't there.
+    """
+    at, facing, rot, out, right = face_frame(5, a_inner)
+    prop(coll, "prop_coffee", at(0.35, 0.30, top), rot + math.radians(-15))
+    at, facing, rot, out, right = face_frame(0, a_inner)
+    prop(coll, "prop_binoculars", at(0.18, 0.22, top), rot + math.radians(70))
+
+
 def ramp_computer(inside, a_inner, top):
     """
     Ramp computers. The ramp list (vatflow gates page) left of the clock: the right-hand
@@ -695,7 +761,7 @@ def console_equipment(inside, coll, k, a_inner, top):
     for i, name in enumerate(("ALL", "DBRITE", "ASDEX", "CONSOLE")):
         p = at(1.25 + i * 0.053, 0.30, top + 0.03)
         kb = Builder("TowerCab_DimKnob_" + name, coll)
-        kb.beam(p, p + Vector((0, 0, 0.025)), 0.019, "TWR_Knob", segs=12)
+        kb.beam(p, p + Vector((0, 0, 0.025)), 0.019, "TWR_Knob", segs=24)
         # white pointer line on top, pointing at the window at full brightness
         kb.box(p + out * 0.009 + Vector((0, 0, 0.0255)), (0.004, 0.016, 0.002), "TWR_KnobLit", rot_z=rot)
         obj = kb.finish()
@@ -706,7 +772,7 @@ def console_equipment(inside, coll, k, a_inner, top):
     deck(-0.10, 0.63, (0.26, 0.15, 0.04), "TWR_Bezel", "TWR_Keypad")
     deck(0.14, 0.63, (0.13, 0.15, 0.04), "TWR_Bezel")
     p = at(0.14, 0.63, top + 0.04)
-    inside.beam(p, p + Vector((0, 0, 0.022)), 0.032, "TWR_Knob", segs=10)
+    inside.beam(p, p + Vector((0, 0, 0.022)), 0.032, "TWR_Knob", segs=24)
 
     # voice switch touch panel (beige frame) and the red LED clock
     center, up, _ = screen(inside, at(-0.85, 0.42, top + 0.20), facing(35), 0.42, 0.315, "$SCREEN_VSCS",
@@ -717,7 +783,7 @@ def console_equipment(inside, coll, k, a_inner, top):
     # speaker grille and a coffee mug
     deck(-1.30, 0.62, (0.24, 0.16, 0.06), "TWR_PanelTan", "TWR_Speaker")
     p = at(-0.50, 0.64, top)
-    inside.beam(p, p + Vector((0, 0, 0.11)), 0.04, "TWR_Metal", segs=12)
+    inside.beam(p, p + Vector((0, 0, 0.11)), 0.04, "TWR_Metal", segs=24)
 
 
 MONITOR_ARM_M = 0.35       # the arm reaches this far in from the track to the monitor
@@ -766,8 +832,8 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
 
     # trolley + outer sleeve (travels round the track)
     b = Builder(name, coll)
-    b.beam(Vector((post.x, post.y, sleeve_bottom)), Vector((post.x, post.y, trolley_z)), 0.036, "TWR_Mount", segs=10)
-    b.beam(Vector((post.x, post.y, sleeve_bottom - 0.01)), Vector((post.x, post.y, sleeve_bottom + 0.04)), 0.046, "TWR_Mount", segs=10)  # collar
+    b.beam(Vector((post.x, post.y, sleeve_bottom)), Vector((post.x, post.y, trolley_z)), 0.036, "TWR_Mount", segs=16)
+    b.beam(Vector((post.x, post.y, sleeve_bottom - 0.01)), Vector((post.x, post.y, sleeve_bottom + 0.04)), 0.046, "TWR_Mount", segs=20)  # collar
     b.box((post.x, post.y, trolley_z + 0.03), (0.20, 0.12, 0.06), "TWR_Mount", rot_z=ang + math.pi / 2)
     mount = b.finish()
     mount["vatflow_anim"] = "track"
@@ -777,13 +843,13 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     # All of it is above the screen, so its box doesn't take the screen's clicks.
     b = Builder(name + "_Lift", coll)
     ez = Vector((0, 0, elbow_z))
-    b.beam(Vector((post.x, post.y, elbow_z)), Vector((post.x, post.y, sleeve_bottom + MONITOR_LOWER_M + 0.08)), 0.026, "TWR_Mount", segs=10)
-    b.beam(Vector((post.x, post.y, elbow_z - 0.045)), Vector((post.x, post.y, elbow_z + 0.045)), 0.042, "TWR_Mount", segs=12)  # elbow
+    b.beam(Vector((post.x, post.y, elbow_z)), Vector((post.x, post.y, sleeve_bottom + MONITOR_LOWER_M + 0.08)), 0.026, "TWR_Mount", segs=16)
+    b.beam(Vector((post.x, post.y, elbow_z - 0.045)), Vector((post.x, post.y, elbow_z + 0.045)), 0.042, "TWR_Mount", segs=20)  # elbow
     arm0 = Vector((post.x, post.y, 0)) + ez
     arm1 = Vector((top.x, top.y, 0)) + ez
-    b.beam(arm0, arm1, 0.024, "TWR_Mount", segs=8)
-    b.beam(arm1 + Vector((0, 0, -0.035)), arm1 + Vector((0, 0, 0.035)), 0.036, "TWR_Mount", segs=12)            # wrist
-    b.beam(top, arm1, 0.022, "TWR_Mount", segs=8)
+    b.beam(arm0, arm1, 0.024, "TWR_Mount", segs=16)
+    b.beam(arm1 + Vector((0, 0, -0.035)), arm1 + Vector((0, 0, 0.035)), 0.036, "TWR_Mount", segs=20)            # wrist
+    b.beam(top, arm1, 0.022, "TWR_Mount", segs=16)
     lift = b.finish()
     lift["vatflow_anim"] = "lift"
     lift["vatflow_parent"] = name
@@ -799,22 +865,22 @@ def monitor_mount(name, coll, face_k, width, height, mat_screen, center_z, tilt_
     for i in range(4):                                      # square-tube yoke
         b.beam(F[i], F[(i + 1) % 4], 0.022, "TWR_Mount")
     for sgn in (-1, 1):                                     # pivot stubs on the sides
-        b.beam(c + back + right * sgn * hw, c + back + right * sgn * (fw + 0.03), 0.02, "TWR_Mount", segs=8)
+        b.beam(c + back + right * sgn * hw, c + back + right * sgn * (fw + 0.03), 0.02, "TWR_Mount", segs=16)
     dsp = b.finish()
 
     knobs = []                                              # the big side knobs, one node each
     for side, sgn in (("L", -1), ("R", 1)):
         b = Builder(name + "_Swivel" + side, coll)
-        b.beam(c + back + right * sgn * (fw + 0.03), c + back + right * sgn * (fw + 0.07), 0.05, "TWR_Mount", segs=10)
+        b.beam(c + back + right * sgn * (fw + 0.03), c + back + right * sgn * (fw + 0.07), 0.05, "TWR_Mount", segs=20)
         knobs.append(b.finish())
 
     b = Builder(name + "_Handle", coll)                     # handle bar under the yoke
     drop = -up * 0.11 + n * 0.07
     hl = c + back - up * fh - right * fw * 0.7
     hr = c + back - up * fh + right * fw * 0.7
-    b.beam(hl, hl + drop, 0.018, "TWR_Mount", segs=6)
-    b.beam(hr, hr + drop, 0.018, "TWR_Mount", segs=6)
-    b.beam(hl + drop, hr + drop, 0.018, "TWR_Mount", segs=6)
+    b.beam(hl, hl + drop, 0.018, "TWR_Mount", segs=12)
+    b.beam(hr, hr + drop, 0.018, "TWR_Mount", segs=12)
+    b.beam(hl + drop, hr + drop, 0.018, "TWR_Mount", segs=12)
     hnd = b.finish()
 
     for o in [dsp, hnd] + knobs:
@@ -852,7 +918,7 @@ def window_shade(k, coll, a0, a1, z0, z1):
     half_w = (corner(k + 1, a0, z0) - corner(k, a0, z0)).length * 0.45
 
     roller = Builder("TowerCab_ShadeRoller_%d" % k, coll)
-    roller.beam(origin - along * (half_w + 0.05), origin + along * (half_w + 0.05), 0.045, "TWR_Mount", segs=8)
+    roller.beam(origin - along * (half_w + 0.05), origin + along * (half_w + 0.05), 0.045, "TWR_Mount", segs=20)
     for s in (-1, 1):                                       # end brackets up to the head
         e = origin + along * s * (half_w + 0.05)
         roller.beam(e, e - down * 0.10, 0.02, "TWR_Mount")
@@ -871,7 +937,7 @@ def window_shade(k, coll, a0, a1, z0, z1):
         obj["vatflow_shade"] = k
         obj["vatflow_strip"] = i
         bar = Builder("TowerCab_ShadeBar_%d_s%02d" % (k, i), coll)
-        bar.beam(t1 - along * half_w, t1 + along * half_w, 0.018, "TWR_Mount", segs=6)
+        bar.beam(t1 - along * half_w, t1 + along * half_w, 0.018, "TWR_Mount", segs=12)
         obj = bar.finish()
         obj["vatflow_shade"] = k
         obj["vatflow_strip"] = i
@@ -973,8 +1039,8 @@ def build():
     masts = [(0, 4.0), (1, 6.5), (2, 3.5), (3, 7.0), (4, 4.5), (5, 6.0), (6, 3.5), (7, 5.5)]
     for k, h in masts:
         p = corner(k, a_roof - 0.15, z_roof)
-        rails.beam(p, p + Vector((0, 0, h)), 0.035, "TWR_Metal", segs=6)
-    rails.beam((0, 0, z_roof + P["drum_h"]), (0, 0, z_roof + P["drum_h"] + 5.0), 0.05, "TWR_Metal", segs=6)
+        rails.beam(p, p + Vector((0, 0, h)), 0.035, "TWR_Metal", segs=12)
+    rails.beam((0, 0, z_roof + P["drum_h"]), (0, 0, z_roof + P["drum_h"] + 5.0), 0.05, "TWR_Metal", segs=12)
     rails.finish()
 
     # --- Interior -----------------------------------------------------------
@@ -1014,6 +1080,7 @@ def build():
     inside.beam(center - up * 0.19, Vector((center.x, center.y, P["console_h"])), 0.03, "TWR_Bezel")
     console_equipment(inside, int_coll, 1, a_inner, P["console_h"])
     tmu_desk(inside, int_coll, a_inner, P["console_h"])
+    props(int_coll, a_inner, P["console_h"])
     ramp_computer(inside, a_inner, P["console_h"])
     strip_bays(int_coll, a_inner, P["console_h"])
     ceiling_lights(inside, z_glass1 - 0.012)

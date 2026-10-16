@@ -149,6 +149,16 @@
 			</UseTemplate>
 		</Component>
 
+		<Component ID="VATFLOW_CAP_PROPELLER" Node="TowerCab_CapPropeller">
+			<UseTemplate Name="ASOBO_GT_Anim_Code">
+				<ANIM_NAME>TowerCab_CapPropeller_SPIN</ANIM_NAME>
+				<ANIM_CODE>(L:VATFLOW_FANS) if{ (E:ABSOLUTE TIME, seconds) 200 * 360 % d (&gt;L:VATFLOW_CAP_DEG) } els{ (L:VATFLOW_CAP_DEG) }</ANIM_CODE>
+				<ANIM_LENGTH>360</ANIM_LENGTH>
+				<ANIM_WRAP>True</ANIM_WRAP>
+				<ANIM_LAG>0</ANIM_LAG>
+			</UseTemplate>
+		</Component>
+
 		<Component ID="VATFLOW_FAN_SWITCH" Node="TowerCab_FanSwitch">
 			<UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
 				<LEFT_SINGLE_CODE>(L:VATFLOW_FANS) ! (&gt;L:VATFLOW_FANS)</LEFT_SINGLE_CODE>
