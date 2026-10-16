@@ -8,8 +8,10 @@ Writes, for each texture, NAME.png plus the NAME.png.xml MSFS compiles it with
 "meters" below is how much floor/ceiling/console one copy of the texture covers.
 
   TWR_Carpet_albd.png   2.4 m  - quarter-turned 60 cm commercial carpet tiles
-  TWR_Ceiling_albd.png  1.2 m  - 60 cm black acoustic ceiling tiles in a black T-bar grid
+  TWR_Ceiling_albd.png  1.2 m  - 60 cm charcoal acoustic ceiling tiles in a light grey T-bar grid
   TWR_Console_albd.png  1.0 m  - dark grey matte laminate
+  TWR_ConsoleTop_albd.png    1.0 m  - console worktop: medium blue laminate (colours from a cab photo)
+  TWR_ConsoleFront_albd.png  1.0 m  - console fronts: blue fabric panels in 10 cm squares (+ _norm)
 
 Surface detail (roughness / normal), same size and layout as the base colour:
   TWR_Carpet_comp.png / _norm.png    - fibre and tile seams; seams darker (occlusion)
@@ -40,6 +42,9 @@ TEXTURES = {
     "TWR_Keyboard_albd.png": None,
     "TWR_Speaker_albd.png": None,
     "TWR_Wood_albd.png": 1.0,
+    "TWR_ConsoleTop_albd.png": 1.0,
+    "TWR_ConsoleFront_albd.png": 1.0,
+    "TWR_ConsoleFront_norm.png": 1.0,
     "TWR_Carpet_comp.png": 2.4,
     "TWR_Carpet_norm.png": 2.4,
 }
@@ -109,7 +114,7 @@ def comp(ao, rough, metal=0.0):
 
 
 def carpet(size=1024):
-    base = hexrgb("2E3847")
+    base = hexrgb("2C3747")                           # charcoal grey-blue (from a cab photo)
     img = np.tile(base, (size, size, 1))
     t = size // 4                                     # 4 x 4 tiles of 60 cm
     y, x = np.mgrid[0:size, 0:size]
@@ -129,19 +134,21 @@ def carpet(size=1024):
 
 
 def ceiling(size=1024):
-    # the DCA cab ceiling is black (no reflections in the glass at night)
-    base = hexrgb("1C1C1E")
+    # a real cab ceiling: charcoal acoustic tiles in a light grey T-bar grid (dark, so the
+    # glass doesn't mirror it at night)
+    base = hexrgb("2A2D35")
     img = np.tile(base, (size, size, 1))
     y, x = np.mgrid[0:size, 0:size]
-    pits = blur((RNG.random((size, size)) > 0.985).astype(np.float32), 1) * 40
-    mottle = (tile_noise(size, 6) - 0.5) * 6
-    img = img - pits[..., None] + mottle[..., None]
-    # T-bar grid every 60 cm (512 px): flat black metal with a faint lit edge
+    pits = blur((RNG.random((size, size)) > 0.97).astype(np.float32), 1) * 30          # fissures
+    speck = (RNG.random((size, size)) - 0.5) * 8
+    mottle = (tile_noise(size, 6) - 0.5) * 8
+    img = img - pits[..., None] + (speck + mottle)[..., None]
+    # T-bar grid every 60 cm (512 px): light grey painted metal, a darker shadow line beside it
     g = size // 2
-    bar = ((x % g) < 6) | ((y % g) < 6)
-    edge = (((x % g) >= 6) & ((x % g) < 8)) | (((y % g) >= 6) & ((y % g) < 8))
-    img[bar] = hexrgb("0C0C0D")
-    img[edge & ~bar] = hexrgb("2A2A2D")
+    bar = ((x % g) < 7) | ((y % g) < 7)
+    shadow = (((x % g) >= 7) & ((x % g) < 10)) | (((y % g) >= 7) & ((y % g) < 10))
+    img[shadow & ~bar] *= 0.6
+    img[bar] = hexrgb("8A8E93")
     return img
 
 
@@ -152,6 +159,33 @@ def console(size=512):
     streaks = blur((RNG.random((size, 1)) - 0.5).astype(np.float32).repeat(size, 1), 0) * 3
     mottle = (tile_noise(size, 4) - 0.5) * 6
     return img + (grain + streaks + mottle)[..., None]
+
+
+def console_top(size=1024):
+    # medium blue high-pressure laminate (photo: #4E7CB4), fine speckle and soft wear
+    base = hexrgb("4A76AE")
+    img = np.tile(base, (size, size, 1))
+    speck = blur((RNG.random((size, size)) - 0.5).astype(np.float32), 1) * 14
+    mottle = (tile_noise(size, 5) - 0.5) * 10
+    return img + (speck + mottle)[..., None] * np.array([0.8, 0.9, 1.0])
+
+
+def console_front(size=1024):
+    """Blue fabric acoustic panels in 10 cm squares, each a slightly different blue (photo:
+    #347FC0 in light .. #274172 in shade), thin dark seams. Returns colour and seam height."""
+    n = 10
+    t = size // n
+    y, x = np.mgrid[0:size, 0:size]
+    tones = RNG.normal(0, 1, (n, n))
+    lo, hi = hexrgb("2B5C9C"), hexrgb("3B78BC")
+    k = np.clip(0.5 + 0.12 * tones[(y // t) % n, (x // t) % n] + (tile_noise(size, 4) - 0.5) * 0.25, 0, 1)
+    img = lo + (hi - lo) * k[..., None]
+    weave = (np.sin(x * 2.2) * np.sin(y * 2.2)) * 3 + (RNG.random((size, size)) - 0.5) * 10
+    img = img + weave[..., None]
+    seam = ((x % t) < 2) | ((y % t) < 2)
+    img[seam] *= 0.8
+    height = np.where(seam, 0.0, 1.0).astype(np.float32)
+    return img, blur(height, 1)
 
 
 def keys(img, x0, y0, cols, rows, kw, kh, gap, colors, legend=(200, 200, 200)):
@@ -224,6 +258,10 @@ def main(out_dir):
     save(carpet(), out_dir, "TWR_Carpet_albd.png")
     save(ceiling(), out_dir, "TWR_Ceiling_albd.png")
     save(console(), out_dir, "TWR_Console_albd.png")
+    save(console_top(), out_dir, "TWR_ConsoleTop_albd.png")
+    cf, ch = console_front()
+    save(cf, out_dir, "TWR_ConsoleFront_albd.png")
+    save(normal_map(ch, 2.0), out_dir, "TWR_ConsoleFront_norm.png")
     save(keypad(), out_dir, "TWR_Keypad_albd.png")
     save(keyboard(), out_dir, "TWR_Keyboard_albd.png")
     save(speaker(), out_dir, "TWR_Speaker_albd.png")

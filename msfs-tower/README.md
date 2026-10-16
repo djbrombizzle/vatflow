@@ -118,9 +118,14 @@ Inside the cab there are two working screens fed by live data:
   `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
   `tools/make_fan_sound.py`).
 
-* **TMU desk** retextured with Meshy (`tools/meshy_retexture.py`: export the part, Meshy retexture,
-  fit the result back, textures `TWR_TmuDesk_*`; the mesh is `blender/assets/tmu_desk.glb`, 432
-  triangles, built in by `retextured_part` in the Blender script).
+* **Look** (after photos of a real FAA cab): blue consoles (medium blue laminate worktop, a
+  22 cm light grey laminate writing strip along the controller's edge with a dark rounded
+  bumper, blue fabric front panels in 10 cm squares, dark blue kick plinth), the TMU desk in
+  the same finish with an oak edge band, charcoal ceiling tiles in a light grey grid with
+  round downlights, charcoal grey-blue carpet. Textures from `tools/make_textures.py`
+  (colours sampled from the photos); one console segment is built and turned round the cab.
+  `tools/meshy_retexture.py` can send a part to Meshy's retexture API instead (it suits
+  detailed objects better than these flat panels).
 
 ## Flight strip bays
 

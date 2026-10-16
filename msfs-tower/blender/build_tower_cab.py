@@ -71,7 +71,12 @@ COLORS = {
     "TWR_Glass": (0.55, 0.65, 0.70, 0.12),
     "TWR_Metal": (0.78, 0.78, 0.76, 1.0),
     "TWR_Console": (0.16, 0.17, 0.19, 1.0),
-    "TWR_Carpet": (0.18, 0.22, 0.28, 1.0),
+    "TWR_ConsoleTop": (0.27, 0.38, 0.53, 1.0),        # console worktop: light blue-grey laminate
+    "TWR_ConsoleFront": (0.05, 0.16, 0.39, 1.0),      # console front panels: steel blue
+    "TWR_ConsoleKick": (0.02, 0.05, 0.13, 1.0),       # recessed kick plinth: dark blue
+    "TWR_ConsoleRail": (0.55, 0.58, 0.62, 1.0),       # light grey laminate writing strip along the front
+    "TWR_ConsoleBumper": (0.03, 0.035, 0.04, 1.0),    # dark rounded bumper under it
+    "TWR_Carpet": (0.20, 0.22, 0.26, 1.0),
     "TWR_Ceiling": (0.04, 0.04, 0.045, 1.0),     # the real cab ceiling is black
     "TWR_Keypad": (0.20, 0.20, 0.20, 1.0),
     "TWR_Keyboard": (0.05, 0.05, 0.05, 1.0),
@@ -83,6 +88,7 @@ COLORS = {
     "TWR_KeyGreen": (0.10, 0.45, 0.18, 1.0),
     "TWR_KeyRed": (0.50, 0.10, 0.10, 1.0),
     "TWR_LightPanel": (1.0, 0.95, 0.85, 1.0),     # ceiling light diffusers (emissive in the sim)
+    "TWR_CanRim": (0.55, 0.5, 0.42, 1.0),         # downlight rims: warm brushed metal
     "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
     "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
     "TWR_DeskTop": (0.30, 0.35, 0.40, 1.0),       # blue-grey desk top (TMU desk)
@@ -322,19 +328,29 @@ def desk_monitor(b, at, facing, rot, r, depth, top, w, h, mat_screen, tilt=15, k
 
 
 def ceiling_lights(inside, z):
-    """Recessed ceiling light diffusers (emissive). The light they throw is the cabin
-    lights in systems.cfg (CEILING_LIGHTS below), placed at the same spots."""
+    """Round recessed downlights (emissive disc in a metal rim), like the real cab: one at
+    each cabin light of systems.cfg (CEILING_LIGHTS) and a ring of smaller ones round the
+    room (CEILING_CANS)."""
+    def can(x, y, r):
+        n = 12
+        rim = r * 1.35
+        disc = [Vector((x + r * math.cos(2 * math.pi * i / n), y + r * math.sin(2 * math.pi * i / n), z - 0.004)) for i in range(n)]
+        ring = [Vector((x + rim * math.cos(2 * math.pi * i / n), y + rim * math.sin(2 * math.pi * i / n), z - 0.002)) for i in range(n)]
+        inside.face(list(reversed(disc)), "TWR_LightPanel")                 # faces down
+        for i in range(n):
+            j = (i + 1) % n
+            inside.face([ring[i], ring[j], disc[j], disc[i]][::-1], "TWR_CanRim")
     for x, y in CEILING_LIGHTS:
-        h = 0.30
-        inside.face([Vector((x - h, y - h, z)), Vector((x - h, y + h, z)),
-                     Vector((x + h, y + h, z)), Vector((x + h, y - h, z))], "TWR_LightPanel")
-        for (x0, y0), (x1, y1) in (((x - h, y - h), (x + h, y - h)), ((x + h, y - h), (x + h, y + h)),
-                                   ((x + h, y + h), (x - h, y + h)), ((x - h, y + h), (x - h, y - h))):
-            inside.beam(Vector((x0, y0, z - 0.005)), Vector((x1, y1, z - 0.005)), 0.012, "TWR_Mount")
+        can(x, y, 0.11)
+    for x, y in CEILING_CANS:
+        can(x, y, 0.07)
 
 
 # Ceiling light spots (Blender x, y in m): four round the cab plus one in the middle.
 CEILING_LIGHTS = [(0.0, 0.0), (1.9, 0.0), (-1.9, 0.0), (0.0, 1.9), (0.0, -1.9)]
+# smaller downlights in a ring between them and the monitor track (look only: no light of their own)
+CEILING_CANS = [(2.9 * math.cos(math.radians(22.5 + 45 * i)), 2.9 * math.sin(math.radians(22.5 + 45 * i))) for i in range(8)] + \
+               [(1.25 * math.cos(math.radians(45 * i)), 1.25 * math.sin(math.radians(45 * i))) for i in range(8)]
 
 
 def bevel_edges(obj, width, segments=2):
@@ -378,6 +394,78 @@ def retextured_part(obj, asset):
     bpy.data.meshes.remove(old)
 
 
+def planar_uvs(obj, mats, meters, frame=None):
+    """
+    UVs for the faces of the given materials: each face projected on the plane it mostly
+    faces, in the part's own square frame (so turned copies and diagonal parts keep square
+    texture), one texture copy per `meters`. Used by the textures from make_textures.py
+    that the exporter takes as they are (TEXTURED "m": None).
+    """
+    frame = frame or Matrix.Identity(4)
+    idx = [i for i, m in enumerate(obj.data.materials) if m and m.name in mats]
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    uv = bm.loops.layers.uv.verify()
+    rot = frame.to_3x3()
+    for f in bm.faces:
+        if f.material_index not in idx:
+            continue
+        n = rot @ f.normal
+        ax, ay, az = abs(n.x), abs(n.y), abs(n.z)
+        for loop in f.loops:
+            p = frame @ loop.vert.co
+            if az >= ax and az >= ay:
+                u, v = p.x, p.y
+            elif ax >= ay:
+                u, v = p.y, p.z
+            else:
+                u, v = p.x, p.z
+            loop[uv].uv = (u / meters, v / meters)
+    bm.to_mesh(obj.data)
+    bm.free()
+
+
+CONSOLE_MATS = ("TWR_ConsoleTop", "TWR_ConsoleFront")
+
+
+def consoles(coll, a_inner, top, sides):
+    """
+    The consoles round the cab, after photos of a real cab: medium blue laminate worktop
+    with a wide light grey laminate writing strip along the front edge and a dark rounded
+    bumper, blue fabric front panels in
+    10 cm squares (make_textures.py), dark blue kick plinth set back 6 cm. One segment
+    (window face 0, square to the axes) is built and UV mapped, and every console face is
+    a turned copy of it (TowerCab_Consoles), so the texture sits the same on all of them.
+    """
+    a_in = a_inner - P["console_depth"]
+    seg = Builder("TowerCab_ConsoleSeg", coll)
+    # worktop: blue laminate at the back, then a 22 cm light grey laminate writing strip along
+    # the controller's edge (a step 5 mm lower), ending in the dark rounded bumper
+    seg.ring(a_in + 0.20, a_inner, a_in + 0.20, a_inner, top - 0.035, top, "TWR_ConsoleTop", sides=[0])
+    seg.ring(a_in - 0.02, a_in + 0.20, a_in - 0.02, a_in + 0.20, top - 0.04, top - 0.005, "TWR_ConsoleRail", sides=[0])
+    seg.ring(a_in - 0.045, a_in + 0.01, a_in - 0.045, a_in + 0.01, top - 0.075, top - 0.002, "TWR_ConsoleBumper", sides=[0])
+    seg.ring(a_in, a_inner, a_in, a_inner, 0.10, top - 0.095, "TWR_ConsoleFront", sides=[0])
+    seg.ring(a_in + 0.06, a_inner, a_in + 0.06, a_inner, 0.0, 0.10, "TWR_ConsoleKick", sides=[0])
+    obj = seg.finish()
+    bevel_edges(obj, 0.004)
+    planar_uvs(obj, CONSOLE_MATS, 1.0)
+    bm = bmesh.new()
+    for k in sides:
+        me = obj.data.copy()
+        me.transform(Matrix.Rotation(face_angle(k) - face_angle(0), 4, "Z"))
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+    me = bpy.data.meshes.new("TowerCab_Consoles")
+    bm.to_mesh(me)
+    bm.free()
+    for m in obj.data.materials:
+        me.materials.append(m)
+    allc = bpy.data.objects.new("TowerCab_Consoles", me)
+    coll.objects.link(allc)
+    bpy.data.objects.remove(obj, do_unlink=True)
+    return allc
+
+
 def tmu_desk(inside, coll, a_inner, top):
     """
     TMU position in the back-left corner (window face 3), after the DCA TMU desk.
@@ -407,14 +495,15 @@ def tmu_desk(inside, coll, a_inner, top):
     # the desk is its own object (TowerCab_TmuDesk), so it can be textured on its own (Meshy
     # retexture: tools/meshy_retexture.py); vatflow_frame = its origin and turn, for that tool
     desk = Builder("TowerCab_TmuDesk", coll)
-    desk.box(P2(mid, 0, top - 0.02), (w, length, 0.04), "TWR_DeskTop", rot_z=drot)             # top
-    desk.box(P2(mid, 0, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=drot) # oak edge band
-    desk.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_Wood", rot_z=drot)
-    desk.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_Bezel", rot_z=drot)      # dark kick plinth
+    desk.box(P2(mid, 0, top - 0.02), (w, length, 0.04), "TWR_ConsoleTop", rot_z=drot)          # top: console laminate
+    desk.box(P2(mid, 0, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=drot) # oak edge band, all round
+    desk.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_ConsoleFront", rot_z=drot)
+    desk.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_ConsoleKick", rot_z=drot) # dark kick plinth
     desk_obj = desk.finish()
     bevel_edges(desk_obj, 0.006)
     desk_obj["vatflow_frame"] = (start.x, start.y, 0.0, drot)
-    retextured_part(desk_obj, "tmu_desk")
+    planar_uvs(desk_obj, CONSOLE_MATS, 1.0,
+               Matrix.Rotation(-drot, 4, "Z") @ Matrix.Translation((-start.x, -start.y, 0)))
 
     # red LED clock cabinet at the console end of the desk, facing the TMU corner (-side)
     inside.box(P2(0.35, 0, top + 0.11), (0.30, 0.42, 0.22), "TWR_PanelGrey", rot_z=drot)
@@ -802,8 +891,7 @@ def build():
     # consoles on every side except the rear (+Y) side, which is the stair entrance
     rear = n // 2
     console_sides = [k for k in range(n) if k != rear]
-    inside.ring(a_inner - P["console_depth"], a_inner, a_inner - P["console_depth"], a_inner,
-                0.0, P["console_h"], "TWR_Console", sides=console_sides)
+    consoles(int_coll, a_inner, P["console_h"], console_sides)
     # stair hatch marker at the rear
     ang = face_angle(rear)
     hatch_c = Vector((math.cos(ang), math.sin(ang), 0)) * (a_inner - 1.2)

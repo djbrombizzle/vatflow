@@ -75,7 +75,14 @@ PBR = {
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
     "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
     "TWR_KnobLit": ("FFC864", 0.0, 0.5, 1),
+    "TWR_CanRim": ("B8A98C", 0.8, 0.35, 1),
     "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
+    "TWR_ConsoleSeg": ("FFFFFF", 0.0, 0.6, 1),
+    "TWR_ConsoleTop": ("4E7CB4", 0.0, 0.45, 1),
+    "TWR_ConsoleFront": ("347FC0", 0.0, 0.85, 1),
+    "TWR_ConsoleKick": ("1E2E4A", 0.0, 0.7, 1),
+    "TWR_ConsoleRail": ("C9CED4", 0.15, 0.25, 1),   # light grey laminate writing strip (a little gloss)
+    "TWR_ConsoleBumper": ("2E3138", 0.0, 0.5, 1),
     "TWR_Wood": ("A07A52", 0.0, 0.55, 1),
     "TWR_DeskTop": ("4C5966", 0.0, 0.6, 1),
     "TWR_Strip": ("EBE6D6", 0.0, 0.8, 1),
@@ -105,11 +112,14 @@ TEXTURED = {
     "TWR_Keyboard": {"albd": "TWR_Keyboard_albd.png", "m": None},
     "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
     "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
+    # console worktop / fronts: UVs made in the Blender script (planar_uvs), used as they are
+    "TWR_ConsoleTop": {"albd": "TWR_ConsoleTop_albd.png", "m": None},
+    "TWR_ConsoleFront": {"albd": "TWR_ConsoleFront_albd.png", "norm": "TWR_ConsoleFront_norm.png", "m": None},
 }
 # Parts retextured by Meshy (tools/meshy_retexture.py): their mesh carries its own UVs and the
 # textures are in common/texture; used only when the files are there.
 TEXDIR = os.path.join(HERE, "..", "package", "SimObjects", "Airplanes", "vatflow_tower_cab", "common", "texture")
-for _name in ("TWR_TmuDesk",):
+for _name in ("TWR_TmuDesk", "TWR_ConsoleSeg"):
     if os.path.exists(os.path.join(TEXDIR, _name + "_albd.png")):
         TEXTURED[_name] = {"albd": _name + "_albd.png", "m": None}
         if os.path.exists(os.path.join(TEXDIR, _name + "_comp.png")):
