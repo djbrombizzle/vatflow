@@ -94,6 +94,8 @@ COLORS = {
     "TWR_Soffit": (0.02, 0.02, 0.025, 1.0),       # dark band round the ceiling edge
     "TWR_SwitchPlate": (0.85, 0.84, 0.80, 1.0),   # wall switch plate
     "TWR_SwitchRocker": (0.95, 0.94, 0.90, 1.0),
+    "TWR_GuideSheet": (1.0, 1.0, 1.0, 1.0),        # the laminated quick guide on the TMU desk
+    "TWR_Laminate": (0.88, 0.9, 0.92, 1.0),       # its clear laminate border
     "TWR_KnobLit": (1.0, 0.78, 0.39, 1.0),        # knob pointers / knob panel edge light (faintly emissive in the sim)
     "TWR_Wood": (0.62, 0.48, 0.32, 1.0),          # light oak desk edging (TMU desk)
     "TWR_DeskTop": (0.30, 0.35, 0.40, 1.0),       # blue-grey desk top (TMU desk)
@@ -547,6 +549,14 @@ def tmu_desk(inside, coll, a_inner, top):
     desk.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_ConsoleFront", rot_z=drot)
     desk.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_ConsoleKick", rot_z=drot) # dark kick plinth
     desk_obj = desk.finish()
+    # quick guide (how to put / move the cab in the tower), a printed letter sheet under clear
+    # laminate on the desk top, read from the TMU side (-side): its top edge points away
+    sc = P2(1.30, -0.10, top)
+    upv, rgt = side, side.cross(Vector((0, 0, 1)))
+    for mat, hw, hh, dz in (("TWR_Laminate", 0.118, 0.150, 0.0010), ("TWR_GuideSheet", 0.108, 0.1397, 0.0018)):
+        cz = sc + Vector((0, 0, dz))
+        pts = [cz - rgt * hw - upv * hh, cz + rgt * hw - upv * hh, cz + rgt * hw + upv * hh, cz - rgt * hw + upv * hh]
+        inside.face(pts, mat, uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
     # ceiling fan switch on the TMU side of the desk (-side), near the console end: a plate
     # (click it, TowerCab_FanSwitch) and its rocker shown up (on) or down (off)
     sw = P2(0.55, -(w / 2 - 0.03) - 0.006, 0.62)

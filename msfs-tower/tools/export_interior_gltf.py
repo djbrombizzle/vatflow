@@ -83,6 +83,8 @@ PBR = {
     "TWR_Soffit": ("1B1C1F", 0.0, 0.8, 1),
     "TWR_SwitchPlate": ("DCD8CC", 0.0, 0.5, 1),
     "TWR_SwitchRocker": ("F2F0E8", 0.0, 0.45, 1),
+    "TWR_GuideSheet": ("FFFFFF", 0.0, 0.18, 1),    # glossy: under laminate
+    "TWR_Laminate": ("E4E8EC", 0.0, 0.12, 1),
     "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_ConsoleSeg": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_ConsoleTop": ("4E7CB4", 0.0, 0.45, 1),
@@ -118,6 +120,7 @@ TEXTURED = {
     "TWR_Keypad": {"albd": "TWR_Keypad_albd.png", "m": None},
     "TWR_Keyboard": {"albd": "TWR_Keyboard_albd.png", "m": None},
     "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
+    "TWR_GuideSheet": {"albd": "TWR_GuideSheet_albd.png", "m": None},
     "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
     # console worktop / fronts: UVs made in the Blender script (planar_uvs), used as they are
     "TWR_ConsoleTop": {"albd": "TWR_ConsoleTop_albd.png", "m": None},

@@ -23,6 +23,7 @@ Decals, stretched once over the top of a desk item:
   TWR_Keypad_albd.png    - keypad with orange / green / teal / yellow keys
   TWR_Keyboard_albd.png  - black keyboard
   TWR_Speaker_albd.png   - perforated speaker grille
+  TWR_GuideSheet_albd.png - the quick guide (moving the cab) laminated on the TMU desk
 """
 
 import os
@@ -272,6 +273,76 @@ def wood(size=512):
     return base[None, None, :] * (1 - v[..., None] * 0.35) + dark[None, None, :] * (v[..., None] * 0.35)
 
 
+GUIDE = [
+    ("h1", "TOWER CAB - QUICK GUIDE"),
+    ("h2", "PUT THE CAB IN THE TOWER"),
+    ("p", "1  On any big screen tap MENU (bottom right), then TOWER SETUP."),
+    ("p", "2  PLACE IN TOWER: the cab goes to this airport's saved spot, the built-in tower list or "
+          "OpenStreetMap's control tower, and freezes there."),
+    ("h2", "MOVE IT ONTO THE REAL TOWER"),
+    ("p", "3  Pick a step: FINE 0.5 m, MEDIUM 2 m or BIG 10 m."),
+    ("p", "4  FWD / BACK / LEFT / RIGHT move it as seen out of the FRONT window. UP / DOWN change the "
+          "height, TURN L / TURN R turn the cab."),
+    ("p", "5  SAVE THIS SPOT. Next time at this airport the cab goes straight there."),
+    ("h2", "GOOD TO KNOW"),
+    ("p", "- AUTO PLACE ON SPAWN: the cab goes up by itself about 10 s after the flight starts."),
+    ("p", "- RELEASE unfreezes the cab (slew); PLACE IN TOWER freezes it again."),
+    ("p", "- FORGET SAVED SPOT goes back to the tower list / OpenStreetMap spot."),
+    ("p", "- Keep crash damage OFF (Assistance), or touching the tower ends the flight."),
+    ("p", "- \"NOT IN THE TOWER\" on a screen: tap it for TOWER SETUP."),
+    ("p", "- Brightness: TOWER SETUP > BRIGHTNESS, or the knobs on the console. "
+          "Ceiling fans: the switch on this desk's side."),
+]
+
+
+def guide_sheet(w=792, h=1024):
+    """
+    The quick guide lying on the TMU desk under clear laminate: a printed US letter sheet
+    (8.5 x 11 in). Drawn at the sheet's shape, then stored square (1024 x 1024); the desk
+    quad's UVs stretch it back. Needs a TrueType font (DejaVu / Liberation); falls back to
+    Pillow's own.
+    """
+    from PIL import ImageDraw, ImageFont
+    img = Image.new("RGB", (w, h), (246, 245, 240))
+    d = ImageDraw.Draw(img)
+
+    def font(size, bold=False):
+        for f in (("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"), ("LiberationSans-Bold.ttf" if bold else "LiberationSans-Regular.ttf")):
+            for base in ("/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/truetype/liberation", "C:/Windows/Fonts"):
+                try:
+                    return ImageFont.truetype(os.path.join(base, f), size)
+                except OSError:
+                    pass
+        return ImageFont.load_default()
+
+    fonts = {"h1": font(36, True), "h2": font(24, True), "p": font(21)}
+    margin, y = 54, 52
+    d.rectangle([margin - 18, 30, w - margin + 18, 34], fill=(32, 78, 140))
+    for kind, text in GUIDE:
+        f = fonts[kind]
+        if kind == "h2":
+            y += 14
+        words, line = text.split(" "), ""
+        indent = 0 if kind != "p" or not text[:1].isdigit() and not text.startswith("-") else 34
+        first = True
+        for word in words + [None]:
+            trial = (line + " " + word).strip() if word else line
+            x0 = margin + (0 if first else indent)
+            if word is not None and d.textlength(trial, font=f) <= w - margin - x0:
+                line = trial
+                continue
+            d.text((x0, y), line, font=f, fill=(32, 78, 140) if kind != "p" else (25, 25, 28))
+            y += int(f.size * 1.28)
+            first, line = False, word or ""
+        y += 8 if kind == "p" else 4
+        if kind == "h1":
+            y += 6
+    assert y < h - 60, "the quick guide text is too long for the sheet"
+    d.text((margin, h - 48), "VATFLOW Tower Cab", font=font(18), fill=(120, 120, 125))
+    img = img.resize((1024, 1024), Image.LANCZOS)
+    return np.array(img).astype(np.float32)
+
+
 def main(out_dir):
     os.makedirs(out_dir, exist_ok=True)
     save(carpet(), out_dir, "TWR_Carpet_albd.png")
@@ -284,6 +355,7 @@ def main(out_dir):
     save(keypad(), out_dir, "TWR_Keypad_albd.png")
     save(keyboard(), out_dir, "TWR_Keyboard_albd.png")
     save(speaker(), out_dir, "TWR_Speaker_albd.png")
+    save(guide_sheet(), out_dir, "TWR_GuideSheet_albd.png")
     save(wood(), out_dir, "TWR_Wood_albd.png")
     c, nrm = carpet_detail()
     save(c, out_dir, "TWR_Carpet_comp.png")

@@ -122,7 +122,11 @@ Inside the cab there are two working screens fed by live data:
   22 cm light grey laminate writing strip along the controller's edge with a dark rounded
   bumper, blue perforated steel vent panels for the computers inside, dark blue kick plinth), the TMU desk in
   the same finish with an oak edge band, charcoal ceiling tiles in a light grey grid with
-  round downlights, charcoal grey-blue carpet. Textures from `tools/make_textures.py`
+  round downlights, charcoal grey-blue carpet, a dark band round the ceiling edge, two
+  ceiling fans (switch on the TMU side of the TMU desk, `L:VATFLOW_FANS`; they turn only
+  while on), overhead monitors on articulated arms (sleeve, elbow, arm, wrist), and a
+  laminated quick guide on the TMU desk (how to put / move the cab in the tower; its text is
+  `GUIDE` in `tools/make_textures.py`). Textures from `tools/make_textures.py`
   (colours sampled from the photos); one console segment is built and turned round the cab.
   `tools/meshy_retexture.py` can send a part to Meshy's retexture API instead (it suits
   detailed objects better than these flat panels).
