@@ -295,7 +295,8 @@ var StripSignView = (function () {
 
 /**
  * MSFS gauges for bay n (1..3) and its sign. Bay 1's screen also reads the VATSIM feed and
- * prints / drops strips for all three (one reader, so strips aren't added twice).
+ * prints / drops strips for all three (one reader, so strips aren't added twice), and runs
+ * STRIP SYNC with other cabs (common/strip-sync.js).
  */
 function vatflowRegisterStripBay(n, sign) {
   if (typeof BaseInstrument === "undefined") return;
@@ -314,7 +315,10 @@ function vatflowRegisterStripBay(n, sign) {
         self.site = site;
         if (sign) self.view.setName(VatflowStrips.config(site.icao).bays[n - 1].name);
         else self.view.setAirport(site.icao);
-        if (!sign && n === 1) vatflowStripFeed(site);
+        if (!sign && n === 1) {
+          vatflowStripFeed(site);
+          VatflowStripSync.start(site.icao);     // STRIP SYNC with other cabs (TOWER SETUP), once
+        }
       });
     }
     Update() {

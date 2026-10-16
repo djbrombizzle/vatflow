@@ -178,7 +178,27 @@ position name plate on the outer edge of the worktop in front of it (`$SCREEN_SI
   keyboard, each with its column; which bay / section new strips print into; AUTO DROP on / off. Kept per airport.
   The bays move with model animations (`L:VATFLOW_BAY_n_DEG`, `L:VATFLOW_BAY_n_SLIDE`).
 
-Model: `common/strips.js`. The strips are yours only: they don't sync with CRC or vNAS.
+Model: `common/strips.js`. The strips don't sync with CRC or vNAS; with other cabs they can (STRIP SYNC, below).
+
+### STRIP SYNC (several cabs, one set of strips)
+
+Controllers in different cabs at the same airport can share their strips: a strip the
+ground controller moves to LOCAL turns up on the local controller's LOCAL bay.
+
+* **Turn it on**: TOWER SETUP > STRIP SYNC. One controller taps **NEW** (a random 6-digit
+  code) and gives the code to the others; they tap **CODE**, type it and OK. The line shows
+  who is in (by CID). **ON** turns it off and on again. Joining a room that is in use
+  replaces your strips with the room's; the first cab in starts the room with its own.
+* **Shared**: the strips, where they are (bay, section, order), cocked / amended, deleted
+  strips (they don't print again for anyone), and the bay setup (names, separators,
+  columns, where new strips print, AUTO DROP). **Your own**: the strip you are holding and
+  where your bays sit in your cab.
+* **How**: the VATFLOW hub's sync rooms (vatflow-hub `cab-sync.js`): the room is the
+  airport plus the code, a key per strip / strip position / the bay setup; the hub numbers
+  every change and sends it to every cab in the room, so they all end up the same (two
+  moves of the same strip at once: the later one wins). Strip bay 1's screen runs it
+  (`common/strip-sync.js`); changes you make while the connection is down are sent when it
+  comes back. Rooms nobody uses for 12 hours are forgotten.
 
 ## ARTCC video maps (the maps CRC shows)
 

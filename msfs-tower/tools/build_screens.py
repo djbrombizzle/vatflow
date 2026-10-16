@@ -41,7 +41,7 @@ SCRIPTS = [
     "common/compat.js", "common/store.js", "common/airport.js",
     "common/airports/KDCA.js", "common/airports/KATL.js", "common/towers.js", "common/faa-towers.js",
     "common/vatsim-feed.js", "common/draw.js", "common/viewctl.js", "common/dimmer.js",
-    "common/osm-airport.js", "common/site.js", "common/placement.js", "common/vnas.js", "common/mappicker.js", "common/strips.js",
+    "common/osm-airport.js", "common/site.js", "common/placement.js", "common/vnas.js", "common/mappicker.js", "common/strips.js", "common/strip-sync.js",
     "common/vatflow-hub.js", "common/vatflow-metering.js", "common/vatflow-smart.js", "common/apt-flow.js",
     "common/vatflow-ramp.js", "common/ramp-kdca.js", "common/ramp-airports.js", "common/ramp-data.js",
     "Dbrite/Dbrite.js", "Asdex/Asdex.js", "Idst/Idst.js", "Vatsmart/Vatsmart.js", "AptDash/AptDash.js",
@@ -68,7 +68,7 @@ def main():
     # strip bays and their position signs (StripBay/StripBay.js)
     strip_scripts = ["common/store.js", "common/airport.js", "common/airports/KDCA.js", "common/airports/KATL.js",
                      "common/vatsim-feed.js", "common/draw.js", "common/dimmer.js", "common/site.js", "common/strips.js",
-                     "StripBay/StripBay.js"]
+                     "common/strip-sync.js", "StripBay/StripBay.js"]
     sdir = os.path.join(INST, "StripBay")
     for n in range(1, 4):
         for sign, (pre, w, h) in ((False, ("SB", 1536, 896)), (True, ("SG", 512, 128))):

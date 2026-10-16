@@ -45,6 +45,9 @@ var SetupView = (function () {
     '  <div class="su-btn su-chip su-wide" data-k="dim">DIMMER</div><div class="su-btn su-chip su-wide" data-k="bright">BRIGHTER</div>' +
     '  <div class="su-btn su-chip su-wide su-check" data-k="brtauto"><span data-f="brtauto">[X]</span> AUTO</div>' +
     '  <div class="su-btn su-chip su-wide su-check" data-k="litauto"><span data-f="litauto">[X]</span> CAB LIGHTS</div></div>' +
+    '<div class="su-cid su-sync"><span class="su-k">STRIP SYNC</span><span data-f="sync">-</span>' +
+    '  <div class="su-btn su-chip su-check" data-k="syncon"><span data-f="syncon">[ ]</span> ON</div>' +
+    '  <div class="su-btn su-chip" data-k="synccode">CODE</div><div class="su-btn su-chip" data-k="syncnew">NEW</div></div>' +
     '<div class="su-cid"><span class="su-k">VATSIM CID</span><span data-f="cid">-</span><div class="su-btn su-chip" data-k="cid">EDIT</div>' +
     '  <div class="su-keys" data-f="keys"></div></div>' +
     '<div class="su-msg" data-f="msg"></div>' +
@@ -63,6 +66,7 @@ var SetupView = (function () {
     this.tgt = null;
     this.msg = "";
     this.cidEdit = null;     // digits typed so far while editing
+    this.syncEdit = null;    // the STRIP SYNC code typed so far while editing
     this.preview = null;     // the cab's position in the browser preview (nothing moves there)
     var self = this;
     var btns = root.querySelectorAll("[data-k]");
@@ -107,8 +111,10 @@ var SetupView = (function () {
   SetupView.prototype.key = function (k) {
     var icao = this.site && this.site.icao;
     if (this.cidEdit !== null && k.indexOf("n") === 0) { this.cidKey(k.slice(1)); return; }
+    if (this.syncEdit !== null && k.indexOf("n") === 0) { this.syncKey(k.slice(1)); return; }
     if (k.indexOf("step") === 0) { this.step = +k.slice(4); return; }
-    if (k === "cid") { this.cidEdit = this.cidEdit === null ? "" : null; return; }
+    if (k === "cid") { this.syncEdit = null; this.cidEdit = this.cidEdit === null ? "" : null; return; }
+    if (this.syncCmd(k)) return;
     if (this.brightKey(k)) return;
     if (!icao || icao === "----") { this.say("NO AIRPORT FOUND NEAR THE CAB"); return; }
     if (k === "place") {
@@ -175,6 +181,52 @@ var SetupView = (function () {
 
   SetupView.prototype.auto = function () { return VatflowStore.get("AUTO_PLACE", true) !== false; };
 
+  /**
+   * STRIP SYNC (common/strip-sync.js, run by strip bay 1's screen): ON shares this airport's
+   * strips with every cab using the same 6-digit code; CODE types the code your tower uses,
+   * NEW makes one up (give it to the others). Kept in VatflowStore "STRIPSYNC".
+   */
+  SetupView.prototype.syncCmd = function (k) {
+    var cur = VatflowStore.get("STRIPSYNC", null) || { on: false, code: "" };
+    if (k === "synccode") { this.cidEdit = null; this.syncEdit = this.syncEdit === null ? "" : null; return true; }
+    if (k === "syncnew") {
+      var code = VatflowStripSync.newCode();
+      VatflowStore.set("STRIPSYNC", { on: true, code: code });
+      this.syncEdit = null;
+      this.say("STRIP SYNC ON - NEW CODE " + code + ": GIVE IT TO THE OTHER CONTROLLERS AT THIS AIRPORT");
+      return true;
+    }
+    if (k === "syncon") {
+      if (!cur.on && !/^\d{6}$/.test(cur.code || "")) { this.syncEdit = ""; this.say("TYPE YOUR TOWER'S 6-DIGIT CODE FIRST (OR NEW)"); return true; }
+      VatflowStore.set("STRIPSYNC", { on: !cur.on, code: cur.code });
+      this.say(cur.on ? "STRIP SYNC OFF - YOUR STRIPS STAY AS THEY ARE" : "STRIP SYNC ON - CODE " + cur.code);
+      return true;
+    }
+    return false;
+  };
+
+  SetupView.prototype.syncKey = function (d) {
+    if (d === "ok") {
+      if (!/^\d{6}$/.test(this.syncEdit)) { this.say("THE CODE IS 6 DIGITS"); return; }
+      VatflowStore.set("STRIPSYNC", { on: true, code: this.syncEdit });
+      this.say("STRIP SYNC ON - CODE " + this.syncEdit + " (A ROOM IN USE REPLACES YOUR STRIPS WITH ITS OWN)");
+      this.syncEdit = null;
+    } else if (d === "clr") this.syncEdit = "";
+    else if (this.syncEdit.length < 6) this.syncEdit += d;
+  };
+
+  /** The STRIP SYNC line: off / connecting / who is in the room. */
+  SetupView.prototype.syncText = function () {
+    if (this.syncEdit !== null) return (this.syncEdit || "_") + "  (TYPE THE 6-DIGIT CODE, THEN OK)";
+    var cur = VatflowStore.get("STRIPSYNC", null), st = VatflowStore.get("STRIPSYNC_STATUS", null);
+    if (!cur || !cur.on) return "OFF" + (cur && cur.code ? " (CODE " + cur.code + ")" : " - SHARE STRIPS WITH OTHER CABS HERE");
+    if (!st || st.state === "off") return "STARTING... CODE " + cur.code + " (NEEDS THE STRIP BAYS)";
+    var room = cur.code + (st.error ? " - " + st.error : "");
+    if (st.state !== "ok") return "CONNECTING... CODE " + room;
+    var peers = st.peers || [];
+    return "CODE " + room + " - " + peers.length + (peers.length === 1 ? " CAB (JUST YOU)" : " CABS: " + peers.join(" "));
+  };
+
   SetupView.prototype.cidKey = function (d) {
     if (d === "ok") {
       VatflowStore.set("CID", this.cidEdit);
@@ -230,10 +282,14 @@ var SetupView = (function () {
     f.litauto.textContent = VatflowStore.get("LIGHTS_AUTO", true) !== false ? "[X]" : "[ ]";
     var cid = VatflowStore.get("CID", "");
     f.cid.textContent = this.cidEdit !== null ? (this.cidEdit || "_") + "  (TYPE YOUR CID, THEN OK)" : (cid || "NOT SET - NEEDED TO ISSUE IDST RELEASES");
+    var sc = VatflowStore.get("STRIPSYNC", null);
+    f.sync.textContent = this.syncText();
+    f.syncon.textContent = sc && sc.on ? "[X]" : "[ ]";
     var keys = "";
-    if (this.cidEdit !== null) {
-      "1234567890".split("").forEach(function (d) { keys += '<div class="su-btn su-num" data-n="' + d + '">' + d + "</div>"; });
-      keys += '<div class="su-btn su-num" data-n="clr">CLR</div><div class="su-btn su-num su-go" data-n="ok">OK</div>';
+    if (this.cidEdit !== null || this.syncEdit !== null) {
+      "123456789".split("").concat(["clr", "0", "ok"]).forEach(function (d) {
+        keys += '<div class="su-btn su-num' + (d === "ok" ? " su-go" : "") + '" data-n="' + d + '">' + d.toUpperCase() + "</div>";
+      });
     }
     if (keys !== this.lastKeys) {
       f.keys.innerHTML = keys;

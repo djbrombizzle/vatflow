@@ -1049,6 +1049,118 @@ ta("screen host: an app's timers stop when another app is picked", async () => {
   assert.equal(h.VatflowApps.initial(scr, { icao: "KDCA" }, "rampED"), "rampmap", "old saved choice");
 });
 
+
+ta("STRIP SYNC: two cabs share strips through a hub room (moves, held, delete, bay names, reconnect)", async () => {
+  // a stand-in for the hub's cab-sync rooms (vatflow-hub cab-sync.js): ordered changes to everyone
+  const rooms = {};
+  class FakeWS {
+    constructor() { this.readyState = 0; this.room = null; setTimeout(() => { this.readyState = 1; this.onopen && this.onopen(); }, 1); }
+    deliver(m) { if (this.readyState === 1) setTimeout(() => this.onmessage && this.onmessage({ data: JSON.stringify(m) }), 1); }
+    send(text) {
+      const m = JSON.parse(text);
+      if (m.type === "cab-join") {
+        const r = rooms[m.room] || (rooms[m.room] = { seq: 0, kv: {}, clients: new Set() });
+        this.room = m.room; this.cid = m.cid; r.clients.add(this);
+        this.deliver({ type: "cab-snap", room: m.room, seq: r.seq, kv: JSON.parse(JSON.stringify(r.kv)) });
+        for (const c of r.clients) c.deliver({ type: "cab-peers", room: m.room, peers: [...r.clients].map((x) => ({ cid: x.cid })) });
+      } else if (m.type === "cab-set") {
+        const r = rooms[this.room];
+        for (const k in m.set) { if (m.set[k] === null) delete r.kv[k]; else r.kv[k] = m.set[k]; }
+        r.seq++;
+        for (const c of r.clients) c.deliver({ type: "cab-set", room: this.room, seq: r.seq, set: m.set, by: this.cid, op: m.op });
+      } else if (m.type === "cab-leave") this.leave();
+    }
+    leave() {
+      const r = this.room && rooms[this.room];
+      if (!r) return;
+      r.clients.delete(this);
+      for (const c of r.clients) c.deliver({ type: "cab-peers", room: this.room, peers: [...r.clients].map((x) => ({ cid: x.cid })) });
+      this.room = null;
+    }
+    close() { this.leave(); this.readyState = 3; setTimeout(() => this.onclose && this.onclose(), 1); }
+  }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  function cab(cid) {
+    const g = vm.createContext({ console, JSON, Math, Date, setTimeout, clearTimeout, setInterval, clearInterval });
+    for (const f of ["common/store.js", "common/strips.js", "common/strip-sync.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), g, { filename: f });
+    const r = (code) => vm.runInContext(code, g);
+    r(`VatflowStore.set("CID", "${cid}")`);
+    const c = new g.VatflowStripSync.Client({ icao: "KATL", WebSocket: FakeWS });
+    return { g, r, c,
+      act: (fn) => { g.fn = fn; r(`VatflowStrips.update("KATL", fn)`); },
+      st: () => JSON.parse(r(`JSON.stringify(VatflowStrips.state("KATL"))`)),
+      cfg: () => JSON.parse(r(`JSON.stringify(VatflowStrips.config("KATL"))`)),
+      status: () => JSON.parse(r(`JSON.stringify(VatflowStore.get("STRIPSYNC_STATUS", null))`)),
+      on: (code, on = true) => r(`VatflowStore.set("STRIPSYNC", { on: ${on}, code: "${code}" })`) };
+  }
+  const run = async (cabs, ms) => { for (let t = 0; t < ms; t += 10) { cabs.forEach((x) => x.c.tick()); await wait(10); } };
+  const strip = (cs) => ({ id: cs, cs, type: "B738", dep: "ATL", dest: "MCO", route: "DCT", rev: 1, seen: Date.now() });
+  const A = cab("1111111"), B = cab("2222222"), both = [A, B];
+  A.act((st) => { st.strips.DAL1 = strip("DAL1"); st.strips.DAL2 = strip("DAL2"); st.bays[1][0].push("DAL1", "DAL2"); });
+  A.on("482913"); await run(both, 60);
+  assert.equal(A.status().state, "ok");
+  // B had a strip of its own: joining a room in use replaces it with the room's
+  B.act((st) => { st.strips.UAL9 = strip("UAL9"); st.bays[0][0].push("UAL9"); });
+  B.on("482913"); await run(both, 80);
+  assert.deepEqual(B.st().bays[1][0], ["DAL1", "DAL2"], "B gets A's strips");
+  assert.ok(!B.st().strips.UAL9, "the room's strips replace B's own");
+  assert.deepEqual(plain(B.status().peers).sort(), ["1111111", "2222222"]);
+  // a move on B shows on A; moves of different strips at once both stay
+  B.act((st) => B.g.VatflowStrips.place(st, "DAL2", 2, 1, -1));
+  await run(both, 60);
+  assert.deepEqual(A.st().bays[2][1], ["DAL2"]);
+  A.act((st) => A.g.VatflowStrips.place(st, "DAL1", 0, 0, -1));
+  B.act((st) => B.g.VatflowStrips.place(st, "DAL2", 2, 0, -1));
+  await run(both, 80);
+  assert.deepEqual(A.st().bays, B.st().bays, "both cabs agree");
+  assert.deepEqual(A.st().bays[0][0], ["DAL1"]);
+  assert.deepEqual(A.st().bays[2][0], ["DAL2"]);
+  // reorder inside a section changes one position key
+  A.act((st) => { st.strips.DAL3 = strip("DAL3"); st.bays[0][0].push("DAL3"); });
+  await run(both, 60);
+  const before = A.c.opN;
+  A.act((st) => A.g.VatflowStrips.place(st, "DAL3", 0, 0, 0));
+  await run(both, 60);
+  assert.equal(A.c.opN, before + 1);
+  assert.deepEqual(B.st().bays[0][0], ["DAL3", "DAL1"]);
+  // holding is your own; delete, bay names shared; bay spots stay your own
+  A.act((st) => { st.held = "DAL1"; });
+  await run(both, 40);
+  assert.equal(B.st().held, null);
+  A.act((st) => { A.g.VatflowStrips.remove(st, "DAL1", true); });
+  A.r(`(function () { var c = VatflowStrips.config("KATL"); c.bays[2].name = "LOCAL EAST"; c.bays[2].face = 6; VatflowStrips.saveConfig("KATL", c); })()`);
+  await run(both, 80);
+  assert.ok(!B.st().strips.DAL1);
+  assert.equal(B.st().dismissed.DAL1, 1, "a deleted strip doesn't print again on B either");
+  assert.equal(B.cfg().bays[2].name, "LOCAL EAST");
+  assert.equal(B.cfg().bays[2].face, 0, "where the bay sits stays B's");
+  // idle: nothing sent, nothing rewritten
+  const nA = A.c.opN, nB = B.c.opN, rB = B.r("VatflowStrips.rev()");
+  await run(both, 100);
+  assert.equal(A.c.opN, nA); assert.equal(B.c.opN, nB); assert.equal(B.r("VatflowStrips.rev()"), rB);
+  // B drops off, changes something meanwhile, comes back: both sides' changes kept
+  B.c.ws.close(); await run([A], 20);
+  B.act((st) => B.g.VatflowStrips.cock(st, "DAL2"));
+  A.act((st) => A.g.VatflowStrips.place(st, "DAL3", 1, 0, -1));
+  B.c.retryAt = 0;
+  await run(both, 120);
+  assert.equal(B.status().state, "ok");
+  assert.equal(A.st().strips.DAL2.cocked, true, "B's change while away reached A");
+  assert.deepEqual(B.st().bays[1][0], ["DAL3"], "A's change reached B");
+  assert.deepEqual(A.st().bays, B.st().bays);
+  // off: B leaves the room, keeps its strips
+  B.on("482913", false); await run(both, 40);
+  assert.equal(B.status().state, "off");
+  assert.equal(plain(A.status().peers).length, 1);
+  assert.ok(B.st().strips.DAL2);
+  // order numbers: moving one strip keeps the others' numbers
+  const S = A.g.VatflowStripSync;
+  const kv = { "p:a": { b: 0, s: 0, o: 1 }, "p:b": { b: 0, s: 0, o: 2 }, "p:c": { b: 0, s: 0, o: 3 } };
+  assert.deepEqual(plain(S.ordsFor(["c", "a", "b"], 0, 0, kv)), [0, 1, 2], "c moved to the top");
+  assert.deepEqual(plain(S.ordsFor(["a", "c", "b"], 0, 0, kv)), [1, 1.5, 2]);
+  assert.deepEqual(plain(S.ordsFor(["a", "b", "x"], 0, 0, kv)), [1, 2, 3], "a new strip at the end");
+});
+
 for (const [name, fn] of tests) { await fn(); passed++; console.log("ok  " + name); }
 
 console.log(`\n${passed} passed`);
