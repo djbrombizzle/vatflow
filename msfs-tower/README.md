@@ -74,7 +74,8 @@ Inside the cab there are two working screens fed by live data:
   the monitor's bottom bezel (it flashes while the alarm sounds; `L:VATFLOW_WS_ALERT`,
   `L:VATFLOW_WS_MUTE`), silences and hides it until that alert is over.
 * **RVR** (any screen's MENU): the FAA's live runway visual range table for the cab's
-  airport (rvr.data.faa.gov, read every minute): touchdown / midpoint / rollout in feet with
+  airport (rvr.data.faa.gov through the VATFLOW hub's `/hub/rvr`, which adds the CORS header the
+  sim needs; read every minute): touchdown / midpoint / rollout in feet with
   trend arrows, amber under 2400 ft, red under 1200 ft, and the edge / centreline light steps.
   US airports with RVR sensors only.
 * **IDST** (fixed to the console right of TWR INFO): VATFLOW release times for DCA

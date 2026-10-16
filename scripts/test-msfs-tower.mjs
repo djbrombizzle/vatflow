@@ -281,6 +281,13 @@ t("RVR monitor: the FAA table for the cab's airport (TD / MP / RO, trends, light
   assert.equal(R.level("0600"), "red");
   assert.equal(R.level("FFF"), "");
   assert.equal(R.parse(""), null, "no RVR at this airport: the FAA sends an empty page");
+  // through the VATFLOW hub (the FAA page has no CORS header for the sim's screens)
+  assert.equal(R.hubUrl({ icao: "KATL", lid: "ATL" }), "https://vatflow-hub-production.up.railway.app/hub/rvr?airport=ATL");
+  const hub = plain(R.fromHub(JSON.stringify({ ok: true, airport: "EUG", name: d.name, time: d.time, rows: d.rows })));
+  assert.deepEqual(hub, d, "the hub's JSON is the same table");
+  assert.equal(R.fromHub('{"ok":true,"airport":"XYZ","rows":[]}'), null);
+  assert.throws(() => R.fromHub('{"ok":false}'));
+  assert.throws(() => R.fromHub("<html>"));
 });
 
 t("IDST: bundled VATFLOW engine lists metered DCA departures and issues / cancels a release", () => {

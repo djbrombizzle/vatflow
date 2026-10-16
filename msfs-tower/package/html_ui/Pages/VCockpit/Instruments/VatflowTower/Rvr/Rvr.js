@@ -4,7 +4,10 @@
  * The FAA's live runway visual range for the airport the cab is at, the table from
  *   https://rvr.data.faa.gov/cgi-bin/rvr-details.pl?content=table&airport=<FAA id>
  * (the same table as the FAA RVR Status Monitor's airport page, without the charts),
- * read again every minute like that page:
+ * read again every minute like that page. The FAA page sends no CORS header, which the
+ * sim's screens need, so it is read through the VATFLOW hub (vatflow-hub /hub/rvr: the
+ * same table as JSON, with CORS); straight from the FAA only if the hub cannot be reached
+ * (works in a browser with CORS turned off, not in the sim):
  *   RWY  TD (touchdown)  MP (midpoint)  RO (rollout)  feet, ">6000" above the top of the
  *        scale, a trend arrow when rising / falling, FFF = sensor failed, blank = none
  *   E    runway edge light step (0..5)    C   centreline light step (0..5)
@@ -13,6 +16,7 @@
  */
 var RvrView = (function () {
   var REFRESH_MS = 60 * 1000;
+  var HUB = "https://vatflow-hub-production.up.railway.app/hub/rvr?airport=";
   var URL = "https://rvr.data.faa.gov/cgi-bin/rvr-details.pl?content=table&rrate=medium&layout=2x2&gifsize=large&fontsize=large&fs=lg&airport=";
 
   function text(html) {
@@ -72,15 +76,32 @@ var RvrView = (function () {
   RvrView.level = level;
   RvrView.faaId = faaId;
   RvrView.url = function (cfg) { return URL + faaId(cfg); };
+  RvrView.hubUrl = function (cfg) { return (cfg.rvrHub || HUB) + faaId(cfg); };
+
+  /** The hub's answer -> the same shape as parse() (null: no RVR here); throws if it is not one. */
+  RvrView.fromHub = function (text) {
+    var j = JSON.parse(text);
+    if (!j || !j.ok || !j.rows) throw new Error(j && j.error ? j.error : "bad hub answer");
+    return j.rows.length ? { name: j.name || "", time: j.time || "", rows: j.rows } : null;
+  };
 
   RvrView.prototype.start = function () {
     var self = this;
+    function done(err, data) {
+      if (err) self.err = err.message || String(err);
+      else { self.err = null; self.data = data; self.at = Date.now(); }
+      self.render();
+      setTimeout(tick, err ? 20000 : REFRESH_MS);
+    }
     function tick() {
-      VatflowFeed.httpGet(RvrView.url(self.cfg), function (err, html) {
-        if (err) self.err = err.message || String(err);
-        else { self.err = null; self.data = parse(html); self.at = Date.now(); }
-        self.render();
-        setTimeout(tick, err ? 20000 : REFRESH_MS);
+      VatflowFeed.httpGet(RvrView.hubUrl(self.cfg), function (err, text) {
+        var data;
+        if (!err) { try { data = RvrView.fromHub(text); } catch (e) { err = e; } }
+        if (!err) { done(null, data); return; }
+        VatflowFeed.httpGet(RvrView.url(self.cfg), function (err2, html) {     // the FAA itself
+          if (err2) done(new Error("hub " + (err.message || err) + ", FAA " + (err2.message || err2)));
+          else done(null, parse(html));
+        });
       });
     }
     tick();
