@@ -11,7 +11,7 @@ Writes, for each texture, NAME.png plus the NAME.png.xml MSFS compiles it with
   TWR_Ceiling_albd.png  1.2 m  - 60 cm charcoal acoustic ceiling tiles in a light grey T-bar grid
   TWR_Console_albd.png  1.0 m  - dark grey matte laminate
   TWR_ConsoleTop_albd.png    1.0 m  - console worktop: medium blue laminate (colours from a cab photo)
-  TWR_ConsoleFront_albd.png  1.0 m  - console fronts: blue fabric panels in 10 cm squares (+ _norm)
+  TWR_ConsoleFront_albd.png  1.0 m  - console fronts: blue perforated steel vent panels, 50 cm wide (+ _norm)
 
 Surface detail (roughness / normal), same size and layout as the base colour:
   TWR_Carpet_comp.png / _norm.png    - fibre and tile seams; seams darker (occlusion)
@@ -171,20 +171,39 @@ def console_top(size=1024):
 
 
 def console_front(size=1024):
-    """Blue fabric acoustic panels in 10 cm squares, each a slightly different blue (photo:
-    #347FC0 in light .. #274172 in shade), thin dark seams. Returns colour and seam height."""
-    n = 10
-    t = size // n
+    """
+    Console fronts: blue powder-coated steel vent panels for the computers inside (photo:
+    #347FC0 in light .. #274172 in shade). One copy = 1 m: two 50 cm panels side by side,
+    each with a solid 3.5 cm frame and a perforated field (6 mm holes on a 12 mm grid, dark
+    behind). The UVs put texture V = height above the floor, so the frame's top and bottom
+    bars sit at the console front's edges (10 cm and 82.5 cm up). Returns colour and height.
+    """
     y, x = np.mgrid[0:size, 0:size]
-    tones = RNG.normal(0, 1, (n, n))
-    lo, hi = hexrgb("2B5C9C"), hexrgb("3B78BC")
-    k = np.clip(0.5 + 0.12 * tones[(y // t) % n, (x // t) % n] + (tile_noise(size, 4) - 0.5) * 0.25, 0, 1)
-    img = lo + (hi - lo) * k[..., None]
-    weave = (np.sin(x * 2.2) * np.sin(y * 2.2)) * 3 + (RNG.random((size, size)) - 0.5) * 10
-    img = img + weave[..., None]
-    seam = ((x % t) < 2) | ((y % t) < 2)
-    img[seam] *= 0.8
-    height = np.where(seam, 0.0, 1.0).astype(np.float32)
+    z = 1.0 - (y + 0.5) / size                      # metres above the floor (image top = 1 m)
+    u = (x + 0.5) / size                            # metres along
+    blue = hexrgb("3270B4")
+    img = np.tile(blue, (size, size, 1)).astype(np.float32)
+    img += ((tile_noise(size, 5) - 0.5) * 8)[..., None]           # powder-coat orange peel
+    fw = 0.035
+    in_frame = ((u % 0.5) < fw) | ((u % 0.5) > 0.5 - fw) | (z < 0.10 + fw) | (z > 0.825 - fw)
+    # perforations: holes on a 12 mm grid, staggered rows
+    pitch = 0.012
+    row = np.floor(z / pitch)
+    hu = (u + (row % 2) * pitch / 2) % pitch - pitch / 2
+    hz = z % pitch - pitch / 2
+    hole = (hu * hu + hz * hz) < (0.0032 ** 2)
+    field = ~in_frame
+    img[field & hole] = hexrgb("0E1A2C")                           # dark behind the holes
+    img[field & ~hole] *= 0.93                                    # the perforated sheet a bit darker
+    # panel seams between frames, and a soft shadow line inside each frame
+    seam = ((u % 0.5) < 0.003) | ((u % 0.5) > 0.497)
+    img[seam] *= 0.45
+    inner = (((u % 0.5) >= fw) & ((u % 0.5) < fw + 0.004)) | ((z >= 0.10 + fw) & (z < 0.10 + fw + 0.004))
+    img[inner & field] *= 0.7
+    height = np.ones((size, size), np.float32)
+    height[field] = 0.85                                          # field set back from the frame
+    height[field & hole] = 0.2
+    height[seam] = 0.3
     return img, blur(height, 1)
 
 

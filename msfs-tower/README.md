@@ -120,7 +120,7 @@ Inside the cab there are two working screens fed by live data:
 
 * **Look** (after photos of a real FAA cab): blue consoles (medium blue laminate worktop, a
   22 cm light grey laminate writing strip along the controller's edge with a dark rounded
-  bumper, blue fabric front panels in 10 cm squares, dark blue kick plinth), the TMU desk in
+  bumper, blue perforated steel vent panels for the computers inside, dark blue kick plinth), the TMU desk in
   the same finish with an oak edge band, charcoal ceiling tiles in a light grey grid with
   round downlights, charcoal grey-blue carpet. Textures from `tools/make_textures.py`
   (colours sampled from the photos); one console segment is built and turned round the cab.

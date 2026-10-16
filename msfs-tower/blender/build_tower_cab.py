@@ -432,8 +432,8 @@ def consoles(coll, a_inner, top, sides):
     """
     The consoles round the cab, after photos of a real cab: medium blue laminate worktop
     with a wide light grey laminate writing strip along the front edge and a dark rounded
-    bumper, blue fabric front panels in
-    10 cm squares (make_textures.py), dark blue kick plinth set back 6 cm. One segment
+    bumper, blue perforated steel vent panels
+    for the computers inside (make_textures.py), dark blue kick plinth set back 6 cm. One segment
     (window face 0, square to the axes) is built and UV mapped, and every console face is
     a turned copy of it (TowerCab_Consoles), so the texture sits the same on all of them.
     """
