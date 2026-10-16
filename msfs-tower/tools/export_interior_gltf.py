@@ -75,6 +75,7 @@ PBR = {
     "TWR_KeyRed": ("8A2020", 0.0, 0.5, 1),
     "TWR_LightPanel": ("FFF4DE", 0.0, 0.5, 1),
     "TWR_KnobLit": ("FFC864", 0.0, 0.5, 1),
+    "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
     "TWR_Wood": ("A07A52", 0.0, 0.55, 1),
     "TWR_DeskTop": ("4C5966", 0.0, 0.6, 1),
     "TWR_Strip": ("EBE6D6", 0.0, 0.8, 1),
@@ -105,6 +106,16 @@ TEXTURED = {
     "TWR_Speaker": {"albd": "TWR_Speaker_albd.png", "m": None},
     "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
 }
+# Parts retextured by Meshy (tools/meshy_retexture.py): their mesh carries its own UVs and the
+# textures are in common/texture; used only when the files are there.
+TEXDIR = os.path.join(HERE, "..", "package", "SimObjects", "Airplanes", "vatflow_tower_cab", "common", "texture")
+for _name in ("TWR_TmuDesk",):
+    if os.path.exists(os.path.join(TEXDIR, _name + "_albd.png")):
+        TEXTURED[_name] = {"albd": _name + "_albd.png", "m": None}
+        if os.path.exists(os.path.join(TEXDIR, _name + "_comp.png")):
+            TEXTURED[_name]["comp"] = _name + "_comp.png"
+        if os.path.exists(os.path.join(TEXDIR, _name + "_norm.png")):
+            TEXTURED[_name]["norm"] = _name + "_norm.png"
 IDST_KEYS = {"1": "IDST - select the aircraft above", "2": "IDST - select the aircraft below",
              "3": "IDST - issue the release for the selected aircraft", "4": "IDST - cancel the selected release"}
 

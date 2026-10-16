@@ -118,6 +118,10 @@ Inside the cab there are two working screens fed by live data:
   `3-place-KDCA.bat` can still loop a quiet fan sound (`placement/cab_fan.wav`, made by
   `tools/make_fan_sound.py`).
 
+* **TMU desk** retextured with Meshy (`tools/meshy_retexture.py`: export the part, Meshy retexture,
+  fit the result back, textures `TWR_TmuDesk_*`; the mesh is `blender/assets/tmu_desk.glb`, 432
+  triangles, built in by `retextured_part` in the Blender script).
+
 ## Flight strip bays
 
 Three strip bays (TMU, GROUND, LOCAL by default) stand at the front of the consoles, each a

@@ -32,6 +32,7 @@ Conventions
 """
 
 import math
+import os
 import sys
 
 import bmesh
@@ -336,6 +337,47 @@ def ceiling_lights(inside, z):
 CEILING_LIGHTS = [(0.0, 0.0), (1.9, 0.0), (-1.9, 0.0), (0.0, 1.9), (0.0, -1.9)]
 
 
+def bevel_edges(obj, width, segments=2):
+    """Rounds every box edge of a part a little (catches the light; a few hundred triangles)."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=width, segments=segments, affect="EDGES", profile=0.5)
+    bm.to_mesh(obj.data)
+    bm.free()
+
+
+ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+
+def retextured_part(obj, asset):
+    """
+    If blender/assets/<asset>.glb exists (a Meshy retexture of this part, fitted by
+    tools/meshy_retexture.py), its mesh and UVs replace the part's, with one material
+    TWR_<Asset> (textures in common/texture). Else the part keeps its plain materials.
+    """
+    path = os.path.join(ASSETS, asset + ".glb")
+    if not os.path.exists(path):
+        return
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
+    if not new:
+        return
+    src = new[0]
+    src.data.transform(src.matrix_world)                 # the asset is stored in cab coordinates
+    mat_name = "TWR_" + "".join(p.capitalize() for p in asset.split("_"))
+    mat = bpy.data.materials.get(mat_name) or bpy.data.materials.new(mat_name)
+    src.data.materials.clear()
+    src.data.materials.append(mat)
+    old = obj.data
+    obj.data = src.data
+    obj.data.name = obj.name
+    for o in [x for x in bpy.data.objects if x not in before and x != obj]:    # the imported objects
+        bpy.data.objects.remove(o, do_unlink=True)
+    bpy.data.meshes.remove(old)
+
+
 def tmu_desk(inside, coll, a_inner, top):
     """
     TMU position in the back-left corner (window face 3), after the DCA TMU desk.
@@ -362,10 +404,17 @@ def tmu_desk(inside, coll, a_inner, top):
         return start + toward * s_ + side * t_ + Vector((0, 0, z))
 
     mid = length / 2
-    inside.box(P2(mid, 0, top - 0.02), (w, length, 0.04), "TWR_DeskTop", rot_z=drot)             # top
-    inside.box(P2(mid, 0, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=drot) # oak edge band
-    inside.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_Wood", rot_z=drot)
-    inside.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_Bezel", rot_z=drot)      # dark kick plinth
+    # the desk is its own object (TowerCab_TmuDesk), so it can be textured on its own (Meshy
+    # retexture: tools/meshy_retexture.py); vatflow_frame = its origin and turn, for that tool
+    desk = Builder("TowerCab_TmuDesk", coll)
+    desk.box(P2(mid, 0, top - 0.02), (w, length, 0.04), "TWR_DeskTop", rot_z=drot)             # top
+    desk.box(P2(mid, 0, top - 0.10), (w + 0.03, length + 0.015, 0.12), "TWR_Wood", rot_z=drot) # oak edge band
+    desk.box(P2(mid, 0, (top - 0.16) / 2 + 0.05), (w - 0.06, length - 0.04, top - 0.26), "TWR_Wood", rot_z=drot)
+    desk.box(P2(mid, 0, 0.05), (w - 0.10, length - 0.08, 0.10), "TWR_Bezel", rot_z=drot)      # dark kick plinth
+    desk_obj = desk.finish()
+    bevel_edges(desk_obj, 0.006)
+    desk_obj["vatflow_frame"] = (start.x, start.y, 0.0, drot)
+    retextured_part(desk_obj, "tmu_desk")
 
     # red LED clock cabinet at the console end of the desk, facing the TMU corner (-side)
     inside.box(P2(0.35, 0, top + 0.11), (0.30, 0.42, 0.22), "TWR_PanelGrey", rot_z=drot)
