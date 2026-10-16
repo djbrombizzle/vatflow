@@ -1,6 +1,6 @@
 # VATFLOW Tower Cab - builds what testers get, from the project, onto the Desktop:
-#   VATFLOW-TowerCab-Setup.exe  one installer with both packages (setup\setup.ps1, made with
-#                               Windows' own IExpress): finds Community, installs / updates / removes
+#   VATFLOW-TowerCab-Setup.exe  one installer with both packages (setup\setup.ps1 and
+#                               setup\SetupStub.cs, built with Windows' own .NET compiler): finds Community, installs / updates / removes
 #   vatflow-towercab-test.zip   the cab (from the built package in Packages\), to install by hand
 #   vatflow-towercab-maps.zip   the ARTCC video maps package, empty (testers add their own ARTCC file)
 #   make-community-zip.ps1 <project folder>
@@ -200,49 +200,49 @@ Remove-Item $stage -Recurse -Force
 Write-Host "Maps: $mzip  (no ARTCC files: testers add their own)"
 }
 
-# ---- the one-file installer (IExpress, part of Windows) -------------------------------------
+# ---- the one-file installer ----------------------------------------------------------------
+# setup\SetupStub.cs compiled by Windows' own .NET Framework compiler (Add-Type), with the
+# payload zip (setup.ps1, install-maps-package.ps1, both package zips) appended:
+#   [stub exe][payload.zip][payload length, 8 bytes][VTCSETUP]
 $exe = Join-Path $desktop "VATFLOW-TowerCab-Setup.exe"
-$iexpress = Join-Path $env:SystemRoot "System32\iexpress.exe"
 $setupSrc = Join-Path $PSScriptRoot "setup"
-if (-not (Test-Path $iexpress)) { Write-Host "Setup EXE: skipped (no IExpress in Windows here); the zips work on their own." }
-elseif (-not (Test-Path (Join-Path $setupSrc "setup.ps1"))) { Write-Host "Setup EXE: skipped ($setupSrc missing: run the latest install.bat)." }
+if (-not (Test-Path (Join-Path $setupSrc "SetupStub.cs"))) { Write-Host "Setup EXE: skipped ($setupSrc missing: run the latest install.bat)." }
 else {
   $stage = Join-Path $env:TEMP "vatflow-towercab-setup"
-  if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
-  New-Item -ItemType Directory $stage | Out-Null
-  Copy-Item (Join-Path $setupSrc "setup.cmd"), (Join-Path $setupSrc "setup.ps1") $stage
-  Copy-Item (Join-Path $Proj "maps-package\install-maps-package.ps1") $stage
-  Copy-Item $zip (Join-Path $stage "$Name.zip")
-  if ($mzip) { Copy-Item $mzip (Join-Path $stage "vatflow-towercab-maps.zip") }
-  $tmpExe = Join-Path $env:TEMP "VATFLOW-TowerCab-Setup.exe"
-  if (Test-Path $tmpExe) { Remove-Item $tmpExe -Force }
-  $files = @(Get-ChildItem $stage -File | ForEach-Object { $_.Name })
-  if (Test-Path $exe) { Remove-Item $exe -Force }
-  $sed = New-Object Text.StringBuilder
-  foreach ($l in @("[Version]", "Class=IEXPRESS", "SEDVersion=3", "[Options]", "PackagePurpose=InstallApp",
-      "ShowInstallProgramWindow=1", "HideExtractAnimation=0", "UseLongFileName=1", "InsideCompressed=0",
-      "CAB_FixedSize=0", "CAB_ResvCodeSigning=0", "RebootMode=N", "InstallPrompt=%InstallPrompt%",
-      "DisplayLicense=%DisplayLicense%", "FinishMessage=%FinishMessage%", "TargetName=%TargetName%",
-      "FriendlyName=%FriendlyName%", "AppLaunched=%AppLaunched%", "PostInstallCmd=%PostInstallCmd%",
-      "AdminQuietInstCmd=%AdminQuietInstCmd%", "UserQuietInstCmd=%UserQuietInstCmd%", "SourceFiles=SourceFiles",
-      "[Strings]", "InstallPrompt=", "DisplayLicense=", "FinishMessage=", "TargetName=$tmpExe",
-      "FriendlyName=$Title setup", "AppLaunched=cmd /c setup.cmd", "PostInstallCmd=<None>",
-      "AdminQuietInstCmd=", "UserQuietInstCmd=")) { [void]$sed.AppendLine($l) }
-  for ($i = 0; $i -lt $files.Count; $i++) { [void]$sed.AppendLine("FILE$i=`"$($files[$i])`"") }
-  [void]$sed.AppendLine("[SourceFiles]")
-  [void]$sed.AppendLine("SourceFiles0=$stage\")
-  [void]$sed.AppendLine("[SourceFiles0]")
-  for ($i = 0; $i -lt $files.Count; $i++) { [void]$sed.AppendLine("%FILE$i%=") }
-  $sedFile = Join-Path $env:TEMP "vatflow-towercab-setup.sed"
-  [IO.File]::WriteAllText($sedFile, $sed.ToString(), [Text.Encoding]::Default)
-  Write-Host "Setup EXE: packing (IExpress, a minute or two)..."
-  Start-Process $iexpress -ArgumentList "/N", "/Q", "`"$sedFile`"" -Wait -WindowStyle Hidden
-  Remove-Item $stage -Recurse -Force
-  Remove-Item $sedFile -Force
-  # IExpress writes to TEMP (no spaces / OneDrive in the path), then it goes to the Desktop
-  if (Test-Path $tmpExe) { Move-Item $tmpExe $exe -Force }
-  if (Test-Path $exe) { Write-Host "Setup: $exe  (give testers this one file)" }
-  else { Write-Host "Setup EXE: IExpress made nothing; give testers the zips instead." }
+  $payload = Join-Path $env:TEMP "vatflow-towercab-payload.zip"
+  $stub = Join-Path $env:TEMP ("vatflow-towercab-stub-" + [guid]::NewGuid().ToString("N").Substring(0, 8) + ".exe")
+  try {
+    Write-Host "Setup EXE: packing..."
+    if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+    New-Item -ItemType Directory $stage | Out-Null
+    Copy-Item (Join-Path $setupSrc "setup.ps1") $stage
+    Copy-Item (Join-Path $Proj "maps-package\install-maps-package.ps1") $stage
+    Copy-Item $zip (Join-Path $stage "$Name.zip")
+    if ($mzip) { Copy-Item $mzip (Join-Path $stage "vatflow-towercab-maps.zip") }
+    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+    if (Test-Path $payload) { Remove-Item $payload -Force }
+    [IO.Compression.ZipFile]::CreateFromDirectory($stage, $payload, [IO.Compression.CompressionLevel]::NoCompression, $false)
+    $refs = @([IO.Compression.ZipArchive].Assembly.Location, [IO.Compression.ZipFile].Assembly.Location)
+    Add-Type -TypeDefinition (Get-Content (Join-Path $setupSrc "SetupStub.cs") -Raw) -OutputAssembly $stub `
+      -OutputType ConsoleApplication -ReferencedAssemblies $refs
+    if (Test-Path $exe) { Remove-Item $exe -Force }
+    $out = [IO.File]::Create($exe)
+    try {
+      foreach ($f in @($stub, $payload)) {
+        $in = [IO.File]::OpenRead($f)
+        try { $in.CopyTo($out) } finally { $in.Dispose() }
+      }
+      [byte[]]$tail = [BitConverter]::GetBytes([long](Get-Item $payload).Length) + [Text.Encoding]::ASCII.GetBytes("VTCSETUP")
+      $out.Write($tail, 0, $tail.Length)
+    } finally { $out.Dispose() }
+    Write-Host "Setup: $exe  (give testers this one file)"
+  } catch {
+    Write-Host "Setup EXE: failed: $($_.Exception.Message)"
+    Write-Host "Give testers the zips instead, and send this message to whoever looks after the setup."
+    if (Test-Path $exe) { Remove-Item $exe -Force -ErrorAction SilentlyContinue }
+  } finally {
+    foreach ($f in @($stage, $payload, $stub)) { if (Test-Path $f) { Remove-Item $f -Recurse -Force -ErrorAction SilentlyContinue } }
+  }
 }
 Write-Host ""
 Write-Host "Note: on THIS PC don't put the cab zip in Community while the project is open in the editor"

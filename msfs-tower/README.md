@@ -262,8 +262,9 @@ tester zips go out without them: each tester adds their own. The installer copie
    package from `Packages\`, checks there is no VATSIM CID in it, names it
    `vatflow-towercab` (title "VATFLOW Tower Cab (test)") and writes to your Desktop:
    * **`VATFLOW-TowerCab-Setup.exe`**: the one file to give testers. It holds both
-     packages and `distribution/setup/setup.ps1`, packed by Windows' own IExpress (nothing to
-     install to make it).
+     packages and `distribution/setup/setup.ps1`. The EXE is `distribution/setup/SetupStub.cs`,
+     compiled by Windows' own .NET Framework compiler (PowerShell `Add-Type`, nothing to
+     install), with the packages appended; it unpacks them to a temp folder and runs the setup.
    * `vatflow-towercab-test.zip` (with install instructions) and `vatflow-towercab-maps.zip`
      (the ARTCC video maps package, no ARTCC files): the same packages, to install by hand.
 3. Testers run the setup EXE. It waits until MSFS is closed, finds the Community folder from

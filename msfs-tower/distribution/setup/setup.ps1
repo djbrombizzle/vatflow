@@ -1,5 +1,5 @@
 # VATFLOW Tower Cab - the setup that runs inside VATFLOW-TowerCab-Setup.exe (built by
-# make-community-zip.ps1 with Windows' own IExpress). Next to it in the EXE:
+# make-community-zip.ps1: SetupStub.cs unpacks it to a temp folder and runs it). Next to it:
 #   vatflow-towercab.zip          the cab package
 #   vatflow-towercab-maps.zip     the ARTCC video maps package (no ARTCC files), if there was one
 #   install-maps-package.ps1      copies the maps package in, keeping ARTCC files already there
