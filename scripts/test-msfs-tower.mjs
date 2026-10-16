@@ -1246,6 +1246,21 @@ ta("TRAFFIC: when GET_AIR_TRAFFIC isn't bound the first way, the other ways are 
   assert.ok(mapsCalls >= 2, "and that way is kept");
 });
 
+
+ta("field elevation: from the ground under the cab (up in the tower too), else the FAA tower data", async () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/faa-towers.js", BASE), "utf8"), g);
+  const S = g.VatflowSite;
+  // KTUS (Tucson, about 2,643 ft): the FAA tower's top minus its height
+  const tus = S.faaElevFt({ lat: 32.1161, lon: -110.9410 });
+  assert.ok(Math.abs(tus - 2643) < 60, "KTUS " + tus);
+  assert.equal(S.faaElevFt({ lat: 51.47, lon: -0.45 }), null, "no FAA data outside the US");
+  // apply(): a site with no elevation gets the FAA one, so the Ground Radar doesn't hide everything
+  const cfg = JSON.parse(JSON.stringify(vm.runInContext("VATFLOW_TWR", g)));
+  S.apply(cfg, { icao: "KTUS", name: "Tucson", lid: "TUS", arp: { lat: 32.1161, lon: -110.9410 }, elevFt: 0, data: null });
+  assert.ok(Math.abs(cfg.elevFt - 2643) < 60, "cfg " + cfg.elevFt);
+});
+
 for (const [name, fn] of tests) { await fn(); passed++; console.log("ok  " + name); }
 
 console.log(`\n${passed} passed`);

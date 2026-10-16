@@ -102,6 +102,21 @@ var VatflowSite = (function () {
   }
 
   /** Makes VATFLOW_TWR describe site s (data: runways / tower / maps when known). */
+  /**
+   * Field elevation from the FAA control tower data (common/faa-towers.js: [lat, lon, agl,
+   * amsl]): the ground under the airport's tower = its top minus its height. US only; null
+   * when there is no tower within 2.5 nm.
+   */
+  function faaElevFt(arp) {
+    if (typeof VATFLOW_FAA_TOWERS === "undefined" || !arp) return null;
+    var best = null, bestD = 2.5;
+    for (var i = 0; i < VATFLOW_FAA_TOWERS.length; i++) {
+      var t = VATFLOW_FAA_TOWERS[i], d = distNm(arp.lat, arp.lon, t[0], t[1]);
+      if (d < bestD) { bestD = d; best = t; }
+    }
+    return best ? Math.round(best[3] - best[2]) : null;
+  }
+
   function apply(cfg, s, overrides) {
     var data = s.data || {};
     var lid = s.lid || (s.icao.length === 4 && s.icao.charAt(0) === "K" ? s.icao.slice(1) : s.icao);
@@ -109,7 +124,7 @@ var VatflowSite = (function () {
     cfg.lid = lid;
     cfg.name = s.name || s.icao;
     cfg.arp = { lat: s.arp.lat, lon: s.arp.lon };
-    cfg.elevFt = s.elevFt || 0;
+    cfg.elevFt = s.elevFt || faaElevFt(s.arp) || 0;
     if (typeof s.magVar === "number") cfg.magVarDeg = Math.round(s.magVar * 10) / 10;
     cfg.runways = data.runways || [];
     cfg.tower = data.tower ? { lat: data.tower.lat, lon: data.tower.lon } : cfg.arp;
@@ -182,9 +197,13 @@ var VatflowSite = (function () {
       return;
     }
     var last = typeof VatflowStore !== "undefined" ? VatflowStore.get("SITE_LAST", null) : null;
+    // the ground under the cab: the field's elevation (the tower stands on it), valid up in
+    // the tower too, not only on the ground
+    var ground = isFinite(st.groundFt) && st.groundFt > -1500 && st.groundFt < 15000 ? Math.round(st.groundFt) : null;
     function withData(s2) {
       var cached = typeof VatflowStore !== "undefined" ? VatflowStore.get("APT_" + s2.icao, null) : null;
       if (cached) { s2.data = cached; if (cached.elevFt) s2.elevFt = cached.elevFt; }
+      if (!s2.elevFt && ground !== null) s2.elevFt = ground;      // (an older saved spot had 0)
       s2.magVar = st.magVar;
       finish(s2);
     }
@@ -193,7 +212,7 @@ var VatflowSite = (function () {
       var a = list ? nearest(list, st.lat, st.lon, VATSPY_NM) : null;
       var s2 = a ? { icao: a.icao, name: a.name, lid: a.lid, arp: { lat: a.lat, lon: a.lon } }
         : { icao: "----", name: "UNKNOWN AIRPORT", lid: "", arp: { lat: st.lat, lon: st.lon } };
-      s2.elevFt = st.onGround ? Math.round(st.groundFt) : 0;
+      s2.elevFt = ground !== null ? ground : 0;
       if (a && typeof VatflowStore !== "undefined") VatflowStore.set("SITE_LAST", s2);
       withData(s2);
     });
@@ -241,6 +260,7 @@ var VatflowSite = (function () {
   function reset() { site = null; busy = false; waiting = []; }
 
   return {
+    faaElevFt: faaElevFt,
     resolve: resolve, loadData: loadData, current: current, apply: apply, simState: simState,
     parseVatspy: parseVatspy, nearest: nearest, distNm: distNm, reset: reset, loadVatspy: loadVatspy
   };
