@@ -177,13 +177,39 @@ var RampMapView = (function () {
   }
 
   /**
+   * Boxes and circles on the screen, filed in a grid of cells so "what is near this box"
+   * only looks at its own cells (the label layout asks that thousands of times a frame).
+   */
+  function Grid(W, H) { this.cell = 64; this.cols = Math.ceil(W / 64) + 2; this.cells = {}; this.stamp = 0; }
+  Grid.prototype.span = function (x0, y0, x1, y1, fn) {
+    var c = this.cell, i0 = Math.max(-1, Math.floor(x0 / c)), i1 = Math.floor(x1 / c), j0 = Math.max(-1, Math.floor(y0 / c)), j1 = Math.floor(y1 / c);
+    for (var j = j0; j <= j1; j++) for (var i = i0; i <= i1; i++) fn(j * 4096 + i);
+  };
+  Grid.prototype.add = function (item) {
+    var b = item.box || { x0: item.x - item.r, y0: item.y - item.r, x1: item.x + item.r, y1: item.y + item.r }, cells = this.cells;
+    this.span(b.x0, b.y0, b.x1, b.y1, function (k) { (cells[k] || (cells[k] = [])).push(item); });
+  };
+  /** Calls fn once for each item filed in the cells box b covers. */
+  Grid.prototype.near = function (b, fn) {
+    var cells = this.cells, st = ++this.stamp;
+    this.span(b.x0, b.y0, b.x1, b.y1, function (k) {
+      var list = cells[k];
+      if (!list) return;
+      for (var i = 0; i < list.length; i++) { if (list[i]._st !== st) { list[i]._st = st; fn(list[i]); } }
+    });
+  };
+
+  /**
    * Label blocks, laid out as ramp.html placeLabels: in priority order, each goes to the
    * first spot round its aircraft (out along the nose, then turned, then further out)
    * that hits no placed block, aircraft or ramp title; blocks that must show take the
-   * least crowded spot, the others are dropped. k = chart units per screen pixel.
+   * least crowded spot, the others are dropped. Gate numbers of empty stands (most of a
+   * big airport) only try the spot along the nose. k = chart units per screen pixel.
    */
   function placeLabels(ctx, labels, obstacles, k, view) {
-    var F = BIG * k, f = SMALL * k, pad = 1.5 * k, placed = [], dropped = 0;
+    var F = BIG * k, f = SMALL * k, pad = 1.5 * k, dropped = 0;
+    var grid = new Grid(view.x1, view.y1);
+    obstacles.forEach(function (o) { grid.add(o); });
     function hitBox(a, b) { return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1; }
     function hitCirc(b, o) {
       var cx = Math.max(b.x0, Math.min(o.x, b.x1)), cy = Math.max(b.y0, Math.min(o.y, b.y1));
@@ -196,10 +222,11 @@ var RampMapView = (function () {
       var sizes = L0.lines.map(function (l) { return l.small ? f : F; });
       var w = Math.max.apply(null, L0.lines.map(function (l, i) { return String(l.t).length * sizes[i] * 0.6; })) + pad * 2;
       var hgt = sizes.reduce(function (a, b) { return a + b * 1.12; }, 0) + pad;
-      var cands = [], gap = 14;
-      var rings = L0.must ? [0, 1, 2, 3, 4] : [0, 1, 2];
+      var cands = [], gap = 14, plain = L0.pri >= 9;
+      var rings = L0.must ? [0, 1, 2, 3, 4] : plain ? [0] : [0, 1, 2];
+      var turns = plain ? [0, 180] : [0, 35, -35, 70, -70, 110, -110, 180];
       rings.forEach(function (ring) {
-        [0, 35, -35, 70, -70, 110, -110, 180].forEach(function (turn) {
+        turns.forEach(function (turn) {
           var a = Math.atan2(L0.uy, L0.ux) + turn * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
           var reach = Math.abs(ux) * w / 2 + Math.abs(uy) * hgt / 2;
           var d = gap + reach + ring * (hgt + 4 * k);
@@ -212,17 +239,16 @@ var RampMapView = (function () {
         var b = { x0: c.cx - w / 2, x1: c.cx + w / 2, y0: c.cy - hgt / 2, y1: c.cy + hgt / 2 };
         var score = 0;
         if (b.x0 < view.x0 || b.x1 > view.x1 || b.y0 < view.y0 || b.y1 > view.y1) score += 20;
-        for (var pi = 0; pi < placed.length; pi++) if (hitBox(b, placed[pi])) score += 10;
-        for (var oi = 0; oi < obstacles.length; oi++) {
-          var o = obstacles[oi];
-          if (o.box ? hitBox(b, o.box) : hitCirc(b, o)) score += o.soft ? 0.6 : o.box ? 2 : 3;
-        }
+        grid.near(b, function (o) {
+          if (o.placed) { if (hitBox(b, o.box)) score += 10; }
+          else if (o.box ? hitBox(b, o.box) : hitCirc(b, o)) score += o.soft ? 0.6 : o.box ? 2 : 3;
+        });
         score += c.ring * 0.5 + Math.abs(c.turn) / 400;
         if (score < bestScore) { bestScore = score; best = { cx: c.cx, cy: c.cy, ring: c.ring, turn: c.turn, b: b }; }
         if (score < 1) break;
       }
       if (bestScore >= 3 && !L0.must) { if (L0.pri < 9) dropped++; return; }
-      placed.push(best.b);
+      grid.add({ box: best.b, placed: true });
       draws.push({ L0: L0, best: best, sizes: sizes });
     });
     // leaders first, then text on top
@@ -243,12 +269,14 @@ var RampMapView = (function () {
     });
     ctx.textAlign = "center";
     ctx.lineJoin = "round";
+    var lastFont = "";
     draws.forEach(function (d) {
       var y = d.best.b.y0 + pad / 2;
       for (var i = 0; i < d.L0.lines.length; i++) {
         var l = d.L0.lines[i], size = d.sizes[i];
         y += size;
-        ctx.font = (l.w >= 700 ? "bold " : "") + size.toFixed(2) + "px sans-serif";
+        var font = (l.w >= 700 ? "bold " : "") + Math.round(size) + "px sans-serif";
+        if (font !== lastFont) { ctx.font = font; lastFont = font; }
         ctx.lineWidth = size * 0.3;
         ctx.strokeStyle = "#0a0f15";
         ctx.strokeText(l.t, d.best.cx, y - size * 0.18);
@@ -267,6 +295,14 @@ var RampMapView = (function () {
    */
   RampMapView.prototype.draw = function (now) {
     now = now || Date.now();
+    // Big airports cost a lot to draw in the sim's browser: only draw again when the data,
+    // the selection or the screen's heading changed, or every 20 s (P-time countdowns).
+    var key = [this.data.version || 0, this.sel ? this.sel.map(function (v) { return v.id; }).join() : "ALL",
+      Math.round(this.upHdg || 0), this.boots || 0, this.data.problem()].join("|");
+    if (key === this.lastKey && now - (this.lastDraw || 0) < 20000 && !this.force) return;
+    this.lastKey = key;
+    this.lastDraw = now;
+    this.force = false;
     var ctx = this.ctx, W = this.canvas.width, H = this.canvas.height, L = this.L;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = C.bg;

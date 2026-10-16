@@ -282,7 +282,11 @@ var VatflowApps = (function () {
         // not picked yet: this airport, the screen's own view (worked out once the layout is in)
         var here = ctx.cfg.icao;
         var sel = VatflowStore.get(key, null) || (VatflowRampData.has(here) ? { icao: here, views: null } : null);
-        var tick = VatflowDraw.loop(note(cv, "RAMP MAP - TAP RAMPS TO PICK AN AIRPORT"), 2000);
+        // one draw loop for the screen, drawing whatever it shows now (each loop keeps its own
+        // timer, so a loop per view left the old ones painting over the new one)
+        var showing = note(cv, "RAMP MAP - TAP RAMPS TO PICK AN AIRPORT");
+        var tick = VatflowDraw.loop({ canvas: cv, draw: function (n, z) { showing.draw(n, z); } }, 2000);
+        function display(v) { showing = v; tick(true); }
         function show(s, remember) {                              // remember: picked, not the screen's default
           var token = ++my;
           sel = s;
@@ -290,18 +294,16 @@ var VatflowApps = (function () {
           cur = null;
           function ready(raw) {
             if (token !== my) return;
-            if (!raw) { tick = VatflowDraw.loop(note(cv, "COULD NOT LOAD THE " + s.icao + " RAMP LAYOUT"), 2000); tick(true); return; }
+            if (!raw) { display(note(cv, "COULD NOT LOAD THE " + s.icao + " RAMP LAYOUT")); return; }
             if (!s.views) s.views = defaultViews(raw, ctx.screen);
             cur = new RampMapView(cv, null, s.views, VatflowRampData.shared(s.icao, raw, ctx.cfg.feedUrl));
             cur.upHdg = ctx.upHeading();
             cur.boots = ctx.boots;
-            tick = VatflowDraw.loop(cur, 2000);
-            tick(true);
+            display(cur);
           }
           var have = VatflowRampData.cached(s.icao);
           if (have) { ready(have); return; }                     // loaded already: no LOADING flash
-          tick = VatflowDraw.loop(note(cv, "LOADING " + s.icao + " RAMPS..."), 2000);
-          tick(true);
+          display(note(cv, "LOADING " + s.icao + " RAMPS..."));
           VatflowRampData.layout(s.icao, ready);
         }
         var picker = new RampPicker(el, { here: ctx.cfg.icao, current: function () { return sel; }, onPick: function (s) { show(s, true); } });

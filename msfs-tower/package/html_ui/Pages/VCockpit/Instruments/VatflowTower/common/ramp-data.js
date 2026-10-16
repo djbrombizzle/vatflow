@@ -55,8 +55,24 @@ var VatflowRampData = (function () {
     this.feedErr = "";
   }
 
-  RampData.prototype.setPilots = function (feed) { this.pilots = (feed && feed.pilots) || []; this.feedErr = ""; };
+  /**
+   * Keeps only the pilots this airport's ramp can show (to or from it, or near it): the
+   * rows are worked out from them on every draw. version counts updates (redraw when it changes).
+   */
+  RampData.prototype.setPilots = function (feed) {
+    var L = this.L, all = (feed && feed.pilots) || [], keep = [];
+    for (var i = 0; i < all.length; i++) {
+      var p = all[i], fp = p.flight_plan || {};
+      if (!L || String(fp.arrival || "").toUpperCase() === L.icao || String(fp.departure || "").toUpperCase() === L.icao ||
+          (R && isFinite(p.latitude) && R.distNm(p.latitude, p.longitude, L.field.lat, L.field.lon) < 10)) keep.push(p);
+    }
+    this.pilots = keep;
+    this.feedErr = "";
+    this.version = (this.version || 0) + 1;
+  };
   RampData.prototype.setHub = function (resp) {
+    var sig = resp && resp.ok && resp.state ? JSON.stringify(resp.state).length + ":" + (resp.state.updatedAt || resp.state.rev || "") : "x";
+    if (sig !== this.hubSig) { this.hubSig = sig; this.version = (this.version || 0) + 1; }
     if (resp && resp.ok && resp.state) {
       this.state = resp.state;
       this.realGates = resp.realGates || {};
