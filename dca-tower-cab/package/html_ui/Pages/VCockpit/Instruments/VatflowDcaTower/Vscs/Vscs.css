@@ -1,0 +1,8 @@
+/* 512x384: voice switch (VSCS / ETVS style) touch panel - grid of green line keys. */
+vatflow-vscs, #vs-root { display: block; width: 100%; height: 100%; }
+#vs-root { box-sizing: border-box; padding: 8px; background: #0c0f0c; font-family: monospace; overflow: hidden; }
+.vs-grid { display: flex; flex-wrap: wrap; }
+.vs-key { box-sizing: border-box; width: 92px; height: 58px; margin: 0 6px 6px 0; padding-top: 6px;
+  background: #142114; border: 2px solid #2c4a2c; color: #59d659; text-align: center; font-size: 15px; line-height: 20px; }
+.vs-key.on { background: #2f8f2f; border-color: #8ff08f; color: #04140a; font-weight: bold; }
+.vs-key.blank { background: #101410; border-color: #1c261c; }

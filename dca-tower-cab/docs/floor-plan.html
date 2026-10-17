@@ -1,0 +1,213 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>DCA Cab Floor Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a single sheet — title strip, the plan drawn edge to edge, legend beneath. Drafting-sheet vernacular: ink on bluish paper, monospace callouts, condensed position labels. */
+  :root {
+    --bg: #eef1f4;
+    --paper: #f8f9fa;
+    --ink: #1c2733;
+    --line: #5c6b78;
+    --muted: #7b8894;
+    --grid: #d7dde3;
+    --pos: #a23b2a;
+    --verify: #9a6a0e;
+    --verify-bg: #f6e9c7;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161c; --paper: #171f27; --ink: #e4eaf0; --line: #9aa8b5; --muted: #7f8c99;
+      --grid: #243039; --pos: #e8846f; --verify: #e3b14f; --verify-bg: #3a2e12; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161c; --paper: #171f27; --ink: #e4eaf0; --line: #9aa8b5; --muted: #7f8c99;
+    --grid: #243039; --pos: #e8846f; --verify: #e3b14f; --verify-bg: #3a2e12; color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--mono);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 40px; }
+  .sheet { max-width: 1040px; margin: 0 auto; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px;
+    border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: 30px; letter-spacing: .02em; margin: 0; text-wrap: balance; }
+  .meta { font-size: 12px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  .plan { background: var(--paper); border: 1px solid var(--grid); overflow-x: auto; }
+  svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; font-size: 12.5px; line-height: 1.5; }
+  .legend h2 { font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 4px; }
+  .legend p { margin: 0; color: var(--muted); }
+  .swatch { display: inline-block; width: 1.9em; padding: 0 .3em; background: var(--verify-bg); color: var(--verify); border-radius: 2px; font-weight: 500; }
+  .pos-key { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 14px; font-variant-numeric: tabular-nums; }
+  .pos-key b { color: var(--pos); font-weight: 500; }
+
+  /* SVG styling */
+  .wall { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linejoin: miter; }
+  .inner { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+  .turret { fill: var(--bg); stroke: var(--ink); stroke-width: 1.4; }
+  .eq { fill: var(--paper); stroke: var(--line); stroke-width: 1; }
+  .eq-l { fill: none; stroke: var(--line); stroke-width: 1; }
+  .rail { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+  .hair { fill: none; stroke: var(--line); stroke-width: .7; }
+  .stair { fill: none; stroke: var(--line); stroke-width: .9; }
+  .pillar { fill: var(--ink); }
+  .pos { font-family: var(--display); font-weight: 600; font-size: 30px; fill: var(--pos); letter-spacing: .03em; }
+  .posn { font-family: var(--mono); font-size: 11px; fill: var(--pos); letter-spacing: .04em; }
+  .lbl { font-family: var(--mono); font-size: 9.5px; fill: var(--ink); letter-spacing: .02em; }
+  .lbl-s { font-family: var(--mono); font-size: 8px; fill: var(--muted); }
+  .note { font-family: var(--mono); font-size: 9px; fill: var(--ink); }
+  .dim { fill: none; stroke: var(--line); stroke-width: .8; }
+  .dimt { font-family: var(--mono); font-size: 9px; fill: var(--ink); }
+  .ver { font-family: var(--mono); font-size: 9px; fill: var(--verify); font-weight: 500; }
+  .verbox { fill: var(--verify-bg); stroke: var(--verify); stroke-width: .6; }
+  .tb { fill: var(--paper); stroke: var(--ink); stroke-width: 1.4; }
+  .tbt { font-family: var(--display); font-weight: 600; font-size: 20px; fill: var(--ink); letter-spacing: .04em; }
+  .leader { fill: none; stroke: var(--line); stroke-width: .8; }
+</style>
+
+<div class="sheet">
+  <header>
+    <h1>DCA Tower Cab — Equipment View Floor Plan</h1>
+    <div class="meta">Redrawn from scan · original scale 3/4" = 1'-0" · not plan view · turret slopes to scale</div>
+  </header>
+
+  <div class="plan">
+  <svg viewBox="0 0 1202 1446" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Octagonal tower cab floor plan showing controller positions around the perimeter, two central console islands, and a stair and kitchen core at the lower right">
+    <defs>
+      <marker id="tick" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M1 5 L5 1" stroke="currentColor" stroke-width="1.2"/>
+      </marker>
+    </defs>
+
+    <!-- ===== Outer cab wall ===== -->
+    <polygon class="wall" points="495,58 745,58 1000,245 1155,490 1180,560 1180,930 1050,1200 750,1420 480,1420 240,1215 60,900 60,540 240,245"/>
+
+    <!-- ===== Perimeter console outlines ===== -->
+    <rect class="turret" x="515" y="58" width="210" height="137"/>
+    <polygon class="turret" points="745,58 1000,245 920,350 725,195"/>
+    <polygon class="turret" points="1000,245 1155,490 1045,540 920,350"/>
+    <polygon class="turret" points="240,245 495,58 515,195 320,350"/>
+    <polygon class="turret" points="240,245 60,540 180,565 320,350"/>
+    <rect class="pillar" x="495" y="58" width="20" height="137"/>
+    <rect class="pillar" x="725" y="58" width="20" height="137"/>
+    <polygon class="turret" points="240,1215 480,1420 500,1290 330,1130"/>
+    <!-- right wall: stand-alone turret + console -->
+    <g transform="translate(1085,630) rotate(45)"><rect class="turret" x="-55" y="-55" width="110" height="110"/></g>
+    <rect class="turret" x="960" y="735" width="220" height="145"/>
+
+    <!-- ===== Position labels, perimeter ===== -->
+    <text class="pos" x="620" y="232" text-anchor="middle">GC</text>
+    <text class="posn" x="620" y="247" text-anchor="middle">(POS #3)</text>
+    <text class="pos" x="730" y="290" text-anchor="middle" transform="rotate(36 730 290)">ALCN</text>
+    <text class="posn" x="730" y="306" text-anchor="middle" transform="rotate(36 730 306)">(POS #2)</text>
+    <text class="pos" x="860" y="400" text-anchor="middle" transform="rotate(58 860 400)">LCN</text>
+    <text class="posn" x="860" y="416" text-anchor="middle" transform="rotate(58 860 416)">(POS #1)</text>
+    <text class="pos" x="470" y="300" text-anchor="middle" transform="rotate(-36 470 300)">ALCS</text>
+    <text class="posn" x="470" y="316" text-anchor="middle" transform="rotate(-36 470 316)">(POS #4)</text>
+    <text class="pos" x="355" y="400" text-anchor="middle" transform="rotate(-58 355 400)">LCS</text>
+    <text class="posn" x="355" y="416" text-anchor="middle" transform="rotate(-58 355 416)">(POS #5)</text>
+    <text class="pos" x="440" y="1140" text-anchor="middle">TMTW</text>
+    <text class="posn" x="440" y="1156" text-anchor="middle">(POS #11)</text>
+
+    <!-- ===== Left island: HC / FD / CD ===== -->
+    <polygon class="turret" points="60,540 180,565 180,615 310,615 310,885 190,885 301,1157 240,1215 60,900"/>
+    <polygon class="turret" points="190,885 470,885 470,920 244,920 330,1130 301,1157"/>
+    <rect class="turret" x="310" y="615" width="160" height="270"/>
+    <line class="inner" x1="310" y1="650" x2="470" y2="650"/>
+    <text class="posn" x="335" y="576" text-anchor="middle">(POS #6)</text>
+    <text class="pos" x="335" y="606" text-anchor="middle">HC</text>
+    <text class="posn" x="420" y="576" text-anchor="middle">(POS #10)</text>
+    <text class="pos" x="420" y="606" text-anchor="middle">FD</text>
+    <text class="pos" x="390" y="958" text-anchor="middle">CD</text>
+    <text class="posn" x="390" y="974" text-anchor="middle">(POS #9)</text>
+
+    <!-- ===== Right island: NCH / ASTW ===== -->
+    <text class="posn" x="790" y="545" text-anchor="middle">(POS #7)</text>
+    <text class="pos" x="790" y="572" text-anchor="middle">NCH</text>
+    <rect class="turret" x="620" y="580" width="340" height="60"/>
+    <rect class="turret" x="590" y="650" width="370" height="150"/>
+    <rect class="turret" x="620" y="840" width="170" height="50"/>
+    <text class="pos" x="705" y="935" text-anchor="middle">ASTW</text>
+    <text class="posn" x="705" y="951" text-anchor="middle">(POS #8)</text>
+
+    <!-- ===== Stair / kitchen core, lower right ===== -->
+    <!-- core wall: stairs on the lower side, kitchen on the upper side, both flush to this line -->
+    <path class="inner" d="M560,1317 L917,1055 Q973,1016 1014,1062"/>
+    <g transform="translate(718,1325) rotate(-36.25)">
+      <rect class="turret" x="60" y="-100" width="110" height="100"/>
+      <text class="lbl" x="115" y="-46" text-anchor="middle">REFRIGERATOR</text>
+      <rect class="turret" x="180" y="-100" width="120" height="100"/>
+      <text class="lbl" x="240" y="-46" text-anchor="middle">SINK</text>
+    </g>
+
+    <g class="stair">
+      <line x1="786" y1="1394" x2="730" y2="1317"/>
+      <line x1="808" y1="1377" x2="752" y2="1301"/>
+      <line x1="831" y1="1361" x2="775" y2="1284"/>
+      <line x1="854" y1="1344" x2="797" y2="1268"/>
+      <line x1="876" y1="1328" x2="820" y2="1251"/>
+      <line x1="898" y1="1311" x2="842" y2="1235"/>
+      <line x1="921" y1="1295" x2="865" y2="1218"/>
+      <line x1="944" y1="1278" x2="887" y2="1202"/>
+      <line x1="966" y1="1262" x2="910" y2="1185"/>
+      <line x1="988" y1="1245" x2="932" y2="1169"/>
+      <line x1="1011" y1="1229" x2="955" y2="1152"/>
+      <line x1="718" y1="1326" x2="964" y2="1145"/>
+    </g>
+    <text class="lbl" x="880" y="1255" text-anchor="middle" transform="rotate(-36 880 1255)">STAIRS</text>
+
+    <!-- ===== Sheet notes ===== -->
+    <g class="lbl" text-anchor="middle">
+      <text x="605" y="465">EQUIPMENT VIEW</text>
+      <text x="605" y="477">(NOT PLAN VIEW)</text>
+      <text x="605" y="489">(TURRET SLOPES ARE TO SCALE)</text>
+    </g>
+
+    <!-- ===== Title block ===== -->
+    <rect class="tb" x="1000" y="1300" width="192" height="118"/>
+    <text class="tbt" x="1096" y="1332" text-anchor="middle">EQUIPMENT VIEW</text>
+    <text class="tbt" x="1096" y="1356" text-anchor="middle">CAB FLOOR PLAN</text>
+    <line class="inner" x1="1010" y1="1366" x2="1182" y2="1366"/>
+    <text class="lbl" x="1096" y="1382" text-anchor="middle">SCALE: 3/4" = 1'-0"</text>
+    <g transform="translate(1016,1392)">
+      <rect x="0" y="0" width="40" height="7" fill="var(--ink)"/>
+      <rect x="40" y="0" width="40" height="7" fill="none" stroke="var(--ink)" stroke-width=".8"/>
+      <rect x="80" y="0" width="40" height="7" fill="var(--ink)"/>
+      <rect x="120" y="0" width="40" height="7" fill="none" stroke="var(--ink)" stroke-width=".8"/>
+      <text class="lbl-s" x="0" y="18" text-anchor="middle">0'</text>
+      <text class="lbl-s" x="40" y="18" text-anchor="middle">1'</text>
+      <text class="lbl-s" x="80" y="18" text-anchor="middle">2'</text>
+      <text class="lbl-s" x="120" y="18" text-anchor="middle">3'</text>
+      <text class="lbl-s" x="160" y="18" text-anchor="middle">4'</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="legend">
+    <div>
+      <h2>Positions</h2>
+      <ul class="pos-key">
+        <li><b>POS #1</b> LCN — Local North</li>
+        <li><b>POS #2</b> ALCN — Asst. Local North</li>
+        <li><b>POS #3</b> GC — Ground</li>
+        <li><b>POS #4</b> ALCS — Asst. Local South</li>
+        <li><b>POS #5</b> LCS — Local South</li>
+        <li><b>POS #6</b> HC — Helicopter</li>
+        <li><b>POS #7</b> NCH — Cab Coordinator</li>
+        <li><b>POS #8</b> ASTW — Asst. Supervisor</li>
+        <li><b>POS #9</b> CD — Clearance Delivery</li>
+        <li><b>POS #10</b> FD — Flight Data</li>
+        <li><b>POS #11</b> TMTW — Traffic Mgmt</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Reading this redraw</h2>
+      <p>Cab outline, console footprints and position layout are traced from the scan; individual equipment and dimensions are omitted. Position expansions in the key are standard tower nomenclature, not from the sheet.</p>
+    </div>
+  </div>
+</div>
+
+</body></html>

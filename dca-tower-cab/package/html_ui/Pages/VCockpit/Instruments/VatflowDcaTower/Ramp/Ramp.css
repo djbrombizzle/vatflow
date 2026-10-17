@@ -1,0 +1,22 @@
+/* 1024x768: vatflow.io/gates.html ramp list, same colours. */
+vatflow-ramplist, #rp-root { display: block; width: 100%; height: 100%; }
+#rp-root { box-sizing: border-box; position: relative; padding: 10px 14px; background: #0b0f14; color: #d7e1ec;
+  font-family: monospace; font-size: 19px; overflow: hidden; }
+.rp-top { display: flex; align-items: baseline; border-bottom: 2px solid #223042; padding-bottom: 6px; }
+.rp-title { font-weight: bold; font-size: 26px; margin-right: 14px; }
+.rp-icao { color: #8cc4ff; font-weight: bold; font-size: 24px; margin-right: auto; }
+.rp-status { color: #7f91a6; font-size: 16px; margin-right: 16px; }
+.rp-status.bad { color: #f0b35a; }
+.rp-zulu { font-size: 22px; }
+.rp-cols { display: flex; height: 664px; }
+.rp-sec { width: 50%; padding: 4px 6px; box-sizing: border-box; overflow: hidden; }
+.rp-sec + .rp-sec { border-left: 2px solid #223042; }
+.rp-h { color: #7f91a6; font-weight: bold; margin: 4px 0; display: flex; justify-content: space-between; }
+.rp-row { display: flex; height: 28px; line-height: 28px; white-space: nowrap; border-bottom: 1px solid #16202c; }
+.rp-row span { overflow: hidden; }
+.rp-head { color: #7f91a6; font-size: 15px; }
+.c1 { width: 112px; } .c2 { width: 58px; } .c3 { width: 66px; } .c4 { width: 62px; } .c5 { width: 66px; font-weight: bold; }
+.c6 { width: 50px; font-size: 13px; color: #7f91a6; } .c7 { width: 96px; color: #7f91a6; font-size: 15px; }
+.asg { color: #7ee2a8; } .real { color: #8cc4ff; } .prop { color: #c9a86a; } .muted { color: #7f91a6; }
+.rp-empty { color: #7f91a6; padding: 10px 0; }
+.rp-foot { position: absolute; left: 14px; bottom: 8px; font-size: 14px; color: #7f91a6; }

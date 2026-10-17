@@ -1,0 +1,40 @@
+<link rel="stylesheet" href="TwrInfo.css" />
+<script type="text/html" id="VatflowTwrInfo">
+  <div id="ti-root">
+    <div class="ti-row ti-top">
+      <span id="ti-icao" class="ti-icao">----</span>
+      <span class="ti-label">ATIS</span><span id="ti-atis" class="ti-atis">-</span>
+      <span id="ti-zulu" class="ti-zulu">----:--Z</span>
+    </div>
+    <div class="ti-row ti-main">
+      <div class="ti-dial"><div id="ti-windArrow" class="ti-arrow"></div><span class="ti-n">N</span></div>
+      <div class="ti-aw">
+        <span class="ti-awlbl">AW</span><span id="ti-wind" class="ti-awval">--- --</span>
+        <div class="ti-sub">ACTUAL WIND (MAG) - SIM AT CAB</div>
+      </div>
+      <div class="ti-alt">
+        <div id="ti-altim" class="ti-altval">--.--</div>
+        <div class="ti-sub">ALTIMETER</div>
+      </div>
+    </div>
+    <div id="ti-sim" class="ti-sim"></div>
+    <div id="ti-metar" class="ti-metar">METAR: WAITING</div>
+    <div id="ti-status" class="ti-status"></div>
+    <div id="ti-ws" class="ti-ws" style="display:none">
+      <div class="ti-wsl"><div id="ti-wsText" class="ti-wstext">WINDSHEAR ALERT</div><div id="ti-wsKt" class="ti-wskt">-- KT</div></div>
+      <div id="ti-wsMute" class="ti-wsmute">MUTE</div>
+    </div>
+  </div>
+</script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/store.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/airport.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/airports/KDCA.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/airports/KATL.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/towers.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/faa-towers.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/osm-airport.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/site.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/placement.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/vatsim-feed.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/common/dimmer.js"></script>
+<script type="text/html" import-script="/Pages/VCockpit/Instruments/VatflowDcaTower/TwrInfo/TwrInfo.js"></script>

@@ -1,0 +1,56 @@
+/* 1024x768: tower SETUP screen. */
+.su-root {
+  box-sizing: border-box; position: relative; width: 100%; height: 100%; padding: 14px 20px;
+  background: #0a0f16; color: #dfe7ef; font-family: monospace; font-size: 20px; overflow: hidden;
+}
+.su-top { display: flex; align-items: center; font-size: 30px; font-weight: bold;
+  border-bottom: 2px solid #23384d; padding-bottom: 8px; }
+.su-title { color: #f5a623; margin-right: 24px; white-space: nowrap; flex: none; }
+.su-apt { color: #7fc8ff; flex: 1; margin-right: 16px; font-size: 22px; white-space: nowrap; overflow: hidden; }
+.su-zulu { flex: none; }
+.su-zulu { color: #ffffff; }
+.su-state { margin: 10px 0 6px; padding: 8px 12px; font-size: 24px; font-weight: bold; background: #3a2a0a; color: #ffd166; }
+.su-state.ok { background: #14532d; color: #b6f5c8; }
+.su-line { display: flex; height: 30px; align-items: center; white-space: nowrap; overflow: hidden; font-size: 18px; }
+.su-k { width: 130px; color: #7f93a8; flex: none; }
+.su-main { display: flex; margin-top: 8px; height: 336px; }
+.su-col { display: flex; flex-direction: column; width: 330px; margin-right: 20px; }
+.su-pad { flex: 1; margin-right: 0; border-left: 2px solid #23384d; padding-left: 20px; }
+.su-ph { color: #7f93a8; font-size: 18px; margin-bottom: 8px; }
+.su-btn { box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center;
+  background: #1b2a3a; border: 2px solid #35506b; color: #e8f1fa; font-weight: bold; margin-bottom: 10px;
+  height: 46px; font-size: 20px; cursor: pointer; }
+.su-big { height: 56px; font-size: 24px; }
+.su-row2 { display: flex; }
+.su-half { flex: 1; font-size: 17px; }
+.su-half + .su-half { margin-left: 10px; }
+.su-tfc { align-items: center; }
+.su-tfc .su-k { width: 100px; font-size: 17px; }
+.su-tfc .su-chip { margin: 0 0 0 8px; }
+.su-go { background: #14532d; border-color: #3ee07a; }
+.su-check { justify-content: flex-start; padding-left: 14px; }
+.su-steps { display: flex; }
+.su-chip { flex: 1; margin-right: 8px; height: 42px; font-size: 18px; }
+.su-chip.on { background: #7fc8ff; color: #0a0f16; border-color: #7fc8ff; }
+.su-grid { display: flex; flex-wrap: wrap; width: 588px; margin-top: 6px; }
+.su-arrow { width: 186px; height: 70px; margin: 0 10px 8px 0; font-size: 24px; }
+.su-mid { width: 186px; height: 70px; margin: 0 10px 8px 0; display: flex; align-items: center; justify-content: center;
+  color: #35506b; font-size: 22px; border: 2px dashed #23384d; box-sizing: border-box; }
+.su-hint { color: #7f93a8; font-size: 15px; }
+.su-cid { display: flex; align-items: center; flex-wrap: wrap; border-top: 2px solid #23384d; padding-top: 8px; font-size: 20px; }
+.su-cid .su-chip { flex: none; width: 110px; margin: 0 0 0 16px; }
+.su-cid > span:nth-child(2) { width: 560px; white-space: nowrap; overflow: hidden; }
+/* number pad (CID, STRIP SYNC code): a phone-style pad over the MOVE THE CAB buttons while typing */
+.su-keys { position: absolute; left: 392px; right: 20px; top: 218px; display: flex; flex-wrap: wrap; align-content: flex-start;
+  background: #0b0f14; z-index: 5; }
+.su-keys:empty { display: none; }
+.su-num { flex: none; width: 196px; height: 70px; margin: 0 8px 8px 0; font-size: 28px; }
+.su-msg { position: absolute; left: 20px; right: 20px; bottom: 10px; color: #ffd166; font-size: 18px; white-space: nowrap; overflow: hidden; }
+.su-brt { margin-bottom: 6px; }
+.su-sync { margin-bottom: 6px; }
+.su-sync > span:nth-child(2) { width: 420px; font-size: 17px; }
+.su-sync .su-chip { width: 96px; margin: 0 0 0 10px; height: 42px; font-size: 17px; }
+.su-sync .su-check { justify-content: center; padding-left: 0; }
+.su-brt > span:nth-child(2) { width: 150px; color: #ffd166; font-weight: bold; }
+.su-brt .su-chip.su-wide { width: 158px; margin: 0 0 0 10px; height: 42px; font-size: 17px; }
+.su-brt .su-check { justify-content: center; padding-left: 0; }

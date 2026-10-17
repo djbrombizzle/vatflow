@@ -1,0 +1,47 @@
+/* Designed for a 1024x768 screen (panel.cfg VCockpit size). */
+vatflow-idst, #id-root { display: block; width: 100%; height: 100%; }
+
+#id-root {
+  box-sizing: border-box;
+  position: relative;
+  padding: 14px 20px;
+  background: #0a0f16;
+  color: #dfe7ef;
+  font-family: monospace;
+  font-size: 26px;
+  overflow: hidden;
+}
+.id-top { display: flex; align-items: center; font-size: 30px; font-weight: bold;
+  border-bottom: 2px solid #23384d; padding-bottom: 8px; }
+.id-title { color: #f5a623; margin-right: 24px; }
+.id-icao { color: #7fc8ff; margin-right: auto; }
+.id-auth { font-size: 20px; margin-right: 24px; padding: 2px 10px; border-radius: 4px; }
+.id-auth.ok { background: #14532d; color: #b6f5c8; }
+.id-auth.no { background: #4a1414; color: #ffb3b3; }
+.id-zulu { color: #ffffff; }
+
+.id-row { display: flex; align-items: center; height: 44px; padding: 0 8px; white-space: nowrap; }
+.id-head { color: #7f93a8; font-size: 18px; height: 34px; }
+.id-row span { overflow: hidden; }
+.c-cs { width: 170px; } .c-type { width: 90px; } .c-dest { width: 90px; }
+.c-fca { width: 250px; } .c-rel { width: 140px; } .c-state { flex: 1; }
+
+.id-list { height: 484px; overflow: hidden; border-bottom: 2px solid #23384d; }
+.id-list .id-row { border-bottom: 1px solid #16222e; }
+.id-list .id-row.sel { background: #1d3a5c; outline: 2px solid #7fc8ff; }
+.id-row .c-cs { color: #ffffff; font-weight: bold; }
+.id-row.frozen .c-rel { color: #3ee07a; font-weight: bold; }
+.id-row.adv .c-rel { color: #9aa9b8; }
+.st-adv { color: #9aa9b8; }
+.st-wait { color: #ffd166; }
+.st-now { color: #3ee07a; font-weight: bold; }
+.st-late { color: #ff6b6b; font-weight: bold; }
+.id-empty { padding: 30px 8px; color: #7f93a8; font-size: 22px; }
+
+.id-msg { height: 40px; line-height: 40px; color: #ffd166; font-size: 22px; padding: 0 8px; overflow: hidden; }
+.id-keys { display: flex; margin-top: 6px; }
+.id-key { height: 72px; line-height: 72px; margin-right: 14px; padding: 0 22px; text-align: center;
+  background: #1a2633; border: 2px solid #3a5068; border-radius: 6px; color: #dfe7ef; font-size: 30px; font-weight: bold; }
+.id-issue { flex: 1; background: #12401f; border-color: #2f8f4e; color: #b6f5c8; }
+.id-cancel { background: #401818; border-color: #8f2f2f; color: #ffb3b3; margin-right: 0; }
+.id-status { position: absolute; left: 20px; right: 20px; bottom: 6px; color: #6d8296; font-size: 16px; }

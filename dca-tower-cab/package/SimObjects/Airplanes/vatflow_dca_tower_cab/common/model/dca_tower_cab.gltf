@@ -1,0 +1,447 @@
+{
+ "asset": {
+  "extensions": {
+   "ASOBO_normal_map_convention": {
+    "tangent_space_convention": "DirectX"
+   }
+  },
+  "generator": "VATFLOW tower cab exporter",
+  "version": "2.0"
+ },
+ "extensionsUsed": [
+  "ASOBO_normal_map_convention",
+  "ASOBO_unique_id"
+ ],
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0,
+    1,
+    2,
+    3
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "extensions": {
+    "ASOBO_unique_id": {
+     "id": "DcaCab_Shell"
+    }
+   },
+   "mesh": 0,
+   "name": "DcaCab_Shell"
+  },
+  {
+   "extensions": {
+    "ASOBO_unique_id": {
+     "id": "DcaCab_Glass"
+    }
+   },
+   "mesh": 1,
+   "name": "DcaCab_Glass"
+  },
+  {
+   "extensions": {
+    "ASOBO_unique_id": {
+     "id": "DcaCab_Frame"
+    }
+   },
+   "mesh": 2,
+   "name": "DcaCab_Frame"
+  },
+  {
+   "extensions": {
+    "ASOBO_unique_id": {
+     "id": "DcaCab_Railings"
+    }
+   },
+   "mesh": 3,
+   "name": "DcaCab_Railings"
+  }
+ ],
+ "meshes": [
+  {
+   "name": "DcaCab_Shell",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "DcaCab_Glass",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 4,
+      "NORMAL": 5,
+      "TEXCOORD_0": 6
+     },
+     "indices": 7,
+     "material": 1
+    }
+   ]
+  },
+  {
+   "name": "DcaCab_Frame",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 8,
+      "NORMAL": 9,
+      "TEXCOORD_0": 10
+     },
+     "indices": 11,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "DcaCab_Railings",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 12,
+      "NORMAL": 13,
+      "TEXCOORD_0": 14
+     },
+     "indices": 15,
+     "material": 3
+    }
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "alphaMode": "OPAQUE",
+   "doubleSided": true,
+   "emissiveFactor": [
+    0,
+    0,
+    0
+   ],
+   "name": "TWR_Concrete",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.71569,
+     0.67244,
+     0.59062,
+     1
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 0.85
+   }
+  },
+  {
+   "alphaMode": "BLEND",
+   "doubleSided": true,
+   "emissiveFactor": [
+    0,
+    0,
+    0
+   ],
+   "name": "TWR_Glass",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.35153,
+     0.45641,
+     0.51492,
+     0.15
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 0.05
+   }
+  },
+  {
+   "alphaMode": "OPAQUE",
+   "doubleSided": true,
+   "emissiveFactor": [
+    0,
+    0,
+    0
+   ],
+   "name": "TWR_Mullion",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.01033,
+     0.01033,
+     0.01161,
+     1
+    ],
+    "metallicFactor": 0.2,
+    "roughnessFactor": 0.5
+   }
+  },
+  {
+   "alphaMode": "OPAQUE",
+   "doubleSided": true,
+   "emissiveFactor": [
+    0,
+    0,
+    0
+   ],
+   "name": "TWR_Metal",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.57758,
+     0.57758,
+     0.55201,
+     1
+    ],
+    "metallicFactor": 0.8,
+    "roughnessFactor": 0.4
+   }
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 1377,
+   "type": "VEC3",
+   "min": [
+    -5.640843868255615,
+    -6.699999809265137,
+    -6.561378002166748
+   ],
+   "max": [
+    5.640617370605469,
+    6.099999904632568,
+    6.561763763427734
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 1377,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 1377,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 1377,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 4,
+   "componentType": 5126,
+   "count": 78,
+   "type": "VEC3",
+   "min": [
+    -5.291025161743164,
+    0.949999988079071,
+    -6.212836742401123
+   ],
+   "max": [
+    5.290996074676514,
+    3.950000047683716,
+    6.212891101837158
+   ]
+  },
+  {
+   "bufferView": 5,
+   "componentType": 5126,
+   "count": 78,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 6,
+   "componentType": 5126,
+   "count": 78,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 7,
+   "componentType": 5123,
+   "count": 78,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 8,
+   "componentType": 5126,
+   "count": 1404,
+   "type": "VEC3",
+   "min": [
+    -5.33920431137085,
+    0.9217157363891602,
+    -6.261819362640381
+   ],
+   "max": [
+    5.339361667633057,
+    3.9782843589782715,
+    6.261727333068848
+   ]
+  },
+  {
+   "bufferView": 9,
+   "componentType": 5126,
+   "count": 1404,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 10,
+   "componentType": 5126,
+   "count": 1404,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 11,
+   "componentType": 5123,
+   "count": 1404,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 12,
+   "componentType": 5126,
+   "count": 4440,
+   "type": "VEC3",
+   "min": [
+    -5.608382225036621,
+    0.0,
+    -6.530117034912109
+   ],
+   "max": [
+    5.608343124389648,
+    12.199999809265137,
+    6.530191898345947
+   ]
+  },
+  {
+   "bufferView": 13,
+   "componentType": 5126,
+   "count": 4440,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 14,
+   "componentType": 5126,
+   "count": 4440,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 15,
+   "componentType": 5123,
+   "count": 4440,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteLength": 16524,
+   "byteOffset": 0,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 16524,
+   "byteOffset": 16524,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 11016,
+   "byteOffset": 33048,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 2754,
+   "byteOffset": 44064,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 936,
+   "byteOffset": 46820,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 936,
+   "byteOffset": 47756,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 624,
+   "byteOffset": 48692,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 156,
+   "byteOffset": 49316,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 16848,
+   "byteOffset": 49472,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 16848,
+   "byteOffset": 66320,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 11232,
+   "byteOffset": 83168,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 2808,
+   "byteOffset": 94400,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 53280,
+   "byteOffset": 97208,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 53280,
+   "byteOffset": 150488,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 35520,
+   "byteOffset": 203768,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 8880,
+   "byteOffset": 239288,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 248168,
+   "uri": "dca_tower_cab.bin"
+  }
+ ]
+}

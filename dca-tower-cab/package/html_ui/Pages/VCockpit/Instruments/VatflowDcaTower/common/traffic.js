@@ -1,0 +1,243 @@
+/*
+ * VATFLOW Tower Cab - where the Tower Radar (DBRITE) and Ground Radar (ASDE-X) get their
+ * traffic. TRAFFIC on TOWER SETUP (or the VATSIM / SIM tab on either radar) picks it, for
+ * every screen at once (VatflowStore "TRAFFIC_SRC"):
+ *   VATSIM  the VATSIM data feed, every cfg.feedRefreshSec (positions about every 15 s)
+ *   SIM     the aircraft in your sim, once a second: AI traffic, ADS-B / real-traffic
+ *           injectors, multiplayer, and VATSIM aircraft as vPilot shows them (smooth).
+ *           Callsign, type, route and squawk come from the VATSIM feed when a sim aircraft
+ *           sits where a VATSIM pilot is (VATSIM traffic under vPilot), else from the sim
+ *           (its ATC id when it has one) or "TFC" + a number.
+ * Either way the radars get the same summary as VatflowFeed.summarize (summary.source says
+ * which). The ramp maps keep reading VATSIM.
+ *
+ * Sim traffic: Coherent.call("GET_AIR_TRAFFIC") -> [{uId, name?, lat, lon, alt (m), heading}]
+ * (what the sim's own traffic displays use; your own aircraft, the cab, is not in it). The
+ * sim only answers it once the page has registered the view listener it belongs to; before
+ * that the call fails with "GET_AIR_TRAFFIC not bound". Which listener that is isn't
+ * documented, so WAYS are tried in turn (traffic listener, maps listener; through
+ * Coherent.call or the listener's own call) and the first one that answers is kept. The
+ * radar's status line says which way is being tried while none has answered yet.
+ * Ground speed is worked out from how far each one moved since the last read.
+ */
+var VatflowTraffic = (function () {
+  var SIM_MS = 1000;
+  var M_TO_FT = 3.28084;
+  var MATCH_NM = 0.6, MATCH_FT = 1500, KEEP_NM = 2, MATCH_HDG = 50;
+
+  // view listeners, registered once per page; ready when the sim calls back (or after 3 s)
+  var LISTENERS = { TRAFFIC: "JS_LISTENER_TRAFFIC", MAPS: "JS_LISTENER_MAPS" };
+  var listeners = {};
+  function listen(key) {
+    var l = listeners[key];
+    if (!l && typeof RegisterViewListener === "function") {
+      l = listeners[key] = { at: Date.now(), ready: false, obj: null };
+      try { l.obj = RegisterViewListener(LISTENERS[key], function () { l.ready = true; }); }
+      catch (e) { l.failed = true; }
+    }
+    return !!l && !l.failed && (l.ready || Date.now() - l.at > 3000);
+  }
+  // the ways to ask, in order; the one that works is kept for the page
+  var WAYS = [{ l: "TRAFFIC", via: "coherent" }, { l: "TRAFFIC", via: "listener" },
+              { l: "MAPS", via: "coherent" }, { l: "MAPS", via: "listener" }];
+  var way = 0, wayWorks = false;
+  function ask() {
+    var w = WAYS[way], l = listeners[w.l];
+    if (w.via === "listener") {
+      if (!l || !l.obj || typeof l.obj.call !== "function") return Promise.reject(new Error("no listener call"));
+      return l.obj.call("GET_AIR_TRAFFIC");
+    }
+    return Coherent.call("GET_AIR_TRAFFIC");
+  }
+  /** Status words while no way has answered: which one is being tried, and how it failed. */
+  function tryingText(e) {
+    var m = String((e && e.message) || e || "");
+    return "TRYING " + (way + 1) + "/" + WAYS.length + " " + WAYS[way].l + (WAYS[way].via === "listener" ? " L" : "") +
+      (/not bound/i.test(m) ? " - NOT BOUND" : m ? " - " + m.toUpperCase().slice(0, 18) : "");
+  }
+
+  /** Short words for the radars' status line (the sim's own errors are long). */
+  function shortError(e) {
+    var m = String((e && e.message) || e || "");
+    if (/not bound/i.test(m)) return new Error("WAITING FOR THE SIM'S TRAFFIC LIST");
+    return new Error(m.length > 40 ? m.slice(0, 40) : m);
+  }
+
+  function source() {
+    var s = typeof VatflowStore !== "undefined" ? VatflowStore.get("TRAFFIC_SRC", "VATSIM") : "VATSIM";
+    return s === "SIM" ? "SIM" : "VATSIM";
+  }
+
+  function setSource(s) { VatflowStore.set("TRAFFIC_SRC", s === "SIM" ? "SIM" : "VATSIM"); }
+
+  function distNm(lat1, lon1, lat2, lon2) {
+    var x = (lon2 - lon1) * 60 * Math.cos((lat1 + lat2) / 2 * Math.PI / 180), y = (lat2 - lat1) * 60;
+    return Math.sqrt(x * x + y * y);
+  }
+
+  /**
+   * The sim's traffic list -> VATSIM-style pilots, so VatflowFeed.summarize can take it.
+   * state keeps each sim aircraft's last fix (ground speed) and its VATSIM match (sticky).
+   * vatsim: the latest VATSIM pilots (or none).
+   */
+  /**
+   * The VATSIM pilots where they are now: each one's last position (last_updated, often 15 s
+   * and more old) moved on along its heading at its ground speed (at most 60 s), and how far
+   * off that guess may be (slack, nm). In the air an aircraft goes a mile or more between
+   * VATSIM updates, so matching the raw positions missed every airborne one.
+   */
+  function projected(pilots, nowMs) {
+    var out = [];
+    for (var i = 0; i < pilots.length; i++) {
+      var p = pilots[i];
+      if (typeof p.latitude !== "number" || typeof p.longitude !== "number") continue;
+      var at = Date.parse(p.last_updated), age = isNaN(at) ? 15 : Math.max(0, Math.min(60, (nowMs - at) / 1000));
+      var gs = p.groundspeed || 0, moved = gs * age / 3600, h = (p.heading || 0) * Math.PI / 180;
+      var lat = p.latitude + moved * Math.cos(h) / 60;
+      var lon = p.longitude + moved * Math.sin(h) / (60 * Math.cos(p.latitude * Math.PI / 180));
+      out.push({ p: p, lat: lat, lon: lon, slack: MATCH_NM + moved * 0.35 });
+    }
+    return out;
+  }
+
+  function hdgOff(a, b) { var d = Math.abs(((a - b) % 360 + 360) % 360); return d > 180 ? 360 - d : d; }
+
+  function toPilots(list, vatsim, state, nowMs) {
+    var out = [], used = {}, pilots = projected(vatsim || [], nowMs);
+    state.seen = state.seen || {};
+    var next = {};
+    for (var i = 0; i < (list || []).length; i++) {
+      var a = list[i];
+      if (!a || typeof a.lat !== "number" || typeof a.lon !== "number") continue;
+      var id = String(a.uId != null ? a.uId : a.name || i);
+      var altFt = (a.alt || 0) * M_TO_FT, prev = state.seen[id], gs = prev ? prev.gs : 0;
+      if (prev && nowMs > prev.t) {
+        var dt = (nowMs - prev.t) / 3600000, d = distNm(prev.lat, prev.lon, a.lat, a.lon);
+        if (dt > 0 && dt < 0.01) gs = prev.gs ? prev.gs * 0.6 + (d / dt) * 0.4 : d / dt;   // smoothed knots
+      }
+      // the VATSIM pilot it is (kept while it stays close), else the nearest close one
+      var match = null;
+      if (prev && prev.cs) {
+        for (var k = 0; k < pilots.length; k++) {
+          var q = pilots[k];
+          if (q.p.callsign === prev.cs && distNm(a.lat, a.lon, q.lat, q.lon) < Math.max(KEEP_NM, q.slack * 2)) { match = q.p; break; }
+        }
+      }
+      if (!match) {
+        var best = Infinity;
+        for (var j = 0; j < pilots.length; j++) {
+          var c = pilots[j], p = c.p;
+          if (used[p.callsign]) continue;
+          var dn = distNm(a.lat, a.lon, c.lat, c.lon);
+          if (dn >= c.slack || dn >= best || Math.abs((p.altitude || 0) - altFt) >= MATCH_FT) continue;
+          // moving: it must be going the same way (two jets passing don't swap tags)
+          if ((p.groundspeed || 0) > 50 && hdgOff(p.heading || 0, a.heading || 0) > MATCH_HDG) continue;
+          best = dn; match = p;
+        }
+      }
+      if (match) used[match.callsign] = true;
+      var name = typeof a.name === "string" ? a.name.replace(/[^A-Z0-9-]/gi, "").toUpperCase() : "";
+      var cs = match ? match.callsign : (name || "TFC" + (id.replace(/\D/g, "").slice(-3) || String(i)));
+      next[id] = { t: nowMs, lat: a.lat, lon: a.lon, gs: gs, cs: match ? match.callsign : null };
+      out.push({
+        callsign: cs, latitude: a.lat, longitude: a.lon, altitude: Math.round(altFt),
+        groundspeed: Math.round(gs), heading: Math.round(((a.heading || 0) % 360 + 360) % 360),
+        transponder: match ? match.transponder : "", flight_plan: match ? match.flight_plan : null
+      });
+    }
+    state.seen = next;
+    return out;
+  }
+
+  /**
+   * Like VatflowFeed.poll, from whichever source TRAFFIC says (it can change while running).
+   * Returns stop().
+   */
+  function poll(cfg, onData, onError) {
+    var stopped = false, timer = null, state = {}, vatsim = { pilots: null, at: 0, busy: false, feed: null };
+    function vatsimFeed(cb) {
+      VatflowFeed.httpGet(cfg.feedUrl, function (err, text) {
+        if (err) { cb(err); return; }
+        try { cb(null, JSON.parse(text)); } catch (e) { cb(e); }
+      });
+    }
+    var lastFetch = 0, lastSrc = null;
+    function tick() {
+      if (stopped) return;
+      var src = source(), changed = src !== lastSrc, first = lastSrc === null;
+      lastSrc = src;
+      if (changed && !first) {
+        // switching: clear the other source's targets straight away (none until the new one comes)
+        onData({ updated: new Date().toISOString(), traffic: [], controllers: [], atis: null, arrivals: 0, departures: 0, source: src });
+      }
+      if (src === "VATSIM") {
+        if (!changed && Date.now() - lastFetch < cfg.feedRefreshSec * 1000) { timer = setTimeout(tick, 1000); return; }
+        lastFetch = Date.now();
+        vatsimFeed(function (err, feed) {
+          if (stopped) return;
+          if (err) { if (onError) onError(err); }
+          else if (source() === "VATSIM") {
+            var s = VatflowFeed.summarize(feed, cfg);
+            s.source = "VATSIM";
+            onData(s);
+          }
+          timer = setTimeout(tick, 1000);
+        });
+        return;
+      }
+      // SIM: refresh the VATSIM pilots for the tags in the background (every feed period)
+      var now = Date.now();
+      if (!vatsim.busy && now - vatsim.at > cfg.feedRefreshSec * 1000) {
+        vatsim.busy = true;
+        vatsimFeed(function (err, feed) {
+          vatsim.busy = false;
+          vatsim.at = Date.now();
+          if (!err) { vatsim.pilots = feed.pilots || []; vatsim.feed = feed; }
+        });
+      }
+      if (typeof Coherent === "undefined" || !Coherent.call) {
+        if (onError) onError(new Error("TRAFFIC NOT AVAILABLE OUTSIDE MSFS"));
+        timer = setTimeout(tick, 2000);
+        return;
+      }
+      for (var key in LISTENERS) listen(key);              // register them all up front
+      if (!listen(WAYS[way].l)) {
+        // this way's listener is still coming up: try again shortly
+        if (onError) onError(new Error(typeof RegisterViewListener !== "function" ? "NO VIEW LISTENERS IN THIS SIM" : tryingText("")));
+        timer = setTimeout(tick, 500);
+        return;
+      }
+      var done = false;
+      function next() { if (!done) { done = true; if (!stopped) timer = setTimeout(tick, SIM_MS); } }
+      function failed(e) {
+        if (!wayWorks) {                                   // not this way: the next one (round again at the end)
+          if (onError) onError(new Error(tryingText(e)));
+          way = (way + 1) % WAYS.length;
+        } else if (onError) onError(shortError(e || "NO SIM TRAFFIC"));
+        next();
+      }
+      try {
+        ask().then(function (list) {
+          if (stopped) return;
+          if (!Array.isArray(list)) { failed(new Error("BAD ANSWER")); return; }
+          wayWorks = true;
+          try {
+            var feed = { general: { update_timestamp: new Date().toISOString() },
+              pilots: toPilots(list, vatsim.pilots, state, Date.now()),
+              controllers: vatsim.feed ? vatsim.feed.controllers : [], atis: vatsim.feed ? vatsim.feed.atis : [] };
+            var s = VatflowFeed.summarize(feed, cfg);
+            s.source = "SIM";
+            s.simCount = list.length;                      // everything the sim listed (status line)
+            onData(s);
+          } catch (e) { if (onError) onError(shortError(e)); }
+          next();
+        }, failed);
+      } catch (e) { failed(e); }
+      setTimeout(next, 5000);                 // never stall if the sim doesn't answer
+    }
+    tick();
+    return function () { stopped = true; if (timer) clearTimeout(timer); };
+  }
+
+  return { poll: poll, source: source, setSource: setSource, toPilots: toPilots };
+})();
