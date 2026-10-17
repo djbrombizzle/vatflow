@@ -57,7 +57,11 @@ Inside the cab there are two working screens fed by live data:
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
   arrivals/departures below 2,000 ft as heading arrows with callsign/type. Same zoom / pan
-  pad as the DBRITE.
+  pad as the DBRITE. Taxiway names (OpenStreetMap's `ref`: A, B1 ...) are written along the
+  taxiways, upright however the map is turned, spaced out so they don't pile up; zooming in
+  shows the short connectors' names too. They stay on when an ARTCC ASDE-X map is shown.
+  Airports the cab builds from OpenStreetMap get them too (maps saved by an older version are
+  built again once, as `APT2_<ICAO>`).
 * **Radar traffic: VATSIM or SIM** (`common/traffic.js`): the VATSIM / SIM tab left of MAPS on
   either radar, or TOWER SETUP > TRAFFIC, switches both radars on every screen
   (VatflowStore `TRAFFIC_SRC`). **VATSIM** reads the network feed (about every 15 s,

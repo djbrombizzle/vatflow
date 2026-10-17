@@ -130,7 +130,11 @@ var VatflowOsmAirport = (function () {
       if (a === "aerodrome") asdex.land.push(flat(rdp(pts, 2)));
       else if (a === "apron") asdex.aprons.push(flat(rdp(pts, 1)));
       else if (a === "terminal" || a === "hangar") asdex.buildings.push(flat(rdp(pts, 1)));
-      else if (a === "taxiway" || a === "taxilane") asdex.taxiways.push({ w: a === "taxiway" ? 23 : 15, p: flat(rdp(pts, 1)) });
+      else if (a === "taxiway" || a === "taxilane") {
+        var tw = { w: a === "taxiway" ? 23 : 15, p: flat(rdp(pts, 1)) };
+        if (t.ref) tw.ref = String(t.ref).trim().toUpperCase();   // the taxiway's name: the Ground Radar labels it
+        asdex.taxiways.push(tw);
+      }
       else if (a === "runway" || a === "stopway") {
         var w = parseFloat(t.width) || 46;
         asdex.runways.push({ w: w, p: flat(rdp(pts, 1)), ref: t.ref || "", c: closed(g) ? 1 : 0 });

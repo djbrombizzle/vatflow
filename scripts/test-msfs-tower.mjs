@@ -127,6 +127,27 @@ t("ASDE-X: fits the field in the canvas and filters to the surface area", () => 
   assert.deepEqual(plain(Object.keys(v.targets)), ["UAL2"]);   // AAL1 is 2400 ft / 5 nm out, NOFP 3000 ft
 });
 
+t("ASDE-X taxiway labels: named taxiways labelled on screen, spaced out, none piled up", () => {
+  for (const f of ["common/airports/KATL.js"]) vm.runInContext(readFileSync(new URL(f, BASE), "utf8"), ctx, { filename: f });
+  const katl = vm.runInContext("VATFLOW_AIRPORTS.KATL", ctx);
+  assert.ok(katl.maps.asdex.taxiways.filter((t) => t.ref).length > 100, "KATL's taxiway names are bundled");
+  const c = JSON.parse(JSON.stringify(cfg));
+  c.arp = katl.arp; c.elevFt = katl.elevFt;
+  const v = new AsdexView({ width: 1024, height: 768, getContext: () => ({}) }, c, katl.maps);
+  const spots = plain(v.labelSpots());
+  const names = spots.map((s) => s.t);
+  for (const n of ["A", "B", "L", "N"]) assert.ok(names.includes(n), n + " labelled");
+  for (const s of spots) assert.ok(s.x >= 0 && s.x <= 1024 && s.y >= 0 && s.y <= 768, "on screen");
+  for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) {
+    const d = Math.abs(spots[i].x - spots[j].x) + Math.abs(spots[i].y - spots[j].y);
+    assert.ok(d >= 30, "two labels on top of each other");
+    if (spots[i].t === spots[j].t) assert.ok(d >= 230, spots[i].t + " twice close together");
+  }
+  // an ARTCC map shown instead keeps the OpenStreetMap names on top
+  v.setMap({ vnas: true, land: [], polys: [] });
+  assert.ok(plain(v.labelSpots()).some((s) => s.t === "B"), "names kept over an ARTCC map");
+});
+
 t("DBRITE list: time/altimeter line and one line per altimeter station", () => {
   const v = new DbriteView({ width: 1, height: 1, getContext: () => ({}) }, cfg, maps);
   v.setMetars({ KDCA: VatflowFeed.parseMetar("KDCA 141152Z 19007KT 10SM A2995"),

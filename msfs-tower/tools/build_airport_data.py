@@ -140,7 +140,10 @@ def build_asdex(frame, osm):
         elif a in ("terminal", "hangar"):
             out["buildings"].append(flat(rdp(way_m(w), 1.0)))
         elif a in ("taxiway", "taxilane"):
-            out["taxiways"].append({"w": 23 if a == "taxiway" else 15, "p": flat(rdp(way_m(w), 1.0))})
+            tw = {"w": 23 if a == "taxiway" else 15, "p": flat(rdp(way_m(w), 1.0))}
+            if t.get("ref"):
+                tw["ref"] = t["ref"].strip().upper()        # the taxiway's name (A, B1 ...): the Ground Radar labels it
+            out["taxiways"].append(tw)
         elif a in ("runway", "stopway") and len(set(w["nodes"])) > 1:
             try:
                 width = float(t.get("width", "46").split()[0])

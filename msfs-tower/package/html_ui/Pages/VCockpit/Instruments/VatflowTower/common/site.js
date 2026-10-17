@@ -178,7 +178,7 @@ var VatflowSite = (function () {
   function byIcao(icao) {
     var s = fromBundled(icao);
     if (s) { finish(s); return; }
-    var cached = typeof VatflowStore !== "undefined" ? VatflowStore.get("APT_" + icao, null) : null;
+    var cached = typeof VatflowStore !== "undefined" ? VatflowStore.get("APT2_" + icao, null) : null;
     if (cached) { finish({ icao: icao, name: cached.name, lid: cached.lid, arp: cached.arp, elevFt: cached.elevFt, data: cached }); return; }
     loadVatspy(function (err, list) {
       var a = null;
@@ -201,7 +201,7 @@ var VatflowSite = (function () {
     // the tower too, not only on the ground
     var ground = isFinite(st.groundFt) && st.groundFt > -1500 && st.groundFt < 15000 ? Math.round(st.groundFt) : null;
     function withData(s2) {
-      var cached = typeof VatflowStore !== "undefined" ? VatflowStore.get("APT_" + s2.icao, null) : null;
+      var cached = typeof VatflowStore !== "undefined" ? VatflowStore.get("APT2_" + s2.icao, null) : null;
       if (cached) { s2.data = cached; if (cached.elevFt) s2.elevFt = cached.elevFt; }
       if (!s2.elevFt && ground !== null) s2.elevFt = ground;      // (an older saved spot had 0)
       s2.magVar = st.magVar;
@@ -227,7 +227,7 @@ var VatflowSite = (function () {
     resolve(function (s) {
       if (s.data) { cb(s.data); return; }
       if (s.icao === "----") { cb(null, new Error("no airport within " + VATSPY_NM + " nm")); return; }
-      var key = "APT_" + s.icao, sim = typeof SimVar !== "undefined", t0 = Date.now();
+      var key = "APT2_" + s.icao, sim = typeof SimVar !== "undefined", t0 = Date.now();
       function done(d) {
         s.data = d;
         if (typeof VATFLOW_TWR !== "undefined") apply(VATFLOW_TWR, s, typeof VATFLOW_TWR_OVERRIDES !== "undefined" ? VATFLOW_TWR_OVERRIDES : null);

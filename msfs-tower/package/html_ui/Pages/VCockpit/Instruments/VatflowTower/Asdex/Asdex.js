@@ -24,14 +24,20 @@ var AsdexView = (function () {
     airborne: "#5fd4ff",
     block: "#ffffff",
     blockAir: "#5fd4ff",
-    text: "#d8f0ff"
+    text: "#d8f0ff",
+    label: "#c8c8c8",
+    labelHalo: "#1a1a1a"
   };
+  var LABEL_EVERY_PX = 380;   // a long taxiway gets a label about this often along it
+  var LABEL_SAME_PX = 230;    // no two labels of the same taxiway closer than this
+  var LABEL_ANY_PX = 30;      // nor any two labels on top of each other
 
   function AsdexView(canvas, cfg, maps) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.cfg = cfg;
     this.map = maps && maps.asdex;
+    this.names = maps && maps.asdex;   // where the taxiway names come from (OpenStreetMap), whichever map is shown
     this.targets = {};
     this.feedMs = 0;
     this.error = null;
@@ -50,6 +56,7 @@ var AsdexView = (function () {
   /** Swaps the map (maps.asdex: built-in / OpenStreetMap, or an ARTCC ASDE-X map from VatflowVnas.toAsdex). */
   AsdexView.prototype.setMap = function (asdex) {
     this.map = asdex || null;
+    if (asdex && !asdex.vnas && asdex.taxiways) this.names = asdex;
     this.fit();
   };
 
@@ -175,6 +182,71 @@ var AsdexView = (function () {
     for (i = 0; i < m.buildings.length; i++) { VatflowDraw.path(ctx, m.buildings[i], proj, true); ctx.fill(); }
   };
 
+  /**
+   * Where the taxiway names go (canvas pixels): along each named taxiway (OpenStreetMap's
+   * ref: A, B1 ...) every LABEL_EVERY_PX of its length on screen, at least one in the middle
+   * of a piece long enough to carry it, never two of the same taxiway within LABEL_SAME_PX
+   * or any two within LABEL_ANY_PX, and only on screen. [{t, x, y}]
+   */
+  AsdexView.prototype.labelSpots = function () {
+    var m = this.names, out = [], W = this.canvas.width, H = this.canvas.height, self = this;
+    if (!m || !m.taxiways) return out;
+    function free(t, x, y) {
+      if (x < 12 || y < 40 || x > W - 12 || y > H - 40) return false;
+      for (var k = 0; k < out.length; k++) {
+        var d = Math.abs(out[k].x - x) + Math.abs(out[k].y - y);
+        if (d < LABEL_ANY_PX * 1.4 || (out[k].t === t && d < LABEL_SAME_PX)) return false;
+      }
+      return true;
+    }
+    // longest pieces first, so a taxiway's label sits on its main stretch
+    var tws = m.taxiways.filter(function (tw) { return tw.ref && tw.p && tw.p.length >= 4; }).map(function (tw) {
+      var pts = [], len = 0;
+      for (var i = 0; i < tw.p.length; i += 2) {
+        var q = self.px(tw.p[i], tw.p[i + 1]);
+        if (pts.length) len += Math.hypot(q.x - pts[pts.length - 1].x, q.y - pts[pts.length - 1].y);
+        pts.push(q);
+      }
+      return { t: tw.ref, pts: pts, len: len };
+    }).sort(function (a, b) { return b.len - a.len; });
+    tws.forEach(function (tw) {
+      if (tw.len < 24 + 9 * tw.t.length) return;              // too short on screen to carry its name
+      var n = Math.max(1, Math.floor(tw.len / LABEL_EVERY_PX));
+      for (var k = 0; k < n; k++) {
+        var at = tw.len * (k + 0.5) / n, run = 0;
+        for (var i = 1; i < tw.pts.length; i++) {
+          var a = tw.pts[i - 1], b = tw.pts[i], seg = Math.hypot(b.x - a.x, b.y - a.y);
+          if (run + seg >= at) {
+            var f = seg ? (at - run) / seg : 0, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+            if (free(tw.t, x, y)) out.push({ t: tw.t, x: x, y: y });
+            break;
+          }
+          run += seg;
+        }
+      }
+    });
+    return out;
+  };
+
+  /** Taxiway names, upright whichever way the map is turned, light grey with a dark edge. */
+  AsdexView.prototype.drawLabels = function (ctx) {
+    var spots = this.labelSpots();
+    ctx.font = "bold 15px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = C.labelHalo;
+    ctx.fillStyle = C.label;
+    for (var i = 0; i < spots.length; i++) {
+      ctx.strokeText(spots[i].t, spots[i].x, spots[i].y);
+      ctx.fillText(spots[i].t, spots[i].x, spots[i].y);
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    return spots.length;
+  };
+
   /** Aircraft-shaped arrow pointing along heading. */
   function arrow(ctx, x, y, hdg, size) {
     var a = hdg * Math.PI / 180;
@@ -195,6 +267,7 @@ var AsdexView = (function () {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     this.drawMap(ctx);
+    this.drawLabels(ctx);
 
     ctx.font = "18px monospace";
     ctx.textBaseline = "alphabetic";
