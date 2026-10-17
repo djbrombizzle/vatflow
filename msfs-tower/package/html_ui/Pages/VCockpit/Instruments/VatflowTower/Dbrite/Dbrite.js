@@ -263,7 +263,11 @@ var DbriteView = (function () {
     [[0, 0], [W, 0], [0, H], [W, H]].forEach(function (k) { far = Math.max(far, Math.sqrt((k[0] - cx) * (k[0] - cx) + (k[1] - cy) * (k[1] - cy))); });
     this.viewNm = Math.max(range, far / scale);
     this.shownRangeNm = Math.round(range * s0 / scale);
-    function px(p) { return { x: cx + p.x * scale, y: cy - p.y * scale }; }
+    // magnetic north up, as STARS / CRC show it: everything turned by the magnetic variation
+    var mv = (cfg.magVarDeg || 0) * Math.PI / 180, mc = Math.cos(mv), ms = Math.sin(mv);
+    function px(p) {
+      return { x: cx + (p.x * mc - p.y * ms) * scale, y: cy - (p.x * ms + p.y * mc) * scale };
+    }
     var CW = 13;               // character cell width (px) for 20px text
     var mono = VatflowDraw.mono;
 

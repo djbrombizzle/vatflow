@@ -109,7 +109,7 @@ PBR = {
     "TWR_Metal": ("C8C8C4", 0.8, 0.4, 1),
     "TWR_Mullion": ("1A1A1C", 0.2, 0.5, 1),
     "TWR_Glass": ("A0B4BE", 0.0, 0.05, 0.15),
-    "TWR_Shade": ("141416", 0.0, 0.8, 0.82),
+    "TWR_Shade": ("1C3557", 0.0, 0.8, 0.74),     # dark navy tinted film, like a real cab's shades
 }
 
 

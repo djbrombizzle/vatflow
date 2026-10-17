@@ -148,6 +148,23 @@ t("ASDE-X taxiway labels: named taxiways labelled on screen, spaced out, none pi
   assert.ok(plain(v.labelSpots()).some((s) => s.t === "B"), "names kept over an ARTCC map");
 });
 
+t("DBRITE: magnetic north up (DCA 10 W: a target on 350 true / 360 magnetic is straight up)", () => {
+  const rects = [];
+  const stub = new Proxy({}, { get: (o, k) => (k === "fillRect" ? (x, y, w, h) => rects.push({ x, y, w }) : k in o ? o[k] : () => {}),
+    set: (o, k, v) => { o[k] = v; return true; } });
+  const c = JSON.parse(JSON.stringify(cfg));
+  c.magVarDeg = -10;
+  const v = new DbriteView({ width: 1024, height: 768, getContext: () => stub }, c, maps);
+  const b = 350 * Math.PI / 180, d = 5;                     // 5 nm out on 350 true
+  const lat = c.arp.lat + d * Math.cos(b) / 60, lon = c.arp.lon + d * Math.sin(b) / (60 * Math.cos(c.arp.lat * Math.PI / 180));
+  v.setData({ updated: new Date().toISOString(), traffic: [{ callsign: "N1", lat, lon, ...(() => { const p = VatflowFeed.toNm(c.arp, lat, lon); return { x: p.x, y: p.y, distNm: Math.hypot(p.x, p.y) }; })(), alt: 3000, gs: 120, hdg: 350, type: "", dep: "", arr: "" }] });
+  v.draw(Date.now(), 0);
+  const tgt = rects.find((r) => r.w === 10);
+  assert.ok(tgt, "target drawn");
+  assert.ok(Math.abs(tgt.x + 5 - 512) < 1, "straight up: x " + (tgt.x + 5));
+  assert.ok(tgt.y + 5 < 384, "above the centre");
+});
+
 t("DBRITE list: time/altimeter line and one line per altimeter station", () => {
   const v = new DbriteView({ width: 1, height: 1, getContext: () => ({}) }, cfg, maps);
   v.setMetars({ KDCA: VatflowFeed.parseMetar("KDCA 141152Z 19007KT 10SM A2995"),

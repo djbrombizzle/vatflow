@@ -39,7 +39,7 @@ Inside the cab there are two working screens fed by live data:
 ![screens](docs/preview_demo.png)
 
 * **TOWER RADAR** (the DBRITE; hanging from the ceiling, front right): STARS-style tower
-  radar. Live VATSIM traffic within 15 nm, north up, grey range rings, an
+  radar. Live VATSIM traffic within 15 nm, magnetic north up (as STARS and CRC show it), grey range rings, an
   olive video map (runways of every airport in range, airport/heliport/navaid
   symbols), green altimeter list for DCA/ADW/DAA from the METARs, history
   trails and data blocks (callsign / altitude + speed, alternating with type +
@@ -50,7 +50,7 @@ Inside the cab there are two working screens fed by live data:
   trolleys on a circular ceiling track, like the real DCA cab, and are built to travel
   all the way round the cab: grab the screen with the mouse and drag left/right. Drag
   the handle bar under it up/down to raise or lower it (telescoping post, 15 cm up to
-  25 cm down), and a side knob left/right to swivel it (up to 50 degrees each way). Every window has a roll-down shade: drag the shade to set its height, click its roller to raise or lower it fully (each shade is 20 strips shown or hidden by its position, no animation) (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
+  25 cm down), and a side knob left/right to swivel it (up to 50 degrees each way). Every window has a roll-down shade of dark navy tinted film (you can see out through it): drag the shade to set its height, click its roller to raise or lower it fully (each shade is 20 strips shown or hidden by its position, no animation) (behaviors in `common/model/tower_cab_interior.xml`, built on the SDK templates `ASOBO_GT_Anim_Code` and `ASOBO_GT_Interaction_DraggingXAxis_Code`).
 * **GROUND RADAR** (the ASDE-X; hanging from the ceiling, front left; landscape 4:3 like the DBRITE, turned so
   its top is the view out of the window it hangs in front of, following it round the
   track and its swivel): the DCA surface in ASDE-X
