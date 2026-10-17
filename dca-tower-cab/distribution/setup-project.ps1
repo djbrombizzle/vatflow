@@ -96,7 +96,7 @@ foreach ($f in @(Get-ChildItem $dst -Recurse -Filter aircraft.cfg)) {
   Write-Host "Named `"DCA Tower Cab`" in $($f.FullName.Substring($Proj.Length + 1))"
 }
 
-# ---- eye point: standing at GC (11.98 ft forward of the cab origin, 5.41 ft up) ----------
+# ---- eye point: standing at GC (10.17 ft forward of the cab origin, 5.41 ft up) ----------
 $inv = [Globalization.CultureInfo]::InvariantCulture
 $fm = Get-ChildItem $dst -Recurse -Filter flight_model.cfg | Select-Object -First 1
 $datum = @(0.0, 0.0, 0.0)
@@ -104,7 +104,7 @@ if ($fm) {
   $m = Select-String -Path $fm.FullName -Pattern '^\s*reference_datum_position\s*=\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)' | Select-Object -First 1
   if ($m) { $datum = @([double]::Parse($m.Matches[0].Groups[1].Value, $inv), [double]::Parse($m.Matches[0].Groups[2].Value, $inv), [double]::Parse($m.Matches[0].Groups[3].Value, $inv)) }
 }
-$eye = [string]::Format($inv, "{0:0.00}, {1:0.00}, {2:0.00}", (11.98 - $datum[0]), (0 - $datum[1]), (5.41 - $datum[2]))
+$eye = [string]::Format($inv, "{0:0.00}, {1:0.00}, {2:0.00}", (10.17 - $datum[0]), (0 - $datum[1]), (5.41 - $datum[2]))
 $cams = @(Get-ChildItem $dst -Recurse -Filter cameras.cfg)
 $set = $false
 foreach ($c in $cams) {

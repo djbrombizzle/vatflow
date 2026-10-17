@@ -28,43 +28,43 @@
   {
    "extensions": {
     "ASOBO_unique_id": {
-     "id": "DcaCab_Shell"
+     "id": "TowerCab_Shell"
     }
    },
    "mesh": 0,
-   "name": "DcaCab_Shell"
+   "name": "TowerCab_Shell"
   },
   {
    "extensions": {
     "ASOBO_unique_id": {
-     "id": "DcaCab_Glass"
+     "id": "TowerCab_Glass"
     }
    },
    "mesh": 1,
-   "name": "DcaCab_Glass"
+   "name": "TowerCab_Glass"
   },
   {
    "extensions": {
     "ASOBO_unique_id": {
-     "id": "DcaCab_Frame"
+     "id": "TowerCab_Frame"
     }
    },
    "mesh": 2,
-   "name": "DcaCab_Frame"
+   "name": "TowerCab_Frame"
   },
   {
    "extensions": {
     "ASOBO_unique_id": {
-     "id": "DcaCab_Railings"
+     "id": "TowerCab_Railings"
     }
    },
    "mesh": 3,
-   "name": "DcaCab_Railings"
+   "name": "TowerCab_Railings"
   }
  ],
  "meshes": [
   {
-   "name": "DcaCab_Shell",
+   "name": "TowerCab_Shell",
    "primitives": [
     {
      "attributes": {
@@ -78,7 +78,7 @@
    ]
   },
   {
-   "name": "DcaCab_Glass",
+   "name": "TowerCab_Glass",
    "primitives": [
     {
      "attributes": {
@@ -92,7 +92,7 @@
    ]
   },
   {
-   "name": "DcaCab_Frame",
+   "name": "TowerCab_Frame",
    "primitives": [
     {
      "attributes": {
@@ -106,7 +106,7 @@
    ]
   },
   {
-   "name": "DcaCab_Railings",
+   "name": "TowerCab_Railings",
    "primitives": [
     {
      "attributes": {
@@ -206,241 +206,241 @@
   {
    "bufferView": 0,
    "componentType": 5126,
-   "count": 1377,
+   "count": 912,
    "type": "VEC3",
    "min": [
-    -5.640843868255615,
+    -5.753847599029541,
     -6.699999809265137,
-    -6.561378002166748
+    -5.753847599029541
    ],
    "max": [
-    5.640617370605469,
+    5.753847599029541,
     6.099999904632568,
-    6.561763763427734
+    5.753847599029541
    ]
   },
   {
    "bufferView": 1,
    "componentType": 5126,
-   "count": 1377,
+   "count": 912,
    "type": "VEC3"
   },
   {
    "bufferView": 2,
    "componentType": 5126,
-   "count": 1377,
+   "count": 912,
    "type": "VEC2"
   },
   {
    "bufferView": 3,
    "componentType": 5123,
-   "count": 1377,
+   "count": 912,
    "type": "SCALAR"
   },
   {
    "bufferView": 4,
    "componentType": 5126,
-   "count": 78,
+   "count": 48,
    "type": "VEC3",
    "min": [
-    -5.291025161743164,
+    -5.403847694396973,
     0.949999988079071,
-    -6.212836742401123
+    -5.403847694396973
    ],
    "max": [
-    5.290996074676514,
+    5.403847694396973,
     3.950000047683716,
-    6.212891101837158
+    5.403847694396973
    ]
   },
   {
    "bufferView": 5,
    "componentType": 5126,
-   "count": 78,
+   "count": 48,
    "type": "VEC3"
   },
   {
    "bufferView": 6,
    "componentType": 5126,
-   "count": 78,
+   "count": 48,
    "type": "VEC2"
   },
   {
    "bufferView": 7,
    "componentType": 5123,
-   "count": 78,
+   "count": 48,
    "type": "SCALAR"
   },
   {
    "bufferView": 8,
    "componentType": 5126,
-   "count": 1404,
+   "count": 864,
    "type": "VEC3",
    "min": [
-    -5.33920431137085,
+    -5.466709613800049,
     0.9217157363891602,
-    -6.261819362640381
+    -5.466709613800049
    ],
    "max": [
-    5.339361667633057,
+    5.466709613800049,
     3.9782843589782715,
-    6.261727333068848
+    5.466709613800049
    ]
   },
   {
    "bufferView": 9,
    "componentType": 5126,
-   "count": 1404,
+   "count": 864,
    "type": "VEC3"
   },
   {
    "bufferView": 10,
    "componentType": 5126,
-   "count": 1404,
+   "count": 864,
    "type": "VEC2"
   },
   {
    "bufferView": 11,
    "componentType": 5123,
-   "count": 1404,
+   "count": 864,
    "type": "SCALAR"
   },
   {
    "bufferView": 12,
    "componentType": 5126,
-   "count": 4440,
+   "count": 4068,
    "type": "VEC3",
    "min": [
-    -5.608382225036621,
+    -5.721212863922119,
     0.0,
-    -6.530117034912109
+    -5.721212863922119
    ],
    "max": [
-    5.608343124389648,
+    5.721212863922119,
     12.199999809265137,
-    6.530191898345947
+    5.721212863922119
    ]
   },
   {
    "bufferView": 13,
    "componentType": 5126,
-   "count": 4440,
+   "count": 4068,
    "type": "VEC3"
   },
   {
    "bufferView": 14,
    "componentType": 5126,
-   "count": 4440,
+   "count": 4068,
    "type": "VEC2"
   },
   {
    "bufferView": 15,
    "componentType": 5123,
-   "count": 4440,
+   "count": 4068,
    "type": "SCALAR"
   }
  ],
  "bufferViews": [
   {
    "buffer": 0,
-   "byteLength": 16524,
+   "byteLength": 10944,
    "byteOffset": 0,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 16524,
-   "byteOffset": 16524,
+   "byteLength": 10944,
+   "byteOffset": 10944,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 11016,
-   "byteOffset": 33048,
+   "byteLength": 7296,
+   "byteOffset": 21888,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 2754,
-   "byteOffset": 44064,
+   "byteLength": 1824,
+   "byteOffset": 29184,
    "target": 34963
   },
   {
    "buffer": 0,
-   "byteLength": 936,
-   "byteOffset": 46820,
+   "byteLength": 576,
+   "byteOffset": 31008,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 936,
-   "byteOffset": 47756,
+   "byteLength": 576,
+   "byteOffset": 31584,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 624,
-   "byteOffset": 48692,
+   "byteLength": 384,
+   "byteOffset": 32160,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 156,
-   "byteOffset": 49316,
+   "byteLength": 96,
+   "byteOffset": 32544,
    "target": 34963
   },
   {
    "buffer": 0,
-   "byteLength": 16848,
-   "byteOffset": 49472,
+   "byteLength": 10368,
+   "byteOffset": 32640,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 16848,
-   "byteOffset": 66320,
+   "byteLength": 10368,
+   "byteOffset": 43008,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 11232,
-   "byteOffset": 83168,
+   "byteLength": 6912,
+   "byteOffset": 53376,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 2808,
-   "byteOffset": 94400,
+   "byteLength": 1728,
+   "byteOffset": 60288,
    "target": 34963
   },
   {
    "buffer": 0,
-   "byteLength": 53280,
-   "byteOffset": 97208,
+   "byteLength": 48816,
+   "byteOffset": 62016,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 53280,
-   "byteOffset": 150488,
+   "byteLength": 48816,
+   "byteOffset": 110832,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 35520,
-   "byteOffset": 203768,
+   "byteLength": 32544,
+   "byteOffset": 159648,
    "target": 34962
   },
   {
    "buffer": 0,
-   "byteLength": 8880,
-   "byteOffset": 239288,
+   "byteLength": 8136,
+   "byteOffset": 192192,
    "target": 34963
   }
  ],
  "buffers": [
   {
-   "byteLength": 248168,
+   "byteLength": 200328,
    "uri": "dca_tower_cab.bin"
   }
  ]

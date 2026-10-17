@@ -56,25 +56,28 @@ t("overhead monitors: track, height and swivel behaviours on both, screens not d
   }
 });
 
-t("window shades: one per window (13), 20 strips and a roller each", () => {
+t("window shades: one per window (8, the VATFLOW cab's octagon), 20 strips and a roller each", () => {
   const nodes = new Set(gltf.nodes.map((x) => x.name));
-  for (let k = 0; k < 13; k++) {
+  for (let k = 0; k < 8; k++) {
     assert.ok(nodes.has(`TowerCab_ShadeRoller_${k}`) && xml.includes(`Node="TowerCab_ShadeRoller_${k}"`), "roller " + k);
     for (let s = 0; s < 20; s++) {
       const id = String(s).padStart(2, "0");
       assert.ok(xml.includes(`Node="TowerCab_Shade_${k}_s${id}"`) && xml.includes(`Node="TowerCab_ShadeBar_${k}_s${id}"`), `shade ${k} strip ${id}`);
     }
   }
-  assert.ok(!nodes.has("TowerCab_ShadeRoller_13"));
+  assert.ok(!nodes.has("TowerCab_ShadeRoller_8"));
 });
 
-t("floor plan: every position is a counter, GC in front", () => {
-  for (const p of ["GC", "ALCN", "LCN", "ALCS", "LCS", "TMTW", "HC", "FD", "CD", "NCH", "ASTW"]) {
+t("layout: every DCA position is placed, GC on the front window, the islands are consoles", () => {
+  const perim = /PERIMETER_POSITIONS = \[([\s\S]*?)\]\n/.exec(build)[1];
+  for (const p of ["GC", "ALCN", "LCN", "ALCS", "LCS", "TMTW"]) assert.match(perim, new RegExp(`"${p}", \\d`), p);
+  assert.match(perim, /\("GC", 0, 0\.0\)/, "GC: face 0 (front window), centred");
+  for (const p of ["HC_FD", "CD", "NCH", "ISLAND", "ASTW", "RWALL", "TURRET"]) {
     assert.ok(gltf.nodes.some((x) => x.name === "TowerCab_Console_" + p), p);
   }
-  const gc = gltf.nodes.find((x) => x.name === "TowerCab_Console_GC");
-  const pos = gltf.accessors[gltf.meshes[gc.mesh].primitives[0].attributes.POSITION];
-  assert.ok(pos.min[2] > 4 && Math.abs(pos.min[0] + pos.max[0]) < 0.05, "GC: centred, at the front (glTF +Z = forward)");
+  for (const p of ["TowerCab_Consoles", "TowerCab_Stairs", "TowerCab_Kitchen", "TowerCab_CoreWalls"]) {
+    assert.ok(gltf.nodes.some((x) => x.name === p), p);
+  }
 });
 
 t("model files and names", () => {

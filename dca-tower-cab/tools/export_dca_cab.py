@@ -5,7 +5,7 @@ sim loads, into the SimObject's common/model folder (or <out_dir>), plus its sys
   python tools/export_dca_cab.py [out_dir]          (bpy module, Blender 4.5+ / bpy 5.x)
   blender --background --python tools/export_dca_cab.py -- [out_dir]
 
-* dca_tower_cab.gltf / .bin          the outside (DcaCab_Exterior): shell, glass, mullions, railings
+* dca_tower_cab.gltf / .bin          the outside (DcaCab_Exterior): the VATFLOW cab's shell, glass, mullions, railings
 * dca_tower_cab_interior.gltf / .bin the inside (DcaCab_Interior): one node per object; the overhead
   monitors (TowerCab_DbriteMount / TowerCab_AsdexMount and their parts) with the track, height
   and swivel animations, and the window shades in 20 strips each
@@ -565,9 +565,9 @@ def main(out_dir):
     cfg = os.path.join(out_dir, "..", "config", "systems.cfg")
     if os.path.exists(cfg):
         write_lights(cfg, g["CEILING_LIGHTS"], g["TASK_LIGHTS"])
-    eye = g["pm"](g["EYE_PX"], g["P"]["eye_h"])
+    ex, ey = g["EYE"]
     print("Wrote %s: %d interior nodes, %d animations; %s.gltf; eye point %.2f ft forward of the cab origin, %.2f ft up"
-          % (out_dir, len(w.g["nodes"]), len(w.g.get("animations", [])), EXTERIOR, -eye.y * FT, eye.z * FT))
+          % (out_dir, len(w.g["nodes"]), len(w.g.get("animations", [])), EXTERIOR, -ey * FT, g["P"]["eye_h"] * FT))
 
 
 if __name__ == "__main__":
