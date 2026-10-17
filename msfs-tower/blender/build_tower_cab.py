@@ -98,6 +98,8 @@ COLORS = {
     "TWR_GuideSheet": (1.0, 1.0, 1.0, 1.0),        # the laminated quick guide on the TMU desk
     "TWR_FanLabel": (1.0, 1.0, 1.0, 1.0),
     "TWR_FwdSign": (1.0, 1.0, 1.0, 1.0),           # FWD placard on the front console
+    "TWR_Banner": (1.0, 1.0, 1.0, 1.0),            # party banner cards (tools/make_textures.py banner)
+    "TWR_BannerString": (0.95, 0.94, 0.91, 1.0),
     "TWR_CarpetLogo": (0.20, 0.22, 0.26, 1.0),     # carpet with the VATFLOW logo woven in
     "TWR_AlarmLit": (1.0, 0.08, 0.06, 1.0),        # windshear MUTE button, lit          # FAN label above the fan switch
     "TWR_Laminate": (0.88, 0.9, 0.92, 1.0),       # its clear laminate border
@@ -721,6 +723,51 @@ def fwd_sign(inside, a_inner):
     inside.face(pts, "TWR_FwdSign", uvs=[(0, 0), (0, 1), (1, 1), (1, 0)])      # faces into the cab
 
 
+# the party banner: as tools/make_textures.py BANNER_WORDS / BANNER_COLS / BANNER_ROWS
+BANNER_CARDS, BANNER_COLS, BANNER_ROWS = 10, 5, 2
+
+
+def party_banner(inside, a_inner, top):
+    """
+    A party banner strung along the front of the back-right console (window face 5, the one
+    with the coffee maker): BANNER_CARDS swallow-tailed cards, one word each ("GOOD LUCK AT ZDC
+    LIVE, WE'RE ALL COUNTING ON YOU", texture TWR_Banner), hanging from a string tied under the
+    worktop's front edge at both ends and sagging in the middle. Each card hangs straight
+    down from the string, a little in front of the vent panels, turned a few degrees either
+    way like real party cards.
+    """
+    at, facing, rot, out, right = face_frame(5, a_inner)
+    depth = P["console_depth"] + 0.07                  # just in front of the worktop's bumper
+    z_tie, sag, span = top - 0.06, 0.13, 1.15          # string tied 6 cm under the top, sags 13 cm
+    def string_at(r):                                  # the string's height at r (a parabola)
+        return z_tie - sag * (1 - (r / span) ** 2)
+    # the string, in short straight pieces
+    n = 24
+    pts = [at(-span + 2 * span * i / n, depth, string_at(-span + 2 * span * i / n)) for i in range(n + 1)]
+    for i in range(n):
+        inside.beam(pts[i], pts[i + 1], 0.0025, "TWR_BannerString", segs=6)
+    # the cards
+    pitch = 2 * span / BANNER_CARDS
+    w, h, notch = pitch * 0.86, 0.26, 0.06
+    up = Vector((0, 0, 1))
+    for i in range(BANNER_CARDS):
+        r = -span + pitch * (i + 0.5)
+        top_c = at(r, depth + 0.004, string_at(r) + 0.012)
+        tilt = math.radians((-3, 2, -2, 3, -1)[i % 5])  # each hangs a little crooked
+        side = right * math.cos(tilt) + up * math.sin(tilt)
+        down = -up * math.cos(tilt) + right * math.sin(tilt)
+        tl, tr = top_c - side * (w / 2), top_c + side * (w / 2)
+        bl, br = tl + down * h, tr + down * h
+        tm, nm = top_c, top_c + down * (h - notch)     # top middle, the swallow-tail's notch
+        u0, u1 = (i % BANNER_COLS) / BANNER_COLS, (i % BANNER_COLS + 1) / BANNER_COLS
+        v1 = 1 - (i // BANNER_COLS) / BANNER_ROWS      # glTF / Blender UV: v up
+        v0 = v1 - 1 / BANNER_ROWS
+        um, vn = (u0 + u1) / 2, v0 + (v1 - v0) * notch / h
+        # two halves (each convex), facing into the cab like the FWD placard
+        inside.face([bl, tl, tm, nm], "TWR_Banner", uvs=[(u0, v0), (u0, v1), (um, v1), (um, vn)])
+        inside.face([nm, tm, tr, br], "TWR_Banner", uvs=[(um, vn), (um, v1), (u1, v1), (u1, v0)])
+
+
 # the woven-in carpet logo at the back of the cab (same numbers as tools/make_textures.py)
 CARPET_LOGO_CENTER = (0.0, 1.75)
 CARPET_LOGO_SIZE = (2.0, 0.85)
@@ -1122,6 +1169,7 @@ def build():
     tmu_desk(inside, int_coll, a_inner, P["console_h"])
     props(int_coll, a_inner, P["console_h"])
     fwd_sign(inside, a_inner)
+    party_banner(inside, a_inner, P["console_h"])
     carpet_logo(inside)
     ramp_computer(inside, a_inner, P["console_h"])
     strip_bays(int_coll, a_inner, P["console_h"])

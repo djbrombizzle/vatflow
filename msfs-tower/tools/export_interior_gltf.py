@@ -89,6 +89,8 @@ PBR = {
     "TWR_GuideSheet": ("FFFFFF", 0.0, 0.18, 1),    # glossy: under laminate
     "TWR_FanLabel": ("FFFFFF", 0.0, 0.4, 1),
     "TWR_FwdSign": ("FFFFFF", 0.0, 0.5, 1),        # FWD placard on the front console
+    "TWR_Banner": ("FFFFFF", 0.0, 0.7, 1),         # the party banner's cards (card stock)
+    "TWR_BannerString": ("F2F0E8", 0.0, 0.8, 1),
     "TWR_CarpetLogo": ("FFFFFF", 0.0, 0.95, 1),    # carpet with the VATFLOW logo woven in       # engraved FAN label above the fan switch
     "TWR_Laminate": ("E4E8EC", 0.0, 0.12, 1),
     "TWR_TmuDesk": ("FFFFFF", 0.0, 0.6, 1),
@@ -132,6 +134,7 @@ TEXTURED = {
     "TWR_GuideSheet": {"albd": "TWR_GuideSheet_albd.png", "m": None},
     "TWR_FanLabel": {"albd": "TWR_FanLabel_albd.png", "m": None},
     "TWR_FwdSign": {"albd": "TWR_FwdSign_albd.png", "m": None},
+    "TWR_Banner": {"albd": "TWR_Banner_albd.png", "m": None},
     "TWR_Wood": {"albd": "TWR_Wood_albd.png", "m": 1.0},
     # console worktop / fronts: UVs made in the Blender script (planar_uvs), used as they are
     "TWR_ConsoleTop": {"albd": "TWR_ConsoleTop_albd.png", "m": None},

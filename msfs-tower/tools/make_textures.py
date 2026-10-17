@@ -26,6 +26,8 @@ Decals, stretched once over the top of a desk item:
   TWR_GuideSheet_albd.png - the quick guide (moving the cab) laminated on the TMU desk
   TWR_FanLabel_albd.png   - the FAN label above the ceiling fan switch
   TWR_FwdSign_albd.png    - the FWD placard on the front console (which way FWD moves the cab)
+  TWR_Banner_albd.png     - the party banner's cards ("GOOD LUCK AT ZDC LIVE, WE'RE ALL COUNTING
+                            ON YOU"), BANNER_COLS x BANNER_ROWS cards, one word each
   TWR_CarpetLogo_albd.png 2.4 m  - the carpet with "MADE AND POWERED BY VATFLOW TECHNOLOGIES"
                           woven in (the floor patch at the back of the cab; carpet_logo)
 """
@@ -398,6 +400,44 @@ def fwd_sign(w=1024, h=512):
     return np.array(img).astype(np.float32)
 
 
+# the party banner on the back-right console: one word per card (blender/build_tower_cab.py
+# party_banner() hangs BANNER_WORDS cards and maps card i to slot i of this texture)
+BANNER_WORDS = ["GOOD", "LUCK", "AT", "ZDC", "LIVE,", "WE'RE", "ALL", "COUNTING", "ON", "YOU"]
+BANNER_COLS, BANNER_ROWS = 5, 2
+BANNER_COLOURS = [("D62828", "FFFFFF"), ("F7B32B", "1A1A1A"), ("1F7AE0", "FFFFFF"), ("2BA84A", "FFFFFF"),
+                  ("8E44AD", "FFFFFF"), ("F06292", "FFFFFF")]
+
+
+def banner(w=2048, h=1024):
+    """
+    The party banner's cards, BANNER_COLS x BANNER_ROWS, in party colours with a thin white
+    edge, a row of dots along the top and the word in big bold letters (smaller for long words).
+    """
+    from PIL import ImageDraw
+    img = Image.new("RGB", (w, h), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    for i, word in enumerate(BANNER_WORDS):
+        x0, y0 = round((i % BANNER_COLS) * w / BANNER_COLS), round((i // BANNER_COLS) * h / BANNER_ROWS)
+        x1, y1 = round((i % BANNER_COLS + 1) * w / BANNER_COLS), round((i // BANNER_COLS + 1) * h / BANNER_ROWS)
+        bg, fg = BANNER_COLOURS[i % len(BANNER_COLOURS)]
+        d.rectangle([x0, y0, x1 - 1, y1 - 1], fill=tuple(int(c) for c in hexrgb(bg)))
+        d.rectangle([x0 + 10, y0 + 10, x1 - 11, y1 - 11], outline=(255, 255, 255), width=6)
+        for k in range(6):                                  # dots along the top, under the string
+            cx = x0 + (k + 0.5) * (x1 - x0) / 6
+            d.ellipse([cx - 9, y0 + 34, cx + 9, y0 + 52], fill=(255, 255, 255))
+        cw = x1 - x0 - 50
+        size = 170
+        f = font(size, True)
+        while d.textlength(word, font=f) > cw and size > 40:
+            size -= 6
+            f = font(size, True)
+        tw = d.textlength(word, font=f)
+        bb = f.getbbox(word)
+        d.text((x0 + (x1 - x0 - tw) / 2, y0 + (y1 - y0) * 0.45 - (bb[1] + bb[3]) / 2), word, font=f,
+               fill=tuple(int(c) for c in hexrgb(fg)))
+    return np.array(img).astype(np.float32)
+
+
 def guide_sheet(w=792, h=1024):
     """
     The quick guide lying on the TMU desk under clear laminate: a printed US letter sheet
@@ -453,6 +493,7 @@ def main(out_dir):
     save(guide_sheet(), out_dir, "TWR_GuideSheet_albd.png")
     save(fan_label(), out_dir, "TWR_FanLabel_albd.png")
     save(fwd_sign(), out_dir, "TWR_FwdSign_albd.png")
+    save(banner(), out_dir, "TWR_Banner_albd.png")
     save(wood(), out_dir, "TWR_Wood_albd.png")
     c, nrm = carpet_detail()
     save(c, out_dir, "TWR_Carpet_comp.png")
