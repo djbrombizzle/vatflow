@@ -62,6 +62,17 @@ the cab floor.
 
 ## Use it in MSFS 2024
 
+**Quickest, if you already have the VATFLOW Tower Cab project** (`C:\MSFS-Projects\VatflowTowerCab`):
+run `distribution/project-install/install.bat`. It copies that project to
+`C:\MSFS-Projects\VatflowRampTower` (the cab project is only read), gives the copy its own
+package and aircraft names, swaps in the ramp tower model, its panel.cfg, cab lights, eye point
+and contact points (24.6 ft lower, so the tower stands on the bottom of its shaft), and names it
+"VATFLOW Ramp Control Tower". Open the new project in MSFS, Clean All, Build All.
+(`distribution/make_community_zip.py` makes a package without the sim's builder; the sim
+didn't draw that model in the first test, so use the project route.)
+
+Or by hand:
+
 Follow [msfs-tower/SDK-GUIDE.md](../msfs-tower/SDK-GUIDE.md) steps 1, 2, 7 and 8 with these
 differences (steps 3 to 6, Blender and its exporter, aren't needed: the model files are
 already in this folder):
