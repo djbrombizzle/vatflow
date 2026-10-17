@@ -109,8 +109,8 @@ PBR = {
     "TWR_Metal": ("C8C8C4", 0.8, 0.4, 1),
     "TWR_Mullion": ("1A1A1C", 0.2, 0.5, 1),
     "TWR_Glass": ("A0B4BE", 0.0, 0.05, 0.15),
-    "TWR_Shade": ("1E4683", 0.0, 0.8, 0.92),     # dark navy tinted film, like a real cab's shades
-    "TWR_ShadeNight": ("1E4683", 0.0, 0.8, 0.92),
+    "TWR_Shade": ("2A5598", 0.0, 0.8, 0.65),     # navy tinted film, like a real cab's shades
+    "TWR_ShadeNight": ("2A5598", 0.0, 0.8, 0.65),
 }
 
 
@@ -193,7 +193,7 @@ EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0],
 # (dark, lit from inside) colour with the bright sky behind and comes out grey; the glow stands
 # in for the daylight the tinted film lets through, so it reads navy blue like real shade film.
 # At night the behaviors show the TWR_ShadeNight twin instead (no glow).
-EMISSIVE_BLEND = {"TWR_Shade": [26.0, 116.0, 470.0]}
+EMISSIVE_BLEND = {"TWR_Shade": [8.0, 32.0, 110.0]}     # fix60's 4x brighter read as flat bright-blue panels
 
 
 def material_json(name):

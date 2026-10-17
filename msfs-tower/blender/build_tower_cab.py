@@ -128,8 +128,8 @@ COLORS = {
     "$SCREEN_CLOCK": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_VSCS": (0.0, 0.0, 0.0, 1.0),
     "TWR_Mount": (0.03, 0.03, 0.035, 1.0),
-    "TWR_Shade": (0.12, 0.27, 0.51, 0.92),         # dark navy tinted film (glows its own blue by day)
-    "TWR_ShadeNight": (0.12, 0.27, 0.51, 0.92),    # the same film at night: no glow
+    "TWR_Shade": (0.16, 0.33, 0.60, 0.65),         # navy tinted film (glows a little of its own blue by day)
+    "TWR_ShadeNight": (0.16, 0.33, 0.60, 0.65),    # the same film at night: no glow
 }
 
 # ---------------------------------------------------------------------------
