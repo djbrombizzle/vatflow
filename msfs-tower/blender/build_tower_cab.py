@@ -128,7 +128,8 @@ COLORS = {
     "$SCREEN_CLOCK": (0.0, 0.0, 0.0, 1.0),
     "$SCREEN_VSCS": (0.0, 0.0, 0.0, 1.0),
     "TWR_Mount": (0.03, 0.03, 0.035, 1.0),
-    "TWR_Shade": (0.11, 0.21, 0.34, 0.74),         # dark navy tinted film
+    "TWR_Shade": (0.12, 0.27, 0.51, 0.92),         # dark navy tinted film (glows its own blue by day)
+    "TWR_ShadeNight": (0.12, 0.27, 0.51, 0.92),    # the same film at night: no glow
 }
 
 # ---------------------------------------------------------------------------
@@ -967,6 +968,12 @@ def window_shade(k, coll, a0, a1, z0, z1):
         strip = Builder("TowerCab_Shade_%d_s%02d" % (k, i), coll)
         strip.face([t0 - along * half_w, t0 + along * half_w, t1 + along * half_w, t1 - along * half_w], "TWR_Shade")
         obj = strip.finish()
+        obj["vatflow_shade"] = k
+        obj["vatflow_strip"] = i
+        # its night twin: the same strip without the day glow (behaviors show one or the other)
+        night = Builder("TowerCab_ShadeNight_%d_s%02d" % (k, i), coll)
+        night.face([t0 - along * half_w, t0 + along * half_w, t1 + along * half_w, t1 - along * half_w], "TWR_ShadeNight")
+        obj = night.finish()
         obj["vatflow_shade"] = k
         obj["vatflow_strip"] = i
         bar = Builder("TowerCab_ShadeBar_%d_s%02d" % (k, i), coll)

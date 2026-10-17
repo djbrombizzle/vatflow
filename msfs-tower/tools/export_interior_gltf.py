@@ -10,7 +10,7 @@ tower_cab_interior.gltf + .bin, with no Blender export or MSFS material panel wo
 * Each monitor gets a rotation animation "<NODE>_TRACK" for travelling round the
   circular ceiling track: frame = degrees (0..360, frame 0 = where it was built, the
   rest position), keyed at 24 fps like the Asobo exporter.
-* Each window shade is SHADE_STRIPS strips (TowerCab_Shade_k_sNN); behaviors show the
+* Each window shade is SHADE_STRIPS strips (TowerCab_Shade_k_sNN by day, TowerCab_ShadeNight_k_sNN at night); behaviors show the
   strips past the shade's position, so it unrolls in steps (no animation involved).
 * Carpet, ceiling and console materials use the textures from make_textures.py
   (common/texture), mapped by world position so the patterns line up across parts;
@@ -109,7 +109,8 @@ PBR = {
     "TWR_Metal": ("C8C8C4", 0.8, 0.4, 1),
     "TWR_Mullion": ("1A1A1C", 0.2, 0.5, 1),
     "TWR_Glass": ("A0B4BE", 0.0, 0.05, 0.15),
-    "TWR_Shade": ("1C3557", 0.0, 0.8, 0.74),     # dark navy tinted film, like a real cab's shades
+    "TWR_Shade": ("1E4683", 0.0, 0.8, 0.92),     # dark navy tinted film, like a real cab's shades
+    "TWR_ShadeNight": ("1E4683", 0.0, 0.8, 0.92),
 }
 
 
@@ -188,6 +189,11 @@ def box_uv(p, n, meters):
 EMISSIVE = {"TWR_LightPanel": [450.0, 420.0, 370.0],
             "TWR_KnobLit": [60.0, 42.0, 14.0],          # knob pointers and the knob panel's faint amber edge light
             "TWR_AlarmLit": [1600.0, 90.0, 60.0]}       # windshear MUTE button: bright red when it flashes
+# Self-lit and see-through: the shades by day. Alpha blending alone only mixes the shade's own
+# (dark, lit from inside) colour with the bright sky behind and comes out grey; the glow stands
+# in for the daylight the tinted film lets through, so it reads navy blue like real shade film.
+# At night the behaviors show the TWR_ShadeNight twin instead (no glow).
+EMISSIVE_BLEND = {"TWR_Shade": [26.0, 116.0, 470.0]}
 
 
 def material_json(name):
@@ -195,6 +201,10 @@ def material_json(name):
         # twice the SDK sample's 2000: the screens' black layer (common/dimmer.js) takes it
         # back to normal and thins out up to 200 % brightness on bright days
         return {"emissiveFactor": [4000.0, 4000.0, 4000.0], "name": name}
+    if name in EMISSIVE_BLEND:
+        hx, met, rough, alpha = PBR[name]
+        return {"alphaMode": "BLEND", "doubleSided": True, "emissiveFactor": EMISSIVE_BLEND[name], "name": name,
+                "pbrMetallicRoughness": {"baseColorFactor": hexlin(hx) + [alpha], "metallicFactor": met, "roughnessFactor": rough}}
     if name in EMISSIVE:
         hx, met, rough, alpha = PBR[name]
         return {"alphaMode": "OPAQUE", "doubleSided": True, "emissiveFactor": EMISSIVE[name], "name": name,
@@ -581,13 +591,17 @@ def write_behaviors(path, node_names):
                          + "\t\t\t</UseTemplate>\n"
                          + drag_template("Y", var, SHADE_DRAG_SPEED, False, "Window shade - drag to set the height", 100)
                          + "\t\t</Component>\n")
-        elif node.startswith("TowerCab_Shade_"):        # one strip of a shade: shown past its step
+        elif node.startswith("TowerCab_Shade_") or node.startswith("TowerCab_ShadeNight_"):
+            # one strip of a shade: shown past its step; the glowing day strip by day, its plain
+            # night twin at night (L:VATFLOW_NIGHT, common/dimmer.js: 50 and over = night)
             k, strip = node.split("_")[2], int(node.rsplit("_s", 1)[1])
             var = "VATFLOW_SHADE_%s" % k
             step = strip * 100.0 / SHADE_STRIPS
-            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_%s_S%02d\" Node=\"%s\">\n" % (k, strip, node)
+            night = node.startswith("TowerCab_ShadeNight_")
+            comps.append("\t\t<Component ID=\"VATFLOW_SHADE_%s_%s%02d\" Node=\"%s\">\n" % (k, "N" if night else "S", strip, node)
                          + "\t\t\t<UseTemplate Name=\"ASOBO_GT_Visibility_Code\">\n"
-                         + "\t\t\t\t<VISIBILITY_CODE>(L:%s) %g &gt;</VISIBILITY_CODE>\n" % (var, step)
+                         + "\t\t\t\t<VISIBILITY_CODE>(L:%s) %g &gt; (L:VATFLOW_NIGHT) 50 %s and</VISIBILITY_CODE>\n"
+                         % (var, step, "&gt;=" if night else "&lt;")
                          + "\t\t\t</UseTemplate>\n"
                          + drag_template("Y", var, SHADE_DRAG_SPEED, False, "Window shade - drag to set the height", 100)
                          + "\t\t</Component>\n")
