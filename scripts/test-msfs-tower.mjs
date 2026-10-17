@@ -896,6 +896,26 @@ t("tower spot: the FAA obstacle data gives the airport's control tower (tallest 
   assert.equal(P.target("KMCO", { icao: "KMCO", arp: { lat: 28.4294, lon: -81.3090 } }, { tower: { lat: 1, lon: 1 } }).kind, "faa");
 });
 
+t("ASDE-X rotate: by hand in 15 degree steps from where it is, AUTO hands it back, kept per screen", () => {
+  const g = genContext();
+  vm.runInContext(readFileSync(new URL("common/viewctl.js", BASE), "utf8"), g);
+  const store = {};
+  g.VatflowStore = { get: (k, d) => (k in store ? JSON.parse(store[k]) : d), set: (k, v) => { store[k] = JSON.stringify(v); } };
+  const v = new g.VatflowViewCtl("VIEW_asdex_ASDEX", 1024, 768);
+  assert.equal(v.upHeading(76), 76, "AUTO: the window's view");
+  v.rotateBy(15, 76);
+  assert.equal(v.upHeading(200), 91, "turned left once from 076");
+  v.rotateBy(-15, 0); v.rotateBy(-15, 0); v.rotateBy(-15, 0);
+  assert.equal(v.upHeading(200), 46);
+  for (let i = 0; i < 4; i++) v.rotateBy(-15, 0);
+  assert.equal(v.upHeading(200), 346, "wraps round");
+  assert.equal(new g.VatflowViewCtl("VIEW_asdex_ASDEX", 1024, 768).upHeading(5), 346, "kept for the next flight");
+  v.reset();
+  assert.equal(v.upHeading(5), 346, "C (whole picture) keeps the rotation");
+  v.autoRotate();
+  assert.equal(v.upHeading(5), 5);
+});
+
 t("zoom / pan: the view scales about the screen centre and pans a share of the screen", () => {
   const g = genContext();
   vm.runInContext(readFileSync(new URL("common/viewctl.js", BASE), "utf8"), g);

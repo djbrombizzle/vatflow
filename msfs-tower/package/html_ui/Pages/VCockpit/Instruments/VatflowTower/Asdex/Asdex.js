@@ -298,7 +298,8 @@ var AsdexView = (function () {
     mono(ctx, "N", nx + nv.x * 33 - CW / 2, ny - nv.y * 33 + 6, CW);
 
     ctx.fillStyle = C.text;
-    mono(ctx, "GROUND RADAR " + cfg.icao + (this.view && !this.view.isHome() ? "  ZOOM X" + this.view.zoom.toFixed(1) : ""), 14, 26, CW);
+    mono(ctx, "GROUND RADAR " + cfg.icao + (this.view && !this.view.isHome() ? "  ZOOM X" + this.view.zoom.toFixed(1) : "") +
+      (this.rotManual ? "  ROT " + VatflowFeed.pad((((this.upHdg - (cfg.magVarDeg || 0)) % 360) + 360) % 360, 3) + "M" : ""), 14, 26, CW);
     if (typeof zuluSec === "number" && !isNaN(zuluSec)) {
       var z = VatflowDraw.zulu(zuluSec);
       var s = z.hh + z.mm + ":" + z.ss + "Z";

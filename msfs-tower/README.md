@@ -57,7 +57,10 @@ Inside the cab there are two working screens fed by live data:
   colours (teal water, grey field, dark movement area, black runways, light
   terminals, from OpenStreetMap) with every VATSIM aircraft on the field and
   arrivals/departures below 2,000 ft as heading arrows with callsign/type. Same zoom / pan
-  pad as the DBRITE. Taxiway names (OpenStreetMap's `ref`: A, B1 ...) are written along the
+  pad as the DBRITE. Above the pad, a rotate row turns the map by hand, 15 degrees a press (left / right),
+  for those who don't want it to follow the window; the header then shows ROT and the
+  magnetic heading at the top. AUTO (green while on) hands it back to the window. Kept per
+  screen. The pad's arrows are drawn as shapes (the sim's screen font has no arrow characters). Taxiway names (OpenStreetMap's `ref`: A, B1 ...) are written along the
   taxiways, upright however the map is turned, spaced out so they don't pile up; zooming in
   shows the short connectors' names too. They stay on when an ARTCC ASDE-X map is shown.
   Airports the cab builds from OpenStreetMap get them too (maps saved by an older version are

@@ -135,12 +135,12 @@ var VatflowApps = (function () {
     });
   }
   /** Zoom / pan pad for a radar view (kept per screen). */
-  function zoomPan(el, ctx, app, view, redraw) {
+  function zoomPan(el, ctx, app, view, redraw, padOpts) {
     var c = el.querySelector("canvas");
     var vc = new VatflowViewCtl("VIEW_" + app + "_" + ctx.screen.id, c.width, c.height);
     view.setView(vc);
     vc.onChange = redraw;
-    vc.pad(el);
+    vc.pad(el, padOpts);
     return vc;
   }
 
@@ -238,11 +238,13 @@ var VatflowApps = (function () {
       create: function (el, ctx) {
         var v = new AsdexView(canvas(el, null, "asdex-canvas"), ctx.cfg, ctx.maps);
         var tick = VatflowDraw.loop(v, 1000);
-        zoomPan(el, ctx, "asdex", v, function () { v.fit(); tick(true); });
+        // the rotate row: turn the map by hand in 15 degree steps, or AUTO (the view out of the window)
+        var vc = zoomPan(el, ctx, "asdex", v, function () { v.setUp(vc.upHeading(ctx.upHeading())); v.fit(); tick(true); },
+          { rotate: function () { return v.upHdg; } });
         var src = trafficTab(el);
         VatflowTraffic.poll(ctx.cfg, function (d) { v.setData(d); }, function (e) { v.setError(e); });
         videoMaps(el, ctx, "asdex", function (list) { v.setMap(list.length ? list[0].asdex || list[0] : (ctx.maps ? ctx.maps.asdex : null)); tick(true); });
-        return { update: function () { src(); v.setUp(ctx.upHeading()); tick(false); } };
+        return { update: function () { src(); v.setUp(vc.upHeading(ctx.upHeading())); v.rotManual = vc.rot !== null; tick(false); } };
       }
     },
     idst: {
