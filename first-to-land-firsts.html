@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First to Land: Firsts — VATFLOW</title>
+<!--
+  Every first landing vatflow-hub has recorded at a field from the First to Land list:
+  who (CID, callsign), in what, from where, and when. Refreshes every minute.
+-->
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="shared/first-landing.css">
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div class="fl-page">
+  <header class="fl-head">
+    <div>
+      <div class="label">First to Land</div>
+      <h1>Firsts</h1>
+      <p>Every pilot who was the first VATSIM aircraft to land at a field nobody had landed at, newest first.</p>
+    </div>
+    <div class="fl-tally">
+      <div class="amber"><b id="tFirsts">—</b><span class="label">Firsts</span></div>
+      <div class="blue"><b id="tPilots">—</b><span class="label">Pilots</span></div>
+      <div class="mag"><b id="tToday">—</b><span class="label">Last 24 h</span></div>
+    </div>
+  </header>
+
+  <nav class="fl-tabs" id="tabs" aria-label="First to Land pages"></nav>
+  <div class="fl-status" id="watch">Loading…</div>
+
+  <div class="fl-filters" role="group" aria-label="Filters">
+    <label for="fState">State <select id="fState"><option value="">All</option></select></label>
+    <label for="fQ"><input id="fQ" type="search" placeholder="Callsign, CID or field"></label>
+  </div>
+
+  <div class="fl-table">
+    <table>
+      <thead><tr>
+        <th>Landed (UTC)</th><th>Field</th><th>Name</th><th>State</th><th>Callsign</th><th>CID</th><th>Aircraft</th><th>From</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="fl-empty" id="empty" hidden></div>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { REFRESH_MS, loadClaims, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine, statsimUrl, vatsimStatsUrl } from "./shared/first-landing.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "first-firsts");
+const $ = (id) => document.getElementById(id);
+mountTabs($("tabs"), "firsts");
+
+let claims = [], known = null;
+
+function render() {
+  const st = $("fState").value, q = $("fQ").value.trim().toLowerCase();
+  const list = claims.filter((c) => (!st || c.state === st) &&
+    (!q || [c.callsign, c.cid, c.icao, c.name].join(" ").toLowerCase().includes(q)));
+  const tb = $("rows");
+  tb.innerHTML = "";
+  for (const c of list) {
+    const tr = document.createElement("tr");
+    if (known && !known.has(c.icao)) tr.className = "fresh";
+    tr.innerHTML =
+      `<td class="mono" title="${esc(ago(c.landedAt))}">${esc(fmtUtc(c.landedAt))}</td>` +
+      `<td class="mono"><a href="${statsimUrl(c.icao)}" target="_blank" rel="noopener">${esc(c.icao)}</a></td>` +
+      `<td class="wrap">${esc(c.name)}${c.source === "manual" ? ' <span class="pill dim" title="Added by a VATFLOW admin">added</span>' : ""}</td>` +
+      `<td>${esc(c.state)}</td>` +
+      `<td class="mono"><b>${esc(c.callsign)}</b></td>` +
+      `<td class="mono"><a href="${vatsimStatsUrl(c.cid)}" target="_blank" rel="noopener">${esc(c.cid)}</a></td>` +
+      `<td class="mono">${esc(c.aircraft || "—")}</td>` +
+      `<td class="mono">${esc(c.from || "—")}</td>`;
+    tb.append(tr);
+  }
+  const empty = $("empty");
+  empty.hidden = list.length > 0;
+  empty.innerHTML = claims.length
+    ? "No firsts match these filters."
+    : `No firsts yet. Pick a field on <a href="first-to-land.html">Untouched fields</a> and be the first one in.`;
+  $("tFirsts").textContent = fmtNum(claims.length);
+  $("tPilots").textContent = fmtNum(new Set(claims.map((c) => c.cid)).size);
+  $("tToday").textContent = fmtNum(claims.filter((c) => Date.now() - Date.parse(c.landedAt) < 86400000).length);
+}
+
+async function refresh() {
+  try {
+    const body = await loadClaims();
+    claims = body.claims;
+    watcherLine($("watch"), body);
+    const states = [...new Set(claims.map((c) => c.state).filter(Boolean))].sort();
+    const sel = $("fState"), cur = sel.value;
+    sel.length = 1;
+    states.forEach((s) => sel.add(new Option(s, s)));
+    sel.value = states.includes(cur) ? cur : "";
+    render();
+    known = new Set(claims.map((c) => c.icao));
+  } catch (e) {
+    watcherLine($("watch"), null, e);
+    if (!known) { $("empty").hidden = false; $("empty").textContent = "The list of firsts didn't load. This page will try again in a minute."; }
+  }
+}
+["fState", "fQ"].forEach((id) => $(id).addEventListener("input", render));
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

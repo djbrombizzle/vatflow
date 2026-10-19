@@ -59,6 +59,15 @@ const NAV_ITEMS = [
       { id: "hoppie-delay", href: "hoppie-delay.html", label: "Hoppie Delay" },
     ],
   },
+  {
+    id: "first",
+    label: "First to Land",
+    children: [
+      { id: "first-to-land", href: "first-to-land.html", label: "Untouched fields" },
+      { id: "first-firsts", href: "first-to-land-firsts.html", label: "Firsts" },
+      { id: "first-leaderboard", href: "first-to-land-leaderboard.html", label: "Leaderboard" },
+    ],
+  },
   { id: "admin", href: "admin-access.html", label: "Admin Access" },
 ];
 

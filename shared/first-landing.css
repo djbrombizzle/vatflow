@@ -1,0 +1,82 @@
+/* First to Land pages (first-to-land*.html). VATFLOW's dark palette; magenta is the
+   sectional-chart colour for non-towered fields, used here for untouched ones. */
+:root {
+  --bg: #080b10;
+  --panel: #0e1319;
+  --panel2: #121820;
+  --text: #d4dde6;
+  --muted: #8a97a3;
+  --dim: #5c6b78;
+  --line: #1e2834;
+  --amber: #e8a838;
+  --mag: #ff5fb4;
+  --blue: #6aa8ff;
+  --green: #7ee2a8;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --vatflow-nav-h: 28px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--ui); }
+#vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+.fl-page { max-width: 1240px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 20px) 16px 40px; display: grid; gap: 16px; }
+a { color: var(--blue); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.muted { color: var(--muted); }
+.label { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+
+.fl-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 28px; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.fl-head h1 { font-family: var(--mono); font-size: 22px; letter-spacing: .14em; margin: 4px 0 6px; text-transform: uppercase; }
+.fl-head p { margin: 0; color: var(--muted); max-width: 70ch; }
+.fl-tally { display: flex; gap: 24px; flex-wrap: wrap; }
+.fl-tally div { display: grid; }
+.fl-tally b { font-family: var(--mono); font-size: 30px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fl-tally .mag b { color: var(--mag); }
+.fl-tally .blue b { color: var(--blue); }
+.fl-tally .amber b { color: var(--amber); }
+
+.fl-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.fl-tabs a { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; color: var(--muted);
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+.fl-tabs a:hover { border-color: var(--amber); color: var(--text); }
+.fl-tabs a[aria-current=page] { color: var(--amber); border-color: var(--amber); }
+
+.fl-status { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.fl-status.bad { color: var(--amber); }
+.fl-status i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; }
+.fl-status.bad i { background: var(--amber); }
+
+.fl-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.fl-latest { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--mag);
+  border-radius: 6px; padding: 10px 14px; }
+.fl-latest b { font-family: var(--mono); }
+
+.fl-filters { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.fl-filters label { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; color: var(--muted); }
+.fl-filters select, .fl-filters input[type=search] { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; color: var(--text); }
+.fl-filters input[type=search] { width: 200px; max-width: 100%; }
+.fl-filters input[type=range], .fl-filters input[type=checkbox] { accent-color: var(--mag); }
+
+.fl-table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.fl-table table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.fl-table th, .fl-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.fl-table th { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-weight: 600; background: var(--panel2); }
+.fl-table td.num, .fl-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.fl-table td.wrap { white-space: normal; min-width: 16ch; }
+.fl-table tbody tr:hover { background: var(--panel2); }
+.fl-table tr.fresh { animation: fl-fresh 3s ease-out; }
+@keyframes fl-fresh { from { background: rgba(255, 95, 180, .25); } to { background: transparent; } }
+.fl-empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+.pill { font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.mag { color: var(--mag); }
+.pill.blue { color: var(--blue); }
+.pill.amber { color: var(--amber); }
+.pill.dim { color: var(--muted); }
+.fl-btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 14px; cursor: pointer; }
+.fl-btn:hover { border-color: var(--amber); }
+
+@media (max-width: 760px) { .fl-head { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
