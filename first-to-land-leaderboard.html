@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First to Land: Leaderboard — VATFLOW</title>
+<!--
+  Pilots ranked by how many fields they were the first VATSIM aircraft to land at
+  (vatflow-hub /first/leaderboard). A tie goes to whoever reached the count first.
+-->
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="shared/first-landing.css">
+<style>
+  .rank { font-family: var(--mono); font-weight: 700; color: var(--muted); width: 4ch; }
+  tr.top1 .rank { color: var(--amber); }
+  tr.top2 .rank, tr.top3 .rank { color: var(--text); }
+  .count { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--amber); }
+  .fields { display: flex; flex-wrap: wrap; gap: 4px; max-width: 60ch; }
+  .fields a { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 3px; text-decoration: none; color: var(--text); }
+  .fields a:hover { border-color: var(--mag); }
+  .more { background: none; border: 0; color: var(--blue); cursor: pointer; font-size: 12px; padding: 0 4px; }
+  .fl-table td { vertical-align: top; }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div class="fl-page">
+  <header class="fl-head">
+    <div>
+      <div class="label">First to Land</div>
+      <h1>Leaderboard</h1>
+      <p>Pilots ranked by how many fields they were the first VATSIM aircraft to land at. A tie goes to whoever got there first.</p>
+    </div>
+    <div class="fl-tally">
+      <div class="blue"><b id="tPilots">—</b><span class="label">Pilots</span></div>
+      <div class="amber"><b id="tFirsts">—</b><span class="label">Firsts</span></div>
+    </div>
+  </header>
+
+  <nav class="fl-tabs" id="tabs" aria-label="First to Land pages"></nav>
+  <div class="fl-status" id="watch">Loading…</div>
+
+  <div class="fl-filters" role="group" aria-label="Filters">
+    <label for="fQ"><input id="fQ" type="search" placeholder="Find a CID or callsign"></label>
+  </div>
+
+  <div class="fl-table">
+    <table>
+      <thead><tr>
+        <th>#</th><th class="num">Firsts</th><th>CID</th><th>Callsigns</th><th>Latest</th><th>Fields</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="fl-empty" id="empty" hidden></div>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { REFRESH_MS, loadLeaderboard, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine, statsimUrl, vatsimStatsUrl } from "./shared/first-landing.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "first-leaderboard");
+const $ = (id) => document.getElementById(id);
+mountTabs($("tabs"), "leaderboard");
+
+const SHOW_FIELDS = 12;
+let rows = [], loaded = false;
+const open = new Set();          // CIDs with every field shown
+
+function render() {
+  const q = $("fQ").value.trim().toLowerCase();
+  const tb = $("rows");
+  tb.innerHTML = "";
+  rows.forEach((r, i) => { r.rank = i + 1; });       // the hub sends them in order
+  const list = rows.filter((r) => !q || [r.cid, ...r.callsigns].join(" ").toLowerCase().includes(q));
+  for (const r of list) {
+    const tr = document.createElement("tr");
+    if (r.rank <= 3) tr.className = "top" + r.rank;
+    const fields = [...r.fields].reverse();          // newest first
+    const shown = open.has(r.cid) ? fields : fields.slice(0, SHOW_FIELDS);
+    tr.innerHTML =
+      `<td class="rank">${r.rank}</td>` +
+      `<td class="num"><span class="count">${fmtNum(r.count)}</span></td>` +
+      `<td class="mono"><a href="${vatsimStatsUrl(r.cid)}" target="_blank" rel="noopener">${esc(r.cid)}</a></td>` +
+      `<td class="mono wrap">${r.callsigns.map(esc).join(", ")}</td>` +
+      `<td class="mono" title="${esc(fmtUtc(r.latestAt))}">${esc(ago(r.latestAt))}</td>` +
+      `<td><div class="fields">${shown.map((f) =>
+        `<a href="${statsimUrl(f.icao)}" target="_blank" rel="noopener" title="${esc(f.name)}${f.state ? ", " + esc(f.state) : ""} · ${esc(fmtUtc(f.landedAt))}">${esc(f.icao)}</a>`).join("")}` +
+      `${fields.length > SHOW_FIELDS ? `<button class="more" data-cid="${esc(r.cid)}">${open.has(r.cid) ? "fewer" : "+" + (fields.length - SHOW_FIELDS) + " more"}</button>` : ""}</div></td>`;
+    tb.append(tr);
+  }
+  tb.querySelectorAll("button.more").forEach((b) => b.onclick = () => {
+    const cid = b.dataset.cid;
+    open.has(cid) ? open.delete(cid) : open.add(cid);
+    render();
+  });
+  const empty = $("empty");
+  empty.hidden = list.length > 0;
+  empty.innerHTML = rows.length
+    ? "Nobody on the board matches that."
+    : `The board is empty. Land first at a field on <a href="first-to-land.html">Untouched fields</a> to take the top spot.`;
+  $("tPilots").textContent = fmtNum(rows.length);
+  $("tFirsts").textContent = fmtNum(rows.reduce((s, r) => s + r.count, 0));
+}
+
+async function refresh() {
+  try {
+    const body = await loadLeaderboard();
+    rows = body.rows;
+    loaded = true;
+    watcherLine($("watch"), body);
+    render();
+  } catch (e) {
+    watcherLine($("watch"), null, e);
+    if (!loaded) { $("empty").hidden = false; $("empty").textContent = "The leaderboard didn't load. This page will try again in a minute."; }
+  }
+}
+$("fQ").addEventListener("input", render);
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

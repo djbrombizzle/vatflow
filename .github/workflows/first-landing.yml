@@ -1,0 +1,58 @@
+# Refresh data/first-landing/fields.json (US fields with no VATSIM landing on StatSim since
+# January 2020) for First to Land. Daily; run it by hand with "full" to rebuild from nothing.
+name: First to Land fields
+
+on:
+  schedule:
+    # Every day 07:20 UTC
+    - cron: "20 7 * * *"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Rebuild from nothing (every week since 2020, a couple of hours)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: first-landing
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build fields
+        run: |
+          set -euo pipefail
+          node scripts/build-first-landing.mjs ${{ inputs.full && '--full' || '' }} 2>&1 | tee "${RUNNER_TEMP}/first-landing.log"
+          grep -q '^done$' "${RUNNER_TEMP}/first-landing.log"
+          node scripts/test-first-landing.mjs
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/first-landing/fields.json; then
+            echo "No change"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data/first-landing/fields.json
+          git commit -m "First to Land: refresh fields from StatSim"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
