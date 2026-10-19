@@ -20,7 +20,13 @@
     font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .views button[aria-pressed=true] { color: var(--text); box-shadow: inset 0 -2px 0 var(--mag); }
   .canvas-wrap { position: relative; aspect-ratio: 16 / 9.4; max-width: 100%; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  canvas.panning { cursor: grabbing; }
+  .zoom { position: absolute; top: 10px; right: 10px; display: grid; gap: 4px; }
+  .zoom button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel2); color: var(--text);
+    font: 600 16px/1 var(--mono); cursor: pointer; display: grid; place-items: center; padding: 0; }
+  .zoom button:hover { border-color: var(--amber); }
+  .zoom button:disabled { opacity: .4; cursor: default; border-color: var(--line); }
   .tip { position: absolute; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; padding: 3px 8px; border-radius: 3px;
     white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); font-family: var(--mono); }
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
@@ -90,6 +96,11 @@
       <div class="canvas-wrap" id="cw">
         <canvas id="map" aria-label="Map of untouched fields"></canvas>
         <div class="tip" id="tip" hidden></div>
+        <div class="zoom" role="group" aria-label="Zoom">
+          <button id="zIn" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="zOut" title="Zoom out" aria-label="Zoom out">&minus;</button>
+          <button id="zReset" title="Show the whole region" aria-label="Show the whole region">&#8634;</button>
+        </div>
       </div>
       <div class="legend">
         <span><i style="background:var(--mag)"></i>No VATSIM traffic</span>
@@ -97,6 +108,7 @@
         <span><i style="background:var(--amber)"></i>Claimed</span>
         <span><i style="background:#2a3542"></i>Has seen a landing</span>
         <span id="shown"></span>
+        <span>Scroll or pinch to zoom, drag to pan</span>
       </div>
     </div>
     <div style="display:grid; gap:16px; min-width:0">
@@ -187,7 +199,7 @@ function apply() {
   const f = readFilters();
   $("rwyOut").textContent = f.rwy ? fmtNum(f.rwy) + " ft" : "any";
   filtered = DATA.fields.filter((r) => passes(r, f));
-  if (f.st) { const v = VIEWS.find((v) => v.test(f.st)); if (v) view = v; }
+  if (f.st) { const v = VIEWS.find((v) => v.test(f.st)); if (v) setView(v); }
   renderViews(); drawMap(); renderList(); renderLongest();
 }
 
@@ -197,42 +209,90 @@ function renderViews() {
     const b = document.createElement("button");
     b.setAttribute("aria-pressed", v === view);
     b.textContent = `${v.name} ${fmtNum(filtered.filter((r) => v.test(r[C.state])).length)}`;
-    b.onclick = () => { view = v; store.set("fl-view", v.id); renderViews(); drawMap(); };
+    b.onclick = () => { setView(v); store.set("fl-view", v.id); renderViews(); drawMap(); };
     $("views").append(b);
   }
 }
 
 const canvas = $("map"), ctx = canvas.getContext("2d");
-function project(lat, lon, W, H) {
+// Zoom and pan: screen = base * k + (x, y), where base is the region fitted to the canvas.
+const MAX_ZOOM = 80;
+let zoom = { k: 1, x: 0, y: 0 }, lastW = 0, lastH = 0;
+function setView(v) { if (v !== view) { view = v; zoom = { k: 1, x: 0, y: 0 }; } }
+function baseXY(lat, lon, W, H) {
   const [x0, x1, y0, y1] = view.box, kx = Math.cos((y0 + y1) / 2 * Math.PI / 180);
   const spanX = (x1 - x0) * kx, spanY = y1 - y0, pad = 14;
   const s = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
   return [(W - spanX * s) / 2 + (lonAdj(lon, view) - x0) * kx * s, (H - spanY * s) / 2 + (y1 - lat) * s];
 }
+function project(lat, lon, W, H) {
+  const [bx, by] = baseXY(lat, lon, W, H);
+  return [bx * zoom.k + zoom.x, by * zoom.k + zoom.y];
+}
+/** Keep the region on screen: no panning past its edges. */
+function clampPan(W, H) {
+  zoom.x = Math.min(0, Math.max(W - W * zoom.k, zoom.x));
+  zoom.y = Math.min(0, Math.max(H - H * zoom.k, zoom.y));
+}
+function zoomAt(mx, my, factor) {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const k = Math.min(MAX_ZOOM, Math.max(1, zoom.k * factor));
+  zoom.x = mx - (mx - zoom.x) * (k / zoom.k);
+  zoom.y = my - (my - zoom.y) * (k / zoom.k);
+  zoom.k = k;
+  clampPan(W, H);
+  drawMap();
+}
+/** Pan so this field is on screen (centred) when it is not already. */
+function showField(r) {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W) return;
+  const [x, y] = project(r[C.lat], r[C.lon], W, H);
+  if (x > 30 && x < W - 50 && y > 30 && y < H - 30) return;
+  const [bx, by] = baseXY(r[C.lat], r[C.lon], W, H);
+  zoom.x = W / 2 - bx * zoom.k;
+  zoom.y = H / 2 - by * zoom.k;
+  clampPan(W, H);
+}
+
 function drawMap() {
   const rect = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, W = rect.width, H = rect.height;
   if (!W) return;
+  $("tip").hidden = true;          // the dot it pointed at has moved
+  if (lastW && (W !== lastW || H !== lastH)) { zoom.x *= W / lastW; zoom.y *= H / lastH; clampPan(W, H); }
+  lastW = W; lastH = H;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-  const [x0, x1, y0, y1] = view.box;
-  const inBox = (la, lo) => { lo = lonAdj(lo, view); return lo >= x0 - 1 && lo <= x1 + 1 && la >= y0 - 1 && la <= y1 + 1; };
-  const big = view.id === "conus" ? 1.4 : 2.2;
+  const onScreen = (x, y) => x > -10 && x < W + 10 && y > -10 && y < H + 10;
+  const grow = Math.min(2.4, 1 + Math.log2(zoom.k) * 0.3);       // dots grow a little as you zoom in
+  const big = (view.id === "conus" ? 1.4 : 2.2) * grow;
   ctx.fillStyle = "#2a3542";
-  for (const [la, lo] of DATA.landed) { if (!inBox(la, lo)) continue; const [x, y] = project(la, lo, W, H); ctx.fillRect(x - big / 2, y - big / 2, big, big); }
+  for (const [la, lo] of DATA.landed) {
+    const [x, y] = project(la, lo, W, H);
+    if (onScreen(x, y)) ctx.fillRect(x - big / 2, y - big / 2, big, big);
+  }
   pts = [];
-  const r0 = view.id === "conus" ? 2.3 : 3.6;
+  const r0 = (view.id === "conus" ? 2.3 : 3.6) * grow;
   const css = getComputedStyle(document.documentElement);
   const color = { 0: css.getPropertyValue("--mag"), 1: css.getPropertyValue("--blue"), c: css.getPropertyValue("--amber") };
-  const dot = (r, x, y, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r0, 0, 7); ctx.fill(); };
   for (const pass of [1, 0, "c"]) {
+    ctx.fillStyle = color[pass];
     for (const r of filtered) {
       if (!view.test(r[C.state])) continue;
       const k = claims.has(r[C.ident]) ? "c" : r[C.status];
       if (k !== pass) continue;
       const [x, y] = project(r[C.lat], r[C.lon], W, H);
-      dot(r, x, y, color[k]);
+      if (!onScreen(x, y)) continue;
+      ctx.beginPath(); ctx.arc(x, y, r0, 0, 7); ctx.fill();
       pts.push([x, y, r]);
     }
+  }
+  // Close in, name the fields.
+  if (zoom.k >= 4 && pts.length <= 250) {
+    ctx.font = "10px " + css.getPropertyValue("--mono");
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = css.getPropertyValue("--muted");
+    for (const [x, y, r] of pts) ctx.fillText(r[C.ident], x + r0 + 3, y);
   }
   if (selected && view.test(selected[C.state])) {
     const [x, y] = project(selected[C.lat], selected[C.lon], W, H);
@@ -242,28 +302,86 @@ function drawMap() {
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { ctx.moveTo(x + dx * 11, y + dy * 11); ctx.lineTo(x + dx * 15, y + dy * 15); }
     ctx.stroke();
   }
-  $("shown").textContent = `${fmtNum(pts.length)} shown`;
+  $("shown").textContent = `${fmtNum(pts.length)} shown` + (zoom.k > 1.01 ? ` · ${zoom.k < 10 ? zoom.k.toFixed(1) : Math.round(zoom.k)}×` : "");
+  $("zIn").disabled = zoom.k >= MAX_ZOOM;
+  $("zOut").disabled = $("zReset").disabled = zoom.k <= 1;
 }
+const localXY = (ev) => { const rect = canvas.getBoundingClientRect(); return [ev.clientX - rect.left, ev.clientY - rect.top]; };
 function nearest(ev) {
-  const rect = canvas.getBoundingClientRect(), mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+  const [mx, my] = localXY(ev);
   let best = null, bd = 144;
   for (const p of pts) { const d = (p[0] - mx) ** 2 + (p[1] - my) ** 2; if (d < bd) { bd = d; best = p; } }
   return best;
 }
-canvas.addEventListener("mousemove", (ev) => {
-  const p = nearest(ev), tip = $("tip");
-  if (!p) { tip.hidden = true; return; }
-  tip.hidden = false; tip.style.left = p[0] + "px"; tip.style.top = p[1] + "px";
-  tip.textContent = `${p[2][C.ident]} · ${p[2][C.name]}`;
+
+// Pointer gestures: one pointer drags, two pinch. A press that moves less than 5 px is a click.
+const pointers = new Map();
+let gesture = null;
+canvas.addEventListener("pointerdown", (ev) => {
+  canvas.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, localXY(ev));
+  const ps = [...pointers.values()];
+  gesture = ps.length === 1
+    ? { kind: "pan", start: ps[0], x: zoom.x, y: zoom.y, moved: false }
+    : { kind: "pinch", dist: Math.hypot(ps[0][0] - ps[1][0], ps[0][1] - ps[1][1]), k: zoom.k, moved: true };
 });
-canvas.addEventListener("mouseleave", () => { $("tip").hidden = true; });
-canvas.addEventListener("click", (ev) => { const p = nearest(ev); if (p) select(p[2]); });
+canvas.addEventListener("pointermove", (ev) => {
+  if (!pointers.has(ev.pointerId)) {
+    if (ev.pointerType !== "mouse") return;
+    const p = nearest(ev), tip = $("tip");          // hover
+    if (!p) { tip.hidden = true; return; }
+    tip.hidden = false; tip.style.left = p[0] + "px"; tip.style.top = p[1] + "px";
+    tip.textContent = `${p[2][C.ident]} · ${p[2][C.name]}`;
+    return;
+  }
+  pointers.set(ev.pointerId, localXY(ev));
+  const ps = [...pointers.values()], W = canvas.clientWidth, H = canvas.clientHeight;
+  if (gesture.kind === "pan") {
+    const dx = ps[0][0] - gesture.start[0], dy = ps[0][1] - gesture.start[1];
+    if (!gesture.moved && Math.hypot(dx, dy) < 5) return;
+    gesture.moved = true;
+    $("tip").hidden = true;
+    canvas.classList.add("panning");
+    zoom.x = gesture.x + dx; zoom.y = gesture.y + dy;
+    clampPan(W, H); drawMap();
+  } else if (ps.length >= 2) {
+    const d = Math.hypot(ps[0][0] - ps[1][0], ps[0][1] - ps[1][1]);
+    zoomAt((ps[0][0] + ps[1][0]) / 2, (ps[0][1] + ps[1][1]) / 2, (gesture.k * d / gesture.dist) / zoom.k);
+  }
+});
+function endPointer(ev) {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.delete(ev.pointerId);
+  canvas.classList.remove("panning");
+  if (gesture && gesture.kind === "pan" && !gesture.moved && ev.type === "pointerup") {
+    const p = nearest(ev);
+    if (p) select(p[2]);
+  }
+  if (pointers.size === 1) {        // pinch down to one finger: carry on panning from here
+    const p = [...pointers.values()][0];
+    gesture = { kind: "pan", start: p, x: zoom.x, y: zoom.y, moved: true };
+  } else if (!pointers.size) gesture = null;
+}
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+canvas.addEventListener("pointerleave", (ev) => { if (ev.pointerType === "mouse" && !pointers.size) $("tip").hidden = true; });
+canvas.addEventListener("wheel", (ev) => {
+  ev.preventDefault();
+  const [mx, my] = localXY(ev);
+  const dy = ev.deltaMode === 1 ? ev.deltaY * 16 : ev.deltaY;
+  zoomAt(mx, my, Math.exp(-dy * 0.0015));
+}, { passive: false });
+canvas.addEventListener("dblclick", (ev) => { const [mx, my] = localXY(ev); zoomAt(mx, my, ev.shiftKey ? 0.5 : 2); });
+$("zIn").onclick = () => zoomAt(canvas.clientWidth / 2, canvas.clientHeight / 2, 2);
+$("zOut").onclick = () => zoomAt(canvas.clientWidth / 2, canvas.clientHeight / 2, 0.5);
+$("zReset").onclick = () => { zoom = { k: 1, x: 0, y: 0 }; drawMap(); };
 new ResizeObserver(drawMap).observe($("cw"));
 
 function select(r, scroll) {
   selected = r;
   const v = VIEWS.find((v) => v.test(r[C.state]));
-  if (v && v !== view) { view = v; renderViews(); }
+  if (v && v !== view) { setView(v); renderViews(); }
+  showField(r);
   drawMap(); renderDetail(); markRow();
   if (scroll) $("detail").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
