@@ -176,6 +176,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const lonAdj = (lon, v) => (v.id === "ak" && lon > 0 ? lon - 360 : lon);
 
 let DATA = { fields: [], landed: [] };
+let STATES = null;               // { borders, coast }: flat [lon, lat, lon, lat, ...] lines (data/first-landing/us-states.json)
 let claims = new Map();          // icao -> claim
 let view = VIEWS.find((v) => v.id === store.get("fl-view")) || VIEWS[0];
 let filtered = [], selected = null, sortKey = C.rwy, sortDir = -1, pageN = 100, pts = [];
@@ -264,6 +265,21 @@ function drawMap() {
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   const onScreen = (x, y) => x > -10 && x < W + 10 && y > -10 && y < H + 10;
+  if (STATES) {
+    ctx.lineWidth = 1;
+    ctx.lineJoin = "round";
+    for (const [lines, colour] of [[STATES.borders, "#354453"], [STATES.coast, "#46566a"]]) {
+      ctx.strokeStyle = colour;
+      ctx.beginPath();
+      for (const l of lines) {
+        for (let i = 0; i < l.length; i += 2) {
+          const [x, y] = project(l[i + 1], l[i], W, H);
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+  }
   const grow = Math.min(2.4, 1 + Math.log2(zoom.k) * 0.3);       // dots grow a little as you zoom in
   const big = (view.id === "conus" ? 1.4 : 2.2) * grow;
   ctx.fillStyle = "#2a3542";
@@ -497,6 +513,8 @@ try {
   $("detail").innerHTML = `<p class="muted">The field list didn't load (${esc(e.message)}). Reload the page to try again.</p>`;
 }
 $("asof").textContent = DATA.asOf || "—";
+// State lines are decoration: draw them when they arrive, carry on without them if they don't.
+fetch("data/first-landing/us-states.json").then((r) => (r.ok ? r.json() : null)).then((j) => { if (j) { STATES = j; drawMap(); } }).catch(() => {});
 [...new Set(DATA.fields.map((r) => r[C.state]))].sort().forEach((s) => $("fState").add(new Option(s, s)));
 await refreshClaims(true);
 apply();
