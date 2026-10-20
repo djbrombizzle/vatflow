@@ -1,8 +1,8 @@
 /**
  * First to Land: "Your name on the board". Pilots are shown by CID until they choose a name.
  * Signed in with VATSIM, a pilot can show their VATSIM name (full, or first name and last
- * initial) or a display name of their own, after accepting the privacy statement. The hub
- * checks custom names against its filter and stores the choice (/first/profile).
+ * initial) after accepting the privacy statement. Only the name VATSIM gives: there is no
+ * free-text name. The hub stores the choice (/first/profile).
  */
 import { getAccessApiBase } from "./vatflow-access-api.js";
 import { initVatflowAuth, getStoredToken, isSignedIn, login } from "./vatflow-auth.js";
@@ -21,7 +21,7 @@ async function hub(method, body) {
 
 const STATEMENT = `I agree that VATFLOW shows the name I choose next to my firsts on the public First to Land
   pages (Untouched fields, Firsts and Leaderboard), instead of my CID. VATFLOW keeps that name with my CID until I
-  change it, choose "CID only", or use Delete my data. It isn't used for anything else.`;
+  change it, choose "My CID", or use Delete my data. It isn't used for anything else.`;
 
 /**
  * Mount the panel in `el` (a <details>). `onChange()` runs after a save, so the page can
@@ -37,7 +37,7 @@ export function mountNamePanel(el, onChange) {
   function render() {
     if (!isSignedIn()) {
       el.innerHTML = summary("Shown by CID") + `<div class="nm-body">
-        <p>Firsts are shown by CID. Sign in with VATSIM to show your name, or a display name you pick, instead.</p>
+        <p>Firsts are shown by CID. Sign in with VATSIM to show your VATSIM name instead.</p>
         <button class="fl-btn" id="nmSignIn" type="button">Sign in with VATSIM</button></div>`;
       el.querySelector("#nmSignIn").onclick = () => login();
       return;
@@ -53,26 +53,22 @@ export function mountNamePanel(el, onChange) {
         ${opt("cid", "My CID", state.cid)}
         ${opt("full", "My VATSIM name", o.full, !o.full)}
         ${opt("initial", "First name and last initial", o.initial, !o.initial)}
-        <label class="nm-opt"><input type="radio" name="nmShow" value="custom"${show === "custom" ? " checked" : ""}>
-          <span>A display name</span>
-          <input type="text" id="nmCustom" maxlength="24" placeholder="2 to 24 characters" value="${p && p.show === "custom" ? esc(p.display) : ""}" autocomplete="off"></label>
       </fieldset>
-      ${o.full ? "" : `<p class="muted nm-note">VATSIM didn't share your name with VATFLOW. Sign out and back in, and allow your name on the VATSIM screen, or pick a display name.</p>`}
+      ${o.full ? "" : `<p class="muted nm-note">VATSIM didn't share your name with VATFLOW. Sign out and back in, and allow your name on the VATSIM screen.</p>`}
       <label class="nm-consent" id="nmConsentRow"><input type="checkbox" id="nmConsent"${p ? " checked" : ""}>
         <span>${STATEMENT} <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</span></label>
-      <p class="muted nm-note">Display names are checked: no slurs, hate, sexual terms, profanity, links, or names that pass for staff. Admins can reset a name.</p>
+      <p class="muted nm-note">Only the name on your VATSIM account can be shown.</p>
       <div class="nm-actions"><button class="fl-btn nm-save" type="submit" id="nmSave">Save</button><span class="nm-msg" id="nmMsg" role="status"></span></div>
     </form>`;
-    const form = el.querySelector("#nmForm"), custom = el.querySelector("#nmCustom");
+    const form = el.querySelector("#nmForm");
     const choice = () => (form.querySelector("input[name=nmShow]:checked") || {}).value || "cid";
     const sync = () => { el.querySelector("#nmConsentRow").hidden = choice() === "cid"; };
     form.addEventListener("change", sync);
-    custom.addEventListener("focus", () => { form.querySelector("input[value=custom]").checked = true; sync(); });
     sync();
     form.onsubmit = async (ev) => {
       ev.preventDefault();
       const msg = el.querySelector("#nmMsg"), btn = el.querySelector("#nmSave");
-      const body = { show: choice(), consent: el.querySelector("#nmConsent").checked, displayName: custom.value };
+      const body = { show: choice(), consent: el.querySelector("#nmConsent").checked };
       if (body.show !== "cid" && !body.consent) { msg.textContent = "Tick the statement to show a name."; msg.className = "nm-msg bad"; return; }
       btn.disabled = true; msg.textContent = "Saving…"; msg.className = "nm-msg";
       try {
