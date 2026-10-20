@@ -52,6 +52,13 @@ export const skyvectorUrl = (code) => `https://skyvector.com/airport/${encodeURI
 export const airnavUrl = (code) => `https://www.airnav.com/airport/${encodeURIComponent(code)}`;
 export const vatsimStatsUrl = (cid) => `https://stats.vatsim.net/stats/${encodeURIComponent(cid)}`;
 
+/** A pilot as the pages show them: the name they chose, else their CID (linked to VATSIM stats). */
+export function pilotHtml(x) {
+  return x.display ? `<b class="pilot-name">${esc(x.display)}</b>`
+    : `<a class="mono" href="${vatsimStatsUrl(x.cid)}" target="_blank" rel="noopener">${esc(x.cid)}</a>`;
+}
+export const pilotText = (x) => x.display || "CID " + x.cid;
+
 /** The three pages' tab row. */
 export function mountTabs(el, active) {
   const tabs = [["fields", "first-to-land.html", "Untouched fields"], ["firsts", "first-to-land-firsts.html", "Firsts"],
