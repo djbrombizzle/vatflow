@@ -85,6 +85,8 @@
     <label><input id="fPaved" type="checkbox" checked> Paved</label>
     <label><input id="fLit" type="checkbox"> Lighted</label>
     <label><input id="fSea" type="checkbox"> Seaplane bases</label>
+    <label title="Public-use fields are the ones flight sims reliably include"><input id="fPublic" type="checkbox" checked> Public use only</label>
+    <label title="X-Plane ships scenery for the field (X-Plane Scenery Gateway)"><input id="fXp" type="checkbox"> In X-Plane</label>
     <label><input id="fDep" type="checkbox" checked> Departed, never landed</label>
     <label><input id="fClaimed" type="checkbox"> Show claimed</label>
     <label for="fQ"><input id="fQ" type="search" placeholder="Search name or code"></label>
@@ -128,7 +130,7 @@
     <div class="fl-table">
       <table>
         <thead><tr>
-          <th data-k="0">Code</th><th data-k="1">Name</th><th data-k="3">State</th><th data-k="8" class="num">Longest rwy</th><th data-k="7" class="num">Elev</th><th data-k="11">Status</th>
+          <th data-k="0">Code</th><th data-k="1">Name</th><th data-k="3">State</th><th data-k="8" class="num">Longest rwy</th><th data-k="7" class="num">Elev</th><th data-k="17">Use</th><th data-k="11">Status</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -147,11 +149,11 @@
     </div>
     <div>
       <h2>Where the list comes from</h2>
-      <p>StatSim's flight logs for every flight to or from the US since January 2020, checked against each field's own StatSim page and refreshed daily. Fields are from OurAirports: open airports and seaplane bases in the US and its territories, heliports left out. List as of <span id="asof">—</span>.</p>
+      <p>Every open airport and seaplane base in the FAA's airport data (US and territories), checked against StatSim's logs of every flight to or from the US since January 2020 and each field's own StatSim page. Refreshed daily: fields the FAA closes drop off with the next cycle. List as of <span id="asof">—</span>, FAA cycle <span id="cycle">—</span>.</p>
     </div>
     <div>
       <h2>Caveats</h2>
-      <p>Check your sim has the field before you go; small private strips are often missing. A landing while the hub is offline isn't recorded; ask a VATFLOW admin to add it. StatSim only logs flights with a flight plan, so a field on this list may have had an unlogged visit.</p>
+      <p>Check your sim has the field before you go: private strips are often missing, and "In X-Plane" only covers X-Plane. A landing while the hub is offline isn't recorded; ask a VATFLOW admin to add it. StatSim only logs flights with a flight plan, so a field on this list may have had an unlogged visit.</p>
     </div>
   </section>
 </div>
@@ -183,13 +185,15 @@ let filtered = [], selected = null, sortKey = C.rwy, sortDir = -1, pageN = 100, 
 
 function readFilters() {
   return { st: $("fState").value, rwy: +$("fRwy").value, paved: $("fPaved").checked, lit: $("fLit").checked, sea: $("fSea").checked,
-    dep: $("fDep").checked, claimed: $("fClaimed").checked, q: $("fQ").value.trim().toLowerCase() };
+    pub: $("fPublic").checked, xp: $("fXp").checked, dep: $("fDep").checked, claimed: $("fClaimed").checked, q: $("fQ").value.trim().toLowerCase() };
 }
 function passes(r, f) {
   if (f.st && r[C.state] !== f.st) return false;
   if (r[C.type] === "w") { if (!f.sea) return false; }
   else { if (r[C.rwy] < f.rwy) return false; if (f.paved && !r[C.paved]) return false; }
   if (f.lit && !r[C.lit]) return false;
+  if (f.pub && r[C.use] !== "PU") return false;
+  if (f.xp && !r[C.xplane]) return false;
   if (!f.dep && r[C.status] === 1) return false;
   if (!f.claimed && claims.has(r[C.ident])) return false;
   if (f.q && !(r[C.ident] + " " + r[C.name] + " " + r[C.city] + " " + r[C.local] + " " + r[C.iata]).toLowerCase().includes(f.q)) return false;
@@ -417,12 +421,14 @@ function renderDetail() {
     ${status}
     <dl>
       <dt>Location</dt><dd>${esc(r[C.city] ? r[C.city] + ", " : "")}${esc(r[C.state])}</dd>
-      <dt>Type</dt><dd>${TYPES[r[C.type]] || ""}</dd>
+      <dt>Type</dt><dd>${TYPES[r[C.type]] || ""}, ${r[C.use] === "PU" ? "public use" : "private use"}</dd>
       <dt>Longest runway</dt><dd>${rwy}</dd>
       <dt>Elevation</dt><dd>${r[C.elev] == null ? "—" : fmtNum(r[C.elev]) + " ft"}</dd>
-      ${r[C.local] && r[C.local] !== code ? `<dt>FAA code</dt><dd class="mono">${esc(r[C.local])}</dd>` : ""}
+      ${r[C.local] && r[C.local] !== code ? `<dt>FAA identifier</dt><dd class="mono">${esc(r[C.local])}</dd>` : ""}
+      <dt>X-Plane</dt><dd>${r[C.xplane] ? "Included" : "Not included"}</dd>
       <dt>Position</dt><dd class="mono">${r[C.lat].toFixed(4)}, ${r[C.lon].toFixed(4)}</dd>
     </dl>
+    ${r[C.use] !== "PU" || !r[C.xplane] ? `<p class="muted" style="margin:0;font-size:12px">${r[C.use] !== "PU" ? "Private fields are often missing from sim scenery. " : ""}Check your sim has ${esc(code)} before you go.</p>` : ""}
     <div class="links">
       <a href="${skyvectorUrl(faa)}" target="_blank" rel="noopener">SkyVector</a>
       <a href="${airnavUrl(faa)}" target="_blank" rel="noopener">AirNav</a>
@@ -461,7 +467,7 @@ function renderList() {
     const tr = document.createElement("tr");
     tr._r = r;
     tr.innerHTML = `<td class="mono">${esc(r[C.ident])}</td><td class="wrap">${esc(r[C.name])}</td><td>${esc(r[C.state])}</td>` +
-      `<td class="num">${r[C.type] === "w" ? "water" : fmtNum(r[C.rwy])}</td><td class="num">${fmtNum(r[C.elev])}</td><td>${statusPill(r)}</td>`;
+      `<td class="num">${r[C.type] === "w" ? "water" : fmtNum(r[C.rwy])}</td><td class="num">${fmtNum(r[C.elev])}</td><td>${r[C.use] === "PU" ? "Public" : "Private"}${r[C.xplane] ? "" : ' <span class="pill dim" title="Not in X-Plane">no XP</span>'}</td><td>${statusPill(r)}</td>`;
     tr.onclick = () => select(r, true);
     tb.append(tr);
   }
@@ -479,7 +485,7 @@ $("roll").onclick = () => {
   const pool = filtered.filter((r) => !claims.has(r[C.ident]));
   if (pool.length) select(pool[Math.floor(Math.random() * pool.length)]);
 };
-["fState", "fRwy", "fPaved", "fLit", "fSea", "fDep", "fClaimed", "fQ"].forEach((id) => $(id).addEventListener("input", () => { pageN = 100; apply(); }));
+["fState", "fRwy", "fPaved", "fLit", "fSea", "fPublic", "fXp", "fDep", "fClaimed", "fQ"].forEach((id) => $(id).addEventListener("input", () => { pageN = 100; apply(); }));
 
 function renderTally() {
   const open = DATA.fields.filter((r) => !claims.has(r[C.ident]));
@@ -513,6 +519,7 @@ try {
   $("detail").innerHTML = `<p class="muted">The field list didn't load (${esc(e.message)}). Reload the page to try again.</p>`;
 }
 $("asof").textContent = DATA.asOf || "—";
+$("cycle").textContent = DATA.faaCycle || "—";
 // State lines are decoration: draw them when they arrive, carry on without them if they don't.
 fetch("data/first-landing/us-states.json").then((r) => (r.ok ? r.json() : null)).then((j) => { if (j) { STATES = j; drawMap(); } }).catch(() => {});
 [...new Set(DATA.fields.map((r) => r[C.state]))].sort().forEach((s) => $("fState").add(new Option(s, s)));

@@ -8,8 +8,8 @@ import { getAccessApiBase } from "./vatflow-access-api.js";
 export const REFRESH_MS = 60000;
 // fields.json row columns (scripts/lib/first-landing-core.mjs)
 export const C = { ident: 0, name: 1, city: 2, state: 3, type: 4, lat: 5, lon: 6, elev: 7, rwy: 8, paved: 9, lit: 10,
-  status: 11, deps: 12, local: 13, iata: 14, guard: 15, checked: 16 };
-export const TYPES = { s: "Small airport", m: "Medium airport", l: "Large airport", w: "Seaplane base" };
+  status: 11, deps: 12, local: 13, iata: 14, guard: 15, checked: 16, use: 17, xplane: 18 };
+export const TYPES = { s: "Airport", w: "Seaplane base" };
 
 export async function loadFields() {
   const r = await fetch("data/first-landing/fields.json", { cache: "no-cache" });

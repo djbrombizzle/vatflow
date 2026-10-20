@@ -7,8 +7,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   COLS, C, fmtStatsim, parseStatsimTime, weekWindows, parseFlightsPage, fieldCodes, codeIndex, applyFlights,
-  nearestDistances, isPaved, parseCsv, stateOf,
+  nearestDistances, parseCsv, faaCycle, faaAptCsvUrl, unzipEntry, faaTitle, faaFields, faaCodes, xplaneCodes,
 } from "./lib/first-landing-core.mjs";
+import zlib from "node:zlib";
 
 let passed = 0;
 const t = (name, fn) => { fn(); passed++; console.log("ok  " + name); };
@@ -99,18 +100,83 @@ t("nearestDistances: skips itself, caps far ones", () => {
   assert.equal(d[1], 10);
 });
 
-t("isPaved, stateOf, parseCsv", () => {
-  assert.ok(isPaved("ASPH-G") && isPaved("CONC") && isPaved("PEM") && isPaved("Asphalt"));
-  assert.ok(!isPaved("TURF") && !isPaved("GRVL") && !isPaved("WATER") && !isPaved(""));
-  assert.equal(stateOf("US-TX", "US"), "TX");
-  assert.equal(stateOf("PR-U-A", "PR"), "PR");
+t("parseCsv", () => {
   const rows = parseCsv('"id","name","x"\n1,"Smith, ""Bud"" Field",\r\n2,Plain,y\n');
   assert.deepEqual(rows, [{ id: "1", name: 'Smith, "Bud" Field', x: "" }, { id: "2", name: "Plain", x: "y" }]);
+});
+
+t("FAA cycle and download URL", () => {
+  assert.equal(faaCycle(Date.UTC(2026, 9, 20)), Date.UTC(2026, 9, 1));
+  assert.equal(faaCycle(Date.UTC(2026, 9, 29)), Date.UTC(2026, 9, 29));
+  assert.equal(faaCycle(Date.UTC(2026, 8, 30)), Date.UTC(2026, 8, 3));
+  assert.equal(faaAptCsvUrl(Date.UTC(2026, 9, 1)), "https://nfdc.faa.gov/webContent/28DaySub/extra/01_Oct_2026_APT_CSV.zip");
+});
+
+t("unzipEntry: stored and deflated files", () => {
+  // A two-file zip built by hand: a.txt stored, b.txt deflated.
+  const files = [["a.txt", Buffer.from("plain"), 0], ["b.txt", Buffer.from("squeezed squeezed squeezed"), 8]];
+  const locals = [], centrals = [];
+  let off = 0;
+  for (const [name, data, method] of files) {
+    const body = method ? zlib.deflateRawSync(data) : data, nb = Buffer.from(name);
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(method, 8); lh.writeUInt32LE(body.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(nb.length, 26);
+    const ch = Buffer.alloc(46); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(method, 10); ch.writeUInt32LE(body.length, 20); ch.writeUInt32LE(data.length, 24); ch.writeUInt16LE(nb.length, 28); ch.writeUInt32LE(off, 42);
+    locals.push(lh, nb, body); centrals.push(ch, nb);
+    off += 30 + nb.length + body.length;
+  }
+  const cd = Buffer.concat(centrals), end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(2, 8); end.writeUInt16LE(2, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(off, 16);
+  const zip = Buffer.concat([...locals, cd, end]);
+  assert.equal(unzipEntry(zip, "a.txt").toString(), "plain");
+  assert.equal(unzipEntry(zip, "b.txt").toString(), "squeezed squeezed squeezed");
+  assert.throws(() => unzipEntry(zip, "c.txt"), /not in zip/);
+});
+
+t("faaFields: open airports and seaplane bases only, runways joined", () => {
+  const base = [
+    { SITE_NO: "1", SITE_TYPE_CODE: "A", ARPT_ID: "42M", ICAO_ID: "", ARPT_STATUS: "O", COUNTRY_CODE: "US", STATE_CODE: "MO", ARPT_NAME: "THAYER MEML", CITY: "THAYER", LAT_DECIMAL: "36.52", LONG_DECIMAL: "-91.57", ELEV: "790.3", FACILITY_USE_CODE: "PU" },
+    { SITE_NO: "2", SITE_TYPE_CODE: "A", ARPT_ID: "CJJ", ICAO_ID: "KCJJ", ARPT_STATUS: "O", COUNTRY_CODE: "US", STATE_CODE: "IA", ARPT_NAME: "ELLEN CHURCH FLD", CITY: "CRESCO", LAT_DECIMAL: "43.4", LONG_DECIMAL: "-92.1", ELEV: "", FACILITY_USE_CODE: "PU" },
+    { SITE_NO: "3", SITE_TYPE_CODE: "A", ARPT_ID: "0MI6", ICAO_ID: "", ARPT_STATUS: "CI", COUNTRY_CODE: "US", STATE_CODE: "MI", ARPT_NAME: "X", CITY: "Y", LAT_DECIMAL: "1", LONG_DECIMAL: "1", ELEV: "1", FACILITY_USE_CODE: "PR" },
+    { SITE_NO: "4", SITE_TYPE_CODE: "H", ARPT_ID: "07MN", ICAO_ID: "", ARPT_STATUS: "O", COUNTRY_CODE: "US", STATE_CODE: "MN", ARPT_NAME: "X", CITY: "Y", LAT_DECIMAL: "1", LONG_DECIMAL: "1", ELEV: "1", FACILITY_USE_CODE: "PR" },
+    { SITE_NO: "5", SITE_TYPE_CODE: "C", ARPT_ID: "16WI", ICAO_ID: "", ARPT_STATUS: "O", COUNTRY_CODE: "US", STATE_CODE: "WI", ARPT_NAME: "SWEETWATER BAY", CITY: "Z", LAT_DECIMAL: "1", LONG_DECIMAL: "1", ELEV: "1", FACILITY_USE_CODE: "PR" },
+    { SITE_NO: "6", SITE_TYPE_CODE: "A", ARPT_ID: "CYQX", ICAO_ID: "", ARPT_STATUS: "O", COUNTRY_CODE: "CA", STATE_CODE: "", ARPT_NAME: "X", CITY: "Y", LAT_DECIMAL: "1", LONG_DECIMAL: "1", ELEV: "1", FACILITY_USE_CODE: "PU" },
+  ];
+  const rwy = [
+    { SITE_NO: "1", RWY_LEN: "4200", SURFACE_TYPE_CODE: "ASPH", RWY_LGT_CODE: "MED" },
+    { SITE_NO: "1", RWY_LEN: "2000", SURFACE_TYPE_CODE: "TURF", RWY_LGT_CODE: "" },
+    { SITE_NO: "2", RWY_LEN: "3000", SURFACE_TYPE_CODE: "TURF-GRVL", RWY_LGT_CODE: "" },
+  ];
+  const m = faaFields(base, rwy);
+  const t42 = m.get("42M");
+  assert.equal(t42.open, true);
+  assert.equal(t42.name, "Thayer Memorial");
+  assert.equal(t42.elev, 790);
+  assert.deepEqual(t42.rwy, { len: 4200, paved: 1, lit: 1 });
+  assert.deepEqual(m.get("CJJ").rwy, { len: 3000, paved: 0, lit: 0 });
+  assert.equal(m.get("CJJ").elev, null);
+  assert.equal(m.get("0MI6").open, false, "closed indefinitely");
+  assert.equal(m.get("07MN").open, false, "heliport");
+  assert.equal(m.get("16WI").open, true);
+  assert.equal(m.get("16WI").type, "w");
+  assert.equal(m.get("CYQX").open, false, "outside the US");
+  assert.deepEqual(faaCodes(t42), ["42M", "K42M"], "K42M is how some pilots file it, never shown");
+  assert.deepEqual(faaCodes(m.get("CJJ")), ["KCJJ", "CJJ"]);
+  assert.equal(faaTitle("ELLEN CHURCH FLD"), "Ellen Church Field");
+});
+
+t("xplaneCodes: shipped scenery only", () => {
+  const s = xplaneCodes({ airports: [
+    { AirportCode: "42M", Deprecated: null, RecommendedSceneryId: 12 },
+    { AirportCode: "TT45", Deprecated: null, RecommendedSceneryId: null },
+    { AirportCode: "F31", Deprecated: 1, RecommendedSceneryId: 9 },
+  ] });
+  assert.deepEqual([...s], ["42M"]);
 });
 
 t("fields.json: shape", () => {
   const doc = JSON.parse(fs.readFileSync(new URL("../data/first-landing/fields.json", import.meta.url), "utf8"));
   assert.deepEqual(doc.cols, COLS);
+  assert.ok(/^\d{4}-\d\d-\d\d$/.test(doc.faaCycle));
   assert.ok(/^\d{4}-\d\d-\d\d$/.test(doc.asOf));
   assert.ok(/^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(doc.crawledTo));
   assert.ok(doc.fields.length > 1000);
@@ -120,7 +186,12 @@ t("fields.json: shape", () => {
     assert.ok(!ids.has(r[C.ident]), "duplicate " + r[C.ident]);
     ids.add(r[C.ident]);
     assert.ok(Number.isFinite(r[C.lat]) && Number.isFinite(r[C.lon]), r[0]);
-    assert.ok("smlw".includes(r[C.type]), r[0]);
+    assert.ok("sw".includes(r[C.type]), r[0]);
+    assert.ok(r[C.use] === "PU" || r[C.use] === "PR", r[0]);
+    assert.ok(r[C.xplane] === 0 || r[C.xplane] === 1, r[0]);
+    assert.ok(r[C.local], r[0]);
+    // The ICAO code is the FAA's, never K + a code with digits in it (KF31).
+    assert.ok(r[C.ident] === r[C.local] || /^[KPT][A-Z]{3}$/.test(r[C.ident]), r[0] + " / " + r[C.local]);
     assert.ok(r[C.status] === 0 || r[C.status] === 1, r[0]);
     assert.ok(!r[C.ident].includes("-"), r[0]);
   }
