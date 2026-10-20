@@ -3,22 +3,29 @@
  * and the pieces scripts/build-first-landing.mjs keeps it current with. Pure functions, no
  * network, so scripts/test-first-landing.mjs can check them.
  *
+ * The fields are the FAA's (NASR airport data, the 28-day cycle): open airports and seaplane
+ * bases in the US and its territories. OurAirports was the first source, but it keeps closed
+ * fields and codes the FAA has since given to another facility.
+ *
  * data/first-landing/fields.json:
- *   { asOf, crawledTo, cols, fields: [row...], landed: [[lat, lon]...] }
+ *   { asOf, crawledTo, faaCycle, cols, fields: [row...], landed: [[lat, lon]...] }
  *   row = [ident, name, city, state, type, lat, lon, elev, longestRwy, paved, lit,
- *          status, deps, local, iata, guardNm, checked]
- *   type: s small airport, m medium, l large, w seaplane base
+ *          status, deps, local, iata, guardNm, checked, use, xplane]
+ *   ident: the FAA's ICAO code where it has one, else the FAA identifier (LID): F31, not KF31
+ *   local: the FAA identifier (LID)
+ *   type: s airport, w seaplane base
  *   status: 0 no traffic at all, 1 departures but no landing
  *   guardNm: distance to the nearest other airport (the hub's landing radius is at most half)
  *   checked: last date the field's own Statsim page was read (YYYY-MM-DD)
+ *   use: PU public use, PR private use (the FAA's facility use)
+ *   xplane: 1 when X-Plane ships the field (Scenery Gateway, recommended scenery), else 0
  *   landed: positions of the fields that have seen a landing, for the map's background
  */
+import zlib from "node:zlib";
 
 export const COLS = ["ident", "name", "city", "state", "type", "lat", "lon", "elev", "longestRwy", "paved", "lit",
-  "status", "deps", "local", "iata", "guardNm", "checked"];
+  "status", "deps", "local", "iata", "guardNm", "checked", "use", "xplane"];
 export const C = Object.fromEntries(COLS.map((k, i) => [k, i]));
-export const US_COUNTRIES = ["US", "PR", "VI", "GU", "MP", "AS"];
-export const FIELD_TYPES = { small_airport: "s", medium_airport: "m", large_airport: "l", seaplane_base: "w" };
 export const STATSIM_START_MS = Date.UTC(2020, 0, 1);
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -68,7 +75,7 @@ export function parseFlightsPage(html) {
 
 /**
  * Every code a field may be filed as. Pilots file small US fields both ways: 1N7 and K1N7.
- * `extra` are further codes known for it (OurAirports icao_code / gps_code).
+ * `extra` are further codes known for it.
  */
 export function fieldCodes(ident, local, ...extra) {
   const out = [];
@@ -144,13 +151,7 @@ export function nearestDistances(points, others, cap = 10) {
   });
 }
 
-/** OurAirports runway surfaces that are hard-surfaced. */
-export function isPaved(surface) {
-  const s = String(surface || "").toUpperCase();
-  return /^(ASP|CON|PEM|BIT|PAV|TAR|ASF|MAC|BRI|COP)/.test(s) || /ASPH|CONC|PAVED/.test(s);
-}
-
-/** Minimal CSV parser for the OurAirports files (quoted fields, commas inside quotes). */
+/** Minimal CSV parser for the FAA files (quoted fields, commas inside quotes). */
 export function parseCsv(text) {
   const rows = [];
   let row = [], field = "", q = false;
@@ -169,7 +170,88 @@ export function parseCsv(text) {
   return rows.filter((r) => r.length > 1).map((r) => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ""])));
 }
 
-/** "US-TX" -> "TX"; territories ("PR-U-A") -> their country code. */
-export function stateOf(isoRegion, isoCountry) {
-  return isoCountry === "US" ? String(isoRegion).replace(/^US-/, "") : isoCountry;
+
+/* ---------- FAA (NASR) ---------- */
+
+
+const FAA_CYCLE_ANCHOR = Date.UTC(2026, 9, 1);      // a known NASR effective date; cycles are 28 days
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Effective date (ms, UTC midnight) of the NASR cycle in force at `nowMs`. */
+export function faaCycle(nowMs) {
+  return FAA_CYCLE_ANCHOR + Math.floor((nowMs - FAA_CYCLE_ANCHOR) / (28 * 86400000)) * 28 * 86400000;
+}
+/** The airport CSV download for a cycle: .../extra/01_Oct_2026_APT_CSV.zip */
+export function faaAptCsvUrl(cycleMs) {
+  const d = new Date(cycleMs);
+  return `https://nfdc.faa.gov/webContent/28DaySub/extra/${pad(d.getUTCDate())}_${MONTHS[d.getUTCMonth()]}_${d.getUTCFullYear()}_APT_CSV.zip`;
+}
+
+/** One file out of a zip archive (stored or deflated), by name. */
+export function unzipEntry(buf, name) {
+  let eocd = buf.length - 22;
+  while (eocd >= 0 && buf.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error("not a zip file");
+  let p = buf.readUInt32LE(eocd + 16);
+  const count = buf.readUInt16LE(eocd + 10);
+  for (let i = 0; i < count; i++) {
+    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20);
+    const nlen = buf.readUInt16LE(p + 28), xlen = buf.readUInt16LE(p + 30), clen = buf.readUInt16LE(p + 32);
+    const local = buf.readUInt32LE(p + 42);
+    if (buf.toString("latin1", p + 46, p + 46 + nlen) === name) {
+      const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+      const data = buf.subarray(start, start + size);
+      return method === 0 ? data : zlib.inflateRawSync(data);
+    }
+    p += 46 + nlen + xlen + clen;
+  }
+  throw new Error(name + " not in zip");
+}
+
+const FAA_ABBR = { Meml: "Memorial", Rgnl: "Regional", Muni: "Municipal", Fld: "Field", Arpt: "Airport", Intl: "International",
+  Co: "County", Spb: "Seaplane Base", Arpk: "Airpark", Strp: "Strip" };
+/** "THAYER MEML" -> "Thayer Memorial" */
+export function faaTitle(s) {
+  return String(s || "").toLowerCase().replace(/\b([a-z])/g, (m) => m.toUpperCase())
+    .replace(/\b(Meml|Rgnl|Muni|Fld|Arpt|Intl|Co|Spb|Arpk|Strp)\b/g, (m) => FAA_ABBR[m]);
+}
+
+/**
+ * NASR APT_BASE + APT_RWY rows -> Map FAA id -> field. `open` is an airport (A) or seaplane
+ * base (C), operational, in the US or a territory; closed fields, heliports, gliderports,
+ * ultralight and balloon fields are kept with open false so the daily run can drop them.
+ */
+export function faaFields(baseRows, rwyRows) {
+  const rwy = new Map();
+  for (const r of rwyRows) {
+    const cur = rwy.get(r.SITE_NO) || { len: 0, paved: 0, lit: 0 };
+    cur.len = Math.max(cur.len, parseInt(r.RWY_LEN, 10) || 0);
+    if (/^(ASPH|CONC|PEM|BIT)/.test(r.SURFACE_TYPE_CODE)) cur.paved = 1;
+    if (r.RWY_LGT_CODE && r.RWY_LGT_CODE !== "NONE") cur.lit = 1;
+    rwy.set(r.SITE_NO, cur);
+  }
+  const out = new Map();
+  for (const r of baseRows) {
+    out.set(r.ARPT_ID, {
+      id: r.ARPT_ID, icao: r.ICAO_ID || "", site: r.SITE_NO,
+      open: (r.SITE_TYPE_CODE === "A" || r.SITE_TYPE_CODE === "C") && r.ARPT_STATUS === "O" && r.COUNTRY_CODE === "US" && !!r.STATE_CODE,
+      type: r.SITE_TYPE_CODE === "C" ? "w" : "s", siteType: r.SITE_TYPE_CODE, status: r.ARPT_STATUS,
+      name: faaTitle(r.ARPT_NAME), city: faaTitle(r.CITY), state: r.STATE_CODE,
+      lat: +r.LAT_DECIMAL, lon: +r.LONG_DECIMAL, elev: r.ELEV === "" ? null : Math.round(+r.ELEV),
+      use: r.FACILITY_USE_CODE, rwy: rwy.get(r.SITE_NO) || { len: 0, paved: 0, lit: 0 },
+    });
+  }
+  return out;
+}
+
+/** The codes a field may be filed as: its ICAO code, its FAA id, and K + a 3-character id. */
+export function faaCodes(f) {
+  return fieldCodes(f.icao || f.id, f.id);
+}
+
+/** X-Plane Scenery Gateway airport list -> Set of codes X-Plane ships (recommended scenery, not deprecated). */
+export function xplaneCodes(gateway) {
+  const s = new Set();
+  for (const a of (gateway && gateway.airports) || []) if (!a.Deprecated && a.RecommendedSceneryId != null) s.add(a.AirportCode);
+  return s;
 }
