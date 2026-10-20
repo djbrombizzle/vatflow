@@ -81,3 +81,29 @@ button, select, input { font: inherit; color: inherit; }
 
 @media (max-width: 760px) { .fl-head { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Your name on the board (shared/first-landing-name.js) */
+.fl-name { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.fl-name summary { cursor: pointer; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; list-style: none; }
+.fl-name summary::-webkit-details-marker { display: none; }
+.fl-name summary::after { content: "Change"; margin-left: auto; font-size: 12px; color: var(--blue); }
+.fl-name[open] summary::after { content: "Close"; }
+.fl-name .nm-now { color: var(--muted); }
+.fl-name .nm-now b { color: var(--text); }
+.nm-body { padding: 0 14px 14px; display: grid; gap: 10px; max-width: 70ch; }
+.nm-body p { margin: 0; }
+.nm-opts { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+.nm-opts legend { margin-bottom: 4px; }
+.nm-opt { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.nm-opt.off { color: var(--dim); }
+.nm-opt input[type=radio], .nm-consent input { accent-color: var(--amber); }
+.nm-opt input[type=text] { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; color: var(--text); width: 220px; max-width: 100%; }
+.nm-consent { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); font-size: 13px; }
+.nm-consent input { margin-top: 3px; flex: none; }
+.nm-note { font-size: 12px; }
+.nm-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.nm-save { border-color: var(--amber); color: var(--amber); }
+.nm-msg { font-size: 13px; color: var(--green); }
+.nm-msg.bad { color: var(--amber); }
+.pilot-name { font-weight: 600; }
+

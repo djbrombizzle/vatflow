@@ -39,15 +39,16 @@
 
   <nav class="fl-tabs" id="tabs" aria-label="First to Land pages"></nav>
   <div class="fl-status" id="watch">Loading…</div>
+  <details class="fl-name" id="namePanel"></details>
 
   <div class="fl-filters" role="group" aria-label="Filters">
-    <label for="fQ"><input id="fQ" type="search" placeholder="Find a CID or callsign"></label>
+    <label for="fQ"><input id="fQ" type="search" placeholder="Find a pilot, CID or callsign"></label>
   </div>
 
   <div class="fl-table">
     <table>
       <thead><tr>
-        <th>#</th><th class="num">Firsts</th><th>CID</th><th>Callsigns</th><th>Latest</th><th>Fields</th>
+        <th>#</th><th class="num">Firsts</th><th>Pilot</th><th>Callsigns</th><th>Latest</th><th>Fields</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -57,7 +58,8 @@
 
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-import { REFRESH_MS, loadLeaderboard, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine, statsimUrl, vatsimStatsUrl } from "./shared/first-landing.js";
+import { REFRESH_MS, loadLeaderboard, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine, statsimUrl, pilotHtml } from "./shared/first-landing.js";
+import { mountNamePanel } from "./shared/first-landing-name.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "first-leaderboard");
 const $ = (id) => document.getElementById(id);
@@ -72,7 +74,7 @@ function render() {
   const tb = $("rows");
   tb.innerHTML = "";
   rows.forEach((r, i) => { r.rank = i + 1; });       // the hub sends them in order
-  const list = rows.filter((r) => !q || [r.cid, ...r.callsigns].join(" ").toLowerCase().includes(q));
+  const list = rows.filter((r) => !q || [r.cid, r.display, ...r.callsigns].join(" ").toLowerCase().includes(q));
   for (const r of list) {
     const tr = document.createElement("tr");
     if (r.rank <= 3) tr.className = "top" + r.rank;
@@ -81,7 +83,7 @@ function render() {
     tr.innerHTML =
       `<td class="rank">${r.rank}</td>` +
       `<td class="num"><span class="count">${fmtNum(r.count)}</span></td>` +
-      `<td class="mono"><a href="${vatsimStatsUrl(r.cid)}" target="_blank" rel="noopener">${esc(r.cid)}</a></td>` +
+      `<td>${pilotHtml(r)}</td>` +
       `<td class="mono wrap">${r.callsigns.map(esc).join(", ")}</td>` +
       `<td class="mono" title="${esc(fmtUtc(r.latestAt))}">${esc(ago(r.latestAt))}</td>` +
       `<td><div class="fields">${shown.map((f) =>
@@ -116,6 +118,7 @@ async function refresh() {
   }
 }
 $("fQ").addEventListener("input", render);
+mountNamePanel($("namePanel"), refresh);
 refresh();
 setInterval(refresh, REFRESH_MS);
 </script>

@@ -29,16 +29,17 @@
 
   <nav class="fl-tabs" id="tabs" aria-label="First to Land pages"></nav>
   <div class="fl-status" id="watch">Loading…</div>
+  <details class="fl-name" id="namePanel"></details>
 
   <div class="fl-filters" role="group" aria-label="Filters">
     <label for="fState">State <select id="fState"><option value="">All</option></select></label>
-    <label for="fQ"><input id="fQ" type="search" placeholder="Callsign, CID or field"></label>
+    <label for="fQ"><input id="fQ" type="search" placeholder="Pilot, callsign, CID or field"></label>
   </div>
 
   <div class="fl-table">
     <table>
       <thead><tr>
-        <th>Landed (UTC)</th><th>Field</th><th>Name</th><th>State</th><th>Callsign</th><th>CID</th><th>Aircraft</th><th>From</th>
+        <th>Landed (UTC)</th><th>Field</th><th>Name</th><th>State</th><th>Callsign</th><th>Pilot</th><th>Aircraft</th><th>From</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -48,7 +49,8 @@
 
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-import { REFRESH_MS, loadClaims, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine, statsimUrl, vatsimStatsUrl } from "./shared/first-landing.js";
+import { REFRESH_MS, loadClaims, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine, statsimUrl, pilotHtml } from "./shared/first-landing.js";
+import { mountNamePanel } from "./shared/first-landing-name.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "first-firsts");
 const $ = (id) => document.getElementById(id);
@@ -59,7 +61,7 @@ let claims = [], known = null;
 function render() {
   const st = $("fState").value, q = $("fQ").value.trim().toLowerCase();
   const list = claims.filter((c) => (!st || c.state === st) &&
-    (!q || [c.callsign, c.cid, c.icao, c.name].join(" ").toLowerCase().includes(q)));
+    (!q || [c.callsign, c.cid, c.display, c.icao, c.name].join(" ").toLowerCase().includes(q)));
   const tb = $("rows");
   tb.innerHTML = "";
   for (const c of list) {
@@ -71,7 +73,7 @@ function render() {
       `<td class="wrap">${esc(c.name)}${c.source === "manual" ? ' <span class="pill dim" title="Added by a VATFLOW admin">added</span>' : ""}</td>` +
       `<td>${esc(c.state)}</td>` +
       `<td class="mono"><b>${esc(c.callsign)}</b></td>` +
-      `<td class="mono"><a href="${vatsimStatsUrl(c.cid)}" target="_blank" rel="noopener">${esc(c.cid)}</a></td>` +
+      `<td>${pilotHtml(c)}</td>` +
       `<td class="mono">${esc(c.aircraft || "—")}</td>` +
       `<td class="mono">${esc(c.from || "—")}</td>`;
     tb.append(tr);
@@ -104,6 +106,7 @@ async function refresh() {
   }
 }
 ["fState", "fQ"].forEach((id) => $(id).addEventListener("input", render));
+mountNamePanel($("namePanel"), refresh);
 refresh();
 setInterval(refresh, REFRESH_MS);
 </script>

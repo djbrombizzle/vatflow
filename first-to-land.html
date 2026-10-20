@@ -161,7 +161,7 @@
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { C, TYPES, REFRESH_MS, loadFields, loadClaims, esc, fmtNum, fmtUtc, ago, mountTabs, watcherLine,
-  statsimUrl, skyvectorUrl, airnavUrl, vatsimStatsUrl } from "./shared/first-landing.js";
+  statsimUrl, skyvectorUrl, airnavUrl, pilotHtml, pilotText } from "./shared/first-landing.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "first-to-land");
 const $ = (id) => document.getElementById(id);
@@ -410,7 +410,7 @@ function renderDetail() {
   if (!r) return;
   const code = r[C.ident], faa = r[C.local] || code, claim = claims.get(code);
   const status = claim
-    ? `<div class="status claimed"><b class="mono">${esc(claim.callsign)}</b> (CID <a href="${vatsimStatsUrl(claim.cid)}" target="_blank" rel="noopener">${esc(claim.cid)}</a>) was first here, ${esc(fmtUtc(claim.landedAt))}${claim.aircraft ? " in a " + esc(claim.aircraft) : ""}.</div>`
+    ? `<div class="status claimed">${pilotHtml(claim)} (<b class="mono">${esc(claim.callsign)}</b>) was first here, ${esc(fmtUtc(claim.landedAt))}${claim.aircraft ? " in a " + esc(claim.aircraft) : ""}.</div>`
     : r[C.status] === 0
       ? `<div class="status">No VATSIM arrivals or departures logged here since January 2020. Nobody has been.</div>`
       : `<div class="status dep">${fmtNum(r[C.deps])} departure${r[C.deps] === 1 ? "" : "s"} logged, but no landing. Someone spawned here and left.</div>`;
@@ -497,7 +497,7 @@ function renderLatest(list) {
   const c = list[0], el = $("latest");
   if (!c) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<span class="label">Latest first</span><b>${esc(c.callsign)}</b><span>(CID ${esc(c.cid)}) landed first at <b>${esc(c.icao)}</b> ${esc(c.name)}${c.state ? ", " + esc(c.state) : ""}, ${esc(ago(c.landedAt))}.</span><a href="first-to-land-firsts.html">All firsts</a>`;
+  el.innerHTML = `<span class="label">Latest first</span><b>${esc(pilotText(c))}</b><span>(${esc(c.callsign)}) landed first at <b>${esc(c.icao)}</b> ${esc(c.name)}${c.state ? ", " + esc(c.state) : ""}, ${esc(ago(c.landedAt))}.</span><a href="first-to-land-firsts.html">All firsts</a>`;
 }
 
 async function refreshClaims(first) {
