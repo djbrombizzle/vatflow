@@ -274,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND and KATL");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL and KJAX");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -704,5 +704,39 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   const lons = ["N74", "N70", "N66", "N64", "N60", "N54"].map(id => M.standById.get(id).lon);
   assert(lons.every((v, i) => i === 0 || v > lons[i - 1]), "FedEx N74 to N54 run west to east");
   assert(composeStandTelex(M, "N60") === "KMIA RAMP: PARK STAND N60.", "FedEx telex (no spots or frequency published): " + composeStandTelex(M, "N60"));
+}
+/* ---------- KJAX ---------- */
+{
+  const J = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KJAX.json", import.meta.url))));
+  assert(J.stands.length === 20 && J.stands.every(s => !s.approx && s.noseHdg != null && s.pushTo), "KJAX 20 stands (A1-A10, C1-C10) with coordinates, headings and push lanes");
+  // Concourse A runs north-south: west-side (odd) gates nose east, east-side (even) gates nose west.
+  assert(["A1", "A3", "A5"].every(id => Math.abs(J.standById.get(id).noseHdg - 110) < 25) &&
+    ["A2", "A4", "A6"].every(id => Math.abs(J.standById.get(id).noseHdg - 268) < 25), "KJAX Concourse A sides face the pier");
+  const a2 = J.standById.get("A2"), g = J.proj.JAX.toLatLon(a2.x, a2.y);
+  assert(Math.abs(g.lat - a2.lat) < 2e-6 && Math.abs(g.lon - a2.lon) < 2e-6, "KJAX frame is exact");
+  assert(composeStandTelex(J, "C3") === "KJAX RAMP: PARK STAND C3.", "KJAX telex (no spots or frequency published): " + composeStandTelex(J, "C3"));
+  const want = { DAL1: "JAX-A", UAL1: "JAX-A", AAL1: "JAX-C", SWA1: "JAX-C" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(J, [], operatorFor(J, cs, ""), cs).ramp === ramp, `KJAX ${cs} on ${ramp}`);
+  // Demo: an arrival with no stand and no call spot to wait at holds on final instead of failing, then lands once assigned.
+  const { createDemoStore } = await import("../shared/ramp-demo.js");
+  let now = Date.parse("2026-10-22T15:00:00Z");
+  const realNow = Date.now, realTimeout = globalThis.setTimeout;
+  Date.now = () => now;
+  globalThis.setTimeout = fn => { fn(); return 0; };
+  try {
+    const d = createDemoStore(J);
+    d.seed();
+    const mem = new Map();
+    const row = () => deriveFlights(J, d.getPilots(), d.getState(), mem, now).find(x => x.callsign === "AAL1567");
+    for (let i = 0; i < 200; i++) { now += 1000; d.tick(); }
+    assert(row() && row().state === STATES.INBOUND, "KJAX demo arrival with no stand holds on final");
+    await d.op({ op: "assign", callsign: "AAL1567", stand: "C4" });
+    let r = null;
+    for (let i = 0; i < 600 && !(r && r.atStand); i++) { now += 1000; d.tick(); r = row(); }
+    assert(r && r.atStand === "C4", `KJAX demo arrival lands and parks once assigned (got ${r?.state} ${r?.atStand})`);
+  } finally {
+    Date.now = realNow;
+    globalThis.setTimeout = realTimeout;
+  }
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
