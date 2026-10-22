@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080b10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Controllers">
+<title>Controller List — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #5fbf6a;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+    --pad-l: max(12px, env(safe-area-inset-left));
+    --pad-r: max(12px, env(safe-area-inset-right));
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  main { max-width: 980px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 14px) var(--pad-r) calc(40px + env(safe-area-inset-bottom)) var(--pad-l); }
+  h1 { font-family: var(--mono); font-size: 17px; letter-spacing: 0.14em; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 12px; }
+
+  /* Toolbar sticks under the nav so filters stay in reach while scrolling. */
+  .toolbar {
+    position: sticky; top: var(--vatflow-nav-h); z-index: 50;
+    background: var(--bg); padding: 8px 0 8px; margin: 0 0 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .row1 { display: flex; gap: 8px; align-items: center; }
+  select, input, button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 8px; padding: 0 10px; height: 36px;
+  }
+  select { flex: 0 0 auto; }
+  input[type=search] { flex: 1 1 auto; min-width: 0; text-transform: uppercase; }
+  input[type=search]::placeholder { text-transform: none; color: var(--dim); }
+  button { cursor: pointer; white-space: nowrap; }
+  button:hover, select:hover { border-color: var(--amber); }
+  button.on { border-color: var(--amber); color: var(--amber); }
+  .chips { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips button { flex: 0 0 auto; height: 30px; font-size: 12px; border-radius: 15px; padding: 0 12px; }
+  .status { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .status.err .msg { color: var(--red); }
+  .status .live::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; }
+  .status.err .live::before, .status.stale .live::before { background: var(--red); }
+
+  /* ARTCC + facility groups */
+  .artcc { margin-top: 14px; }
+  .artcc-head {
+    display: flex; align-items: baseline; gap: 10px; font-family: var(--mono);
+    font-size: 13px; letter-spacing: 0.12em; color: var(--amber); padding: 6px 2px;
+  }
+  .artcc-head .n { color: var(--muted); font-size: 11px; letter-spacing: 0.04em; }
+  .fac { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+  .fac-head {
+    display: flex; gap: 8px; align-items: baseline; padding: 7px 12px; background: var(--panel2);
+    border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted);
+  }
+  .fac-head b { font-family: var(--mono); color: var(--text); letter-spacing: 0.06em; }
+
+  /* Controller row: phone layout first (two lines), table columns on wider screens. */
+  .ctl { border-top: 1px solid var(--line); }
+  .ctl:first-of-type { border-top: 0; }
+  .ctl-main {
+    display: grid; grid-template-columns: 54px 1fr auto; gap: 2px 10px; align-items: center;
+    width: 100%; height: auto; min-height: 52px; padding: 8px 12px; border: 0; border-radius: 0;
+    background: transparent; text-align: left; font-family: var(--ui); color: var(--text);
+  }
+  .ctl-main:hover { background: #111821; }
+  .sector {
+    grid-row: span 2; font-family: var(--mono); font-weight: 700; font-size: 14px; text-align: center;
+    border: 1px solid #2a3644; border-radius: 6px; padding: 6px 0; color: var(--cyan); letter-spacing: 0.04em;
+  }
+  .sector.none { color: var(--dim); font-weight: 400; font-size: 12px; }
+  .k-CTR .sector { color: var(--amber); }
+  .k-TWR .sector, .k-GND .sector, .k-DEL .sector { color: #9fb7ff; }
+  .cs { font-family: var(--mono); font-size: 15px; font-weight: 700; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .freq { font-family: var(--mono); font-size: 15px; color: var(--green); text-align: right; }
+  .meta { grid-column: 2 / 4; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta .who { color: var(--text); }
+  .pos, .name, .rating, .online { display: none; }
+  .ctl.obs .ctl-main { opacity: 0.55; }
+  .ctl.obs .freq { color: var(--dim); }
+  .ctl.me .cs::after { content: " ME"; font-size: 10px; color: var(--amber); }
+
+  .detail { display: none; padding: 4px 12px 12px 76px; font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .ctl.open .detail { display: block; }
+  .detail dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; }
+  .detail dt { color: var(--dim); font-family: var(--mono); font-size: 11px; }
+  .detail dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .detail .info { white-space: pre-wrap; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .detail .tcps { font-family: var(--mono); }
+  .detail a { color: var(--cyan); }
+
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 12px; border: 1px dashed var(--line); border-radius: 10px; margin-top: 14px; }
+  .foot { color: var(--dim); font-size: 11px; margin-top: 18px; line-height: 1.5; }
+  .foot a { color: var(--muted); }
+
+  /* iPad portrait and up: CRC-style columns. */
+  @media (min-width: 720px) {
+    h1 { font-size: 18px; }
+    .ctl-main {
+      grid-template-columns: 64px 130px 82px minmax(0, 1.4fr) minmax(0, 1fr) 40px 46px;
+      min-height: 40px; padding: 6px 12px;
+    }
+    .sector { grid-row: auto; padding: 3px 0; font-size: 13px; }
+    .cs { font-size: 14px; }
+    .freq { text-align: left; font-size: 14px; }
+    .meta { display: none; }
+    .pos, .name, .rating, .online { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .pos { color: var(--text); }
+    .name { color: var(--muted); }
+    .rating, .online { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+    .detail { padding-left: 86px; }
+    .colhead { display: grid !important; }
+  }
+  .colhead {
+    display: none; grid-template-columns: 64px 130px 82px minmax(0, 1.4fr) minmax(0, 1fr) 40px 46px; gap: 2px 10px;
+    padding: 2px 25px 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--dim);
+  }
+  .colhead span:nth-child(n+6) { text-align: right; }
+
+  /* Phones: 16px inputs stop iOS Safari zooming the page on focus. */
+  @media (max-width: 719px) {
+    select, input[type=search] { font-size: 16px; height: 40px; }
+    .row1 button { height: 40px; }
+    .sub { display: none; }
+  }
+  @media (max-width: 480px) {
+    .row1 { flex-wrap: wrap; }
+    .row1 select { flex: 1 1 auto; }
+    input[type=search] { flex-basis: 100%; order: 3; }
+  }
+  @media (max-width: 380px) {
+    .ctl-main { grid-template-columns: 48px 1fr auto; padding: 8px 10px; }
+    .cs, .freq { font-size: 14px; }
+    .detail { padding-left: 12px; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <h1>CONTROLLER LIST</h1>
+  <p class="sub">Who's working vNAS right now — sector ID, callsign, frequency and position, grouped like the CRC controller list. Tap a controller for details.</p>
+
+  <div class="toolbar">
+    <div class="row1">
+      <select id="artcc" aria-label="ARTCC"></select>
+      <button type="button" id="nbr" title="Include neighboring ARTCCs">+ Nbrs</button>
+      <input type="search" id="q" placeholder="Callsign, name, CID, freq" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Search">
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="status" id="status"><span class="live msg" id="statusMsg">Loading…</span><span id="statusCount"></span></div>
+  </div>
+
+  <div class="colhead" aria-hidden="true"><span>SECTOR</span><span>CALLSIGN</span><span>FREQ</span><span>POSITION</span><span>NAME</span><span>RTG</span><span>ON</span></div>
+  <div id="list"></div>
+
+  <p class="foot">Data: <a href="https://docs.virtualnas.net/data-admin/controller-feed/" target="_blank" rel="noopener">vNAS live controller feed</a>. Only controllers signed in through CRC appear. Refreshes every 15 seconds while this page is open.</p>
+</main>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import {
+  VNAS_FEED_URL, KINDS, parseFeed, filterRows, groupRows, artccScope, fmtOnline,
+} from "./shared/controller-list-core.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "controller-list");
+
+const REFRESH_MS = 15000;
+const STALE_MS = 10 * 60000;
+const VNAS_ARTCCS = ["ZAB","ZAN","ZAU","ZBW","ZDC","ZDV","ZFW","ZHN","ZHU","ZID","ZJX","ZKC","ZLA","ZLC","ZMA","ZME","ZMP","ZNY","ZOA","ZOB","ZSE","ZSU","ZTL","ZUA"];
+const KIND_LABEL = { CTR: "Center", APP: "Approach", TWR: "Tower", GND: "Ground", DEL: "Delivery", FSS: "FSS", OBS: "Observers" };
+const PREF_KEY = "vatflow.controllerList.v1";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; } catch { return {}; }
+}
+function savePrefs() {
+  try { localStorage.setItem(PREF_KEY, JSON.stringify({ artcc: state.artcc, nbr: state.nbr, kinds: [...state.kinds], obs: state.showObs })); } catch {}
+}
+
+// URL (?artcc=ZDC&nbr=1) wins over saved prefs so links can be shared.
+const prefs = loadPrefs();
+const url = new URLSearchParams(location.search);
+const state = {
+  artcc: (url.get("artcc") || prefs.artcc || "").toUpperCase(),
+  nbr: url.has("nbr") ? url.get("nbr") === "1" : !!prefs.nbr,
+  kinds: new Set(Array.isArray(prefs.kinds) ? prefs.kinds.filter(k => k !== "OBS") : KINDS.filter(k => k !== "OBS")),
+  showObs: prefs.obs ?? false,
+  q: "",
+  rows: [],
+  updatedAt: null,
+  open: new Set(),
+  neighbors: {},
+  error: "",
+  myCid: "",
+};
+
+function artccOptions() {
+  const seen = new Set([...VNAS_ARTCCS, ...state.rows.map(r => r.artcc).filter(Boolean)]);
+  if (state.artcc) seen.add(state.artcc);
+  const counts = {};
+  for (const r of state.rows) if (!r.observer) counts[r.artcc] = (counts[r.artcc] || 0) + 1;
+  const sel = $("artcc");
+  const html = `<option value="">All ARTCCs</option>` + [...seen].sort().map(a =>
+    `<option value="${a}"${a === state.artcc ? " selected" : ""}>${a}${counts[a] ? ` (${counts[a]})` : ""}</option>`).join("");
+  if (sel.innerHTML !== html) sel.innerHTML = html;
+  sel.value = state.artcc;
+}
+
+function renderChips() {
+  $("chips").innerHTML = KINDS.map(k => {
+    const on = k === "OBS" ? state.showObs : state.kinds.has(k);
+    return `<button type="button" data-kind="${k}" class="${on ? "on" : ""}" aria-pressed="${on}">${KIND_LABEL[k]}</button>`;
+  }).join("");
+  $("nbr").classList.toggle("on", state.nbr);
+  $("nbr").disabled = !state.artcc;
+}
+
+function rowHtml(r, now) {
+  const key = r.cid || r.callsign;
+  const open = state.open.has(key);
+  const online = fmtOnline(r.loginTime, now);
+  const others = r.positions.filter(p => !p.isPrimary || !p.isActive);
+  const tcps = [...new Set(r.positions.flatMap(p => p.tcps))];
+  const posLine = [r.position, r.radioName && r.radioName !== r.position ? r.radioName : ""].filter(Boolean).join(" · ");
+  return `<div class="ctl k-${r.kind}${r.observer ? " obs" : ""}${open ? " open" : ""}${state.myCid && r.cid === state.myCid ? " me" : ""}" data-key="${esc(key)}">
+  <button type="button" class="ctl-main" aria-expanded="${open}">
+    <span class="sector${r.sector ? "" : " none"}">${esc(r.sector || r.kind)}</span>
+    <span class="cs">${esc(r.callsign)}</span>
+    <span class="freq">${esc(r.freq || "—")}</span>
+    <span class="meta">${esc(r.position || r.facilityName)} · <span class="who">${esc(r.name || r.cid)}</span> ${esc(r.rating)}${online ? " · " + online : ""}</span>
+    <span class="pos">${esc(r.position || "—")}</span>
+    <span class="name">${esc(r.name || r.cid)}</span>
+    <span class="rating">${esc(r.rating)}</span>
+    <span class="online">${esc(online)}</span>
+  </button>
+  <div class="detail">
+    <dl>
+      ${posLine ? `<dt>POSITION</dt><dd>${esc(posLine)}</dd>` : ""}
+      <dt>FACILITY</dt><dd>${esc(r.facilityId)}${r.facilityName ? " · " + esc(r.facilityName) : ""} (${esc(r.artcc)})</dd>
+      <dt>CONTROLLER</dt><dd>${esc(r.name)} · ${esc(r.cid)} · ${esc(r.rating)}</dd>
+      ${r.loginTime ? `<dt>LOGGED IN</dt><dd>${new Date(r.loginTime).toISOString().slice(11, 16)}Z (${online})</dd>` : ""}
+      ${tcps.length ? `<dt>OWNS</dt><dd class="tcps">${tcps.map(esc).join(" ")}</dd>` : ""}
+      ${others.length ? `<dt>ALSO</dt><dd>${others.map(p => esc([p.sector, p.name, p.freq].filter(Boolean).join(" ")) + (p.isActive ? "" : " (inactive)")).join("<br>")}</dd>` : ""}
+    </dl>
+    ${r.info ? `<div class="info">${esc(r.info)}</div>` : ""}
+  </div>
+</div>`;
+}
+
+function render() {
+  const now = Date.now();
+  artccOptions();
+  renderChips();
+  const scope = artccScope(state.artcc, state.nbr, state.neighbors);
+  const rows = filterRows(state.rows, { scope, kinds: state.kinds, showObs: state.showObs, q: state.q });
+  const groups = groupRows(rows, state.artcc);
+  const list = $("list");
+  if (!groups.length) {
+    const where = state.artcc ? `${state.artcc}${state.nbr ? " or its neighbors" : ""}` : "vNAS";
+    list.innerHTML = state.updatedAt || state.error
+      ? `<div class="empty">${state.q ? "No controllers match that search." : `No controllers online in ${esc(where)} right now.`}</div>`
+      : "";
+  } else {
+    list.innerHTML = groups.map(g => `<section class="artcc">
+      <div class="artcc-head">${esc(g.artcc)}<span class="n">${g.count} online</span></div>
+      ${g.facilities.map(f => `<div class="fac">
+        <div class="fac-head"><b>${esc(f.id)}</b><span>${esc(f.name)}</span></div>
+        ${f.rows.map(r => rowHtml(r, now)).join("")}
+      </div>`).join("")}
+    </section>`).join("");
+  }
+  const total = state.rows.filter(r => !r.observer).length;
+  const shown = rows.filter(r => !r.observer).length;
+  $("statusCount").textContent = state.updatedAt ? (shown === total ? `${total} online` : `${shown} of ${total} online`) : "";
+  const st = $("status");
+  const stale = state.updatedAt && now - state.updatedAt > STALE_MS;
+  st.classList.toggle("err", !!state.error);
+  st.classList.toggle("stale", !!stale);
+  $("statusMsg").textContent = state.error
+    ? state.error
+    : state.updatedAt
+      ? `Feed ${new Date(state.updatedAt).toISOString().slice(11, 19)}Z${stale ? " (no change in " + Math.round((now - state.updatedAt) / 60000) + " min)" : ""}`
+      : "Loading…";
+}
+
+let timer = null;
+let inflight = false;
+async function refresh() {
+  if (inflight) return;
+  inflight = true;
+  try {
+    // no-cache revalidates with ETag, so unchanged polls are a cheap 304.
+    const res = await fetch(VNAS_FEED_URL, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    state.rows = parseFeed(data);
+    state.updatedAt = data.updatedAt ? Date.parse(data.updatedAt) : Date.now();
+    state.error = "";
+  } catch (e) {
+    state.error = `Feed unreachable (${e.message || e}) — retrying`;
+  } finally {
+    inflight = false;
+  }
+  render();
+}
+
+function schedule() {
+  clearInterval(timer);
+  timer = document.hidden ? null : setInterval(refresh, REFRESH_MS);
+}
+
+// Phones suspend background tabs; refresh as soon as the page is visible again.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refresh();
+  schedule();
+});
+
+function syncUrl() {
+  const p = new URLSearchParams(location.search);
+  if (state.artcc) p.set("artcc", state.artcc); else p.delete("artcc");
+  if (state.artcc && state.nbr) p.set("nbr", "1"); else p.delete("nbr");
+  const qs = p.toString();
+  history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+}
+
+$("artcc").addEventListener("change", e => {
+  state.artcc = e.target.value;
+  savePrefs(); syncUrl(); render();
+});
+$("nbr").addEventListener("click", () => {
+  state.nbr = !state.nbr;
+  savePrefs(); syncUrl(); render();
+});
+$("q").addEventListener("input", e => { state.q = e.target.value; render(); });
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("button[data-kind]");
+  if (!b) return;
+  const k = b.dataset.kind;
+  if (k === "OBS") state.showObs = !state.showObs;
+  else if (state.kinds.has(k)) state.kinds.delete(k);
+  else state.kinds.add(k);
+  savePrefs(); render();
+});
+$("list").addEventListener("click", e => {
+  const btn = e.target.closest(".ctl-main");
+  if (!btn) return;
+  const el = btn.closest(".ctl");
+  const key = el.dataset.key;
+  if (state.open.has(key)) state.open.delete(key); else state.open.add(key);
+  el.classList.toggle("open");
+  btn.setAttribute("aria-expanded", el.classList.contains("open"));
+});
+
+// Highlight the signed-in controller's own row when VATFLOW auth is present.
+import("./shared/vatflow-auth.js")
+  .then(m => m.initVatflowAuth())
+  .then(s => { if (s?.cid) { state.myCid = String(s.cid); render(); } })
+  .catch(() => {});
+
+fetch("data/artcc-neighbors.json")
+  .then(r => r.ok ? r.json() : {})
+  .then(n => { state.neighbors = n || {}; render(); })
+  .catch(() => {});
+
+render();
+refresh();
+schedule();
+setInterval(() => { if (!document.hidden) render(); }, 60000); // keep "time online" ticking
+</script>
+</body>
+</html>
