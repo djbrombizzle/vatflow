@@ -161,8 +161,13 @@ export function createDemoStore(L) {
           const stand = e?.stand ? L.standById.get(e.stand) : null;
           const lp = stand ? lanePath(L, stand) : null;
           const spot = lp ? lp.spot : L.spotById.get(HOLD_SPOT[operatorFor(L, ac.cs, ac.rmk).group] || FALLBACK_SPOT);
-          Object.assign(ac, { phase: "spot", chart: spot.chart || stand.chart, x: spot.x, y: spot.y, gs: 0 });
-          addLog(`${ac.cs} landed, ${spot.id ? `at spot ${spot.id}` : "entering the ramp"}`);
+          if (!spot) {
+            // No stand yet and no call spot to wait at (KJAX publishes none): hold on short final until assigned.
+            ac.air.dist = 0.3;
+          } else {
+            Object.assign(ac, { phase: "spot", chart: spot.chart || stand.chart, x: spot.x, y: spot.y, gs: 0 });
+            addLog(`${ac.cs} landed, ${spot.id ? `at spot ${spot.id}` : "entering the ramp"}`);
+          }
         }
       } else if (ac.phase === "spot") {
         ac.gs = 0;
