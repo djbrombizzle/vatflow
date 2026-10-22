@@ -668,9 +668,9 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
 {
   const M = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KMIA.json", import.meta.url))));
   const count = r => M.stands.filter(s => s.ramp === r).length;
-  assert(M.stands.length === 282 && count("MIA-C") === 17 && count("MIA-D60") === 16 && count("MIA-ER") === 9 && count("MIA-WCC") === 21 &&
-    count("MIA-H890") === 7 && count("MIA-NE") === 20,
-    "KMIA 282 stands: Central Base, Concourses D-J, D60, E Remote, West Cargo, Hangar 890 and Northeast Base");
+  assert(M.stands.length === 302 && count("MIA-C") === 17 && count("MIA-D60") === 16 && count("MIA-ER") === 9 && count("MIA-WCC") === 21 &&
+    count("MIA-H890") === 7 && count("MIA-NE") === 20 && count("MIA-UPS") === 9 && count("MIA-FDX") === 11,
+    "KMIA 302 stands: Central Base, Concourses D-J, D60, E Remote, West Cargo, UPS, FedEx, Hangar 890 and Northeast Base");
   assert(M.stands.every(s => !s.approx && s.noseHdg != null), "every KMIA stand has real coordinates and a heading");
   // Spots carry the apron frequency (10-9B): the entry spot comes from the stand's ramp.
   assert(composeStandTelex(M, "C100") === "KMIA MIAMI GATES: PARK STAND C100. ENTER AT SPOT 1. CTC MIAMI GATES 128.025 AT SPOT 1 FOR TAXI.", "KMIA C100 telex: " + composeStandTelex(M, "C100"));
@@ -684,7 +684,7 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   assert(["D8", "D8A"].every(g => standForGate(M, g)?.id === "D8") && standForGate(M, "G5A")?.id === "G5" && !M.standById.has("D8A") &&
     M.standById.has("D10A") && M.standById.get("J17").label === "J17/A", "KMIA multi-line gates");
   assert(!["D5A", "D60D", "H3A", "C113"].some(id => M.standById.has(id)), "KMIA OSM-only gates left out");
-  const want = { AAL1: "MIA-DN", ENY1: "MIA-D60", BAW1: "MIA-E", DAL1: "MIA-HE", UAL1: "MIA-G", DLH1: "MIA-J", FDX1: "MIA-WCC" };
+  const want = { AAL1: "MIA-DN", ENY1: "MIA-D60", BAW1: "MIA-E", DAL1: "MIA-HE", UAL1: "MIA-G", DLH1: "MIA-J", FDX1: "MIA-FDX", UPS1: "MIA-UPS", CKS1: "MIA-WCC" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(M, [], operatorFor(M, cs, ""), cs).ramp === ramp, `KMIA ${cs} on ${ramp}`);
   assert(airlineStands(M, { callsign: "AAL12", op: operatorFor(M, "AAL12", "") }).every(id => M.standById.get(id).ramp !== "MIA-ER"), "KMIA proposals skip E Remote");
   // Hangar 890 and Northeast Base (Jeppesen NE Base chart), in their own generated frame north of MIA's.
@@ -697,5 +697,12 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
     ["N18", "N20", "N24"].every(id => Math.abs(M.standById.get(id).noseHdg - 177) < 10), "NE Base north row noses north, south row south");
   assert(["AAL1", "DAL1", "UAL1"].every(cs => airlineStands(M, { callsign: cs, op: operatorFor(M, cs, "") }).every(id => !["MIA-H890", "MIA-NE"].includes(M.standById.get(id).ramp))),
     "Hangar 890 and Northeast Base are never proposed automatically");
+  // UPS and FedEx ramps (north side): OSM stands, plus N66-N74 and N87A from the scenery map.
+  assert(["N87", "N89", "N91"].every(id => Math.abs(M.standById.get(id).noseHdg - 88) < 8) &&
+    ["N92", "N95"].every(id => Math.abs(M.standById.get(id).noseHdg - 270) < 8) &&
+    ["N54", "N64", "N74"].every(id => M.standById.get(id).noseHdg > 350), "UPS rows nose to their buildings, FedEx noses north");
+  const lons = ["N74", "N70", "N66", "N64", "N60", "N54"].map(id => M.standById.get(id).lon);
+  assert(lons.every((v, i) => i === 0 || v > lons[i - 1]), "FedEx N74 to N54 run west to east");
+  assert(composeStandTelex(M, "N60") === "KMIA RAMP: PARK STAND N60.", "FedEx telex (no spots or frequency published): " + composeStandTelex(M, "N60"));
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
