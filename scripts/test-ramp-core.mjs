@@ -668,8 +668,9 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
 {
   const M = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KMIA.json", import.meta.url))));
   const count = r => M.stands.filter(s => s.ramp === r).length;
-  assert(M.stands.length === 255 && count("MIA-C") === 17 && count("MIA-D60") === 16 && count("MIA-ER") === 9 && count("MIA-WCC") === 21,
-    "KMIA 255 stands: Central Base, Concourses D-J, D60, E Remote and West Cargo");
+  assert(M.stands.length === 282 && count("MIA-C") === 17 && count("MIA-D60") === 16 && count("MIA-ER") === 9 && count("MIA-WCC") === 21 &&
+    count("MIA-H890") === 7 && count("MIA-NE") === 20,
+    "KMIA 282 stands: Central Base, Concourses D-J, D60, E Remote, West Cargo, Hangar 890 and Northeast Base");
   assert(M.stands.every(s => !s.approx && s.noseHdg != null), "every KMIA stand has real coordinates and a heading");
   // Spots carry the apron frequency (10-9B): the entry spot comes from the stand's ramp.
   assert(composeStandTelex(M, "C100") === "KMIA MIAMI GATES: PARK STAND C100. ENTER AT SPOT 1. CTC MIAMI GATES 128.025 AT SPOT 1 FOR TAXI.", "KMIA C100 telex: " + composeStandTelex(M, "C100"));
@@ -686,5 +687,15 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   const want = { AAL1: "MIA-DN", ENY1: "MIA-D60", BAW1: "MIA-E", DAL1: "MIA-HE", UAL1: "MIA-G", DLH1: "MIA-J", FDX1: "MIA-WCC" };
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(M, [], operatorFor(M, cs, ""), cs).ramp === ramp, `KMIA ${cs} on ${ramp}`);
   assert(airlineStands(M, { callsign: "AAL12", op: operatorFor(M, "AAL12", "") }).every(id => M.standById.get(id).ramp !== "MIA-ER"), "KMIA proposals skip E Remote");
+  // Hangar 890 and Northeast Base (Jeppesen NE Base chart), in their own generated frame north of MIA's.
+  const n7 = M.standById.get("N7");
+  const g7 = M.proj.MNE.toLatLon(n7.x, n7.y);
+  assert(Math.abs(g7.lat - n7.lat) < 2e-6 && Math.abs(g7.lon - n7.lon) < 2e-6 && n7.lat > 25.805, "KMIA Northeast Base frame is exact, north of the field");
+  assert(composeStandTelex(M, "N7") === "KMIA RAMP: PARK STAND N7. ENTER AT SPOT 54.", "Northeast Base telex (no frequency on the chart): " + composeStandTelex(M, "N7"));
+  assert(entrySpotFor(M, M.standById.get("890D")).id === "52" && entrySpotFor(M, M.standById.get("N24A")).id === "53", "Hangar 890 enters at 52, the NE Base ramp at 53/54");
+  assert(["N1", "N4", "N10"].every(id => M.standById.get(id).noseHdg < 20 || M.standById.get(id).noseHdg > 340) &&
+    ["N18", "N20", "N24"].every(id => Math.abs(M.standById.get(id).noseHdg - 177) < 10), "NE Base north row noses north, south row south");
+  assert(["AAL1", "DAL1", "UAL1"].every(cs => airlineStands(M, { callsign: cs, op: operatorFor(M, cs, "") }).every(id => !["MIA-H890", "MIA-NE"].includes(M.standById.get(id).ramp))),
+    "Hangar 890 and Northeast Base are never proposed automatically");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
