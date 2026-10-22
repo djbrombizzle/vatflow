@@ -76,9 +76,6 @@
   .views button { padding: 7px 4px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel-2); font-size: 12px; }
   .views button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .views button { display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .vbox { width: 13px; height: 13px; flex: none; border: 1.5px solid currentColor; border-radius: 3px; opacity: .75;
-    display: grid; place-items: center; font-size: 10px; line-height: 1; }
-  .vbox:hover { opacity: 1; }
   .views .hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted-2); }
   .tgl { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; font-size: 13px; }
   .tgl input { width: 34px; height: 18px; appearance: none; background: var(--line-2); border-radius: 9px; position: relative; cursor: pointer; }
@@ -604,11 +601,11 @@ function renderViewSeg() {
   const all = allSelected();
   $("viewSeg").innerHTML = pv.map(v => {
     const on = !all && ui.views.has(v.id);
-    return `<button data-view="${esc(v.id)}" class="${on ? "on" : ""}" title="Show ${esc(v.label)} only">` +
-      `<span class="vbox" data-tick="${esc(v.id)}" title="${ui.views.has(v.id) ? "Remove from" : "Add to"} the selection">${ui.views.has(v.id) ? "✓" : ""}</span>${esc(v.label)}</button>`;
+    return `<button data-view="${esc(v.id)}" class="${on ? "on" : ""}" aria-pressed="${on}" ` +
+      `title="${on ? "Turn off" : all ? `Show ${esc(v.label)}` : "Turn on"} ${all ? "" : esc(v.label)}">${esc(v.label)}</button>`;
   }).join("") +
-    `<button data-view="ALL" class="${all ? "on" : ""}">All</button>` +
-    (pv.length > 1 ? '<div class="hint">Click a ramp to show it alone. Tick boxes to combine ramps.</div>' : "");
+    `<button data-view="ALL" class="${all ? "on" : ""}" aria-pressed="${all}">All</button>` +
+    (pv.length > 1 ? '<div class="hint">Click ramps to turn them on or off; several on combine them.</div>' : "");
 }
 
 function saveViews() {
@@ -1184,20 +1181,22 @@ $("modeSeg").addEventListener("click", e => {
   if (b && b.dataset.mode !== store.mode) setMode(b.dataset.mode);
 });
 $("viewSeg").addEventListener("click", e => {
-  const tick = e.target.closest("[data-tick]");
   const b = e.target.closest("button[data-view]");
   if (!b) return;
   const pv = pickViews().map(v => v.id);
-  if (tick) {
-    // Tick box: add or remove this ramp, keeping at least one.
-    const id = tick.dataset.tick;
-    if (allSelected()) ui.views = new Set(pv);
-    if (ui.views.has(id)) { if (ui.views.size > 1) ui.views.delete(id); }
-    else ui.views.add(id);
-  } else if (b.dataset.view === "ALL") {
+  const id = b.dataset.view;
+  if (id === "ALL") {
     ui.views = new Set(pv);
+  } else if (allSelected()) {
+    // From All, a ramp click shows that ramp.
+    ui.views = new Set([id]);
+  } else if (ui.views.has(id)) {
+    // On: turn it off; turning off the last one goes back to All.
+    ui.views.delete(id);
+    if (!ui.views.size) ui.views = new Set(pv);
   } else {
-    ui.views = new Set([b.dataset.view]);
+    // Off: turn it on alongside the others.
+    ui.views.add(id);
   }
   ui.vb = null;
   saveViews();
