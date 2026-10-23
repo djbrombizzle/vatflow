@@ -72,28 +72,38 @@
   .fixchip { border-radius: 4px; padding: 2px 6px; color: #0b0f14; font-weight: 700; white-space: nowrap; }
   .fixchip.closed { background: transparent !important; color: var(--text); border: 1px dashed; font-weight: 600; }
 
-  /* Runway loom: first-come vs sequenced, one tile per departure */
+  /* Runway queue cards */
   .rwy { border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); margin: 8px 0; padding: 8px 10px; }
   .rwy-h { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); }
   .rwy-h .id { font-size: 18px; font-weight: 800; letter-spacing: 0.05em; }
   .rwy-h .saved { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--green); }
   .rwy-h .saved.zero { color: var(--dim); font-weight: 500; }
-  .loom-l { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 8px 0 3px; display: flex; justify-content: space-between; }
-  .loom { display: flex; align-items: stretch; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
-  .tile { flex: none; min-width: 58px; border-radius: 5px; padding: 3px 5px 4px; color: #0b0f14; font-family: var(--mono); cursor: pointer; position: relative; border: 2px solid transparent; }
-  .tile .cs { font-size: 10.5px; font-weight: 800; }
-  .tile .fx { font-size: 9.5px; opacity: 0.85; }
-  .tile .eta { font-size: 9.5px; font-weight: 700; }
-  .tile.sel { border-color: #fff; box-shadow: 0 0 0 1px #000 inset; }
-  .tile.up::after { content: "▲"; position: absolute; top: -2px; right: 2px; font-size: 9px; }
-  .tile.parked { opacity: 0.45; }
-  .link { flex: none; width: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; font-weight: 700; }
-  .link::before { content: ""; display: block; width: 100%; height: 3px; border-radius: 2px; background: currentColor; margin-bottom: 2px; }
+  /* Colour bars: first-come vs sequenced at a glance, always the panel's width */
+  .bars { display: grid; grid-template-columns: 74px 1fr 52px; gap: 4px 8px; align-items: center; margin: 8px 0 6px; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+  .bars .lbl { letter-spacing: 0.12em; text-transform: uppercase; }
+  .bars .end { text-align: right; }
+  .cbar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; background: #0b0f14; }
+  .cbar span { flex: 1 1 0; min-width: 2px; }
+  .cbar i { flex: none; width: 2px; background: #0b0f14; }
+  .cbar i.k-same, .cbar i.k-unknown { width: 4px; background: var(--red); }
+  .cbar i.k-wake { width: 4px; background: var(--violet); }
+
+  /* Release order: one row per departure, next off at the top */
+  .q { margin: 0; padding: 0; list-style: none; }
+  .q li { display: grid; grid-template-columns: 24px 1fr auto 46px; gap: 0 8px; align-items: center; padding: 5px 6px 5px 4px; border-left: 4px solid; border-top: 1px solid var(--line); cursor: pointer; }
+  .q li:hover { background: #ffffff08; }
+  .q li.sel { background: #ffffff14; }
+  .q .n { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 11px/1 var(--mono); color: #0b0f14; }
+  .q .who { min-width: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.3; }
+  .q .who b { font-size: 12px; }
+  .q .who .fx { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .q .who .mv { font-size: 10.5px; color: var(--green); }
+  .q .gap { font: 700 11px/1 var(--mono); padding: 3px 5px; border-radius: 4px; border: 1px solid currentColor; white-space: nowrap; }
+  .q .gap small { font-weight: 500; opacity: 0.8; margin-left: 3px; }
+  .q .etd { font: 700 12px/1 var(--mono); text-align: right; }
+  .q .etd.held { color: var(--amber); }
   .k-diverge { color: var(--green); } .k-simul { color: var(--cyan); } .k-same { color: var(--red); }
   .k-wake { color: var(--violet); } .k-unknown { color: var(--muted); } .k-first { color: var(--dim); }
-  .moves { margin: 6px 0 0; padding: 0; list-style: none; font-size: 11.5px; }
-  .moves li { padding: 3px 0; border-top: 1px dashed var(--line); }
-  .moves b { font-family: var(--mono); }
   .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; vertical-align: -1px; margin-right: 3px; }
 
   .log { font-family: var(--mono); font-size: 11px; width: 100%; border-collapse: collapse; }
@@ -190,6 +200,7 @@ const AIRBORNE_KT = 50;
 const MOVED_KT = 5;
 const SPOKE_NM = 0.85;
 const KIND_COLOR = { diverge: "#57d98a", simul: "#3fb7b0", same: "#e07070", wake: "#b28cff", unknown: "#e07070", first: "#5c6b78" };
+const KIND_SHORT = { diverge: "1 NM", simul: "simul", same: "trail", wake: "wake", unknown: "trail?" };
 const KIND_TEXT = { diverge: "diverging", simul: "simultaneous", same: "in trail", wake: "wake turbulence", unknown: "in trail, course unknown", first: "" };
 
 const st = {
@@ -495,15 +506,8 @@ function drawMap() {
       .on("click", () => select(a.cs)).addTo(layer);
   }
 
-  // Queues: sequence numbers, the thread in release order, and data blocks.
+  // Queues: sequence numbers and data blocks.
   for (const plan of st.plans) {
-    const thr = endById(plan.rwy);
-    let prev = thr ? [thr.lat, thr.lon] : null;
-    plan.order.forEach((a, i) => {
-      const slot = plan.best.slots[i];
-      if (prev) L.polyline([prev, [a.lat, a.lon]], { color: KIND_COLOR[slot.pair.kind] || "#8a97a3", weight: 2.5, opacity: 0.8, dashArray: "6 5", interactive: false }).addTo(layer);
-      prev = [a.lat, a.lon];
-    });
     plan.order.forEach((a, i) => {
       const slot = plan.best.slots[i];
       const color = courseColor(a.bearing);
@@ -552,18 +556,37 @@ function drawWheel() {
   $("wheel").innerHTML = `<div class="ring"></div><svg viewBox="0 0 112 112" width="112" height="112">${card}${ticks}<circle cx="${c}" cy="${c}" r="3" fill="#8a97a3"/></svg>`;
 }
 
-function tile(a, slot, opts = {}) {
-  const color = courseColor(a.bearing);
-  return `<div class="tile${st.sel === a.cs ? " sel" : ""}${opts.up ? " up" : ""}" data-cs="${esc(a.cs)}" style="background:${color}" title="${esc(a.cs)} ${esc(a.label)}${a.rnav ? " (RNAV SID)" : ""} ${isFinite(a.bearing) ? Math.round(a.bearing) + "° " + compassOf(a.bearing) : ""}${slot.held ? " — held for a departure already gone" : ""}">` +
-    `<div class="cs">${esc(a.cs)}</div><div class="fx">${esc(a.fix || "?")}</div><div class="eta">+${fmtSec(slot.t)}</div></div>`;
+function pairText(pair) {
+  return (pair.rule === "3-9-6a" ? "runway separation" : KIND_TEXT[pair.kind]) +
+    (isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : "") + (pair.rule ? " — 7110.65 " + pair.rule : "");
 }
-function linkEl(pair) {
-  if (!pair || pair.kind === "first") return "";
-  return `<div class="link k-${pair.kind}" title="${pair.rule === "3-9-6a" ? "runway separation" : KIND_TEXT[pair.kind]}${isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : ""}${pair.rule ? " — 7110.65 " + pair.rule : ""}">${pair.sec}</div>`;
+/** One colour bar: a segment per departure, a red / violet divider where the pair is in trail / wake. */
+function bar(order, sched) {
+  return `<div class="cbar">${order.map((a, i) => {
+    const k = sched.slots[i].pair.kind;
+    return (i ? `<i class="k-${k}"></i>` : "") + `<span style="background:${courseColor(a.bearing)}" title="${esc(a.cs)} ${esc(a.label)}"></span>`;
+  }).join("")}</div>`;
 }
-function loom(order, sched, ups) {
-  if (!order.length) return `<div class="dim" style="font-size:11px">—</div>`;
-  return `<div class="loom">${order.map((a, i) => linkEl(sched.slots[i].pair) + tile(a, sched.slots[i], { up: ups && ups.has(a.cs) })).join("")}</div>`;
+/** Release order as rows: sequence number, who and where, the gap it needs, wheels-up. */
+function queueRows(plan) {
+  const byId = new Map(plan.queue.map(a => [a.cs, a]));
+  const moved = new Map(plan.moves.map(m => [m.id, m]));
+  return `<ol class="q">${plan.order.map((a, i) => {
+    const slot = plan.best.slots[i], pair = slot.pair, color = courseColor(a.bearing);
+    const m = moved.get(a.cs);
+    const mv = m ? `<div class="mv">▲ ahead of ${m.ahead.map(id => esc(id)).join(", ")}</div>` : "";
+    const gap = pair.kind === "first"
+      ? `<span class="gap dim" title="First off this runway">first</span>`
+      : `<span class="gap k-${pair.kind}" title="${esc(pairText(pair))}">${pair.sec}s<small>${esc(pair.rule === "3-9-6a" ? "rwy" : KIND_SHORT[pair.kind] || "")}</small></span>`;
+    const tip = `${a.cs} ${a.label}${a.rnav ? " (RNAV SID)" : ""} ${isFinite(a.bearing) ? Math.round(a.bearing) + "° " + compassOf(a.bearing) : ""}`;
+    return `<li data-cs="${esc(a.cs)}" class="${st.sel === a.cs ? "sel" : ""}" style="border-left-color:${color}" title="${esc(tip)}">
+      <span class="n" style="background:${color}">${i + 1}</span>
+      <div class="who"><b>${esc(a.cs)}</b> <span class="muted">${esc(a.type)}${a.wake ? " " + a.wake[0].toUpperCase() : ""}</span>
+        <div class="fx" style="color:${color}">${esc(a.label)}${isFinite(a.bearing) ? ` <span class="dim">${compassOf(a.bearing)}</span>` : ""}</div>${mv}</div>
+      ${gap}
+      <span class="etd${slot.held ? " held" : ""}" title="${slot.held ? "Held for a departure already gone" : "Wheels-up estimate"}">+${fmtSec(slot.t)}</span>
+    </li>`;
+  }).join("")}</ol>`;
 }
 
 function drawSide() {
@@ -580,29 +603,20 @@ function drawSide() {
     : `<span class="dim">Every fix is open — no departures seen yet this session.</span>`;
 
   const cards = st.plans.map(plan => {
-    const ups = new Set(plan.moves.map(m => m.id));
-    const byId = new Map(plan.queue.map(a => [a.cs, a]));
-    const moves = plan.moves.map(m => {
-      const a = byId.get(m.id);
-      const jumped = m.ahead.map(id => byId.get(id)).filter(Boolean);
-      return `<li>▲ <b style="color:${courseColor(a.bearing)}">${esc(a.cs)}</b> <span class="muted">${esc(a.fix)}</span> ahead of ${jumped.map(b =>
-        `<b style="color:${courseColor(b.bearing)}">${esc(b.cs)}</b> <span class="muted">${esc(b.fix)}</span>`).join(", ")}</li>`;
-    }).join("");
     const parked = st.parked.filter(p => p.rwy === plan.rwy).length;
     return `<div class="rwy">
       <div class="rwy-h"><span class="id">${esc(plan.rwy)}</span>
         <span class="muted" style="font-size:11px">${plan.queue.length} taxiing${parked ? ` · ${parked} at gate` : ""}</span>
         <span class="saved${plan.savedSec ? "" : " zero"}" title="Total wait saved across the queue against first-come first-served">${plan.savedSec ? "saves " + fmtSec(plan.savedSec) : "already split"}</span></div>
-      <div class="loom-l"><span>First-come</span><span>${plan.queue.length ? "last off +" + fmtSec(plan.fcfs.span) : ""}</span></div>
-      ${loom(plan.fcfsOrder, plan.fcfs)}
-      <div class="loom-l"><span>Sequenced</span><span>${plan.queue.length ? "last off +" + fmtSec(plan.best.span) : ""}</span></div>
-      ${loom(plan.order, plan.best, ups)}
-      ${moves ? `<ul class="moves">${moves}</ul>` : ""}
+      ${plan.queue.length ? `<div class="bars">
+        <span class="lbl">First-come</span>${bar(plan.fcfsOrder, plan.fcfs)}<span class="end" title="Last one off">+${fmtSec(plan.fcfs.span)}</span>
+        <span class="lbl">Sequenced</span>${bar(plan.order, plan.best)}<span class="end" title="Last one off">+${fmtSec(plan.best.span)}</span>
+      </div>${queueRows(plan)}` : `<p class="note">Nobody taxiing to ${esc(plan.rwy)}.</p>`}
     </div>`;
   }).join("");
   $("runways").innerHTML = (st.plans.length ? `<h2>Runway queues</h2>` + cards
     : `<h2>Runway queues</h2><p class="note">Pick the departure runways above, or press ATIS.</p>`) +
-    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>diverging 15°+ (10° RNAV) <span class="swatch" style="background:#e07070;margin-left:6px"></span>in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds between takeoff rolls behind the one ahead (FAA JO 7110.65 3-9-6, 5-8-3, 5-5-4).</p>`;
+    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>diverging 15°+ (10° RNAV) <span class="swatch" style="background:#e07070;margin-left:6px"></span>in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds between takeoff rolls behind the one ahead (FAA JO 7110.65 3-9-6, 5-8-3, 5-5-4). On the bars, a red or violet divider marks an in-trail or wake pair.</p>`;
 
   const now = Date.now();
   $("log").innerHTML = st.departures.slice(0, 10).map(d => {
