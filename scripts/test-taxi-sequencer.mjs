@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  angleDiff, bearingDeg, courseColor, departureFix, fixClocks, milesSec, pairInterval, readySec, releaseFloor,
+  angleDiff, bearingDeg, courseColor, departureFix, departureGate, fixClocks, gateBearings, isTrail, milesSec, pairInterval, readySec, releaseFloor,
   runwayRelation, scheduleOrder, sequenceRunway, wakeOf, DEFAULT_INTERVALS,
 } from "../shared/taxi-sequencer.js";
 
@@ -126,5 +126,30 @@ assert(readySec({ lat: 0.008, lon: 0, gs: 0 }, { lat: 0, lon: 0 }) > 90, "parked
 assert(readySec({ lat: 0.03, lon: 0, gs: 14, moved: true }, { lat: 0, lon: 0 }) > 300, "taxiing 1.8 nm out");
 const clocks = fixClocks([{ fix: "NORTH", agoSec: 50 }, { fix: "SOUTH", agoSec: 500 }]);
 assert(clocks.NORTH === 14 && clocks.SOUTH === 0, "fix clocks: " + JSON.stringify(clocks));
+
+/* ---------- KATL departure gates ---------- */
+assert(departureGate("KATL", "PLMMR3") === "E1" && departureGate("katl", "JACCC2") === "E1", "E1 by SID base");
+assert(departureGate("KATL", "PENCL2") === "N1" && departureGate("KATL", "VRSTY3") === "S1", "N1, S1");
+assert(departureGate("KATL", "ZELAN4") === "" && departureGate("KJFK", "DEEZZ6") === "", "no gate");
+const gb = gateBearings("KATL", procs, ATL);
+assert(Object.keys(gb).length === 8, "eight gates: " + Object.keys(gb));
+assert(angleDiff(gb.N1, 0) < 60 && angleDiff(gb.S2, 180) < 60 && angleDiff(gb.E1, 90) < 60 && angleDiff(gb.W1, 270) < 60,
+  "gates point their way: " + JSON.stringify(gb));
+const E1a = { id: "E1a", gate: "E1", fix: "E1", bearing: 95 }, E1b = { id: "E1b", gate: "E1", fix: "E1", bearing: 95 };
+const E2 = { id: "E2", gate: "E2", fix: "E2", bearing: 100 };
+assert(pairInterval(E1a, E1b).kind === "same", "E1 behind E1 is in trail");
+assert(pairInterval(E1a, E2).kind === "diverge", "E1 then E2 is split, however close their bearings");
+// E1 E1 E2 E2 all at the hold short: split them so no gate goes behind itself.
+const gq = [
+  { ...E1a, ready: 0 }, { ...E1b, ready: 1 }, { ...E2, ready: 2 }, { ...E2, id: "E2b", ready: 3 },
+];
+const gr = sequenceRunway(gq, { trailPenalty: 600 });
+assert(gr.best.trail === 0 && gr.fcfs.trail === 2, "no gate behind itself: " + gr.order.map(a => a.id));
+assert(gr.best.slots.every(x => !isTrail(x.pair)), "every pair split");
+// A big penalty splits even when the other gate is still taxiing in.
+const far = sequenceRunway([{ ...E1a, ready: 0 }, { ...E1b, ready: 0 }, { ...E2, ready: 240 }], { trailPenalty: 600 });
+assert(far.order.map(a => a.id).join() === "E1a,E2,E1b", "waits for E2 rather than E1 behind E1: " + far.order.map(a => a.id));
+const nopen = sequenceRunway([{ ...E1a, ready: 0 }, { ...E1b, ready: 0 }, { ...E2, ready: 240 }]);
+assert(nopen.order.map(a => a.id).join() === "E1a,E1b,E2", "without the penalty it keeps first-come");
 
 console.log(`taxi-sequencer: ${passed} passed`);

@@ -60,6 +60,50 @@ const MAX_NODES = 250000;
 const rad = d => (d * Math.PI) / 180;
 const iv_ = intervals => ({ ...DEFAULT_INTERVALS, ...(intervals || {}) });
 
+/**
+ * Departure gates by SID (base name), for fields that split departures by gate
+ * rather than by fix. A departure's gate replaces its fix: the same gate back to
+ * back is in trail, any two different gates are split.
+ */
+export const DEPARTURE_GATES = {
+  KATL: {
+    PENCL: "N1", VARNM: "N1", PADGT: "N2", SMKEY: "N2",
+    CUTTN: "W2", NASSA: "W2", KAJIN: "W1", POUNC: "W1",
+    HAALO: "S2", BANNG: "S2", SMLTZ: "S1", VRSTY: "S1",
+    GAIRY: "E2", PHIIL: "E2", JACCC: "E1", PLMMR: "E1",
+  },
+};
+
+/** Departure gate for a filed SID at a field ("" when the field or SID has none). */
+export function departureGate(icao, sid) {
+  const gates = DEPARTURE_GATES[String(icao || "").toUpperCase()];
+  if (!gates || !sid) return "";
+  return gates[String(sid).toUpperCase().replace(/\d[A-Z]?$/, "")] || "";
+}
+
+/**
+ * Bearing from the field to each departure gate: the circular mean of its SIDs'
+ * exit fixes, so a gate is coloured and drawn the way its traffic goes.
+ * @returns {object} gate -> bearing (deg)
+ */
+export function gateBearings(icao, procs, fieldLL) {
+  const gates = DEPARTURE_GATES[String(icao || "").toUpperCase()];
+  const out = {};
+  if (!gates || !procs || !fieldLL) return out;
+  const sum = {};
+  for (const [name, proc] of Object.entries(procs)) {
+    if (!proc || proc.type !== "SID" || !(proc.apt || []).includes(String(icao).toUpperCase())) continue;
+    const gate = gates[name.replace(/\d[A-Z]?$/, "")];
+    const exit = gate && sidExit(proc);
+    if (!exit) continue;
+    const b = rad(bearingDeg(fieldLL[0], fieldLL[1], exit[1], exit[2]));
+    const g = (sum[gate] ||= { x: 0, y: 0 });
+    g.x += Math.sin(b); g.y += Math.cos(b);
+  }
+  for (const [gate, g] of Object.entries(sum)) out[gate] = (deg(Math.atan2(g.x, g.y)) + 360) % 360;
+  return out;
+}
+
 /** Seconds between takeoff rolls that open up `nm` at the initial climb groundspeed. */
 export function milesSec(nm, intervals) {
   const iv = iv_(intervals);
@@ -210,9 +254,11 @@ export function pairInterval(lead, follow, intervals = DEFAULT_INTERVALS, relati
   const iv = { ...DEFAULT_INTERVALS, ...(intervals || {}) };
   if (!lead || !follow) return { sec: 0, kind: "diverge", delta: 180, rule: "" };
   const sameFix = lead.fix && follow.fix && lead.fix === follow.fix;
-  const delta = sameFix ? 0 : (isFinite(lead.bearing) && isFinite(follow.bearing) ? angleDiff(lead.bearing, follow.bearing) : NaN);
+  let delta = sameFix ? 0 : (isFinite(lead.bearing) && isFinite(follow.bearing) ? angleDiff(lead.bearing, follow.bearing) : NaN);
   const rnav = relation === "same" && lead.rnav && follow.rnav;
   const minDeg = rnav ? DIVERGE_RNAV_DEG : DIVERGE_MIN_DEG;
+  // Both on departure gates: the gates decide, whatever their bearings.
+  if (lead.gate && follow.gate) delta = lead.gate === follow.gate ? 0 : Math.max(isFinite(delta) ? delta : 0, minDeg);
   // Off the same runway nobody rolls before the leader is clear (3-9-6a).
   const floor = relation === "same" ? iv.rwySep : 0;
   const miles = (nm, kind, rule) => {
@@ -308,13 +354,21 @@ export function scheduleOrder(order, ctx = {}) {
   }
   const total = out.reduce((s, x) => s + x.t, 0);
   const span = out.length ? out[out.length - 1].t : 0;
-  return { slots: out, total, span };
+  const trail = out.filter(x => isTrail(x.pair)).length;
+  return { slots: out, total, span, trail, cost: total + trail * Math.max(0, ctx.trailPenalty || 0) };
+}
+
+/** An in-trail pair: the same fix or gate back to back, or courses that don't split. */
+export function isTrail(pair) {
+  return !!pair && (pair.kind === "same" || pair.kind === "unknown");
 }
 
 /**
  * Best order for one runway's queue.
  * @param {object[]} queue   items { id, fix, bearing, wake, ready } in any order
- * @param {object} [ctx]     scheduleOrder ctx plus { maxShift }
+ * @param {object} [ctx]     scheduleOrder ctx plus { maxShift, trailPenalty }
+ *   trailPenalty: seconds of total wait one in-trail pair is worth avoiding;
+ *   large makes splitting come first and the wait only break ties
  * @returns {{ fcfs, best, order, savedSec, moves }}
  *   order: best order of queue items; moves: [{ id, from, to, ahead: [ids jumped] }]
  */
@@ -332,14 +386,16 @@ export function sequenceRunway(queue, ctx = {}) {
   const used = new Array(n).fill(false);
   const pick = [];
 
+  const pen = Math.max(0, ctx.trailPenalty || 0);
+
   // Depth-first over orders where nobody moves more than maxShift places,
   // carrying the running schedule so each step costs one pair lookup.
-  const dfs = (prev, prevT, floors, total) => {
+  const dfs = (prev, prevT, floors, cost) => {
     if (++nodes > MAX_NODES) return;
     const p = pick.length;
     if (p === n) {
-      if (total < bestCost.total || (total === bestCost.total && prevT < bestCost.span)) {
-        bestCost = { total, span: prevT }; bestOrder = pick.map(i => head[i]);
+      if (cost < bestCost.cost || (cost === bestCost.cost && prevT < bestCost.span)) {
+        bestCost = { cost, span: prevT }; bestOrder = pick.map(i => head[i]);
       }
       return;
     }
@@ -349,14 +405,16 @@ export function sequenceRunway(queue, ctx = {}) {
     if (forced < 0) for (let i = Math.max(0, p - maxShift); i <= Math.min(n - 1, p + maxShift); i++) if (!used[i]) cands.push(i);
     for (const i of cands) {
       const ac = head[i];
-      let t = Math.max(Math.max(0, ac.ready || 0), prev ? prevT + pairInterval(prev, ac, iv).sec : -Infinity);
+      const pair = prev ? pairInterval(prev, ac, iv) : null;
+      let t = Math.max(Math.max(0, ac.ready || 0), pair ? prevT + pair.sec : -Infinity);
       if (isFinite(ac.floor) && ac.floor > t) t = ac.floor;
       const fl = ac.fix ? floors[ac.fix] : undefined;
       if (isFinite(fl) && fl > t) t = fl;
-      if (total + t >= bestCost.total) continue;     // prune: already no better
+      const next = cost + t + (isTrail(pair) ? pen : 0);
+      if (next >= bestCost.cost) continue;          // prune: already no better
       const nextFloors = ac.fix ? { ...floors, [ac.fix]: t + trailSec(iv) } : floors;
       pick.push(i); used[i] = true;
-      dfs(ac, t, nextFloors, total + t);
+      dfs(ac, t, nextFloors, next);
       pick.pop(); used[i] = false;
     }
   };
