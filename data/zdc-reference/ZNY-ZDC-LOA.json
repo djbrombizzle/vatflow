@@ -1,0 +1,3069 @@
+{
+ "doc": {
+  "id": "ZNY-ZDC-LOA",
+  "title": "ZNY–ZDC LOA",
+  "kind": "LOA",
+  "number": "",
+  "parties": [
+   "ZNY",
+   "ZDC",
+   "N90",
+   "PHL",
+   "PCT",
+   "ACY",
+   "DOV"
+  ],
+  "effective": "2025-06-02",
+  "file": "f35397bd-ZNY-ZDC_LOA_-_effective_2_Jun_25.pdf",
+  "summary": "Interfacility LOA between vZNY and vZDC: MIT, separation, coordination, transfer-of-control rules and closed-facility procedures, plus route/altitude tables for traffic in both directions (incorporating PCT, N90, ACY and DOV restrictions)."
+ },
+ "items": [
+  {
+   "ref": "1-3",
+   "cat": "General",
+   "title": "Purpose, scope, disclaimer, cancellation",
+   "text": "Prescribes airspace delegation, operational procedures and coordination between vZNY and vZDC; applies to all ZDC and ZNY controllers and facilities and incorporates PCT and N90 coordination and routing restrictions. VATSIM use only. Cancels the ZNY & ZDC LOA dated 23 April 2015 and incorporates the New York ARTCC & Atlantic City TRACON and Philadelphia TRACON & Dover RAPCON LOAs (both dated 23 April 2015).",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "scope",
+    "cancellation"
+   ]
+  },
+  {
+   "ref": "4.a",
+   "cat": "Airspace",
+   "title": "Centers assume unstaffed TRACON airspace",
+   "text": "Washington and New York Centers shall assume control of TRACON airspace within their respective ARTCCs if the TRACON position is not manned. When this occurs, all airspace and altitude restrictions apply.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "top down",
+    "unstaffed"
+   ]
+  },
+  {
+   "ref": "4.b",
+   "cat": "Coordination",
+   "title": "Early service before entering other facility",
+   "text": "ZNY or ZDC may provide enroute service to aircraft before they enter the other facility's airspace when the other facility is not open. Upon opening, aircraft already receiving service may remain with the controlling facility, which uses an automated point out to show the aircraft is on its frequency; if the opening facility needs control it coordinates a handoff.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "opening",
+    "point out"
+   ]
+  },
+  {
+   "ref": "5.a",
+   "cat": "General",
+   "title": "Separation minima",
+   "text": "Minimum lateral separation is 5nm constant or increasing, except aircraft FL230 and below may be laterally separated by 3nm if separation is increasing to 5nm.",
+   "restr": "5nm; 3nm AOB FL230 if increasing",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "separation",
+    "3nm",
+    "5nm"
+   ]
+  },
+  {
+   "ref": "5.b.1",
+   "cat": "Arrival",
+   "title": "Kennedy area arrivals: 10 MIT",
+   "text": "ZDC will provide ZNY 10 MIT minimum for Kennedy Area arrivals on the same or geographically similar route. (Kennedy Area satellites are not defined in this LOA.)",
+   "restr": "10 MIT min",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KJFK"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MIT",
+    "miles in trail"
+   ]
+  },
+  {
+   "ref": "5.b.2",
+   "cat": "Arrival",
+   "title": "LaGuardia area arrivals: 10 MIT",
+   "text": "ZDC will provide ZNY 10 MIT minimum for LaGuardia Area arrivals on the same or geographically similar route.",
+   "restr": "10 MIT min",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KLGA"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MIT",
+    "miles in trail"
+   ]
+  },
+  {
+   "ref": "5.b.3",
+   "cat": "Arrival",
+   "title": "Newark area arrivals: 10 MIT",
+   "text": "ZDC will provide ZNY 10 MIT minimum for Newark Area arrivals on the same or geographically similar route.",
+   "restr": "10 MIT min",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KEWR"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MIT",
+    "miles in trail"
+   ]
+  },
+  {
+   "ref": "5.b.4",
+   "cat": "Arrival",
+   "title": "Philadelphia area arrivals: 10 MIT on JIIMS",
+   "text": "ZDC will provide ZNY 10 MIT on the JIIMS STAR for Philadelphia Area arrivals. ZDC will sequence IROKT and HEKMN as one.",
+   "restr": "10 MIT on JIIMS",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KPHL"
+   ],
+   "both": false,
+   "fixes": [
+    "JIIMS",
+    "IROKT",
+    "HEKMN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MIT",
+    "miles in trail"
+   ]
+  },
+  {
+   "ref": "5.b.5",
+   "cat": "General",
+   "title": "Same route/same altitude: 5 miles",
+   "text": "Aircraft on the same route segment and at the same altitude shall be separated by no less than 5 miles, and increasing, regardless of cruise altitude. Aircraft destined to the same airport need not have in-trail spacing applied if altitude separated unless otherwise required by this agreement or active traffic management initiatives are in effect.",
+   "restr": "5 mi increasing",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "MIT",
+    "in trail"
+   ]
+  },
+  {
+   "ref": "5.c",
+   "cat": "General",
+   "title": "Altitude for direction of flight before handoff",
+   "text": "Unless otherwise required or coordinated by this agreement, aircraft must be climbing to, descending to, or level at the correct altitude for direction of flight prior to any handoff.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "altitude assignment",
+    "direction of flight"
+   ]
+  },
+  {
+   "ref": "5.d",
+   "cat": "Departure",
+   "title": "Dover AFB and satellite departures into PHL",
+   "text": "Departures from DOV RAPCON entering PHL TRACON will be cleared on course at or below 7000, appropriate altitude for direction of flight. Controllers ensure any necessary coordination is accomplished. (DOV satellites are not defined in this LOA.)",
+   "restr": "AOB 7000, on course",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Dover",
+    "RAPCON"
+   ]
+  },
+  {
+   "ref": "5.e",
+   "cat": "Departure",
+   "title": "ACY departures entering ZNY: climb to 7000",
+   "text": "Atlantic City TRACON departures entering ZNY will be climbed to 7000 and cleared on course.",
+   "restr": "7000, on course",
+   "from": "ACY",
+   "to": "ZNY",
+   "dep": [
+    "KACY"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Atlantic City"
+   ]
+  },
+  {
+   "ref": "5.e",
+   "cat": "Clearance",
+   "title": "ACY-area traffic landing JFK: routing",
+   "text": "Aircraft landing JFK or JFK satellites will be routed via ACY V184 PANZE V44 CAMRN.",
+   "restr": "ACY V184 PANZE V44 CAMRN",
+   "from": "ACY",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KJFK"
+   ],
+   "both": false,
+   "fixes": [
+    "ACY",
+    "V184",
+    "PANZE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Atlantic City",
+    "routing"
+   ]
+  },
+  {
+   "ref": "5.e",
+   "cat": "Arrival",
+   "title": "ACY arrivals from ZNY: direct KACY, 8000",
+   "text": "Arrivals to ACY may be cleared by ZNY direct to KACY without prior coordination and will be assigned 8000 prior to communications transfer. ACY has control for descent on contact and turns of 30 degrees left or right of course south of the CYN R-100.",
+   "restr": "8000; direct KACY OK",
+   "from": "ZNY",
+   "to": "ACY",
+   "dep": [],
+   "arr": [
+    "KACY"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Atlantic City",
+    "CYN R-100"
+   ]
+  },
+  {
+   "ref": "6.a",
+   "cat": "Coordination",
+   "title": "Automated point outs",
+   "text": "Automated point outs without further verbal/textual coordination are authorized when the datablock accurately reflects the aircraft's current clearance. If an interim altitude is entered, approval of the point out releases control for climb or descent to the flight plan altitude, or the top or bottom of the approving sector's stratum.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "point out"
+   ]
+  },
+  {
+   "ref": "6.b",
+   "cat": "Coordination",
+   "title": "Consolidation / deconsolidation",
+   "text": "Before consolidating or deconsolidating (or opening or closing) any position that shares a mutual boundary, coordinate with all affected controllers in the neighboring ARTCC. General ATC chat or private chat is acceptable.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "open",
+    "close",
+    "split"
+   ]
+  },
+  {
+   "ref": "6.c",
+   "cat": "Coordination",
+   "title": "Holding at arrival fixes",
+   "text": "When holding is required at arrival fixes, ZDC or ZNY retain communications and control of holding patterns within their delegated airspace. During airborne holding, both hold at published holding fixes unless coordinated otherwise.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "holding"
+   ]
+  },
+  {
+   "ref": "6.d",
+   "cat": "Clearance",
+   "title": "Routing: PRD, LOA supersedes",
+   "text": "The FAA Preferred Route Database (PRD) should be used for all originating and terminating aircraft in ZNY or ZDC. If routing requirements in this agreement differ from the PRD, the LOA routing supersedes the PRD.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "PRD",
+    "preferred routes"
+   ]
+  },
+  {
+   "ref": "6.e / 6.e.1",
+   "cat": "Handoff",
+   "title": "Handoffs: conflicts resolved, datablock accurate",
+   "text": "Automated handoffs are initiated only after all conflicts are resolved and no further control instructions will be given. The datablock and flight plan must reflect the clearance; route amendments (QU or AM) must be made whenever a route clearance is amended (e.g. \"CLEARED DIRECT <FIX>\").",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "QU",
+    "AM",
+    "route amendment"
+   ]
+  },
+  {
+   "ref": "6.e.2",
+   "cat": "Handoff",
+   "title": "Climbing aircraft: highest interim altitude, QQ",
+   "text": "Aircraft climbing to a requested cruise altitude not yet cleared to it are climbed to the highest interim altitude available based on traffic, airspace or LOA requirements. \"QQ\" is used for the assigned altitude and constitutes a coordinated altitude when an automated handoff is used.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "interim altitude",
+    "QQ"
+   ]
+  },
+  {
+   "ref": "6.e.3",
+   "cat": "Handoff",
+   "title": "Descending aircraft: update QZ",
+   "text": "Aircraft descending to a new assigned altitude have their flight plan altitude (QZ) updated. Interim altitudes for descending aircraft should generally not be used unless the pilot-requested lower altitude is not available and the interim altitude is the lowest available with that controller.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "QZ",
+    "descent"
+   ]
+  },
+  {
+   "ref": "6.e.4",
+   "cat": "Handoff",
+   "title": "ERAM fourth line entries",
+   "text": "ERAM fourth line entries made in accordance with FAAO 7110.65 are authorized for coordination. The receiving controller should not accept a handoff and should initiate coordination if there is any doubt about a fourth line entry's meaning.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "fourth line",
+    "4th line"
+   ]
+  },
+  {
+   "ref": "7.a",
+   "cat": "Handoff",
+   "title": "Transfer at Attachment 1/2 altitudes",
+   "text": "Aircraft enroute between centers must be transferred at the altitudes/flight levels specified in Attachments 1 and 2 unless otherwise coordinated.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "transfer of control"
+   ]
+  },
+  {
+   "ref": "7.b",
+   "cat": "Clearance",
+   "title": "No re-route required if OK to first fix",
+   "text": "One center must not require the other to change or issue routing if the routing is satisfactory to the first route fix in the receiving center's area.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "routing"
+   ]
+  },
+  {
+   "ref": "7.c",
+   "cat": "Handoff",
+   "title": "ZNY turns 20 deg north of V268 (J220/Q221/Q227/HGR)",
+   "text": "ZNY shall have control for turns 20 degrees or less, north of V268, for traffic routed J220/Q221/Q227 or Hagerstown VOR.",
+   "restr": "ZNY turns <=20 deg N of V268",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "J220",
+    "Q221",
+    "Q227",
+    "HGR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "control for turns"
+   ]
+  },
+  {
+   "ref": "7.d",
+   "cat": "Handoff",
+   "title": "ZNY turns 20 deg north of Woodstown (Q22)",
+   "text": "ZNY shall have control for turns 20 degrees left or right of course north of Woodstown VORTAC for traffic routed Q22.",
+   "restr": "ZNY turns 20 deg N of OOD",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "Q22"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Woodstown",
+    "OOD",
+    "control for turns"
+   ]
+  },
+  {
+   "ref": "7.e",
+   "cat": "Clearance",
+   "title": "ZNY may clear Q437/Q409 direct VILLS",
+   "text": "ZNY may clear traffic routed via Q437/Q409 direct VILLS without prior coordination.",
+   "restr": "direct VILLS OK",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "Q437",
+    "Q409"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "VILLS",
+    "direct"
+   ]
+  },
+  {
+   "ref": "7.f",
+   "cat": "Clearance",
+   "title": "ZDC may clear Q22-and-west traffic direct JFK",
+   "text": "ZDC may clear traffic routed via Q22 or west direct JFK without prior coordination.",
+   "restr": "direct JFK OK",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KJFK"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Q22",
+    "direct"
+   ]
+  },
+  {
+   "ref": "7.g",
+   "cat": "Handoff",
+   "title": "15 deg turns within 15nm of boundary",
+   "text": "Unless otherwise specified, ZDC and ZNY each have control for turns up to 15 degrees within 15 miles of the common boundary for aircraft in level flight, and for climbing/descending aircraft if the turn is accomplished within the transferring controller's stratum.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "control for turns"
+   ]
+  },
+  {
+   "ref": "7.h",
+   "cat": "Overflight",
+   "title": "Turbojets NE-bound on Q22 AOA FL230",
+   "text": "Turbojet traffic northeast bound on Q22 shall be at or above FL230.",
+   "restr": "AOA FL230",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "Q22"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "northeast"
+   ]
+  },
+  {
+   "ref": "7.i",
+   "cat": "Clearance",
+   "title": "No Q221 for DC-area departures to SWF",
+   "text": "ZDC will not route aircraft destined to SWF and SWF area airports departing the Washington metro area via Q221.",
+   "restr": "Not via Q221",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KSWF"
+   ],
+   "both": false,
+   "fixes": [
+    "Q221"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Stewart",
+    "routing"
+   ]
+  },
+  {
+   "ref": "8.a",
+   "cat": "Coordination",
+   "title": "ZNY closed: ZDC hands off direct to N90/PHL",
+   "text": "When ZNY is closed, ZDC may hand off directly to any N90 position that would otherwise have received a handoff from ZNY, assigning the lowest usable flight level based on the ACY altimeter; N90 has control for turn and descent. N90 and PHL may hand off departures via J6/J48/Q75, DIXIE or WHITE to ZDC at the top altitude that would have been assigned for a handoff to ZNY; ZDC has control for turn and climb.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "ZNY offline",
+    "closed",
+    "top down"
+   ]
+  },
+  {
+   "ref": "8.b",
+   "cat": "Coordination",
+   "title": "ZDC closed: ZNY hands off direct to PCT",
+   "text": "When ZDC is closed, ZNY may hand off directly to any PCT position that would otherwise have received a handoff from ZDC or another PCT area. Aircraft may be given a descend via clearance or 10,000 as appropriate. PCT may hand off departures leaving the PCT terminal area to the north or east to ZNY at the appropriate top altitude; ZNY has control for turn and climb.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "ZDC offline",
+    "closed"
+   ]
+  },
+  {
+   "ref": "Att 3 / Att 4",
+   "cat": "Airspace",
+   "title": "Sector maps: ZNY 82/83/86, warning areas, overview",
+   "text": "Attachment 3 depicts ZNY sectors 82, 83 and 86 (next to KZDC and KZWY) and warning areas W107, W386, W387, W72A, W72B, W110 and W122. Attachment 4 overview shows ZNY SOUTH, ZNY CENTRAL, ZNY EAST and ZDC sectors 05 LDN, 17 SWN, 12 BRV, 13 OOD, 38 CYN, 51 CAS and 59 SIE (images only).",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "map",
+    "sectorization",
+    "warning area"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "MDT+ via J6/J48 requesting AOA FL180",
+   "text": "MDT + satellite departures via J6/J48 requesting at or above FL180: AOA FL180 climbing to FL230 or lower requested altitude. (MDT satellites not defined in this LOA.)",
+   "restr": "AOA FL180 climbing FL230 or lower req",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [
+    "KMDT"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "J6",
+    "J48"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 18000,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "MDT+ via EMI HAMMZ Q75 GVE requesting AOA FL180",
+   "text": "MDT + satellite departures via EMI HAMMZ Q75 GVE requesting at or above FL180: AOA FL180 climbing to FL230 or lower requested altitude.",
+   "restr": "AOA FL180 climbing FL230 or lower req",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [
+    "KMDT"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "EMI",
+    "HAMMZ",
+    "Q75",
+    "GVE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 18000,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "MDT+ via HGR: climbing FL210",
+   "text": "MDT + satellite departures via HGR: climbing to FL210 or lower requested altitude. ZNY may clear aircraft direct HGR without coordination.",
+   "restr": "Climbing FL210 or lower req",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [
+    "KMDT"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "HGR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "direct HGR"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "N90 southbound WAVEY/Q167 requesting AOA FL240",
+   "text": "Southbound (N90) departures via WAVEY/Q167 requesting at or above FL240: climbing to FL230.",
+   "restr": "Climbing FL230",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "WAVEY",
+    "Q167"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "N90",
+    "southbound"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "N90 southbound WAVEY/Q167 to DCA/ADW",
+   "text": "Southbound (N90) departures via WAVEY/Q167 landing DCA/ADW: FL220 or lower requested altitude.",
+   "restr": "FL220 or lower req",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA",
+    "KADW"
+   ],
+   "both": false,
+   "fixes": [
+    "WAVEY",
+    "Q167"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "N90",
+    "southbound"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "N90 southbound WHITE/Q409: FL240",
+   "text": "Southbound (N90) departures via WHITE/Q409: FL240 or lower requested altitude. ZNY may clear traffic direct VILLS. ZDC has control for turns up to 30 degrees.",
+   "restr": "FL240 or lower req",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "WHITE",
+    "Q409"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "N90",
+    "VILLS"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "N90 southbound RINOE HAMMZ Q75: FL180",
+   "text": "Southbound (N90) departures via RINOE HAMMZ Q75: FL180.",
+   "restr": "FL180",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "RINOE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "N90",
+    "HAMMZ",
+    "Q75"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ACY via DQO V29 ENO SIE",
+   "text": "ACY arrivals via DQO V29 ENO SIE: boundary at or below FL190, descending to 150.",
+   "restr": "Boundary AOB FL190, desc 150",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KACY"
+   ],
+   "both": false,
+   "fixes": [
+    "DQO",
+    "V29",
+    "ENO",
+    "SIE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ADW props via CYN V1 LEEAH CHOPS BILIT",
+   "text": "ADW prop arrivals via CYN V1 LEEAH CHOPS BILIT: at or below 160.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KADW"
+   ],
+   "both": false,
+   "fixes": [
+    "CYN",
+    "V1",
+    "LEEAH",
+    "CHOPS",
+    "BILIT"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ADW jets via ZIZZI KNUKK ATR LAFLN SPISY",
+   "text": "ADW jet arrivals via ZIZZI KNUKK ATR LAFLN SPISY STAR: at or below FL220.",
+   "restr": "AOB FL220",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KADW"
+   ],
+   "both": false,
+   "fixes": [
+    "ZIZZI",
+    "KNUKK",
+    "ATR",
+    "LAFLN",
+    "SPISY"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ADW via SIE ATR LAFLN SPISY (JFK jets AOB 160)",
+   "text": "ADW arrivals via SIE ATR LAFLN SPISY STAR: at or below 160. Applies to JFK & satellite (JFK satellites not defined in this LOA) jet departures requesting 160 or below.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [
+    "KJFK"
+   ],
+   "arr": [
+    "KADW"
+   ],
+   "both": true,
+   "fixes": [
+    "SIE",
+    "ATR",
+    "LAFLN",
+    "SPISY"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": 16000,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "JFK"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ADW from ZWY via FISSH ... SPISY",
+   "text": "ADW arrivals from New York Oceanic (ZWY) via FISSH ZIZZI KNUKK ATR LAFLN SPISY STAR: at or below FL220.",
+   "restr": "AOB FL220",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KADW"
+   ],
+   "both": false,
+   "fixes": [
+    "FISSH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZWY",
+    "oceanic",
+    "SPISY"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "BWI props via CYN V1 LEEAH V268 BAL",
+   "text": "BWI prop arrivals via CYN V1 LEEAH V268 BAL: at or below 160.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [
+    "CYN",
+    "V1",
+    "LEEAH",
+    "V268"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "BWI props via V139 AVALO V268 BAL",
+   "text": "BWI prop arrivals via V139 AVALO V268 BAL: at or below 160.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [
+    "V139",
+    "AVALO",
+    "V268"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "BWI from ZWY via FISSH ... MIIDY",
+   "text": "BWI arrivals from New York Oceanic (ZWY) via FISSH ZIZZI KNUKK ATR LAFLN MIIDY STAR: at or below FL220.",
+   "restr": "AOB FL220",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [
+    "FISSH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZWY",
+    "oceanic",
+    "MIIDY"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "BWI jets NUGGY TRISH: TROYZ at 120, 250KTS",
+   "text": "BWI arrivals via NUGGY TRISH STAR: TROYZ at 120. Jets only at 250KTS. Must be sequenced in trail with arrivals over LRP. CHP has control for turns 30 deg L/R.",
+   "restr": "TROYZ at 120, 250KTS",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [
+    "NUGGY",
+    "TRISH"
+   ],
+   "fixMode": "all",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "CHP"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "BWI jets LRP TRISH: 25 S LRP / 40 NE BAL at 120",
+   "text": "BWI arrivals via LRP TRISH STAR: 25 S LRP or 40 NE BAL at 120. Jets only at 250KTS. Must be sequenced in trail with arrivals over NUGGY.",
+   "restr": "25 S LRP or 40 NE BAL at 120, 250KTS",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [
+    "LRP",
+    "TRISH"
+   ],
+   "fixMode": "all",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "CHO via RINOE HAMMZ Q75 GVE or J48 CSN",
+   "text": "CHO arrivals via RINOE HAMMZ Q75 GVE or J48 CSN: at or below FL230.",
+   "restr": "AOB FL230",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KCHO"
+   ],
+   "both": false,
+   "fixes": [
+    "RINOE",
+    "HAMMZ",
+    "Q75",
+    "GVE",
+    "J48",
+    "CSN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA props via CYN V1 LEEAH CHOPS BILIT",
+   "text": "DCA prop arrivals via CYN V1 LEEAH CHOPS BILIT: at or below 160.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "CYN",
+    "V1",
+    "LEEAH",
+    "CHOPS",
+    "BILIT"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA jets via ZIZZI KNUKK ATR LAFLN DEALE",
+   "text": "DCA jet arrivals via ZIZZI KNUKK ATR LAFLN DEALE STAR: at or below FL220.",
+   "restr": "AOB FL220",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "ZIZZI",
+    "KNUKK",
+    "ATR",
+    "LAFLN",
+    "DEALE"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA via SIE LAFLN DEALE (JFK jets AOB 160)",
+   "text": "DCA arrivals via SIE LAFLN DEALE STAR: at or below 160. Applies to JFK & satellite (JFK satellites not defined in this LOA) jet departures requesting 160 or below.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [
+    "KJFK"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "both": true,
+   "fixes": [
+    "SIE",
+    "LAFLN",
+    "DEALE"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": 16000,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "JFK"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA from ZWY via FISSH ... DEALE",
+   "text": "DCA arrivals from New York Oceanic (ZWY) via FISSH ZIZZI KNUKK ATR LAFLN DEALE STAR: at or below FL220.",
+   "restr": "AOB FL220",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "FISSH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZWY",
+    "oceanic",
+    "DEALE"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA via MXE CLIPR: CLIPR 120 jets / TROYZ 110 props",
+   "text": "DCA arrivals via MXE CLIPR STAR: CLIPR at 120 (Jets), TROYZ at 110 (Prop). Must be sequenced in trail with arrivals over PSB/LRP.",
+   "restr": "CLIPR at 120 (jet) / TROYZ at 110 (prop)",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "MXE",
+    "CLIPR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA via LRP/PSB SKILS: SKILS 120 jets / LRP 100 props",
+   "text": "DCA arrivals via LRP/PSB SKILS STAR: SKILS at 120 (Jets), LRP at 100 (Prop). Must be sequenced in trail with arrivals over MXE.",
+   "restr": "SKILS at 120 (jet) / LRP at 100 (prop)",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "LRP",
+    "PSB",
+    "SKILS"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DOV via V139 SIE",
+   "text": "DOV arrivals via V139 SIE: at or below 160.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDOV"
+   ],
+   "both": false,
+   "fixes": [
+    "V139",
+    "SIE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DOV via CYN V1 LEEAH V268 ENO",
+   "text": "DOV arrivals via CYN V1 LEEAH V268 ENO. The altitude cell continues across the page break from the V139 SIE row (AOB 160).",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDOV"
+   ],
+   "both": false,
+   "fixes": [
+    "CYN",
+    "V1",
+    "LEEAH",
+    "V268",
+    "ENO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DOV from ZWY via B24 SIE",
+   "text": "DOV arrivals from New York Oceanic (ZWY) via B24 SIE. The altitude cell continues across the page break from the V139 SIE row (AOB 160).",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDOV"
+   ],
+   "both": false,
+   "fixes": [
+    "B24"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZWY",
+    "oceanic"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DOV via Q439 BRIGS SIE",
+   "text": "DOV arrivals via Q439 BRIGS SIE. The altitude cell continues across the page break from the V139 SIE row (AOB 160).",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDOV"
+   ],
+   "both": false,
+   "fixes": [
+    "Q439",
+    "BRIGS"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "HSP/LWB via J48 MOL",
+   "text": "HSP/LWB arrivals via J48 MOL: at or below FL320.",
+   "restr": "AOB FL320",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KHSP",
+    "KLWB"
+   ],
+   "both": false,
+   "fixes": [
+    "J48",
+    "MOL"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "IAD jets MXE/LRP DELRO/HYPER: LIRCH at 140",
+   "text": "IAD arrivals via MXE/LRP DELRO STAR and HYPER STAR: LIRCH at 140. Jets only. PCT has control for turns up to 45 degrees right of course.",
+   "restr": "LIRCH at 140",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "both": false,
+   "fixes": [
+    "MXE",
+    "LRP",
+    "DELRO",
+    "HYPER"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "IAD props MXE/LRP DELRO/HYPER: 10NM NE LIRCH 120",
+   "text": "IAD arrivals via MXE/LRP DELRO STAR and HYPER STAR: 10NM NE LIRCH at 120. Props only.",
+   "restr": "10NM NE LIRCH at 120",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "both": false,
+   "fixes": [
+    "MXE",
+    "LRP",
+    "DELRO",
+    "HYPER"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "IAD via PSB WAYNZ/PRIVO: DAFIX at 120",
+   "text": "IAD arrivals via PSB WAYNZ STAR and PRIVO STAR: DAFIX at 120.",
+   "restr": "DAFIX at 120",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "both": false,
+   "fixes": [
+    "PSB",
+    "WAYNZ",
+    "PRIVO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "IAD via PRTZL/SEG STAR: 90 (non-turbojet)",
+   "text": "IAD arrivals via PRTZL STAR and SEG STAR: 90. Non-turbojet capable of 180kts or greater.",
+   "restr": "90",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "both": false,
+   "fixes": [
+    "PRTZL",
+    "SEG"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ORF and SATs from ZWY via AR8 ECG",
+   "text": "ORF and satellite arrivals from New York Oceanic (ZWY) via AR8 ECG: at or below FL300. (ORF satellites not defined in this LOA.)",
+   "restr": "AOB FL300",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KORF"
+   ],
+   "both": false,
+   "fixes": [
+    "AR8",
+    "ECG"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZWY",
+    "oceanic"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "PHL and SATs via BRIGS VCN STAR or JIIMS",
+   "text": "PHL and satellite arrivals from New York Oceanic (ZWY) via BRIGS VCN STAR or JIIMS STAR: at or below 140. (PHL satellites not defined in this LOA.)",
+   "restr": "AOB 140",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPHL"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZWY",
+    "oceanic",
+    "VCN",
+    "JIIMS"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "PHL and SATs via B24 DASHA VCN STAR or JIIMS",
+   "text": "PHL and satellite arrivals via B24 DASHA VCN STAR or JIIMS STAR: at or below 160.",
+   "restr": "AOB 160",
+   "from": "ZNY",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPHL"
+   ],
+   "both": false,
+   "fixes": [
+    "B24",
+    "DASHA"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "VCN",
+    "JIIMS"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Departure",
+   "title": "ACY departures via DQO: AOB FL230",
+   "text": "ACY departures via DQO: at or below FL230.",
+   "restr": "AOB FL230",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [
+    "KACY"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "DQO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Departure",
+   "title": "DC/BWI jets via J220/Q221/Q227: climbing FL270",
+   "text": "DCA, IAD, ADW, BWI and satellite jet departures via J220/Q221/Q227: climbing to FL270 or lower filed altitude. (Satellites not defined in this LOA.)",
+   "restr": "Climbing FL270 or lower filed",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [
+    "KDCA",
+    "KIAD",
+    "KADW",
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "J220",
+    "Q221",
+    "Q227"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Departure",
+   "title": "DC/BWI props via J220/Q221/Q227: climbing FL210",
+   "text": "DCA, IAD, ADW, BWI and satellite prop departures via J220/Q221/Q227: climbing to FL210 or lower filed altitude.",
+   "restr": "Climbing FL210 or lower filed",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [
+    "KDCA",
+    "KIAD",
+    "KADW",
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "J220",
+    "Q221",
+    "Q227"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Departure",
+   "title": "DOV departures via T320/Q439: climbing 170",
+   "text": "DOV departures via T320/Q439: climbing 170.",
+   "restr": "Climbing 170",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "T320",
+    "Q439"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ABE via COURG SCAPE V377 HAR V162 DUMMR",
+   "text": "ABE arrivals via COURG SCAPE V377 HAR V162 DUMMR: at or below FL230 descending FL190. Crossing at REEES or LOYDD at FL190 satisfies this restriction.",
+   "restr": "AOB FL230 DSDG FL190",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KABE"
+   ],
+   "both": false,
+   "fixes": [
+    "COURG",
+    "SCAPE",
+    "V377",
+    "V162",
+    "DUMMR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "REEES",
+    "LOYDD"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ALB via Q22 RBV LGA TRUDE V487 CANAN",
+   "text": "ALB arrivals via Q22 RBV LGA TRUDE V487 CANAN: at or below FL350.",
+   "restr": "AOB FL350",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KALB"
+   ],
+   "both": false,
+   "fixes": [
+    "Q22",
+    "RBV"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "TRUDE",
+    "CANAN"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ALB via JAMIE CONFR Q133 LLUND TRUDE",
+   "text": "ALB arrivals via JAMIE CONFR Q133 LLUND TRUDE V487 CANAN: at or below FL350.",
+   "restr": "AOB FL350",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KALB"
+   ],
+   "both": false,
+   "fixes": [
+    "JAMIE",
+    "CONFR",
+    "Q133",
+    "LLUND"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ALB via BRIGS T320 SARDI V91 BDR",
+   "text": "ALB arrivals via BRIGS T320 SARDI V91 BDR V487 CANAN: BRIGS at or below FL210.",
+   "restr": "BRIGS AOB FL210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KALB"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "T320",
+    "SARDI",
+    "V91",
+    "BDR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BDL via JAMIE CONFR Q481 DPK STAR",
+   "text": "BDL arrivals via JAMIE CONFR Q481 DPK DPK STAR: ZIGGI at or below FL250.",
+   "restr": "ZIGGI AOB FL250",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KBDL"
+   ],
+   "both": false,
+   "fixes": [
+    "JAMIE",
+    "CONFR",
+    "Q481"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BDL via BRIGS Q439 SARDI DPK STAR",
+   "text": "BDL arrivals via BRIGS Q439 SARDI DPK STAR: BRIGS at or below FL210.",
+   "restr": "BRIGS AOB FL210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KBDL"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "Q439",
+    "SARDI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BDL via RBV Q419 DPK MAD HFD DREEM",
+   "text": "BDL arrivals via RBV Q419 DPK MAD HFD DREEM STAR: at or below 310.",
+   "restr": "AOB 310",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KBDL"
+   ],
+   "both": false,
+   "fixes": [
+    "RBV",
+    "Q419"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "DREEM"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS via RBV Q419 JFK ROBUC",
+   "text": "BOS arrivals via RBV Q419 JFK ROBUC STAR: at or below 370.",
+   "restr": "AOB 370",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KBOS"
+   ],
+   "both": false,
+   "fixes": [
+    "RBV",
+    "Q419"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ROBUC"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS via JAMIE CONFR Q133 JFK ROBUC",
+   "text": "BOS arrivals via JAMIE CONFR Q133 JFK ROBUC STAR: at or below 370.",
+   "restr": "AOB 370",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KBOS"
+   ],
+   "both": false,
+   "fixes": [
+    "JAMIE",
+    "CONFR",
+    "Q133"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ROBUC"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS N SATS via RBV Q419 ... DREEM",
+   "text": "BOS N SATS arrivals via RBV Q419 DPK MAD HFD DREEM STAR: at or below FL310. (BOS N satellites not defined in this LOA.)",
+   "restr": "AOB FL310",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "Q419",
+    "DREEM"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "BOS N SATS"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS N SATS via JAMIE CONFR Q481 ... DREEM",
+   "text": "BOS N SATS arrivals via JAMIE CONFR Q481 DPK MAD HFD DREEM STAR: at or below FL310.",
+   "restr": "AOB FL310",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "Q481",
+    "DREEM"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "BOS N SATS"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS N SATS via BRIGS Q439 SARDI T320 ... WOONS",
+   "text": "BOS N SATS arrivals via BRIGS Q439 SARDI T320 GON ORW WOONS STAR: BRIGS at or below FL210.",
+   "restr": "BRIGS AOB FL210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "WOONS"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "BOS N SATS"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS S SATS via BRIGS Q439 SARDI T320 ... V16 WOONS",
+   "text": "BOS S SATS arrivals via BRIGS Q439 SARDI T320 GON ORW V16 WOONS: BRIGS at or below FL210 (altitude cell shared with the row above). (BOS S satellites not defined in this LOA.)",
+   "restr": "BRIGS AOB FL210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "V16",
+    "WOONS"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "BOS S SATS"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "EWR via PHBLO STAR: descend via",
+   "text": "EWR arrivals via PHBLO STAR: descend via.",
+   "restr": "Descend Via",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KEWR"
+   ],
+   "both": false,
+   "fixes": [
+    "PHBLO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "EWR sats via JAIKE STAR: JAKIE at 130, to PHL",
+   "text": "EWR satellite (CDW, LDJ, MMU, TEB) arrivals via JAIKE STAR: JAKIE at 130 (as printed). Handoff to PHL.",
+   "restr": "JAKIE at 130; handoff to PHL",
+   "from": "ZDC",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KCDW",
+    "KLDJ",
+    "KMMU",
+    "KTEB"
+   ],
+   "both": false,
+   "fixes": [
+    "JAIKE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "JAKIE"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "EWR sats via OTT SWANN DQO FROSE V3 SBJ",
+   "text": "EWR satellite (CDW, LDJ, MMU, TEB) arrivals via OTT SWANN DQO FROSE V3 SBJ: 10NM N of DQO at 130. Handoff to PHL.",
+   "restr": "10NM N of DQO at 130; handoff to PHL",
+   "from": "ZDC",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KCDW",
+    "KLDJ",
+    "KMMU",
+    "KTEB"
+   ],
+   "both": false,
+   "fixes": [
+    "OTT",
+    "SWANN",
+    "DQO",
+    "FROSE",
+    "V3",
+    "SBJ"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "HPN via SIE BOUNO: BECKR at 240",
+   "text": "HPN arrivals via SIE BOUNO STAR: BECKR AT 240.",
+   "restr": "BECKR at 240",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KHPN"
+   ],
+   "both": false,
+   "fixes": [
+    "SIE",
+    "BOUNO"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "HPN via BESSI CYN BOUNO: BESSI at 230",
+   "text": "HPN arrivals via BESSI CYN BOUNO STAR: BESSI AT 230.",
+   "restr": "BESSI at 230",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KHPN"
+   ],
+   "both": false,
+   "fixes": [
+    "BESSI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "HPN via BRIGS Q439 SARDI RICED STAR",
+   "text": "HPN arrivals via BRIGS Q439 SARDI RICED RICED STAR: BRIGS at or below 210.",
+   "restr": "BRIGS AOB 210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KHPN"
+   ],
+   "both": false,
+   "fixes": [
+    "SARDI",
+    "RICED"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "HPN (PCT deps) via BRIGS Q439 RICED STAR",
+   "text": "HPN arrivals via BRIGS Q439 RICED RICED STAR (PCT departures): BRIGS at or below 210.",
+   "restr": "BRIGS AOB 210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KHPN"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "RICED"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "PCT departures"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ISP via BRIGS Q439 SARDI CCC",
+   "text": "ISP arrivals via BRIGS Q439 SARDI CCC: BRIGS at or below 210.",
+   "restr": "BRIGS AOB 210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KISP"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "Q439",
+    "SARDI",
+    "CCC"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ISP E via BRIGS Q439 SARDI T320 ORCHA",
+   "text": "ISP E (Islip East satellites, not defined in this LOA) arrivals via BRIGS Q439 SARDI T320 ORCHA: BRIGS at or below 210.",
+   "restr": "BRIGS AOB 210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "T320",
+    "ORCHA"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ISP E",
+    "Islip"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ISP N via BRIGS Q439 SARDI RICED KEYED",
+   "text": "ISP N (Islip North satellites, not defined in this LOA) arrivals via BRIGS Q439 SARDI RICED KEYED: BRIGS at or below 210 (altitude cell shared with ISP E row).",
+   "restr": "BRIGS AOB 210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "RICED",
+    "KEYED"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ISP N",
+    "Islip"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "JFK/FRG jets via SIE CAMRN: LUFL",
+   "text": "JFK/FRG jet arrivals via SIE CAMRN STAR: LUFL.",
+   "restr": "LUFL",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KJFK",
+    "KFRG"
+   ],
+   "both": false,
+   "fixes": [
+    "SIE",
+    "CAMRN"
+   ],
+   "fixMode": "all",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "JFK/FRG via SIE CAMRN, ZNY offline: CAMRN 110/250",
+   "text": "JFK/FRG arrivals via SIE CAMRN STAR when ZNY offline: CAMRN at 110/250 KTS.",
+   "restr": "CAMRN at 110/250 KTS (ZNY offline)",
+   "from": "ZDC",
+   "to": "N90",
+   "dep": [],
+   "arr": [
+    "KJFK",
+    "KFRG"
+   ],
+   "both": false,
+   "fixes": [
+    "SIE",
+    "CAMRN"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZNY offline"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "JFK/FRG jets (PCT deps) via DONIL T315 PANZE",
+   "text": "JFK/FRG arrivals via DONIL T315 PANZE V44 CAMRN JFK: at or below 170. Jets, PCT departures.",
+   "restr": "AOB 170",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KJFK",
+    "KFRG"
+   ],
+   "both": false,
+   "fixes": [
+    "DONIL",
+    "T315",
+    "PANZE"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "PCT departures"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "JFK/FRG via DONIL T315 PANZE, ZNY offline",
+   "text": "JFK/FRG arrivals via DONIL T315 PANZE V44 CAMRN JFK when ZNY offline: CAMRN at 110/250 KTS.",
+   "restr": "CAMRN at 110/250 KTS (ZNY offline)",
+   "from": "ZDC",
+   "to": "N90",
+   "dep": [],
+   "arr": [
+    "KJFK",
+    "KFRG"
+   ],
+   "both": false,
+   "fixes": [
+    "DONIL",
+    "T315",
+    "PANZE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZNY offline"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "FRG jets via BRIGS Q439 SARDI CCC DPK",
+   "text": "FRG arrivals via BRIGS Q439 SARDI CCC DPK: BRIGS at or below 210. Jets FRG only.",
+   "restr": "BRIGS AOB 210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KFRG"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "Q439",
+    "SARDI",
+    "CCC"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "JFK/FRG turboprops via DONIL T315 ACY V184 ZIGGI",
+   "text": "JFK/FRG turboprop arrivals via DONIL T315 ACY V184 ZIGGI: at or below 150.",
+   "restr": "AOB 150",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KJFK",
+    "KFRG"
+   ],
+   "both": false,
+   "fixes": [
+    "DONIL",
+    "T315",
+    "V184",
+    "ZIGGI"
+   ],
+   "fixMode": "any",
+   "acft": "tp",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "LGA via PROUD STAR: descend via",
+   "text": "LGA arrivals via PROUD STAR: descend via.",
+   "restr": "Descend Via",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KLGA"
+   ],
+   "both": false,
+   "fixes": [
+    "PROUD"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "MDT/CXY/LNS/RDG via COURG BAMMY T299 HAR",
+   "text": "MDT, CXY, LNS, RDG arrivals via COURG BAMMY T299 HAR: at or below FL230 descending 150. Cross REEES at 150 satisfies this restriction.",
+   "restr": "AOB FL230 DSDG 150",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KMDT",
+    "KCXY",
+    "KLNS",
+    "KRDG"
+   ],
+   "both": false,
+   "fixes": [
+    "COURG",
+    "BAMMY",
+    "T299",
+    "HAR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "REEES"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PVD via Q22 RBV HTO JORDN",
+   "text": "PVD arrivals via Q22 RBV HTO JORDN STAR: at or below 330.",
+   "restr": "AOB 330",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KPVD"
+   ],
+   "both": false,
+   "fixes": [
+    "Q22",
+    "RBV",
+    "HTO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "JORDN"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PVD via BRIGS Q439 SARDI T320 ORCHA JORDN",
+   "text": "PVD arrivals via BRIGS Q439 SARDI T320 ORCHA JORDN JORDN STAR: BRIGS at or below FL210.",
+   "restr": "BRIGS AOB FL210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KPVD"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "Q439",
+    "SARDI",
+    "T320",
+    "ORCHA"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "JORDN"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "SYR via J220/Q221/Q227",
+   "text": "SYR arrivals via J220/Q221/Q227: at or below FL310.",
+   "restr": "AOB FL310",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KSYR"
+   ],
+   "both": false,
+   "fixes": [
+    "J220",
+    "Q221",
+    "Q227"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "SWF via RBV Q419 DPK HUD",
+   "text": "SWF arrivals via RBV Q419 DPK HUD STAR: at or below FL270.",
+   "restr": "AOB FL270",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KSWF"
+   ],
+   "both": false,
+   "fixes": [
+    "RBV",
+    "Q419"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "HUD"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "SWF via BRIGS T320 SARDI RICED ... TRESA",
+   "text": "SWF arrivals via BRIGS T320 SARDI RICED MAD BRISS PWL TRESA: BRIGS at or below 170.",
+   "restr": "BRIGS AOB 170",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KSWF"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "T320"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "TRESA"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "SWF via BRIGS Q439 SARDI RICED ... TRESA",
+   "text": "SWF arrivals via BRIGS Q439 SARDI RICED MAD BRISS PWL TRESA: BRIGS at or below FL210.",
+   "restr": "BRIGS AOB FL210",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KSWF"
+   ],
+   "both": false,
+   "fixes": [
+    "BRIGS",
+    "Q439"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "TRESA"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "SWF via JAMIE CONFR Q481 DPK HUD",
+   "text": "SWF arrivals via JAMIE CONFR Q481 DPK HUD STAR: ZIGGI at FL250.",
+   "restr": "ZIGGI at FL250",
+   "from": "ZDC",
+   "to": "ZNY",
+   "dep": [],
+   "arr": [
+    "KSWF"
+   ],
+   "both": false,
+   "fixes": [
+    "JAMIE",
+    "CONFR",
+    "Q481"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "HUD"
+   ]
+  }
+ ]
+}

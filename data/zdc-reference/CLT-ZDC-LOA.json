@@ -1,0 +1,365 @@
+{
+ "doc": {
+  "id": "CLT-ZDC-LOA",
+  "title": "CLT Approach–ZDC LOA",
+  "kind": "LOA",
+  "number": "",
+  "parties": [
+   "CLT",
+   "ZDC"
+  ],
+  "effective": "2026-09-03",
+  "file": "b68c2e25-CLT-ZDC_LOA.pdf",
+  "summary": "Coordination between Charlotte Approach Control and Washington Center: CLT terminal departures, overflights through CLT airspace, and RDU/SOP/POB arrival crossing rules."
+ },
+ "items": [
+  {
+   "ref": "1-3",
+   "cat": "General",
+   "title": "Purpose, disclaimer and cancellation",
+   "text": "Establishes coordination procedures between VATUSA Charlotte Approach Control (CLT) and Washington Center (ZDC), supplemental to FAA Order 7110.65. Virtual use only, not the real NAS. Cancels the CLT and ZDC LOA dated 10 November, 2023.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "cancellation"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.a.i",
+   "cat": "Departure",
+   "title": "CLT jets requesting AOA 11,000: CLT# or LILLS#",
+   "text": "Turbojet departures from the Charlotte Terminal Area requesting at or above 11,000 must be cleared via the CLT# or LILLS# departure.",
+   "restr": "CLT# or LILLS# SID",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [
+    "KCLT"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": 11000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "LILLS",
+    "Charlotte"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.a.ii",
+   "cat": "Departure",
+   "title": "CLT props AOA 11,000: CLT# PEKNN, 16,000",
+   "text": "Turboprop/prop departures from the Charlotte Terminal Area requesting at or above 11,000 must be cleared via the CLT# departure PEKNN transition, assigned 16,000 or requested altitude if lower (right for direction of flight).",
+   "restr": "CLT# PEKNN; 16,000 or lower requested",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [
+    "KCLT"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": 11000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "PEKNN",
+    "turboprop",
+    "direction of flight"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.b.i",
+   "cat": "Handoff",
+   "title": "Overflights: CLT releases turns to ZDC",
+   "text": "For overflights, CLT releases control to ZDC for turns.",
+   "restr": "ZDC has control for turns",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "GMINI",
+    "T398",
+    "GIPPR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "overflight",
+    "control for turns"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.b.ii",
+   "cat": "Overflight",
+   "title": "CLT overflights: 14,000/16,000 via GMINI T398 or GIPPR",
+   "text": "Overflights through CLT airspace must be cleared at 14,000 or 16,000 via GMINI T398 or GIPPR CLT SPA, then as filed. Lower altitude traffic must be APREQ'd.",
+   "restr": "14,000 or 16,000; GMINI T398 or GIPPR CLT SPA",
+   "from": "ZDC",
+   "to": "CLT",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "GMINI",
+    "T398",
+    "GIPPR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "APREQ",
+    "SPA",
+    "CLT"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.i",
+   "cat": "Arrival",
+   "title": "RDU arrivals via ZDC: SDZ BUZZY or ETBUY DMSTR",
+   "text": "Arrivals to RDU through ZDC airspace must be cleared via SDZ BUZZY# or ETBUY DMSTR#; RDU satellites via SDZ direct (satellites not defined in the LOA). ZDC has control for speed increase on turbojets.",
+   "restr": "SDZ BUZZY# or ETBUY DMSTR#; sats SDZ direct",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "SDZ",
+    "BUZZY",
+    "ETBUY",
+    "DMSTR",
+    "speed increase"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.i.1",
+   "cat": "Arrival",
+   "title": "RDU-bound jet overflights of CLT: 15,000 or below",
+   "text": "Arrivals to RDU and RDU satellites: jet overflights thru CLT airspace must cross the boundary at 15,000 or below.",
+   "restr": "Boundary 15,000 or below",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "boundary",
+    "overflight"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.i.2",
+   "cat": "Arrival",
+   "title": "RDU-bound jets departing CLT airspace: 13,000 or below",
+   "text": "Arrivals to RDU and RDU satellites: jet departures from CLT airspace must cross the boundary at 13,000 or below.",
+   "restr": "Boundary 13,000 or below",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [
+    "KCLT"
+   ],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "boundary",
+    "RDU"
+   ],
+   "both": true,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.i.3",
+   "cat": "Arrival",
+   "title": "RDU-bound turboprops/props: boundary at 11,000",
+   "text": "Arrivals to RDU and RDU satellites: all turboprops/props must cross the boundary at 11,000.",
+   "restr": "Boundary at 11,000",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "boundary"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.ii",
+   "cat": "Arrival",
+   "title": "CLT-area arrivals routed via ZTL/GSO/FAY/ZJX",
+   "text": "Turbojet and turboprop arrivals to airports in CLT airspace must be routed through Atlanta Center, Greensboro Approach, Fayetteville Approach, or Jacksonville Center airspace, according to appropriate procedures (not through ZDC direct to CLT).",
+   "restr": "Route via ZTL, GSO, FAY or ZJX",
+   "from": "ZDC",
+   "to": "CLT",
+   "dep": [],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Atlanta",
+    "Greensboro",
+    "Fayetteville",
+    "Jacksonville"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.iii",
+   "cat": "Arrival",
+   "title": "SOP arrivals: transition below ZDC to FAY APCH",
+   "text": "Arrivals to SOP must be transitioned below ZDC to Fayetteville Approach.",
+   "restr": "To FAY APCH below ZDC",
+   "from": "CLT",
+   "to": "FAY APCH",
+   "dep": [],
+   "arr": [
+    "KSOP"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Fayetteville",
+    "Pinehurst"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.c.iv",
+   "cat": "Arrival",
+   "title": "POB arrivals: enter ZDC at 11,000",
+   "text": "Arrivals to POB must enter ZDC at 11,000.",
+   "restr": "Enter ZDC at 11,000",
+   "from": "CLT",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPOB"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Pope"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att A",
+   "cat": "Airspace",
+   "title": "CLT/ZDC airspace chart",
+   "text": "Chart shows Locas T30 130-230, CLT APCH SFC-160, Dixon W09 110-230, W09 110-160 shelf over the boundary (GIPPR area), and FAY APCH SFC-100.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "Locas",
+    "Dixon",
+    "W09",
+    "GIPPR",
+    "FAY"
+   ],
+   "both": false,
+   "fr": ""
+  }
+ ]
+}

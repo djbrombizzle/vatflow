@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>ZDC Reference — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --violet: #a993e6;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  main { max-width: 1280px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 20px) 16px 40px; }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.14em; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 16px; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  select, input[type=search], button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 7px 10px;
+  }
+  input[type=search] { flex: 1 1 320px; min-width: 0; font-size: 15px; padding: 10px 12px; text-transform: uppercase; }
+  input[type=search]::placeholder { text-transform: none; color: var(--dim); }
+  input[type=search]:focus { outline: none; border-color: var(--amber); }
+  button { cursor: pointer; }
+  button:hover, select:hover { border-color: var(--amber); }
+  button.on { border-color: var(--amber); color: var(--amber); }
+  label.chk { font-family: var(--mono); font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; }
+  .seg button + button { border-left-width: 0; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .status { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
+  .status.err { color: var(--red); }
+
+  .gate { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; max-width: 520px; }
+  .gate p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* flights view */
+  .split { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .list { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+    max-height: calc(100vh - var(--vatflow-nav-h) - 200px); overflow-y: auto; position: sticky; top: calc(var(--vatflow-nav-h) + 12px); }
+  .fl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; text-align: left; border: none;
+    border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 8px 12px; }
+  .fl:hover { background: var(--panel2); }
+  .fl.sel { background: #1a2230; box-shadow: inset 3px 0 0 var(--amber); }
+  .fl .cs { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; }
+  .fl .od { color: var(--muted); font-size: 12px; }
+  .fl .n { color: var(--amber); font-size: 11px; text-align: right; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; }
+  .tag.in { color: var(--green); }
+  .tag.inb { color: var(--cyan); }
+  .tag.gnd { color: var(--muted); }
+  .tag.pre, .tag.out { color: var(--dim); }
+
+  .detail { min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+  .head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 12px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); }
+  .head .cs { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: 0.06em; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 600; }
+  .route { font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 8px 14px; overflow-wrap: anywhere; line-height: 1.5; }
+  .route mark { background: none; color: var(--amber); font-weight: 600; }
+  .backbtn { display: none; margin-bottom: 8px; }
+
+  .grp { padding: 4px 0 2px; border-top: 1px solid var(--line); }
+  .grp-h { display: flex; gap: 8px; align-items: baseline; padding: 8px 14px 2px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+  .grp-h .k { color: var(--dim); }
+  .rule { padding: 8px 14px; border-bottom: 1px solid #161f2a; }
+  .rule:last-child { border-bottom: none; }
+  .rtop { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .rtitle { font-size: 14px; font-weight: 600; }
+  .restr { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--amber); }
+
+  .compact .detail .rule:not(.open) .rtext, .compact .detail .rule:not(.open) .rmeta { display: none; }
+  .compact .detail .rule { padding: 6px 14px; }
+  .detail .rule { cursor: pointer; }
+  .rtext { color: #b8c4cf; font-size: 13px; line-height: 1.5; margin-top: 3px; }
+  .rmeta { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 3px; }
+  .rmeta .hit { color: var(--amber); }
+  .cat { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 1px 5px; border-radius: 3px; background: #1b2531; color: var(--muted); }
+  .cat.Departure { color: var(--green); }
+  .cat.Arrival { color: var(--cyan); }
+  .cat.Handoff, .cat.Overflight { color: var(--amber); }
+  .cat.SFRA, .cat.Special { color: var(--violet); }
+  mark.q { background: rgba(232, 168, 56, 0.25); color: inherit; border-radius: 2px; }
+
+  table.sop { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  table.sop td { padding: 6px 14px; border-bottom: 1px solid #161f2a; vertical-align: top; }
+  table.sop tr:last-child td { border-bottom: none; }
+  table.sop td.restr { font-size: 13px; white-space: nowrap; }
+  table.sop .secname { color: var(--dim); font-size: 10px; }
+  .dv { padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: var(--cyan); border-top: 1px solid #161f2a; }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 24px 14px; line-height: 1.5; }
+  .more { margin: 10px 0; }
+
+  /* documents view */
+  .docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .doc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .doc h3 { margin: 0; font-size: 15px; }
+  .doc .kind { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--amber); }
+  .doc p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .doc button { align-self: flex-start; margin-top: auto; font-size: 12px; }
+
+  .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
+  kbd { font-family: var(--mono); font-size: 10px; border: 1px solid #2a3644; border-radius: 3px; padding: 0 4px; color: var(--muted); }
+
+  @media (max-width: 860px) {
+    .split { grid-template-columns: 1fr; }
+    .list { position: static; max-height: none; }
+    .split.has-sel .list { display: none; }
+    .split:not(.has-sel) .detail { display: none; }
+    .backbtn { display: inline-block; }
+    .status { margin-left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <h1>ZDC REFERENCE</h1>
+  <p class="sub">Every vZDC SOP, LOA and procedure, matched to live VATSIM traffic. Search a callsign, airport, fix, SID/STAR or any rule.</p>
+
+  <div id="gate" class="gate" hidden>
+    <p id="gateMsg">Sign in with VATSIM to use this page.</p>
+    <button type="button" id="gateSignIn">Sign in with VATSIM</button>
+  </div>
+
+  <div id="app" class="compact" hidden>
+    <div class="bar">
+      <input type="search" id="q" placeholder="Callsign, airport, fix, SID/STAR or rule…   ( / )" autocomplete="off" spellcheck="false" aria-label="Search">
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="flights" class="on">Flights</button>
+        <button type="button" data-view="rules">Rules</button>
+        <button type="button" data-view="docs">Documents</button>
+      </div>
+    </div>
+    <div class="bar" id="flightOpts">
+      <select id="fieldSel" title="Airport"></select>
+      <div class="seg" id="dirSeg">
+        <button type="button" data-dir="" class="on">All</button>
+        <button type="button" data-dir="dep">Departures</button>
+        <button type="button" data-dir="arr">Arrivals</button>
+        <button type="button" data-dir="over">Overflights</button>
+      </div>
+      <select id="cfgSel" title="ZDC sector configuration (ZDC SOP hand-offs)"></select>
+      <label class="chk"><input type="checkbox" id="optZdc" checked> In or near ZDC</label>
+      <label class="chk"><input type="checkbox" id="optPrefile"> Prefiles</label>
+      <label class="chk" title="Show every rule's full text, or tap a rule to open it"><input type="checkbox" id="optFull"> Full text</label>
+      <span class="status" id="status">Loading…</span>
+    </div>
+    <div class="bar" id="ruleOpts" hidden>
+      <select id="docSel" title="Document"></select>
+      <select id="catSel" title="Category"></select>
+      <label class="chk"><input type="checkbox" id="optSop" checked> Include ZDC SOP crossing tables</label>
+      <span class="status" id="status2"></span>
+    </div>
+
+    <div id="flightsView" class="split">
+      <div class="list" id="list"></div>
+      <div class="detail" id="detail"></div>
+    </div>
+    <div id="rulesView" hidden></div>
+    <div id="docsView" class="docs" hidden></div>
+
+    <p class="foot" id="foot"></p>
+  </div>
+</main>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, canEditArtcc, isSignedIn, login } from "./shared/vatflow-auth.js";
+import { getAirport, hasAirport, loadAirports } from "./shared/fca-metering.js";
+import { fetchArtccBoundaries, pointInArtcc, isArtccScopeReady } from "./shared/artcc-scope.js";
+import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft } from "./shared/route-engine.js";
+import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
+import { matchFlight, descendViaFor, primaryAirports, satellitePrimaries, ownerOf } from "./shared/zdc-sop-match.js";
+import { REF_DOCS, REF_ITEMS } from "./shared/zdc-reference-data.js";
+import { matchReference, flightClass, itemHaystack, matchesQuery, sopRowsAsItems, routeTokenSet } from "./shared/zdc-reference-match.js";
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const PREFS_KEY = "vatflow.zdcReference.prefs";
+const RULES_PAGE = 250;
+const CATS = ["Departure", "Arrival", "Overflight", "Handoff", "Airspace", "Runway config", "Ground",
+  "Clearance", "Coordination", "Frequencies", "SFRA", "Special use", "General"];
+/** Within a document, flight-specific categories first. */
+const CAT_RANK = { Departure: 0, Arrival: 0, Handoff: 1, Overflight: 1, Clearance: 2, SFRA: 2, "Special use": 2, Coordination: 3,
+  Frequencies: 4, "Runway config": 5, Ground: 6, Airspace: 7, General: 8 };
+const CLASS_LABEL = { jet: "Jet", turboprop: "Turboprop", piston: "Piston", heli: "Helicopter" };
+const ACFT_LABEL = { jet: "Jets", prop: "Props", tp: "Turboprops", pn: "Pistons", heli: "Helicopters" };
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "zdc-reference");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/** ZDC center SOP as a document next to the generated ones. */
+const SOP_DOC = {
+  id: "ZDC-SOP", title: "ZDC ARTCC SOP", kind: "SOP", number: SOP_ID, effective: SOP_DATE, parties: ["ZDC"],
+  summary: "Chapter 4 sector crossing restrictions (given) for all 14 sectors and Chapter 5 descend-via bottom altitudes — the same data as ZDC Crossings.",
+};
+const DOCS = [SOP_DOC, ...REF_DOCS];
+const DOC_BY_ID = Object.fromEntries(DOCS.map(d => [d.id, d]));
+const DOC_ORDER = Object.fromEntries(DOCS.map((d, i) => [d.id, i]));
+const SOP_ITEMS = sopRowsAsItems(ROWS, SECTORS, SECTOR_REF);
+const HAY = new Map([...REF_ITEMS, ...SOP_ITEMS].map(it => [it, itemHaystack(it, DOC_BY_ID[it.doc])]));
+
+const prefs = loadPrefs();
+const params = new URLSearchParams(location.search);
+let view = ["rules", "docs"].includes(location.hash.slice(1)) ? location.hash.slice(1)
+  : ["rules", "docs"].includes(prefs.view) ? prefs.view : "flights";
+let dir = prefs.dir || "";
+let selected = (params.get("cs") || "").toUpperCase();
+let rulesShown = RULES_PAGE;
+let feed = null, feedAt = 0, feedErr = "";
+let started = false;
+
+const ll = id => getAirport(id);
+const geoCtx = { ll, primaries: primaryAirports(), satPrimaries: satellitePrimaries() };
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) { return {}; }
+}
+function savePrefs() {
+  const p = {
+    view, dir, field: $("fieldSel").value, cfg: $("cfgSel").value, zdc: $("optZdc").checked,
+    prefile: $("optPrefile").checked, full: $("optFull").checked, doc: $("docSel").value, cat: $("catSel").value, sop: $("optSop").checked,
+  };
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+
+/* ---------------- access gate ---------------- */
+
+function gate() {
+  const ok = canEditArtcc("ZDC");
+  $("gate").hidden = ok;
+  $("app").hidden = !ok;
+  if (!ok) {
+    $("gateMsg").textContent = isSignedIn()
+      ? "This page is limited to VATFLOW users with ZDC access. Ask a VATFLOW admin to add ZDC to your whitelist entry."
+      : "Sign in with VATSIM to use this page. It is limited to VATFLOW users with ZDC access.";
+    $("gateSignIn").hidden = isSignedIn();
+    return;
+  }
+  if (!started) start();
+}
+$("gateSignIn").addEventListener("click", () => login());
+window.addEventListener("vatflow-auth-changed", gate);
+initVatflowAuth().then(gate, gate);
+
+/* ---------------- setup ---------------- */
+
+function start() {
+  started = true;
+  const fields = new Map();
+  for (const it of REF_ITEMS) for (const a of [...(it.dep || []), ...(it.arr || [])]) fields.set(a, (fields.get(a) || 0) + 1);
+  const fieldList = [...fields].filter(([, n]) => n >= 3).map(([a]) => a).sort();
+  $("fieldSel").innerHTML = `<option value="">All airports</option>` + fieldList.map(a => `<option>${a}</option>`).join("");
+  $("cfgSel").innerHTML = Object.entries(CONFIGS).map(([k, c]) => `<option value="${k}">${esc(c.label)}</option>`).join("");
+  $("docSel").innerHTML = `<option value="">All documents</option>` + DOCS.map(d => `<option value="${d.id}">${esc(d.title)}</option>`).join("");
+  $("catSel").innerHTML = `<option value="">All categories</option>` + CATS.map(c => `<option>${c}</option>`).join("");
+
+  if (prefs.field && fieldList.includes(prefs.field)) $("fieldSel").value = prefs.field;
+  if (prefs.cfg && CONFIGS[prefs.cfg]) $("cfgSel").value = prefs.cfg;
+  if (prefs.zdc === false) $("optZdc").checked = false;
+  if (prefs.prefile) $("optPrefile").checked = true;
+  if (prefs.full) $("optFull").checked = true;
+  $("app").classList.toggle("compact", !$("optFull").checked);
+  $("optFull").addEventListener("change", () => { $("app").classList.toggle("compact", !$("optFull").checked); savePrefs(); });
+  if (prefs.doc && DOC_BY_ID[prefs.doc]) $("docSel").value = prefs.doc;
+  if (prefs.cat && CATS.includes(prefs.cat)) $("catSel").value = prefs.cat;
+  if (prefs.sop === false) $("optSop").checked = false;
+  if (params.get("q")) $("q").value = params.get("q");
+  setDir(dir);
+  setView(view);
+
+  $("viewSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-view]");
+    if (b) { setView(b.dataset.view); savePrefs(); }
+  });
+  $("dirSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-dir]");
+    if (b) { setDir(b.dataset.dir); savePrefs(); render(); }
+  });
+  ["fieldSel", "cfgSel", "optZdc", "optPrefile"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  ["docSel", "catSel", "optSop"].forEach(id => $(id).addEventListener("change", () => { rulesShown = RULES_PAGE; savePrefs(); render(); }));
+  $("q").addEventListener("input", () => { rulesShown = RULES_PAGE; render(); });
+  $("q").addEventListener("keydown", e => {
+    if (e.key === "Escape") { $("q").value = ""; render(); }
+    if (e.key === "Enter" && view === "flights") {
+      const first = $("list").querySelector(".fl");
+      if (first) select(first.dataset.cs);
+    }
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "/" && !isUserTyping()) { e.preventDefault(); $("q").focus(); $("q").select(); }
+  });
+  $("list").addEventListener("click", e => {
+    const b = e.target.closest(".fl");
+    if (b) select(b.dataset.cs);
+  });
+  $("detail").addEventListener("click", e => {
+    if (e.target.closest("[data-back]")) select("");
+  });
+  $("app").addEventListener("click", e => {
+    const r = e.target.closest(".rule");
+    if (r && !getSelection().toString()) r.classList.toggle("open");
+  });
+  $("docsView").addEventListener("click", e => {
+    const b = e.target.closest("button[data-doc]");
+    if (!b) return;
+    $("docSel").value = b.dataset.doc;
+    $("catSel").value = "";
+    $("q").value = "";
+    rulesShown = RULES_PAGE;
+    setView("rules");
+    savePrefs();
+  });
+  $("rulesView").addEventListener("click", e => {
+    if (e.target.closest("[data-more]")) { rulesShown += RULES_PAGE; render(); }
+  });
+
+  $("foot").innerHTML =
+    `Sources: ${DOCS.length} documents — ${DOCS.map(d => esc(d.title)).join(", ")}. ` +
+    `Rules are matched on the filed route, departure, arrival, aircraft type and filed altitude; a rule with no airport ` +
+    `or fix applies to no single flight and is only in Rules. ZDC SOP hand-offs use the ZDC Crossings matcher. ` +
+    `Reference only; the SOP or LOA governs.`;
+
+  Promise.all([
+    loadAirports().catch(() => null),
+    fetchArtccBoundaries().catch(() => null),
+    loadNavData().catch(() => null),
+  ]).then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); matchCache.clear(); render(); });
+  bindAirports(getAirport, hasAirport);
+  poll();
+  setInterval(poll, VATSIM_FEED_MS);
+}
+
+function setView(v) {
+  view = v;
+  $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  $("flightOpts").hidden = v !== "flights";
+  $("ruleOpts").hidden = v !== "rules";
+  $("flightsView").hidden = v !== "flights";
+  $("rulesView").hidden = v !== "rules";
+  $("docsView").hidden = v !== "docs";
+  history.replaceState(null, "", location.pathname + location.search + (v === "flights" ? "" : "#" + v));
+  render();
+}
+
+function setDir(d) {
+  dir = d;
+  $("dirSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.dir === d));
+}
+
+function select(cs) {
+  selected = cs || "";
+  const u = new URL(location.href);
+  if (selected) u.searchParams.set("cs", selected); else u.searchParams.delete("cs");
+  history.replaceState(null, "", u);
+  render();
+  if (selected && matchMedia("(max-width: 860px)").matches) window.scrollTo({ top: 0 });
+}
+
+/* ---------------- feed ---------------- */
+
+async function poll() {
+  try {
+    const r = await fetch(VATSIM_URL, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    feed = await r.json();
+    feedAt = Date.now();
+    feedErr = "";
+  } catch (e) {
+    feedErr = "VATSIM feed unavailable (" + (e.message || e) + ")";
+  }
+  if (!isUserTyping()) render();
+}
+
+function flightsFromFeed() {
+  if (!feed) return [];
+  const out = [];
+  const add = (p, prefile) => {
+    const fp = p.flight_plan;
+    if (!fp || !fp.arrival) return;
+    out.push({
+      callsign: String(p.callsign || "").toUpperCase(), dep: (fp.departure || "").toUpperCase(), arr: (fp.arrival || "").toUpperCase(),
+      route: fp.route || "", type: fp.aircraft_short || fp.aircraft_faa || fp.aircraft || "", altitude: fp.altitude,
+      rules: fp.flight_rules || "", remarks: fp.remarks || "",
+      lat: prefile ? null : p.latitude, lon: prefile ? null : p.longitude, alt: prefile ? null : p.altitude,
+      gs: prefile ? 0 : p.groundspeed, hdg: prefile ? null : p.heading, prefile,
+    });
+  };
+  (feed.pilots || []).forEach(p => add(p, false));
+  if ($("optPrefile").checked) (feed.prefiles || []).forEach(p => add(p, true));
+  return out;
+}
+
+/* ---------------- matching ---------------- */
+
+const routeCache = new Map();
+function routeInfo(f) {
+  if (!isNavReady() || !f.route) return null;
+  const key = `${f.dep}|${f.arr}|${f.route}`;
+  let base = routeCache.get(key);
+  if (!base) {
+    try { base = buildRouteAnchors({ dep: f.dep, arr: f.arr, route: f.route }); } catch (_) { base = { anchors: [] }; }
+    routeCache.set(key, base);
+  }
+  let ahead = base.anchors;
+  if (f.lat != null && !f.prefile && f.gs > 50) {
+    try { ahead = buildRouteAnchorsForAircraft({ dep: f.dep, arr: f.arr, route: f.route, lat: f.lat, lon: f.lon, hdg: f.hdg }).anchors; } catch (_) {}
+  }
+  return { all: base.anchors, ahead };
+}
+
+const inZdc = p => !!p && pointInArtcc("ZDC", p[0], p[1]) === true;
+const aptInZdc = id => inZdc(ll(id));
+
+function flightStatus(f, ri) {
+  if (f.prefile) return { key: "pre", label: "PREFILE" };
+  const here = f.lat != null && inZdc([f.lat, f.lon]);
+  if (f.gs < 50) return { key: "gnd", label: "ON GROUND" };
+  if (here) return { key: "in", label: "IN ZDC" };
+  if (ri && ri.ahead.some(a => a.ll && inZdc(a.ll))) return { key: "inb", label: "INBOUND" };
+  return { key: "out", label: "OUTSIDE" };
+}
+
+const matchCache = new Map();
+/** Reference + ZDC SOP matches for a flight, cached on its plan. */
+function matchesFor(f) {
+  const cfgKey = $("cfgSel").value;
+  const key = `${f.callsign}|${f.dep}|${f.arr}|${f.route}|${f.type}|${f.altitude}|${f.rules}|${cfgKey}|${isNavReady()}|${isArtccScopeReady()}`;
+  let m = matchCache.get(key);
+  if (m) return m;
+  const quickRef = matchReference(f, REF_ITEMS);
+  const quickSop = f.route ? matchFlight(f, { ...geoCtx, config: cfgKey }) : [];
+  const zdcField = aptInZdc(f.dep) || aptInZdc(f.arr);
+  let ri = null, ref = quickRef, sop = quickSop;
+  // Expand the route (airways, procedures) only for flights that could touch ZDC.
+  if (quickRef.length || quickSop.length || zdcField) {
+    ri = routeInfo(f);
+    if (ri) {
+      const extraFixes = ri.all.map(a => a.name);
+      ref = matchReference(f, REF_ITEMS, { extraFixes, viaArtcc: viaArtccFn(f, ri) });
+      sop = matchFlight(f, { ...geoCtx, config: cfgKey, extraFixes });
+    }
+  }
+  ref.sort((a, b) => (DOC_ORDER[a.item.doc] - DOC_ORDER[b.item.doc]) || (b.hits.length > 0) - (a.hits.length > 0) ||
+    (CAT_RANK[a.item.cat] ?? 9) - (CAT_RANK[b.item.cat] ?? 9));
+  m = { ref, sop, ri, zdcField, dv: descendViaFor(f) };
+  matchCache.set(key, m);
+  if (matchCache.size > 6000) matchCache.clear();
+  return m;
+}
+
+/** Does the expanded route (with both airports) pass through an ARTCC? null until boundaries load. */
+function viaArtccFn(f, ri) {
+  const pts = [ll(f.dep), ...ri.all.map(a => a.ll), ll(f.arr)].filter(Boolean);
+  const memo = {};
+  return id => {
+    if (!isArtccScopeReady() || pts.length < 2) return null;
+    if (!(id in memo)) memo[id] = pts.some(p => pointInArtcc(id, p[0], p[1]) === true);
+    return memo[id];
+  };
+}
+
+function directionOf(f) {
+  if (aptInZdc(f.dep)) return "dep";
+  if (aptInZdc(f.arr)) return "arr";
+  return "over";
+}
+
+function computeFlights(q) {
+  const field = $("fieldSel").value;
+  const nearOnly = $("optZdc").checked;
+  const out = [];
+  for (const f of flightsFromFeed()) {
+    const exact = q && f.callsign === q;
+    if (field && f.dep !== field && f.arr !== field && !exact) continue;
+    if (dir && directionOf(f) !== dir && !exact) continue;
+    const m = matchesFor(f);
+    const n = m.ref.length + m.sop.length;
+    if (!n && !m.zdcField && !exact) continue;
+    const st = flightStatus(f, m.ri);
+    if (nearOnly && st.key === "out" && !m.zdcField && !exact) continue;
+    if (q && !exact) {
+      const hay = [f.callsign, f.dep, f.arr, f.dep.replace(/^K/, ""), f.arr.replace(/^K/, ""), f.route, f.type,
+        ...m.ref.map(r => r.item.title + " " + (r.item.restr || ""))].join(" ").toUpperCase();
+      if (!matchesQuery(hay, q)) continue;
+    }
+    out.push({ f, m, st, n, exact });
+  }
+  const rank = { in: 0, inb: 1, gnd: 2, pre: 3, out: 4 };
+  out.sort((a, b) => (b.exact - a.exact) || (rank[a.st.key] - rank[b.st.key]) || a.f.callsign.localeCompare(b.f.callsign));
+  return out;
+}
+
+/* ---------------- render helpers ---------------- */
+
+function hl(s, words) {
+  let h = esc(s);
+  if (!words.length) return h;
+  const re = new RegExp("(" + words.map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
+  return h.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, text) => tag || text.replace(re, '<mark class="q">$1</mark>'));
+}
+
+function refLabel(it) {
+  const d = DOC_BY_ID[it.doc];
+  return `${d ? d.title : it.doc}${it.ref ? ` §${it.ref}` : ""}`;
+}
+
+function ruleHtml(it, words, extra = {}) {
+  const meta = [refLabel(it)];
+  if (it.from || it.to) meta.push(`${esc(it.from || "?")} → ${esc(it.to || "?")}`);
+  if (it.acft) meta.push(ACFT_LABEL[it.acft] || it.acft);
+  if (it.flow) meta.push(esc(it.flow));
+  if (it.fr) meta.push(it.fr + " only");
+  if (it.minAlt || it.maxAlt) meta.push(`filed ${it.minAlt ? `≥${it.minAlt}` : ""}${it.minAlt && it.maxAlt ? " " : ""}${it.maxAlt ? `≤${it.maxAlt}` : ""}`);
+  const ap = it.both ? [`${(it.dep || []).join("/")} → ${(it.arr || []).join("/")}`]
+    : [...(it.dep || []).map(a => `${a} dep`), ...(it.arr || []).map(a => `${a} arr`)];
+  if (ap.length && !extra.hideAirports) meta.push(ap.length > 4 ? `${ap.slice(0, 4).join(", ")} +${ap.length - 4}` : ap.join(", "));
+  const fx = (it.fixes || []).map(f => (extra.hits || []).includes(f) ? `<span class="hit">${esc(f)}</span>` : esc(f));
+  if (fx.length) meta.push(`via ${fx.join(it.fixMode === "all" ? " + " : " / ")}`);
+  if (extra.typeUnknown) meta.push("aircraft type not classified");
+  return `<div class="rule"><div class="rtop"><span class="cat ${esc(it.cat.split(" ")[0])}">${esc(it.cat)}</span>` +
+    `<span class="rtitle">${hl(it.title, words)}</span>${it.restr ? `<span class="restr">${hl(it.restr, words)}</span>` : ""}</div>` +
+    `<div class="rtext">${hl(it.text, words)}</div><div class="rmeta">${meta.join(" · ")}</div></div>`;
+}
+
+function sectorCell(id, cfgKey) {
+  const s = /^\d$/.test(id) ? "0" + id : id;
+  if (SECTORS[s]) {
+    const owner = ownerOf(s, cfgKey);
+    return `${esc(s)}${owner && owner !== s ? ` @ ${esc(owner)}` : ""} <span class="secname">${esc(SECTORS[s])}</span>`;
+  }
+  const name = FACILITY_NAMES[s] || (/z$/.test(s) ? `${s.slice(0, -1)} TRACON/ATCT` : "");
+  return `${esc(s)}${name ? ` <span class="secname">${esc(name)}</span>` : ""}`;
+}
+
+function setStatus(id, text, err) {
+  $(id).textContent = text;
+  $(id).classList.toggle("err", !!err);
+}
+
+/* ---------------- flights view ---------------- */
+
+function renderFlights(q) {
+  const rows = computeFlights(q);
+  const age = feedAt ? Math.round((Date.now() - feedAt) / 1000) : null;
+  setStatus("status", feedErr || (feed ? `${rows.length} flights · feed ${age}s ago` : "Loading VATSIM feed…"), !!feedErr);
+  if (q && rows.length && rows[0].exact && selected !== rows[0].f.callsign) selected = rows[0].f.callsign;
+
+  $("list").innerHTML = !feed ? `<p class="empty">Loading the VATSIM feed…</p>`
+    : !rows.length ? `<p class="empty">No flights match${q ? ` “${esc(q)}”` : ""}. Try Rules to search the documents.</p>`
+    : rows.map(({ f, st, n }) =>
+      `<button type="button" class="fl${f.callsign === selected ? " sel" : ""}" data-cs="${esc(f.callsign)}">` +
+      `<span class="cs">${esc(f.callsign)}</span><span class="tag ${st.key}">${esc(st.label)}</span>` +
+      `<span class="od">${esc(f.dep)} → ${esc(f.arr)} · ${esc(f.type || "?")}</span>` +
+      `<span class="n">${n ? `${n} rule${n === 1 ? "" : "s"}` : ""}</span></button>`).join("");
+
+  const sel = rows.find(r => r.f.callsign === selected) ||
+    (selected ? computeAll().find(r => r.f.callsign === selected) : null);
+  $("flightsView").classList.toggle("has-sel", !!sel);
+  $("detail").innerHTML = sel ? renderDetail(sel, q)
+    : `<div class="card"><p class="empty">Pick a flight to see every SOP and LOA rule that applies to it — or type a callsign and press <kbd>Enter</kbd>.<br>` +
+      `Press <kbd>/</kbd> to search from anywhere on the page.</p></div>`;
+}
+
+/** The selected flight even when filters would hide it. */
+function computeAll() {
+  return flightsFromFeed().filter(f => f.callsign === selected).map(f => {
+    const m = matchesFor(f);
+    return { f, m, st: flightStatus(f, m.ri), n: m.ref.length + m.sop.length };
+  });
+}
+
+function renderDetail({ f, m, st }, q) {
+  const words = q ? q.split(/\s+/).filter(w => w !== f.callsign) : [];
+  const cls = flightClass(f.type);
+  const cfgKey = $("cfgSel").value;
+  const hitSet = new Set([...m.ref.flatMap(r => r.hits), ...m.sop.map(s => s.fix).filter(Boolean)]);
+  m.sop.forEach(s => s.row[3].replace(/[\[\]()]/g, " ").split(/[\s/]+/).forEach(t => t && hitSet.add(t.replace("#", ""))));
+  const routeHtml = f.route ? String(f.route).split(/\s+/).map(tok => {
+    const t = tok.split(/[./]/)[0].toUpperCase();
+    const base = t.replace(/\d[A-Z]?$/, "");
+    return hitSet.has(t) || (base.length >= 3 && hitSet.has(base)) ? `<mark>${esc(tok)}</mark>` : esc(tok);
+  }).join(" ") : `<span class="meta">No route filed</span>`;
+  const now = f.alt != null && f.gs >= 50 ? ` · now ${Math.round(f.alt / 100).toString().padStart(3, "0")} · ${f.gs}kt` : "";
+
+  // Departure rules first, then arrival, then en route; grouped by document.
+  const sections = [
+    ["dep", `Departing ${f.dep}`], ["arr", `Arriving ${f.arr}`], ["over", "En route"],
+  ].map(([role, label]) => {
+    const list = m.ref.filter(r => r.role === role);
+    if (!list.length) return "";
+    const byDoc = new Map();
+    list.forEach(r => { if (!byDoc.has(r.item.doc)) byDoc.set(r.item.doc, []); byDoc.get(r.item.doc).push(r); });
+    return [...byDoc].map(([doc, rs]) =>
+      `<div class="grp"><div class="grp-h">${esc(label)} <span class="k">· ${esc(DOC_BY_ID[doc] ? DOC_BY_ID[doc].title : doc)}</span></div>` +
+      rs.map(r => ruleHtml(r.item, words, { hits: r.hits, typeUnknown: r.typeUnknown, hideAirports: true })).join("") + `</div>`).join("");
+  }).join("");
+
+  const sopHtml = m.sop.length || m.dv.length
+    ? `<div class="grp"><div class="grp-h">ZDC SOP hand-offs <span class="k">· ${esc(SOP_ID)} Ch 4–5 · ${esc(CONFIGS[cfgKey].label)}</span></div>` +
+      (m.sop.length ? `<table class="sop"><tbody>` + m.sop.map(s => {
+        const r = s.row;
+        const notes = [...s.notes];
+        if (s.how === "satellite") notes.push(`${f.arr} as satellite of ${r[1]}`);
+        if (r[2]) notes.push(r[2]);
+        if (s.quality !== "full") notes.push("partial route match");
+        return `<tr><td>${sectorCell(r[0], cfgKey)} → ${sectorCell(r[5], cfgKey)}</td><td class="restr">${esc(r[4])}</td>` +
+          `<td>${esc(r[1])} ${esc(r[3])}${notes.length ? `<div class="secname">${esc(notes.join(" · "))}</div>` : ""}</td>` +
+          `<td class="secname">§${esc(SECTOR_REF[r[0]] || "")}</td></tr>`;
+      }).join("") + `</tbody></table>` : "") +
+      m.dv.map(d => `<div class="dv">${esc(d.star)}#${d.via ? ` (${esc(d.via)})` : ""} descend via · bottom ${esc(d.alt)} · join by ${esc(d.join)}${d.handoff ? ` · handoff ${esc(d.handoff)}` : ""}</div>`).join("") +
+      `</div>` : "";
+
+  const none = !sections && !sopHtml
+    ? `<p class="empty">No SOP or LOA rule names this flight's airports or route. General rules for its fields are under Rules.</p>` : "";
+
+  return `<button type="button" class="backbtn" data-back="1">← All flights</button>` +
+    `<div class="card"><div class="head"><span class="cs">${esc(f.callsign)}</span>` +
+    `<span class="meta"><b>${esc(f.dep)}</b> → <b>${esc(f.arr)}</b></span>` +
+    `<span class="meta">${esc(f.type || "?")}${cls ? ` · ${CLASS_LABEL[cls]}` : ""}${f.rules ? ` · ${f.rules === "V" ? "VFR" : "IFR"}` : ""}</span>` +
+    `<span class="meta">filed ${esc(f.altitude || "?")}${esc(now)}</span>` +
+    `<span class="tag ${st.key}">${esc(st.label)}</span></div>` +
+    `<div class="route">${routeHtml}</div>` + sopHtml + sections + none + `</div>`;
+}
+
+/* ---------------- rules view ---------------- */
+
+function renderRules(q) {
+  const doc = $("docSel").value, cat = $("catSel").value;
+  const words = q ? q.split(/\s+/).filter(Boolean) : [];
+  const pool = $("optSop").checked || doc === "ZDC-SOP" ? [...REF_ITEMS, ...SOP_ITEMS] : REF_ITEMS;
+  const items = pool.filter(it => (!doc || it.doc === doc) && (!cat || it.cat === cat) && (!q || matchesQuery(HAY.get(it), q)));
+  items.sort((a, b) => DOC_ORDER[a.doc] - DOC_ORDER[b.doc]);
+  setStatus("status2", `${items.length} of ${pool.length} rules`);
+  if (!items.length) {
+    $("rulesView").innerHTML = `<div class="card"><p class="empty">No rules match${q ? ` “${esc(q)}”` : ""}.</p></div>`;
+    return;
+  }
+  const shown = items.slice(0, rulesShown);
+  let html = "", cur = null;
+  for (const it of shown) {
+    if (it.doc !== cur) {
+      if (cur) html += `</div>`;
+      cur = it.doc;
+      const d = DOC_BY_ID[it.doc];
+      html += `<div class="card"><div class="head"><span class="meta"><b>${esc(d ? d.title : it.doc)}</b></span>` +
+        `<span class="meta">${esc([d && d.number, d && d.effective].filter(Boolean).join(" · "))}</span></div>`;
+    }
+    html += ruleHtml(it, words);
+  }
+  html += `</div>`;
+  if (items.length > shown.length) html += `<button type="button" class="more" data-more="1">Show ${Math.min(RULES_PAGE, items.length - shown.length)} more</button>`;
+  $("rulesView").innerHTML = html;
+}
+
+/* ---------------- documents view ---------------- */
+
+function renderDocs(q) {
+  const counts = {};
+  for (const it of [...REF_ITEMS, ...SOP_ITEMS]) counts[it.doc] = (counts[it.doc] || 0) + 1;
+  const docs = DOCS.filter(d => !q || matchesQuery([d.title, d.id, d.number, d.summary, ...(d.parties || [])].join(" ").toUpperCase(), q));
+  $("docsView").innerHTML = docs.length ? docs.map(d =>
+    `<div class="doc"><span class="kind">${esc(d.kind)}${d.number ? ` · ${esc(d.number)}` : ""}</span><h3>${esc(d.title)}</h3>` +
+    `<p>${esc(d.summary)}</p><p>${esc((d.parties || []).join(" · "))}${d.effective ? ` · effective ${esc(d.effective)}` : ""}</p>` +
+    `<button type="button" data-doc="${esc(d.id)}">${counts[d.id] || 0} rules →</button></div>`).join("")
+    : `<p class="empty">No documents match “${esc(q)}”.</p>`;
+}
+
+function render() {
+  if (!started) return;
+  const q = $("q").value.trim().toUpperCase();
+  if (view === "rules") renderRules(q);
+  else if (view === "docs") renderDocs(q);
+  else renderFlights(q);
+}
+</script>
+</body>
+</html>

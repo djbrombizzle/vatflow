@@ -1,0 +1,667 @@
+{
+ "doc": {
+  "id": "ZJX-ZDC-LOA",
+  "title": "ZJX–ZDC LOA",
+  "kind": "LOA",
+  "number": "",
+  "parties": [
+   "ZJX",
+   "ZDC"
+  ],
+  "effective": "2024-02-01",
+  "file": "7c8d7cf2-ZJX___Jacksonville_ARTCC_1707540730.pdf",
+  "summary": "Jacksonville ARTCC and Washington ARTCC agreement: authorized directs, handoff spacing, ILM airspace delegation, and southbound/northbound route and altitude restrictions."
+ },
+ "items": [
+  {
+   "ref": "Scope/Purpose",
+   "cat": "General",
+   "title": "Scope, purpose, cancellation and deviation",
+   "text": "Agreement between Jacksonville ARTCC (ZJX) and Washington ARTCC (ZDC) on VATSIM, supplementary to FAA Order 7110.65, VATSIM and ARTCC policies. Cancels any pre-existing ZJX-ZDC LOA. Temporary controller deviations are permitted with prior coordination between affected controllers; operational deviations for expeditious flow are encouraged when traffic volume necessitates.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "cancellation",
+    "deviation"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "A",
+   "cat": "Coordination",
+   "title": "ZJX may clear direct ILM",
+   "text": "ZJX may clear aircraft direct ILM without prior authorization.",
+   "restr": "Direct ILM OK",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KILM"
+   ],
+   "fixes": [
+    "ILM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Wilmington",
+    "direct"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "A",
+   "cat": "Coordination",
+   "title": "ZDC may clear direct CRE or FLO",
+   "text": "ZDC may clear aircraft direct CRE, FLO without prior authorization.",
+   "restr": "Direct CRE/FLO OK",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "CRE",
+    "FLO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "direct"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "A",
+   "cat": "Coordination",
+   "title": "ZJX announces splits via ATC chat",
+   "text": "ZJX will announce via ATC chat any details of internal delegation (splitting) upon sign-on where both ARTCCs are online.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "split",
+    "sign-on",
+    "ATC chat"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "A",
+   "cat": "Handoff",
+   "title": "Handoffs 10 nm from border; initiate up to 50 nm",
+   "text": "Both ARTCCs should make all efforts to ensure handoffs occur at least 10 nm from the agreed border. Handoff requests may be initiated up to 50 nm without prior coordination. Both should ensure adequate or better (10-15 MIT) sequencing and separation prior to any and all handoffs.",
+   "restr": "Handoff ≥10 nm from border; 10-15 MIT",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "MIT",
+    "sequencing",
+    "50 nm"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "B",
+   "cat": "Airspace",
+   "title": "ILM delegation: ZDC SFC-100, ZJX 110-FL600",
+   "text": "ZJX delegates to ZDC (ILM) the responsibility for ATC service in the depicted triangle area: ZDC (ILM) SFC-100, ZJX 110-FL600.",
+   "restr": "ZDC (ILM) SFC-100",
+   "from": "ZJX",
+   "to": "ZDC (ILM)",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "Wilmington",
+    "delegation"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound CHS/JZI: AOB FL280 AMYLU STAR",
+   "text": "Southbound ZDC to ZJX, destination CHS/JZI: via AMYLU STAR, AOB FL280. Released for speed control.",
+   "restr": "AOB FL280; via AMYLU STAR",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KCHS",
+    "KJZI"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "AMYLU",
+    "speed control"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound SAV/HXD: AOB FL340 Q409 SESUE SOOOP",
+   "text": "Southbound ZDC to ZJX, destination SAV/HXD: via Q409 SESUE SOOOP, AOB FL340.",
+   "restr": "AOB FL340; via Q409 SESUE SOOOP",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KSAV",
+    "KHXD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Q409",
+    "SESUE",
+    "SOOOP"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound CAE/SSC: AOB FL220",
+   "text": "Southbound ZDC to ZJX, destination CAE/SSC: AOB FL220.",
+   "restr": "AOB FL220",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KCAE",
+    "KSSC"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound DAB/MCO/ORL/SFB: IGARY Q85 ./.",
+   "text": "Southbound ZDC to ZJX, destination DAB/MCO/ORL/SFB: IGARY Q85 ./..",
+   "restr": "IGARY Q85 ./.",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KDAB",
+    "KMCO",
+    "KORL",
+    "KSFB"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "IGARY",
+    "Q85"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound JAX: Q409 SESUE ESENT",
+   "text": "Southbound ZDC to ZJX, destination JAX: via Q409 SESUE ESENT.",
+   "restr": "via Q409 SESUE ESENT",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KJAX"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Q409",
+    "SESUE",
+    "ESENT"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound CLT: OKNEE/FLO RASLN STARs, AOB FL220",
+   "text": "Southbound ZDC to ZJX, destination CLT: via OKNEE MLLET STAR or via FLO RASLN STAR; ALL AOB FL220.",
+   "restr": "AOB FL220; OKNEE MLLET or FLO RASLN STAR",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "OKNEE",
+    "MLLET",
+    "FLO",
+    "RASLN"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Departure",
+   "title": "FAY departures to CLT: TORQD MLLET STAR, AOB FL220",
+   "text": "Southbound, destination CLT: via TORQD MLLET STAR is for FAY departures only; ALL AOB FL220.",
+   "restr": "AOB FL220; TORQD MLLET STAR",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [
+    "KFAY"
+   ],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "TORQD",
+    "MLLET",
+    "CLT"
+   ],
+   "both": true,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound MYR east of SMPRR: 110 at boundary",
+   "text": "Southbound ZDC to ZJX, destination MYR: east of SMPRR, 110 at the boundary.",
+   "restr": "110 at boundary",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KMYR"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "SMPRR",
+    "Myrtle Beach"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C South",
+   "cat": "Arrival",
+   "title": "Southbound MYR west of SMPRR: AOB FL190 ↓110",
+   "text": "Southbound ZDC to ZJX, destination MYR: west of SMPRR, boundary at or below FL190 descending to 110.",
+   "restr": "Boundary AOB FL190 desc 110",
+   "from": "ZDC",
+   "to": "ZJX",
+   "dep": [],
+   "arr": [
+    "KMYR"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "SMPRR",
+    "Myrtle Beach"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound RDU overland: DMSTR/BUZZY STAR",
+   "text": "Northbound ZJX to ZDC, destination RDU (overland): DMSTR STAR or BUZZY STAR; jets AOB FL210, props AOB 170. Released for descent 10NM from boundary.",
+   "restr": "Jet AOB FL210 / prop AOB 170",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "DMSTR",
+    "BUZZY",
+    "overland",
+    "released for descent"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound RDU ocean: GARIC BLOGS STAR AOB FL290",
+   "text": "Northbound ZJX to ZDC, destination RDU (ocean): GARIC BLOGS STAR, AOB FL290. Released for descent to FL240 20NM from boundary.",
+   "restr": "AOB FL290; GARIC BLOGS STAR",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "GARIC",
+    "BLOGS",
+    "ocean",
+    "released for descent"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound GSO/INT: AOB FL230 BLOCC STAR",
+   "text": "Northbound ZJX to ZDC, destination GSO/INT: via BLOCC STAR, AOB FL230.",
+   "restr": "AOB FL230; via BLOCC STAR",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KGSO",
+    "KINT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "BLOCC"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound ILM: Border 110",
+   "text": "Northbound ZJX to ZDC, destination ILM: Border 110.",
+   "restr": "Border 110",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KILM"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound FAY: Border 110",
+   "text": "Northbound ZJX to ZDC, destination FAY: Border 110.",
+   "restr": "Border 110",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KFAY"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound BUY: AOB FL210 SDZ",
+   "text": "Northbound ZJX to ZDC, destination BUY: via SDZ, AOB FL210.",
+   "restr": "AOB FL210; via SDZ",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBUY"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "SDZ"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound POB: AOB FL230 desc 110",
+   "text": "Northbound ZJX to ZDC, destination POB: AOB FL230 desc 110.",
+   "restr": "AOB FL230 desc 110",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPOB"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound IAD: OGRAE",
+   "text": "Northbound ZJX to ZDC, destination IAD: via OGRAE.",
+   "restr": "via OGRAE",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "OGRAE"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound BWI/DCA: Q99 or Q113",
+   "text": "Northbound ZJX to ZDC, destination BWI/DCA: Q99 or Q113.",
+   "restr": "Q99 or Q113",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI",
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Q99",
+    "Q113"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "C North",
+   "cat": "Arrival",
+   "title": "Northbound ORF: Q135",
+   "text": "Northbound ZJX to ZDC, destination ORF: Q135.",
+   "restr": "Q135",
+   "from": "ZJX",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KORF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Q135"
+   ],
+   "both": false,
+   "fr": ""
+  }
+ ]
+}

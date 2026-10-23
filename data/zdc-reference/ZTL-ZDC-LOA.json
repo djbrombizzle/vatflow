@@ -1,0 +1,1594 @@
+{
+ "doc": {
+  "id": "ZTL-ZDC-LOA",
+  "title": "ZTL–ZDC LOA",
+  "kind": "LOA",
+  "number": "",
+  "parties": [
+   "ZTL",
+   "ZDC"
+  ],
+  "effective": "2026-09-03",
+  "file": "c4f2a953-ZTL-ZDC_LOA.pdf",
+  "summary": "Interfacility coordination between Atlanta ARTCC (ZTL) and Washington ARTCC (ZDC): GIPPR, CLT and RDU shelf delegations, automated information transfers for CLT/RDU jet departures, and the ZTL/ZDC route and altitude restrictions table."
+ },
+ "items": [
+  {
+   "ref": "1-3",
+   "cat": "General",
+   "title": "Purpose, disclaimer and cancellation",
+   "text": "Establishes coordination procedures and airspace delegation between VATUSA Washington ARTCC (ZDC) and Atlanta ARTCC (ZTL), supplemental to FAA Order 7110.65. For virtual ATC use only, not the real NAS. Cancels the ZTL and ZDC LOA dated August 3, 2026.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "disclaimer",
+    "cancellation"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.a",
+   "cat": "Airspace",
+   "title": "GIPPR shelf delegated to ZDC (11,000-16,000)",
+   "text": "ZTL delegates to ZDC the responsibility for ATC service from 11,000 feet to 16,000 feet in the GIPPR shelf (Attachment B). The GIPPR shelf is owned by Dixon (ZDC09) from 11,000 to 16,000 and facilitates direct handoffs between CLT Approach Control and ZDC09.",
+   "restr": "110-160 to ZDC09",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "GIPPR",
+    "shelf",
+    "Dixon",
+    "ZDC09",
+    "W09",
+    "CLT approach"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.a",
+   "cat": "Airspace",
+   "title": "CLT shelf delegated to ZDC (FL240-FL270)",
+   "text": "ZTL delegates to ZDC the responsibility for ATC service from FL240 to FL270 in the CLT Shelf (Attachment A). The chart shows the CLT Shelf as part of Charlotte T33 FL240-270 transferred into the Raleigh W36 area.",
+   "restr": "FL240-FL270 to ZDC",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "CLT shelf",
+    "T33",
+    "Raleigh",
+    "W36"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "4.b",
+   "cat": "Airspace",
+   "title": "RDU shelf delegated to ZTL (FL240-FL270)",
+   "text": "ZDC delegates to ZTL the responsibility for ATC service from FL240 to FL270 in the RDU Shelf (Attachment A). The chart shows the RDU Shelf as Raleigh W36 FL240-FL270 transferred into the Charlotte T33 area.",
+   "restr": "FL240-FL270 to ZTL",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "RDU shelf",
+    "W36",
+    "Charlotte",
+    "T33"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "5.a",
+   "cat": "Coordination",
+   "title": "Restrict aircraft per restrictions attachment",
+   "text": "Each facility shall restrict aircraft in accordance with the ZTL/ZDC Restrictions attachment (referenced as Attachment D; the table page is titled Attachment F). Controllers should use their best judgment in applying restrictions to low volume airports that do not affect other existing traffic flows.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "restrictions",
+    "low volume"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "6.a-b",
+   "cat": "Coordination",
+   "title": "Coordination by sector ID; deviations need coordination",
+   "text": "Coordination shall be accomplished by reference to sector ID or name, not callsign. Deviation from procedures in this agreement may be made only after coordination which completely defines responsibility in each area.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "sector ID",
+    "deviation"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "6.c",
+   "cat": "Coordination",
+   "title": "CHSLY descend-via: ZDC32 enters QQ P 240",
+   "text": "For CHSLY# traffic descending via, ZDC32 shall enter a procedural altitude (QQ P) of 240 in the data block. ZDC is not required to issue local altimeter settings unless a direct handoff to CLT is planned when ZTL is offline.",
+   "restr": "Data block QQ P 240",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [
+    "CHSLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZDC32",
+    "procedural altitude",
+    "altimeter",
+    "data block"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "6.d",
+   "cat": "Airspace",
+   "title": "CLT/RDU shelf deactivation (15-min recall)",
+   "text": "Transfer of the CLT Shelf and RDU Shelf is in effect at all times. For weather deviations or other operational purposes, either facility may deactivate the CLT or RDU Shelf with a 15-minute recall unless immediate transfer is mutually agreed. A thorough briefing (flight plan, traffic, other pertinent information) must be conducted prior to transfer of responsibility.",
+   "restr": "15-minute recall",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "deactivation",
+    "recall",
+    "shelf",
+    "briefing"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "6 Note",
+   "cat": "Handoff",
+   "title": "ZDC-CLT direct handoffs when ZTL offline",
+   "text": "ZDC and CLT may issue direct handoffs to each other when ZTL is offline. Separation services are not provided in ZTL airspace.",
+   "restr": "Direct handoff to CLT if ZTL offline",
+   "from": "ZDC",
+   "to": "CLT",
+   "dep": [
+    "KCLT"
+   ],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZTL offline",
+    "top down",
+    "CLT approach"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "7.a",
+   "cat": "Handoff",
+   "title": "AIT: CLT jet departures requesting above FL230",
+   "text": "Turbojets departing CLT/CLT satellites requesting above FL230: ZTL30 LOW climbs to FL230 with an interim altitude and initiates handoff to ZDC09 LOW; ZDC09 immediately initiates handoff to ZDC36 HIGH; once ZDC36 accepts, ZTL30 transfers communications directly to ZDC36. If ZDC36 has not accepted before the ZTL/ZDC border, ZTL transfers communications to ZDC09 LOW. Traffic on the LILLS2 departure is exempt.",
+   "restr": "FL230 interim; comms to ZDC36",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [
+    "KCLT",
+    "KAFP",
+    "KDCM",
+    "KJQF",
+    "KAKH",
+    "KLKR",
+    "KIPJ",
+    "KEQY",
+    "KPYG",
+    "KUZA",
+    "KRUQ",
+    "KEHO"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "automated information transfer",
+    "AIT",
+    "ZTL30",
+    "ZDC09",
+    "ZDC36",
+    "LILLS exempt"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "7.b",
+   "cat": "Handoff",
+   "title": "AIT: RDU jet departures requesting above FL230",
+   "text": "Turbojets departing RDU/RDU satellites requesting above FL230: ZDC09 LOW climbs to FL230 with an interim altitude and initiates handoff to ZTL29 LOW; ZTL29 immediately initiates handoff to ZTL33 HIGH; once ZTL33 accepts, ZDC09 transfers communications directly to ZTL33. If ZTL33 has not accepted before the ZTL/ZDC border, ZDC transfers communications to ZTL29 LOW. RDU satellites are not defined in the LOA.",
+   "restr": "FL230 interim; comms to ZTL33",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [
+    "KRDU"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "automated information transfer",
+    "AIT",
+    "ZDC09",
+    "ZTL29",
+    "ZTL33"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att C/E1/E2",
+   "cat": "Airspace",
+   "title": "ZTL/ZDC border sector map",
+   "text": "Border area SFC-FL230: ZTL Bristol T45 SFC-230, Leeon T29 130-230, Locas T30 130-230; ZDC Tech W52 SFC+, Gordonsville W32 SFC+, Dixon W09 110-230 (W09 110-160 over FAY APCH). Approaches: ROA APCH SFC-120 / SFC-060 (non radar), ROA SFC-070, GSO APCH SFC-120 (GSO SFC-100 portion), RDU APCH SFC-120, CLT APCH SFC-160, FAY APCH SFC-100, FLO APCH SFC-100. FL240+: ZTL Baden T15 FL350+, Pulaski T43 FL240-FL340, High Rock T28 FL350+, Charlotte T33 FL240-340, Leeon T29 FL240-FL270; ZDC Raleigh W36 FL240+.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "map",
+    "sectors",
+    "Bristol",
+    "Leeon",
+    "Locas",
+    "Tech",
+    "Gordonsville",
+    "Dixon",
+    "Raleigh",
+    "Pulaski",
+    "High Rock",
+    "Baden"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Handoff",
+   "title": "Within 20NM of boundary AOA 240: turns up to 20°",
+   "text": "General routing: for aircraft within 20NM of the ARTCC boundary at or above 240, the receiving controller has control for turns up to 20°.",
+   "restr": "Receiver: turns up to 20°",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "control for turns",
+    "20NM",
+    "boundary"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Overflight",
+   "title": "Q69 northbound: direct not beyond ILLSA",
+   "text": "Aircraft on Q69 may be cleared direct not beyond ILLSA. Q69 is northbound only.",
+   "restr": "Direct not beyond ILLSA",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "Q69"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ILLSA",
+    "northbound"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Overflight",
+   "title": "Q103 / FLASK: ZDC separates converging traffic",
+   "text": "For aircraft on Q103 or routed over FLASK, ZDC must initiate separation between converging aircraft on Q103 and the FLASK waypoint. Q103 is southbound only.",
+   "restr": "ZDC separates Q103 vs FLASK",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "Q103",
+    "FLASK"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "converging",
+    "southbound"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Overflight",
+   "title": "Q22/Q54/Q56/Q58/Q60/Q64 AOA 240: direct limits",
+   "text": "Aircraft on Q22, Q54, Q56, Q58, Q60 or Q64 at or above 240 may be cleared direct not beyond OMENS/LOOEY/NUUMN/STUKI/TYI/RAANE.",
+   "restr": "Direct not beyond OMENS/LOOEY/NUUMN/STUKI/TYI/RAANE",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "Q22",
+    "Q54",
+    "Q56",
+    "Q58",
+    "Q60",
+    "Q64"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "OMENS",
+    "LOOEY",
+    "NUUMN",
+    "STUKI",
+    "TYI",
+    "RAANE"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Overflight",
+   "title": "ZDC32 CLT overflights south of V20 at 130-160",
+   "text": "CLT airspace overflights from ZDC32 routed south of V20 at 130-160 shall be routed over BZM to rejoin route.",
+   "restr": "Via BZM",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [],
+   "fixes": [
+    "V20",
+    "BZM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 13000,
+   "maxAlt": 16000,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZDC32",
+    "CLT overflight"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC BWI/MTN RNAV: LUMAY Q58 ... RAVNN",
+   "text": "ZTL to ZDC, RNAV arrivals to BWI and MTN: route LUMAY Q58 PEETT THHMP RAVNN#.",
+   "restr": "LUMAY Q58 PEETT THHMP RAVNN#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI",
+    "KMTN"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "LUMAY",
+    "Q58",
+    "PEETT",
+    "THHMP",
+    "RAVNN"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC HPN RNAV: KIDDO Q22 ... BOUNO or Q64 SIE",
+   "text": "ZTL to ZDC, RNAV arrivals to HPN: route KIDDO Q22 BESSI CYN BOUNO# or IDDAA Q64 SAWED Q108 SIE.",
+   "restr": "KIDDO Q22 BESSI CYN BOUNO# or IDDAA Q64 SAWED Q108 SIE",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KHPN"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "KIDDO",
+    "BOUNO",
+    "IDDAA",
+    "SIE"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC EWR RNAV: KIDDO Q22 ... PHLBO",
+   "text": "ZTL to ZDC, RNAV arrivals to EWR: route KIDDO Q22 UMBRE QUART PHLBO# or SITTR Q34 GVE PHLBO#.",
+   "restr": "KIDDO Q22 UMBRE QUART PHLBO# or SITTR Q34 GVE PHLBO#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KEWR"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "KIDDO",
+    "PHLBO",
+    "SITTR",
+    "GVE"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC PHL/PNE/TTN RNAV: ... PAATS",
+   "text": "ZTL to ZDC, RNAV arrivals to PHL, PNE and TTN: route KIDDO Q22 BEARI FAK PAATS# or SITTR Q34 GVE PAATS#.",
+   "restr": "KIDDO Q22 BEARI FAK PAATS# or SITTR Q34 GVE PAATS#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPHL",
+    "KPNE",
+    "KTTN"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "KIDDO",
+    "PAATS",
+    "SITTR",
+    "GVE"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC DCA RNAV: AOB 350 JOOLI Q56 ... CAPSS",
+   "text": "ZTL to ZDC, RNAV arrivals to DCA: at or below 350, route JOOLI Q56 KIWII WAVES CAPSS#.",
+   "restr": "AOB 350; JOOLI Q56 KIWII WAVES CAPSS#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "JOOLI",
+    "Q56",
+    "KIWII",
+    "WAVES",
+    "CAPSS"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC JFK/FRG RNAV: SIE CAMRN",
+   "text": "ZTL to ZDC, RNAV arrivals to JFK and FRG: route SIE CAMRN#.",
+   "restr": "SIE CAMRN#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KJFK",
+    "KFRG"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "SIE",
+    "CAMRN"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC IAD RNAV: AOB 330 EVING Q60 ... CAVLR",
+   "text": "ZTL to ZDC, RNAV arrivals to IAD: at or below 330, route EVING Q60 JAXSN DORRN CAVLR#.",
+   "restr": "AOB 330; EVING Q60 JAXSN DORRN CAVLR#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "EVING",
+    "Q60",
+    "JAXSN",
+    "DORRN",
+    "CAVLR"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC JYO/HEF RNAV: AOB 330 ... TRSTN",
+   "text": "ZTL to ZDC, RNAV arrivals to JYO and HEF: at or below 330, route EVING Q60 JAXSN CREWE LORAA TRSTN#.",
+   "restr": "AOB 330; EVING Q60 JAXSN CREWE LORAA TRSTN#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KJYO",
+    "KHEF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "EVING",
+    "CREWE",
+    "LORAA",
+    "TRSTN"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC LGA RNAV: BYJAC Q60 HURTS PROUD",
+   "text": "ZTL to ZDC, RNAV arrivals to LGA: route BYJAC Q60 HURTS PROUD#.",
+   "restr": "BYJAC Q60 HURTS PROUD#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KLGA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "BYJAC",
+    "HURTS",
+    "PROUD"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC RIC RNAV: AOB 290 POWTN or DUCXS",
+   "text": "ZTL to ZDC, RNAV arrivals to RIC: at or below 290, route PSK LYH POWTN# or EVING Q60 JAXSN KELCE DUCXS#.",
+   "restr": "AOB 290; PSK LYH POWTN# or EVING Q60 JAXSN KELCE DUCXS#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRIC"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "PSK",
+    "LYH",
+    "POWTN",
+    "DUCXS",
+    "KELCE"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC ORF/PHF/LFI/NGU: AOB 350 AHOEY Q54 ... KOHLS",
+   "text": "ZTL to ZDC arrivals to ORF, PHF, LFI and NGU: at or below 350, route AHOEY Q54 NUTZE KOHLS#.",
+   "restr": "AOB 350; AHOEY Q54 NUTZE KOHLS#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KORF",
+    "KPHF",
+    "KLFI",
+    "KNGU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "AHOEY",
+    "Q54",
+    "NUTZE",
+    "KOHLS"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Departure",
+   "title": "CLT LILLS departures: climbing to 190",
+   "text": "ZTL to ZDC, CLT departures on LILLS#: climbing to 190 or requested if lower. ZTL may delete the 280KT SID speed restriction; ZTL must indicate via fourth line entry or verbal coordination if it is not deleted. ZDC has control for speed increase on contact and for climb at LAMDE.",
+   "restr": "↑190 or requested if lower",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [
+    "KCLT"
+   ],
+   "arr": [],
+   "fixes": [
+    "LILLS"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "280KT",
+    "speed",
+    "LAMDE",
+    "fourth line"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Departure",
+   "title": "CLT DURST/BATTA departures: climbing to 230",
+   "text": "ZTL to ZDC, CLT departures on DURST# or BATTA#: climbing to 230 or requested if lower. ZTL may delete the 280KT SID speed restriction (indicate via fourth line or verbal coordination if not deleted). ZDC has control for speed increase east of LILIC/GULFY. DURST#: ZDC has control for left turns at MUNBE, no farther north than AUDII. BATTA#: ZDC has control for right turns at MESHY, up to 30°. Automated Information Transfers apply when ZDC09 LOW/36 HIGH are split; ZTL normally hands off/transfers communications to ZDC prior to LILIC/GULFY.",
+   "restr": "↑230 or requested if lower",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [
+    "KCLT"
+   ],
+   "arr": [],
+   "fixes": [
+    "DURST",
+    "BATTA"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "280KT",
+    "LILIC",
+    "GULFY",
+    "MUNBE",
+    "AUDII",
+    "MESHY",
+    "AIT"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC PIT/LBE/AGC arrivals: AOB 350",
+   "text": "ZTL to ZDC arrivals to PIT, LBE and AGC: at or below 350.",
+   "restr": "AOB 350",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPIT",
+    "KLBE",
+    "KAGC"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC RDU RNAV jets north of LIB-SPA: ALDAN",
+   "text": "ZTL to ZDC, RNAV jet arrivals to RDU from north of a line from LIB-SPA: at or below 270 descending to 250, via ALDAN#. ZDC has control for right turns up to 15°.",
+   "restr": "AOB 270 ↓250; ALDAN#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "ALDAN",
+    "LIB",
+    "SPA",
+    "right turns 15"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC RDU others north of LIB-SPA: ROA SBV V136",
+   "text": "ZTL to ZDC, other (non-RNAV-jet) arrivals to RDU from north of a line from LIB-SPA: at or below 270 descending to 250, via ROA SBV V136 RDU.",
+   "restr": "AOB 270 ↓250; ROA SBV V136 RDU",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ROA",
+    "SBV",
+    "V136"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC RDU jets south of LIB-SPA: via ZJX",
+   "text": "ZTL to ZDC, jet arrivals to RDU from south of a line from LIB-SPA shall be routed through Jacksonville Center.",
+   "restr": "Route through ZJX",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Jacksonville",
+    "LIB",
+    "SPA"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC RDU jets from SPA/ODF/HRS/AVL/CHA: @170",
+   "text": "ZTL to ZDC, jet arrivals to RDU from the SPA/ODF/HRS/AVL areas and from the CHA area at or below 230: at 170, via ETBUY DMSTR# (RNAV only) or SDZ BUZZY#.",
+   "restr": "@170; ETBUY DMSTR# (RNAV) or SDZ BUZZY#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ETBUY",
+    "DMSTR",
+    "SDZ",
+    "BUZZY",
+    "SPA",
+    "ODF",
+    "HRS",
+    "AVL",
+    "CHA"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC RDU non-jets from SPA/ODF/HRS/AVL/CHA",
+   "text": "ZTL to ZDC, other (non-jet) arrivals to RDU from the SPA/ODF/HRS/AVL areas and from the CHA area at or below 230: handoff to CLT, via SDZ BUZZY#.",
+   "restr": "Handoff to CLT; SDZ BUZZY#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "SDZ",
+    "BUZZY",
+    "CLT approach"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "HKY jets to RDU: @170 MCDON ALDAN",
+   "text": "ZTL to ZDC, jets departing HKY for RDU: at 170, via MCDON ALDAN#.",
+   "restr": "@170; MCDON ALDAN#",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [
+    "KHKY"
+   ],
+   "arr": [
+    "KRDU"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RDU",
+    "MCDON",
+    "ALDAN"
+   ],
+   "both": true,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ZTL→ZDC ROA arrivals over GSO APCH: AOB 150 ↓130",
+   "text": "ZTL to ZDC arrivals to ROA above 130 over GSO APCH airspace: at or below 150 descending to 130.",
+   "restr": "AOB 150 ↓130",
+   "from": "ZTL",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KROA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "GSO approach"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Handoff",
+   "title": "ZTL→ZDC ROA arrivals north of GSO APCH: to ROA APCH",
+   "text": "ZTL to ZDC arrivals to ROA north of GSO APCH: hand off to ROA APCH.",
+   "restr": "Handoff to ROA APCH",
+   "from": "ZTL",
+   "to": "ROA APCH",
+   "dep": [],
+   "arr": [
+    "KROA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Roanoke"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Departure",
+   "title": "RDU jet departures to ZTL: climbing to 230",
+   "text": "ZDC to ZTL, RDU jet departures: climbing to 230 or requested if lower, on the appropriate SID. ZTL has control for turns up to 30°. Automated Information Transfers apply when ZTL29 LOW and ZTL33 HIGH are split.",
+   "restr": "↑230 or requested if lower; appropriate SID",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [
+    "KRDU"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "turns 30",
+    "AIT",
+    "ZTL29",
+    "ZTL33"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Departure",
+   "title": "RDU non-jet departures to ZTL: climbing to 160",
+   "text": "ZDC to ZTL, RDU non-jet departures: climbing to 160 or requested if lower, via RDU# GSO transition. ZTL has control for climb (if filed above 16,000) and turns up to 20°.",
+   "restr": "↑160 or requested if lower; RDU# GSO transition",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [
+    "KRDU"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "GSO",
+    "turns 20"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Departure",
+   "title": "RDU to CLT: RNAV jets CATAR SDAIL CHSLY, others LIB MAJIC",
+   "text": "ZDC to ZTL, RDU departures to CLT: RNAV jets via CATAR SDAIL CHSLY#; others via LIB MAJIC#.",
+   "restr": "RNAV jet: CATAR SDAIL CHSLY#; others: LIB MAJIC#",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [
+    "KRDU"
+   ],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Charlotte"
+   ],
+   "both": true,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "CLT jets AOA 240 via AIROW CHSLY: descend via",
+   "text": "ZDC to ZTL, CLT jet arrivals at or above 240 via AIROW CHSLY#: descend via; route CHSLY# (RNAV) or MAJIC#. ZDC shall issue CLT landing direction (north or south) and provide in-trail spacing regardless of altitude. During ops changes ZTL29 will verbally coordinate the first aircraft requiring a new landing direction. Descend via may be suspended at either facility's request; then ZDC assigns FL240 to be level by BURRZ or 85NM northeast of CLT.",
+   "restr": "Descend via (else FL240 level by BURRZ)",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [
+    "AIROW"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "CHSLY",
+    "landing direction",
+    "in trail",
+    "BURRZ",
+    "ZTL29"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "All other CLT jets: @220, 280KT",
+   "text": "ZDC to ZTL, all other CLT jet arrivals: at 220 or requested if lower, via CHSLY# (RNAV) or MAJIC#. Traffic must be assigned 280KT unless not needed to maintain in-trail spacing. Jets via COUPN CHSLY# may go direct SDAIL. ZDC09 jets north of SDZ must be via COUPN or LIB. ZDC shall provide 5 MIT, constant or increasing, between RDU departures and COUPN CHSLY# traffic; ZDC is not responsible for other MIT or time-based metering requirements.",
+   "restr": "@220 or req lower; 280KT; CHSLY#/MAJIC#",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KCLT"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "CHSLY",
+    "MAJIC",
+    "COUPN",
+    "SDAIL",
+    "SDZ",
+    "LIB",
+    "5 MIT",
+    "ZDC09"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "JQF/RUQ/VUJ arrivals: via GSO or FAY APCH",
+   "text": "ZDC to ZTL arrivals to JQF, RUQ and VUJ: via GSO APCH or FAY APCH.",
+   "restr": "Via GSO APCH or FAY APCH",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KJQF",
+    "KRUQ",
+    "KVUJ"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "CLT satellites"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "Other CLT satellites: jets @220 MAJIC, others via GSO",
+   "text": "ZDC to ZTL arrivals to other CLT satellites (NC21 AFP DCM JQF AKH N52 14A LKR IPJ 6NC1 28A EQY PYG 0A1 UZA RUQ EHO NC35): jets at 220 or requested if lower via MAJIC#; others via GSO APCH, via MAJIC#. Non-ICAO satellites (NC21, N52, 14A, 6NC1, 28A, 0A1, NC35) are not in the airport list.",
+   "restr": "Jets @220 or req lower; others via GSO APCH; MAJIC#",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KAFP",
+    "KDCM",
+    "KAKH",
+    "KLKR",
+    "KIPJ",
+    "KEQY",
+    "KPYG",
+    "KUZA",
+    "KEHO"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MAJIC",
+    "CLT satellites"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Handoff",
+   "title": "CLT/sat arrivals: ZTL29 control within 15NM",
+   "text": "All CLT/CLT satellite arrivals from ZDC: ZTL29 has control for right turns up to 40° and speed adjustment within 15NM of the boundary. ZTL29 has control for descent within 15NM of the boundary for ZDC09 traffic.",
+   "restr": "ZTL29: rt turns 40°, speed, descent within 15NM",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KCLT",
+    "KAFP",
+    "KDCM",
+    "KJQF",
+    "KAKH",
+    "KLKR",
+    "KIPJ",
+    "KEQY",
+    "KPYG",
+    "KUZA",
+    "KRUQ",
+    "KEHO"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZTL29",
+    "ZDC09",
+    "control for turns"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Departure",
+   "title": "POB/ROA/LYH/LWB departures to ZTL: climbing to 230",
+   "text": "ZDC to ZTL, departures from POB, ROA, LYH and LWB: climbing to 230 or requested if lower. ZTL has control for turns up to 30°.",
+   "restr": "↑230 or requested if lower",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [
+    "KPOB",
+    "KROA",
+    "KLYH",
+    "KLWB"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "turns 30"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "ATL arrivals over/north of RIC: OZZZI or ODF WOMAC",
+   "text": "ZDC to ZTL, ATL arrivals over/from and north of RIC at or above 240: RNAV jets via OZZZI#; others via ODF WOMAC LOGEN.",
+   "restr": "RNAV jet: OZZZI#; others: ODF WOMAC LOGEN",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KATL"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 24000,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "OZZZI",
+    "ODF",
+    "WOMAC",
+    "LOGEN",
+    "RIC"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "HKY/UKF/SVH arrivals: AOB 200 ↓170",
+   "text": "ZDC to ZTL arrivals to HKY, UKF and SVH: at or below 200 descending to 170.",
+   "restr": "AOB 200 ↓170",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KHKY",
+    "KUKF",
+    "KSVH"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "TRI arrivals: AOB 260",
+   "text": "ZDC to ZTL arrivals to TRI: at or below 260.",
+   "restr": "AOB 260",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KTRI"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "SPA/GSP/GMU/GYH arrivals: AOB 280",
+   "text": "ZDC to ZTL arrivals to SPA, GSP, GMU and GYH: at or below 280. From north of the CLT-RDU line at or above 240: JUNNR# (RNAV) or LYH SPA or GSO SPA. From south of the CLT-RDU line: direct destination.",
+   "restr": "AOB 280; JUNNR#/LYH SPA/GSO SPA (N) or direct (S)",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KSPA",
+    "KGSP",
+    "KGMU",
+    "KGYH"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "JUNNR",
+    "LYH",
+    "GSO",
+    "SPA",
+    "CLT-RDU line"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "AVL arrivals north of GSO: AOB 340",
+   "text": "ZDC to ZTL arrivals to AVL from north of GSO: at or below 340.",
+   "restr": "AOB 340",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KAVL"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Asheville"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "TYS arrivals north of GSO: AOB 360",
+   "text": "ZDC to ZTL arrivals to TYS from north of GSO: at or below 360.",
+   "restr": "AOB 360",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KTYS"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Knoxville"
+   ],
+   "both": false,
+   "fr": ""
+  },
+  {
+   "ref": "Att F",
+   "cat": "Arrival",
+   "title": "CAE/CDN arrivals AOA 240: AOB 300 via GSO CAE",
+   "text": "ZDC to ZTL arrivals to CAE and CDN at or above 240: at or below 300, via GSO CAE.",
+   "restr": "AOB 300; GSO CAE",
+   "from": "ZDC",
+   "to": "ZTL",
+   "dep": [],
+   "arr": [
+    "KCAE",
+    "KCDN"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": true,
+   "kw": [
+    "GSO",
+    "CAE"
+   ],
+   "both": false,
+   "fr": ""
+  }
+ ]
+}

@@ -1,0 +1,3638 @@
+{
+ "doc": {
+  "id": "IAD-SOP",
+  "title": "IAD ATCT SOP",
+  "kind": "SOP",
+  "number": "vZDC IAD ATCT 7110.65I",
+  "parties": [
+   "IAD ATCT",
+   "PCT"
+  ],
+  "effective": "2024-07-05",
+  "file": "f3954533-IAD_ATCT_SOP_Version_I.pdf",
+  "summary": "Dulles ATCT SOP (Version I): positions and frequencies, runway configurations, clearance delivery rules (altitudes, departure gates, destination altitude restrictions), ground/local/ramp duties, departure headings and fixes, releases and arrival procedures."
+ },
+ "items": [
+  {
+   "ref": "1-1-1 to 1-1-6",
+   "cat": "General",
+   "title": "Purpose, audience, cancellation, changes",
+   "text": "Order describes airspace structure, procedures and policy for controllers working an operational IAD position on VATSIM; applies to all vZDC controllers and visiting controllers training with vZDC. Available at vzdc.org/publications/downloads. Cancels the Washington Dulles ATCT SOP Version 1.51 (effective August 21, 2020). Changes are highlighted in grey.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "audience",
+    "cancels",
+    "Version 1.51"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "South Area Ramp frequency 130.550",
+   "text": "IAD ATCT South Area Ramp (Ramp) frequency is 130.550. Ramp control shall not be utilized unless authorized by the vZDC Events Coordinator.",
+   "restr": "130.550",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "South Area Ramp",
+    "Ramp",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "North Area Ramp frequency 119.125",
+   "text": "IAD ATCT North Area Ramp (Ramp) frequency is 119.125. Ramp control shall not be utilized unless authorized by the vZDC Events Coordinator.",
+   "restr": "119.125",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "North Area Ramp",
+    "Ramp",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Midfield Area Ramp frequency 129.550 (primary)",
+   "text": "IAD ATCT Midfield Area Ramp (Ramp) frequency is 129.550. Shown in bold as the primary frequency. Ramp control shall not be utilized unless authorized by the vZDC Events Coordinator.",
+   "restr": "129.550",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Midfield Area Ramp",
+    "Ramp",
+    "IAD",
+    "position",
+    "primary"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Clearance frequency 135.700",
+   "text": "IAD ATCT Clearance (Clearance Delivery) frequency is 135.700.",
+   "restr": "135.700",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Clearance",
+    "Clearance Delivery",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Ground East frequency 121.900",
+   "text": "IAD ATCT Ground East (Ground Control) frequency is 121.900.",
+   "restr": "121.900",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Ground East",
+    "Ground Control",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Ground North frequency 123.775",
+   "text": "IAD ATCT Ground North (Ground Control) frequency is 123.775.",
+   "restr": "123.775",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Ground North",
+    "Ground Control",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Ground West frequency 121.625 (primary)",
+   "text": "IAD ATCT Ground West (Ground Control) frequency is 121.625. Shown in bold as the primary frequency.",
+   "restr": "121.625",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Ground West",
+    "Ground Control",
+    "IAD",
+    "position",
+    "primary"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Local East frequency 120.100",
+   "text": "IAD ATCT Local East (Local Control) frequency is 120.100.",
+   "restr": "120.100",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Local East",
+    "Local Control",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Local North frequency 134.425 (primary)",
+   "text": "IAD ATCT Local North (Local Control) frequency is 134.425. Shown in bold as the primary frequency.",
+   "restr": "134.425",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Local North",
+    "Local Control",
+    "IAD",
+    "position",
+    "primary"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Local West frequency 120.250",
+   "text": "IAD ATCT Local West (Local Control) frequency is 120.250.",
+   "restr": "120.250",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Local West",
+    "Local Control",
+    "IAD",
+    "position"
+   ]
+  },
+  {
+   "ref": "2-2-1",
+   "cat": "Runway config",
+   "title": "Non-standard runway configurations",
+   "text": "Established configurations in 2-2-2 to 2-2-7 are preferred. Local controller may use a non-standard configuration as weather and traffic permit so long as: (a) it does not negatively affect traffic flow, (b) it is deemed necessary due to weather and traffic, and (c) Potomac Consolidated TRACON (PCT) is aware of it.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "non-standard",
+    "PCT aware"
+   ]
+  },
+  {
+   "ref": "2-2-2",
+   "cat": "Runway config",
+   "title": "North Operation: land 1L/1C/1R, depart 1C/1R",
+   "text": "Runways 1L, 1C and 1R are primary arrival runways; 1C and 1R are primary departure runways. North and east departures should be assigned runway 1R; south and west departures runway 1C. Use only when sustained wind is greater than 15 knots from the north.",
+   "restr": "N/E deps 1R; S/W deps 1C",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "north flow",
+    "wind 15 knots"
+   ]
+  },
+  {
+   "ref": "2-2-3",
+   "cat": "Runway config",
+   "title": "North with 30: depart 30 and 1R",
+   "text": "Primary arrival runways printed as \"1L, 1R, and 1R\"; runways 30 and 1R are primary departure runways. All departures should be assigned runway 30 unless operational advantage can be gained using 1R. Runway 30 departures may not be cleared for takeoff if a runway 1C arrival is within 2.27nm of the threshold or a runway 1L arrival is within 3.56 NM of the threshold. Use when sustained wind is 15 knots or less from the north (text also says: only when greater than 15 knots from the south).",
+   "restr": "All deps RWY 30 (1R if advantageous)",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway 30",
+    "2.27nm",
+    "3.56 NM"
+   ]
+  },
+  {
+   "ref": "2-2-3",
+   "cat": "Departure",
+   "title": "RWY 30 takeoff vs 1C/1L arrivals",
+   "text": "In North with 30, runway 30 departures may not be cleared for takeoff if a runway 1C arrival is within 2.27nm of the threshold or a runway 1L arrival is within 3.56 NM of the threshold.",
+   "restr": "No T/O if 1C arr within 2.27nm / 1L arr within 3.56 NM",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "takeoff clearance",
+    "threshold",
+    "runway 30"
+   ]
+  },
+  {
+   "ref": "2-2-4",
+   "cat": "Runway config",
+   "title": "South Operation: land 19L/19C/19R, depart 19C/19L",
+   "text": "Runways 19L, 19C and 19R are primary arrival runways; 19C and 19L are primary departure runways. North and east departures should be assigned runway 19C; south and west departures runway 19L.",
+   "restr": "N/E deps 19C; S/W deps 19L",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "south flow"
+   ]
+  },
+  {
+   "ref": "2-2-5",
+   "cat": "Runway config",
+   "title": "South with 30: depart 30 and 19L",
+   "text": "Runways 19L, 19C and 19R are primary arrival runways; runways 30 and 19L are primary departure runways. All departures should be assigned runway 30 unless operational advantage can be gained using 19L. Use when sustained wind is 15 knots or less from the south.",
+   "restr": "All deps RWY 30 (19L if advantageous)",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway 30"
+   ]
+  },
+  {
+   "ref": "2-2-6",
+   "cat": "Runway config",
+   "title": "South with 12: land 12, depart 19L/19C",
+   "text": "Runway 12 is the primary arrival runway; 19L and 19C are primary departure runways. North and east departures should be assigned 19C; south and west departures 19L. Use only when sustained wind is greater than 20 knots and closely aligns with runway 12.",
+   "restr": "Arr RWY 12; N/E deps 19C; S/W deps 19L",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South with 12",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway 12",
+    "wind 20 knots"
+   ]
+  },
+  {
+   "ref": "2-2-7",
+   "cat": "Runway config",
+   "title": "Landing 30: approach 1R, circle to 30",
+   "text": "Runway 30 is the primary arrival and departure runway. PCT shall use an instrument approach for runway 1R and IAD local control shall issue circling instructions for runway 30. Use when sustained wind is greater than 25 knots and closely aligns with runway 30.",
+   "restr": "Arr/Dep RWY 30; circle from 1R approach",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "Landing 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "circling",
+    "wind 25 knots"
+   ]
+  },
+  {
+   "ref": "2-2-8",
+   "cat": "Coordination",
+   "title": "Routine runway configuration change",
+   "text": "The CIC determines the need for active runway changes; in a routine change departures may depart the runway originally assigned. Steps: (1) give PCT the last departure's ID, estimated departure time and runway; (2) once it departs, ensure no other aircraft departs without a release from PCT (text prints \"BWI\"); (3) ensure departures off the new runway have the appropriate DP and departure frequency; (4) PCT informs the CIC when sector reconfiguration is complete; (5) ensure the ATIS is updated.",
+   "restr": "",
+   "from": "IAD ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway change",
+    "CIC",
+    "ATIS",
+    "release"
+   ]
+  },
+  {
+   "ref": "2-3-1",
+   "cat": "Ground",
+   "title": "ASDE: transponders on in movement area",
+   "text": "Ground Control and Local Control shall ensure all aircraft operating in a movement area have transponders on.",
+   "restr": "Transponder on in movement area",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ASDE",
+    "transponder"
+   ]
+  },
+  {
+   "ref": "2-4-1",
+   "cat": "SFRA",
+   "title": "DC SFRA at IAD",
+   "text": "DC SFRA is simulated on VATSIM with a modified procedure. VFR departures are expected to file a DC SFRA flight plan. The FRZ does not impose higher requirements, so normal VFR operations, including pattern work, shall be allowed if workload permits. Ref: VATSIM DC SFRA Procedures and Pilot Guide (vzdc.org/publications/downloads).",
+   "restr": "VFR deps file SFRA flight plan",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "SFRA",
+    "FRZ",
+    "VFR",
+    "pattern"
+   ]
+  },
+  {
+   "ref": "3-1-1",
+   "cat": "Clearance",
+   "title": "Clearance Delivery responsibilities",
+   "text": "Clearance Delivery must (a) formulate and issue IFR and VFR clearances to aircraft departing IAD, and (b) review proposed flight plans, verify accuracy and amend routings and altitudes as necessary per the appropriate LOAs.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "CD",
+    "amend route"
+   ]
+  },
+  {
+   "ref": "3-1-2",
+   "cat": "Clearance",
+   "title": "IFR clearance: SID, 3,000, expect cruise in 10",
+   "text": "All IFR departures should be assigned a departure and transition consistent with their direction of flight. Aircraft unable to fly a SID shall be assigned the CPTAL1 Departure Procedure. All IFR departures shall be issued an initial altitude of 3,000 and to expect filed cruise altitude ten minutes after departure.",
+   "restr": "Climb 3,000; expect filed alt 10 min",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "initial altitude",
+    "CPTAL1",
+    "non-SID"
+   ]
+  },
+  {
+   "ref": "3-1-2",
+   "cat": "Clearance",
+   "title": "Non-SID aircraft: CPTAL1 departure",
+   "text": "If an aircraft is unable to fly a SID, it shall be assigned the CPTAL1 Departure Procedure.",
+   "restr": "CPTAL1",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "no SID",
+    "CPTAL",
+    "DP"
+   ]
+  },
+  {
+   "ref": "3-1-3",
+   "cat": "Clearance",
+   "title": "vTDLS PDCs for IFR",
+   "text": "IAD is equipped with vTDLS to issue Pre-Departure Clearances (PDCs) to IFR aircraft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "PDC",
+    "vTDLS",
+    "datalink"
+   ]
+  },
+  {
+   "ref": "3-1-4",
+   "cat": "Clearance",
+   "title": "VFR flight following flight plan requirements",
+   "text": "VFR aircraft requesting flight following shall have in their VFR flight plan prior to departure: destination airport, aircraft type, and requested VFR altitude. VFR aircraft remaining in the pattern require a squawk code (no altitude restriction needed).",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "flight following",
+    "pattern",
+    "squawk"
+   ]
+  },
+  {
+   "ref": "3-1-4",
+   "cat": "Clearance",
+   "title": "VFR departure (Turbojet): maintain VFR AOB 3,000",
+   "text": "All VFR departures receive a class B clearance with a restriction to maintain VFR at or below 3,000 (Turbojet). VFR aircraft remaining in the pattern do not require an altitude restriction.",
+   "restr": "VFR AOB 3,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "class B clearance",
+    "Turbojet"
+   ]
+  },
+  {
+   "ref": "3-1-4",
+   "cat": "Clearance",
+   "title": "VFR departure (Propeller): maintain VFR AOB 2,500",
+   "text": "All VFR departures receive a class B clearance with a restriction to maintain VFR at or below 2,500 (Propeller). VFR aircraft remaining in the pattern do not require an altitude restriction.",
+   "restr": "VFR AOB 2,500",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "class B clearance",
+    "Propeller"
+   ]
+  },
+  {
+   "ref": "3-1-4",
+   "cat": "Clearance",
+   "title": "VFR departure (Helicopters): maintain VFR AOB 1,300",
+   "text": "All VFR departures receive a class B clearance with a restriction to maintain VFR at or below 1,300 (Helicopters). VFR aircraft remaining in the pattern do not require an altitude restriction.",
+   "restr": "VFR AOB 1,300",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "class B clearance",
+    "Helicopters"
+   ]
+  },
+  {
+   "ref": "3-1-5",
+   "cat": "Frequencies",
+   "title": "East/North departures: ASPER 125.050",
+   "text": "Assign departure frequency per SID, departure gate or direction of flight: East/North departures get ASPER (125.050). See TBL 5-2-2 for the ASPER departure fixes.",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure frequency",
+    "east",
+    "north"
+   ]
+  },
+  {
+   "ref": "3-1-5",
+   "cat": "Frequencies",
+   "title": "South/West departures: TILLY 126.650",
+   "text": "Assign departure frequency per SID, departure gate or direction of flight: South/West departures get TILLY (126.650). See TBL 5-2-2 for the TILLY departure fixes.",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure frequency",
+    "south",
+    "west"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "IAD to BWI/DCA/HEF altitude: Jet 4,000 / Prop 4,000",
+   "text": "IAD departures to BWI, DCA, HEF: turbojet 4,000; turboprop/propeller 4,000.",
+   "restr": "Jet 4,000 / Prop 4,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KBWI",
+    "KDCA",
+    "KHEF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "KBWI",
+    "KDCA",
+    "KHEF",
+    "BWI",
+    "DCA",
+    "HEF",
+    "altitude restriction",
+    "destination"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "IAD to EWR/TEB/LGA altitude: Jet FL210",
+   "text": "IAD departures to EWR, TEB, LGA: turbojet FL210; turboprop/propeller N/A.",
+   "restr": "Jet FL210",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KEWR",
+    "KTEB",
+    "KLGA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "KEWR",
+    "KTEB",
+    "KLGA",
+    "EWR",
+    "TEB",
+    "LGA",
+    "altitude restriction",
+    "destination"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "IAD to JFK altitude: Jet 17,000",
+   "text": "IAD departures to JFK: turbojet 17,000; turboprop/propeller N/A.",
+   "restr": "Jet 17,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KJFK"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "KJFK",
+    "JFK",
+    "altitude restriction",
+    "destination"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "IAD to ORF altitude: Jet 14,000",
+   "text": "IAD departures to ORF: turbojet 14,000; turboprop/propeller N/A.",
+   "restr": "Jet 14,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KORF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "KORF",
+    "ORF",
+    "altitude restriction",
+    "destination"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "IAD to PHL altitude: Jet 11,000 / Prop 7,000",
+   "text": "IAD departures to PHL: turbojet 11,000; turboprop/propeller 7,000.",
+   "restr": "Jet 11,000 / Prop 7,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KPHL"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "KPHL",
+    "PHL",
+    "altitude restriction",
+    "destination"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "IAD to RIC altitude: Jet 14,000 / Prop 10,000",
+   "text": "IAD departures to RIC: turbojet 14,000; turboprop/propeller 10,000.",
+   "restr": "Jet 14,000 / Prop 10,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [
+    "KRIC"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "KRIC",
+    "RIC",
+    "altitude restriction",
+    "destination"
+   ]
+  },
+  {
+   "ref": "3-3-1",
+   "cat": "Departure",
+   "title": "Departure exit gates required",
+   "text": "PCT uses departure exit gates for IFR departures to destinations outside PCT airspace. Every IFR aircraft leaving IAD must leave PCT airspace bound for one of these gates, unless coordinated otherwise. High gates for aircraft filed above 10,000 feet; low gates at or below 10,000 feet. Prop and turboprop aircraft may be routed via a low altitude gate regardless of altitude; low altitude aircraft may receive vectors to join any low altitude airway.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure gate",
+    "exit gate",
+    "PCT"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate BUFFR (NW)",
+   "text": "BUFFR is an IAD high altitude departure gate, direction NW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate CLTCH (SW)",
+   "text": "CLTCH is an IAD high altitude departure gate, direction SW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "CLTCH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate HANEY (SW)",
+   "text": "HANEY is an IAD high altitude departure gate, direction SW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "HANEY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate JERES (N/NW)",
+   "text": "JERES is an IAD high altitude departure gate, direction N/NW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate N/NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "JERES"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "N/NW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate JDUBB (SW)",
+   "text": "JDUBB is an IAD high altitude departure gate, direction SW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "JDUBB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate MCRAY (NW)",
+   "text": "MCRAY is an IAD high altitude departure gate, direction NW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "MCRAY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate OTTTO (W)",
+   "text": "OTTTO is an IAD high altitude departure gate, direction W. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate W",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "OTTTO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "W"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate PALEO/AGARD (NE)",
+   "text": "PALEO/AGARD is an IAD high altitude departure gate, direction NE. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "PALEO",
+    "AGARD"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate RAMAY (W)",
+   "text": "RAMAY is an IAD high altitude departure gate, direction W. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate W",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "RAMAY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "W"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate SCRAM (SW)",
+   "text": "SCRAM is an IAD high altitude departure gate, direction SW. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate SWANN (NE)",
+   "text": "SWANN is an IAD high altitude departure gate, direction NE. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "SWANN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate WHINO/COLIN (S/SE)",
+   "text": "WHINO/COLIN is an IAD high altitude departure gate, direction S/SE. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate S/SE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "WHINO",
+    "COLIN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "S/SE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gate WOOLY (NE)",
+   "text": "WOOLY is an IAD high altitude departure gate, direction NE. High gates are for aircraft filed above 10,000 feet.",
+   "restr": "High gate NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10001,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate BRV (S)",
+   "text": "BRV is an IAD low altitude departure gate, direction S. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate S",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BRV"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "S"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate CSN/LDN (W/SW)",
+   "text": "CSN/LDN is an IAD low altitude departure gate, direction W/SW. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate W/SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "CSN",
+    "LDN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "W/SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate EMI (N/NE)",
+   "text": "EMI is an IAD low altitude departure gate, direction N/NE. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate N/NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "EMI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "N/NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate GVE (S/SW)",
+   "text": "GVE is an IAD low altitude departure gate, direction S/SW. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate S/SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "GVE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "S/SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate HANEY (SW)",
+   "text": "HANEY is an IAD low altitude departure gate, direction SW. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "HANEY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate PXT (SE)",
+   "text": "PXT is an IAD low altitude departure gate, direction SE. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate SE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "PXT"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "SE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gate MRB (N/NW)",
+   "text": "MRB is an IAD low altitude departure gate, direction N/NW. Low gates are for aircraft filed at or below 10,000 feet (props/turboprops may use low gates regardless of altitude).",
+   "restr": "Low gate N/NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "MRB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "N/NW"
+   ]
+  },
+  {
+   "ref": "3-3-3",
+   "cat": "Departure",
+   "title": "Props may use low altitude gates at any altitude",
+   "text": "Prop and turboprop aircraft may be routed via a low altitude gate regardless of altitude. Low altitude aircraft may receive vectors to join any low altitude airway.",
+   "restr": "Low gate OK any alt",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "turboprop",
+    "low altitude gate",
+    "airway"
+   ]
+  },
+  {
+   "ref": "4-1-1",
+   "cat": "Ground",
+   "title": "Ground Control responsibilities",
+   "text": "Ground Control must (a) sequence aircraft that have the same first fix or direction of departure with other aircraft, and (b) keep runway exits clear for landing aircraft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "sequence",
+    "runway exits"
+   ]
+  },
+  {
+   "ref": "4-1-2",
+   "cat": "Coordination",
+   "title": "Runway crossings: verbal coordination",
+   "text": "Blanket crossings are not approved at IAD. Ground control must verbally coordinate with local control for any aircraft that requires a runway crossing.",
+   "restr": "No blanket crossings",
+   "from": "Ground",
+   "to": "Local",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway crossing",
+    "blanket"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "With-30 configs: assign runway 30",
+   "text": "When using North with 30 or South with 30, assign all departures runway 30. If operationally advantageous, aircraft may be assigned runway 1R/19L.",
+   "restr": "RWY 30 (1R/19L if advantageous)",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North with 30 / South with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "North Op: North/East bound departures RWY 1R",
+   "text": "In North Operation, assign North/East bound departures runway 1R. Fixes listed are the ASPER (North/East) departure fixes from TBL 5-2-2. Assigning a non-standard runway requires coordination with local control via verbal or nonverbal methods.",
+   "restr": "RWY 1R",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR",
+    "JCOBY",
+    "JERES",
+    "MCRAY",
+    "PALEO",
+    "SWANN",
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "North/East"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "North Op: South/West bound departures RWY 1C",
+   "text": "In North Operation, assign South/West bound departures runway 1C. Fixes listed are the TILLY (South/West) departure fixes from TBL 5-2-2. Assigning a non-standard runway requires coordination with local control via verbal or nonverbal methods.",
+   "restr": "RWY 1C",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "AML",
+    "BRV",
+    "BUNZZ",
+    "CLTCH",
+    "CSN",
+    "FLUKY",
+    "GVE",
+    "HAFNR",
+    "HANEY",
+    "JDUBB",
+    "LDN",
+    "MOL",
+    "MRB",
+    "OTTTO",
+    "RAMAY",
+    "RNDLI",
+    "RNLDI",
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "South/West"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "South Op: North/East bound departures RWY 19C",
+   "text": "In South Operation, assign North/East bound departures runway 19C. Fixes listed are the ASPER (North/East) departure fixes from TBL 5-2-2. Assigning a non-standard runway requires coordination with local control via verbal or nonverbal methods.",
+   "restr": "RWY 19C",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR",
+    "JCOBY",
+    "JERES",
+    "MCRAY",
+    "PALEO",
+    "SWANN",
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "North/East"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "South Op: South/West bound departures RWY 19L",
+   "text": "In South Operation, assign South/West bound departures runway 19L. Fixes listed are the TILLY (South/West) departure fixes from TBL 5-2-2. Assigning a non-standard runway requires coordination with local control via verbal or nonverbal methods.",
+   "restr": "RWY 19L",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "AML",
+    "BRV",
+    "BUNZZ",
+    "CLTCH",
+    "CSN",
+    "FLUKY",
+    "GVE",
+    "HAFNR",
+    "HANEY",
+    "JDUBB",
+    "LDN",
+    "MOL",
+    "MRB",
+    "OTTTO",
+    "RAMAY",
+    "RNDLI",
+    "RNLDI",
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "South/West"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Coordination",
+   "title": "Non-standard runway needs Local coordination",
+   "text": "Assigning an aircraft a non-standard runway requires coordination with local control via verbal or nonverbal methods. A non-standard departure runway also requires Local Control to call PCT for release (5-2-3).",
+   "restr": "",
+   "from": "Ground",
+   "to": "Local",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "non-standard runway",
+    "coordination"
+   ]
+  },
+  {
+   "ref": "4-2-1 to 4-2-3",
+   "cat": "Ground",
+   "title": "Ground East/North/West movement areas",
+   "text": "Ground East, Ground North and Ground West are each responsible for the movement areas depicted in Appendix A.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ground split",
+    "Appendix A"
+   ]
+  },
+  {
+   "ref": "4-2-4",
+   "cat": "Ground",
+   "title": "Pushbacks: ramp control or pilot discretion",
+   "text": "Ground control should not approve pushbacks; this falls under ramp control if online. If ramp control is not online, aircraft should be advised their pushback is at their discretion.",
+   "restr": "Push at pilot discretion (no ramp)",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "pushback",
+    "ramp"
+   ]
+  },
+  {
+   "ref": "5-1-1",
+   "cat": "Airspace",
+   "title": "Local Control airspace AOB 2,000",
+   "text": "Local Control assumes responsibility for the airspace depicted in Appendix B at or below 2,000 feet.",
+   "restr": "AOB 2,000",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "tower airspace",
+    "Appendix B"
+   ]
+  },
+  {
+   "ref": "5-1-2",
+   "cat": "Airspace",
+   "title": "Local East: runway 1R/19L",
+   "text": "Local East is responsible for runway(s) 1R/19L.",
+   "restr": "1R/19L",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Local East",
+    "local split"
+   ]
+  },
+  {
+   "ref": "5-1-3",
+   "cat": "Airspace",
+   "title": "Local North: runway 1C/19C",
+   "text": "Local North is responsible for runway(s) 1C/19C.",
+   "restr": "1C/19C",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Local North",
+    "local split"
+   ]
+  },
+  {
+   "ref": "5-1-4",
+   "cat": "Airspace",
+   "title": "Local West: runway 1L/19R and 12/30",
+   "text": "Local West is responsible for runway(s) 1L/19R and 12/30.",
+   "restr": "1L/19R and 12/30",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Local West",
+    "local split"
+   ]
+  },
+  {
+   "ref": "5-2-1",
+   "cat": "Departure",
+   "title": "Departure headings per TBL 5-2-1",
+   "text": "All departures should be issued departure headings in accordance with table 5-2-1. Aircraft on the BUNZZ or RNLDI SID may be issued a heading if operational advantage will be gained.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "heading",
+    "departure heading"
+   ]
+  },
+  {
+   "ref": "5-2-1",
+   "cat": "Departure",
+   "title": "BUNZZ / RNLDI SID: heading only if advantageous",
+   "text": "Aircraft on the BUNZZ or RNLDI SID may be issued a heading if operational advantage will be gained.",
+   "restr": "Heading optional",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUNZZ",
+    "RNLDI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "SID",
+    "heading"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "ASPER heading 300 – 010 (RWYs 1L, 1C, 1R,)",
+   "text": "Runways in use 1L, 1C, 1R, and/or 30 (as printed): ASPER departure fix aircraft get headings 300 – 010. Fixes listed are the ASPER departure fixes from TBL 5-2-2.",
+   "restr": "HDG 300 – 010",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR",
+    "JCOBY",
+    "JERES",
+    "MCRAY",
+    "PALEO",
+    "SWANN",
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North / North with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "ASPER",
+    "1L, 1C, 1R, and/or 30"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "TILLY heading 245 – 300 (RWYs 1L, 1C, 1R,)",
+   "text": "Runways in use 1L, 1C, 1R, and/or 30 (as printed): TILLY departure fix aircraft get headings 245 – 300. Fixes listed are the TILLY departure fixes from TBL 5-2-2.",
+   "restr": "HDG 245 – 300",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "AML",
+    "BRV",
+    "BUNZZ",
+    "CLTCH",
+    "CSN",
+    "FLUKY",
+    "GVE",
+    "HAFNR",
+    "HANEY",
+    "JDUBB",
+    "LDN",
+    "MOL",
+    "MRB",
+    "OTTTO",
+    "RAMAY",
+    "RNDLI",
+    "RNLDI",
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North / North with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "TILLY",
+    "1L, 1C, 1R, and/or 30"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "ASPER heading 210 – 250 (RWYs 19L, 19C, 19R)",
+   "text": "Runways in use 19L, 19C, 19R and landing 12 (as printed): ASPER departure fix aircraft get headings 210 – 250. Fixes listed are the ASPER departure fixes from TBL 5-2-2.",
+   "restr": "HDG 210 – 250",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR",
+    "JCOBY",
+    "JERES",
+    "MCRAY",
+    "PALEO",
+    "SWANN",
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South / South with 12",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "ASPER",
+    "19L, 19C, 19R and landing 12"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "TILLY heading 190 – 210 (RWYs 19L, 19C, 19R)",
+   "text": "Runways in use 19L, 19C, 19R and landing 12 (as printed): TILLY departure fix aircraft get headings 190 – 210. Fixes listed are the TILLY departure fixes from TBL 5-2-2.",
+   "restr": "HDG 190 – 210",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "AML",
+    "BRV",
+    "BUNZZ",
+    "CLTCH",
+    "CSN",
+    "FLUKY",
+    "GVE",
+    "HAFNR",
+    "HANEY",
+    "JDUBB",
+    "LDN",
+    "MOL",
+    "MRB",
+    "OTTTO",
+    "RAMAY",
+    "RNDLI",
+    "RNLDI",
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South / South with 12",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "TILLY",
+    "19L, 19C, 19R and landing 12"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "ASPER heading 280 – 320 (RWYs 19R, 19C, 19R)",
+   "text": "Runways in use 19R, 19C, 19R and/or 30 (as printed): ASPER departure fix aircraft get headings 280 – 320. Fixes listed are the ASPER departure fixes from TBL 5-2-2.",
+   "restr": "HDG 280 – 320",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR",
+    "JCOBY",
+    "JERES",
+    "MCRAY",
+    "PALEO",
+    "SWANN",
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "ASPER",
+    "19R, 19C, 19R and/or 30"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "TILLY heading 190 – 280 (RWYs 19R, 19C, 19R)",
+   "text": "Runways in use 19R, 19C, 19R and/or 30 (as printed): TILLY departure fix aircraft get headings 190 – 280. Fixes listed are the TILLY departure fixes from TBL 5-2-2.",
+   "restr": "HDG 190 – 280",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "AML",
+    "BRV",
+    "BUNZZ",
+    "CLTCH",
+    "CSN",
+    "FLUKY",
+    "GVE",
+    "HAFNR",
+    "HANEY",
+    "JDUBB",
+    "LDN",
+    "MOL",
+    "MRB",
+    "OTTTO",
+    "RAMAY",
+    "RNDLI",
+    "RNLDI",
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "TILLY",
+    "19R, 19C, 19R and/or 30"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "North RWY 30 with SIMULS: 280-310 limits",
+   "text": "Runways 1L, 1C, 1R and/or 30 in use: when departing RWY 30 and SIMULS are in use, turn no further west than 280 and no further northwest than 310.",
+   "restr": "RWY 30 HDG 280 – 310",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "SIMULS",
+    "runway 30",
+    "heading"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1",
+   "cat": "Departure",
+   "title": "South RWY 30 with SIMULS: 250-300 limits",
+   "text": "Runways 19R, 19C, 19R and/or 30 in use (as printed): when departing RWY 30 and SIMULS are in use, turn no further northwest than 300 and no further southwest than 250.",
+   "restr": "RWY 30 HDG 250 – 300",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South with 30",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "SIMULS",
+    "runway 30",
+    "heading"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "BUFFR: ASPER departure fix",
+   "text": "BUFFR is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "JCOBY: ASPER departure fix",
+   "text": "JCOBY is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "JCOBY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "JERES: ASPER departure fix",
+   "text": "JERES is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "JERES"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "MCRAY: ASPER departure fix",
+   "text": "MCRAY is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "MCRAY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "PALEO: ASPER departure fix",
+   "text": "PALEO is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "PALEO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "SWANN: ASPER departure fix",
+   "text": "SWANN is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "SWANN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "WOOLY: ASPER departure fix",
+   "text": "WOOLY is an ASPER departure fix (East/North); assign ASPER departure frequency 125.050 (3-1-5).",
+   "restr": "ASPER 125.050",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "ASPER"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "AML: TILLY departure fix",
+   "text": "AML is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "AML"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "BRV: TILLY departure fix",
+   "text": "BRV is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BRV"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "BUNZZ: TILLY departure fix",
+   "text": "BUNZZ is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUNZZ"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "CLTCH: TILLY departure fix",
+   "text": "CLTCH is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "CLTCH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "CSN: TILLY departure fix",
+   "text": "CSN is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "CSN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "FLUKY: TILLY departure fix",
+   "text": "FLUKY is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "FLUKY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "GVE: TILLY departure fix",
+   "text": "GVE is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "GVE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "HAFNR: TILLY departure fix",
+   "text": "HAFNR is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "HAFNR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "HANEY: TILLY departure fix",
+   "text": "HANEY is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "HANEY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "JDUBB: TILLY departure fix",
+   "text": "JDUBB is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "JDUBB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "LDN: TILLY departure fix",
+   "text": "LDN is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "LDN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "MOL: TILLY departure fix",
+   "text": "MOL is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "MOL"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "MRB: TILLY departure fix",
+   "text": "MRB is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "MRB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "OTTTO: TILLY departure fix",
+   "text": "OTTTO is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "OTTTO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "RAMAY: TILLY departure fix",
+   "text": "RAMAY is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "RAMAY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "RNDLI: TILLY departure fix",
+   "text": "RNDLI is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5). Printed RNDLI in the table and RNLDI in 5-2-1.",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "RNDLI",
+    "RNLDI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2",
+   "cat": "Departure",
+   "title": "SCRAM: TILLY departure fix",
+   "text": "SCRAM is a TILLY departure fix (South/West); assign TILLY departure frequency 126.650 (3-1-5).",
+   "restr": "TILLY 126.650",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure fix",
+    "TILLY"
+   ]
+  },
+  {
+   "ref": "5-2-2",
+   "cat": "Departure",
+   "title": "LUAW authorized",
+   "text": "LUAW procedures are authorized at IAD. Use LUAW when it is expected the aircraft will depart after conflicting traffic is clear of the runway/intersection; use good operating practices and memory aids. Landing clearances need not be withheld for traffic holding in position.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "line up and wait",
+    "position and hold"
+   ]
+  },
+  {
+   "ref": "5-2-3",
+   "cat": "Coordination",
+   "title": "Blanket IFR releases and exceptions",
+   "text": "IAD has blanket IFR releases unless: (a) a previous missed approach/go around occurred and PCT has not given back automatic releases; (b) PCT cancels automatic releases; or (c) an aircraft departs a non-standard departure runway. Then Local Control must call PCT for release stating ACID, runway and departure heading, and SID and transition or initial fix.",
+   "restr": "Call for release if exception applies",
+   "from": "IAD ATCT",
+   "to": "PCT",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "release",
+    "automatic release",
+    "rolling"
+   ]
+  },
+  {
+   "ref": "5-3-1",
+   "cat": "Arrival",
+   "title": "Reduced separation 2.5 NM on final",
+   "text": "Separation of IFR arrivals may be reduced to 2.5 NM within 10 NM of the runway on the final approach course, regardless of operation or runways in use, providing wake turbulence is not a factor.",
+   "restr": "2.5 NM within 10 NM",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "reduced separation",
+    "final"
+   ]
+  },
+  {
+   "ref": "5-3-2",
+   "cat": "Arrival",
+   "title": "Missed approach/go around: RWY HDG, 2,000",
+   "text": "Local control shall immediately coordinate with PCT on a missed approach/go around. Unless otherwise coordinated, instruct the aircraft to fly runway heading and maintain 2,000 feet. Automatic releases are then suspended until released by PCT. Tower may re-sequence props if it ensures separation from all pertinent traffic and does not affect the sequence of other IFR arrivals sequenced by PCT.",
+   "restr": "RWY HDG, maintain 2,000",
+   "from": "IAD ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "go around",
+    "missed approach",
+    "releases suspended"
+   ]
+  },
+  {
+   "ref": "5-3-3",
+   "cat": "Handoff",
+   "title": "Arrivals clear of runway to Ground",
+   "text": "Once aircraft are clear of the runway, they shall be transferred to ground control unless otherwise coordinated.",
+   "restr": "To Ground when clear",
+   "from": "Local",
+   "to": "Ground",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway exit",
+    "transfer"
+   ]
+  },
+  {
+   "ref": "6-1-1",
+   "cat": "Ground",
+   "title": "Ramp Control area and authorization",
+   "text": "Ramp Control is responsible for the non-movement area between taxiways Zulu and Juliet. It may be split as traffic requires or as permitted by the vZDC Events Coordinator, and shall only be used when approved by the Events Coordinator or a delegated Events Team member. When not utilized, Ground Control does not assume responsibility for Ramp Control.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ramp",
+    "Zulu",
+    "Juliet",
+    "events"
+   ]
+  },
+  {
+   "ref": "6-1-2",
+   "cat": "Ground",
+   "title": "Ramp Control duties: departures",
+   "text": "Ramp Control shall: approve pushbacks and specify tail direction; issue runway assignments; provide Ground Control departure sequencing based on departure runway and gate; instruct aircraft to taxi via the appropriate taxiway, hold short of taxiway Zulu or Juliet and contact Ground Control. Ground Control may change runway assignments as necessary.",
+   "restr": "Hold short Z/J, contact Ground",
+   "from": "Ramp",
+   "to": "Ground",
+   "dep": [
+    "KIAD"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "ramp",
+    "pushback",
+    "tail direction"
+   ]
+  },
+  {
+   "ref": "6-1-3",
+   "cat": "Ground",
+   "title": "Ramp Control duties: arrivals",
+   "text": "Ramp Control shall issue taxi instructions to aircraft entering the ramp from the movement areas, and transition aircraft taxiing across the ramp and transfer communications to the appropriate ground controller.",
+   "restr": "",
+   "from": "Ground",
+   "to": "Ramp",
+   "dep": [],
+   "arr": [
+    "KIAD"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "ramp",
+    "arrival taxi"
+   ]
+  },
+  {
+   "ref": "6-2-1",
+   "cat": "Ground",
+   "title": "South Area Ramp: taxiways E and F",
+   "text": "South Area Ramp (130.550) is responsible for taxiways E and F and their associated gates between taxiways J and Z.",
+   "restr": "TWY E and F",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "South Area Ramp",
+    "ramp"
+   ]
+  },
+  {
+   "ref": "6-2-2",
+   "cat": "Ground",
+   "title": "North Area Ramp: taxiways A and B",
+   "text": "North Area Ramp (119.125) is responsible for taxiways A and B and their associated gates between taxiways J and Z.",
+   "restr": "TWY A and B",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "North Area Ramp",
+    "ramp"
+   ]
+  },
+  {
+   "ref": "6-2-3",
+   "cat": "Ground",
+   "title": "Midfield Area Ramp: taxiways C and D",
+   "text": "Midfield Area Ramp (129.550) is responsible for taxiways C and D and their associated gates between taxiways J and Z.",
+   "restr": "TWY C and D",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "Midfield Area Ramp",
+    "ramp"
+   ]
+  },
+  {
+   "ref": "App A",
+   "cat": "Ground",
+   "title": "Ground Control split diagram",
+   "text": "Appendix A diagram shows the Ground East (green), Ground North (magenta) and Ground West (blue) movement areas. As drawn: Ground East covers the east runway 1R/19L complex, Ground North the taxiways along runway 1C/19C west of the terminal, Ground West runway 1L/19R and 12/30 areas. Diagram only; no text beyond the legend.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ground split",
+    "Ground East",
+    "Ground North",
+    "Ground West"
+   ]
+  },
+  {
+   "ref": "App B",
+   "cat": "Airspace",
+   "title": "Local Control airspace and neighbours",
+   "text": "Appendix B map: IAD ATCT AOB 2000. Adjacent: JYO ATCT AOB 2000 (north-west), HEF ATCT AOB 2000 (south), DCA Helicopter Control AOB 1499 (east), DCA ATCT AOB 2000.",
+   "restr": "IAD ATCT AOB 2000",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "JYO",
+    "HEF",
+    "DCA helicopter",
+    "1499"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 19R intersection distances",
+   "text": "Runway 19R distance available from intersections: U 9,400 ft; U1 8,850 ft; U2 6,700 ft; U3 5,300 ft; U6 700 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 19R"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 19C intersection distances",
+   "text": "Runway 19C distance available from intersections: Y1 11,000 ft; Y2 7,500 ft; Y4 5,750 ft; Y6 4,000 ft; D/W3 2775 ft; E/W4 2000 ft; Y8 500 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 19C"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 1C intersection distances",
+   "text": "Runway 1C distance available from intersections: Y8 11,000 ft; E/W4 9,500 ft; D/W3 8,725 ft; Y7 7,500 ft; Y5 5,750 ft; Y3 4,000 ft; Y1 500 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 1C"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 1L intersection distances",
+   "text": "Runway 1L distance available from intersections: U1 550 ft; U4 6,450 ft; U5 7,750 ft; U6 8,700 ft; U7 9,400 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 1L"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 12 intersection distances",
+   "text": "Runway 12 distance available from intersections: Q1 6,750 ft; Q3 4,250 ft; Y 900 ft; Z 500 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 12"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 30 intersection distances",
+   "text": "Runway 30 distance available from intersections: Z 10,000 ft; Y 9,600 ft; Q4 6,250 ft; Q2 3,750 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 30"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 19L intersection distances",
+   "text": "Runway 19L distance available from intersections: K1 11,000 ft; K2 7,500 ft; K4 5,750 ft; K6 4,000 ft; K8 500 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 19L"
+   ]
+  },
+  {
+   "ref": "App C",
+   "cat": "Runway config",
+   "title": "Runway 1R intersection distances",
+   "text": "Runway 1R distance available from intersections: K8 11,000 ft; K7 7,500 ft; K5 5,750 ft; K3 4,000 ft; K1 500 ft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "intersection departure",
+    "distance available",
+    "runway 1R"
+   ]
+  }
+ ]
+}
