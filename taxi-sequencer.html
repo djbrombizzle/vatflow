@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taxi Sequencer — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --red: #e07070;
+    --violet: #b28cff;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ui); overflow: hidden; }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
+
+  .app { position: fixed; top: var(--vatflow-nav-h); left: 0; right: 0; bottom: 0; display: grid; grid-template-rows: auto 1fr; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar h1 { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 10px 0 0; color: var(--amber); }
+  input, button, select {
+    font-family: var(--mono); font-size: 12px; color: var(--text); background: var(--panel2);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 6px 9px;
+  }
+  input#apt { width: 74px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em; }
+  button { cursor: pointer; }
+  button:hover, input:hover { border-color: var(--amber); }
+  button.on { color: #0b0f14; background: var(--amber); border-color: var(--amber); font-weight: 700; }
+  .chip { padding: 4px 8px; font-size: 11px; }
+  .chip.on { background: #e8eef4; color: #0b0f14; border-color: #e8eef4; }
+  .muted { color: var(--muted); }
+  .dim { color: var(--dim); }
+  .status { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .status b.live { color: var(--green); }
+  .status b.demo { color: var(--violet); }
+
+  .main { display: grid; grid-template-columns: 1fr 420px; min-height: 0; }
+  #map { width: 100%; height: 100%; background: #05080c; }
+  .side { overflow-y: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 10px 12px 30px; }
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
+    .side { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  .side h2 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  .note { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+  /* Compass legend: the colour of a fix is its bearing from the field */
+  .compass { display: flex; gap: 12px; align-items: center; }
+  .wheel { position: relative; width: 112px; height: 112px; flex: none; }
+  .wheel .ring { position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, hsl(0,82%,62%), hsl(60,82%,62%), hsl(120,82%,62%), hsl(180,82%,62%), hsl(240,82%,62%), hsl(300,82%,62%), hsl(360,82%,62%));
+    -webkit-mask: radial-gradient(circle, transparent 38px, #000 39px, #000 46px, transparent 47px);
+            mask: radial-gradient(circle, transparent 38px, #000 39px, #000 46px, transparent 47px); opacity: 0.35; }
+  .wheel svg { position: absolute; inset: 0; }
+  .fixlist { display: flex; flex-wrap: wrap; gap: 4px; font-family: var(--mono); font-size: 10.5px; }
+  .fixchip { border-radius: 4px; padding: 2px 6px; color: #0b0f14; font-weight: 700; white-space: nowrap; }
+  .fixchip.closed { background: transparent !important; color: var(--text); border: 1px dashed; font-weight: 600; }
+
+  /* Runway loom: first-come vs sequenced, one tile per departure */
+  .rwy { border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); margin: 8px 0; padding: 8px 10px; }
+  .rwy-h { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); }
+  .rwy-h .id { font-size: 18px; font-weight: 800; letter-spacing: 0.05em; }
+  .rwy-h .saved { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--green); }
+  .rwy-h .saved.zero { color: var(--dim); font-weight: 500; }
+  .loom-l { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 8px 0 3px; display: flex; justify-content: space-between; }
+  .loom { display: flex; align-items: stretch; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  .tile { flex: none; min-width: 58px; border-radius: 5px; padding: 3px 5px 4px; color: #0b0f14; font-family: var(--mono); cursor: pointer; position: relative; border: 2px solid transparent; }
+  .tile .cs { font-size: 10.5px; font-weight: 800; }
+  .tile .fx { font-size: 9.5px; opacity: 0.85; }
+  .tile .eta { font-size: 9.5px; font-weight: 700; }
+  .tile.sel { border-color: #fff; box-shadow: 0 0 0 1px #000 inset; }
+  .tile.up::after { content: "▲"; position: absolute; top: -2px; right: 2px; font-size: 9px; }
+  .tile.parked { opacity: 0.45; }
+  .link { flex: none; width: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; font-weight: 700; }
+  .link::before { content: ""; display: block; width: 100%; height: 3px; border-radius: 2px; background: currentColor; margin-bottom: 2px; }
+  .k-diverge { color: var(--green); } .k-partial { color: var(--amber); } .k-same { color: var(--red); }
+  .k-wake { color: var(--violet); } .k-unknown { color: var(--muted); } .k-first { color: var(--dim); }
+  .moves { margin: 6px 0 0; padding: 0; list-style: none; font-size: 11.5px; }
+  .moves li { padding: 3px 0; border-top: 1px dashed var(--line); }
+  .moves b { font-family: var(--mono); }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; vertical-align: -1px; margin-right: 3px; }
+
+  .log { font-family: var(--mono); font-size: 11px; width: 100%; border-collapse: collapse; }
+  .log td { padding: 2px 4px; border-top: 1px solid var(--line); white-space: nowrap; }
+  details.cfg { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-top: 12px; }
+  details.cfg summary { cursor: pointer; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 70px; gap: 5px 8px; align-items: center; font-size: 12px; margin-top: 8px; }
+  .grid2 input { width: 70px; }
+
+  /* Map marks */
+  .leaflet-container { font-family: var(--mono); }
+  .leaflet-tooltip.blk { background: transparent; border: none; box-shadow: none; color: var(--text); font-family: var(--mono); font-size: 10.5px; line-height: 1.25; padding: 0 0 0 4px; text-shadow: 0 0 3px #000, 0 0 2px #000, 0 0 1px #000; }
+  .leaflet-tooltip.blk:before, .leaflet-tooltip.spk:before, .leaflet-tooltip.rid:before { display: none; }
+  .leaflet-tooltip.spk { background: transparent; border: none; box-shadow: none; font-family: var(--mono); font-size: 10.5px; font-weight: 800; padding: 0 3px; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .leaflet-tooltip.rid { background: #0b0f14cc; border: 1px solid #3a4654; box-shadow: none; color: #e8eef4; font-family: var(--mono); font-size: 11px; font-weight: 800; padding: 0 4px; }
+  .seq { display: flex; align-items: center; justify-content: center; border-radius: 50%; font: 800 11px/1 var(--mono); color: #0b0f14; box-shadow: 0 0 0 2px #0b0f14, 0 0 6px #000; }
+  .seq.next { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 2px #0b0f14, 0 0 0 7px rgba(255,255,255,0.25); } }
+  .spoke-next { animation: spoke 1.2s ease-in-out infinite; }
+  @keyframes spoke { 50% { stroke-opacity: 0.35; } }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div class="app">
+  <div class="bar">
+    <h1>Taxi Sequencer</h1>
+    <input id="apt" maxlength="4" value="KATL" aria-label="Airport ICAO" title="Departure airport">
+    <button id="liveBtn" class="on" title="Live VATSIM traffic">LIVE</button>
+    <button id="demoBtn" title="Simulated departures to see how the sequencer behaves">DEMO</button>
+    <span class="muted" style="font-size:11px;margin-left:6px">DEP RWYS</span>
+    <span id="rwyChips"></span>
+    <button id="atisBtn" class="chip" title="Take the departure runways from the field's VATSIM ATIS">ATIS</button>
+    <span class="status" id="status">loading…</span>
+  </div>
+  <div class="main">
+    <div id="map"></div>
+    <aside class="side">
+      <div class="compass">
+        <div class="wheel" id="wheel"><div class="ring"></div></div>
+        <div class="note">
+          <b style="color:var(--text)">Colour is course.</b> Each departure takes the colour of its SID + next fix's bearing from the field, so opposite courses are opposite colours. A queue that alternates colours is already split; a run of one colour is a run of in-trail departures.
+        </div>
+      </div>
+      <h2>Fix clocks <span class="dim" style="letter-spacing:0;text-transform:none">· time until the next clean release to each fix</span></h2>
+      <div class="fixlist" id="clocks"></div>
+      <div id="runways"></div>
+      <h2>Recent departures</h2>
+      <table class="log" id="log"></table>
+      <details class="cfg">
+        <summary>Intervals</summary>
+        <div class="grid2">
+          <label for="ivDiverge">Diverging, 45°+ apart (s)</label><input id="ivDiverge" type="number" min="30" max="300" step="5">
+          <label for="ivPartial">15–45° apart (s)</label><input id="ivPartial" type="number" min="30" max="300" step="5">
+          <label for="ivSame">Same fix / under 15° (s)</label><input id="ivSame" type="number" min="30" max="600" step="5">
+          <label for="ivWake">Behind a heavy (s)</label><input id="ivWake" type="number" min="60" max="300" step="5">
+          <label for="ivShift">Most places anyone is jumped</label><input id="ivShift" type="number" min="0" max="4" step="1">
+        </div>
+        <p class="note">Same-fix spacing is held across the whole field: a departure to a fix waits for the clock any runway started on it. Wheels-up estimates are present position to the runway at 13 kt along a 1.35× path, plus 90 s to push and start for aircraft that have not moved yet.</p>
+      </details>
+      <p class="note" style="margin-top:12px">
+        Read-only advice. The departure fix is the SID's enroute transition when one is filed, else the next fix in the route, else the SID's exit fix (FAA CIFP). Runways come from the field's VATSIM ATIS or from the chips above. Each runway's queue is ordered by searching every order within the jump limit of first-come first-served for the least total wait.
+      </p>
+    </aside>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { assignRunway, gcNm, normalizeRunway, sidFromRoute } from "./shared/taxi-estimate.js";
+import { loadRunwayEnds, loadSidRunways, sidRunwaysFor } from "./shared/taxi-runways.js";
+import { runwaysFromAtis } from "./shared/vatsmart.js";
+import { VATSIM_FEED_TAXI_MS } from "./shared/vatflow-refresh.js";
+import {
+  bearingDeg, compassOf, courseColor, departureFix, destination, fixClocks, fmtSec, pairInterval,
+  readySec, sequenceRunway, wakeOf, DEFAULT_INTERVALS, MAX_SHIFT,
+} from "./shared/taxi-sequencer.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "taxi-seq");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const GROUND_NM = 4;          // a departure this close to the field and slow is on the ground
+const AIRBORNE_KT = 50;
+const MOVED_KT = 5;
+const SPOKE_NM = 0.85;
+const KIND_COLOR = { diverge: "#57d98a", partial: "#e8a838", same: "#e07070", wake: "#b28cff", unknown: "#8a97a3", first: "#5c6b78" };
+const KIND_TEXT = { diverge: "diverging", partial: "partly diverging", same: "in trail", wake: "wake", unknown: "unknown fix", first: "" };
+
+const st = {
+  apt: "", mode: "live", fieldLL: null, ends: [], pairs: [],
+  procs: null, fixes: null, navaids: null,
+  dep: [], rwyMode: "atis", atisText: "",
+  pilots: [], feedAt: 0, feedState: "idle",
+  moved: new Map(),          // callsign -> true once it has taxied
+  inQueue: new Map(),        // callsign -> last queue entry, to catch the takeoff roll
+  departures: [],            // [{ cs, fix, bearing, wake, rwy, at, label, pair }]
+  sel: "",
+  plans: [], parked: [],
+  iv: { ...DEFAULT_INTERVALS }, maxShift: MAX_SHIFT,
+  demo: null,
+};
+
+/* ---------------- settings (per browser) ---------------- */
+function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem("taxiseq.prefs") || "{}");
+    if (p.iv) Object.assign(st.iv, p.iv);
+    if (isFinite(p.maxShift)) st.maxShift = p.maxShift;
+    return p;
+  } catch { return {}; }
+}
+function savePrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem("taxiseq.prefs") || "{}");
+    p.iv = st.iv; p.maxShift = st.maxShift;
+    p.rwys = p.rwys || {};
+    p.rwys[st.apt] = { mode: st.rwyMode, dep: st.dep };
+    localStorage.setItem("taxiseq.prefs", JSON.stringify(p));
+  } catch { /* private window: settings just don't stick */ }
+}
+const prefs = loadPrefs();
+for (const [id, key] of [["ivDiverge", "diverge"], ["ivPartial", "partial"], ["ivSame", "same"], ["ivWake", "wake"]]) {
+  $(id).value = st.iv[key];
+  $(id).addEventListener("change", () => { const v = +$(id).value; if (v > 0) { st.iv[key] = v; savePrefs(); render(); } });
+}
+$("ivShift").value = st.maxShift;
+$("ivShift").addEventListener("change", () => { st.maxShift = Math.max(0, Math.min(4, +$("ivShift").value || 0)); savePrefs(); render(); });
+
+/* ---------------- nav data ---------------- */
+let navLoading = null;
+function loadNav() {
+  if (navLoading) return navLoading;
+  const j = f => fetch("data/nav/" + f).then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+  navLoading = Promise.all([j("procedures.json"), j("fixes.json"), j("navaids.json"), loadSidRunways()])
+    .then(([procs, fixes, navaids]) => { st.procs = procs; st.fixes = fixes; st.navaids = navaids; });
+  return navLoading;
+}
+
+/** Runway ends paired into runways: [[a, b]]. */
+function pairEnds(ends) {
+  const left = ends.slice(), out = [];
+  while (left.length) {
+    const a = left.shift();
+    const num = +a.id.slice(0, 2), side = a.id.slice(2);
+    const want = String(((num + 17) % 36) + 1).padStart(2, "0") + ({ L: "R", R: "L", C: "C" }[side] || "");
+    const i = left.findIndex(b => b.id === want);
+    out.push(i >= 0 ? [a, left.splice(i, 1)[0]] : [a]);
+  }
+  return out;
+}
+const endById = id => st.ends.find(e => e.id === id);
+/** Where a departure off `id` leaves the ground: the far threshold. */
+function liftEnd(id) {
+  const e = endById(id);
+  if (!e) return null;
+  const pair = st.pairs.find(p => p.includes(e));
+  const far = pair && pair.find(x => x !== e);
+  if (far) return far;
+  const ll = destination(e.lat, e.lon, e.hdg, (e.lenFt || 8000) / 6076);
+  return { lat: ll[0], lon: ll[1] };
+}
+
+async function setAirport(apt) {
+  apt = String(apt || "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{3,4}$/.test(apt)) return;
+  st.apt = apt; st.sel = ""; st.moved.clear(); st.inQueue.clear(); st.departures = []; st.demo = null;
+  st.fieldLL = null; st.ends = []; st.pairs = [];
+  history.replaceState(null, "", `?apt=${apt}${st.mode === "demo" ? "&demo=1" : ""}`);
+  setStatus();
+  const [ends] = await Promise.all([loadRunwayEnds(apt), loadNav()]);
+  if (apt !== st.apt) return;
+  st.ends = ends;
+  st.pairs = pairEnds(ends);
+  if (ends.length) st.fieldLL = [ends.reduce((s, e) => s + e.lat, 0) / ends.length, ends.reduce((s, e) => s + e.lon, 0) / ends.length];
+  const saved = (prefs.rwys || {})[apt];
+  st.rwyMode = saved ? saved.mode : "atis";
+  st.dep = saved && saved.mode === "manual" ? saved.dep.filter(endById) : [];
+  fitMap();
+  if (st.mode === "demo") startDemo();
+  pickRunways();
+  render();
+}
+
+/* ---------------- runways ---------------- */
+function pickRunways() {
+  if (st.rwyMode !== "atis") return;
+  const known = st.ends.map(e => e.id);
+  let dep = runwaysFromAtis(st.atisText, known).dep;
+  if (!dep.length && st.mode === "demo" && st.demo) dep = st.demo.rwys;
+  if (!dep.length) {
+    // Nothing said: the longest runway, the end most of the moving ground traffic is facing.
+    const longest = st.pairs.slice().sort((a, b) => (b[0].lenFt || 0) - (a[0].lenFt || 0))[0] || [];
+    const vote = e => st.pilots.filter(p => p.gs >= MOVED_KT).reduce((s, p) => s + Math.cos((p.hdg - e.hdg) * Math.PI / 180), 0);
+    const best = longest.slice().sort((a, b) => vote(b) - vote(a))[0];
+    dep = best ? [best.id] : [];
+  }
+  st.dep = dep;
+}
+function renderChips() {
+  $("rwyChips").innerHTML = st.pairs.flat().map(e =>
+    `<button class="chip${st.dep.includes(e.id) ? " on" : ""}" data-rwy="${esc(e.id)}">${esc(e.id)}</button>`).join(" ");
+  $("atisBtn").classList.toggle("on", st.rwyMode === "atis");
+}
+$("rwyChips").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-rwy]");
+  if (!b) return;
+  const id = b.dataset.rwy;
+  st.rwyMode = "manual";
+  st.dep = st.dep.includes(id) ? st.dep.filter(x => x !== id) : [...st.dep, id].sort();
+  savePrefs(); render();
+});
+$("atisBtn").addEventListener("click", () => { st.rwyMode = "atis"; pickRunways(); savePrefs(); render(); });
+
+/* ---------------- traffic ---------------- */
+function fpOf(p) {
+  const fp = p.flight_plan || {};
+  return { dep: (fp.departure || "").toUpperCase(), route: fp.route || "", type: fp.aircraft_short || fp.aircraft_faa || fp.aircraft || "" };
+}
+/** Ground departures at the field with their SID + next fix. */
+function groundDepartures(nowMs) {
+  const out = [];
+  if (!st.fieldLL) return out;
+  for (const p of st.pilots) {
+    const fp = fpOf(p);
+    if (fp.dep !== st.apt) continue;
+    const nm = gcNm(p.lat, p.lon, st.fieldLL[0], st.fieldLL[1]);
+    if (nm > GROUND_NM) continue;
+    if (p.gs >= MOVED_KT) st.moved.set(p.callsign, nowMs);
+    const fx = departureFix({ route: fp.route, icao: st.apt, fieldLL: st.fieldLL, procs: st.procs, fixes: st.fixes, navaids: st.navaids });
+    const sid = sidFromRoute(fp.route);
+    out.push({
+      id: p.callsign, cs: p.callsign, lat: p.lat, lon: p.lon, gs: p.gs, hdg: p.hdg,
+      type: fp.type.replace(/^[HMLJS]\//, "").split("/")[0], wake: wakeOf(fp.type),
+      sid, fix: fx.fix, bearing: fx.bearing, label: fx.label, moved: st.moved.has(p.callsign),
+      airborne: p.gs >= AIRBORNE_KT,
+    });
+  }
+  return out;
+}
+
+/** Someone in the queue is now rolling: log the departure so its fix clock starts. */
+function catchTakeoffs(list, nowMs) {
+  const seen = new Set();
+  for (const a of list) {
+    seen.add(a.cs);
+    const was = st.inQueue.get(a.cs);
+    if (a.airborne && was) {
+      logDeparture({ ...was, at: nowMs });
+      st.inQueue.delete(a.cs);
+    }
+  }
+  for (const cs of [...st.inQueue.keys()]) if (!seen.has(cs) && nowMs - st.inQueue.get(cs).seen > 120000) st.inQueue.delete(cs);
+}
+function logDeparture(d) {
+  const prev = st.departures.filter(x => x.rwy === d.rwy)[0];
+  const gap = prev ? (d.at - prev.at) / 1000 : NaN;
+  const pair = prev ? pairInterval(prev, d, st.iv) : null;
+  st.departures.unshift({ cs: d.cs, fix: d.fix, bearing: d.bearing, wake: d.wake, rwy: d.rwy, label: d.label, at: d.at, gap, pair });
+  st.departures.length = Math.min(st.departures.length, 30);
+}
+
+/* ---------------- plan ---------------- */
+function buildPlans(nowMs) {
+  const list = groundDepartures(nowMs);
+  catchTakeoffs(list, nowMs);
+  const sids = sidRunwaysFor(st.apt);
+  const lastByRwy = {};
+  for (const d of st.departures) if (!lastByRwy[d.rwy]) lastByRwy[d.rwy] = d;
+  const clocks = fixClocks(st.departures.map(d => ({ ...d, agoSec: (nowMs - d.at) / 1000 })), st.iv);
+
+  const byRwy = new Map(st.dep.map(r => [r, []]));
+  const parked = [];
+  for (const a of list) {
+    if (a.airborne) continue;
+    const asg = assignRunway({ lat: a.lat, lon: a.lon, sid: a.sid, ends: st.ends, activeRunways: st.dep, sidRunways: sids });
+    a.rwy = asg.runway;
+    if (!a.moved || !byRwy.has(a.rwy)) { parked.push(a); continue; }
+    a.ready = readySec(a, endById(a.rwy));
+    byRwy.get(a.rwy).push(a);
+    st.inQueue.set(a.cs, { cs: a.cs, fix: a.fix, bearing: a.bearing, wake: a.wake, rwy: a.rwy, label: a.label, seen: nowMs });
+  }
+
+  // Same-fix spacing across runways comes from departures that have actually gone.
+  const plans = [...byRwy.entries()].map(([rwy, queue]) => {
+    const last = lastByRwy[rwy];
+    const res = sequenceRunway(queue, {
+      intervals: st.iv, maxShift: st.maxShift, fixFloors: clocks,
+      lastDep: last ? { ...last, agoSec: (nowMs - last.at) / 1000 } : null,
+    });
+    return { rwy, queue, ...res };
+  });
+  plans.sort((a, b) => a.rwy.localeCompare(b.rwy));
+  st.plans = plans; st.parked = parked; st.clocks = clocks;
+}
+
+/* ---------------- map ---------------- */
+let map = null, layer = null;
+function fitMap() {
+  if (!map || !st.ends.length) return;
+  map.fitBounds(L.latLngBounds(st.ends.map(e => [e.lat, e.lon])).pad(0.25));
+}
+function ensureMap() {
+  if (map || !window.L) return;
+  map = L.map("map", { zoomControl: true, minZoom: 10, maxZoom: 18, zoomSnap: 0.25, attributionControl: true });
+  if (window.addVatflowBasemap) window.addVatflowBasemap(map, "Nav data FAA CIFP");
+  map.setView([33.6367, -84.4281], 13);
+  layer = L.layerGroup().addTo(map);
+  map.on("click", () => { if (st.sel) { st.sel = ""; render(); } });
+}
+function seqIcon(n, color, next, sel) {
+  const sz = sel ? 26 : 22;
+  return L.divIcon({ className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+    html: `<div class="seq${next ? " next" : ""}" style="width:${sz}px;height:${sz}px;background:${color}${sel ? ";outline:2px solid #fff" : ""}">${n}</div>` });
+}
+function parkedIcon(color) {
+  return L.divIcon({ className: "", iconSize: [12, 12], iconAnchor: [6, 6],
+    html: `<div style="width:12px;height:12px;border-radius:50%;border:2.5px solid ${color};background:#0b0f14aa"></div>` });
+}
+function select(cs) { st.sel = st.sel === cs ? "" : cs; render(); }
+
+function drawMap() {
+  ensureMap();
+  if (!map) return;
+  layer.clearLayers();
+  // Runways
+  for (const pair of st.pairs) {
+    if (pair.length < 2) continue;
+    const active = pair.some(e => st.dep.includes(e.id));
+    L.polyline(pair.map(e => [e.lat, e.lon]), { color: active ? "#c9d3dd" : "#3a4654", weight: active ? 7 : 5, opacity: 0.9, interactive: false }).addTo(layer);
+  }
+  for (const id of st.dep) {
+    const e = endById(id);
+    if (e) L.circleMarker([e.lat, e.lon], { radius: 1, opacity: 0, interactive: false })
+      .bindTooltip(id, { permanent: true, direction: "center", className: "rid" }).addTo(layer);
+  }
+
+  // Departure fan: one spoke per fix off the lift-off end, pointing at the fix.
+  for (const plan of st.plans) {
+    const lift = liftEnd(plan.rwy);
+    if (!lift) continue;
+    const fixes = new Map();
+    for (const a of plan.queue.concat(st.parked.filter(p => p.rwy === plan.rwy))) {
+      if (!a.fix) continue;
+      const f = fixes.get(a.fix) || { fix: a.fix, bearing: a.bearing, n: 0 };
+      f.n++; fixes.set(a.fix, f);
+    }
+    for (const d of st.departures) if ((st.clocks[d.fix] || 0) > 0 && !fixes.has(d.fix)) fixes.set(d.fix, { fix: d.fix, bearing: d.bearing, n: 0 });
+    L.circle([lift.lat, lift.lon], { radius: SPOKE_NM * 1852, color: "#8a97a3", weight: 1, opacity: 0.25, fill: false, dashArray: "2 6", interactive: false }).addTo(layer);
+    const nextFix = plan.order[0] && plan.order[0].fix;
+    for (const f of fixes.values()) {
+      if (!isFinite(f.bearing)) continue;
+      const tip = destination(lift.lat, lift.lon, f.bearing, SPOKE_NM);
+      const clock = st.clocks[f.fix] || 0;
+      const color = courseColor(f.bearing);
+      L.polyline([[lift.lat, lift.lon], tip], {
+        color, weight: clock > 0 ? 3 : 5, opacity: clock > 0 ? 0.55 : 0.95, dashArray: clock > 0 ? "3 7" : null,
+        className: f.fix === nextFix ? "spoke-next" : "", interactive: false,
+      }).addTo(layer);
+      const txt = `${esc(f.fix)}${f.n ? " ·" + f.n : ""}${clock > 0 ? ` <span style="color:#e07070">${fmtSec(clock)}</span>` : ""}`;
+      L.circleMarker(tip, { radius: 4, color, fillColor: color, fillOpacity: 1, weight: 0 })
+        .bindTooltip(`<span style="color:${color}">${txt}</span>`, { permanent: true, direction: f.bearing > 180 ? "left" : "right", className: "spk", offset: [f.bearing > 180 ? -4 : 4, 0] })
+        .addTo(layer);
+    }
+  }
+
+  // Parked: a ring in the colour of where they will go.
+  for (const a of st.parked) {
+    const color = courseColor(a.bearing);
+    L.marker([a.lat, a.lon], { icon: parkedIcon(color), zIndexOffset: 0 })
+      .bindTooltip(`<b>${esc(a.cs)}</b> ${esc(a.type)}<br>${esc(a.label)} · ${esc(a.rwy || "—")}`, { direction: "right", className: "blk", offset: [6, 0] })
+      .on("click", () => select(a.cs)).addTo(layer);
+  }
+
+  // Queues: sequence numbers, the thread in release order, and data blocks.
+  for (const plan of st.plans) {
+    const thr = endById(plan.rwy);
+    let prev = thr ? [thr.lat, thr.lon] : null;
+    plan.order.forEach((a, i) => {
+      const slot = plan.best.slots[i];
+      if (prev) L.polyline([prev, [a.lat, a.lon]], { color: KIND_COLOR[slot.pair.kind] || "#8a97a3", weight: 2.5, opacity: 0.8, dashArray: "6 5", interactive: false }).addTo(layer);
+      prev = [a.lat, a.lon];
+    });
+    plan.order.forEach((a, i) => {
+      const slot = plan.best.slots[i];
+      const color = courseColor(a.bearing);
+      const sel = st.sel === a.cs;
+      const up = plan.moves.some(m => m.id === a.cs);
+      const m = L.marker([a.lat, a.lon], { icon: seqIcon(i + 1, color, i === 0, sel), zIndexOffset: sel ? 2000 : 1000 - i })
+        .on("click", ev => { L.DomEvent.stopPropagation(ev); select(a.cs); }).addTo(layer);
+      // Full data block for the next one off and the selected one; the rest on hover.
+      m.bindTooltip(
+          `<b>${esc(a.cs)}</b> <span class="muted">${esc(a.type)}${a.wake ? " " + a.wake[0].toUpperCase() : ""}</span>${up ? ' <span style="color:#57d98a">▲</span>' : ""}<br>` +
+          `<span style="color:${color}">${esc(a.label)}</span><br>${esc(plan.rwy)} #${i + 1} <span style="color:${KIND_COLOR[slot.pair.kind]}">+${fmtSec(slot.t)}</span>`,
+          { permanent: i === 0 || sel, direction: "right", className: "blk", offset: [12, 0] });
+    });
+  }
+
+  // Selected: where it is going.
+  const all = st.plans.flatMap(p => p.order).concat(st.parked);
+  const s = all.find(a => a.cs === st.sel);
+  if (s && isFinite(s.bearing)) {
+    const lift = liftEnd(s.rwy) || { lat: s.lat, lon: s.lon };
+    const tip = destination(lift.lat, lift.lon, s.bearing, SPOKE_NM * 2.2);
+    L.polyline([[s.lat, s.lon], [lift.lat, lift.lon], tip], { color: courseColor(s.bearing), weight: 2, opacity: 0.9, dashArray: "1 6", interactive: false }).addTo(layer);
+  }
+}
+
+/* ---------------- side panel ---------------- */
+function drawWheel() {
+  const fixes = new Map();
+  for (const a of st.plans.flatMap(p => p.queue).concat(st.parked)) {
+    if (!a.fix || !isFinite(a.bearing)) continue;
+    const f = fixes.get(a.fix) || { fix: a.fix, bearing: a.bearing, n: 0 };
+    f.n++; fixes.set(a.fix, f);
+  }
+  const c = 56;
+  const ticks = [...fixes.values()].map(f => {
+    const r = f.bearing * Math.PI / 180;
+    const len = Math.min(30, 8 + f.n * 4);
+    const x1 = c + Math.sin(r) * (36 - len), y1 = c - Math.cos(r) * (36 - len);
+    const x2 = c + Math.sin(r) * 50, y2 = c - Math.cos(r) * 50;
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${courseColor(f.bearing)}" stroke-width="3" stroke-linecap="round"><title>${esc(f.fix)} ${Math.round(f.bearing)}° · ${f.n}</title></line>`;
+  }).join("");
+  const card = ["N", "E", "S", "W"].map((t, i) => {
+    const r = i * Math.PI / 2;
+    return `<text x="${c + Math.sin(r) * 22}" y="${c - Math.cos(r) * 22 + 3.5}" fill="#5c6b78" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle">${t}</text>`;
+  }).join("");
+  $("wheel").innerHTML = `<div class="ring"></div><svg viewBox="0 0 112 112" width="112" height="112">${card}${ticks}<circle cx="${c}" cy="${c}" r="3" fill="#8a97a3"/></svg>`;
+}
+
+function tile(a, slot, opts = {}) {
+  const color = courseColor(a.bearing);
+  return `<div class="tile${st.sel === a.cs ? " sel" : ""}${opts.up ? " up" : ""}" data-cs="${esc(a.cs)}" style="background:${color}" title="${esc(a.cs)} ${esc(a.label)} ${isFinite(a.bearing) ? Math.round(a.bearing) + "° " + compassOf(a.bearing) : ""}">` +
+    `<div class="cs">${esc(a.cs)}</div><div class="fx">${esc(a.fix || "?")}</div><div class="eta">+${fmtSec(slot.t)}</div></div>`;
+}
+function linkEl(pair) {
+  if (!pair || pair.kind === "first") return "";
+  return `<div class="link k-${pair.kind}" title="${KIND_TEXT[pair.kind]}${isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : ""}">${pair.sec}</div>`;
+}
+function loom(order, sched, ups) {
+  if (!order.length) return `<div class="dim" style="font-size:11px">—</div>`;
+  return `<div class="loom">${order.map((a, i) => linkEl(sched.slots[i].pair) + tile(a, sched.slots[i], { up: ups && ups.has(a.cs) })).join("")}</div>`;
+}
+
+function drawSide() {
+  drawWheel();
+  const clocks = Object.entries(st.clocks || {});
+  const bearingOf = fix => (st.departures.find(d => d.fix === fix) || {}).bearing;
+  $("clocks").innerHTML = clocks.length
+    ? clocks.sort((a, b) => b[1] - a[1]).map(([fix, sec]) => {
+      const c = courseColor(bearingOf(fix));
+      return sec > 0
+        ? `<span class="fixchip closed" style="border-color:${c};color:${c}">${esc(fix)} ${fmtSec(sec)}</span>`
+        : `<span class="fixchip" style="background:${c}">${esc(fix)} OPEN</span>`;
+    }).join("")
+    : `<span class="dim">Every fix is open — no departures seen yet this session.</span>`;
+
+  const cards = st.plans.map(plan => {
+    const ups = new Set(plan.moves.map(m => m.id));
+    const byId = new Map(plan.queue.map(a => [a.cs, a]));
+    const moves = plan.moves.map(m => {
+      const a = byId.get(m.id);
+      const jumped = m.ahead.map(id => byId.get(id)).filter(Boolean);
+      return `<li>▲ <b style="color:${courseColor(a.bearing)}">${esc(a.cs)}</b> <span class="muted">${esc(a.fix)}</span> ahead of ${jumped.map(b =>
+        `<b style="color:${courseColor(b.bearing)}">${esc(b.cs)}</b> <span class="muted">${esc(b.fix)}</span>`).join(", ")}</li>`;
+    }).join("");
+    const parked = st.parked.filter(p => p.rwy === plan.rwy).length;
+    return `<div class="rwy">
+      <div class="rwy-h"><span class="id">${esc(plan.rwy)}</span>
+        <span class="muted" style="font-size:11px">${plan.queue.length} taxiing${parked ? ` · ${parked} at gate` : ""}</span>
+        <span class="saved${plan.savedSec ? "" : " zero"}" title="Total wait saved across the queue against first-come first-served">${plan.savedSec ? "saves " + fmtSec(plan.savedSec) : "already split"}</span></div>
+      <div class="loom-l"><span>First-come</span><span>${plan.queue.length ? "last off +" + fmtSec(plan.fcfs.span) : ""}</span></div>
+      ${loom(plan.fcfsOrder, plan.fcfs)}
+      <div class="loom-l"><span>Sequenced</span><span>${plan.queue.length ? "last off +" + fmtSec(plan.best.span) : ""}</span></div>
+      ${loom(plan.order, plan.best, ups)}
+      ${moves ? `<ul class="moves">${moves}</ul>` : ""}
+    </div>`;
+  }).join("");
+  $("runways").innerHTML = (st.plans.length ? `<h2>Runway queues</h2>` + cards
+    : `<h2>Runway queues</h2><p class="note">Pick the departure runways above, or press ATIS.</p>`) +
+    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>diverging 45°+ <span class="swatch" style="background:#e8a838;margin-left:6px"></span>15–45° <span class="swatch" style="background:#e07070;margin-left:6px"></span>in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds needed behind the one ahead.</p>`;
+
+  const now = Date.now();
+  $("log").innerHTML = st.departures.slice(0, 10).map(d => {
+    const ok = d.pair && isFinite(d.gap) ? (d.gap + 5 >= d.pair.sec ? "k-diverge" : "k-same") : "dim";
+    return `<tr><td>${fmtSec((now - d.at) / 1000)} ago</td><td><b>${esc(d.cs)}</b></td><td>${esc(d.rwy)}</td>` +
+      `<td style="color:${courseColor(d.bearing)}">${esc(d.label)}</td>` +
+      `<td class="${ok}">${isFinite(d.gap) ? fmtSec(d.gap) + (d.pair ? " / " + d.pair.sec : "") : ""}</td></tr>`;
+  }).join("") || `<tr><td class="dim">None seen yet.</td></tr>`;
+}
+$("runways").addEventListener("click", ev => { const t = ev.target.closest("[data-cs]"); if (t) select(t.dataset.cs); });
+
+function setStatus() {
+  const age = st.feedAt ? Math.round((Date.now() - st.feedAt) / 1000) : null;
+  const n = st.plans.reduce((s, p) => s + p.queue.length, 0);
+  $("status").innerHTML = st.mode === "demo"
+    ? `<b class="demo">DEMO</b> · simulated traffic · ${n} taxiing`
+    : `<b class="live">LIVE</b> · ${st.feedState === "bad" ? '<span style="color:var(--red)">feed error</span>' : age == null ? "loading feed…" : `feed ${age}s ago`} · ${n} taxiing · ${st.parked.length} at gate${!n && st.feedAt ? " — try DEMO" : ""}`;
+}
+
+function render() {
+  if (!st.apt) return;
+  buildPlans(Date.now());
+  renderChips();
+  drawMap();
+  drawSide();
+  setStatus();
+}
+
+/* ---------------- live feed ---------------- */
+let feedTimer = null;
+function fetchFeed() {
+  if (st.mode !== "live") return;
+  fetch(VATSIM_URL, { cache: "no-store" })
+    .then(r => r.json())
+    .then(d => {
+      if (st.mode !== "live") return;
+      st.pilots = (d.pilots || []).filter(p => typeof p.latitude === "number").map(p => ({
+        callsign: p.callsign, lat: p.latitude, lon: p.longitude, gs: p.groundspeed || 0, hdg: p.heading || 0, flight_plan: p.flight_plan }));
+      st.atisText = (d.atis || []).filter(a => a && (a.callsign || "").startsWith(st.apt + "_") && /_ATIS$/.test(a.callsign))
+        .map(a => (a.text_atis || []).join(" ")).join(" . ");
+      st.feedAt = Date.now(); st.feedState = "ok";
+      pickRunways();
+      render();
+    })
+    .catch(err => { console.warn("VATSIM feed:", err); st.feedState = "bad"; setStatus(); });
+}
+
+/* ---------------- demo: simulated departures ---------------- */
+const DEMO_AIRLINES = ["DAL", "AAL", "UAL", "SWA", "JBU", "NKS", "FFT", "ASA", "EDV", "RPA", "SKW", "FDX", "UPS", "BAW", "DLH", "AFR", "KLM"];
+const DEMO_TYPES = ["B738", "A321", "B739", "A320", "CRJ9", "E75L", "B752", "A21N", "B38M", "B772", "A333", "B763"];
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+
+function startDemo() {
+  const sids = sidRunwaysFor(st.apt);
+  const candidates = Object.keys(sids).filter(s => /\d[A-Z]?$/.test(s) && st.procs[s] && st.procs[s].type === "SID");
+  // Two departure ends into a west/south flow by default: the longest two runways' higher-numbered ends.
+  const rwys = st.dep.length ? st.dep.slice() : st.pairs.slice().sort((a, b) => (b[0].lenFt || 0) - (a[0].lenFt || 0)).slice(0, 2)
+    .map(p => p.slice().sort((a, b) => b.id.localeCompare(a.id))[0]).filter(Boolean).map(e => e.id);
+  st.demo = { rwys, candidates, sids, ac: [], n: 0, lastSpawn: 0 };
+  st.pilots = [];
+  for (let i = 0; i < 12; i++) spawnDemo(true);
+}
+function sidServes(sid, rwy) {
+  const toks = st.demo.sids[sid] || [];
+  return !toks.length || toks.some(t => { const r = normalizeRunway(t.replace(/^RW/, "")); return r === rwy || (r.endsWith("B") && r.slice(0, 2) === rwy.slice(0, 2)); });
+}
+function spawnDemo(initial) {
+  const d = st.demo;
+  if (!d || !d.rwys.length || !st.fieldLL) return;
+  const rwy = d.rwys[d.n % d.rwys.length];
+  const pool = d.candidates.filter(s => sidServes(s, rwy));
+  const sid = pool.length ? rnd(pool) : "";
+  const trans = sid ? Object.keys(st.procs[sid].transitions || {}).filter(k => !/^RW/.test(k)) : [];
+  const route = sid ? `${sid}${trans.length ? " " + rnd(trans) : ""}` : "";
+  const thr = endById(rwy);
+  if (!thr) return;
+  // Start somewhere on the field between its middle and the runway, off to one side.
+  const f = initial ? 0.15 + Math.random() * 0.7 : 0.05 + Math.random() * 0.2;
+  const off = destination(st.fieldLL[0], st.fieldLL[1], Math.random() * 360, 0.25 + Math.random() * 0.5);
+  const lat = off[0] + (thr.lat - off[0]) * f, lon = off[1] + (thr.lon - off[1]) * f;
+  const type = rnd(DEMO_TYPES);
+  d.ac.push({ callsign: rnd(DEMO_AIRLINES) + (100 + Math.floor(Math.random() * 8900)), lat, lon, gs: Math.random() < (initial ? 0.75 : 0.5) ? 14 : 0, hdg: 0,
+    rwy, flight_plan: { departure: st.apt, route, aircraft_short: type }, hold: 0 });
+  d.n++;
+}
+function tickDemo(dtSec) {
+  const d = st.demo;
+  if (!d) return;
+  const now = Date.now();
+  // Release #1 of each runway's recommended order once it is holding and clean behind the last one.
+  for (const plan of st.plans) {
+    const first = plan.order[0];
+    if (!first) continue;
+    const ac = d.ac.find(a => a.callsign === first.cs);
+    if (!ac || ac.gs > 1 || (st.clocks[first.fix] || 0) > 0) continue;
+    const last = st.departures.find(x => x.rwy === plan.rwy);
+    if (last && (now - last.at) / 1000 < pairInterval(last, first, st.iv).sec) continue;
+    ac.gs = 140; ac.rolling = now;
+  }
+  for (const ac of d.ac) {
+    if (ac.rolling) { const lift = liftEnd(ac.rwy); if (lift) { ac.lat += (lift.lat - ac.lat) * 0.5; ac.lon += (lift.lon - ac.lon) * 0.5; } continue; }
+    if (ac.gs === 0 && Math.random() < 0.08) ac.gs = 14;      // pushed and started
+    if (ac.gs === 0) continue;
+    const thr = endById(ac.rwy);
+    // The queue lines up along a parallel taxiway: back from the threshold, off to the field side.
+    const ahead = d.ac.filter(o => o !== ac && !o.rolling && o.rwy === ac.rwy && o.gs !== 0 &&
+      gcNm(o.lat, o.lon, thr.lat, thr.lon) < gcNm(ac.lat, ac.lon, thr.lat, thr.lon)).length;
+    const side = ((bearingDeg(thr.lat, thr.lon, st.fieldLL[0], st.fieldLL[1]) - thr.hdg + 360) % 360) < 180 ? 90 : -90;
+    const back = destination(thr.lat, thr.lon, thr.hdg, 0.04 + ahead * 0.11);
+    const spot = destination(back[0], back[1], thr.hdg + side, 0.1);
+    const nm = gcNm(ac.lat, ac.lon, spot[0], spot[1]);
+    if (nm <= 0.01) { ac.gs = 1; continue; }                  // holding in the queue (has moved)
+    ac.gs = 14;
+    const step = Math.min(1, (14 * dtSec / 3600) / nm);
+    ac.hdg = bearingDeg(ac.lat, ac.lon, spot[0], spot[1]);
+    ac.lat += (spot[0] - ac.lat) * step; ac.lon += (spot[1] - ac.lon) * step;
+  }
+  d.ac = d.ac.filter(a => !a.rolling || now - a.rolling < 8000);
+  if (d.ac.filter(a => !a.rolling).length < 11 && now - d.lastSpawn > 15000) { spawnDemo(false); d.lastSpawn = now; }
+  st.pilots = d.ac.map(a => ({ callsign: a.callsign, lat: a.lat, lon: a.lon, gs: a.gs, hdg: a.hdg, flight_plan: a.flight_plan }));
+  st.feedAt = now;
+}
+
+/* ---------------- mode + loop ---------------- */
+function setMode(mode) {
+  st.mode = mode;
+  $("liveBtn").classList.toggle("on", mode === "live");
+  $("demoBtn").classList.toggle("on", mode === "demo");
+  st.pilots = []; st.moved.clear(); st.inQueue.clear(); st.departures = []; st.demo = null; st.feedAt = 0;
+  history.replaceState(null, "", `?apt=${st.apt}${mode === "demo" ? "&demo=1" : ""}`);
+  if (mode === "demo") { if (st.procs && st.ends.length) startDemo(); }
+  else fetchFeed();
+  pickRunways();
+  render();
+}
+$("liveBtn").addEventListener("click", () => setMode("live"));
+$("demoBtn").addEventListener("click", () => setMode("demo"));
+$("apt").addEventListener("keydown", ev => { if (ev.key === "Enter") setAirport($("apt").value).then(() => { if (st.mode === "live") fetchFeed(); }); });
+$("apt").addEventListener("change", () => setAirport($("apt").value).then(() => { if (st.mode === "live") fetchFeed(); }));
+
+let lastTick = Date.now();
+setInterval(() => {
+  const now = Date.now();
+  if (st.mode === "demo" && st.demo) tickDemo((now - lastTick) / 1000);
+  lastTick = now;
+  render();
+}, 2000);
+feedTimer = setInterval(fetchFeed, VATSIM_FEED_TAXI_MS);
+
+const qs = new URLSearchParams(location.search);
+if (qs.get("demo") === "1") { st.mode = "demo"; $("liveBtn").classList.remove("on"); $("demoBtn").classList.add("on"); }
+$("apt").value = (qs.get("apt") || "KATL").toUpperCase();
+ensureMap();
+setAirport($("apt").value).then(() => { if (st.mode === "live") fetchFeed(); });
+</script>
+</body>
+</html>

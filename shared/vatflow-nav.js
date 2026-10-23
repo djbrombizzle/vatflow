@@ -17,6 +17,7 @@ const NAV_ITEMS = [
       { id: "tbfm", href: "vatflow-tbfm%20v2.html", label: "Airport TMU" },
       { id: "vatsmart", href: "vatsmart.html", label: "VATSMART" },
       { id: "runways", href: "runway-balancer.html", label: "Runway Balancer" },
+      { id: "taxi-seq", href: "taxi-sequencer.html", label: "Taxi Sequencer" },
       { id: "ramp", href: "ramp.html", label: "Ramp Management" },
       { id: "gates", href: "gates.html", label: "Gate list (CRC)" },
       { id: "datis", href: "datis.html", label: "Digital ATIS" },
