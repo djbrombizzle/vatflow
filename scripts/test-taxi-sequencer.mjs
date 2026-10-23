@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  angleDiff, bearingDeg, courseColor, departureFix, fixClocks, pairInterval, readySec, releaseFloor,
+  angleDiff, bearingDeg, courseColor, departureFix, fixClocks, milesSec, pairInterval, readySec, releaseFloor,
   runwayRelation, scheduleOrder, sequenceRunway, wakeOf, DEFAULT_INTERVALS,
 } from "../shared/taxi-sequencer.js";
 
@@ -50,19 +50,26 @@ const N15 = { id: "N15", fix: "NORTH15", bearing: 15 };
 const S = { id: "S", fix: "SOUTH", bearing: 180 };
 assert(pairInterval(N, { ...N, id: "x" }).kind === "same", "same fix is in trail (5-5-4)");
 assert(pairInterval(N, N12).kind === "same", "12 deg conventional: in trail");
+assert(milesSec(1) === 21 && milesSec(3) === 64, "miles at 170 kt: 1 NM 21 s, 3 NM 64 s");
 const d15 = pairInterval(N, N15);
-assert(d15.kind === "diverge" && d15.sec === DEFAULT_INTERVALS.diverge && d15.rule === "5-8-3a", "15 deg: 1 mile (5-8-3a)");
+assert(d15.kind === "diverge" && d15.sec === 45 && d15.rule === "3-9-6a", "15 deg same runway: runway separation binds, not the 1 mile: " + JSON.stringify(d15));
+const c15 = pairInterval(N, N15, undefined, "close");
+assert(c15.sec === 21 && c15.rule === "5-8-3a", "15 deg off a close parallel: 1 mile, no runway separation");
 const r12 = pairInterval({ ...N, rnav: true }, { ...N12, rnav: true });
-assert(r12.kind === "diverge" && r12.rule === "5-8-3b", "both RNAV SIDs: 10 deg is enough (5-8-3b)");
+assert(r12.kind === "diverge" && r12.sec === 45, "both RNAV SIDs: 10 deg is enough (5-8-3b)");
+assert(pairInterval({ ...N, rnav: true }, { ...N12, rnav: true }, { rwySep: 10 }).rule === "5-8-3b", "5-8-3b named when the mile binds");
+const tr = pairInterval(N, { ...N, id: "y" });
+assert(tr.sec === 64 && tr.rule === "5-5-4", "in trail: 3 NM is 64 s");
+assert(pairInterval(N, { ...N, id: "y" }, { trailNm: 5 }).sec === 106, "a departure MIT raises the in-trail time");
 assert(pairInterval({ ...N, rnav: true }, N12).kind === "same", "only one on an RNAV SID: still 15 deg");
 assert(pairInterval({ ...N, rnav: true }, { ...N12, rnav: true }, undefined, "close").kind === "same", "RNAV 10 deg is same runway only");
-assert(pairInterval(N, S).sec === DEFAULT_INTERVALS.diverge, "diverging: 1 mile");
+assert(pairInterval(N, S).sec === DEFAULT_INTERVALS.rwySep, "diverging off the same runway: runway separation");
 const hv = pairInterval({ ...S, wake: "heavy" }, N);
-assert(hv.kind === "wake" && hv.sec === 120 && hv.rule === "3-9-6", "2 minutes behind a heavy (3-9-6)");
+assert(hv.kind === "wake" && hv.sec === 120 && hv.rule === "3-9-6f", "2 minutes behind a heavy (3-9-6f)");
 assert(pairInterval({ ...S, wake: "super" }, N).sec === 180, "3 minutes behind a super");
 assert(pairInterval(N, { ...S, fix: "", bearing: NaN }).kind === "unknown", "unknown course: in trail");
 assert(pairInterval(N, N15, undefined, "far").kind === "simul", "far parallels diverging: simultaneous (5-8-3a2)");
-assert(pairInterval(N, N12, undefined, "far").sec === DEFAULT_INTERVALS.same, "far parallels not diverging: in trail");
+assert(pairInterval(N, N12, undefined, "far").sec === 64, "far parallels not diverging: in trail");
 assert(pairInterval({ ...S, wake: "heavy" }, N, undefined, "far").sec === 0, "no wake rule between far runways");
 
 /* ---------- runway relations (KATL ends from data/nav/runways.json) ---------- */
@@ -75,16 +82,16 @@ assert(runwayRelation(r26L, r26R) === "close", "26L/26R ~1,000 ft apart are clos
 assert(runwayRelation(r26L, r27R) === "far", "26L/27R ~4,400 ft apart are independent");
 
 const fl = releaseFloor(N, [{ fix: "NORTH", bearing: 0, agoSec: 30, relation: "far" }, { ...S, agoSec: 10, relation: "same" }]);
-assert(fl === 90, "floor: in trail behind the far-runway NORTH departure (120-30) beats 1 mile behind S (60-10): " + fl);
+assert(fl === 35, "floor: runway separation behind S (45-10) beats in trail behind the far-runway NORTH (64-30): " + fl);
 assert(releaseFloor(N, [{ ...S, agoSec: 10, relation: "far" }]) === -Infinity, "far and diverging: nothing holds it");
 
 /* ---------- schedule ---------- */
 const sch = scheduleOrder([{ ...N, ready: 0 }, { ...S, ready: 0 }, { ...N, id: "N3", ready: 0 }]);
-assert(sch.slots.map(s => s.t).join() === "0,60,120", "N S N alternates at 60 s: " + sch.slots.map(s => s.t));
+assert(sch.slots.map(s => s.t).join() === "0,45,90", "N S N alternates at runway separation: " + sch.slots.map(s => s.t));
 const floor = scheduleOrder([{ ...N, ready: 0, floor: 45 }]);
 assert(floor.slots[0].t === 45 && floor.slots[0].held, "release floor from departures already gone holds");
 const behind = scheduleOrder([{ ...N, ready: 0 }], { lastDep: { fix: "NORTH", bearing: 0, agoSec: 30 } });
-assert(behind.slots[0].t === 90, "last departure's clock carries over");
+assert(behind.slots[0].t === 34, "last departure's clock carries over (64 - 30)");
 
 /* ---------- sequencing ---------- */
 // Everyone at the hold short: N N S S -> N S N S saves time.
@@ -118,6 +125,6 @@ assert(readySec({ lat: 0.008, lon: 0, gs: 0, moved: true }, { lat: 0, lon: 0 }) 
 assert(readySec({ lat: 0.008, lon: 0, gs: 0 }, { lat: 0, lon: 0 }) > 90, "parked near the runway still spools and taxis");
 assert(readySec({ lat: 0.03, lon: 0, gs: 14, moved: true }, { lat: 0, lon: 0 }) > 300, "taxiing 1.8 nm out");
 const clocks = fixClocks([{ fix: "NORTH", agoSec: 50 }, { fix: "SOUTH", agoSec: 500 }]);
-assert(clocks.NORTH === 70 && clocks.SOUTH === 0, "fix clocks: " + JSON.stringify(clocks));
+assert(clocks.NORTH === 14 && clocks.SOUTH === 0, "fix clocks: " + JSON.stringify(clocks));
 
 console.log(`taxi-sequencer: ${passed} passed`);

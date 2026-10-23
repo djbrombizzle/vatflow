@@ -12,13 +12,21 @@
  *             departure, or 10 deg when both fly an RNAV SID off the same
  *             runway (5-8-3a, 5-8-3b). Not with wake turbulence separation.
  *   same      3 miles radar in trail (5-5-4): the same fix, or less divergence
- *   wake      2 minutes behind a heavy, 3 behind a super (3-9-6)
+ *   wake      2 minutes behind a heavy, 3 behind a super (3-9-6f), timed from
+ *             the leader starting its takeoff roll
  *
- * Miles are applied as time (defaults 60 s / 120 s); every interval is a setting.
+ * All times are takeoff roll to takeoff roll. Miles become seconds at the initial
+ * climb groundspeed: both roll the same way, so the gap when the follower lifts
+ * off is about the time between rolls x groundspeed (1 NM at 170 kt is 21 s).
+ * Off the same runway nobody rolls before runway separation (3-9-6a: the leader
+ * has crossed the runway end, or is airborne 6,000 ft ahead), about 45 s for a
+ * jet, so that, not the 1 mile, is what limits diverging departures there.
+ *
  * Between runways the relation decides: the same runway (or its reciprocal) and
- * parallels under 2,500 ft apart take every rule above; runways 2,500 ft or more
- * apart may release together when courses diverge (5-8-3a2) and only need in-trail
- * spacing when they do not, with no wake rule (releaseFloor).
+ * parallels under 2,500 ft apart take the miles and wake rules (runway separation
+ * only applies to the same runway); runways 2,500 ft or more apart may release
+ * together when courses diverge (5-8-3a2) and only need in-trail spacing when
+ * they do not, with no wake rule (releaseFloor).
  *
  * sequenceRunway() searches every order within MAX_SHIFT places of first-come
  * first-served (constrained position shifting: nobody is jumped more than twice)
@@ -34,7 +42,14 @@ export const DIVERGE_MIN_DEG = 15;
 export const DIVERGE_RNAV_DEG = 10;
 /** 5-8-3a: parallels closer than this are treated as one runway. */
 export const CLOSE_PARALLEL_FT = 2500;
-export const DEFAULT_INTERVALS = { diverge: 60, same: 120, wake: 120, wakeSuper: 180 };
+/**
+ * rwySep    s, same-runway separation (3-9-6a)
+ * divergeNm 1 mile when courses diverge (5-8-3a/b)
+ * trailNm   3 miles radar in trail (5-5-4); raise it for a departure MIT
+ * climbKt   initial climb groundspeed that turns miles into seconds
+ * wake, wakeSuper  s behind a heavy / super (3-9-6f)
+ */
+export const DEFAULT_INTERVALS = { rwySep: 45, divergeNm: 1, trailNm: 3, climbKt: 170, wake: 120, wakeSuper: 180 };
 export const MAX_SHIFT = 2;
 /** Stopped this close to its runway after taxiing: in the queue, ready now. */
 export const HOLDING_NM = 0.8;
@@ -44,6 +59,16 @@ const MAX_NODES = 250000;
 
 const rad = d => (d * Math.PI) / 180;
 const iv_ = intervals => ({ ...DEFAULT_INTERVALS, ...(intervals || {}) });
+
+/** Seconds between takeoff rolls that open up `nm` at the initial climb groundspeed. */
+export function milesSec(nm, intervals) {
+  const iv = iv_(intervals);
+  return Math.round((Math.max(0, nm) * 3600) / Math.max(60, iv.climbKt));
+}
+/** In-trail time off any runway (no runway separation floor). */
+export function trailSec(intervals) {
+  return milesSec(iv_(intervals).trailNm, intervals);
+}
 const deg = r => (r * 180) / Math.PI;
 
 /** Initial true bearing from point 1 to point 2, 0..360. */
@@ -188,14 +213,20 @@ export function pairInterval(lead, follow, intervals = DEFAULT_INTERVALS, relati
   const delta = sameFix ? 0 : (isFinite(lead.bearing) && isFinite(follow.bearing) ? angleDiff(lead.bearing, follow.bearing) : NaN);
   const rnav = relation === "same" && lead.rnav && follow.rnav;
   const minDeg = rnav ? DIVERGE_RNAV_DEG : DIVERGE_MIN_DEG;
+  // Off the same runway nobody rolls before the leader is clear (3-9-6a).
+  const floor = relation === "same" ? iv.rwySep : 0;
+  const miles = (nm, kind, rule) => {
+    const sec = milesSec(nm, iv);
+    return sec >= floor ? { sec, kind, delta, rule } : { sec: floor, kind, delta, rule: "3-9-6a" };
+  };
   let out;
-  if (!isFinite(delta)) out = { sec: iv.same, kind: "unknown", delta, rule: "5-5-4" };
-  else if (delta < minDeg) out = { sec: iv.same, kind: "same", delta, rule: "5-5-4" };
+  if (!isFinite(delta)) out = miles(iv.trailNm, "unknown", "5-5-4");
+  else if (delta < minDeg) out = miles(iv.trailNm, "same", "5-5-4");
   else if (relation === "far") out = { sec: 0, kind: "simul", delta, rule: "5-8-3a2" };
-  else out = { sec: iv.diverge, kind: "diverge", delta, rule: rnav ? "5-8-3b" : "5-8-3a" };
+  else out = miles(iv.divergeNm, "diverge", rnav ? "5-8-3b" : "5-8-3a");
   if (relation !== "far") {
     const wake = lead.wake === "super" ? iv.wakeSuper : lead.wake === "heavy" && follow.wake !== "super" ? iv.wake : 0;
-    if (wake > out.sec) out = { sec: wake, kind: "wake", delta, rule: "3-9-6" };
+    if (wake > out.sec) out = { sec: wake, kind: "wake", delta, rule: "3-9-6f" };
   }
   return out;
 }
@@ -272,7 +303,7 @@ export function scheduleOrder(order, ctx = {}) {
     const held = floor > t;
     if (held) t = floor;
     out.push({ id: ac.id, t, wait: t - Math.max(0, ac.ready || 0), pair, held });
-    if (ac.fix) floors[ac.fix] = t + iv_(iv).same;
+    if (ac.fix) floors[ac.fix] = t + trailSec(iv);
     prev = ac; prevT = t;
   }
   const total = out.reduce((s, x) => s + x.t, 0);
@@ -323,7 +354,7 @@ export function sequenceRunway(queue, ctx = {}) {
       const fl = ac.fix ? floors[ac.fix] : undefined;
       if (isFinite(fl) && fl > t) t = fl;
       if (total + t >= bestCost.total) continue;     // prune: already no better
-      const nextFloors = ac.fix ? { ...floors, [ac.fix]: t + iv_(iv).same } : floors;
+      const nextFloors = ac.fix ? { ...floors, [ac.fix]: t + trailSec(iv) } : floors;
       pick.push(i); used[i] = true;
       dfs(ac, t, nextFloors, total + t);
       pick.pop(); used[i] = false;
@@ -356,7 +387,7 @@ export function fixClocks(departures, intervals = DEFAULT_INTERVALS) {
   const out = {};
   for (const d of departures || []) {
     if (!d || !d.fix) continue;
-    const left = iv_(intervals).same - Math.max(0, d.agoSec || 0);
+    const left = trailSec(intervals) - Math.max(0, d.agoSec || 0);
     if (!(d.fix in out) || left > out[d.fix]) out[d.fix] = left;
   }
   for (const k of Object.keys(out)) out[k] = Math.max(0, Math.round(out[k]));
