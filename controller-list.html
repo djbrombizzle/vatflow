@@ -245,7 +245,7 @@ function rowHtml(r, now) {
   const open = state.open.has(key);
   const online = fmtOnline(r.loginTime, now);
   const others = r.positions.filter(p => !p.isPrimary || !p.isActive);
-  const tcps = [...new Set(r.positions.flatMap(p => p.tcps))];
+  const tcps = [...new Set(r.positions.filter(p => p.isActive).flatMap(p => p.tcps))];
   const posLine = [r.position, r.radioName && r.radioName !== r.position ? r.radioName : ""].filter(Boolean).join(" · ");
   return `<div class="ctl k-${r.kind}${r.observer ? " obs" : ""}${open ? " open" : ""}${state.myCid && r.cid === state.myCid ? " me" : ""}" data-key="${esc(key)}">
   <button type="button" class="ctl-main" aria-expanded="${open}">
