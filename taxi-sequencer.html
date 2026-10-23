@@ -89,7 +89,7 @@
   .tile.parked { opacity: 0.45; }
   .link { flex: none; width: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; font-weight: 700; }
   .link::before { content: ""; display: block; width: 100%; height: 3px; border-radius: 2px; background: currentColor; margin-bottom: 2px; }
-  .k-diverge { color: var(--green); } .k-partial { color: var(--amber); } .k-same { color: var(--red); }
+  .k-diverge { color: var(--green); } .k-simul { color: var(--cyan); } .k-same { color: var(--red); }
   .k-wake { color: var(--violet); } .k-unknown { color: var(--muted); } .k-first { color: var(--dim); }
   .moves { margin: 6px 0 0; padding: 0; list-style: none; font-size: 11.5px; }
   .moves li { padding: 3px 0; border-top: 1px dashed var(--line); }
@@ -144,15 +144,16 @@
       <h2>Recent departures</h2>
       <table class="log" id="log"></table>
       <details class="cfg">
-        <summary>Intervals</summary>
+        <summary>Intervals (FAA JO 7110.65)</summary>
         <div class="grid2">
-          <label for="ivDiverge">Diverging, 45°+ apart (s)</label><input id="ivDiverge" type="number" min="30" max="300" step="5">
-          <label for="ivPartial">15–45° apart (s)</label><input id="ivPartial" type="number" min="30" max="300" step="5">
-          <label for="ivSame">Same fix / under 15° (s)</label><input id="ivSame" type="number" min="30" max="600" step="5">
-          <label for="ivWake">Behind a heavy (s)</label><input id="ivWake" type="number" min="60" max="300" step="5">
+          <label for="ivDiverge"><b>1 NM</b> · courses diverge 15°+ immediately after departure, or 10°+ when both fly an RNAV SID off the same runway — 5-8-3a/b (s)</label><input id="ivDiverge" type="number" min="20" max="300" step="5">
+          <label for="ivSame"><b>3 NM</b> radar in trail · same fix or less divergence — 5-5-4 (s)</label><input id="ivSame" type="number" min="30" max="600" step="5">
+          <label for="ivWake"><b>2 min</b> behind a heavy — 3-9-6 (s)</label><input id="ivWake" type="number" min="60" max="300" step="5">
+          <label for="ivWakeSuper"><b>3 min</b> behind a super — 3-9-6 (s)</label><input id="ivWakeSuper" type="number" min="60" max="400" step="5">
           <label for="ivShift">Most places anyone is jumped</label><input id="ivShift" type="number" min="0" max="4" step="1">
         </div>
-        <p class="note">Same-fix spacing is held across the whole field: a departure to a fix waits for the clock any runway started on it. Wheels-up estimates are present position to the runway at 13 kt along a 1.35× path, plus 90 s to push and start for aircraft that have not moved yet.</p>
+        <p class="note">Miles are applied as the time it takes the one ahead to open them up; set them to what your field sees. The 1 NM rule does not apply when wake turbulence separation is required. Parallels under 2,500 ft apart count as one runway; runways 2,500 ft or more apart release together when courses diverge 15°+ (5-8-3a2) and only need in-trail spacing when they don't, with no wake rule. To add a departure MIT, raise the 3 NM time.</p>
+        <p class="note">Wheels-up estimates are present position to the runway at 13 kt along a 1.35× path, plus 90 s to push and start for aircraft that have not moved yet.</p>
       </details>
       <p class="note" style="margin-top:12px">
         Read-only advice. The departure fix is the SID's enroute transition when one is filed, else the next fix in the route, else the SID's exit fix (FAA CIFP). Runways come from the field's VATSIM ATIS or from the chips above. Each runway's queue is ordered by searching every order within the jump limit of first-come first-served for the least total wait.
@@ -173,7 +174,7 @@ import { runwaysFromAtis } from "./shared/vatsmart.js";
 import { VATSIM_FEED_TAXI_MS } from "./shared/vatflow-refresh.js";
 import {
   bearingDeg, compassOf, courseColor, departureFix, destination, fixClocks, fmtSec, pairInterval,
-  readySec, sequenceRunway, wakeOf, DEFAULT_INTERVALS, MAX_SHIFT,
+  readySec, releaseFloor, runwayRelation, sequenceRunway, wakeOf, DEFAULT_INTERVALS, MAX_SHIFT,
 } from "./shared/taxi-sequencer.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "taxi-seq");
@@ -185,8 +186,8 @@ const GROUND_NM = 4;          // a departure this close to the field and slow is
 const AIRBORNE_KT = 50;
 const MOVED_KT = 5;
 const SPOKE_NM = 0.85;
-const KIND_COLOR = { diverge: "#57d98a", partial: "#e8a838", same: "#e07070", wake: "#b28cff", unknown: "#8a97a3", first: "#5c6b78" };
-const KIND_TEXT = { diverge: "diverging", partial: "partly diverging", same: "in trail", wake: "wake", unknown: "unknown fix", first: "" };
+const KIND_COLOR = { diverge: "#57d98a", simul: "#3fb7b0", same: "#e07070", wake: "#b28cff", unknown: "#e07070", first: "#5c6b78" };
+const KIND_TEXT = { diverge: "1 NM, diverging", simul: "simultaneous", same: "3 NM in trail", wake: "wake turbulence", unknown: "3 NM in trail, course unknown", first: "" };
 
 const st = {
   apt: "", mode: "live", fieldLL: null, ends: [], pairs: [],
@@ -221,7 +222,7 @@ function savePrefs() {
   } catch { /* private window: settings just don't stick */ }
 }
 const prefs = loadPrefs();
-for (const [id, key] of [["ivDiverge", "diverge"], ["ivPartial", "partial"], ["ivSame", "same"], ["ivWake", "wake"]]) {
+for (const [id, key] of [["ivDiverge", "diverge"], ["ivSame", "same"], ["ivWake", "wake"], ["ivWakeSuper", "wakeSuper"]]) {
   $(id).value = st.iv[key];
   $(id).addEventListener("change", () => { const v = +$(id).value; if (v > 0) { st.iv[key] = v; savePrefs(); render(); } });
 }
@@ -233,8 +234,8 @@ let navLoading = null;
 function loadNav() {
   if (navLoading) return navLoading;
   const j = f => fetch("data/nav/" + f).then(r => (r.ok ? r.json() : {})).catch(() => ({}));
-  navLoading = Promise.all([j("procedures.json"), j("fixes.json"), j("navaids.json"), loadSidRunways()])
-    .then(([procs, fixes, navaids]) => { st.procs = procs; st.fixes = fixes; st.navaids = navaids; });
+  navLoading = Promise.all([j("procedures.json"), j("fixes.json"), j("navaids.json"), j("sid-rnav.json"), loadSidRunways()])
+    .then(([procs, fixes, navaids, rnav]) => { st.procs = procs; st.fixes = fixes; st.navaids = navaids; st.rnav = rnav; });
   return navLoading;
 }
 
@@ -334,6 +335,7 @@ function groundDepartures(nowMs) {
       id: p.callsign, cs: p.callsign, lat: p.lat, lon: p.lon, gs: p.gs, hdg: p.hdg,
       type: fp.type.replace(/^[HMLJS]\//, "").split("/")[0], wake: wakeOf(fp.type),
       sid, fix: fx.fix, bearing: fx.bearing, label: fx.label, moved: st.moved.has(p.callsign),
+      rnav: !!(sid && ((st.rnav || {})[st.apt] || []).includes(sid)),
       airborne: p.gs >= AIRBORNE_KT,
     });
   }
@@ -353,11 +355,21 @@ function catchTakeoffs(list, nowMs) {
   }
   for (const cs of [...st.inQueue.keys()]) if (!seen.has(cs) && nowMs - st.inQueue.get(cs).seen > 120000) st.inQueue.delete(cs);
 }
+/** Relation of runway `a` to runway `b` for departure separation: same, close or far. */
+function relation(a, b) {
+  return runwayRelation(endById(a) || { id: a }, endById(b) || { id: b });
+}
+/** Departures already gone, as seen from runway `rwy`: how long ago and how their runway relates. */
+function recentFor(rwy, nowMs) {
+  return st.departures.filter(d => nowMs - d.at < 600000)
+    .map(d => ({ ...d, agoSec: (nowMs - d.at) / 1000, relation: relation(d.rwy, rwy) }));
+}
 function logDeparture(d) {
-  const prev = st.departures.filter(x => x.rwy === d.rwy)[0];
+  // Checked against the last one off this runway or a parallel under 2,500 ft.
+  const prev = st.departures.find(x => relation(x.rwy, d.rwy) !== "far");
   const gap = prev ? (d.at - prev.at) / 1000 : NaN;
-  const pair = prev ? pairInterval(prev, d, st.iv) : null;
-  st.departures.unshift({ cs: d.cs, fix: d.fix, bearing: d.bearing, wake: d.wake, rwy: d.rwy, label: d.label, at: d.at, gap, pair });
+  const pair = prev ? pairInterval(prev, d, st.iv, relation(prev.rwy, d.rwy)) : null;
+  st.departures.unshift({ cs: d.cs, fix: d.fix, bearing: d.bearing, wake: d.wake, rnav: d.rnav, rwy: d.rwy, label: d.label, at: d.at, gap, pair });
   st.departures.length = Math.min(st.departures.length, 30);
 }
 
@@ -366,8 +378,6 @@ function buildPlans(nowMs) {
   const list = groundDepartures(nowMs);
   catchTakeoffs(list, nowMs);
   const sids = sidRunwaysFor(st.apt);
-  const lastByRwy = {};
-  for (const d of st.departures) if (!lastByRwy[d.rwy]) lastByRwy[d.rwy] = d;
   const clocks = fixClocks(st.departures.map(d => ({ ...d, agoSec: (nowMs - d.at) / 1000 })), st.iv);
 
   const byRwy = new Map(st.dep.map(r => [r, []]));
@@ -379,16 +389,16 @@ function buildPlans(nowMs) {
     if (!a.moved || !byRwy.has(a.rwy)) { parked.push(a); continue; }
     a.ready = readySec(a, endById(a.rwy));
     byRwy.get(a.rwy).push(a);
-    st.inQueue.set(a.cs, { cs: a.cs, fix: a.fix, bearing: a.bearing, wake: a.wake, rwy: a.rwy, label: a.label, seen: nowMs });
+    st.inQueue.set(a.cs, { cs: a.cs, fix: a.fix, bearing: a.bearing, wake: a.wake, rnav: a.rnav, rwy: a.rwy, label: a.label, seen: nowMs });
   }
 
-  // Same-fix spacing across runways comes from departures that have actually gone.
+  // Spacing across runways comes from departures that have actually gone (releaseFloor):
+  // every rule off the same runway or a close parallel, in trail only off a far one.
   const plans = [...byRwy.entries()].map(([rwy, queue]) => {
-    const last = lastByRwy[rwy];
-    const res = sequenceRunway(queue, {
-      intervals: st.iv, maxShift: st.maxShift, fixFloors: clocks,
-      lastDep: last ? { ...last, agoSec: (nowMs - last.at) / 1000 } : null,
-    });
+    const recent = recentFor(rwy, nowMs);
+    for (const a of queue) a.floor = releaseFloor(a, recent, st.iv);
+    const last = recent.find(d => d.relation !== "far");
+    const res = sequenceRunway(queue, { intervals: st.iv, maxShift: st.maxShift, lastDep: last || null });
     return { rwy, queue, ...res };
   });
   plans.sort((a, b) => a.rwy.localeCompare(b.rwy));
@@ -532,12 +542,12 @@ function drawWheel() {
 
 function tile(a, slot, opts = {}) {
   const color = courseColor(a.bearing);
-  return `<div class="tile${st.sel === a.cs ? " sel" : ""}${opts.up ? " up" : ""}" data-cs="${esc(a.cs)}" style="background:${color}" title="${esc(a.cs)} ${esc(a.label)} ${isFinite(a.bearing) ? Math.round(a.bearing) + "° " + compassOf(a.bearing) : ""}">` +
+  return `<div class="tile${st.sel === a.cs ? " sel" : ""}${opts.up ? " up" : ""}" data-cs="${esc(a.cs)}" style="background:${color}" title="${esc(a.cs)} ${esc(a.label)}${a.rnav ? " (RNAV SID)" : ""} ${isFinite(a.bearing) ? Math.round(a.bearing) + "° " + compassOf(a.bearing) : ""}${slot.held ? " — held for a departure already gone" : ""}">` +
     `<div class="cs">${esc(a.cs)}</div><div class="fx">${esc(a.fix || "?")}</div><div class="eta">+${fmtSec(slot.t)}</div></div>`;
 }
 function linkEl(pair) {
   if (!pair || pair.kind === "first") return "";
-  return `<div class="link k-${pair.kind}" title="${KIND_TEXT[pair.kind]}${isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : ""}">${pair.sec}</div>`;
+  return `<div class="link k-${pair.kind}" title="${KIND_TEXT[pair.kind]}${isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : ""}${pair.rule ? " — 7110.65 " + pair.rule : ""}">${pair.sec}</div>`;
 }
 function loom(order, sched, ups) {
   if (!order.length) return `<div class="dim" style="font-size:11px">—</div>`;
@@ -580,14 +590,14 @@ function drawSide() {
   }).join("");
   $("runways").innerHTML = (st.plans.length ? `<h2>Runway queues</h2>` + cards
     : `<h2>Runway queues</h2><p class="note">Pick the departure runways above, or press ATIS.</p>`) +
-    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>diverging 45°+ <span class="swatch" style="background:#e8a838;margin-left:6px"></span>15–45° <span class="swatch" style="background:#e07070;margin-left:6px"></span>in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds needed behind the one ahead.</p>`;
+    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>1 NM, diverging 15°+ (10° RNAV) <span class="swatch" style="background:#e07070;margin-left:6px"></span>3 NM in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds needed behind the one ahead (FAA JO 7110.65 5-8-3, 5-5-4, 3-9-6).</p>`;
 
   const now = Date.now();
   $("log").innerHTML = st.departures.slice(0, 10).map(d => {
     const ok = d.pair && isFinite(d.gap) ? (d.gap + 5 >= d.pair.sec ? "k-diverge" : "k-same") : "dim";
     return `<tr><td>${fmtSec((now - d.at) / 1000)} ago</td><td><b>${esc(d.cs)}</b></td><td>${esc(d.rwy)}</td>` +
       `<td style="color:${courseColor(d.bearing)}">${esc(d.label)}</td>` +
-      `<td class="${ok}">${isFinite(d.gap) ? fmtSec(d.gap) + (d.pair ? " / " + d.pair.sec : "") : ""}</td></tr>`;
+      `<td class="${ok}" title="${d.pair ? esc(KIND_TEXT[d.pair.kind] + (d.pair.rule ? " — 7110.65 " + d.pair.rule : "")) : ""}">${isFinite(d.gap) ? fmtSec(d.gap) + (d.pair ? " / " + d.pair.sec : "") : ""}</td></tr>`;
   }).join("") || `<tr><td class="dim">None seen yet.</td></tr>`;
 }
 $("runways").addEventListener("click", ev => { const t = ev.target.closest("[data-cs]"); if (t) select(t.dataset.cs); });
@@ -675,9 +685,7 @@ function tickDemo(dtSec) {
     const first = plan.order[0];
     if (!first) continue;
     const ac = d.ac.find(a => a.callsign === first.cs);
-    if (!ac || ac.gs > 1 || (st.clocks[first.fix] || 0) > 0) continue;
-    const last = st.departures.find(x => x.rwy === plan.rwy);
-    if (last && (now - last.at) / 1000 < pairInterval(last, first, st.iv).sec) continue;
+    if (!ac || ac.gs > 1 || releaseFloor(first, recentFor(plan.rwy, now), st.iv) > 0) continue;
     ac.gs = 140; ac.rolling = now;
   }
   for (const ac of d.ac) {
