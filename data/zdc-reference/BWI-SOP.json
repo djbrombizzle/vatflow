@@ -1,0 +1,2223 @@
+{
+ "doc": {
+  "id": "BWI-SOP",
+  "title": "BWI ATCT SOP",
+  "kind": "SOP",
+  "number": "vZDC-BWI-P-01H",
+  "parties": [
+   "BWI ATCT",
+   "PCT"
+  ],
+  "effective": "2025-12-22",
+  "file": "165f3026-vZDC-BWI-P-01H_BWI_ATCT_SOP.pdf",
+  "summary": "Standard operating procedures for Baltimore (BWI) ATCT positions: positions/frequencies, East/West runway configurations, clearance delivery (climb via SIDs, altitude restrictions, departure gates, frequencies), ground taxi splits, local control airspace, departure headings, releases and go-around procedures."
+ },
+ "items": [
+  {
+   "ref": "1-1-1 to 1-1-7",
+   "cat": "General",
+   "title": "Purpose, audience, cancellation, changes",
+   "text": "Order describes airspace, procedures and control policy for all controllers working a BWI ATCT position on VATSIM; applies to all vZDC controllers and visiting controllers training with vZDC. Cancels BWI ATCT SOP Version G dated 5 July 2024. Version H adds vTDLS guidance, IDS Departure Release Requests during TMIs, climb via for all BWI SIDs, and tower assumed radar identification (bulletins vZDC-BWI-B-2050707, vZDC-B-20250923A, vZDC-BWI-B-20251207). Changes are shaded grey.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "cancels",
+    "version G",
+    "explanation of changes",
+    "hyperlinks"
+   ]
+  },
+  {
+   "ref": "1-2-1",
+   "cat": "General",
+   "title": "Word and term meanings",
+   "text": "Arrivals/Departures refer specifically to aircraft on an IFR flight plan. VFR Arrival/VFR Departure refer to aircraft arriving/departing under VFR. Delegated Airspace is airspace assigned to a specific sector or position within a facility.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "definitions",
+    "delegated airspace"
+   ]
+  },
+  {
+   "ref": "1-2-2",
+   "cat": "General",
+   "title": "Abbreviations",
+   "text": "AOA = at or above; AOB = at or below; CHP = Chesapeake Area of Potomac TRACON; PCT = Potomac TRACON (entire facility); FRZ = Flight Restriction Zone; SFRA = Special Flight Rules Area; TDLS = Tower Data-link System; STARS = terminal radar software of vNAS and CRC; ZDC = Washington ARTCC; ATAP = Automated Terminal Proximity Alert.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "CHP",
+    "PCT",
+    "AOA",
+    "AOB",
+    "FRZ",
+    "ATAP"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Clearance Delivery (CD) 118.05",
+   "text": "Clearance Delivery, position ID CD, STARS handoff Not assigned, frequency 118.05. CD combines to GC1.",
+   "restr": "118.05",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "CD",
+    "BWI",
+    "position",
+    "combine",
+    "STARS handoff"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Ground West (GC1) 121.9",
+   "text": "Ground West, position ID GC1, STARS handoff 11, frequency 121.9. Primary frequency. GC1 combines to LC1.",
+   "restr": "121.9",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "GC1",
+    "BWI",
+    "position",
+    "combine",
+    "STARS handoff"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Ground East (GC2) 120.2",
+   "text": "Ground East, position ID GC2, STARS handoff Not assigned, frequency 120.2. GC2 combines to GC1.",
+   "restr": "120.2",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "GC2",
+    "BWI",
+    "position",
+    "combine",
+    "STARS handoff"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Local West (LC1) 119.4",
+   "text": "Local West, position ID LC1, STARS handoff 11, frequency 119.4. Primary frequency. Performs CIC function when CIC not staffed.",
+   "restr": "119.4",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "LC1",
+    "BWI",
+    "position",
+    "combine",
+    "STARS handoff"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Local East (LC2) 123.75",
+   "text": "Local East, position ID LC2, STARS handoff Not assigned, frequency 123.75. LC2 combines to LC1.",
+   "restr": "123.75",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "LC2",
+    "BWI",
+    "position",
+    "combine",
+    "STARS handoff"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Controller in Charge (CIC)",
+   "text": "Controller in Charge, position ID CIC, STARS handoff Not assigned, frequency Not assigned. CIC function is performed by LC1 when not staffed.",
+   "restr": "Not assigned",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "CIC",
+    "BWI",
+    "position",
+    "combine",
+    "STARS handoff"
+   ]
+  },
+  {
+   "ref": "2-2-1",
+   "cat": "Runway config",
+   "title": "Non-standard runway configurations",
+   "text": "Preferred configurations are in 2-2-2 and 2-2-3. Local control may use non-standard runway configurations as weather/traffic permit, so long as the configuration does not negatively affect traffic flow, is necessary due to weather and traffic conditions, and PCT is aware of it.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "preferred runway",
+    "PCT"
+   ]
+  },
+  {
+   "ref": "2-2-2",
+   "cat": "Runway config",
+   "title": "East Ops: 15R jet dep, 10 jet arr, 15L GA",
+   "text": "East Operations: Runway 15R is the primary departure runway for all turbojet aircraft. Runway 15L is the preferred arrival and departure runway for general aviation aircraft. Runway 10 is the primary arrival runway for turbojet aircraft.",
+   "restr": "Dep 15R / Arr 10 / GA 15L",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "east operations",
+    "15R",
+    "10",
+    "15L"
+   ]
+  },
+  {
+   "ref": "2-2-3",
+   "cat": "Runway config",
+   "title": "West Ops: 28 jet dep, 33L jet arr, 33R GA",
+   "text": "West Operations: Runway 28 is the primary departure runway for all turbojet aircraft. Runway 33R is the preferred arrival and departure runway for general aviation aircraft. Runway 33L is the primary arrival runway for turbojet aircraft. West Operations is the calm wind configuration; use it when wind is less than 5 knots.",
+   "restr": "Dep 28 / Arr 33L / GA 33R",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "west operations",
+    "calm wind",
+    "28",
+    "33L",
+    "33R"
+   ]
+  },
+  {
+   "ref": "2-2-4",
+   "cat": "Runway config",
+   "title": "Routine runway configuration change",
+   "text": "CIC determines the need for active runway changes; in a routine change departures may depart the runway originally assigned. Provide PCT the last departure's ID, estimated departure time and runway; after it departs no other aircraft departs BWI without a release from PCT. Ensure departures off the new runway have the right departure procedure/instructions and departure frequency; PCT informs CIC when sector reconfiguration is complete; update the ATIS.",
+   "restr": "",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway change",
+    "CIC",
+    "release",
+    "ATIS"
+   ]
+  },
+  {
+   "ref": "2-3-1, 2-3-2",
+   "cat": "Ground",
+   "title": "ASDE-X: Mode C and safety logic alerts",
+   "text": "GC and LC ensure all aircraft in a movement area have transponders on with Mode C. Configure ASDE-X safety logic for EAST or WEST operations. If an airborne arrival (prior to the landing threshold) activates a warning alert, issue go-around instructions; if two arrivals, or an arrival and a departure, activate an alert, issue go-around or take action to ensure intersecting runway separation. Other alerts: use good judgment. Review FAAO 7110.65 Ch 3 Sec 6.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ASDE-X",
+    "transponder",
+    "Mode C",
+    "go around",
+    "safety logic"
+   ]
+  },
+  {
+   "ref": "2-4-1",
+   "cat": "SFRA",
+   "title": "DC SFRA at BWI",
+   "text": "DC SFRA procedures are simulated with a modified procedure. VFR departures are expected to file a DC SFRA flight plan. The FRZ does not impose higher requirements, so normal VFR operations including pattern work are allowed if workload permits. Ref: VATSIM DC SFRA Procedures / Pilot Guide; vZDC-PCT-P-01G Ch 2 Sec 8.",
+   "restr": "VFR dep file SFRA flight plan",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "SFRA",
+    "FRZ",
+    "VFR",
+    "pattern"
+   ]
+  },
+  {
+   "ref": "3-1-1",
+   "cat": "Clearance",
+   "title": "CD duties; TMI-constrained departures via IDS",
+   "text": "CD formulates and issues IFR and VFR clearances to BWI departures and reviews/amends routes and altitudes per LOAs. For aircraft departing to a constrained airport (TMI such as EDCT or Call for Release), CD coordinates with the pilot for expected pushback/taxi time, submits a departure release request through IDS, advises the pilot of the anticipated wheels up time, and ensures GC and LC are aware (considered coordinated when the correct release time shows in the IDS released aircraft list).",
+   "restr": "TMI: IDS release request",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "EDCT",
+    "call for release",
+    "IDS",
+    "TMI",
+    "wheels up"
+   ]
+  },
+  {
+   "ref": "3-1-2",
+   "cat": "Clearance",
+   "title": "IFR clearance: SID climb via, else 4,000",
+   "text": "All IFR departures should be assigned a departure and transition consistent with their direction of flight. Aircraft unable to fly a SID are assigned radar vectors to their initial fix. Climb via SID for all aircraft on a SID; all other aircraft get an initial altitude of 4,000 feet and expect filed cruise altitude ten minutes after departure.",
+   "restr": "Climb via SID; non-SID 4,000, exp filed 10 min",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "climb via",
+    "initial altitude",
+    "radar vectors",
+    "SID"
+   ]
+  },
+  {
+   "ref": "3-1-3",
+   "cat": "Clearance",
+   "title": "vTDLS PDC for eligible IFR aircraft",
+   "text": "BWI is equipped with vTDLS to issue Pre-Departure Clearances (PDCs) to IFR aircraft. TDLS shall be used for all eligible aircraft unless a voice clearance is more operationally advantageous. Ref: vZDC-A-01F para 4-1-4.",
+   "restr": "PDC via vTDLS",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "PDC",
+    "TDLS",
+    "datalink"
+   ]
+  },
+  {
+   "ref": "3-1-4.a,c",
+   "cat": "Clearance",
+   "title": "VFR flight following plan requirements",
+   "text": "VFR aircraft requesting flight following shall have destination airport, aircraft type and requested VFR altitude in their VFR flight plan prior to departure. Use of the STARS VFR flight plan entry function is encouraged.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "flight following"
+   ]
+  },
+  {
+   "ref": "3-1-4.b",
+   "cat": "Clearance",
+   "title": "VFR Class B clearance: maintain VFR AOB",
+   "text": "VFR aircraft remaining in the pattern are assigned a VFR code and need no altitude restriction. All VFR departures receive a Class B clearance to maintain VFR at or below 3,500 for turboprop and turbojet aircraft, and 2,000 for propeller and helicopter aircraft.",
+   "restr": "TP/jet AOB 3,500; prop/heli AOB 2,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "class B",
+    "pattern",
+    "helicopter"
+   ]
+  },
+  {
+   "ref": "3-1-5.a",
+   "cat": "Frequencies",
+   "title": "East/Southeast departures: GRACO 124.55",
+   "text": "Assign departure frequency per SID, departure gate or direction of flight: East/Southeast departures get GRACO/1G (124.55).",
+   "restr": "124.55 (GRACO/1G)",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure frequency",
+    "GRACO",
+    "1G",
+    "east",
+    "southeast"
+   ]
+  },
+  {
+   "ref": "3-1-5.b",
+   "cat": "Frequencies",
+   "title": "SW/West/North departures: WOOLY 128.7",
+   "text": "Assign departure frequency per SID, departure gate or direction of flight: Southwest/West/North departures get WOOLY/1W (128.7).",
+   "restr": "128.7 (WOOLY/1W)",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure frequency",
+    "WOOLY",
+    "1W",
+    "southwest",
+    "west",
+    "north"
+   ]
+  },
+  {
+   "ref": "3-2-1",
+   "cat": "Departure",
+   "title": "Expected final cruise altitude by destination",
+   "text": "IFR aircraft destined to airports in TBL 3-2-1 are assigned an expected final cruise altitude per the table. Pilots may request higher with PCT or ZDC once airborne; it may be approved as an operational request.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "altitude restrictions",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to DCA, IAD, HEF: final altitude",
+   "text": "BWI IFR departures destined to DCA, IAD, HEF: expected final cruise altitude 4,000 for turbojets; turboprop/propeller 4,000. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet 4,000 / Prop 4,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KDCA",
+    "KIAD",
+    "KHEF"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "DCA",
+    "IAD",
+    "HEF",
+    "KDCA",
+    "KIAD",
+    "KHEF",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to EWR, TEB, LGA: final altitude",
+   "text": "BWI IFR departures destined to EWR, TEB, LGA: expected final cruise altitude FL210 for turbojets; turboprop/propeller N/A. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet FL210 / Prop N/A",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KEWR",
+    "KTEB",
+    "KLGA"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "EWR",
+    "TEB",
+    "LGA",
+    "KEWR",
+    "KTEB",
+    "KLGA",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to JFK: final altitude",
+   "text": "BWI IFR departures destined to JFK: expected final cruise altitude 17,000 for turbojets; turboprop/propeller N/A. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet 17,000 / Prop N/A",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KJFK"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "JFK",
+    "KJFK",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to MTN: final altitude",
+   "text": "BWI IFR departures destined to MTN: expected final cruise altitude 3,000 for turbojets; turboprop/propeller 3,000. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet 3,000 / Prop 3,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KMTN"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "MTN",
+    "KMTN",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to ORF: final altitude",
+   "text": "BWI IFR departures destined to ORF: expected final cruise altitude 14,000 for turbojets; turboprop/propeller N/A. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet 14,000 / Prop N/A",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KORF"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "ORF",
+    "KORF",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to PHL: final altitude",
+   "text": "BWI IFR departures destined to PHL: expected final cruise altitude 11,000 for turbojets; turboprop/propeller 7,000. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet 11,000 / Prop 7,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KPHL"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "PHL",
+    "KPHL",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "BWI to RIC: final altitude",
+   "text": "BWI IFR departures destined to RIC: expected final cruise altitude 14,000 for turbojets; turboprop/propeller 10,000. Pilots may request higher from PCT/ZDC once airborne.",
+   "restr": "Jet 14,000 / Prop 10,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KRIC"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "RIC",
+    "KRIC",
+    "destination",
+    "final altitude"
+   ]
+  },
+  {
+   "ref": "3-3-1",
+   "cat": "Departure",
+   "title": "IFR departures exit PCT via departure gates",
+   "text": "PCT uses departure exit gates for IFR departures to destinations outside PCT airspace. Every IFR aircraft leaving BWI must leave PCT airspace bound for one of these gates unless coordinated otherwise.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "departure gates",
+    "PCT"
+   ]
+  },
+  {
+   "ref": "3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gates: filed above 10,000",
+   "text": "High altitude departure gates should be used for aircraft filed above 10,000 feet. Prop and turboprop aircraft may be routed via a low altitude gate regardless of altitude. Ref: vZDC-PCT-P-01G para 6-4-11.",
+   "restr": "Filed >10,000: high gate",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 10100,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate BUFFR (NW)",
+   "text": "BWI high altitude departure gate BUFFR, routing/direction NW. For aircraft filed above 10,000 feet.",
+   "restr": "NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "BUFFR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate CLTCH (SW)",
+   "text": "BWI high altitude departure gate CLTCH, routing/direction SW. For aircraft filed above 10,000 feet.",
+   "restr": "SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "CLTCH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate DAILY/COLIN (S/SE)",
+   "text": "BWI high altitude departure gate DAILY/COLIN, routing/direction S/SE. For aircraft filed above 10,000 feet.",
+   "restr": "S/SE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "DAILY",
+    "COLIN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "S/SE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate JERES (N/NW)",
+   "text": "BWI high altitude departure gate JERES, routing/direction N/NW. For aircraft filed above 10,000 feet.",
+   "restr": "N/NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "JERES"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "N/NW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate JDUBB (SW)",
+   "text": "BWI high altitude departure gate JDUBB, routing/direction SW. For aircraft filed above 10,000 feet.",
+   "restr": "SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "JDUBB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate OTTTO (W)",
+   "text": "BWI high altitude departure gate OTTTO, routing/direction W. For aircraft filed above 10,000 feet.",
+   "restr": "W",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "OTTTO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "W"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate PALEO (NE)",
+   "text": "BWI high altitude departure gate PALEO, routing/direction NE. For aircraft filed above 10,000 feet.",
+   "restr": "NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "PALEO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate RAMAY (W)",
+   "text": "BWI high altitude departure gate RAMAY, routing/direction W. For aircraft filed above 10,000 feet.",
+   "restr": "W",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "RAMAY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "W"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate SCRAM (SW)",
+   "text": "BWI high altitude departure gate SCRAM, routing/direction SW. For aircraft filed above 10,000 feet.",
+   "restr": "SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate SWANN (NE)",
+   "text": "BWI high altitude departure gate SWANN, routing/direction NE. For aircraft filed above 10,000 feet.",
+   "restr": "NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "SWANN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate WOOLY (NE)",
+   "text": "BWI high altitude departure gate WOOLY, routing/direction NE. For aircraft filed above 10,000 feet.",
+   "restr": "NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "NE"
+   ]
+  },
+  {
+   "ref": "3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gates: filed AOB 10,000",
+   "text": "Low altitude departure gates should be used for aircraft filed at or below 10,000 feet. Low altitude aircraft may receive vectors to join any low altitude airway.",
+   "restr": "Filed AOB 10,000: low gate",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": 10000,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "airway",
+    "vectors"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate CSN (W/SW)",
+   "text": "BWI low altitude departure gate CSN, routing/direction W/SW. For aircraft filed at or below 10,000 feet (props/turboprops may use regardless of altitude).",
+   "restr": "W/SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "CSN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "W/SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate EMI (N/NE)",
+   "text": "BWI low altitude departure gate EMI, routing/direction N/NE. For aircraft filed at or below 10,000 feet (props/turboprops may use regardless of altitude).",
+   "restr": "N/NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "EMI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "N/NE"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate GVE (S/SW)",
+   "text": "BWI low altitude departure gate GVE, routing/direction S/SW. For aircraft filed at or below 10,000 feet (props/turboprops may use regardless of altitude).",
+   "restr": "S/SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "GVE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "S/SW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate MRB (N/NW)",
+   "text": "BWI low altitude departure gate MRB, routing/direction N/NW. For aircraft filed at or below 10,000 feet (props/turboprops may use regardless of altitude).",
+   "restr": "N/NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "MRB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "N/NW"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate PXT (SE)",
+   "text": "BWI low altitude departure gate PXT, routing/direction SE. For aircraft filed at or below 10,000 feet (props/turboprops may use regardless of altitude).",
+   "restr": "SE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "PXT"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "low altitude gate",
+    "SE"
+   ]
+  },
+  {
+   "ref": "4-1-1",
+   "cat": "Ground",
+   "title": "Ground control duties",
+   "text": "Ground Control sequences aircraft having the same first fix or direction of departure with other aircraft, and keeps runway exits clear for landing aircraft.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "sequence",
+    "first fix"
+   ]
+  },
+  {
+   "ref": "4-1-2",
+   "cat": "Ground",
+   "title": "No blanket runway crossings",
+   "text": "Blanket crossings are not approved at BWI. Ground control must verbally coordinate with local control for any aircraft requiring a runway crossing.",
+   "restr": "Verbal coord with LC",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway crossing",
+    "blanket"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "East Ops turbojets depart Runway 15R",
+   "text": "In East operation, assign turbojets departing BWI Runway 15R. Assigning a non-standard runway requires coordination with local control (verbal or nonverbal).",
+   "restr": "Rwy 15R",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "15R",
+    "Turbojets"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "East Ops props depart Runway 15L",
+   "text": "In East operation, assign props departing BWI Runway 15L. Assigning a non-standard runway requires coordination with local control (verbal or nonverbal).",
+   "restr": "Rwy 15L",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "15L",
+    "Props"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "West Ops turbojets depart Runway 28",
+   "text": "In West operation, assign turbojets departing BWI Runway 28. Assigning a non-standard runway requires coordination with local control (verbal or nonverbal).",
+   "restr": "Rwy 28",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "28",
+    "Turbojets"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Runway config",
+   "title": "West Ops props depart Runway 33R",
+   "text": "In West operation, assign props departing BWI Runway 33R. Assigning a non-standard runway requires coordination with local control (verbal or nonverbal).",
+   "restr": "Rwy 33R",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway assignment",
+    "33R",
+    "Props"
+   ]
+  },
+  {
+   "ref": "4-2-1",
+   "cat": "Ground",
+   "title": "Ground East area: east of Pier C",
+   "text": "Ground East (GC2) is responsible for movement areas east of Pier C as depicted in Appendix A.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "GC2",
+    "Pier C",
+    "Appendix A"
+   ]
+  },
+  {
+   "ref": "4-2-1.a",
+   "cat": "Ground",
+   "title": "Ground East, West Ops: Bravo/Charlie to Rwy 28",
+   "text": "When in West operation, Ground East shall use taxiways Bravo and Charlie for runway 28 departures.",
+   "restr": "Twy B, C",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "GC2",
+    "taxiway",
+    "Bravo",
+    "Charlie",
+    "28"
+   ]
+  },
+  {
+   "ref": "4-2-1.b",
+   "cat": "Ground",
+   "title": "Ground East, East Ops: 15R dep handoff to GC West",
+   "text": "When in East operation, Ground East instructs runway 15R departures to hold short of taxiway Uniform on taxiway Tango, or hold short of taxiway Tango on taxiway Alpha; once holding short, transfer to Ground West.",
+   "restr": "HS U on T / HS T on A, then GC1",
+   "from": "GC2",
+   "to": "GC1",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "Tango",
+    "Uniform",
+    "Alpha",
+    "15R"
+   ]
+  },
+  {
+   "ref": "4-2-2",
+   "cat": "Ground",
+   "title": "Ground West area: west of Pier C",
+   "text": "Ground West (GC1) is responsible for movement areas west of Pier C as depicted in Appendix A.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "GC1",
+    "Pier C",
+    "Appendix A"
+   ]
+  },
+  {
+   "ref": "4-2-2.a",
+   "cat": "Ground",
+   "title": "Ground West, West Ops: Uniform to 28; 33R to GC East",
+   "text": "When in West operation, Ground West uses taxiway Uniform for runway 28 departures. For aircraft requesting runway 33R, instruct them to hold short of taxiway Uniform on taxiway Tango; once holding short, transfer to Ground East.",
+   "restr": "28 via U; 33R: HS U on T, then GC2",
+   "from": "GC1",
+   "to": "GC2",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "Uniform",
+    "Tango",
+    "28",
+    "33R"
+   ]
+  },
+  {
+   "ref": "4-2-2.b",
+   "cat": "Ground",
+   "title": "Ground West, East Ops: 15R taxi; 15L to GC East",
+   "text": "When in East operation, Ground West receives runway 15R aircraft from Ground East on taxiways Tango and Alpha and continues taxiing them to 15R. For aircraft requesting runway 15L, instruct them to hold short of taxiway Uniform on taxiway Papa; once holding short, transfer to Ground East.",
+   "restr": "15L: HS U on P, then GC2",
+   "from": "GC1",
+   "to": "GC2",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "Papa",
+    "Uniform",
+    "Tango",
+    "Alpha",
+    "15R",
+    "15L"
+   ]
+  },
+  {
+   "ref": "4-2-3",
+   "cat": "Ground",
+   "title": "Pushbacks onto A and T; tail direction",
+   "text": "Ground approves pushbacks onto taxiways A and T, specifying tail direction (e.g. PUSHBACK ON ALPHA APPROVED, TAIL WEST). During high volume such as events, GC may approve pushbacks for aircraft that would push into a non-movement area; if TMIs are in effect, instruct affected aircraft to advise ready for pushback. Ground West approves pushbacks into the non-movement area between pier B and C.",
+   "restr": "Specify tail direction",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "pushback",
+    "tail",
+    "TMI",
+    "pier B",
+    "pier C",
+    "non-movement"
+   ]
+  },
+  {
+   "ref": "5-1-1",
+   "cat": "Airspace",
+   "title": "Local Control airspace around BAL",
+   "text": "Local Control assumes responsibility for airspace within 5 NM of BAL at and below 3,000 feet, and between 5 NM and 7 NM of BAL below 1,500 feet.",
+   "restr": "5 NM AOB 3,000; 5-7 NM below 1,500",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "BAL",
+    "tower airspace",
+    "LC"
+   ]
+  },
+  {
+   "ref": "5-1-2",
+   "cat": "Airspace",
+   "title": "Local East: 15L/33R and App B/C airspace",
+   "text": "Local East (LC2) is responsible for the airspace depicted in Appendix B and C and runway 15L/33R. Appendices show the LC split line through the airport with the outer ring AOB 1499 and inner ring AOB 3000, Local East to the north/east side.",
+   "restr": "Rwy 15L/33R",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "LC2",
+    "Local East",
+    "Appendix B",
+    "Appendix C",
+    "15L",
+    "33R"
+   ]
+  },
+  {
+   "ref": "5-1-3",
+   "cat": "Airspace",
+   "title": "Local West: 15R/33L, 10/28 and App B/C airspace",
+   "text": "Local West (LC1) is responsible for the airspace depicted in Appendix B and C and runways 15R/33L and 10/28. Appendices show Local West on the south/west side of the split, AOB 3000 inner area and AOB 1499 outer ring.",
+   "restr": "Rwy 15R/33L, 10/28",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "LC1",
+    "Local West",
+    "Appendix B",
+    "Appendix C",
+    "15R",
+    "33L",
+    "10",
+    "28"
+   ]
+  },
+  {
+   "ref": "5-2-1",
+   "cat": "Departure",
+   "title": "Headings only for non-SID departures",
+   "text": "Assign an initial heading for departures not cleared via a SID. Aircraft cleared via a SID shall not be issued a departure heading unless necessary for traffic and coordinated with PCT prior to takeoff clearance.",
+   "restr": "SID: no heading unless coord PCT",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "SID",
+    "coordination"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1a",
+   "cat": "Departure",
+   "title": "East Ops turbojets departure headings",
+   "text": "East Operation departure headings for turbojets not on a SID: WOOLY departure sector 330; GRACO departure sector 120 – 150.",
+   "restr": "WOOLY 330 / GRACO 120 – 150",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "WOOLY",
+    "GRACO",
+    "Turbojets"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1a",
+   "cat": "Departure",
+   "title": "East Ops props departure headings",
+   "text": "East Operation departure headings for props not on a SID: WOOLY departure sector 040 – 120; GRACO departure sector 100 – 120.",
+   "restr": "WOOLY 040 – 120 / GRACO 100 – 120",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "East",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "WOOLY",
+    "GRACO",
+    "Props"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1b",
+   "cat": "Departure",
+   "title": "West Ops turbojets departure headings",
+   "text": "West Operation departure headings for turbojets not on a SID: WOOLY departure sector 270 – 290; GRACO departure sector 150.",
+   "restr": "WOOLY 270 – 290 / GRACO 150",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "WOOLY",
+    "GRACO",
+    "Turbojets"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1b",
+   "cat": "Departure",
+   "title": "West Ops props departure headings",
+   "text": "West Operation departure headings for props not on a SID: WOOLY departure sector 310 – 330; GRACO departure sector 360 – 030.",
+   "restr": "WOOLY 310 – 330 / GRACO 360 – 030",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "West",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "WOOLY",
+    "GRACO",
+    "Props"
+   ]
+  },
+  {
+   "ref": "5-2-2",
+   "cat": "Departure",
+   "title": "LUAW authorized",
+   "text": "LUAW is authorized at BWI. Use it when the aircraft is expected to depart after conflicting traffic is clear of the runway/intersection, using good operating practices and memory aids. Landing clearances need not be withheld for traffic holding in position.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": false,
+   "kw": [
+    "LUAW",
+    "line up and wait"
+   ]
+  },
+  {
+   "ref": "5-2-3.a",
+   "cat": "Coordination",
+   "title": "Automatic departures and suspension",
+   "text": "Automatic departures are authorized. Aircraft under a TMI (EDCT or call for release) must depart within their release validity period. Automatic departures are suspended until PCT restores them when: the previous arrival conducts an unplanned go around and automatic releases are not granted on initial go around coordination from PCT; PCT cancels automatic releases; or an aircraft departs a non-standard (non ATIS advertised) runway.",
+   "restr": "Auto releases unless suspended",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "automatic departures",
+    "release",
+    "EDCT",
+    "TMI",
+    "non-standard runway"
+   ]
+  },
+  {
+   "ref": "5-2-3.b",
+   "cat": "Coordination",
+   "title": "Release request content; valid 5 minutes",
+   "text": "While automatic departures are suspended, Local Control calls PCT for release stating callsign, departure runway, and SID and transition, initial fix, or heading to be assigned. Releases are valid for 5 minutes unless otherwise coordinated at time of release.",
+   "restr": "Release valid 5 min",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "release",
+    "call for release",
+    "5 minutes"
+   ]
+  },
+  {
+   "ref": "5-2-4",
+   "cat": "Handoff",
+   "title": "Tower assumed radar ID before departure switch",
+   "text": "Before switching a departure to PCT, local must observe it acquire on the STARS TDW within one mile of the departure end of runway; once correctly acquired it may be switched. If acquisition does not occur, notify the PCT departure controller before the frequency change with callsign and SID or assigned heading. The primary departure sector uses autotrack for all BWI departures.",
+   "restr": "Acquire within 1 NM of DER",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [
+    "KBWI"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "radar identification",
+    "TDW",
+    "autotrack",
+    "acquisition"
+   ]
+  },
+  {
+   "ref": "5-3-1",
+   "cat": "Arrival",
+   "title": "Missed approach/go around coordination",
+   "text": "Local Control immediately coordinates with PCT when an IFR aircraft goes around and, unless otherwise coordinated, issues TBL 5-3-2 instructions. Automatic releases are suspended after a missed approach/go around until released by PCT. Tower may re-sequence props if it ensures separation from all pertinent traffic and does not affect the sequence of other IFR arrivals sequenced by PCT.",
+   "restr": "Coord PCT immediately",
+   "from": "BWI ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "IFR",
+   "live": true,
+   "kw": [
+    "go around",
+    "missed approach",
+    "re-sequence"
+   ]
+  },
+  {
+   "ref": "TBL 5-3-2",
+   "cat": "Arrival",
+   "title": "Go around rwy 10/33L: 2,000, hdg 200",
+   "text": "Missed approach/go around instructions for runway 10/33L: altitude 2,000, heading 200, unless otherwise coordinated with PCT.",
+   "restr": "2,000 / 200",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "go around",
+    "missed approach",
+    "10/33L"
+   ]
+  },
+  {
+   "ref": "TBL 5-3-2",
+   "cat": "Arrival",
+   "title": "Go around rwy 15L/33R: 2,000, hdg 060",
+   "text": "Missed approach/go around instructions for runway 15L/33R: altitude 2,000, heading 060, unless otherwise coordinated with PCT.",
+   "restr": "2,000 / 060",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "go around",
+    "missed approach",
+    "15L/33R"
+   ]
+  },
+  {
+   "ref": "TBL 5-3-2",
+   "cat": "Arrival",
+   "title": "Go around rwy Other: 2,000, rwy hdg",
+   "text": "Missed approach/go around for all other runways: altitude 2,000, fly runway heading, unless otherwise coordinated with PCT.",
+   "restr": "2,000 / Runway Heading",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "go around",
+    "missed approach",
+    "Other"
+   ]
+  },
+  {
+   "ref": "5-3-2",
+   "cat": "Arrival",
+   "title": "Transfer to ground once clear of runway",
+   "text": "Once aircraft are clear of the runway they shall be transferred to ground control unless otherwise coordinated.",
+   "restr": "",
+   "from": "LC",
+   "to": "GC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway exit",
+    "ground"
+   ]
+  }
+ ]
+}

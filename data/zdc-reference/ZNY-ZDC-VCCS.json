@@ -1,0 +1,114 @@
+{
+ "doc": {
+  "id": "ZNY-ZDC-VCCS",
+  "title": "ZDC–ZNY vCCS LOA",
+  "kind": "LOA",
+  "number": "",
+  "parties": [
+   "ZDC",
+   "ZNY"
+  ],
+  "effective": "2026-08-18",
+  "file": "ffd1d4c6-ZDC__ZNY_LOA_for_vCCS_Procedures_18_Aug_26.pdf",
+  "summary": "Use of the Virtual Controller Coordination Switch between ZDC and ZNY: CRC chat as primary coordination, vCCS line setup via vccs.app."
+ },
+ "items": [
+  {
+   "ref": "1-4",
+   "cat": "General",
+   "title": "Purpose, cancellation, scope, disclaimer",
+   "text": "Guidance for use of the Virtual Controller Coordination Switch (vCCS) between ZDC and ZNY. Cancels and supersedes the Voice Switching & Communications System LOA dated 16 January 2026. vCCS is not mandatory; controllers who use it follow this standard. Simulation only.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fr": "",
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "vCCS"
+   ]
+  },
+  {
+   "ref": "5",
+   "cat": "Coordination",
+   "title": "Primary coordination: CRC chat; vCCS recommended",
+   "text": "The primary method of interfacility coordination is CRC controller-to-controller chat. vCCS is the recommended communication platform and is encouraged when possible.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fr": "",
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "vCCS",
+    "CRC chat"
+   ]
+  },
+  {
+   "ref": "6.a",
+   "cat": "Coordination",
+   "title": "vCCS line coordination via vccs.app",
+   "text": "Lines between facilities are coordinated through https://vccs.app: each facility enters the lines requested and the other accepts during profile creation and maintenance. Facility Engineers are primarily responsible for coordinating changes and resolving discrepancies.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fr": "",
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "vCCS",
+    "lines",
+    "FE",
+    "vccs.app"
+   ]
+  },
+  {
+   "ref": "6.b",
+   "cat": "General",
+   "title": "'vCCS In Use' controller info remark",
+   "text": "Controllers are encouraged to include \"vCCS In Use\" in their controller information.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fr": "",
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "live": false,
+   "kw": [
+    "vCCS",
+    "controller info"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1048 @@
+{
+ "doc": {
+  "id": "PHL-PCT-LOA",
+  "title": "PHL TRACON – PCT LOA",
+  "kind": "LOA",
+  "number": "Rev. 1",
+  "parties": [
+   "PHL",
+   "PCT",
+   "DOV"
+  ],
+  "effective": "2014-05-20",
+  "file": "80f7f8f1-ZNY___PHL-PCT_LOA_1547180092_1.pdf",
+  "summary": "LOA between Philadelphia and Potomac TRACONs: route/altitude tables for PHL→PCT and PCT→PHL departures, DOV departures to PHL, TEC charts, ODESA area delegation and satellite airport lists."
+ },
+ "items": [
+  {
+   "ref": "Purpose / Cancellation / Scope",
+   "cat": "General",
+   "title": "Purpose, cancellation, scope",
+   "text": "Prescribes transfer of control and radar handoff procedures, route/altitude assignments and airspace delegation between Philadelphia TRACON (PHL) and Potomac TRACON (PCT). Cancels the PHL and PCT LOA dated March 19, 2008. Procedures apply unless prior coordination is effected.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "scope"
+   ]
+  },
+  {
+   "ref": "PHL Dep a.i",
+   "cat": "Clearance",
+   "title": "PHL→PCT departures: use Attachment 1, else APREQ",
+   "text": "All aircraft departing PHL TRACON to PCT TRACON shall be cleared to the destination via the routes and altitudes in Attachment 1. Other routes and altitudes are on an APREQ basis.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "APREQ"
+   ]
+  },
+  {
+   "ref": "PHL Dep a.ii",
+   "cat": "Handoff",
+   "title": "ZNY unmanned: BWI/DCA flights to PCT after MXE",
+   "text": "Should New York Center not be manned, flights destined to BWI and DCA will be handed off to Potomac Approach (or Washington Center if Potomac Approach is offline) after passing MXE.",
+   "restr": "Handoff after MXE (ZNY offline)",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KPHL",
+    "KCKZ",
+    "KDYL",
+    "KLOM",
+    "KPNE",
+    "KPTW",
+    "KTTN",
+    "KUKT",
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "arr": [
+    "KBWI",
+    "KDCA"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZNY offline",
+    "MXE"
+   ]
+  },
+  {
+   "ref": "PCT Dep a.i",
+   "cat": "Clearance",
+   "title": "PCT→PHL departures: use Attachment 2, else APREQ",
+   "text": "All aircraft departing PCT TRACON to PHL TRACON shall be cleared to the destination via the routes and altitudes in Attachment 2. Other routes and altitudes are on an APREQ basis.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "APREQ"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "PHL N Sats to BWI/DCA via MXE V378 BAL",
+   "text": "PHL N Sats departures to BWI & Sats / DCA & Sats via MXE V378 BAL: 10,000' jets; 6,000' or 8,000' props. (BWI/DCA satellites not defined in this LOA.)",
+   "restr": "10,000 jets / 6,000 or 8,000 props",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KCKZ",
+    "KDYL",
+    "KLOM",
+    "KPNE",
+    "KPTW",
+    "KTTN",
+    "KUKT"
+   ],
+   "arr": [
+    "KBWI",
+    "KDCA"
+   ],
+   "both": true,
+   "fixes": [
+    "MXE",
+    "V378",
+    "BAL"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "PHL/PHL S Sats to BWI/DCA RNAV jets via CLIPR",
+   "text": "PHL & PHL S Sats departures to BWI & Sats / DCA & Sats via DQO V166 BELAY V378 TRISH CLIPR CLIPR STAR: 10,000', RNAV jets only.",
+   "restr": "10,000 (RNAV jets only)",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KPHL",
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "arr": [
+    "KBWI",
+    "KDCA"
+   ],
+   "both": true,
+   "fixes": [
+    "V166",
+    "CLIPR"
+   ],
+   "fixMode": "all",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "DQO",
+    "BELAY",
+    "TRISH"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "PHL/PHL S Sats to BWI/DCA non-RNAV jets via BAL",
+   "text": "PHL & PHL S Sats departures to BWI & Sats / DCA & Sats via DQO V166 BELAY V378 BAL: 10,000', non-RNAV jets.",
+   "restr": "10,000 (non-RNAV jets)",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KPHL",
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "arr": [
+    "KBWI",
+    "KDCA"
+   ],
+   "both": true,
+   "fixes": [
+    "V166",
+    "BAL"
+   ],
+   "fixMode": "all",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "DQO",
+    "BELAY"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "PHL/PHL S Sats turboprops via ENO V16 CHOPS V308",
+   "text": "PHL & PHL S Sats turboprop departures to BWI & Sats / DCA & Sats via ENO V16 CHOPS V308 OTT DCA: 6,000'-8,000'.",
+   "restr": "6,000-8,000",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KPHL",
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "arr": [
+    "KBWI",
+    "KDCA"
+   ],
+   "both": true,
+   "fixes": [
+    "ENO",
+    "V16",
+    "CHOPS",
+    "V308",
+    "OTT"
+   ],
+   "fixMode": "any",
+   "acft": "tp",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "PHL Area to IAD & Sats via V408 ROBRT AML",
+   "text": "PHL Area departures to IAD & Sats via V408 ROBRT AML: 8,000', 210kts or less. (IAD satellites not defined in this LOA.)",
+   "restr": "8,000 / 210kts or less",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KPHL",
+    "KCKZ",
+    "KDYL",
+    "KLOM",
+    "KPNE",
+    "KPTW",
+    "KTTN",
+    "KUKT",
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "arr": [
+    "KIAD"
+   ],
+   "both": true,
+   "fixes": [
+    "V408",
+    "ROBRT",
+    "AML"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Departure",
+   "title": "PHL Area TEC via MRB: V408 ROBRT V143 MRB",
+   "text": "PHL Area departures, TEC via MRB, routed V408 ROBRT V143 MRB: 8,000', 210kts or less.",
+   "restr": "8,000 / 210kts or less",
+   "from": "PHL",
+   "to": "PCT",
+   "dep": [
+    "KPHL",
+    "KCKZ",
+    "KDYL",
+    "KLOM",
+    "KPNE",
+    "KPTW",
+    "KTTN",
+    "KUKT",
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "V143",
+    "MRB"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "TEC",
+    "ROBRT"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→PHL jets via V433 DQO: 9,000",
+   "text": "Departures from PCT (printed 'WRI Area') to PHL via V433 DQO: 9,000' jets.",
+   "restr": "9,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KPHL"
+   ],
+   "both": false,
+   "fixes": [
+    "V433"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→PHL via ODESA OOD: 5,000 TP / 4,000 slow",
+   "text": "Departures from PCT (printed 'WRI Area') to PHL via ODESA OOD: 5,000' turboprops; 4,000' for 180kt or less.",
+   "restr": "5,000 turboprops / 4,000 180kt or less",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KPHL"
+   ],
+   "both": false,
+   "fixes": [
+    "ODESA"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "OOD"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→PHL N Sats jets via V433 DQO: 11,000",
+   "text": "Departures from PCT (printed 'WRI Area') to PHL N Sats via V433 DQO: 11,000' jets.",
+   "restr": "11,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KCKZ",
+    "KDYL",
+    "KLOM",
+    "KPNE",
+    "KPTW",
+    "KTTN",
+    "KUKT"
+   ],
+   "both": false,
+   "fixes": [
+    "V433"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→PHL N Sats props via V419/V378 MXE: 5,000",
+   "text": "Departures from PCT (printed 'WRI Area') to PHL N Sats via V419 MXE or V378 MXE: 5,000' props.",
+   "restr": "5,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KCKZ",
+    "KDYL",
+    "KLOM",
+    "KPNE",
+    "KPTW",
+    "KTTN",
+    "KUKT"
+   ],
+   "both": false,
+   "fixes": [
+    "V419",
+    "V378"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MXE"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→PHL S Sats via V433 DQO: 5,000",
+   "text": "Departures from PCT (printed 'WRI Area') to PHL S Sats via V433 DQO: 5,000', no restriction.",
+   "restr": "5,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "both": false,
+   "fixes": [
+    "V433"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→PHL S Sats via V433 DQO: 4,000 if ≤180kts",
+   "text": "Departures from PCT (printed 'WRI Area') to PHL S Sats via V433 DQO: 4,000' for aircraft 180kts or less.",
+   "restr": "4,000 (180kts or less)",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KEVY",
+    "KILG",
+    "KMQS",
+    "KOQN"
+   ],
+   "both": false,
+   "fixes": [
+    "V433"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→LGA turboprops via V433 DQO V479 RUUTH",
+   "text": "Departures from PCT (printed 'WRI Area') to LGA via V433 DQO V479 RUUTH V123 RBV: 12,000' turboprops.",
+   "restr": "12,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KLGA"
+   ],
+   "both": false,
+   "fixes": [
+    "V433",
+    "V479",
+    "RUUTH",
+    "V123"
+   ],
+   "fixMode": "any",
+   "acft": "tp",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→EWR turboprops via V433 DQO V479 RUUTH",
+   "text": "Departures from PCT (printed 'WRI Area') to EWR via V433 DQO V479 RUUTH V123 RBV: 11,000' turboprops.",
+   "restr": "11,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KEWR"
+   ],
+   "both": false,
+   "fixes": [
+    "V433",
+    "V479",
+    "RUUTH",
+    "V123"
+   ],
+   "fixMode": "any",
+   "acft": "tp",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→EWR pistons via V419/V378 MXE ARD: 5,000",
+   "text": "Departures from PCT (printed 'WRI Area') to EWR via V419 MXE ARD or V378 MXE ARD: 5,000' piston.",
+   "restr": "5,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [
+    "KEWR"
+   ],
+   "both": false,
+   "fixes": [
+    "V419",
+    "V378"
+   ],
+   "fixMode": "any",
+   "acft": "pn",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "MXE",
+    "ARD"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→EWR Sats turboprops via DQO029 V3 SBJ",
+   "text": "Departures from PCT (printed 'WRI Area') to EWR Sats via V433 DQO DQO029 V3 SBJ: 12,000' turboprops. (EWR satellites not defined in this LOA.)",
+   "restr": "12,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "V433",
+    "SBJ"
+   ],
+   "fixMode": "all",
+   "acft": "tp",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "EWR Sats",
+    "DQO029",
+    "V3"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→EWR Sats pistons via V419/V378 MXE V3",
+   "text": "Departures from PCT (printed 'WRI Area') to EWR Sats via V419 MXE V3 or V378 MXE V3: 5,000' piston.",
+   "restr": "5,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "MXE",
+    "V3"
+   ],
+   "fixMode": "all",
+   "acft": "pn",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "EWR Sats",
+    "V419",
+    "V378"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PCT→WRI Sats via ODESA OOD V312 CYN: 5,000",
+   "text": "Departures from PCT (printed 'WRI Area') to WRI Sats via ODESA OOD V312 CYN: 5,000', no restriction. (WRI satellites not defined in this LOA.)",
+   "restr": "5,000",
+   "from": "PCT",
+   "to": "PHL",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "ODESA",
+    "V312"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "WRI Sats",
+    "CYN"
+   ]
+  },
+  {
+   "ref": "Att 3 Tbl 1",
+   "cat": "Departure",
+   "title": "DOV+ requesting >FL180 via MXE J110: 7,000",
+   "text": "DOV and satellite departures requesting above FL180, routed MXE J110: 7,000'. (DOV satellites not defined in this LOA.)",
+   "restr": "7,000",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "MXE",
+    "J110"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": 19000,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 3 Tbl 1",
+   "cat": "Departure",
+   "title": "DOV+ to PHL direct DQO: 7,000",
+   "text": "DOV and satellite departures landing PHL, routed direct DQO: 7,000'.",
+   "restr": "7,000",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [
+    "KPHL"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "DQO"
+   ]
+  },
+  {
+   "ref": "Att 3 Tbl 1",
+   "cat": "Departure",
+   "title": "DOV+ PHL sats/overflights via ENO V29 DQO",
+   "text": "DOV and satellite departures to PHL satellites and overflights, routed ENO V29 DQO or direct DQO: 5,000' or 3,000'.",
+   "restr": "5,000 or 3,000",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "ENO",
+    "V29",
+    "DQO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 3 Tbl 1",
+   "cat": "Departure",
+   "title": "DOV+ landing EVY direct: 3,000",
+   "text": "DOV and satellite departures landing EVY, routed direct: 3,000'.",
+   "restr": "3,000",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [
+    "KEVY"
+   ],
+   "both": true,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 3 Tbl 1",
+   "cat": "Departure",
+   "title": "DOV+ all via direct ENO: 3,000",
+   "text": "DOV and satellite departures (all), routed direct ENO: 3,000'.",
+   "restr": "3,000",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "ENO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 3 Tbl 1",
+   "cat": "Departure",
+   "title": "DOV+ to EWR satellites via V29 MXE V3 SBJ",
+   "text": "DOV and satellite departures to EWR satellites, routed V29 MXE V3 SBJ: 5,000'.",
+   "restr": "5,000",
+   "from": "DOV",
+   "to": "PHL",
+   "dep": [
+    "KDOV"
+   ],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "MXE",
+    "V3"
+   ],
+   "fixMode": "all",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "V29",
+    "SBJ",
+    "EWR satellites"
+   ]
+  },
+  {
+   "ref": "Att 3 chart",
+   "cat": "Airspace",
+   "title": "DOV/PHL area chart: areas A–H altitudes",
+   "text": "Scanned chart (as legible): A South Arrival 7,000 and above, DQO 6,000/below; B South Arrival 7,000 and above, DQO 6,000; C South Arrival 8,000/6,000; D South Arrival 6,000 and above, OOD 5,000/below; E South Arrival 8,000/6,000, ACY 5,000/below. BLARE AREA: F DQO 6,000/4,000; G DQO 6,000/5,000, OOD 4,000; H South Arrival 6,000 and above, OOD 5,000/4,000. Routes: DQO V29 southbound 4,000/6,000; OOD V157 4,000/6,000; from ENO 3,000/5,000, MXE J110 7,000; SR846 entry point shown.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "BLARE",
+    "chart",
+    "Dover"
+   ]
+  },
+  {
+   "ref": "Att 4",
+   "cat": "Airspace",
+   "title": "TEC chart: PCT area to PHL area",
+   "text": "Chart (as legible): V419 5000 and V378 5000 (via TROYZ/NUGGY) toward MXE; TK-504 3000 from RUSEY via CIDOB; V170-214-433-445 from KERNO at 4000-5000-9000 / 11000-12000; via ODESA to OOD 4000 & 5000 landing PHL. Transfer point is the approach control boundary line.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "TEC",
+    "transfer point"
+   ]
+  },
+  {
+   "ref": "Att 5",
+   "cat": "Airspace",
+   "title": "TEC chart: PHL area to PCT area",
+   "text": "Chart (as legible): TK-502 4000 from SINON toward KITHE/VINNY and via WINGO to TAYLO; V3-408 8000 from MXE; V378 6000-8000-10000 via NUGGY/TROYZ to BELAY; V166 6000-8000-10000 from DQO via CURVY to BELAY/TAFFI. Transfer point is the approach control boundary line.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "TEC",
+    "transfer point"
+   ]
+  },
+  {
+   "ref": "Att 6",
+   "cat": "Airspace",
+   "title": "ODESA area delegated to PCT: 4,000–9,000",
+   "text": "When PHL delegates the ODESA (shaded) area to PCT, PCT has 4,000 through 9,000 feet. ODESA area coordinates: A 39 34' 24\" / 75 53' 55\"; B 39 37' 04\" / 75 46' 31\"; C 39 31' 52\" / 75 42' 14\"; D 39 24' 48\" / 75 48' 15\".",
+   "restr": "4,000–9,000",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "ODESA",
+    "delegation"
+   ]
+  },
+  {
+   "ref": "Att 7",
+   "cat": "General",
+   "title": "PHL Area North (PHLN) satellites",
+   "text": "Philadelphia Area North (PHLN): CKZ, DYL, LOM, PNE, PTW, TTN, UKT, N10, N47, 3NJ6, 9N1.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "PHLN",
+    "satellites"
+   ]
+  },
+  {
+   "ref": "Att 7",
+   "cat": "General",
+   "title": "PHL Area South (PHLS) satellites",
+   "text": "Philadelphia Area South (PHLS): EVY, ILG, MQS, OQN, N57, NJ74, 17N, 58M, 7N7.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "PHLS",
+    "satellites"
+   ]
+  },
+  {
+   "ref": "Att 7",
+   "cat": "General",
+   "title": "ARD Area satellites",
+   "text": "ARD Area: 3NJ6, CKZ, DYL, UKT, PNE, TTN.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "ARD",
+    "satellites"
+   ]
+  },
+  {
+   "ref": "Att 7",
+   "cat": "General",
+   "title": "PTW/DQO Area satellites",
+   "text": "PTW/DQO Area: OQN, 7N7, 58M, PTW, MQS, N10, ILG, N47, N57, LOM, EVY.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "PTW",
+    "DQO",
+    "satellites"
+   ]
+  }
+ ]
+}

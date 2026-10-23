@@ -1,0 +1,995 @@
+{
+ "doc": {
+  "id": "ZBW-ZDC-LOA",
+  "title": "ZBW–ZDC LOA",
+  "kind": "LOA",
+  "number": "",
+  "parties": [
+   "ZDC",
+   "ZBW"
+  ],
+  "effective": "2023-12-31",
+  "file": "f9b6e294-ZBW___ZDC_LOA_1702158419.pdf",
+  "summary": "LOA between vZDC and Boston Virtual ARTCC: general handoff/datablock rules, direct-to permissions, ZNY-offline direct transfer procedures, combined frequencies, and arrival route/altitude tables in both directions."
+ },
+ "items": [
+  {
+   "ref": "1-3",
+   "cat": "General",
+   "title": "Purpose, scope, disclosure",
+   "text": "Defines pre-defined ATC procedures and coordination between Washington ARTCC (vZDC) and Boston Virtual ARTCC (BVA). Procedures apply unless prior coordination has been effected and apply during the transfer of IFR aircraft. VATSIM use only; not affiliated with the FAA. Cancels the agreement effective 4 August 2021.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "scope",
+    "BVA"
+   ]
+  },
+  {
+   "ref": "4.a.(1)",
+   "cat": "Coordination",
+   "title": "Coordinate all deviations from the LOA",
+   "text": "BVA/vZDC ATC must coordinate and resolve, in the way that gives the pilot the smoothest experience, all deviations from and situations not addressed by the LOA (e.g. non-standard sectorization, holding, pilots unable to accept LOA routes, aircraft above/below LOA altitudes).",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "deviation"
+   ]
+  },
+  {
+   "ref": "4.a.(2)",
+   "cat": "Handoff",
+   "title": "1X simulation rate before handoff",
+   "text": "Ensure all aircraft are at a 1X simulation rate prior to initiating handoff.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "sim rate"
+   ]
+  },
+  {
+   "ref": "4.a.(3)",
+   "cat": "Coordination",
+   "title": "10nm in trail, same route and altitude",
+   "text": "Aircraft on the same route segment at the same altitude must be separated by not less than 10 nm (steady or increasing) or another value specified in the LOA, unless greater MIT is requested real-time by BVA/vZDC. NOTE: separation of less than 10 nm is permitted provided the trailing aircraft is operating at a speed that will permit it to overtake the lead aircraft, and both are vertically separated.",
+   "restr": "10 MIT",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "MIT",
+    "miles in trail",
+    "spacing"
+   ]
+  },
+  {
+   "ref": "4.a.(4)",
+   "cat": "Handoff",
+   "title": "Handoff at least 10nm before boundary",
+   "text": "Handoff requests must be made at least 10nm prior to the relevant airspace boundary unless otherwise specified. Handoff requests may be initiated up to 50nm without prior coordination.",
+   "restr": "≥10nm prior; up to 50nm",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "handoff"
+   ]
+  },
+  {
+   "ref": "4.a.(5)",
+   "cat": "Handoff",
+   "title": "Resolve conflicts and MIT before handoff",
+   "text": "All conflicts, imminent situations and MIT separation issues must be resolved prior to handoff.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": []
+  },
+  {
+   "ref": "4.a.(6)",
+   "cat": "Coordination",
+   "title": "Clear scratchpads unless conveying info",
+   "text": "Scratchpad entries must be cleared unless required to convey operational information (e.g. \"M80\" for assigned Mach, \"H###\" for assigned heading) not coordinated by other means.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "scratchpad",
+    "M80",
+    "heading"
+   ]
+  },
+  {
+   "ref": "4.a.(7)",
+   "cat": "Coordination",
+   "title": "Datablock formatting, A## and NORDO",
+   "text": "Altitude status (assigned/interim) must always reflect the actual/cleared status. Fourth line usage per 7110.65 plus: A## (aircraft approved to step away, expected return time ##) and NORDO (unresponsive to multiple handoff attempts and messaged to contact the new frequency). Aircraft type and equipment suffix must match the aircraft's capability.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "fourth line",
+    "A##",
+    "NORDO",
+    "equipment suffix"
+   ]
+  },
+  {
+   "ref": "4.b",
+   "cat": "Clearance",
+   "title": "Route per Attachments 1 and 2",
+   "text": "ARTCCs must route traffic as described in Attachments #1 and #2.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": []
+  },
+  {
+   "ref": "4.c.(1)",
+   "cat": "Clearance",
+   "title": "ZBW may clear direct ZJAAY (west of Q167)",
+   "text": "ZBW may clear aircraft direct ZJAAY, west of Q167 but no further west than a line between CCC and SWL.",
+   "restr": "Direct ZJAAY OK",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "ZJAAY",
+    "Q167"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "direct"
+   ]
+  },
+  {
+   "ref": "4.c.(2)",
+   "cat": "Clearance",
+   "title": "ZBW may clear ZIZZI or TBONN east of Q167",
+   "text": "ZBW may clear aircraft ZIZZI or TBONN east of Q167.",
+   "restr": "ZIZZI/TBONN OK",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "ZIZZI",
+    "TBONN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "direct",
+    "Q167"
+   ]
+  },
+  {
+   "ref": "4.d",
+   "cat": "Clearance",
+   "title": "ZDC may clear direct ORW and HTO",
+   "text": "ZDC may clear aircraft direct ORW and HTO without prior approval.",
+   "restr": "Direct ORW/HTO OK",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "ORW",
+    "HTO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "direct"
+   ]
+  },
+  {
+   "ref": "4.e",
+   "cat": "Clearance",
+   "title": "ZDC: no direct TOPPS/EBONY/ALLEX/QUBIS/MILLS/TAFFY",
+   "text": "ZDC must not route traffic direct TOPPS, EBONY, ALLEX, QUBIS, MILLS, or TAFFY.",
+   "restr": "No direct",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [
+    "TOPPS",
+    "EBONY",
+    "ALLEX",
+    "QUBIS",
+    "MILLS",
+    "TAFFY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "direct"
+   ]
+  },
+  {
+   "ref": "4.f.(1)-(3)",
+   "cat": "Handoff",
+   "title": "ZNY offline: direct ZBW–ZDC handoffs",
+   "text": "When ZNY is offline, aircraft passing through the New York area to/toward ZBW or ZDC are transferred directly between Boston and Washington Centers. BVA completes the handoff before the ZBW/ZNY border and ZDC before the ZDC/ZNY border, as if to New York Center. ZDC is responsible for separation between tracked aircraft within ZNY airspace while direct handoffs are in place.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "ZNY offline",
+    "top down"
+   ]
+  },
+  {
+   "ref": "4.f.(4)",
+   "cat": "Arrival",
+   "title": "ZNY offline: PHL JIIMS cross 35NE MANTA FL200",
+   "text": "When ZNY is offline, for aircraft destined to PHL on the JIIMS STAR, ZBW must instruct the aircraft to cross 35 miles northeast of MANTA at FL200 and hand off to ZDC prior to the ZNY boundary.",
+   "restr": "35 NE MANTA at FL200 (ZNY offline)",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KPHL"
+   ],
+   "both": false,
+   "fixes": [
+    "JIIMS"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZNY offline",
+    "MANTA"
+   ]
+  },
+  {
+   "ref": "4.f.(5)",
+   "cat": "Arrival",
+   "title": "ZNY offline: BOS ROBUC cross NEWES FL270",
+   "text": "When ZNY is offline, for aircraft destined to BOS on the ROBUC STAR, ZDC must instruct the aircraft to cross NEWES at FL270 and hand off to ZBW prior to the ZBW boundary.",
+   "restr": "NEWES at FL270 (ZNY offline)",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KBOS"
+   ],
+   "both": false,
+   "fixes": [
+    "ROBUC"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "ZNY offline",
+    "NEWES"
+   ]
+  },
+  {
+   "ref": "5.a",
+   "cat": "Frequencies",
+   "title": "ZDC combined: GVE32 on 133.72",
+   "text": "ZDC normally operates combined in single-sector mode using the CTL/ATL area GVE32 sector frequency 133.72; a variety of splits may be used when traffic warrants. The sector map shows ZDC sectors such as 05 LDN, 37 MAR, 52 TEC, 32 GVE, 12 BRV, 20 BKT, 36 RDU, 09 DIW, 54 SBY and 59 SIE.",
+   "restr": "133.72",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "GVE32",
+    "sector split",
+    "DC_CTR"
+   ]
+  },
+  {
+   "ref": "6.a",
+   "cat": "Frequencies",
+   "title": "ZBW combined: BOS_CTR 134.700 (CON37)",
+   "text": "When Boston Center is combined it operates as BOS_CTR on 134.700 (CON37).",
+   "restr": "134.700",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "BOS_CTR",
+    "CON37"
+   ]
+  },
+  {
+   "ref": "6.b",
+   "cat": "Coordination",
+   "title": "ZBW sector splits published online",
+   "text": "Boston Center splits are coordinated with adjacent facilities using ATC channels; current splits are published at airspace.bvartcc.com.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": false,
+   "kw": [
+    "sector split"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA jets via ZIZZI ATR LAFLN DEALE: AOB FL340",
+   "text": "DCA jet arrivals via ZIZZI ATR LAFLN DEALE STAR: at or below FL340. DCA/BWI/ADW in trail as one.",
+   "restr": "AOB FL340",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "ZIZZI",
+    "ATR",
+    "LAFLN",
+    "DEALE"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "in trail"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "DCA props via T320 VAALI CAPKO: AOB FL280",
+   "text": "DCA prop arrivals via T320 VAALI CAPKO: at or below FL280. DCA/BWI/ADW in trail as one.",
+   "restr": "AOB FL280",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "both": false,
+   "fixes": [
+    "T320",
+    "VAALI",
+    "CAPKO"
+   ],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "in trail"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "BWI jets via ZIZZI ATR LAFLN MIIDY: AOB FL340",
+   "text": "BWI jet arrivals via ZIZZI ATR LAFLN MIIDY STAR: at or below FL340. DCA/BWI/ADW in trail as one.",
+   "restr": "AOB FL340",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KBWI"
+   ],
+   "both": false,
+   "fixes": [
+    "ZIZZI",
+    "ATR",
+    "LAFLN",
+    "MIIDY"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "in trail"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ADW jets via ZIZZI ATR LAFLN SPISY: AOB FL340",
+   "text": "ADW jet arrivals via ZIZZI ATR LAFLN SPISY STAR: at or below FL340. DCA/BWI/ADW in trail as one.",
+   "restr": "AOB FL340",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KADW"
+   ],
+   "both": false,
+   "fixes": [
+    "ZIZZI",
+    "ATR",
+    "LAFLN",
+    "SPISY"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "in trail"
+   ]
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "RIC & Sats via Q167 ZJAAY ARICE JAMIE",
+   "text": "RIC & satellite arrivals routed Q167 ZJAAY ARICE JAMIE. No altitude listed. (RIC satellites not defined in this LOA.)",
+   "restr": "Q167 ZJAAY ARICE JAMIE",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRIC"
+   ],
+   "both": false,
+   "fixes": [
+    "Q167",
+    "ZJAAY",
+    "ARICE",
+    "JAMIE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "ORF & Sats via Q167 ZJAAY CCV",
+   "text": "ORF & satellite arrivals routed Q167 ZJAAY CCV. No altitude listed. (ORF satellites not defined in this LOA.)",
+   "restr": "Q167 ZJAAY CCV",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KORF"
+   ],
+   "both": false,
+   "fixes": [
+    "Q167",
+    "ZJAAY",
+    "CCV"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 1",
+   "cat": "Arrival",
+   "title": "RDU via Q167 ZJAAY TAQLE STAR",
+   "text": "RDU arrivals routed Q167 ZJAAY TAQLE STAR. No altitude listed.",
+   "restr": "Q167 ZJAAY TAQLE",
+   "from": "ZBW",
+   "to": "ZDC",
+   "dep": [],
+   "arr": [
+    "KRDU"
+   ],
+   "both": false,
+   "fixes": [
+    "Q167",
+    "ZJAAY",
+    "TAQLE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Coordination",
+   "title": "ZBW arrival groups enter in trail",
+   "text": "Aircraft in each group (Boston; Cape Airports: ACK, HYA, FMH, CQX, PVC, MVY; PVD and Satellites: PVD, EWB, OQU, PYM, SFZ, UUU, GHG) must enter ZBW in trail with their group. The PVD group must be below the Cape Airports group. In-trail sequencing applies between aircraft of similar performance. MVY arrivals may be above other PVD-group airports; ACK arrivals may be above other Cape Airports.",
+   "restr": "In trail by group",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KBOS",
+    "KACK",
+    "KHYA",
+    "KFMH",
+    "KCQX",
+    "KPVC",
+    "KMVY",
+    "KEWB",
+    "KOQU",
+    "KPYM",
+    "KSFZ",
+    "KUUU",
+    "KGHG",
+    "KPVD"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "in trail",
+    "Cape Airports",
+    "PVD satellites"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS RNAV jets via Q419 JFK ROBUC: NEWES FL270",
+   "text": "BOS RNAV jet arrivals via Q419 JFK ROBUC STAR: NEWES at FL270.",
+   "restr": "NEWES at FL270",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KBOS"
+   ],
+   "both": false,
+   "fixes": [
+    "Q419",
+    "ROBUC"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS non-RNAV jets via J42 RBV J222 JFK ORW",
+   "text": "BOS non-RNAV jet arrivals via J42 RBV J222 JFK ORW STAR: NEWES at FL270.",
+   "restr": "NEWES at FL270",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KBOS"
+   ],
+   "both": false,
+   "fixes": [
+    "J42",
+    "J222",
+    "ORW"
+   ],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "BOS non-jets via WOONS or WOONS STAR",
+   "text": "BOS non-jet arrivals route WOONS or WOONS STAR. Non-jet aircraft are not permitted on the ORW or ROBUC arrivals. Altitude: N/A.",
+   "restr": "WOONS / WOONS STAR; no ORW/ROBUC",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KBOS"
+   ],
+   "both": false,
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "WOONS",
+    "non-jet"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ACK RNAV via Q439 SARDI RIFLE DEEPO STAR",
+   "text": "ACK RNAV arrivals via Q439 SARDI RIFLE DEEPO STAR. Altitude: None.",
+   "restr": "Q439 SARDI RIFLE DEEPO",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KACK"
+   ],
+   "both": false,
+   "fixes": [
+    "Q439",
+    "SARDI",
+    "RIFLE",
+    "DEEPO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "RNAV",
+    "Cape Airports"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "ACK non-RNAV via J174 RIFLE DEEPO STAR",
+   "text": "ACK non-RNAV arrivals via J174 RIFLE DEEPO STAR. Altitude: None.",
+   "restr": "J174 RIFLE DEEPO",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KACK"
+   ],
+   "both": false,
+   "fixes": [
+    "J174",
+    "RIFLE",
+    "DEEPO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "non-RNAV",
+    "Cape Airports"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "HYA/FMH/CQX/PVC via RIFLE LIBBE FLAPE MVY",
+   "text": "HYA, FMH, CQX, PVC RNAV arrivals via RIFLE LIBBE FLAPE MVY DCT. Altitude: None.",
+   "restr": "RIFLE LIBBE FLAPE MVY DCT",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KHYA",
+    "KFMH",
+    "KCQX",
+    "KPVC"
+   ],
+   "both": false,
+   "fixes": [
+    "RIFLE",
+    "LIBBE",
+    "FLAPE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Cape Airports"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "MVY via RIFLE LIBBE FLAPE DCT: AOB FL370",
+   "text": "MVY RNAV arrivals via RIFLE LIBBE FLAPE DCT: at or below FL370.",
+   "restr": "AOB FL370",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KMVY"
+   ],
+   "both": false,
+   "fixes": [
+    "RIFLE",
+    "LIBBE",
+    "FLAPE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "Cape Airports"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PVD sats via Q439 HTO JORDN MINNK: AOB FL370",
+   "text": "EWB, OQU, PYM, SFZ, UUU, GHG arrivals (all types) via Q439 HTO JORDN MINNK DCT: at or below FL370.",
+   "restr": "AOB FL370",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KEWB",
+    "KOQU",
+    "KPYM",
+    "KSFZ",
+    "KUUU",
+    "KGHG"
+   ],
+   "both": false,
+   "fixes": [
+    "Q439",
+    "HTO",
+    "JORDN",
+    "MINNK"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": [
+    "PVD satellites"
+   ]
+  },
+  {
+   "ref": "Att 2",
+   "cat": "Arrival",
+   "title": "PVD via Q439 HTO JORDN STAR: AOB FL370",
+   "text": "PVD arrivals (all types) via Q439 HTO JORDN STAR or HTO JORDN MINNK DCT: at or below FL370.",
+   "restr": "AOB FL370",
+   "from": "ZDC",
+   "to": "ZBW",
+   "dep": [],
+   "arr": [
+    "KPVD"
+   ],
+   "both": false,
+   "fixes": [
+    "Q439",
+    "HTO",
+    "JORDN",
+    "MINNK"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "fr": "",
+   "flow": "",
+   "live": true,
+   "kw": []
+  }
+ ]
+}

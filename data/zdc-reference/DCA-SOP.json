@@ -1,0 +1,3168 @@
+{
+ "doc": {
+  "id": "DCA-SOP",
+  "title": "DCA ATCT SOP",
+  "kind": "SOP",
+  "number": "vZDC-DCA-P-01D",
+  "parties": [
+   "DCA ATCT",
+   "PCT"
+  ],
+  "effective": "2026-01-13",
+  "file": "b4b5f6f9-vZDC-DCA-P-01D.pdf",
+  "summary": "Standard operating procedures for Washington National (DCA) tower positions (CD, GC, LC, HC): runway configurations, clearances, altitude restrictions, departure gates and frequencies, departure headings, releases, missed approach and helicopter procedures."
+ },
+ "items": [
+  {
+   "ref": "1-1-1..1-1-7",
+   "cat": "General",
+   "title": "Purpose, audience, cancellation and changes",
+   "text": "Order vZDC-DCA-P-01D describes airspace, procedures and policy for all controllers working an operational DCA ATCT position on VATSIM; it applies to all vZDC controllers and visiting controllers training with vZDC. It is available at vzdc.org/publications/downloads and cancels vZDC DCA ATCT 7110.65C dated 1 July 2024. Changes are highlighted in grey; this version adds expanded Helicopter Local (HC) guidance, IDS departure release requests to TMU, and tower assumed radar identification procedures. Simulation use only.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "purpose",
+    "cancels",
+    "7110.65C",
+    "explanation of changes",
+    "how to use"
+   ]
+  },
+  {
+   "ref": "1-2-1",
+   "cat": "General",
+   "title": "Terms: arrivals, departures, delegated airspace",
+   "text": "Arrivals and Departures refer specifically to aircraft on an IFR flight plan; VFR Arrival/VFR Departure refer to aircraft arriving/departing under VFR. Delegated Airspace is airspace assigned to a specific sector or position within a facility.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "definitions",
+    "terms"
+   ]
+  },
+  {
+   "ref": "1-2-2",
+   "cat": "General",
+   "title": "Abbreviations",
+   "text": "ATAP Automated Terminal Proximity Alert; AOA at or above; AOB at or below; CHP Chesapeake Area of Potomac TRACON; CRC Consolidated Radar Client; FRZ Flight Restriction Zone; PCT Potomac TRACON; SFRA Special Flight Rules Area; STARS terminal radar software of vNAS/CRC; TDLS Tower Data-link System; vNAS Virtual National Airspace System; ZDC Washington ARTCC.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "abbreviations",
+    "ATAP",
+    "CHP",
+    "FRZ",
+    "STARS",
+    "TDLS"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Clearance Delivery (CD) 128.25",
+   "text": "Clearance Delivery, position ID CD, frequency 128.25. CD combines to GC.",
+   "restr": "128.25",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "CD",
+    "clearance delivery",
+    "DCA_DEL"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Ground Control (GC) 121.7",
+   "text": "Ground Control, position ID GC, frequency 121.7. GC combines to LC.",
+   "restr": "121.7",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "GC",
+    "ground",
+    "DCA_GND"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Local Control (LC) 119.1 - primary",
+   "text": "Local Control, position ID LC, frequency 119.1 (bold: the primary frequency). CD, GC and HC ultimately combine to LC.",
+   "restr": "119.1",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "LC",
+    "local",
+    "tower",
+    "DCA_TWR",
+    "primary"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Helicopter Control (HC) 121.27",
+   "text": "Helicopter Control, position ID HC, frequency 121.27. HC combines to LC.",
+   "restr": "121.27",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "HC",
+    "helicopter"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "Controller in Charge (CIC) - no frequency",
+   "text": "Controller in Charge, position ID CIC, frequency N/A.",
+   "restr": "N/A",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "CIC",
+    "controller in charge"
+   ]
+  },
+  {
+   "ref": "TBL 2-1-1",
+   "cat": "Frequencies",
+   "title": "DCA ATIS 132.65",
+   "text": "ATIS frequency 132.65.",
+   "restr": "132.65",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "ATIS"
+   ]
+  },
+  {
+   "ref": "2-1-1 Note",
+   "cat": "Frequencies",
+   "title": "Position combining order",
+   "text": "CD combines to GC. GC combines to LC. HC combines to LC. The bold frequency (LC 119.1) is the primary frequency.",
+   "restr": "CD>GC>LC; HC>LC",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "combine",
+    "consolidation",
+    "top down"
+   ]
+  },
+  {
+   "ref": "2-2-1",
+   "cat": "Runway config",
+   "title": "Non-standard runway configurations",
+   "text": "Preferred configurations are North and South Operations. LC may use non-standard runway configurations as weather and traffic necessitate so long as it does not negatively affect traffic flow, is deemed necessary due to weather/traffic, and PCT is aware of the non-standard configuration.",
+   "restr": "",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "non-standard",
+    "preferred runway configuration"
+   ]
+  },
+  {
+   "ref": "2-2-2",
+   "cat": "Runway config",
+   "title": "North Ops: Rwy 1 primary; RJs on 4 and 33",
+   "text": "Runway 1 is the primary arrival/departure runway. Regional jets or smaller may depart but not arrive runway 4. Regional jets or smaller may arrive or depart runway 33.",
+   "restr": "Rwy 1 primary; Rwy 4 RJ-or-smaller dep only; Rwy 33 RJ-or-smaller",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "north operations",
+    "runway 1",
+    "runway 4",
+    "runway 33",
+    "regional jet"
+   ]
+  },
+  {
+   "ref": "2-2-2 Note",
+   "cat": "Runway config",
+   "title": "North Ops is the calm wind configuration",
+   "text": "North Operation is the calm wind runway configuration. When the wind is less than 5 knots north operations should be used.",
+   "restr": "Wind < 5 kt: North",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "calm wind",
+    "north operations"
+   ]
+  },
+  {
+   "ref": "2-2-3",
+   "cat": "Runway config",
+   "title": "South Ops: Rwy 19 primary; RJs on 15; no RJ+ on 22",
+   "text": "Runway 19 is the primary arrival/departure runway. Regional jets or smaller may arrive or depart runway 15. Regional jets or larger may not arrive or depart runway 22.",
+   "restr": "Rwy 19 primary; Rwy 15 RJ-or-smaller; Rwy 22 no RJ or larger",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "south operations",
+    "runway 19",
+    "runway 15",
+    "runway 22",
+    "regional jet"
+   ]
+  },
+  {
+   "ref": "2-2-4",
+   "cat": "Runway config",
+   "title": "Routine runway configuration change",
+   "text": "The CIC determines the need for active runway changes; in a routine change departures may depart from the runway originally assigned. Provide PCT the last departure's identification, estimated time of departure and departure runway; after it departs, no aircraft departs DCA without a release from PCT. Ensure departures off the new runway have the appropriate SID and departure frequency; PCT informs the CIC when sector reconfiguration is complete; ensure the ATIS is updated.",
+   "restr": "",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway change",
+    "flow change",
+    "last departure",
+    "release"
+   ]
+  },
+  {
+   "ref": "2-3-1",
+   "cat": "Ground",
+   "title": "Transponders with Mode C in movement areas",
+   "text": "Ground Control and Local Control shall ensure all aircraft operating in a movement area have transponders on with Mode C.",
+   "restr": "Transponder on, Mode C",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ASDE-X",
+    "transponder",
+    "mode C"
+   ]
+  },
+  {
+   "ref": "2-3-2 a-b",
+   "cat": "Ground",
+   "title": "ASDE-X configuration",
+   "text": "Review FAAO 7110.65 Chapter 3, Section 6 (Airport Surface Detection Procedures). Configure the ASDE-X safety logic for either NORTH or SOUTH operations.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ASDE-X",
+    "safety logic"
+   ]
+  },
+  {
+   "ref": "2-3-2 c-e",
+   "cat": "General",
+   "title": "ASDE-X safety logic alerts",
+   "text": "When an arrival (still airborne, prior to the landing threshold) activates a warning alert, issue go-around instructions. When two arrivals, or an arrival and a departure, activate an alert, issue go-around instructions or take appropriate action to maintain intersecting runway separation. For other alerts, use good judgment.",
+   "restr": "Airborne arrival alert: go around",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ASDE-X",
+    "alert",
+    "go around",
+    "safety logic"
+   ]
+  },
+  {
+   "ref": "2-4-1",
+   "cat": "SFRA",
+   "title": "DC SFRA simulated procedures at DCA",
+   "text": "DC SFRA procedures are simulated using a modified procedure. VFR departures are expected to file a DC SFRA flight plan. The FRZ does not impose higher requirements, so normal VFR operations including pattern work shall be allowed if workload permits. Ref: VATSIM DC SFRA Procedures and Pilot Guide; vZDC-PCT-P-01G Ch 2 Sec 8.",
+   "restr": "VFR: file DC SFRA flight plan",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "SFRA",
+    "FRZ",
+    "VFR",
+    "pattern"
+   ]
+  },
+  {
+   "ref": "3-1-1 a-b",
+   "cat": "Clearance",
+   "title": "Clearance Delivery responsibilities",
+   "text": "CD formulates and issues IFR and VFR clearances to aircraft departing DCA, and reviews proposed flight plans for accuracy, amending routings and altitudes as necessary in accordance with appropriate LOAs.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "clearance delivery",
+    "amend route",
+    "LOA"
+   ]
+  },
+  {
+   "ref": "3-1-1 c",
+   "cat": "Clearance",
+   "title": "Departures to constrained airports (EDCT/CFR)",
+   "text": "For aircraft departing to a constrained airport (subject to a TMI such as EDCT or Call for Release), CD coordinates with the pilot for expected pushback/taxi time, submits a departure release request through IDS, advises the pilot of the anticipated wheels-up time, and ensures GC and LC are aware of it (considered coordinated when the correct release time shows in the IDS released aircraft list).",
+   "restr": "Release request via IDS",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "EDCT",
+    "call for release",
+    "CFR",
+    "TMI",
+    "IDS",
+    "wheels up"
+   ]
+  },
+  {
+   "ref": "3-1-2",
+   "cat": "Clearance",
+   "title": "IFR departures: SID by direction, climb via",
+   "text": "All IFR departures should be assigned a departure and transition consistent with their direction of flight. Climb via SID shall be used for all aircraft on a SID except the NATNL# departure.",
+   "restr": "Climb via SID",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "SID",
+    "climb via",
+    "transition"
+   ]
+  },
+  {
+   "ref": "3-1-2",
+   "cat": "Clearance",
+   "title": "NATIONAL SID (NATNL#): 5,000, filed alt 10 min",
+   "text": "If an aircraft is unable to fly a SID, assign the NATIONAL-SID (NATNL#). Aircraft on the NATNL# departure are issued an initial altitude of 5,000 and to expect their filed cruise altitude ten minutes after departure (no climb via).",
+   "restr": "Maintain 5,000; expect filed alt 10 min after dep",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "NATNL"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "NATIONAL",
+    "non-RNAV",
+    "unable SID"
+   ]
+  },
+  {
+   "ref": "3-1-3",
+   "cat": "Clearance",
+   "title": "vTDLS pre-departure clearances",
+   "text": "DCA is equipped with vTDLS to issue PDCs to IFR aircraft. TDLS shall be utilized for all eligible aircraft unless, in the controller's judgment, a voice clearance is more operationally advantageous. Ref: vZDC-A-01F para 4-1-4.",
+   "restr": "PDC via vTDLS",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "PDC",
+    "TDLS",
+    "vTDLS",
+    "datalink"
+   ]
+  },
+  {
+   "ref": "3-1-4 a",
+   "cat": "Clearance",
+   "title": "VFR flight following flight plan requirements",
+   "text": "VFR aircraft requesting flight following shall have in their VFR flight plan prior to departure: destination airport, aircraft type, and requested VFR altitude.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "VFR",
+    "flight following"
+   ]
+  },
+  {
+   "ref": "3-1-4 b",
+   "cat": "Clearance",
+   "title": "VFR departures: Class B AOB 2,500 (fixed-wing)",
+   "text": "All VFR departures shall receive a Class B clearance with a restriction to maintain VFR at or below 2,500 for fixed-wing aircraft. VFR aircraft remaining in the pattern are assigned a VFR code and do not require an altitude restriction.",
+   "restr": "Maintain VFR AOB 2,500",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR",
+    "class B clearance",
+    "fixed wing",
+    "pattern"
+   ]
+  },
+  {
+   "ref": "3-1-4 b",
+   "cat": "Clearance",
+   "title": "VFR helicopter departures: Class B AOB 1,500",
+   "text": "All VFR departures shall receive a Class B clearance with a restriction to maintain VFR at or below 1,500 for helicopters.",
+   "restr": "Maintain VFR AOB 1,500",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "VFR",
+    "class B clearance",
+    "helicopter"
+   ]
+  },
+  {
+   "ref": "3-1-4 c",
+   "cat": "Clearance",
+   "title": "STARS VFR flight plan entry encouraged",
+   "text": "Use of the STARS VFR flight plan entry function is encouraged.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "STARS",
+    "VFR flight plan"
+   ]
+  },
+  {
+   "ref": "3-1-5 a",
+   "cat": "Frequencies",
+   "title": "North/East departures: KRANT 125.65",
+   "text": "Assign departure frequency by SID, departure gate or direction of flight: North/East departures get KRANT (125.65). High altitude gates whose primary departure sector is KRANT (1K) per TBL 3-3-2: BUFFR, COLIN, JERES, PALEO, SWANN, WOOLY.",
+   "restr": "Departure 125.65 (KRANT)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR",
+    "COLIN",
+    "JERES",
+    "PALEO",
+    "SWANN",
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure frequency",
+    "KRANT",
+    "1K",
+    "north",
+    "east"
+   ]
+  },
+  {
+   "ref": "3-1-5 b",
+   "cat": "Frequencies",
+   "title": "South/West departures: TYSON 118.95",
+   "text": "Assign departure frequency by SID, departure gate or direction of flight: South/West departures get TYSON (118.95). High altitude gates whose primary departure sector is TYSON (1Y) per TBL 3-3-2: CLTCH, JDUBB, OTTTO, RAMAY, SCRAM.",
+   "restr": "Departure 118.95 (TYSON)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "CLTCH",
+    "JDUBB",
+    "OTTTO",
+    "RAMAY",
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure frequency",
+    "TYSON",
+    "1Y",
+    "south",
+    "west"
+   ]
+  },
+  {
+   "ref": "3-2-1",
+   "cat": "Clearance",
+   "title": "IFR departure altitude restrictions (overview)",
+   "text": "IFR aircraft destined to airports in TBL 3-2-1 are assigned an expected final cruise altitude per the table (by turbojet vs turboprop/propeller). Pilots may request higher with PCT or ZDC once airborne; it may be approved as an operational request.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "altitude restrictions",
+    "short haul",
+    "TBL 3-2-1",
+    "requested altitude"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to BWI/IAD/HEF: 4,000 (all types)",
+   "text": "Departures to BWI, IAD or HEF: turbojet 4,000; turboprop/propeller 4,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "4,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KBWI",
+    "KIAD",
+    "KHEF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KBWI",
+    "KIAD",
+    "KHEF",
+    "BWI",
+    "IAD",
+    "HEF"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to EWR/TEB/LGA turbojets: FL210",
+   "text": "Turbojet departures to EWR, TEB or LGA: FL210. Turboprop/propeller: N/A (no restriction listed). Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "FL210",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KEWR",
+    "KTEB",
+    "KLGA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KEWR",
+    "KTEB",
+    "KLGA",
+    "EWR",
+    "TEB",
+    "LGA"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to JFK turbojets: 17,000",
+   "text": "Turbojet departures to JFK: 17,000. Turboprop/propeller: N/A (no restriction listed). Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "17,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KJFK"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KJFK",
+    "JFK"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to ORF turbojets: 14,000",
+   "text": "Turbojet departures to ORF: 14,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "14,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KORF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KORF",
+    "ORF"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to ORF turboprop/prop: 10,000",
+   "text": "Turboprop/propeller departures to ORF: 10,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "10,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KORF"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KORF",
+    "ORF"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to PHL turbojets: 11,000",
+   "text": "Turbojet departures to PHL: 11,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "11,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KPHL"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KPHL",
+    "PHL"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to PHL turboprop/prop: 7,000",
+   "text": "Turboprop/propeller departures to PHL: 7,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "7,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KPHL"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KPHL",
+    "PHL"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to RIC turbojets: 12,000",
+   "text": "Turbojet departures to RIC: 12,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "12,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KRIC"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KRIC",
+    "RIC"
+   ]
+  },
+  {
+   "ref": "TBL 3-2-1",
+   "cat": "Departure",
+   "title": "DCA dep to RIC turboprop/prop: 10,000",
+   "text": "Turboprop/propeller departures to RIC: 10,000. Assigned as the expected final cruise altitude; pilot may request higher from PCT/ZDC once airborne.",
+   "restr": "10,000",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [
+    "KRIC"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": true,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "altitude restriction",
+    "destination",
+    "KRIC",
+    "RIC"
+   ]
+  },
+  {
+   "ref": "3-3-1",
+   "cat": "Departure",
+   "title": "Departure gates required for IFR departures",
+   "text": "PCT uses departure exit gates for IFR departures to destinations outside PCT airspace. Every IFR aircraft leaving DCA must leave PCT airspace bound for one of these gates unless coordinated otherwise.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "departure gates",
+    "exit gate"
+   ]
+  },
+  {
+   "ref": "3-3-2",
+   "cat": "Departure",
+   "title": "High altitude gates for aircraft filed above 10,000",
+   "text": "High altitude departure gates should be used for aircraft filed above 10,000 feet. Prop and turboprop aircraft may be routed via a low altitude gate regardless of altitude. Ref: vZDC-PCT-P-01G para 6-4-11.",
+   "restr": "Filed > 10,000: high gate",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "high altitude gates",
+    "props low gate"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate BUFFR: NW, KRANT (1K)",
+   "text": "DCA high altitude departure gate BUFFR, routing/direction NW, primary departure sector KRANT (1K). For aircraft filed above 10,000 feet.",
+   "restr": "NW - KRANT (1K)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "BUFFR"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "KRANT",
+    "1K"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate CLTCH: SW, TYSON (1Y)",
+   "text": "DCA high altitude departure gate CLTCH, routing/direction SW, primary departure sector TYSON (1Y). For aircraft filed above 10,000 feet.",
+   "restr": "SW - TYSON (1Y)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "CLTCH"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "TYSON",
+    "1Y"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate COLIN: S/SE, KRANT (1K)",
+   "text": "DCA high altitude departure gate COLIN, routing/direction S/SE, primary departure sector KRANT (1K). For aircraft filed above 10,000 feet.",
+   "restr": "S/SE - KRANT (1K)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "COLIN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "KRANT",
+    "1K"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate JDUBB: SW, TYSON (1Y)",
+   "text": "DCA high altitude departure gate JDUBB, routing/direction SW, primary departure sector TYSON (1Y). For aircraft filed above 10,000 feet.",
+   "restr": "SW - TYSON (1Y)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "JDUBB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "TYSON",
+    "1Y"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate JERES: N/NW, KRANT (1K)",
+   "text": "DCA high altitude departure gate JERES, routing/direction N/NW, primary departure sector KRANT (1K). For aircraft filed above 10,000 feet.",
+   "restr": "N/NW - KRANT (1K)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "JERES"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "KRANT",
+    "1K"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate OTTTO: W, TYSON (1Y)",
+   "text": "DCA high altitude departure gate OTTTO, routing/direction W, primary departure sector TYSON (1Y). For aircraft filed above 10,000 feet.",
+   "restr": "W - TYSON (1Y)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "OTTTO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "TYSON",
+    "1Y"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate PALEO: NE, KRANT (1K)",
+   "text": "DCA high altitude departure gate PALEO, routing/direction NE, primary departure sector KRANT (1K). For aircraft filed above 10,000 feet.",
+   "restr": "NE - KRANT (1K)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "PALEO"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "KRANT",
+    "1K"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate RAMAY: W, TYSON (1Y)",
+   "text": "DCA high altitude departure gate RAMAY, routing/direction W, primary departure sector TYSON (1Y). For aircraft filed above 10,000 feet.",
+   "restr": "W - TYSON (1Y)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "RAMAY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "TYSON",
+    "1Y"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate SCRAM: SW, TYSON (1Y)",
+   "text": "DCA high altitude departure gate SCRAM, routing/direction SW, primary departure sector TYSON (1Y). For aircraft filed above 10,000 feet.",
+   "restr": "SW - TYSON (1Y)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "SCRAM"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "TYSON",
+    "1Y"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate SWANN: NE, KRANT (1K)",
+   "text": "DCA high altitude departure gate SWANN, routing/direction NE, primary departure sector KRANT (1K). For aircraft filed above 10,000 feet.",
+   "restr": "NE - KRANT (1K)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "SWANN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "KRANT",
+    "1K"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-2",
+   "cat": "Departure",
+   "title": "High gate WOOLY: NE, KRANT (1K)",
+   "text": "DCA high altitude departure gate WOOLY, routing/direction NE, primary departure sector KRANT (1K). For aircraft filed above 10,000 feet.",
+   "restr": "NE - KRANT (1K)",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "WOOLY"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high altitude gate",
+    "KRANT",
+    "1K"
+   ]
+  },
+  {
+   "ref": "3-3-3",
+   "cat": "Departure",
+   "title": "Low altitude gates for aircraft AOB 10,000",
+   "text": "Low altitude departure gates should be used for aircraft filed at or below 10,000 feet. Low altitude aircraft may receive vectors to join any low altitude airway.",
+   "restr": "Filed AOB 10,000: low gate",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "low altitude gates",
+    "airway",
+    "vectors"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate CSN: W/SW",
+   "text": "DCA low altitude departure gate CSN, routing/direction W/SW. For aircraft filed at or below 10,000 feet (props/turboprops may use a low gate regardless of altitude).",
+   "restr": "W/SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "CSN"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate EMI: N/NE",
+   "text": "DCA low altitude departure gate EMI, routing/direction N/NE. For aircraft filed at or below 10,000 feet (props/turboprops may use a low gate regardless of altitude).",
+   "restr": "N/NE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "EMI"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate GVE: S/SW",
+   "text": "DCA low altitude departure gate GVE, routing/direction S/SW. For aircraft filed at or below 10,000 feet (props/turboprops may use a low gate regardless of altitude).",
+   "restr": "S/SW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "GVE"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate MRB: N/NW",
+   "text": "DCA low altitude departure gate MRB, routing/direction N/NW. For aircraft filed at or below 10,000 feet (props/turboprops may use a low gate regardless of altitude).",
+   "restr": "N/NW",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "MRB"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate"
+   ]
+  },
+  {
+   "ref": "TBL 3-3-3",
+   "cat": "Departure",
+   "title": "Low gate PXT: SE",
+   "text": "DCA low altitude departure gate PXT, routing/direction SE. For aircraft filed at or below 10,000 feet (props/turboprops may use a low gate regardless of altitude).",
+   "restr": "SE",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [
+    "PXT"
+   ],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "low altitude gate"
+   ]
+  },
+  {
+   "ref": "4-1-1",
+   "cat": "Ground",
+   "title": "Ground Control responsibilities",
+   "text": "GC sequences departures to meet release restrictions and balance departure fixes, keeps runway exits clear for landing aircraft (coordinating with LC to have arrivals avoid exiting at unavoidably congested taxiways), and ensures transponders are on during all ground operations.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "ground control",
+    "sequence",
+    "runway exits",
+    "transponder"
+   ]
+  },
+  {
+   "ref": "4-1-2 a",
+   "cat": "Ground",
+   "title": "Multiple runway crossings authorized locations",
+   "text": "Multiple runway crossings are authorized at: RWY 4/22 and RWY 1/19 at TWY Hotel; RWY 4/22 and RWY 1/19 at TWY Foxtrot; RWY 15/33 and RWY 1/19 at TWY Mike. Blanket crossings are not allowed.",
+   "restr": "TWY H, F (4/22 + 1/19); TWY M (15/33 + 1/19)",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway crossing",
+    "Hotel",
+    "Foxtrot",
+    "Mike",
+    "blanket"
+   ]
+  },
+  {
+   "ref": "4-1-2 b-d",
+   "cat": "Coordination",
+   "title": "Runway crossing coordination with LC",
+   "text": "GC scans the TDW, final approach course and runways before requesting or issuing crossings. Coordinate by stating the runway and intersection (or \"Westside\"), number of crossings and traffic if applicable; GC advises LC when complete by stating clear of the runway crossed. Phraseology: CROSS RUNWAY (number), AT (intersection), (number of times), (traffic if necessary); e.g. \"Cross RWY 4 at Juliet, three times\" ... \"Clear of RWY 4.\"",
+   "restr": "",
+   "from": "GC",
+   "to": "LC",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway crossing",
+    "phraseology",
+    "Westside",
+    "TDW"
+   ]
+  },
+  {
+   "ref": "4-1-3",
+   "cat": "Ground",
+   "title": "Runway 4/22 and 15/33 release to Ground",
+   "text": "LC may release Runway 4/22 and/or Runway 15/33 to GC; LC must then ensure aircraft landing Runway 01/33 (as printed) do not exit onto the released runway. GC may only use a released runway to cross aircraft; GC coordinates with LC before holding an aircraft on it. LC may recall the runway at any time.",
+   "restr": "",
+   "from": "LC",
+   "to": "GC",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway release",
+    "runway 4",
+    "runway 22",
+    "runway 15",
+    "runway 33"
+   ]
+  },
+  {
+   "ref": "4-1-4",
+   "cat": "Ground",
+   "title": "Runway assignment; non-standard needs LC coord",
+   "text": "Assign runways based on traffic flow that ensures operational efficiency. Assigning a non-standard runway requires coordination with Local Control via verbal or nonverbal methods.",
+   "restr": "",
+   "from": "GC",
+   "to": "LC",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "runway assignment",
+    "non-standard runway"
+   ]
+  },
+  {
+   "ref": "4-2-1",
+   "cat": "Ground",
+   "title": "Pushback procedures",
+   "text": "Movement areas: approve pushbacks onto taxiways and specify tail direction. Non-movement areas: provide pushback advisories into alleys, assign spots as needed (Appendix C), and provide traffic advisories into or out of non-movement areas; this is advisory only and does not imply control responsibility.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "pushback",
+    "tail direction",
+    "alley",
+    "spots",
+    "non-movement"
+   ]
+  },
+  {
+   "ref": "4-2-2",
+   "cat": "Ground",
+   "title": "GC area: movement areas west of all runways",
+   "text": "Ground Control is responsible for movement areas west of all runways as depicted in Appendix A.",
+   "restr": "West of runways",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "area of responsibility",
+    "Appendix A"
+   ]
+  },
+  {
+   "ref": "4-2-3",
+   "cat": "Ground",
+   "title": "GC hold bays: Rwy 15 and Rwy 4",
+   "text": "Ground Control may use the runway 15 and runway 4 hold bays as necessary to comply with TMI requirements or at the request of Local Control.",
+   "restr": "Rwy 15 / Rwy 4 hold bays",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "hold bay",
+    "TMI"
+   ]
+  },
+  {
+   "ref": "4-2-4",
+   "cat": "Ground",
+   "title": "B757 taxiway limitations",
+   "text": "B757 type aircraft are not authorized to taxi on TWY November between TWY Kilo and the RWY 15 Hold Bay, or on TWY Whiskey (printed \"TWR Whiskey\"); aircraft may access the Hold Bay from TWY B.",
+   "restr": "B757: no TWY N (K to RWY 15 hold bay), no TWY W",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "B757",
+    "B752",
+    "B753",
+    "taxiway restriction",
+    "November",
+    "Whiskey"
+   ]
+  },
+  {
+   "ref": "5-1-1",
+   "cat": "Airspace",
+   "title": "Local Control airspace (Appendix B)",
+   "text": "Local Control is responsible for the airspace depicted in Appendix B (LC AOB 1500). When Helicopter Control is not online, Local Control assumes Helicopter Control airspace.",
+   "restr": "LC AOB 1500",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "local control airspace",
+    "Appendix B"
+   ]
+  },
+  {
+   "ref": "5-1-2",
+   "cat": "Ground",
+   "title": "LC area: movement areas east of active runways",
+   "text": "Local Control is responsible for movement areas east of all active runways as depicted in Appendix A.",
+   "restr": "East of active runways",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "taxiway usage",
+    "Appendix A"
+   ]
+  },
+  {
+   "ref": "5-1-3",
+   "cat": "Ground",
+   "title": "LC hold bays: Rwy 19, 1, 33, 22",
+   "text": "Local Control may use the runway 19, runway 1, runway 33 and runway 22 hold bays as necessary to comply with TMI requirements.",
+   "restr": "Rwy 19/1/33/22 hold bays",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "hold bay",
+    "TMI"
+   ]
+  },
+  {
+   "ref": "5-1-4",
+   "cat": "Coordination",
+   "title": "Certified tower radar display, quick looks",
+   "text": "Data transfer between the tower and PCT is permitted using prescribed entries in this SOP or the PCT SOP. LC and HC must quick look DCAFR (1V), TYSON (1Y) and KRANT (1K), or the sector those are combined to, at all times. Automated pointouts between PCT and DCA ATCT are permitted when the datablock accurately reflects what the aircraft is doing; coordinate verbally if there is potential confusion.",
+   "restr": "Quick look 1V, 1Y, 1K",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "quick look",
+    "DCAFR",
+    "1V",
+    "TYSON",
+    "KRANT",
+    "pointout",
+    "CTRD"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1a",
+   "cat": "Departure",
+   "title": "Non-SID IFR heading North Ops: turbojets 320",
+   "text": "For DCA departures not cleared via a SID, North Operation: turbojets fly heading 320 (both TYSON and KRANT departure sectors).",
+   "restr": "Heading 320",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "non-SID",
+    "NATNL"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1a",
+   "cat": "Departure",
+   "title": "Non-SID IFR heading North Ops: props 280/090",
+   "text": "For DCA departures not cleared via a SID, North Operation: props fly heading 280 to TYSON or heading 090 to KRANT.",
+   "restr": "TYSON 280 / KRANT 090",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "non-SID",
+    "TYSON",
+    "KRANT"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1b",
+   "cat": "Departure",
+   "title": "Non-SID IFR heading South Ops: turbojets 190",
+   "text": "For DCA departures not cleared via a SID, South Operation: turbojets fly heading 190 (both TYSON and KRANT departure sectors).",
+   "restr": "Heading 190",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "jet",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "non-SID",
+    "NATNL"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-1b",
+   "cat": "Departure",
+   "title": "Non-SID IFR heading South Ops: props 230/150",
+   "text": "For DCA departures not cleared via a SID, South Operation: props fly heading 230 to TYSON (and shall be instructed to maintain 3000) or heading 150 to KRANT.",
+   "restr": "TYSON 230 maintain 3000 / KRANT 150",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "prop",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "departure heading",
+    "non-SID",
+    "TYSON",
+    "KRANT"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2a",
+   "cat": "Departure",
+   "title": "VFR departure North Ops, North/East: heading 090",
+   "text": "VFR departures in North Operations with a north/east direction of flight are issued heading 090.",
+   "restr": "Heading 090",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR departure instructions"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2a",
+   "cat": "Departure",
+   "title": "VFR departure North Ops, South/West: NW over river",
+   "text": "VFR departures in North Operations with a south/west direction of flight are instructed northwest over the river.",
+   "restr": "Northwest over the river",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR departure instructions",
+    "river"
+   ]
+  },
+  {
+   "ref": "TBL 5-2-2b",
+   "cat": "Departure",
+   "title": "VFR departure South Ops: south over the river",
+   "text": "All VFR departures in South Operations are instructed south over the river.",
+   "restr": "South over the river",
+   "from": "",
+   "to": "",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "VFR",
+   "live": true,
+   "kw": [
+    "VFR departure instructions",
+    "river"
+   ]
+  },
+  {
+   "ref": "5-2-2 a,c-e",
+   "cat": "Runway config",
+   "title": "Line up and wait (LUAW)",
+   "text": "Landing clearances need not be withheld for traffic holding in position. LUAW must not be used unless the aircraft will depart in three (3) minutes; LC may use LUAW when the aircraft is expected to depart after conflicting traffic clears the runway/intersection, using memory aids as needed. ASDE-X and all safety logic systems must be operational and used by LC.",
+   "restr": "Depart within 3 min",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "LUAW",
+    "line up and wait",
+    "position and hold"
+   ]
+  },
+  {
+   "ref": "5-2-2 b",
+   "cat": "Runway config",
+   "title": "No LUAW on Runway 22",
+   "text": "LUAW procedures are not authorized on Runway 22.",
+   "restr": "No LUAW Rwy 22",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "LUAW",
+    "runway 22"
+   ]
+  },
+  {
+   "ref": "5-2-3 a",
+   "cat": "Coordination",
+   "title": "Automatic departure releases and suspension",
+   "text": "Automatic departures are authorized; aircraft subject to a TMI (EDCT or call for release) must depart within their release validity period. Automatic departures are suspended until PCT restores them when: there was a previous missed approach/go around and PCT has not given automatic releases back; PCT cancels automatic releases; or an aircraft is departing a non-standard (non-ATIS advertised) runway.",
+   "restr": "",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "automatic release",
+    "departure release",
+    "EDCT",
+    "go around",
+    "non-standard runway"
+   ]
+  },
+  {
+   "ref": "5-2-3 b",
+   "cat": "Coordination",
+   "title": "Calling PCT for release: required info",
+   "text": "When any suspension condition applies, Local Control must call PCT for release stating: ACID; runway and departure heading; SID and transition or initial fix.",
+   "restr": "ACID, rwy + heading, SID/transition",
+   "from": "LC",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "call for release",
+    "departure release"
+   ]
+  },
+  {
+   "ref": "5-2-4 a-b",
+   "cat": "Handoff",
+   "title": "Tower assumed radar ID before switching to departure",
+   "text": "Before switching a departure to PCT, the DCA local controller must observe the aircraft acquire on the STARS TDW within one mile of the departure end of the runway. If acquisition does not occur, notify the PCT departure controller before the frequency change, giving callsign and SID or assigned heading.",
+   "restr": "Track acquired within 1 mi of DER",
+   "from": "DCA ATCT",
+   "to": "PCT",
+   "dep": [
+    "KDCA"
+   ],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "radar identification",
+    "tower assumed",
+    "TDW",
+    "acquisition",
+    "frequency change"
+   ]
+  },
+  {
+   "ref": "5-2-4 c",
+   "cat": "Handoff",
+   "title": "Autotrack by primary departure sector",
+   "text": "The primary sector providing departure service uses autotrack for all DCA departures. If KRANT (1K) and TYSON (1Y) are decombined, the sector expected to service the majority of departures (e.g. event traffic) uses autotrack.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "autotrack",
+    "KRANT",
+    "TYSON"
+   ]
+  },
+  {
+   "ref": "5-3-1",
+   "cat": "Arrival",
+   "title": "Reduced separation 2.5 NM - Runway 01 arrivals",
+   "text": "Separation of IFR arrivals may be reduced to 2.5 NM within 10 NM of the runway on the final approach course, for Runway 01 arrivals only, assuming increased separation requirements (e.g. wake turbulence) do not exist.",
+   "restr": "2.5 NM within 10 NM, Rwy 01 only",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "Rwy 1",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "reduced separation",
+    "2.5",
+    "final"
+   ]
+  },
+  {
+   "ref": "5-3-2 a-b",
+   "cat": "Coordination",
+   "title": "Missed approach/go around coordination",
+   "text": "LC shall immediately coordinate with PCT when a missed approach/go around occurs and, unless otherwise coordinated, issue instructions per TBL 5-3-2. Automatic releases are suspended until released by PCT. Tower may re-sequence props if it ensures separation from the go around and other pertinent traffic and does not affect PCT's IFR arrival sequence.",
+   "restr": "",
+   "from": "LC",
+   "to": "PCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "missed approach",
+    "go around",
+    "automatic release",
+    "re-sequence"
+   ]
+  },
+  {
+   "ref": "TBL 5-3-2",
+   "cat": "Arrival",
+   "title": "Go around North Ops: 3000, heading 320",
+   "text": "Missed approach/go around in North Operation: altitude 3000, heading 320. Aircraft south of the DCA VOR/DME shall maintain 2,000 until over the airport to avoid ADW departures.",
+   "restr": "3000, hdg 320 (S of DCA VOR: 2,000 until over airport)",
+   "from": "LC",
+   "to": "PCT",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "missed approach",
+    "go around",
+    "ADW"
+   ]
+  },
+  {
+   "ref": "TBL 5-3-2",
+   "cat": "Arrival",
+   "title": "Go around South Ops: 3000, heading 185 or RH",
+   "text": "Missed approach/go around in South Operation: altitude 3000, heading 185 or runway heading (RH).",
+   "restr": "3000, hdg 185 or RH",
+   "from": "LC",
+   "to": "PCT",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "missed approach",
+    "go around"
+   ]
+  },
+  {
+   "ref": "5-3-3 a",
+   "cat": "Ground",
+   "title": "Taxi arrivals across all runways before GC",
+   "text": "Once aircraft are clear of the runway, they shall be taxied across all other runways prior to handing off to Ground Control.",
+   "restr": "",
+   "from": "LC",
+   "to": "GC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "runway exit",
+    "crossing",
+    "handoff to ground"
+   ]
+  },
+  {
+   "ref": "5-3-3 b",
+   "cat": "Arrival",
+   "title": "Rwy 19 arrivals: exit Rwy 22, right on Juliet",
+   "text": "Local Control may use runway 22 as a high-speed exit for aircraft arriving Runway 19. Aircraft should be instructed to turn right on taxiway Juliet before handing off to Ground Control.",
+   "restr": "Exit via Rwy 22, right on J",
+   "from": "LC",
+   "to": "GC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "South",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high-speed exit",
+    "runway 22",
+    "Juliet"
+   ]
+  },
+  {
+   "ref": "5-3-3 c",
+   "cat": "Arrival",
+   "title": "Rwy 1 arrivals: exit Rwy 33, left on Sierra/November",
+   "text": "Local Control may use runway 33 as a high-speed exit for aircraft arriving Runway 1. Aircraft should be instructed to turn left on taxiway Sierra or November before handing off to Ground Control.",
+   "restr": "Exit via Rwy 33, left on S or N",
+   "from": "LC",
+   "to": "GC",
+   "dep": [],
+   "arr": [
+    "KDCA"
+   ],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "North",
+   "both": false,
+   "fr": "",
+   "live": true,
+   "kw": [
+    "high-speed exit",
+    "runway 33",
+    "Sierra",
+    "November"
+   ]
+  },
+  {
+   "ref": "6-1-1",
+   "cat": "Airspace",
+   "title": "Helicopter Control area of jurisdiction",
+   "text": "HC operates within LC-designated airspace under prearranged coordination and is responsible for the airspace in Appendix B (HC AOB 1499). Helicopter operations are authorized on all movement areas; helicopters arriving/departing an area on the airport must be coordinated with GC and LC as appropriate before authorizing the operation.",
+   "restr": "HC AOB 1499",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "HC airspace",
+    "Appendix B"
+   ]
+  },
+  {
+   "ref": "6-2-1 a-c",
+   "cat": "Special use",
+   "title": "HC duties: separation, helicopter routes, P-56",
+   "text": "HC separates VFR traffic from DCA arrivals and departures, issues safety alerts and traffic advisories, clears VFR aircraft on routes or into zones per the Baltimore-Washington Helicopter Route Chart, and issues instructions to keep unauthorized aircraft clear of P-56.",
+   "restr": "Keep unauthorized aircraft clear of P-56",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "P-56",
+    "prohibited area",
+    "routes",
+    "zones"
+   ]
+  },
+  {
+   "ref": "6-2-1 d-f",
+   "cat": "Handoff",
+   "title": "HC frequency changes, codes and datablocks",
+   "text": "Authorize a frequency change when the aircraft approaches the outer limits of DCA airspace. Ensure aircraft squawk assigned codes and validate Mode C within the DCA Class B. In DCA ATCT delegated airspace, helicopter datablocks must be taken to the appropriate tower position on initial contact (CRC uses the automated handoff function; no override modify), and track control/communications transferred when exiting DCA ATCT airspace.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "datablock",
+    "track control",
+    "mode C",
+    "beacon code"
+   ]
+  },
+  {
+   "ref": "6-2-2",
+   "cat": "Coordination",
+   "title": "HC required coordination; handoffs to IAD ATCT",
+   "text": "HC coordinates with GC and LC as necessary for departures or arrivals within a movement or non-movement area; arriving helicopters may need to be handed to LC for landing clearance. HC airspace borders IAD ATCT airspace, and HC shall initiate radar handoffs to IAD ATCT as needed.",
+   "restr": "",
+   "from": "DCA HC",
+   "to": "IAD ATCT",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "IAD ATCT",
+    "handoff",
+    "coordination"
+   ]
+  },
+  {
+   "ref": "6-2-3 a-c",
+   "cat": "Coordination",
+   "title": "HC prearranged coordination in LC airspace",
+   "text": "Prearranged coordination may be applied by HC in LC airspace and is considered accomplished when: both LC and HC use the TDW (STARS) display; HC ensures separation from all tracked or non-tracked targets in LC airspace except as authorized by LC; and operations follow the BWI/DCA Helicopter Route Chart (Appendix D). Route scratchpads (primary \"Y\" scratchpad, TBL 6-2-3) may be used at LC/HC discretion.",
+   "restr": "",
+   "from": "HC",
+   "to": "LC",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "prearranged coordination",
+    "helicopter",
+    "TDW",
+    "scratchpad"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 1CJ: RTE 1 to Cabin John",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 1CJ indicates the helicopter's intended route: RTE 1 to Cabin John.",
+   "restr": "1CJ",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "1CJ"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 1GB: RTE 1 to Green Belt",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 1GB indicates the helicopter's intended route: RTE 1 to Green Belt.",
+   "restr": "1GB",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "1GB"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 1PZ: RTE 1 to split the P56s",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 1PZ indicates the helicopter's intended route: RTE 1 to split the P56s.",
+   "restr": "1PZ",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "1PZ"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 4FW: RTE 4 to Fort Washington",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 4FW indicates the helicopter's intended route: RTE 4 to Fort Washington.",
+   "restr": "4FW",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "4FW"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 3WC: RTE 3 to Woods Corner",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 3WC indicates the helicopter's intended route: RTE 3 to Woods Corner.",
+   "restr": "3WC",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "3WC"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 3SF: RTE 3 to Springfield",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 3SF indicates the helicopter's intended route: RTE 3 to Springfield.",
+   "restr": "3SF",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "3SF"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 3GB: RTE 3 to Green Belt",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 3GB indicates the helicopter's intended route: RTE 3 to Green Belt.",
+   "restr": "3GB",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "3GB"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad 3CJ: RTE 3 to Cabin John",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) 3CJ indicates the helicopter's intended route: RTE 3 to Cabin John.",
+   "restr": "3CJ",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "3CJ"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z1: Zone 1",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z1 indicates the helicopter's intended route: Zone 1.",
+   "restr": "Z1",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z1"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z2: Zone 2",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z2 indicates the helicopter's intended route: Zone 2.",
+   "restr": "Z2",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z2"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z3: Zone 3",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z3 indicates the helicopter's intended route: Zone 3.",
+   "restr": "Z3",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z3"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z4: Zone 4",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z4 indicates the helicopter's intended route: Zone 4.",
+   "restr": "Z4",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z4"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z5: Zone 5",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z5 indicates the helicopter's intended route: Zone 5.",
+   "restr": "Z5",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z5"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z6: Zone 6",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z6 indicates the helicopter's intended route: Zone 6.",
+   "restr": "Z6",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z6"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad Z7: Zone 7",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) Z7 indicates the helicopter's intended route: Zone 7.",
+   "restr": "Z7",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "Z7"
+   ]
+  },
+  {
+   "ref": "TBL 6-2-3",
+   "cat": "Special use",
+   "title": "Heli scratchpad JPN: Landing Pentagon",
+   "text": "Helicopter route scratchpad (primary \"Y\" scratchpad) JPN indicates the helicopter's intended route: Landing Pentagon.",
+   "restr": "JPN",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter",
+    "scratchpad",
+    "JPN"
+   ]
+  },
+  {
+   "ref": "Att A",
+   "cat": "Ground",
+   "title": "Appendix A: taxiway usage diagram (LC/GC split)",
+   "text": "Diagram shows Ground Control (magenta) owning the taxiways west of Runway 1/19 adjacent to the terminal, and Local Control (blue) owning the taxiway areas east of the runways. Image only; refer to the PDF.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "taxiway usage",
+    "diagram",
+    "Appendix A"
+   ]
+  },
+  {
+   "ref": "Att B",
+   "cat": "Airspace",
+   "title": "Appendix B: LC/HC and adjacent tower altitudes",
+   "text": "Diagram labels: Local Control AOB 1500; Helicopter Control AOB 1499; IAD ATCT AOB 2000; ADW ATCT AOB 2000; DAA ATCT AOB 1499. Helicopter Control assumes responsibility for the hatched section of DAA ATCT airspace when DAA ATCT is not online or closed.",
+   "restr": "LC AOB 1500; HC AOB 1499",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "airspace",
+    "Appendix B",
+    "DAA",
+    "ADW",
+    "IAD",
+    "KDAA",
+    "KADW"
+   ]
+  },
+  {
+   "ref": "Att C",
+   "cat": "Ground",
+   "title": "Appendix C: pushback spot numbers",
+   "text": "Diagram of Terminal 2 (Concourses B-E) and commuter parking with numbered pushback spots 1-14 in the alleys and along the taxilane. Image only; refer to the PDF for exact spot locations.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "pushback spots",
+    "spots",
+    "Appendix C",
+    "alley"
+   ]
+  },
+  {
+   "ref": "Att D",
+   "cat": "Special use",
+   "title": "Appendix D: helicopter route chart",
+   "text": "Excerpt of the Baltimore-Washington Helicopter Route Chart showing Routes 1-4, zones (e.g. Zone 2 1400, Zone 3 1200, Zone 5 1400), P-56A/P-56B prohibited areas, and DCA CT 119.1 (121.275 HELI), ATIS 132.65. Image only; refer to the PDF for route altitudes.",
+   "restr": "",
+   "from": "",
+   "to": "",
+   "dep": [],
+   "arr": [],
+   "fixes": [],
+   "fixMode": "any",
+   "acft": "heli",
+   "minAlt": null,
+   "maxAlt": null,
+   "flow": "",
+   "both": false,
+   "fr": "",
+   "live": false,
+   "kw": [
+    "helicopter routes",
+    "P-56",
+    "zones",
+    "Appendix D"
+   ]
+  }
+ ]
+}
