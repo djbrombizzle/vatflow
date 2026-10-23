@@ -146,13 +146,16 @@
       <details class="cfg">
         <summary>Intervals (FAA JO 7110.65)</summary>
         <div class="grid2">
-          <label for="ivDiverge"><b>1 NM</b> · courses diverge 15°+ immediately after departure, or 10°+ when both fly an RNAV SID off the same runway — 5-8-3a/b (s)</label><input id="ivDiverge" type="number" min="20" max="300" step="5">
-          <label for="ivSame"><b>3 NM</b> radar in trail · same fix or less divergence — 5-5-4 (s)</label><input id="ivSame" type="number" min="30" max="600" step="5">
-          <label for="ivWake"><b>2 min</b> behind a heavy — 3-9-6 (s)</label><input id="ivWake" type="number" min="60" max="300" step="5">
-          <label for="ivWakeSuper"><b>3 min</b> behind a super — 3-9-6 (s)</label><input id="ivWakeSuper" type="number" min="60" max="400" step="5">
+          <label for="ivRwySep"><b>Runway separation</b> · the one ahead has crossed the runway end, or is airborne 6,000 ft ahead — 3-9-6a (s, same runway)</label><input id="ivRwySep" type="number" min="20" max="180" step="5">
+          <label for="ivDivergeNm"><b>Diverging</b> · courses split 15°+ immediately after departure, or 10°+ when both fly an RNAV SID off the same runway — 5-8-3a/b (NM)</label><input id="ivDivergeNm" type="number" min="0.5" max="5" step="0.5">
+          <label for="ivTrailNm"><b>In trail</b> · same fix or less split, radar — 5-5-4; raise for a departure MIT (NM)</label><input id="ivTrailNm" type="number" min="1" max="30" step="0.5">
+          <label for="ivClimbKt"><b>Initial climb groundspeed</b> · turns miles into seconds (kt)</label><input id="ivClimbKt" type="number" min="100" max="300" step="10">
+          <label for="ivWake"><b>Behind a heavy</b> — 3-9-6f (s)</label><input id="ivWake" type="number" min="60" max="300" step="5">
+          <label for="ivWakeSuper"><b>Behind a super</b> — 3-9-6f (s)</label><input id="ivWakeSuper" type="number" min="60" max="400" step="5">
           <label for="ivShift">Most places anyone is jumped</label><input id="ivShift" type="number" min="0" max="4" step="1">
         </div>
-        <p class="note">Miles are applied as the time it takes the one ahead to open them up; set them to what your field sees. The 1 NM rule does not apply when wake turbulence separation is required. Parallels under 2,500 ft apart count as one runway; runways 2,500 ft or more apart release together when courses diverge 15°+ (5-8-3a2) and only need in-trail spacing when they don't, with no wake rule. To add a departure MIT, raise the 3 NM time.</p>
+        <p class="note" id="ivNow"></p>
+        <p class="note">Times are takeoff roll to takeoff roll. Both aircraft accelerate the same way, so the gap when the follower lifts off is about the time between rolls × the climb groundspeed. Off the same runway, runway separation comes first and the 1 NM is already there by lift-off. The 1 NM rule does not apply when wake turbulence separation is required. Parallels under 2,500 ft apart take the miles and wake rules but not runway separation; runways 2,500 ft or more apart release together when courses split 15°+ (5-8-3a2) and only need in-trail spacing when they don't, with no wake rule.</p>
         <p class="note">Wheels-up estimates are present position to the runway at 13 kt along a 1.35× path, plus 90 s to push and start for aircraft that have not moved yet.</p>
       </details>
       <p class="note" style="margin-top:12px">
@@ -174,7 +177,7 @@ import { runwaysFromAtis } from "./shared/vatsmart.js";
 import { VATSIM_FEED_TAXI_MS } from "./shared/vatflow-refresh.js";
 import {
   bearingDeg, compassOf, courseColor, departureFix, destination, fixClocks, fmtSec, pairInterval,
-  readySec, releaseFloor, runwayRelation, sequenceRunway, wakeOf, DEFAULT_INTERVALS, MAX_SHIFT,
+  milesSec, readySec, releaseFloor, runwayRelation, sequenceRunway, trailSec, wakeOf, DEFAULT_INTERVALS, MAX_SHIFT,
 } from "./shared/taxi-sequencer.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "taxi-seq");
@@ -187,7 +190,7 @@ const AIRBORNE_KT = 50;
 const MOVED_KT = 5;
 const SPOKE_NM = 0.85;
 const KIND_COLOR = { diverge: "#57d98a", simul: "#3fb7b0", same: "#e07070", wake: "#b28cff", unknown: "#e07070", first: "#5c6b78" };
-const KIND_TEXT = { diverge: "1 NM, diverging", simul: "simultaneous", same: "3 NM in trail", wake: "wake turbulence", unknown: "3 NM in trail, course unknown", first: "" };
+const KIND_TEXT = { diverge: "diverging", simul: "simultaneous", same: "in trail", wake: "wake turbulence", unknown: "in trail, course unknown", first: "" };
 
 const st = {
   apt: "", mode: "live", fieldLL: null, ends: [], pairs: [],
@@ -207,7 +210,7 @@ const st = {
 function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem("taxiseq.prefs") || "{}");
-    if (p.iv) Object.assign(st.iv, p.iv);
+    if (p.iv) for (const k of Object.keys(DEFAULT_INTERVALS)) if (isFinite(p.iv[k]) && p.iv[k] > 0) st.iv[k] = p.iv[k];
     if (isFinite(p.maxShift)) st.maxShift = p.maxShift;
     return p;
   } catch { return {}; }
@@ -222,10 +225,19 @@ function savePrefs() {
   } catch { /* private window: settings just don't stick */ }
 }
 const prefs = loadPrefs();
-for (const [id, key] of [["ivDiverge", "diverge"], ["ivSame", "same"], ["ivWake", "wake"], ["ivWakeSuper", "wakeSuper"]]) {
+const IV_FIELDS = [["ivRwySep", "rwySep"], ["ivDivergeNm", "divergeNm"], ["ivTrailNm", "trailNm"], ["ivClimbKt", "climbKt"], ["ivWake", "wake"], ["ivWakeSuper", "wakeSuper"]];
+for (const [id, key] of IV_FIELDS) {
   $(id).value = st.iv[key];
-  $(id).addEventListener("change", () => { const v = +$(id).value; if (v > 0) { st.iv[key] = v; savePrefs(); render(); } });
+  $(id).addEventListener("change", () => { const v = +$(id).value; if (v > 0) { st.iv[key] = v; savePrefs(); showIntervals(); render(); } });
 }
+/** What the settings come to, in seconds between takeoff rolls. */
+function showIntervals() {
+  const same = (a, b) => pairInterval(a, b, st.iv, "same").sec;
+  const N = { fix: "A", bearing: 0 }, S = { fix: "B", bearing: 90 };
+  $("ivNow").innerHTML = `Same runway: diverging <b>${same(N, S)} s</b>, in trail <b>${same(N, { ...N })} s</b>. ` +
+    `Close parallel: diverging <b>${milesSec(st.iv.divergeNm, st.iv)} s</b>. Far runway, in trail: <b>${trailSec(st.iv)} s</b>.`;
+}
+showIntervals();
 $("ivShift").value = st.maxShift;
 $("ivShift").addEventListener("change", () => { st.maxShift = Math.max(0, Math.min(4, +$("ivShift").value || 0)); savePrefs(); render(); });
 
@@ -547,7 +559,7 @@ function tile(a, slot, opts = {}) {
 }
 function linkEl(pair) {
   if (!pair || pair.kind === "first") return "";
-  return `<div class="link k-${pair.kind}" title="${KIND_TEXT[pair.kind]}${isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : ""}${pair.rule ? " — 7110.65 " + pair.rule : ""}">${pair.sec}</div>`;
+  return `<div class="link k-${pair.kind}" title="${pair.rule === "3-9-6a" ? "runway separation" : KIND_TEXT[pair.kind]}${isFinite(pair.delta) ? ", " + Math.round(pair.delta) + "° apart" : ""}${pair.rule ? " — 7110.65 " + pair.rule : ""}">${pair.sec}</div>`;
 }
 function loom(order, sched, ups) {
   if (!order.length) return `<div class="dim" style="font-size:11px">—</div>`;
@@ -590,14 +602,14 @@ function drawSide() {
   }).join("");
   $("runways").innerHTML = (st.plans.length ? `<h2>Runway queues</h2>` + cards
     : `<h2>Runway queues</h2><p class="note">Pick the departure runways above, or press ATIS.</p>`) +
-    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>1 NM, diverging 15°+ (10° RNAV) <span class="swatch" style="background:#e07070;margin-left:6px"></span>3 NM in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds needed behind the one ahead (FAA JO 7110.65 5-8-3, 5-5-4, 3-9-6).</p>`;
+    `<p class="note" style="margin-top:4px"><span class="swatch" style="background:#57d98a"></span>diverging 15°+ (10° RNAV) <span class="swatch" style="background:#e07070;margin-left:6px"></span>in trail <span class="swatch" style="background:#b28cff;margin-left:6px"></span>wake — seconds between takeoff rolls behind the one ahead (FAA JO 7110.65 3-9-6, 5-8-3, 5-5-4).</p>`;
 
   const now = Date.now();
   $("log").innerHTML = st.departures.slice(0, 10).map(d => {
     const ok = d.pair && isFinite(d.gap) ? (d.gap + 5 >= d.pair.sec ? "k-diverge" : "k-same") : "dim";
     return `<tr><td>${fmtSec((now - d.at) / 1000)} ago</td><td><b>${esc(d.cs)}</b></td><td>${esc(d.rwy)}</td>` +
       `<td style="color:${courseColor(d.bearing)}">${esc(d.label)}</td>` +
-      `<td class="${ok}" title="${d.pair ? esc(KIND_TEXT[d.pair.kind] + (d.pair.rule ? " — 7110.65 " + d.pair.rule : "")) : ""}">${isFinite(d.gap) ? fmtSec(d.gap) + (d.pair ? " / " + d.pair.sec : "") : ""}</td></tr>`;
+      `<td class="${ok}" title="${d.pair ? esc((d.pair.rule === "3-9-6a" ? "runway separation" : KIND_TEXT[d.pair.kind]) + (d.pair.rule ? " — 7110.65 " + d.pair.rule : "")) : ""}">${isFinite(d.gap) ? fmtSec(d.gap) + (d.pair ? " / " + d.pair.sec : "") : ""}</td></tr>`;
   }).join("") || `<tr><td class="dim">None seen yet.</td></tr>`;
 }
 $("runways").addEventListener("click", ev => { const t = ev.target.closest("[data-cs]"); if (t) select(t.dataset.cs); });
