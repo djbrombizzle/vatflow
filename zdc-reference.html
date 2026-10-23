@@ -83,6 +83,12 @@
   .route { font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 8px 14px; overflow-wrap: anywhere; line-height: 1.5; }
   .route mark { background: none; color: var(--amber); font-weight: 600; }
   .backbtn { display: none; margin-bottom: 8px; }
+  .phase { padding: 7px 14px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .ph { font-size: 10px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; background: #1b2531; color: var(--text); margin-right: 4px; }
+  .ph.departing, .ph.ground, .ph.pre { color: var(--green); }
+  .ph.enroute { color: var(--amber); }
+  .ph.arriving, .ph.landed { color: var(--cyan); }
+  .linkbtn { background: none; border: none; padding: 0; font-size: 11px; color: var(--cyan); text-decoration: underline; cursor: pointer; }
 
   .grp { padding: 4px 0 2px; border-top: 1px solid var(--line); }
   .grp-h { display: flex; gap: 8px; align-items: baseline; padding: 8px 14px 2px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
@@ -191,6 +197,7 @@
       <select id="cfgSel" title="ZDC sector configuration (ZDC SOP hand-offs)"></select>
       <label class="chk"><input type="checkbox" id="optZdc" checked> In or near ZDC</label>
       <label class="chk"><input type="checkbox" id="optPrefile"> Prefiles</label>
+      <label class="chk" title="Show departure, en route and arrival rules whatever the flight's phase"><input type="checkbox" id="optAllPhases"> All phases</label>
       <label class="chk" title="Show every rule's full text, or tap a rule to open it"><input type="checkbox" id="optFull"> Full text</label>
       <span class="status" id="status">Loading…</span>
     </div>
@@ -232,7 +239,10 @@ import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
 import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
 import { matchFlight, descendViaFor, primaryAirports, satellitePrimaries, ownerOf } from "./shared/zdc-sop-match.js";
 import { REF_DOCS, REF_ITEMS } from "./shared/zdc-reference-data.js";
-import { matchReference, flightClass, itemHaystack, matchesQuery, sopRowsAsItems, routeTokenSet } from "./shared/zdc-reference-match.js";
+import {
+  matchReference, flightClass, itemHaystack, matchesQuery, sopRowsAsItems, routeTokenSet,
+  flightPhase, filterByPhase, PHASE_LABEL,
+} from "./shared/zdc-reference-match.js";
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
 const PREFS_KEY = "vatflow.zdcReference.prefs";
@@ -280,7 +290,7 @@ function loadPrefs() {
 function savePrefs() {
   const p = {
     view, dir, field: $("fieldSel").value, cfg: $("cfgSel").value, zdc: $("optZdc").checked,
-    prefile: $("optPrefile").checked, full: $("optFull").checked, doc: $("docSel").value, cat: $("catSel").value, sop: $("optSop").checked,
+    prefile: $("optPrefile").checked, allPhases: $("optAllPhases").checked, full: $("optFull").checked, doc: $("docSel").value, cat: $("catSel").value, sop: $("optSop").checked,
   };
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
 }
@@ -320,6 +330,7 @@ function start() {
   if (prefs.cfg && CONFIGS[prefs.cfg]) $("cfgSel").value = prefs.cfg;
   if (prefs.zdc === false) $("optZdc").checked = false;
   if (prefs.prefile) $("optPrefile").checked = true;
+  if (prefs.allPhases) $("optAllPhases").checked = true;
   if (prefs.full) $("optFull").checked = true;
   $("app").classList.toggle("compact", !$("optFull").checked);
   $("optFull").addEventListener("change", () => { $("app").classList.toggle("compact", !$("optFull").checked); savePrefs(); });
@@ -338,7 +349,7 @@ function start() {
     const b = e.target.closest("button[data-dir]");
     if (b) { setDir(b.dataset.dir); savePrefs(); render(); }
   });
-  ["fieldSel", "cfgSel", "optZdc", "optPrefile"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  ["fieldSel", "cfgSel", "optZdc", "optPrefile", "optAllPhases"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
   ["docSel", "catSel", "optSop"].forEach(id => $(id).addEventListener("change", () => { rulesShown = RULES_PAGE; savePrefs(); render(); }));
   $("q").addEventListener("input", () => { rulesShown = RULES_PAGE; render(); });
   $("q").addEventListener("keydown", e => {
@@ -357,6 +368,13 @@ function start() {
   });
   $("detail").addEventListener("click", e => {
     if (e.target.closest("[data-back]")) select("");
+  });
+  $("app").addEventListener("click", e => {
+    const b = e.target.closest("button[data-phases]");
+    if (!b) return;
+    $("optAllPhases").checked = b.dataset.phases === "1";
+    savePrefs();
+    render();
   });
   $("mapPanel").addEventListener("click", e => {
     const b = e.target.closest(".fl");
@@ -536,6 +554,23 @@ function directionOf(f) {
   return "over";
 }
 
+/**
+ * The flight's matches cut to its phase of flight: departure rules until it is
+ * clear of the departure airport, then en route rules still ahead and arrival
+ * rules. "All phases" shows everything.
+ */
+function phased(f, m) {
+  const phase = flightPhase(f, ll(f.dep), ll(f.arr));
+  if ($("optAllPhases").checked) return { ...m, phase, hidden: 0 };
+  const ahead = m.ri ? new Set(m.ri.ahead.map(a => a.name)) : null;
+  const all = m.ri ? new Set(m.ri.all.map(a => a.name)) : null;
+  const { shown, hidden } = filterByPhase(m.ref, phase, ahead, all);
+  const airborne = ["departing", "enroute", "arriving"].includes(phase);
+  const sop = phase === "landed" ? [] : m.sop.filter(s => !(airborne && s.fix && ahead && all.has(s.fix) && !ahead.has(s.fix)));
+  const dv = phase === "landed" ? [] : m.dv;
+  return { ...m, ref: shown, sop, dv, phase, hidden: hidden + (m.sop.length - sop.length) + (m.dv.length - dv.length) };
+}
+
 function computeFlights(q) {
   const field = $("fieldSel").value;
   const nearOnly = $("optZdc").checked;
@@ -544,14 +579,15 @@ function computeFlights(q) {
     const exact = q && f.callsign === q;
     if (field && f.dep !== field && f.arr !== field && !exact) continue;
     if (dir && directionOf(f) !== dir && !exact) continue;
-    const m = matchesFor(f);
+    const all = matchesFor(f);
+    if (!all.ref.length && !all.sop.length && !all.zdcField && !exact) continue;
+    const m = phased(f, all);
     const n = m.ref.length + m.sop.length;
-    if (!n && !m.zdcField && !exact) continue;
     const st = flightStatus(f, m.ri);
     if (nearOnly && st.key === "out" && !m.zdcField && !exact) continue;
     if (q && !exact) {
       const hay = [f.callsign, f.dep, f.arr, f.dep.replace(/^K/, ""), f.arr.replace(/^K/, ""), f.route, f.type,
-        ...m.ref.map(r => r.item.title + " " + (r.item.restr || ""))].join(" ").toUpperCase();
+        ...all.ref.map(r => r.item.title + " " + (r.item.restr || ""))].join(" ").toUpperCase();
       if (!matchesQuery(hay, q)) continue;
     }
     out.push({ f, m, st, n, exact });
@@ -644,7 +680,7 @@ function renderFlights(q) {
 /** The selected flight even when filters would hide it. */
 function computeAll() {
   return flightsFromFeed().filter(f => f.callsign === selected).map(f => {
-    const m = matchesFor(f);
+    const m = phased(f, matchesFor(f));
     return { f, m, st: flightStatus(f, m.ri), n: m.ref.length + m.sop.length };
   });
 }
@@ -699,7 +735,7 @@ function renderDetail({ f, m, st }, q) {
     `<span class="meta">${esc(f.type || "?")}${cls ? ` · ${CLASS_LABEL[cls]}` : ""}${f.rules ? ` · ${f.rules === "V" ? "VFR" : "IFR"}` : ""}</span>` +
     `<span class="meta">filed ${esc(f.altitude || "?")}${esc(now)}</span>` +
     `<span class="tag ${st.key}">${esc(st.label)}</span></div>` +
-    `<div class="route">${routeHtml}</div>` + sopHtml + sections + none + `</div>`;
+    `<div class="route">${routeHtml}</div>` + phaseHtml(f, m) + sopHtml + sections + none + `</div>`;
 }
 
 /* ---------------- map view ---------------- */
@@ -877,6 +913,19 @@ function renderMap(q) {
   panel.innerHTML = sel ? renderDetail(sel, q)
     : `<p class="hint">Click an aircraft, or pick one here, to draw its route and label each rule where it applies. ` +
       `In the rule list, rules marked ⌖ pan the map to their fix.</p><div class="list">${listHtml(rows, q)}</div>`;
+}
+
+const PHASE_SHOWS = {
+  pre: "departure and en route rules", ground: "departure and en route rules", departing: "departure and en route rules",
+  enroute: "en route rules ahead and arrival rules", arriving: "en route rules ahead and arrival rules", landed: "arrival rules",
+};
+
+function phaseHtml(f, m) {
+  const all = $("optAllPhases").checked;
+  const what = all ? "all phases" : PHASE_SHOWS[m.phase];
+  const toggle = all ? `<button type="button" class="linkbtn" data-phases="0">Current phase only</button>`
+    : m.hidden ? `<button type="button" class="linkbtn" data-phases="1">${m.hidden} for other phases or already passed · show</button>` : "";
+  return `<div class="phase"><span class="ph ${m.phase}">${esc(PHASE_LABEL[m.phase].toUpperCase())}</span> showing ${what}${toggle ? " · " + toggle : ""}</div>`;
 }
 
 /* ---------------- rules view ---------------- */

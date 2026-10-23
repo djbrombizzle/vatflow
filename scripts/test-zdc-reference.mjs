@@ -9,6 +9,7 @@ import { REF_DOCS, REF_ITEMS } from "../shared/zdc-reference-data.js";
 import { ROWS, SECTORS, SECTOR_REF } from "../shared/zdc-sop-data.js";
 import {
   matchReference, flightClass, acftFits, routeTokenSet, itemHaystack, matchesQuery, sopRowsAsItems,
+  flightPhase, filterByPhase,
 } from "../shared/zdc-reference-match.js";
 
 let passed = 0;
@@ -77,6 +78,35 @@ t("LOA rules need a route through every ARTCC they name", () => {
   assert.deepEqual(ids(f, items, { viaArtcc: id => id === "ZTL" || id === "ZDC" }), ["ztl-dep", "pct"]);
   assert.deepEqual(ids(f, items, { viaArtcc: id => id === "ZID" }), ["pct"]);
   assert.deepEqual(ids(f, items, { viaArtcc: () => null }), ["zid-arr", "ztl-dep", "pct"]);
+});
+
+t("phase of flight from position, speed and altitude", () => {
+  const DCA = [38.852, -77.037], CHS = [32.899, -80.040];
+  const at = (lat, lon, gs, alt) => ({ lat, lon, gs, alt });
+  assert.equal(flightPhase({ prefile: true }, DCA, CHS), "pre");
+  assert.equal(flightPhase(at(38.85, -77.04, 0, 0), DCA, CHS), "ground");
+  assert.equal(flightPhase(at(38.70, -77.10, 250, 9000), DCA, CHS), "departing");
+  assert.equal(flightPhase(at(38.70, -77.10, 400, 25300), DCA, CHS), "enroute");   // close in but already high
+  assert.equal(flightPhase(at(36.0, -78.5, 419, 25300), DCA, CHS), "enroute");     // the AAL2203 case
+  assert.equal(flightPhase(at(33.5, -79.9, 300, 11000), DCA, CHS), "arriving");
+  assert.equal(flightPhase(at(32.90, -80.04, 10, 0), DCA, CHS), "landed");
+});
+
+t("filterByPhase: departure rules drop once airborne and clear; passed en route rules drop", () => {
+  const ms = [
+    { role: "dep", hits: [], item: { title: "dep" } },
+    { role: "arr", hits: [], item: { title: "arr" } },
+    { role: "over", hits: ["Q109"], item: { title: "ahead" } },
+    { role: "over", hits: ["SCOOB"], item: { title: "passed" } },
+    { role: "over", hits: ["Q22"], item: { title: "airway" } },     // not an expanded point
+  ];
+  const ahead = new Set(["Q109", "JOHAR"]), all = new Set(["SCOOB", "DFENC", "Q109", "JOHAR"]);
+  const titles = (phase, a, b) => filterByPhase(ms, phase, a, b).shown.map(m => m.item.title);
+  assert.deepEqual(titles("ground"), ["dep", "ahead", "passed", "airway"]);
+  assert.deepEqual(titles("enroute", ahead, all), ["arr", "ahead", "airway"]);
+  assert.deepEqual(titles("arriving", ahead, all), ["arr", "ahead", "airway"]);
+  assert.deepEqual(titles("landed", ahead, all), ["arr"]);
+  assert.equal(filterByPhase(ms, "enroute", ahead, all).hidden, 2);
 });
 
 t("search: every word must hit; airports also match without K", () => {

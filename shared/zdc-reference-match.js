@@ -120,3 +120,65 @@ export function sopRowsAsItems(rows, sectors, sectorRef) {
     };
   });
 }
+
+/* ---------------- phase of flight ---------------- */
+
+/** Airborne within this distance of the departure airport (and below FL180) = departing. */
+export const DEPARTING_NM = 30;
+/** Airborne within this distance of the arrival airport = arriving. */
+export const ARRIVING_NM = 80;
+/** On the ground within this distance of the arrival airport = landed. */
+const LANDED_NM = 8;
+
+function distNm(a, b) {
+  const R = 3440.065, toR = Math.PI / 180;
+  const dLat = (b[0] - a[0]) * toR, dLon = (b[1] - a[1]) * toR;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Phase of flight from position, ground speed and altitude.
+ * @param {{lat, lon, gs, alt, prefile}} f
+ * @param {[number, number]|null} depLL
+ * @param {[number, number]|null} arrLL
+ * @returns {"pre"|"ground"|"departing"|"enroute"|"arriving"|"landed"}
+ */
+export function flightPhase(f, depLL, arrLL) {
+  if (f.prefile || f.lat == null) return "pre";
+  const pos = [f.lat, f.lon];
+  const dArr = arrLL ? distNm(pos, arrLL) : Infinity;
+  const dDep = depLL ? distNm(pos, depLL) : Infinity;
+  if ((f.gs || 0) < 50) return dArr < LANDED_NM && dArr < dDep ? "landed" : "ground";
+  if (dArr <= ARRIVING_NM && dArr < dDep) return "arriving";
+  if (dDep <= DEPARTING_NM && (f.alt == null || f.alt < 18000)) return "departing";
+  return "enroute";
+}
+
+/** Which matched roles each phase shows. */
+export const PHASE_ROLES = {
+  pre: ["dep", "over"], ground: ["dep", "over"], departing: ["dep", "over"],
+  enroute: ["over", "arr"], arriving: ["over", "arr"], landed: ["arr"],
+};
+
+export const PHASE_LABEL = {
+  pre: "Prefiled", ground: "On the ground", departing: "Departing", enroute: "En route", arriving: "Arriving", landed: "Landed",
+};
+
+/**
+ * Rules for the flight's current phase. An en route rule whose route fixes are
+ * all behind the aircraft (in `allFixes` but not `aheadFixes`) is dropped too.
+ * @returns {{shown: object[], hidden: number}}
+ */
+export function filterByPhase(matches, phase, aheadFixes = null, allFixes = null) {
+  const roles = PHASE_ROLES[phase] || ["dep", "over", "arr"];
+  const airborne = ["departing", "enroute", "arriving"].includes(phase);
+  const shown = matches.filter(m => {
+    if (!roles.includes(m.role)) return false;
+    if (m.role === "over" && airborne && aheadFixes && allFixes && m.hits.length) {
+      return m.hits.some(h => aheadFixes.has(h) || !allFixes.has(h));
+    }
+    return true;
+  });
+  return { shown, hidden: matches.length - shown.length };
+}
