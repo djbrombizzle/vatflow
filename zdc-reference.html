@@ -6,6 +6,8 @@
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>ZDC Reference — VATFLOW</title>
 <link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
   :root {
     --bg: #080b10;
@@ -91,9 +93,9 @@
   .rtitle { font-size: 14px; font-weight: 600; }
   .restr { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--amber); }
 
-  .compact .detail .rule:not(.open) .rtext, .compact .detail .rule:not(.open) .rmeta { display: none; }
-  .compact .detail .rule { padding: 6px 14px; }
-  .detail .rule { cursor: pointer; }
+  .compact :is(.detail, .mappanel) .rule:not(.open) :is(.rtext, .rmeta) { display: none; }
+  .compact :is(.detail, .mappanel) .rule { padding: 6px 14px; }
+  :is(.detail, .mappanel) .rule { cursor: pointer; }
   .rtext { color: #b8c4cf; font-size: 13px; line-height: 1.5; margin-top: 3px; }
   .rmeta { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 3px; }
   .rmeta .hit { color: var(--amber); }
@@ -122,6 +124,26 @@
   .doc p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
   .doc button { align-self: flex-start; margin-top: auto; font-size: 12px; }
 
+  /* map view */
+  .mapwrap { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 10px; height: calc(100vh - var(--vatflow-nav-h) - 190px); min-height: 440px; }
+  #map { border: 1px solid var(--line); border-radius: 8px; background: #0a0e14; min-height: 0; }
+  #map.leaflet-container { background: #0a0e14; font-family: var(--mono); }
+  .mappanel { overflow-y: auto; min-height: 0; }
+  .mappanel .list { position: static; max-height: none; }
+  .mappanel .hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 8px; }
+  .mappanel .backbtn { display: inline-block; }
+  .mappanel .rule[data-fix] .rtitle::after { content: " ⌖"; color: var(--dim); }
+  .fixlbl { font-family: var(--mono); font-size: 10px; line-height: 1.3; color: #0a0e14; background: var(--amber); border-radius: 3px; padding: 1px 5px; white-space: nowrap; box-shadow: 0 0 4px #000; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .fixlbl.bdry { background: var(--cyan); }
+  .fixlbl.dv { background: #9fd8d3; }
+  .fixlbl.apt { background: #b9c3cc; }
+  .artcc-label { font-family: var(--mono); font-size: 11px; color: #5c6b78; letter-spacing: 0.1em; }
+  .leaflet-tooltip.cstip { background: #0e1319; color: var(--text); border: 1px solid #2a3644; font-family: var(--mono); font-size: 11px; }
+  .maplegend { position: absolute; left: 10px; bottom: 10px; z-index: 500; background: rgba(14,19,25,.9); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-family: var(--mono); font-size: 10px; color: var(--muted); display: flex; gap: 10px; }
+  .maplegend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .mapbox { position: relative; min-height: 0; }
+  .mapbox #map { position: absolute; inset: 0; }
+
   .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
   kbd { font-family: var(--mono); font-size: 10px; border: 1px solid #2a3644; border-radius: 3px; padding: 0 4px; color: var(--muted); }
 
@@ -131,6 +153,8 @@
     .split.has-sel .list { display: none; }
     .split:not(.has-sel) .detail { display: none; }
     .backbtn { display: inline-block; }
+    .mapwrap { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
+    .mappanel { overflow: visible; }
     .status { margin-left: 0; width: 100%; }
   }
 </style>
@@ -151,6 +175,7 @@
       <input type="search" id="q" placeholder="Callsign, airport, fix, SID/STAR or rule…   ( / )" autocomplete="off" spellcheck="false" aria-label="Search">
       <div class="seg" id="viewSeg">
         <button type="button" data-view="flights" class="on">Flights</button>
+        <button type="button" data-view="map">Map</button>
         <button type="button" data-view="rules">Rules</button>
         <button type="button" data-view="docs">Documents</button>
       </div>
@@ -180,6 +205,12 @@
       <div class="list" id="list"></div>
       <div class="detail" id="detail"></div>
     </div>
+    <div id="mapView" class="mapwrap" hidden>
+      <div class="mapbox"><div id="map"></div>
+        <div class="maplegend"><span><i style="background:#57d98a"></i>In ZDC</span><span><i style="background:#3fb7b0"></i>Inbound</span><span><i style="background:#8a97a3"></i>Ground / other</span><span><i style="background:#e8a838"></i>Selected</span></div>
+      </div>
+      <aside id="mapPanel" class="mappanel"></aside>
+    </div>
     <div id="rulesView" hidden></div>
     <div id="docsView" class="docs" hidden></div>
 
@@ -187,12 +218,16 @@
   </div>
 </main>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { initVatflowAuth, canEditArtcc, isSignedIn, login } from "./shared/vatflow-auth.js";
-import { getAirport, hasAirport, loadAirports } from "./shared/fca-metering.js";
-import { fetchArtccBoundaries, pointInArtcc, isArtccScopeReady } from "./shared/artcc-scope.js";
-import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft } from "./shared/route-engine.js";
+import { getAirport, hasAirport, loadAirports, gcLine } from "./shared/fca-metering.js";
+import { fetchArtccBoundaries, pointInArtcc, isArtccScopeReady, getArtccRings, getArtccBounds } from "./shared/artcc-scope.js";
+import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft, resolveToken } from "./shared/route-engine.js";
 import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
 import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
 import { matchFlight, descendViaFor, primaryAirports, satellitePrimaries, ownerOf } from "./shared/zdc-sop-match.js";
@@ -228,8 +263,8 @@ const HAY = new Map([...REF_ITEMS, ...SOP_ITEMS].map(it => [it, itemHaystack(it,
 
 const prefs = loadPrefs();
 const params = new URLSearchParams(location.search);
-let view = ["rules", "docs"].includes(location.hash.slice(1)) ? location.hash.slice(1)
-  : ["rules", "docs"].includes(prefs.view) ? prefs.view : "flights";
+let view = ["map", "rules", "docs"].includes(location.hash.slice(1)) ? location.hash.slice(1)
+  : ["map", "rules", "docs"].includes(prefs.view) ? prefs.view : "flights";
 let dir = prefs.dir || "";
 let selected = (params.get("cs") || "").toUpperCase();
 let rulesShown = RULES_PAGE;
@@ -308,8 +343,8 @@ function start() {
   $("q").addEventListener("input", () => { rulesShown = RULES_PAGE; render(); });
   $("q").addEventListener("keydown", e => {
     if (e.key === "Escape") { $("q").value = ""; render(); }
-    if (e.key === "Enter" && view === "flights") {
-      const first = $("list").querySelector(".fl");
+    if (e.key === "Enter" && (view === "flights" || view === "map")) {
+      const first = $(view === "map" ? "mapPanel" : "list").querySelector(".fl");
       if (first) select(first.dataset.cs);
     }
   });
@@ -323,9 +358,16 @@ function start() {
   $("detail").addEventListener("click", e => {
     if (e.target.closest("[data-back]")) select("");
   });
+  $("mapPanel").addEventListener("click", e => {
+    const b = e.target.closest(".fl");
+    if (b) select(b.dataset.cs);
+    else if (e.target.closest("[data-back]")) select("");
+  });
   $("app").addEventListener("click", e => {
     const r = e.target.closest(".rule");
-    if (r && !getSelection().toString()) r.classList.toggle("open");
+    if (!r || getSelection().toString()) return;
+    r.classList.toggle("open");
+    if (view === "map" && r.dataset.fix) panToFix(r.dataset.fix);
   });
   $("docsView").addEventListener("click", e => {
     const b = e.target.closest("button[data-doc]");
@@ -351,7 +393,7 @@ function start() {
     loadAirports().catch(() => null),
     fetchArtccBoundaries().catch(() => null),
     loadNavData().catch(() => null),
-  ]).then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); matchCache.clear(); render(); });
+  ]).then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); matchCache.clear(); drawBoundaries(); render(); });
   bindAirports(getAirport, hasAirport);
   poll();
   setInterval(poll, VATSIM_FEED_MS);
@@ -360,9 +402,11 @@ function start() {
 function setView(v) {
   view = v;
   $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
-  $("flightOpts").hidden = v !== "flights";
+  $("flightOpts").hidden = v !== "flights" && v !== "map";
   $("ruleOpts").hidden = v !== "rules";
   $("flightsView").hidden = v !== "flights";
+  $("mapView").hidden = v !== "map";
+  if (v === "map") ensureMap();
   $("rulesView").hidden = v !== "rules";
   $("docsView").hidden = v !== "docs";
   history.replaceState(null, "", location.pathname + location.search + (v === "flights" ? "" : "#" + v));
@@ -380,7 +424,7 @@ function select(cs) {
   if (selected) u.searchParams.set("cs", selected); else u.searchParams.delete("cs");
   history.replaceState(null, "", u);
   render();
-  if (selected && matchMedia("(max-width: 860px)").matches) window.scrollTo({ top: 0 });
+  if (selected && view === "flights" && matchMedia("(max-width: 860px)").matches) window.scrollTo({ top: 0 });
 }
 
 /* ---------------- feed ---------------- */
@@ -544,7 +588,8 @@ function ruleHtml(it, words, extra = {}) {
   const fx = (it.fixes || []).map(f => (extra.hits || []).includes(f) ? `<span class="hit">${esc(f)}</span>` : esc(f));
   if (fx.length) meta.push(`via ${fx.join(it.fixMode === "all" ? " + " : " / ")}`);
   if (extra.typeUnknown) meta.push("aircraft type not classified");
-  return `<div class="rule"><div class="rtop"><span class="cat ${esc(it.cat.split(" ")[0])}">${esc(it.cat)}</span>` +
+  const fixAttr = extra.hits && extra.hits.length ? ` data-fix="${esc(extra.hits[0])}"` : "";
+  return `<div class="rule"${fixAttr}><div class="rtop"><span class="cat ${esc(it.cat.split(" ")[0])}">${esc(it.cat)}</span>` +
     `<span class="rtitle">${hl(it.title, words)}</span>${it.restr ? `<span class="restr">${hl(it.restr, words)}</span>` : ""}</div>` +
     `<div class="rtext">${hl(it.text, words)}</div><div class="rmeta">${meta.join(" · ")}</div></div>`;
 }
@@ -566,22 +611,30 @@ function setStatus(id, text, err) {
 
 /* ---------------- flights view ---------------- */
 
-function renderFlights(q) {
+/** Flights for the list and map: filtered rows, status line, exact-callsign auto-select. */
+function flightRows(q) {
   const rows = computeFlights(q);
   const age = feedAt ? Math.round((Date.now() - feedAt) / 1000) : null;
   setStatus("status", feedErr || (feed ? `${rows.length} flights · feed ${age}s ago` : "Loading VATSIM feed…"), !!feedErr);
   if (q && rows.length && rows[0].exact && selected !== rows[0].f.callsign) selected = rows[0].f.callsign;
+  const sel = rows.find(r => r.f.callsign === selected) ||
+    (selected ? computeAll().find(r => r.f.callsign === selected) : null);
+  return { rows, sel };
+}
 
-  $("list").innerHTML = !feed ? `<p class="empty">Loading the VATSIM feed…</p>`
+function listHtml(rows, q) {
+  return !feed ? `<p class="empty">Loading the VATSIM feed…</p>`
     : !rows.length ? `<p class="empty">No flights match${q ? ` “${esc(q)}”` : ""}. Try Rules to search the documents.</p>`
     : rows.map(({ f, st, n }) =>
       `<button type="button" class="fl${f.callsign === selected ? " sel" : ""}" data-cs="${esc(f.callsign)}">` +
       `<span class="cs">${esc(f.callsign)}</span><span class="tag ${st.key}">${esc(st.label)}</span>` +
       `<span class="od">${esc(f.dep)} → ${esc(f.arr)} · ${esc(f.type || "?")}</span>` +
       `<span class="n">${n ? `${n} rule${n === 1 ? "" : "s"}` : ""}</span></button>`).join("");
+}
 
-  const sel = rows.find(r => r.f.callsign === selected) ||
-    (selected ? computeAll().find(r => r.f.callsign === selected) : null);
+function renderFlights(q) {
+  const { rows, sel } = flightRows(q);
+  $("list").innerHTML = listHtml(rows, q);
   $("flightsView").classList.toggle("has-sel", !!sel);
   $("detail").innerHTML = sel ? renderDetail(sel, q)
     : `<div class="card"><p class="empty">Pick a flight to see every SOP and LOA rule that applies to it — or type a callsign and press <kbd>Enter</kbd>.<br>` +
@@ -649,6 +702,183 @@ function renderDetail({ f, m, st }, q) {
     `<div class="route">${routeHtml}</div>` + sopHtml + sections + none + `</div>`;
 }
 
+/* ---------------- map view ---------------- */
+
+const NEIGHBOR_ARTCCS = ["ZNY", "ZOB", "ZID", "ZTL", "ZJX", "ZBW"];
+const STATUS_COLOR = { in: "#57d98a", inb: "#3fb7b0", gnd: "#8a97a3", pre: "#5c6b78", out: "#5c6b78" };
+let map = null, mapLayers = null, fittedZdc = false, fittedSel = "", mapSel = null, mapFixLL = new Map();
+
+function ensureMap() {
+  if (map) { setTimeout(() => map.invalidateSize(), 0); return; }
+  if (typeof L === "undefined") return;
+  map = L.map("map", { zoomControl: false, minZoom: 4, maxZoom: 12 });
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  if (window.addVatflowBasemap) window.addVatflowBasemap(map);
+  mapLayers = {
+    bdry: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
+    fixes: L.layerGroup().addTo(map), traffic: L.layerGroup().addTo(map),
+  };
+  map.setView([38.3, -77.8], 6);
+  map.on("click", () => { if (selected) select(""); });
+  drawBoundaries();
+}
+
+function drawBoundaries() {
+  if (!map) return;
+  mapLayers.bdry.clearLayers();
+  for (const id of ["ZDC", ...NEIGHBOR_ARTCCS]) {
+    const rings = getArtccRings(id);
+    if (!rings) continue;
+    const zdc = id === "ZDC";
+    rings.forEach(r => L.polygon(r, {
+      color: zdc ? "#e8a838" : "#3a4d5e", weight: zdc ? 1.5 : 1, opacity: zdc ? 0.6 : 0.8,
+      fill: zdc, fillOpacity: 0.03, interactive: false,
+    }).addTo(mapLayers.bdry));
+    const b = getArtccBounds(id);
+    if (b) {
+      L.marker(L.latLngBounds(b).getCenter(), {
+        interactive: false, icon: L.divIcon({ className: "artcc-label", html: id, iconSize: [34, 12] }),
+      }).addTo(mapLayers.bdry);
+    }
+  }
+  const zb = getArtccBounds("ZDC");
+  if (zb && !fittedZdc) { map.fitBounds(zb, { padding: [10, 10] }); fittedZdc = true; }
+}
+
+function planeIcon(color, hdg, big) {
+  const sz = big ? 18 : 12;
+  return L.divIcon({
+    className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+    html: `<div style="transform:rotate(${Number(hdg) || 0}deg);width:${sz}px;height:${sz}px">` +
+      `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${color}" stroke="#0a0e14" stroke-width="1.2"/></svg></div>`,
+  });
+}
+
+/** Great-circle polyline through a list of [lat, lon]. */
+function gcPath(lls) {
+  let out = [];
+  for (let i = 0; i < lls.length - 1; i++) {
+    const seg = gcLine(lls[i], lls[i + 1]);
+    if (i > 0) seg.shift();
+    out = out.concat(seg);
+  }
+  return out;
+}
+
+/** Last point where a path leaves ZDC (for "BDRY" hand-offs to another ARTCC). */
+function zdcExitPoint(path) {
+  let exit = null;
+  for (let i = 1; i < path.length; i++) if (inZdc(path[i - 1]) && !inZdc(path[i])) exit = path[i - 1];
+  return exit;
+}
+
+function fixLatLon(name, card) {
+  const a = card.m.ri && card.m.ri.all.find(x => x.name === name && x.ll);
+  if (a) return a.ll;
+  const ref = card.f.lat != null ? [card.f.lat, card.f.lon] : ll(card.f.arr);
+  try { const r = resolveToken(name, { refLL: ref, dep: card.f.dep, arr: card.f.arr }); return r ? r.ll : null; } catch (_) { return null; }
+}
+
+function panToFix(name) {
+  const p = mapFixLL.get(name);
+  if (map && p) map.setView(p, Math.max(map.getZoom(), 8));
+}
+
+/** Route, rule labels at the fixes they name, ZDC SOP crossings and the departure/arrival rules at each airport. */
+function drawSelected(card) {
+  const { f, m } = card;
+  const ri = m.ri;
+  const pos = f.lat != null && !f.prefile ? [f.lat, f.lon] : null;
+  const allLL = ri ? ri.all.filter(a => a.ll).map(a => a.ll) : [ll(f.dep), pos, ll(f.arr)].filter(Boolean);
+  const aheadLL = ri ? ri.ahead.filter(a => a.ll).map(a => a.ll) : [pos, ll(f.arr)].filter(Boolean);
+  const full = gcPath(allLL), ahead = gcPath(aheadLL);
+  if (full.length > 1) L.polyline(full, { color: "#8a97a3", weight: 1.5, opacity: 0.5, dashArray: "3 5", interactive: false }).addTo(mapLayers.route);
+  if (ahead.length > 1) L.polyline(ahead, { color: "#e8a838", weight: 2.5, opacity: 0.85, interactive: false }).addTo(mapLayers.route);
+
+  const groups = new Map();
+  const add = (key, p, kind, line) => {
+    if (!p) return;
+    if (!groups.has(key)) groups.set(key, { ll: p, kind, lines: [] });
+    const g = groups.get(key);
+    if (!g.lines.includes(line)) g.lines.push(line);
+  };
+  for (const r of m.ref) {
+    const line = esc(r.item.restr || r.item.title);
+    if (r.hits.length) r.hits.forEach(h => add(h, fixLatLon(h, card), "fix", line));
+  }
+  const nDep = m.ref.filter(r => r.role === "dep" && !r.hits.length).length;
+  const nArr = m.ref.filter(r => r.role === "arr" && !r.hits.length).length;
+  if (nDep) add("@" + f.dep, ll(f.dep), "apt", `${nDep} departure rule${nDep === 1 ? "" : "s"}`);
+  if (nArr) add("@" + f.arr, ll(f.arr), "apt", `${nArr} arrival rule${nArr === 1 ? "" : "s"}`);
+
+  const cfgKey = $("cfgSel").value;
+  const dvJoin = m.dv && m.dv[0] ? m.dv[0].join : null;
+  let exit;
+  for (const sm of m.sop) {
+    const line = `${esc(sm.row[4])} <span style="opacity:.7">${esc(ownerOf(sm.row[0], cfgKey) || sm.row[0])}→${esc(ownerOf(sm.row[5], cfgKey) || sm.row[5])}</span>`;
+    if (sm.fix) add(sm.fix, fixLatLon(sm.fix, card), "fix", line);
+    else if (/^D\/V/.test(sm.row[4]) && dvJoin) add(dvJoin, fixLatLon(dvJoin, card), "dv", line);
+    else if (/^(Z[A-Z]{2}|N90)$/.test(sm.row[5]) && /^(BDRY|AOB|AT|DSDG|FL)/.test(sm.row[4])) {
+      if (exit === undefined) exit = zdcExitPoint(full.length ? full : allLL);
+      add("BDRY", exit, "bdry", line);
+    }
+  }
+  m.dv.forEach(d => add(d.join, fixLatLon(d.join, card), "dv", `${esc(d.star)} D/V bottom ${esc(d.alt)}`));
+
+  mapFixLL = new Map();
+  for (const [key, g] of groups) {
+    if (!key.startsWith("@") && key !== "BDRY") mapFixLL.set(key, g.ll);
+    const head = key === "BDRY" ? "ZDC BDRY" : esc(key.replace(/^@/, ""));
+    const lines = g.lines.length > 4 ? [...g.lines.slice(0, 4), `+${g.lines.length - 4} more`] : g.lines;
+    L.circleMarker(g.ll, { radius: 4, color: "#0a0e14", weight: 1, fillColor: g.kind === "bdry" ? "#3fb7b0" : g.kind === "apt" ? "#b9c3cc" : "#e8a838", fillOpacity: 1 }).addTo(mapLayers.fixes);
+    L.marker(g.ll, {
+      interactive: false,
+      icon: L.divIcon({ className: "", iconSize: null, iconAnchor: [-8, 10],
+        html: `<div class="fixlbl ${g.kind}"><b>${head}</b><br>${lines.join("<br>")}</div>` }),
+    }).addTo(mapLayers.fixes);
+  }
+
+  if (fittedSel !== f.callsign) {
+    fittedSel = f.callsign;
+    // Frame the ZDC part of the trip: labelled points, route inside ZDC, and the aircraft when it is close.
+    const zb = getArtccBounds("ZDC");
+    const near = p => zb && L.latLngBounds(zb).pad(0.6).contains(p);
+    const pts = [...[...groups.values()].map(g => g.ll).filter(near), ...(ahead.length ? ahead : full).filter(p => inZdc(p))];
+    if (pos && near(pos)) pts.push(pos);
+    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 9 });
+    else if (zb) map.fitBounds(zb, { padding: [10, 10] });
+  }
+}
+
+function renderMap(q) {
+  ensureMap();
+  const { rows, sel } = flightRows(q);
+  const panel = $("mapPanel");
+  if (!map) { panel.innerHTML = `<p class="hint">The map library did not load. Try reloading the page.</p>`; return; }
+  mapLayers.traffic.clearLayers();
+  mapLayers.route.clearLayers();
+  mapLayers.fixes.clearLayers();
+  mapSel = sel;
+  if (!sel) { fittedSel = ""; mapFixLL = new Map(); }
+
+  const shown = sel && !rows.includes(sel) ? [...rows, sel] : rows;
+  for (const c of shown) {
+    if (c.f.lat == null || c.f.prefile) continue;
+    const isSel = c === sel;
+    const color = isSel ? "#e8a838" : STATUS_COLOR[c.st.key] || "#8a97a3";
+    L.marker([c.f.lat, c.f.lon], { icon: planeIcon(color, c.f.hdg, isSel), zIndexOffset: isSel ? 1000 : 0, keyboard: false })
+      .bindTooltip(`<b>${esc(c.f.callsign)}</b> ${esc(c.f.dep)}→${esc(c.f.arr)} · ${c.n} rule${c.n === 1 ? "" : "s"}`,
+        { className: "cstip", direction: "top", offset: [0, -8] })
+      .on("click", e => { L.DomEvent.stopPropagation(e); select(c.f.callsign); })
+      .addTo(mapLayers.traffic);
+  }
+  if (sel) drawSelected(sel);
+
+  panel.innerHTML = sel ? renderDetail(sel, q)
+    : `<p class="hint">Click an aircraft, or pick one here, to draw its route and label each rule where it applies. ` +
+      `In the rule list, rules marked ⌖ pan the map to their fix.</p><div class="list">${listHtml(rows, q)}</div>`;
+}
+
 /* ---------------- rules view ---------------- */
 
 function renderRules(q) {
@@ -697,6 +927,7 @@ function render() {
   const q = $("q").value.trim().toUpperCase();
   if (view === "rules") renderRules(q);
   else if (view === "docs") renderDocs(q);
+  else if (view === "map") renderMap(q);
   else renderFlights(q);
 }
 </script>
