@@ -43,6 +43,7 @@ Include `FIX_BASE.csv` or `FIX.csv`, `NAV_BASE.csv` or `NAV.csv`, `AWY_BASE.csv`
 | `procedures.json` | SID/STAR identifiers → fix sequences |
 | `preferred.json` | `DEP|ARR` → route string (from PFR when available) |
 | `sid-runways.json` | ICAO → `{ SID: [runway, ...] }` published runway transitions |
+| `sid-rnav.json` | ICAO → `[SID, ...]` RNAV SIDs (CIFP route type 4/5/6/F/M/S), for the Taxi Sequencer's 10° rule — rebuild with `node scripts/build-sid-rnav.mjs` after each nav cycle |
 | `runways.json` | ICAO → `[[end, lat, lon, hdgTrue, lengthFt], ...]` runway thresholds |
 
 ## Taxi-estimation data

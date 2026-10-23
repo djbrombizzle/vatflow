@@ -6,15 +6,19 @@
  * filed (BANNG3 LUCKK -> LUCKK), else the next fix in the route, else the SID's
  * own exit fix. Its bearing from the field sets both its colour (hue = bearing,
  * so complementary colours are opposite courses) and the interval it needs
- * behind the departure ahead of it:
+ * behind the departures ahead of it, per FAA JO 7110.65:
  *
- *   diverge   courses 45 deg or more apart         1 minute
- *   partial   15 to 45 deg apart                   90 s
- *   same      the same fix, or under 15 deg apart  2 minutes (in trail)
- *   wake      anything behind a heavy / super      2 minutes
+ *   diverge   1 mile: courses diverge 15 deg or more immediately after
+ *             departure, or 10 deg when both fly an RNAV SID off the same
+ *             runway (5-8-3a, 5-8-3b). Not with wake turbulence separation.
+ *   same      3 miles radar in trail (5-5-4): the same fix, or less divergence
+ *   wake      2 minutes behind a heavy, 3 behind a super (3-9-6)
  *
- * The same fix is also spaced across the field: a departure off 27R to BANNG
- * waits for the clock a BANNG departure off 26L started (fixFloors).
+ * Miles are applied as time (defaults 60 s / 120 s); every interval is a setting.
+ * Between runways the relation decides: the same runway (or its reciprocal) and
+ * parallels under 2,500 ft apart take every rule above; runways 2,500 ft or more
+ * apart may release together when courses diverge (5-8-3a2) and only need in-trail
+ * spacing when they do not, with no wake rule (releaseFloor).
  *
  * sequenceRunway() searches every order within MAX_SHIFT places of first-come
  * first-served (constrained position shifting: nobody is jumped more than twice)
@@ -24,9 +28,13 @@
  */
 import { gcNm, sidFromRoute, DEFAULT_SPOOL_SEC, DEFAULT_TAXI_KT, DEFAULT_SINUOSITY, MOVING_KT } from "./taxi-estimate.js";
 
-export const DIVERGE_FULL_DEG = 45;
+/** 5-8-3a: courses diverging this much immediately after departure need only 1 mile. */
 export const DIVERGE_MIN_DEG = 15;
-export const DEFAULT_INTERVALS = { diverge: 60, partial: 90, same: 120, wake: 120 };
+/** 5-8-3b: same runway, both on RNAV SIDs. */
+export const DIVERGE_RNAV_DEG = 10;
+/** 5-8-3a: parallels closer than this are treated as one runway. */
+export const CLOSE_PARALLEL_FT = 2500;
+export const DEFAULT_INTERVALS = { diverge: 60, same: 120, wake: 120, wakeSuper: 180 };
 export const MAX_SHIFT = 2;
 /** Stopped this close to its runway after taxiing: in the queue, ready now. */
 export const HOLDING_NM = 0.8;
@@ -35,6 +43,7 @@ export const MAX_OPTIMIZE = 12;
 const MAX_NODES = 250000;
 
 const rad = d => (d * Math.PI) / 180;
+const iv_ = intervals => ({ ...DEFAULT_INTERVALS, ...(intervals || {}) });
 const deg = r => (r * 180) / Math.PI;
 
 /** Initial true bearing from point 1 to point 2, 0..360. */
@@ -168,21 +177,62 @@ export function departureFix(opts = {}) {
 
 /**
  * Interval the follower needs behind the leader, and why.
- * @returns {{ sec: number, kind: 'diverge'|'partial'|'same'|'wake'|'unknown', delta: number }}
+ * @param {string} [relation]  'same' runway (default), 'close' parallel under
+ *   2,500 ft, or 'far' (2,500 ft or more apart, or not parallel)
+ * @returns {{ sec: number, kind: 'diverge'|'same'|'wake'|'unknown'|'simul', delta: number, rule: string }}
  */
-export function pairInterval(lead, follow, intervals = DEFAULT_INTERVALS) {
+export function pairInterval(lead, follow, intervals = DEFAULT_INTERVALS, relation = "same") {
   const iv = { ...DEFAULT_INTERVALS, ...(intervals || {}) };
-  if (!lead || !follow) return { sec: 0, kind: "diverge", delta: 180 };
+  if (!lead || !follow) return { sec: 0, kind: "diverge", delta: 180, rule: "" };
   const sameFix = lead.fix && follow.fix && lead.fix === follow.fix;
   const delta = sameFix ? 0 : (isFinite(lead.bearing) && isFinite(follow.bearing) ? angleDiff(lead.bearing, follow.bearing) : NaN);
+  const rnav = relation === "same" && lead.rnav && follow.rnav;
+  const minDeg = rnav ? DIVERGE_RNAV_DEG : DIVERGE_MIN_DEG;
   let out;
-  if (sameFix || delta < DIVERGE_MIN_DEG) out = { sec: iv.same, kind: "same", delta };
-  else if (!isFinite(delta)) out = { sec: iv.partial, kind: "unknown", delta };
-  else if (delta < DIVERGE_FULL_DEG) out = { sec: iv.partial, kind: "partial", delta };
-  else out = { sec: iv.diverge, kind: "diverge", delta };
-  const wake = lead.wake === "super" ? iv.wake + 60 : lead.wake === "heavy" && follow.wake !== "super" ? iv.wake : 0;
-  if (wake > out.sec) out = { sec: wake, kind: "wake", delta };
+  if (!isFinite(delta)) out = { sec: iv.same, kind: "unknown", delta, rule: "5-5-4" };
+  else if (delta < minDeg) out = { sec: iv.same, kind: "same", delta, rule: "5-5-4" };
+  else if (relation === "far") out = { sec: 0, kind: "simul", delta, rule: "5-8-3a2" };
+  else out = { sec: iv.diverge, kind: "diverge", delta, rule: rnav ? "5-8-3b" : "5-8-3a" };
+  if (relation !== "far") {
+    const wake = lead.wake === "super" ? iv.wakeSuper : lead.wake === "heavy" && follow.wake !== "super" ? iv.wake : 0;
+    if (wake > out.sec) out = { sec: wake, kind: "wake", delta, rule: "3-9-6" };
+  }
   return out;
+}
+
+/**
+ * How two runway ends relate for departure separation: 'same' (the same runway
+ * either way), 'close' (parallel, centerlines under 2,500 ft apart) or 'far'.
+ * Ends are { id, lat, lon, hdg }.
+ */
+export function runwayRelation(a, b, closeFt = CLOSE_PARALLEL_FT) {
+  if (!a || !b) return "far";
+  if (a.id === b.id) return "same";
+  const numA = parseInt(a.id, 10), numB = parseInt(b.id, 10);
+  if (String(a.id).slice(2) === ({ L: "R", R: "L", C: "C" }[String(b.id).slice(2)] || "") &&
+      ((numA + 17) % 36) + 1 === numB) return "same";
+  const parallel = angleDiff(a.hdg, b.hdg) < 15 || angleDiff(a.hdg, b.hdg) > 165;
+  if (!parallel || !isFinite(a.lat) || !isFinite(b.lat)) return "far";
+  // Cross-track distance of b's threshold from a's centerline.
+  const nm = gcNm(a.lat, a.lon, b.lat, b.lon);
+  const off = Math.abs(nm * Math.sin(rad(bearingDeg(a.lat, a.lon, b.lat, b.lon) - a.hdg))) * 6076.12;
+  return off < closeFt ? "close" : "far";
+}
+
+/**
+ * Earliest release (seconds from now) for an aircraft behind departures that
+ * have already gone off any runway, or -Infinity when nothing holds it.
+ * @param {object} ac        { fix, bearing, wake, rnav }
+ * @param {object[]} recent  [{ fix, bearing, wake, rnav, agoSec, relation }]
+ *                           relation: of the departure's runway to the aircraft's
+ */
+export function releaseFloor(ac, recent, intervals = DEFAULT_INTERVALS) {
+  let floor = -Infinity;
+  for (const d of recent || []) {
+    const need = pairInterval(d, ac, intervals, d.relation || "same").sec;
+    if (need > 0) floor = Math.max(floor, need - Math.max(0, d.agoSec || 0));
+  }
+  return floor;
 }
 
 /**
@@ -203,14 +253,14 @@ export function readySec(ac, end, cfg = {}) {
 
 /**
  * Wheels-up times for an order. Times are seconds from now.
- * @param {object[]} order      queue items { id, fix, bearing, wake, ready }
+ * @param {object[]} order      queue items { id, fix, bearing, wake, rnav, ready, floor? }
+ *                              floor: earliest release from departures already gone (releaseFloor)
  * @param {object} [ctx]
- * @param {object} [ctx.lastDep]    { fix, bearing, wake, agoSec } — last departure off this runway
- * @param {object} [ctx.fixFloors]  fix -> earliest clean release (s from now) from other runways
+ * @param {object} [ctx.lastDep]    { fix, bearing, wake, rnav, agoSec } — last departure off this runway
  * @param {object} [ctx.intervals]
  */
 export function scheduleOrder(order, ctx = {}) {
-  const floors = { ...(ctx.fixFloors || {}) };
+  const floors = {};          // fix -> in trail behind an earlier one in this order
   const iv = ctx.intervals;
   const out = [];
   let prev = ctx.lastDep || null;
@@ -218,11 +268,11 @@ export function scheduleOrder(order, ctx = {}) {
   for (const ac of order) {
     const pair = prev ? pairInterval(prev, ac, iv) : { sec: 0, kind: "first", delta: NaN };
     let t = Math.max(Math.max(0, ac.ready || 0), prevT + pair.sec);
-    const floor = ac.fix ? floors[ac.fix] : undefined;
-    const held = isFinite(floor) && floor > t;
+    const floor = Math.max(isFinite(ac.floor) ? ac.floor : -Infinity, ac.fix && isFinite(floors[ac.fix]) ? floors[ac.fix] : -Infinity);
+    const held = floor > t;
     if (held) t = floor;
     out.push({ id: ac.id, t, wait: t - Math.max(0, ac.ready || 0), pair, held });
-    if (ac.fix) floors[ac.fix] = t + pairInterval(ac, ac, iv).sec;
+    if (ac.fix) floors[ac.fix] = t + iv_(iv).same;
     prev = ac; prevT = t;
   }
   const total = out.reduce((s, x) => s + x.t, 0);
@@ -269,17 +319,18 @@ export function sequenceRunway(queue, ctx = {}) {
     for (const i of cands) {
       const ac = head[i];
       let t = Math.max(Math.max(0, ac.ready || 0), prev ? prevT + pairInterval(prev, ac, iv).sec : -Infinity);
+      if (isFinite(ac.floor) && ac.floor > t) t = ac.floor;
       const fl = ac.fix ? floors[ac.fix] : undefined;
       if (isFinite(fl) && fl > t) t = fl;
       if (total + t >= bestCost.total) continue;     // prune: already no better
-      const nextFloors = ac.fix ? { ...floors, [ac.fix]: t + pairInterval(ac, ac, iv).sec } : floors;
+      const nextFloors = ac.fix ? { ...floors, [ac.fix]: t + iv_(iv).same } : floors;
       pick.push(i); used[i] = true;
       dfs(ac, t, nextFloors, total + t);
       pick.pop(); used[i] = false;
     }
   };
   const last = ctx.lastDep || null;
-  if (n > 1 && maxShift > 0) dfs(last, last ? -Math.max(0, last.agoSec || 0) : -Infinity, { ...(ctx.fixFloors || {}) }, 0);
+  if (n > 1 && maxShift > 0) dfs(last, last ? -Math.max(0, last.agoSec || 0) : -Infinity, {}, 0);
 
   const order = bestOrder.concat(tail);
   const best = scheduleOrder(order, ctx);
@@ -288,8 +339,9 @@ export function sequenceRunway(queue, ctx = {}) {
   order.forEach((a, to) => {
     const from = fcfsIdx.get(a.id);
     if (to < from) {
+      // Only a real jump: moving up because someone else moved further up is not one.
       const ahead = fcfsOrder.slice(to, from).filter(b => order.indexOf(b) > to).map(b => b.id);
-      moves.push({ id: a.id, from, to, ahead });
+      if (ahead.length) moves.push({ id: a.id, from, to, ahead });
     }
   });
   return { fcfs, best, order, fcfsOrder, savedSec: Math.max(0, fcfs.total - best.total), moves };
@@ -297,14 +349,14 @@ export function sequenceRunway(queue, ctx = {}) {
 
 /**
  * Clock on each fix across the whole field: seconds from now until a departure to
- * that fix is clean behind the last one that went (0 when open).
+ * that fix is clean in trail (3 miles, 5-5-4) behind the last one that went (0 when open).
  * @param {object[]} departures  [{ fix, bearing, wake, agoSec }]
  */
 export function fixClocks(departures, intervals = DEFAULT_INTERVALS) {
   const out = {};
   for (const d of departures || []) {
     if (!d || !d.fix) continue;
-    const left = pairInterval(d, d, intervals).sec - Math.max(0, d.agoSec || 0);
+    const left = iv_(intervals).same - Math.max(0, d.agoSec || 0);
     if (!(d.fix in out) || left > out[d.fix]) out[d.fix] = left;
   }
   for (const k of Object.keys(out)) out[k] = Math.max(0, Math.round(out[k]));
