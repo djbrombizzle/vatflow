@@ -157,7 +157,7 @@
         <p class="note">Spacing follows FAA JO 7110.65: runway separation (3-9-6a), 1 NM when courses diverge 15°+ or 10°+ on RNAV SIDs (5-8-3), 3 NM in trail (5-5-4) and wake (3-9-6f). Aircraft still taxiing in are only moved up when that splits the queue without a long wait for everyone else.</p>
       </details>
       <p class="note" style="margin-top:12px">
-        Read-only advice. At KATL each departure is grouped by its SID into a departure gate (N1, N2, E1 …) and the sequence keeps any gate from going out behind itself. Elsewhere the departure fix is the SID's enroute transition when one is filed, else the next fix in the route, else the SID's exit fix (FAA CIFP). Runways come from the field's VATSIM ATIS or from the chips above. Each runway's queue is ordered within the jump limit of first-come first-served.
+        Read-only advice. At KATL each departure is grouped by its SID into a departure gate (N1, N2, E1 …) and the sequence keeps any gate from going out behind itself. Elsewhere the departure fix is the SID's enroute transition when one is filed, else the next fix in the route, else the SID's exit fix (FAA CIFP). Runways come from the IDST's shared departure runway / SID config (each SID to the runway it is pinned to there), else the field's VATSIM ATIS, or from the chips above. Each runway's queue is ordered within the jump limit of first-come first-served.
       </p>
     </aside>
   </div>
@@ -171,6 +171,7 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { assignRunway, gcNm, normalizeRunway, sidFromRoute } from "./shared/taxi-estimate.js";
 import { loadRunwayEnds, loadSidRunways, sidRunwaysFor } from "./shared/taxi-runways.js";
+import { loadTaxiConfig, syncTaxiConfigs } from "./shared/taxi-config-store.js";
 import { runwaysFromAtis } from "./shared/vatsmart.js";
 import { VATSIM_FEED_TAXI_MS } from "./shared/vatflow-refresh.js";
 import {
@@ -289,7 +290,9 @@ async function setAirport(apt) {
 function pickRunways() {
   if (st.rwyMode !== "atis") return;
   const known = st.ends.map(e => e.id);
-  let dep = runwaysFromAtis(st.atisText, known).dep;
+  // The departure runways set in the IDST's shared config come first, then the ATIS.
+  let dep = loadTaxiConfig(st.apt).activeRunways.filter(r => known.includes(r));
+  if (!dep.length) dep = runwaysFromAtis(st.atisText, known).dep;
   if (!dep.length && st.mode === "demo" && st.demo) dep = st.demo.rwys;
   if (!dep.length) {
     // Nothing said: the longest runway, the end most of the moving ground traffic is facing.
@@ -385,13 +388,15 @@ function buildPlans(nowMs) {
   const list = groundDepartures(nowMs);
   catchTakeoffs(list, nowMs);
   const sids = sidRunwaysFor(st.apt);
+  // The IDST's shared runway / SID config (SID -> runway rules) decides first, as on the IDST.
+  const sidRules = loadTaxiConfig(st.apt).sidRules;
   const clocks = fixClocks(st.departures.map(d => ({ ...d, agoSec: (nowMs - d.at) / 1000 })), st.iv);
 
   const byRwy = new Map(st.dep.map(r => [r, []]));
   const parked = [];
   for (const a of list) {
     if (a.airborne) continue;
-    const asg = assignRunway({ lat: a.lat, lon: a.lon, sid: a.sid, ends: st.ends, activeRunways: st.dep, sidRunways: sids });
+    const asg = assignRunway({ lat: a.lat, lon: a.lon, sid: a.sid, ends: st.ends, activeRunways: st.dep, sidRunways: sids, sidRules });
     a.rwy = asg.runway;
     if (!a.moved || !byRwy.has(a.rwy)) { parked.push(a); continue; }
     a.ready = readySec(a, endById(a.rwy));
@@ -650,6 +655,8 @@ function fetchFeed() {
       st.feedAt = Date.now(); st.feedState = "ok";
       pickRunways();
       render();
+      // the IDST config changes from center / the tower show up with the feed (at most once a minute)
+      syncTaxiConfigs().then(ok => { if (ok && st.mode === "live") { pickRunways(); render(); } }).catch(() => {});
     })
     .catch(err => { console.warn("VATSIM feed:", err); st.feedState = "bad"; setStatus(); });
 }
