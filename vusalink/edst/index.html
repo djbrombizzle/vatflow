@@ -3982,6 +3982,8 @@ function handlePeerUplink(m){
   if(/REQUEST LOGON|LOGON ACCEPTED|ATC COMMS ESTABLISHED|ATC COMMS TERMINATED/.test(msg)){renderBoard();return;}
   // END SERVICE / CPDLC SERVICES TERMINATED is a service advisory, not a handoff.
   if(/CPDLC SERVICES TERMINATED|\bEND SERVICE\b/.test(msg)){renderBoard();return;}
+  // Hub timed out the pilot's request (no uplink in 3-5 min): it is answered, stop the M flash.
+  if(/REVERT TO VOICE/.test(msg)){msgAlert.delete(cs);stopMsgRepeat(cs);if(typeof syncMsgWaitButton==='function')syncMsgWaitButton();renderBoard();return;}
   if(wilcoExpectsReply(d.ra))trackWilcoAwait(cs,min);
   if(/HANDOVER/.test(msg)){
     handoffPending.add(cs);
