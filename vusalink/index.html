@@ -1209,12 +1209,19 @@ async function pollOnce(){
   try{const res=await api('/api/poll',{});
     setHoppie(true,hubMode()?('hub '+(hubArtcc||'\u2026')):('online as '+settings.station));
     if(res.error){setHoppie(false,'verify position to send');return;}
-    if(hubMode()){applyVerify(res.verify);updateConnState(res.connected,res.pending);}
+    if(hubMode())applyVerify(res.verify);
     const batch=res.messages||[];
+    const primedBefore=pollPrimed;
     if(!pollPrimed){                       // first batch is replayed backlog: sync state silently
       suppressSounds=true;
       try{batch.forEach(handleIncoming);}finally{suppressSounds=false;pollPrimed=true;}
     }else batch.forEach(handleIncoming);
+    // Hub lists win over the batch: an old LOGOFF in the backlog must not knock
+    // off an aircraft that has logged back on since. First poll stays silent.
+    if(hubMode()){
+      if(!primedBefore){suppressSounds=true;try{updateConnState(res.connected,res.pending);}finally{suppressSounds=false;}}
+      else updateConnState(res.connected,res.pending);
+    }
   }catch(e){setHoppie(false,'proxy offline');}
 }
 // Hub is authoritative for who is on CPDLC (connected) and who was force-logged-off
@@ -1350,8 +1357,8 @@ function handleIncoming(m){
     const d=parsePacket(m.packet);
     if(d){
       const msg=(d.message||'').trim().toUpperCase();
-      if(/REQUEST LOGON/.test(msg)){if(!hubMode())autoAcceptLogon(cs,d.min);return;}
-      if(/LOG\s?OFF|LOGGED OFF/.test(msg)){       // aircraft left us (e.g. after a handover)
+      if(/REQUEST LOGON/.test(msg))return;         // the hub accepts logons
+      if(/^(LOG\s?OFF|LOGGED OFF)\b/.test(msg)){       // aircraft left us (e.g. after a handover)
         connected.delete(cs);handoffPending.delete(cs);handoffAwaitFreq.delete(cs);handoffEndService.delete(cs);delete handoffMin[cs];
         delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();
         clearWilcoAwait(cs);ackWilcoUi(cs);
@@ -1396,9 +1403,13 @@ function handlePeerUplink(m){
   }
   renderBoard();
 }
-function autoAcceptLogon(cs,theirMin){
-  sendCpdlc(cs,'N','LOGON ACCEPTED',theirMin);
-  connected.add(cs);logMsg('sys',cs,'logon auto-accepted \u2014 CPDLC connected');renderBoard();
+// The board shows an accept / force logoff before the hub answers; when it
+// refuses (or is unreachable) put the L box back and resync from the hub.
+function connActionFailed(cs,action,r){
+  logMsg('err',cs,(action==='accept'?'accept logon':'force logoff')+' failed: '+((r&&r.error)||'hub unreachable'));
+  if(action==='accept'){connected.delete(cs);logonReq.add(cs);}
+  else connected.add(cs);
+  renderBoard();pollOnce();
 }
 function handleResponse(cs,d,msg){
   // WILCO normally belongs to the controller on the pilot's voice freq. Always
@@ -3035,11 +3046,15 @@ rows.addEventListener('click',e=>{
   if(lbox){const cs=lbox.dataset.logon;
     if(logonReq.has(cs)){                         // flashing L: accept the re-logon
       logonReq.delete(cs);connected.add(cs);renderBoard();
-      api('/api/conn',{to:cs,action:'accept'}).then(r=>{if(r&&r.ok)logMsg('sys',cs,'logon accepted');});
+      api('/api/conn',{to:cs,action:'accept'})
+        .then(r=>{if(r&&r.ok)logMsg('sys',cs,'logon accepted');else connActionFailed(cs,'accept',r);})
+        .catch(e=>connActionFailed(cs,'accept',{error:e.message}));
     }else if(connected.has(cs)){                  // solid L: force this aircraft off KUSA
       if(!confirm('Force '+cs+' off CPDLC?\nAuto-logon will be disabled until they request and you accept again.'))return;
       connected.delete(cs);logonReq.delete(cs);renderBoard();
-      api('/api/conn',{to:cs,action:'logoff'}).then(r=>{if(r&&r.ok)logMsg('sys',cs,'forced logoff \u2014 auto-logon disabled');});
+      api('/api/conn',{to:cs,action:'logoff'})
+        .then(r=>{if(r&&r.ok)logMsg('sys',cs,'forced logoff \u2014 auto-logon disabled');else connActionFailed(cs,'logoff',r);})
+        .catch(e=>connActionFailed(cs,'logoff',{error:e.message}));
     }
     return;}
   if(mbox){const r=mbox.getBoundingClientRect();openMessages(mbox.dataset.msg,r.left,r.bottom+2);}
