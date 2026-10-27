@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python setup for the Tower Cab helper — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --line: #1e2834;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --amber: #e8a838;
+    --cyan: #5ba8c9;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  .page { max-width: 920px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 36px) 24px 64px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; color: var(--amber); text-transform: uppercase; margin: 0 0 10px; }
+  h1 { margin: 0 0 12px; font-family: var(--mono); font-size: clamp(26px, 5vw, 40px); letter-spacing: 0.06em; line-height: 1.15; }
+  h2 { font-family: var(--mono); font-size: 13px; letter-spacing: 0.12em; color: var(--amber); text-transform: uppercase; margin: 36px 0 12px; }
+  p, li { color: var(--muted); font-size: 15px; line-height: 1.6; }
+  p b, li b { color: var(--text); }
+  code { overflow-wrap: anywhere; font-family: var(--mono); font-size: 13px; background: #121a23; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--text); }
+  img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
+  .hero-img { margin: 24px 0 8px; }
+  .downloads { display: grid; gap: 12px; }
+  .dl { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); text-decoration: none; transition: 0.12s; }
+  .dl:hover { border-color: var(--amber); background: #121820; }
+  .dl.main { border-color: var(--amber); }
+  .dl .txt { flex: 1; min-width: 0; }
+  .dl b { display: block; font-family: var(--mono); font-size: 14px; letter-spacing: 0.06em; color: var(--amber); margin-bottom: 4px; }
+  .dl span { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .dl .btn { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--amber); color: var(--amber); white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .grid figure { margin: 0; }
+  figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  ol, ul { padding-left: 22px; }
+  .note { border-left: 3px solid var(--amber); background: var(--panel); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+  .note p { margin: 0; }
+  footer { margin-top: 40px; font-family: var(--mono); font-size: 11px; color: #5c6b78; }
+  footer a { color: var(--muted); }
+  @media (max-width: 560px) { .dl { flex-direction: column; align-items: flex-start; } }
+  .step { display: flex; gap: 14px; margin: 18px 0; }
+  .step .n { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--amber); color: var(--amber); font-family: var(--mono); font-size: 14px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+  .step .body { flex: 1; min-width: 0; }
+  .step h3 { margin: 0 0 6px; font-size: 16px; color: var(--text); }
+  .step p { margin: 0 0 8px; }
+  pre { font-family: var(--mono); font-size: 13px; background: #121a23; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; color: var(--text); overflow-x: auto; margin: 6px 0 10px; }
+  .ok { color: #4caf7a; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); line-height: 1.5; }
+  th { color: var(--text); font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; }
+  td b { color: var(--text); }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main class="page">
+  <p class="eyebrow"><a href="tower-cab.html" style="color:inherit;text-decoration:none">VATFLOW Tower Cab</a> · closures helper</p>
+  <h1>Python setup</h1>
+  <p>The closures helper (the small tool that puts barricades, X's and work vehicles into the sim) is a Python script, so your PC needs
+  Python once. It takes about five minutes. You only need this for closures: the Tower Cab itself works without Python.</p>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h3>Check if you already have it</h3>
+    <p>Press <b>Windows key + R</b>, type <code>cmd</code> and press Enter. In the black window type:</p>
+    <pre>py --version</pre>
+    <p>If it prints something like <span class="ok">Python 3.12.7</span> (3.9 or newer), you're done here: skip to step 4.
+    If it says "not recognized", or a Microsoft Store window opens, go on to step 2.</p>
+  </div></div>
+
+  <div class="step"><div class="n">2</div><div class="body">
+    <h3>Download Python</h3>
+    <p>Go to <a href="https://www.python.org/downloads/windows/" target="_blank" rel="noopener" style="color:var(--amber)">python.org/downloads/windows</a>
+    and download the <b>Windows installer (64-bit)</b> of the latest <b>Python 3.12</b> or <b>3.13</b> release.</p>
+    <p>Or, if you're comfortable with the command line, this does the same in one go (in the <code>cmd</code> window):</p>
+    <pre>winget install -e --id Python.Python.3.12</pre>
+  </div></div>
+
+  <div class="step"><div class="n">3</div><div class="body">
+    <h3>Install it, with "Add python.exe to PATH" ticked</h3>
+    <p>Run the installer. On its <b>first screen</b>, tick <b>"Add python.exe to PATH"</b> at the bottom (it's off by default), then click <b>Install Now</b>.
+    If Windows asks for permission, say Yes. When it says "Setup was successful", click Close.</p>
+    <div class="note"><p>Then <b>close every <code>cmd</code> window</b> you have open. Windows only picks up the new Python in windows opened after the install.</p></div>
+  </div></div>
+
+  <div class="step"><div class="n">4</div><div class="body">
+    <h3>Set up the helper</h3>
+    <p>Extract <code>VATFLOW-Closures-Helper.zip</code> (right-click &gt; <b>Extract All</b>; running the files from inside the zip doesn't work).
+    In the extracted folder, double-click <b>1-setup.bat</b>. It installs the SimConnect package for Python and should end with
+    <span class="ok">Setup done</span>. You only do this once.</p>
+  </div></div>
+
+  <div class="step"><div class="n">5</div><div class="body">
+    <h3>Every session</h3>
+    <p>Start your flight in the Tower Cab, then double-click <b>closures.bat</b> and leave its window open (minimized is fine).
+    On the cab's CLOSURES screen the bottom line turns green: <span class="ok">SIM HELPER ON</span>.</p>
+  </div></div>
+
+  <h2>If something goes wrong</h2>
+  <table>
+    <tr><th style="width:38%">What you see</th><th>What to do</th></tr>
+    <tr><td><b>Python was not found</b> (from 1-setup.bat)</td><td>Install Python (steps 2 and 3). Already installed? Close all windows and try again, or restart the PC.</td></tr>
+    <tr><td>A <b>Microsoft Store</b> page opens when you type <code>python</code></td><td>That's a Windows shortcut, not Python. Install from python.org as above. If it still happens: Windows Settings &gt; Apps &gt; Advanced app settings &gt; <b>App execution aliases</b>, turn off the two "App Installer python" entries.</td></tr>
+    <tr><td><b>Setup FAILED: pip could not install</b></td><td>Usually no internet access for Python (firewall, antivirus or VPN). Allow it and run 1-setup.bat again. The lines above that message say what went wrong.</td></tr>
+    <tr><td>The window opens and <b>closes at once</b></td><td>You're running it from inside the zip. Extract it first (step 4).</td></tr>
+    <tr><td>Helper runs but <b>no objects</b> in the sim</td><td>Fully quit and restart MSFS once after installing the cab. Then, with the flight loaded, run <b>closures-test.bat</b>: it puts one of each object in front of the cab.</td></tr>
+  </table>
+
+  <footer>
+    <a href="tower-cab.html">Back to the VATFLOW Tower Cab</a> · Personal use · Not affiliated with VATSIM, Microsoft or the Python Software Foundation
+  </footer>
+</main>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+mountVatflowNav(document.getElementById("vatflowAppNav"), "tower-cab");
+</script>
+</body>
+</html>
