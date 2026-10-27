@@ -2813,7 +2813,7 @@ async function sendHandoff(cs,fac){
 const HANDOVER_MSG=icao=>`HANDOVER @${icao}@`;
 async function sendHandover(cs,fac){
   close('handoffpop');
-  const min=await sendCpdlc(cs,'N',HANDOVER_MSG(fac.icao));
+  const min=await sendCpdlc(cs,'NE',HANDOVER_MSG(fac.icao));
   if(min!=null){handoffPending.add(cs);
     logMsg('sys',cs,'CPDLC handover \u2192 '+fac.icao+' (next data authority)');renderBoard();}
 }
@@ -2828,7 +2828,7 @@ async function sendMsgReply(text){
   const body=String(text||'').trim();
   if(!cs||!body||!canControl())return;
   const mrn=lastPilotMsgMin[cs]||'';
-  const min=await sendCpdlc(cs,'N',body,mrn);
+  const min=await sendCpdlc(cs,'NE',body,mrn);
   if(min!=null){
     logMsg('sys',cs,body+(mrn?' (ref MIN '+mrn+')':''));
     const free=document.getElementById('mpFreeText');
