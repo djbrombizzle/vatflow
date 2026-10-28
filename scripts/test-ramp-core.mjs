@@ -274,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL and KJAX");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX and KDEN");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -738,5 +738,31 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
     Date.now = realNow;
     globalThis.setTimeout = realTimeout;
   }
+}
+/* ---------- KDEN ---------- */
+{
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDEN.json", import.meta.url))));
+  const n = r => D.stands.filter(s => s.ramp === r).length;
+  assert(D.stands.length === 239 && n("DEN-AN") + n("DEN-AS") === 59 && n("DEN-BN") + n("DEN-BS") === 67 && n("DEN-CN") + n("DEN-CS") === 57 &&
+    n("DEN-AE") === 5 && n("DEN-CE") === 8 && n("DEN-DS") === 16 && n("DEN-DHL") + n("DEN-UPS") + n("DEN-FDX") === 16 && n("DEN-GA") === 11,
+    "KDEN 239 stands: Concourses A-C, RON pads AE/CE/DS, Cargo Ramp, GA Ramp");
+  assert(D.stands.every(s => !s.approx && s.pushTo), "every KDEN stand has coordinates and a push lane");
+  // OSM's DS1-DS16 are the chart's DS4-DS19 (10-9B renumbered them): DS4 at W104 40.8, DS19 at W104 40.0.
+  assert(Math.abs(D.standById.get("DS4").lon + 104.68) < 0.0012 && Math.abs(D.standById.get("DS19").lon + 104.6667) < 0.0012 && !D.standById.has("DS1"),
+    "KDEN DS pads renumbered");
+  // Gates OSM lacks, from the chart labels, fall in line with their neighbours.
+  const lons = ["C51", "C53", "C55", "C57", "C59", "C61", "C63", "C65", "C67"].map(id => D.standById.get(id).lon);
+  assert(lons.every((v, i) => i === 0 || (v > lons[i - 1] && v - lons[i - 1] < 0.0009)), "KDEN C57-C67 continue the C row eastward");
+  assert(["A15", "B23", "C35"].every(id => Math.abs(D.standById.get(id).noseHdg - 180) < 20) &&
+    ["A16", "B24", "C36"].every(id => D.standById.get(id).noseHdg < 20 || D.standById.get(id).noseHdg > 340), "KDEN north side noses south, south side north");
+  assert(composeStandTelex(D, "B23") === "KDEN RAMP: PARK STAND B23. ENTER AT SPOT 5W. CTC RAMP 130.95 AT SPOT 5W FOR TAXI.", "KDEN B north telex: " + composeStandTelex(D, "B23"));
+  assert(composeStandTelex(D, "A16").includes("CTC RAMP 131.975") && composeStandTelex(D, "C66").includes("SPOT 6E. CTC RAMP 131.3"), "KDEN A south 131.975, C south east end at 6E");
+  assert(composeStandTelex(D, "FDX1") === "KDEN RAMP: PARK STAND FDX1.", "KDEN cargo telex (nothing published)");
+  assert(D.lanes.filter(l => l.color).map(l => l.label || l.id).some(x => /Purple/i.test(x)) && D.lanes.some(l => /Green/i.test(l.id) && l.color) &&
+    D.lanes.some(l => /Orange/i.test(l.id) && l.color), "KDEN Purple, Green and Orange taxilanes carry their colour");
+  const want = { UAL1: "DEN-BN", SWA1: "DEN-CN", FFT1: "DEN-AS", DAL1: "DEN-AN", FDX1: "DEN-FDX", UPS1: "DEN-UPS", DHK1: "DEN-DHL" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(D, [], operatorFor(D, cs, ""), cs).ramp === ramp, `KDEN ${cs} on ${ramp}`);
+  assert(["UAL1", "SWA1", "DAL1"].every(cs => airlineStands(D, { callsign: cs, op: operatorFor(D, cs, "") }).every(id => !["DEN-DS", "DEN-AE", "DEN-GA"].includes(D.standById.get(id).ramp))),
+    "KDEN RON pads and GA are never proposed");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
