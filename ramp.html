@@ -798,6 +798,8 @@ function renderMap(state) {
       const color = occ ? (STATE_COLOR[occ.state] || STAND_COLOR.occupied) : st ? STAND_COLOR[st.key] : STAND_COLOR.empty;
       const rot = s.noseHdg ?? 0;
       const isSel = (occ && occ.callsign === sel) || (selRow && !selRow.atStand && selRow.stand === s.id);
+      // A ramp shown only for awareness (KDEN GA Ramp) draws no empty spots: just the aircraft parked there.
+      if (!occ && !st && L.rampById.get(s.ramp)?.awareness) continue;
       const target = occ ? `data-cs="${esc(occ.callsign)}"` : st?.callsign ? `data-cs="${esc(st.callsign)}"` : "";
       h += `<g class="stand" data-stand="${esc(s.id)}" ${target} transform="translate(${s.x},${s.y})">`;
       if (isSel) h += `<circle r="16" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 2"/>`;
