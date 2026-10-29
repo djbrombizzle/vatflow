@@ -274,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN and KSDF");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF,KDTW", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN, KSDF and KDTW");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -788,5 +788,29 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   assert(composeStandTelex(D, "3-04") === "KSDF RAMP: PARK STAND 3-04." && composeStandTelex(D, "A5") === "KSDF RAMP: PARK STAND A5.", "KSDF telex (no ramp frequencies)");
   assert(suggestStand(D, [], operatorFor(D, "UPS1", ""), "UPS1").ramp === "UPS-3" && suggestStand(D, [], operatorFor(D, "SWA1", ""), "SWA1").ramp === "SDF-A" &&
     suggestStand(D, [], operatorFor(D, "DAL1", ""), "DAL1").ramp === "SDF-B", "KSDF UPS on the Worldport, Southwest on A, Delta on B");
+}
+/* ---------- KDTW ---------- */
+{
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KDTW.json", import.meta.url))));
+  const n = r => D.stands.filter(s => s.ramp === r).length;
+  assert(D.stands.length === 162 && n("DTW-AW") + n("DTW-ASE") + n("DTW-ANE") + n("DTW-A76") === 63 && n("DTW-BCO") + n("DTW-BCE") === 51 &&
+    n("DTW-D") + n("DTW-DG") === 31 && n("DTW-HE") === 7 && n("DTW-HA") === 5 && n("DTW-HD") === 2 && n("DTW-HC") === 3,
+    "KDTW 162 stands: Concourses A, B, C, Terminal D, hardstands A, C, D, E");
+  assert(D.stands.every(s => !s.approx && s.pushTo), "every KDTW stand has coordinates and a push lane");
+  // C26-C38 (not in OSM) continue the C rows northward.
+  const lats = ["C24", "C26", "C28", "C30", "C32", "C34", "C36", "C38"].map(id => D.standById.get(id).lat);
+  assert(lats.every((v, i) => i === 0 || (v > lats[i - 1] && v - lats[i - 1] < 0.0006)), "KDTW C26-C38 continue the C row north");
+  assert(D.standById.has("D3") && D.standById.has("D3W") && D.standById.has("C20") && D.standById.has("A30"), "KDTW OSM refs renamed to the chart's");
+  // Delta Ramp Control sectors, Ground for the even B / C gates and A76-A78, Evans Ramp Tower for Terminal D.
+  const t = id => composeStandTelex(D, id);
+  assert(t("A20") === "KDTW RAMP: PARK STAND A20. ENTER AT SPOT 3S. CTC RAMP 130.75 AT SPOT 3S FOR TAXI.", "KDTW A west telex: " + t("A20"));
+  assert(t("A21").includes("CTC RAMP 121.125") && t("A55").includes("CTC RAMP 123.675") && t("B7").includes("CTC RAMP 127.825"), "KDTW A southeast, A northeast, east corridor");
+  assert(t("B8") === "KDTW GROUND: PARK STAND B8. ENTER VIA TAXIWAY K. CTC GROUND 121.8." && t("A77").includes("CTC GROUND 121.8") && t("D2").includes("CTC GROUND 121.8"),
+    "KDTW Ground pushes B / C even, A76-A78, D2: " + t("B8"));
+  assert(t("D12") === "KDTW RAMP TOWER: PARK STAND D12. ENTER AT SPOT 3. CTC RAMP TOWER 130.8 AT SPOT 3 FOR TAXI.", "KDTW Terminal D telex: " + t("D12"));
+  const want = { DAL1: "DTW-AW", EDV1: "DTW-BCO", AAL1: "DTW-D", SWA1: "DTW-D", KLM1: "DTW-AW" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(D, [], operatorFor(D, cs, ""), cs).ramp === ramp, `KDTW ${cs} on ${ramp}`);
+  assert(["DAL1", "AAL1"].every(cs => airlineStands(D, { callsign: cs, op: operatorFor(D, cs, "") }).every(id => !D.standById.get(id).ramp.startsWith("DTW-H"))),
+    "KDTW hardstands are never proposed");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
