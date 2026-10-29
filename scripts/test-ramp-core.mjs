@@ -274,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX and KDEN");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN and KSDF");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -764,5 +764,29 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(D, [], operatorFor(D, cs, ""), cs).ramp === ramp, `KDEN ${cs} on ${ramp}`);
   assert(["UAL1", "SWA1", "DAL1"].every(cs => airlineStands(D, { callsign: cs, op: operatorFor(D, cs, "") }).every(id => !["DEN-DS", "DEN-AE", "DEN-GA"].includes(D.standById.get(id).ramp))),
     "KDEN RON pads and GA are never proposed");
+}
+/* ---------- KSDF ---------- */
+{
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KSDF.json", import.meta.url))));
+  const n = r => D.stands.filter(s => s.ramp === r).length;
+  const ups = D.stands.filter(s => s.ramp.startsWith("UPS-"));
+  assert(D.stands.length === 219 && n("SDF-A") === 13 && n("SDF-B") === 13 && ups.length === 193 &&
+    ["UPS-1", "UPS-2", "UPS-3", "UPS-4", "UPS-5", "UPS-6", "UPS-7", "UPS-9", "UPS-11"].every(r => n(r) > 0),
+    "KSDF 219 stands: Concourses A and B, UPS Ramps 1-11");
+  assert(D.stands.every(s => !s.approx && s.pushTo), "every KSDF stand has coordinates and a push lane");
+  assert(ups.every(s => /^(1|2|3|4|5|6|7|9|11)-\d\d$/.test(s.id) && s.id.split("-")[0] === s.ramp.slice(4)), "KSDF UPS stands are <ramp>-<number>");
+  // A3A (not in OSM) sits out on the apron between A3 and A5.
+  const [a3, a3a, a5] = ["A3", "A3A", "A5"].map(id => D.standById.get(id));
+  assert(a3a.lat > Math.max(a3.lat, a5.lat) && a3a.lon > a3.lon && a3a.lon < a5.lon, "KSDF A3A between and beyond A3 and A5");
+  // Finger rows: north faces nose south, south faces nose north; Ramp 3 lies between fingers A and B, Ramp 5 south of it.
+  assert(["3-00", "5-02", "7-04", "1-06"].every(id => Math.abs(D.standById.get(id).noseHdg - 190) < 40) &&
+    ["3-01", "5-99", "7-03", "9-31"].every(id => D.standById.get(id).noseHdg < 50 || D.standById.get(id).noseHdg > 340), "KSDF finger headings");
+  assert(D.standById.get("1-02").lat > D.standById.get("3-01").lat && D.standById.get("3-01").lat > D.standById.get("3-00").lat &&
+    D.standById.get("3-00").lat > D.standById.get("5-99").lat && D.standById.get("5-02").lat > D.standById.get("7-99").lat &&
+    D.standById.get("7-04").lat > D.standById.get("9-99").lat, "KSDF ramps run 1, 3, 5, 7, 9 north to south");
+  assert(D.standById.get("2-00").lon > D.standById.get("1-12").lon && D.standById.get("6-02").lon > D.standById.get("11-01").lon, "KSDF even ramps east");
+  assert(composeStandTelex(D, "3-04") === "KSDF RAMP: PARK STAND 3-04." && composeStandTelex(D, "A5") === "KSDF RAMP: PARK STAND A5.", "KSDF telex (no ramp frequencies)");
+  assert(suggestStand(D, [], operatorFor(D, "UPS1", ""), "UPS1").ramp === "UPS-3" && suggestStand(D, [], operatorFor(D, "SWA1", ""), "SWA1").ramp === "SDF-A" &&
+    suggestStand(D, [], operatorFor(D, "DAL1", ""), "DAL1").ramp === "SDF-B", "KSDF UPS on the Worldport, Southwest on A, Delta on B");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
