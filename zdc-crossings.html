@@ -106,6 +106,14 @@
   .fixlbl.passed { opacity: 0.5; }
   .fixlbl.bdry { background: var(--cyan); }
   .cslbl { font-family: var(--mono); font-size: 10px; color: var(--text); white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  #strataSeg button { font-size: 11px; padding: 4px 8px; }
+  .seclbl { font-family: var(--mono); font-size: 10px; color: #8a97a3; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .seclbl b { color: #c3ccd5; font-size: 11px; }
+  .seclbl.give { color: var(--amber); }
+  .seclbl.give b { color: var(--amber); }
+  .seclbl.recv, .seclbl.recv b { color: var(--cyan); }
+  .legend { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 8px 4px 0; line-height: 1.5; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
   .artcc-label { font-family: var(--mono); font-size: 11px; color: #5c6b78; letter-spacing: 0.1em; }
   .leaflet-tooltip.cstip { background: #0e1319; color: var(--text); border: 1px solid #2a3644; font-family: var(--mono); font-size: 11px; }
   @media (max-width: 900px) {
@@ -146,6 +154,12 @@
       <label class="chk"><input type="checkbox" id="optPartial" checked> Include partial route matches</label>
       <label class="chk"><input type="checkbox" id="optPassed"> Show restrictions already passed</label>
       <label class="chk"><input type="checkbox" id="optPrefile"> Include prefiles</label>
+      <span class="seg" id="strataSeg" title="ZDC sector boundaries on the map">
+        <button type="button" data-strata="off">No sectors</button>
+        <button type="button" data-strata="low">Low</button>
+        <button type="button" data-strata="high">High</button>
+        <button type="button" data-strata="uta">Ultra high</button>
+      </span>
     </div>
     <div id="out"></div>
     <div id="mapWrap" class="mapwrap" hidden>
@@ -195,7 +209,7 @@ function loadPrefs() {
 function savePrefs() {
   const p = {
     view, cfg: $("cfgSel").value, sec: $("secSel").value,
-    zdc: $("optZdc").checked, partial: $("optPartial").checked, passed: $("optPassed").checked, prefile: $("optPrefile").checked,
+    strata, zdc: $("optZdc").checked, partial: $("optPartial").checked, passed: $("optPassed").checked, prefile: $("optPrefile").checked,
   };
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
 }
@@ -235,6 +249,13 @@ function start() {
   if (prefs.prefile) $("optPrefile").checked = true;
   setView(view);
 
+  $("strataSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-strata]");
+    if (!b) return;
+    strata = b.dataset.strata;
+    savePrefs();
+    render();
+  });
   $("viewSeg").addEventListener("click", e => {
     const b = e.target.closest("button[data-view]");
     if (b) { setView(b.dataset.view); savePrefs(); }
@@ -269,6 +290,7 @@ function setView(v) {
   view = v;
   $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
   $("liveOpts").hidden = v === "ref";
+  $("strataSeg").hidden = v !== "map";
   $("out").hidden = v === "map";
   $("mapWrap").hidden = v !== "map";
   if (v === "map") ensureMap();
@@ -493,12 +515,94 @@ function ensureMap() {
   L.control.zoom({ position: "bottomright" }).addTo(map);
   if (window.addVatflowBasemap) window.addVatflowBasemap(map);
   mapLayers = {
-    bdry: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
+    bdry: L.layerGroup().addTo(map), sectors: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
     fixes: L.layerGroup().addTo(map), traffic: L.layerGroup().addTo(map),
   };
   map.setView([38.3, -77.8], 6);
   map.on("click", () => { if (selected) { selected = ""; render(); } });
   drawBoundaries();
+  loadSectors();
+}
+
+/* ZDC sector shapes: VATFLOW's FAA sector file (data/artcc-sectors-*.geojson).
+   vZDC sectors reuse the FAA numbers but consolidate, so a vZDC sector with no
+   FAA shape of its own (Dixon 09) is simply not drawn. */
+let strata = ["off", "low", "high", "uta"].includes(prefs.strata) ? prefs.strata : "high";
+let zdcSectors = null;
+const STRATA_ORDER = ["high", "low", "uta"];
+
+function loadSectors() {
+  if (zdcSectors) return;
+  zdcSectors = { low: [], high: [], uta: [] };
+  Promise.all(STRATA_ORDER.map(n => fetch(`data/artcc-sectors-${n}.geojson`).then(r => (r.ok ? r.json() : null)).catch(() => null)))
+    .then(files => {
+      files.forEach((geo, i) => {
+        for (const ft of (geo && geo.features) || []) {
+          const pr = ft.properties || {};
+          if (pr.artcc !== "ZDC" || !ft.geometry) continue;
+          const polys = ft.geometry.type === "MultiPolygon" ? ft.geometry.coordinates : [ft.geometry.coordinates];
+          const rings = polys.map(poly => poly[0].map(([lon, lat]) => [lat, lon]));
+          zdcSectors[STRATA_ORDER[i]].push({ num: String(pr.sector || "").padStart(2, "0"), rings });
+        }
+      });
+      render();
+    });
+}
+
+/** Sector shapes for one number: the shown stratum first, else any stratum that has it. */
+function sectorShape(num) {
+  if (!zdcSectors) return null;
+  const order = strata === "off" ? STRATA_ORDER : [strata, ...STRATA_ORDER.filter(x => x !== strata)];
+  for (const st of order) {
+    const hit = zdcSectors[st].find(x => x.num === num);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function sectorLabel(sec, cls) {
+  const name = SECTORS[sec.num];
+  return L.marker(L.latLngBounds(sec.rings.flat()).getCenter(), {
+    interactive: false,
+    icon: L.divIcon({ className: "", iconSize: null, iconAnchor: [20, 8],
+      html: `<div class="seclbl${cls ? " " + cls : ""}"><b>${esc(sec.num)}</b>${name ? `<br>${esc(name)}` : ""}</div>` }),
+  });
+}
+
+/** Draw the chosen stratum, then fill the sectors the selected aircraft's restrictions name. */
+function drawSectors(card) {
+  mapLayers.sectors.clearLayers();
+  if (!zdcSectors) return "";
+  const role = new Map();
+  if (card) {
+    for (const m of card.rows) {
+      const give = m.row[0].padStart(2, "0"), recv = m.row[5];
+      role.set(give, role.get(give) === "recv" ? "both" : "give");
+      if (/^\d{1,2}$/.test(recv)) {
+        const r = recv.padStart(2, "0");
+        if (!role.has(r)) role.set(r, "recv");
+        else if (role.get(r) === "give") role.set(r, "both");
+      }
+    }
+  }
+  if (strata !== "off") {
+    for (const sec of zdcSectors[strata]) {
+      if (role.has(sec.num)) continue;
+      sec.rings.forEach(r => L.polygon(r, { color: "#4a5d70", weight: 1, opacity: 0.7, fill: false, interactive: false }).addTo(mapLayers.sectors));
+      sectorLabel(sec).addTo(mapLayers.sectors);
+    }
+  }
+  const missing = [];
+  for (const [num, rl] of role) {
+    const sec = sectorShape(num);
+    if (!sec) { missing.push(num); continue; }
+    const color = rl === "recv" ? "#3fb7b0" : "#e8a838";
+    sec.rings.forEach(r => L.polygon(r, { color, weight: 2, opacity: 0.9, fill: true, fillColor: color, fillOpacity: 0.14, interactive: false }).addTo(mapLayers.sectors));
+    sectorLabel(sec, rl === "recv" ? "recv" : "give").addTo(mapLayers.sectors);
+  }
+  if (!role.size) return "";
+  return `<div class="legend"><i style="background:#e8a838"></i>sector giving a restriction · <i style="background:#3fb7b0"></i>sector receiving it` +
+    (missing.length ? `<br>No sector shape for ${esc(missing.map(n => `${n} ${SECTORS[n] || ""}`.trim()).join(", "))}.` : "") + `</div>`;
 }
 
 function drawBoundaries() {
@@ -640,11 +744,13 @@ function renderMap(qStr) {
       .on("click", e => { L.DomEvent.stopPropagation(e); selected = c.f.callsign; render(); })
       .addTo(mapLayers.traffic);
   }
+  $("strataSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.strata === strata));
+  const legend = drawSectors(sel);
   if (sel) drawSelected(sel);
 
   if (!feed) { panel.innerHTML = `<p class="hint">Loading the VATSIM feed…</p>`; return; }
   if (sel) {
-    panel.innerHTML = `<button type="button" class="pick" data-back="1">← All aircraft</button>` + renderCard(sel);
+    panel.innerHTML = `<button type="button" class="pick" data-back="1">← All aircraft</button>` + renderCard(sel) + legend;
     return;
   }
   panel.innerHTML = cards.length
