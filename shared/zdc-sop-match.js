@@ -171,7 +171,10 @@ export function parseRouting(routing) {
 
 /**
  * Filed route → {tokens, stars (STAR base names), points (name → order, filed
- * tokens then `extraFixes` from route expansion), filed (filed tokens only)}.
+ * tokens then `extraFixes` from route expansion), filed (filed tokens only),
+ * pos(name) (where a fix or STAR falls along the route, for ordering)}.
+ * `extraFixes` must be in route order (route-engine anchors) for pos() to
+ * put expanded fixes such as a STAR's crossing fix in flying order.
  */
 export function flightRoutePoints(route, extraFixes = []) {
   const raw = String(route || "").toUpperCase().replace(/[\n\r]/g, " ").split(/\s+/).filter(Boolean);
@@ -195,7 +198,20 @@ export function flightRoutePoints(route, extraFixes = []) {
     const k = String(f || "").toUpperCase();
     if (k && !points.has(k)) points.set(k, n++);
   }
-  return { tokens, stars, points, filed };
+  // Route order: the expanded fix list when there is one, else the filed tokens.
+  const seq = new Map();
+  const ordered = extraFixes.length ? extraFixes.map(f => String(f || "").toUpperCase()) : tokens;
+  ordered.forEach((k, i) => { if (k && !seq.has(k)) seq.set(k, i); });
+  const len = ordered.length;
+  const pos = name => {
+    if (seq.has(name)) return seq.get(name);
+    const i = tokens.findIndex(t => t === name || (t.match(STAR_REV_RE) || [])[1] === name);
+    if (i < 0) return Infinity;
+    // A filed token the expansion did not name (a STAR, an airway): scale its
+    // place in the filed route onto the expanded route.
+    return tokens.length ? (i / tokens.length) * len : i;
+  };
+  return { tokens, stars, points, filed, pos, routeLen: len };
 }
 
 /** "B738" / "H/B744/L" → "jet" | "turboprop" | "piston" | null. */
@@ -271,15 +287,14 @@ function scoreAlternative(alt, fp) {
         if (fp.stars.has(o.star)) {
           hit = true;
           filedHits++;
-          const i = fp.tokens.findIndex(t => (t.match(STAR_REV_RE) || [])[1] === o.star);
-          if (i >= 0) firstIdx = Math.min(firstIdx, i);
+          firstIdx = Math.min(firstIdx, fp.pos(o.star));
         }
       } else {
         const k = o.fix || o.airway;
         if (fp.points.has(k)) {
           hit = true;
           if (fp.filed.has(k)) filedHits++;
-          firstIdx = Math.min(firstIdx, fp.points.get(k));
+          firstIdx = Math.min(firstIdx, fp.pos(k));
         }
       }
       if (hit) break;
@@ -349,7 +364,7 @@ export function matchFlight(flight, ctx = {}) {
     if (!rt.alternatives.length) {
       if (pf.overflight) continue;
       quality = "full";
-      order = fp.tokens.length;
+      order = fp.routeLen;
     } else {
       let best = null;
       for (const alt of rt.alternatives) {
@@ -359,28 +374,40 @@ export function matchFlight(flight, ctx = {}) {
         // A partial match needs at least one hit on the route as filed, not
         // only on fixes picked up by expanding its airways and STAR.
         let q = sc.matched === sc.total ? "full" : sc.filedHits > 0 && ratio >= 0.5 ? "partial" : null;
-        if (q === "partial") {
-          const stars = alt.flat().filter(o => o.star).map(o => o.star);
-          const sibs = stars.length ? starAlts.filter(s => s.alt !== alt && s.stars.some(x => stars.includes(x))) : [];
-          if (sibs.length) {
-            const distinct = alt.filter(g => !sibs.every(s => hasAny(s.alt, names(g))));
-            if (distinct.length && !distinct.some(g => names(g).some(n => fp.points.has(n) || fp.stars.has(n)))) q = null;
-          }
-        }
+        const stars = alt.flat().filter(o => o.star).map(o => o.star);
+        const sibs = stars.length ? starAlts.filter(s => s.alt !== alt && s.stars.some(x => stars.includes(x))) : [];
+        const distinct = sibs.length ? alt.filter(g => !sibs.every(s => hasAny(s.alt, names(g)))) : [];
+        const filedDistinct = distinct.some(g => names(g).some(n => fp.filed.has(n) || fp.stars.has(n)));
+        if (q === "partial" && distinct.length && !distinct.some(g => names(g).some(n => fp.points.has(n) || fp.stars.has(n)))) q = null;
         if (!q) continue;
         if (!best || (q === "full" && best.q !== "full") || (q === best.q && ratio > best.ratio)) {
-          best = { q, ratio, idx: sc.firstIdx };
+          best = { q, ratio, idx: sc.firstIdx, stars, hasDistinct: distinct.length > 0, filedDistinct };
         }
       }
       if (!best) continue;
       if (pf.overflight && best.q !== "full") continue;
       quality = best.q;
       order = best.idx;
+      c.star = best;
     }
     const fix = restrictionFix(row[4]);
-    if (fix && fp.points.has(fix)) order = Math.max(order, fp.points.get(fix));
-    out.push({ row, index, quality, how, notes: [...rt.notes], typeUnknown, order, fix });
+    // Order by where the restriction applies: its crossing fix when the route
+    // names it, the end of the route for descend-via, else its routing.
+    if (fix && fp.pos(fix) !== Infinity) order = fp.pos(fix);
+    else if (/^D\/V/.test(row[4])) order = fp.routeLen + 1;
+    out.push({ row, index, quality, how, notes: [...rt.notes], typeUnknown, order, fix, star: c.star || null });
   }
+
+  // When the filed route names the fix that picks one routing onto a STAR
+  // (BRIGS JIIMS#), drop sibling routings onto the same STAR that only match
+  // through fixes the route expansion added (ZJAAY JIIMS#).
+  const filedPick = new Set();
+  for (const m of out) if (m.star && m.star.filedDistinct) m.star.stars.forEach(x => filedPick.add(x));
+  for (let i = out.length - 1; i >= 0; i--) {
+    const st = out[i].star;
+    if (st && st.hasDistinct && !st.filedDistinct && st.stars.some(x => filedPick.has(x))) out.splice(i, 1);
+  }
+  out.forEach(m => { delete m.star; });
 
   out.sort((a, b) => (a.order - b.order) || (a.quality === b.quality ? 0 : a.quality === "full" ? -1 : 1) || a.index - b.index);
   return out;

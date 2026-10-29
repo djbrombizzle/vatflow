@@ -167,6 +167,22 @@ t("expanded route fixes complete a match but cannot start a partial one", () => 
   assert.equal(ka.quality, "full", "KALDA picked up from Q108 expansion");
 });
 
+t("restrictions come in flying order: crossing fix before descend-via", () => {
+  const f = { dep: "KCLT", arr: "KEWR", route: "DURST1 AUDII QUART PHLBO4", type: "A319", altitude: "39000" };
+  const expanded = ["KCLT", "AUDII", "QUART", "FUBRR", "PHLBO", "WALKN", "KEWR"];
+  const m = matchFlight(f, { ...ctx, extraFixes: expanded });
+  assert.deepEqual(m.map(x => x.row[4]), ["FUBRR AOB 270", "D/V"]);
+  const bwi = matchFlight({ dep: "KCLT", arr: "KBWI", route: "BARMY4 RDU THHMP RAVNN6", type: "A321", altitude: "33000" }, ctx);
+  assert.equal(bwi[bwi.length - 1].row[4], "D/V");
+});
+
+t("a filed transition fix beats sibling routings matched only by route expansion", () => {
+  const f = { dep: "KBOS", arr: "KPHL", route: "SSOXS7 SSOXS Q167 RIFLE Q439 BRIGS JIIMS4", type: "B738", altitude: "32000" };
+  const expanded = ["KBOS", "SSOXS", "RIFLE", "ZIZZI", "ZJAAY", "KALDA", "RADDS", "WAALK", "BRIGS", "IROKT", "JIIMS", "KPHL"];
+  const m = matchFlight(f, { ...ctx, extraFixes: expanded });
+  assert.deepEqual(m.map(x => x.row[3]), ["BRIGS JIIMS#"]);
+});
+
 t("descend-via bottoms by STAR and transition", () => {
   assert.deepEqual(descendViaFor({ arr: "KBWI", route: "HVQ RAVNN6" }).map(d => d.alt), ["190"]);
   assert.deepEqual(descendViaFor({ arr: "KBWI", route: "THHMP RAVNN6" }).map(d => d.alt), ["150"]);
