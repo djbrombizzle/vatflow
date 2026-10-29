@@ -171,7 +171,8 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { assignRunway, gcNm, normalizeRunway, sidFromRoute } from "./shared/taxi-estimate.js";
 import { loadRunwayEnds, loadSidRunways, sidRunwaysFor } from "./shared/taxi-runways.js";
-import { loadTaxiConfig, syncTaxiConfigs } from "./shared/taxi-config-store.js";
+import { effectiveTaxiConfig, loadTaxiConfig, syncTaxiConfigs } from "./shared/taxi-config-store.js";
+import { setVatsimAtis } from "./shared/taxi-atis.js";
 import { runwaysFromAtis } from "./shared/vatsmart.js";
 import { VATSIM_FEED_TAXI_MS } from "./shared/vatflow-refresh.js";
 import {
@@ -291,7 +292,9 @@ function pickRunways() {
   if (st.rwyMode !== "atis") return;
   const known = st.ends.map(e => e.id);
   // The departure runways set in the IDST's shared config come first, then the ATIS.
-  let dep = loadTaxiConfig(st.apt).activeRunways.filter(r => known.includes(r));
+  /* Same resolution IDST uses, so the sequencer and the estimate never
+     disagree about which runways are departing. */
+  let dep = effectiveTaxiConfig(st.apt, known).activeRunways.filter(r => known.includes(r));
   if (!dep.length) dep = runwaysFromAtis(st.atisText, known).dep;
   if (!dep.length && st.mode === "demo" && st.demo) dep = st.demo.rwys;
   if (!dep.length) {
@@ -652,6 +655,9 @@ function fetchFeed() {
         callsign: p.callsign, lat: p.latitude, lon: p.longitude, gs: p.groundspeed || 0, hdg: p.heading || 0, flight_plan: p.flight_plan }));
       st.atisText = (d.atis || []).filter(a => a && (a.callsign || "").startsWith(st.apt + "_") && /_ATIS$/.test(a.callsign))
         .map(a => (a.text_atis || []).join(" ")).join(" . ");
+      /* Feeds the shared runway reading, so a field following its ATIS resolves
+         the same departing runways here as it does on IDST. */
+      setVatsimAtis(d.atis || []);
       st.feedAt = Date.now(); st.feedState = "ok";
       pickRunways();
       render();

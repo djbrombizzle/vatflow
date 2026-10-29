@@ -273,6 +273,17 @@
   .taxi-scope { font-size: 9px; margin-bottom: 8px; }
   .taxi-can-edit { color: #56d364; }
   .taxi-age { color: var(--muted-2); }
+  .taxi-mode { display: flex; gap: 4px; margin-bottom: 6px; }
+  .taxi-mode button {
+    font: 700 9px/1 var(--mono); letter-spacing: 0.06em; padding: 4px 8px; border-radius: 3px;
+    cursor: pointer; border: 1px solid var(--line-2); background: #0d1219; color: var(--muted);
+  }
+  .taxi-mode button.on { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+  .taxi-mode button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .taxi-src { font-size: 9px; margin-bottom: 8px; line-height: 1.5; }
+  .taxi-src.ok { color: #56d364; }
+  .taxi-src.warn { color: var(--amber); }
+  .taxi-src.none { color: var(--muted-2); }
   .taxi-age.stale { color: var(--amber); }
   .taxi-ro { color: var(--muted-2); }
   .taxi-cfg-status { font-size: 9px; color: var(--amber); margin-bottom: 8px; }
@@ -382,10 +393,11 @@ import {
   sidNamesFor, sidRunwaysFor,
 } from "./shared/taxi-runways.js";
 import {
-  canEditTaxiConfig, isTaxiConfigSynced, loadTaxiConfig, removeSidRule, saveTaxiConfig,
+  canEditTaxiConfig, effectiveTaxiConfig, isTaxiConfigSynced, loadTaxiConfig, removeSidRule, saveTaxiConfig, setRunwayMode,
   setSidRule, syncTaxiConfigs, syncTaxiPermissions, taxiConfigAge, taxiConfigIsStale,
   taxiConfigSignedIn, toggleActiveRunway,
 } from "./shared/taxi-config-store.js";
+import { atisRunways, ensureDatis, setVatsimAtis } from "./shared/taxi-atis.js";
 import { verifyTowerAtc } from "./shared/tower-atc-auth.js";
 import { loadNavData } from "./shared/route-engine.js";
 import { fetchWinds, bindWindAirportLookup } from "./shared/winds-aloft.js";
@@ -555,6 +567,9 @@ function fetchLive() {
         });
       state.pilots = pilots;
       state.controllers = d.controllers || [];
+      /* The departure runways follow the field's ATIS, so keep the stations
+         the feed already carries rather than fetching them separately. */
+      setVatsimAtis(d.atis || []);
       resetTaxiTick();
       ensureTaxiData();
       setFeed("live");
@@ -772,6 +787,15 @@ function ensureTaxiData() {
   syncTaxiPermissions(MyDash.getFilters().airports)
     .then(() => refreshTaxiConfigPanel())
     .catch(() => {});
+
+  /* Only reaches the network for a field whose VATSIM ATIS names no runway. */
+  for (const icao of MyDash.getFilters().airports) {
+    const field = String(icao || "").toUpperCase();
+    if (!field) continue;
+    ensureDatis(field, runwayEndsFor(field).map(e => e.id))
+      .then(got => { if (got) { resetTaxiTick(); scheduleRender(); } })
+      .catch(() => {});
+  }
 }
 
 /**
@@ -830,7 +854,7 @@ function buildTaxiTick() {
     if (!field || (p.gs || 0) > 60) continue;
     if (!byField.has(field)) {
       byField.set(field, {
-        config: loadTaxiConfig(field),
+        config: effectiveTaxiConfig(field, runwayEndsFor(field).map(e => e.id)),
         ends: runwayEndsFor(field),
         sidRunways: sidRunwaysFor(field),
         pilots: [],
@@ -949,6 +973,12 @@ function renderTaxiConfig() {
   const field = state.taxiCfgField;
   const cfg = loadTaxiConfig(field);
   const ends = runwayEndsFor(field);
+  const known = ends.map(e => e.id);
+  /* What the estimate is actually using: the ATIS reading when the field is
+     following its ATIS, the hand-set list when it is not. */
+  const eff = effectiveTaxiConfig(field, known);
+  const reading = atisRunways(field, known);
+  const atisMode = cfg.rwyMode !== "manual";
   /* The config is shared, so most people see it read-only. Writing needs either
      an ARTCC editor whitelist entry for the field or a live local position. */
   const canEdit = canEditTaxiConfig(field);
@@ -959,16 +989,23 @@ function renderTaxiConfig() {
   ).join("");
 
   const sortedEnds = [...ends].sort((a, b) => a.id.localeCompare(b.id));
+  /* Following the ATIS, the chips report what it says and clicking one would be
+     overwritten on the next broadcast — so they read out rather than toggle. */
+  const chipsLocked = atisMode && eff.rwySource !== "manual-fallback" && eff.rwySource !== "none";
+  const chipEditable = canEdit && !chipsLocked;
   const chips = sortedEnds.length
     ? sortedEnds.map(e =>
-        `<span class="rwy-chip${cfg.activeRunways.includes(e.id) ? " on" : ""}${canEdit ? "" : " ro"}" ` +
-        `data-taxi-rwy="${escapeHtml(e.id)}" title="${canEdit ? "Toggle " + escapeHtml(e.id) + " as a departure runway" : "Read-only — set by whoever is working this field"}">${escapeHtml(e.id)}</span>`
+        `<span class="rwy-chip${eff.activeRunways.includes(e.id) ? " on" : ""}${chipEditable ? "" : " ro"}" ` +
+        `data-taxi-rwy="${escapeHtml(e.id)}" title="${chipsLocked
+          ? escapeHtml(field) + " is following its ATIS — switch to MANUAL to set runways by hand"
+          : (canEdit ? "Toggle " + escapeHtml(e.id) + " as a departure runway"
+                     : "Read-only — set by whoever is working this field")}">${escapeHtml(e.id)}</span>`
       ).join("")
     : `<span class="taxi-cfg-note">No runway data for ${escapeHtml(field)} yet.</span>`;
 
-  /* Assignable runways: the departing set once chosen, every end before that. */
-  const assignable = cfg.activeRunways.length
-    ? sortedEnds.filter(e => cfg.activeRunways.includes(e.id))
+  /* Assignable runways: the departing set in effect, every end before that. */
+  const assignable = eff.activeRunways.length
+    ? sortedEnds.filter(e => eff.activeRunways.includes(e.id))
     : sortedEnds;
 
   /* Rows: SIDs being filed right now, plus every SID a rule is pinned to —
@@ -1022,11 +1059,32 @@ function renderTaxiConfig() {
   const statusMsg = state.taxiCfgMsg
     ? `<div class="taxi-cfg-status">${escapeHtml(state.taxiCfgMsg)}</div>` : "";
 
+  const srcClass = eff.rwySource === "vatsim" || eff.rwySource === "faa" ? "ok"
+    : eff.rwySource === "none" ? "none" : "warn";
+  const atisLine =
+    `<div class="taxi-src ${srcClass}">` +
+    `<b>${escapeHtml(eff.rwySourceLabel)}</b>` +
+    (eff.atisCode ? ` · info ${escapeHtml(eff.atisCode)}` : "") +
+    (eff.activeRunways.length ? ` · departing ${escapeHtml(eff.activeRunways.join(", "))}` : "") +
+    (eff.atisArr && eff.atisArr.length ? ` · landing ${escapeHtml(eff.atisArr.join(", "))}` : "") +
+    (reading.stations.length ? ` · ${escapeHtml(reading.stations.join(" "))}` : "") +
+    `</div>`;
+
+  const modeBtns =
+    `<div class="taxi-mode">` +
+    `<button type="button" data-taxi-mode="atis" class="${atisMode ? "on" : ""}"${dis} ` +
+    `title="Take the departing runways from this field's ATIS">FOLLOW ATIS</button>` +
+    `<button type="button" data-taxi-mode="manual" class="${atisMode ? "" : "on"}"${dis} ` +
+    `title="Ignore the ATIS and use the runways set here">MANUAL</button>` +
+    `</div>`;
+
   host.innerHTML =
     `<h3>Departure runways &amp; taxi estimate ` +
     `<span class="taxi-shared">${isTaxiConfigSynced() ? "shared" : "local only — hub not reached"}</span></h3>` +
     `<div class="taxi-cfg-fields">${tabs}</div>` +
     `<div class="taxi-scope">${scopeMsg}${ageMsg ? " · " + ageMsg : ""}</div>` +
+    modeBtns +
+    atisLine +
     statusMsg +
     `<div class="rwy-chips">${chips}</div>` +
     `<div class="sid-rules">${ruleRows}</div>` +
@@ -1043,7 +1101,12 @@ function renderTaxiConfig() {
     `<input type="number" min="20" max="600" step="5" class="taxi-num" data-taxi-num="rwyIntervalSec"${dis} ` +
     `value="${cfg.rwyIntervalSec != null ? cfg.rwyIntervalSec : ""}" placeholder="90">` +
     `</div>` +
-    `<div class="taxi-cfg-note">Green chips are the runways departing. A rule sends every departure on that SID ` +
+    `<div class="taxi-cfg-note">` +
+    (atisMode
+      ? `Green chips are the runways this field's ATIS says are departing, re-read on every feed update — `
+        + `VATSIM ATIS first, the real-world FAA D-ATIS when no VATSIM ATIS names one. Switch to <b>MANUAL</b> to set them by hand. `
+      : `Green chips are the runways departing, set by hand. Switch to <b>FOLLOW ATIS</b> to track the broadcast instead. `) +
+    `A rule sends every departure on that SID ` +
     `to one runway; AUTO uses the SID's published transitions (listed alongside) narrowed to the active set. ` +
     `Rules are keyed on the base name, so pinning <b>BANNG</b> covers BANNG3, BANNG4 and any later revision. ` +
     `${catalog.length ? catalog.length + " SIDs published at " + escapeHtml(field) + " — type or pick one to pin ahead of the traffic. " : ""}` +
@@ -1071,9 +1134,19 @@ function bindTaxiConfig() {
     const tab = e.target.closest("[data-taxi-field]");
     if (tab) { state.taxiCfgField = tab.dataset.taxiField; renderTaxiConfig(); return; }
 
+    const mode = e.target.closest("[data-taxi-mode]");
+    if (mode) {
+      if (!canEditTaxiConfig(state.taxiCfgField)) return;
+      applyTaxiChange(setRunwayMode(state.taxiCfgField, mode.dataset.taxiMode));
+      return;
+    }
+
     const chip = e.target.closest("[data-taxi-rwy]");
     if (chip) {
       if (!canEditTaxiConfig(state.taxiCfgField)) return;
+      /* While the field follows its ATIS the chips are a readout — a toggle
+         would be undone by the next broadcast. */
+      if (chip.classList.contains("ro")) return;
       applyTaxiChange(toggleActiveRunway(state.taxiCfgField, chip.dataset.taxiRwy));
       return;
     }

@@ -19,6 +19,7 @@
  * gets a 403.
  */
 import { normalizeRunway, sidBase } from "./taxi-estimate.js";
+import { atisRunways } from "./taxi-atis.js";
 import { getAccessApiBase } from "./vatflow-access-api.js";
 import { getStoredToken } from "./vatflow-auth.js";
 
@@ -27,6 +28,13 @@ const KEY_PREFIX = "vatflow.taxiConfig.v1.";
 const SYNC_TTL_MS = 60000;
 
 export const DEFAULT_CONFIG = {
+  /**
+   * "atis"   — take the departing runways from the field's ATIS, falling back
+   *            to activeRunways when no ATIS names any. The default: a field
+   *            nobody has touched still follows the published flow.
+   * "manual" — use activeRunways and ignore the ATIS.
+   */
+  rwyMode: "atis",
   activeRunways: [],   // [] = infer from geometry rather than assume a flow
   sidRules: {},        // SID base name -> runway, overriding published transitions
   spoolSec: null,      // null = use the estimator default
@@ -57,6 +65,8 @@ function icaoOf(v) {
 function sanitize(raw) {
   const cfg = { ...DEFAULT_CONFIG };
   if (!raw || typeof raw !== "object") return cfg;
+
+  cfg.rwyMode = raw.rwyMode === "manual" ? "manual" : "atis";
 
   cfg.activeRunways = Array.isArray(raw.activeRunways)
     ? [...new Set(raw.activeRunways.map(normalizeRunway).filter(Boolean))]
@@ -95,8 +105,12 @@ function writeMirror(icao, cfg) {
 }
 
 /**
- * Config for one airport. Always returns a usable object — an unconfigured
- * field estimates from geometry rather than failing.
+ * The config as stored. This is what the config drawer edits and what
+ * saveTaxiConfig merges into — it never carries ATIS-derived runways, so a
+ * reading taken from a broadcast can never be written back as a manual pin.
+ *
+ * Always returns a usable object: an unconfigured field estimates from geometry
+ * rather than failing.
  */
 export function loadTaxiConfig(icao) {
   const id = icaoOf(icao);
@@ -105,6 +119,54 @@ export function loadTaxiConfig(icao) {
   const cfg = mirrored || { ...DEFAULT_CONFIG };
   cache.set(id, cfg);
   return cfg;
+}
+
+/**
+ * The config to actually estimate with: the stored config, with activeRunways
+ * resolved against the ATIS when the field is in "atis" mode.
+ *
+ * Every client derives this independently from the same broadcast, so the
+ * runways in use stay consistent without anyone pushing them to the hub — and
+ * without N clients racing to write the same value.
+ *
+ * ATIS only wins when it actually names departure runways. A field whose ATIS
+ * is absent, or is all weather and NOTAMs, keeps whatever was set by hand.
+ *
+ * @param {string} icao
+ * @param {string[]} known runway ends at the field, so altimeters and
+ *   frequencies in the text can never be read as runways
+ * @returns {object} config plus { rwySource, rwySourceLabel, atisCode, atisArr }
+ */
+export function effectiveTaxiConfig(icao, known) {
+  const cfg = loadTaxiConfig(icao);
+  if (cfg.rwyMode === "manual") {
+    return { ...cfg, rwySource: "manual", rwySourceLabel: "set by hand", atisCode: "", atisArr: [] };
+  }
+  const reading = atisRunways(icao, known || []);
+  if (reading.dep.length) {
+    return {
+      ...cfg,
+      activeRunways: reading.dep,
+      rwySource: reading.source,
+      rwySourceLabel: reading.label,
+      atisCode: reading.code,
+      atisArr: reading.arr,
+    };
+  }
+  return {
+    ...cfg,
+    rwySource: cfg.activeRunways.length ? "manual-fallback" : "none",
+    rwySourceLabel: cfg.activeRunways.length
+      ? `${reading.label} — using the runways set by hand`
+      : reading.label,
+    atisCode: reading.code,
+    atisArr: reading.arr,
+  };
+}
+
+/** Switch a field between following the ATIS and a hand-set runway list. */
+export function setRunwayMode(icao, mode) {
+  return saveTaxiConfig(icao, { rwyMode: mode === "manual" ? "manual" : "atis" });
 }
 
 /** True once a hub snapshot has landed — lets the UI distinguish empty from unknown. */
