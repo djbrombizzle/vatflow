@@ -682,15 +682,23 @@ function drawSelected(card) {
     groups.get(key).items.push(m);
   };
   let exit;
-  // Descend-via rows sit at the STAR's join-by fix (Ch 5 Sec 2) when it is known.
+  // Descend-via rows sit at the STAR's join-by fix (Ch 5 Sec 2) only when that
+  // fix is on this route; a D/V handed to another facility outside ZDC (N90,
+  // ZTL) otherwise sits where the route leaves ZDC, so the labels keep the
+  // order the aircraft meets them.
   const dvJoin = card.dv && card.dv[0] ? card.dv[0].join : null;
+  const onRoute = name => !!(ri && ri.all.some(x => x.name === name && x.ll));
+  const external = to => /^(Z[A-Z]{2}|N90)$/.test(to);
+  const atExit = m => {
+    if (exit === undefined) exit = zdcExitPoint(full.length ? full : allLL);
+    add("BDRY", exit, "bdry", m);
+  };
   for (const m of rows) {
     if (m.fix) add(m.fix, fixLatLon(m.fix, card), "fix", m);
-    else if (/^D\/V/.test(m.row[4]) && dvJoin) add(dvJoin, fixLatLon(dvJoin, card), "fix", m);
-    else if (/^(Z[A-Z]{2}|N90)$/.test(m.row[5]) && /^(BDRY|AOB|AT|DSDG|FL)/.test(m.row[4])) {
-      if (exit === undefined) exit = zdcExitPoint(full.length ? full : allLL);
-      add("BDRY", exit, "bdry", m);
-    }
+    else if (/^D\/V/.test(m.row[4])) {
+      if (dvJoin && onRoute(dvJoin)) add(dvJoin, fixLatLon(dvJoin, card), "fix", m);
+      else if (external(m.row[5])) atExit(m);
+    } else if (external(m.row[5]) && /^(BDRY|AOB|AT|DSDG|FL)/.test(m.row[4])) atExit(m);
   }
   for (const [key, g] of groups) {
     const allPassed = g.items.every(m => m.passed);
