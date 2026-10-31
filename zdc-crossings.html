@@ -88,10 +88,13 @@
   .ref { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
   .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
 
-  .mapwrap { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 10px; height: calc(100vh - var(--vatflow-nav-h) - 190px); min-height: 420px; }
-  #map { border: 1px solid var(--line); border-radius: 8px; background: #0a0e14; min-height: 0; }
+  body.wide main { max-width: none; }
+  .mapwrap { position: relative; height: calc(100vh - var(--vatflow-nav-h) - 170px); min-height: 420px; }
+  #map { height: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0a0e14; }
   #map .leaflet-container, #map.leaflet-container { background: #0a0e14; font-family: var(--mono); }
-  .mappanel { overflow-y: auto; min-height: 0; }
+  .mappanel { position: absolute; top: 10px; right: 10px; z-index: 800; width: 400px; max-height: calc(100% - 20px); overflow-y: auto;
+    background: rgba(13, 17, 23, 0.94); border: 1px solid var(--line); border-radius: 8px; padding: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+  .mappanel:empty { display: none; }
   .mappanel .ac { margin-bottom: 0; }
   .mappanel thead { display: none; }
   .mappanel tr { display: block; padding: 6px 0; border-bottom: 1px solid var(--line); }
@@ -117,8 +120,9 @@
   .artcc-label { font-family: var(--mono); font-size: 11px; color: #5c6b78; letter-spacing: 0.1em; }
   .leaflet-tooltip.cstip { background: #0e1319; color: var(--text); border: 1px solid #2a3644; font-family: var(--mono); font-size: 11px; }
   @media (max-width: 900px) {
-    .mapwrap { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
-    .mappanel { overflow: visible; }
+    .mapwrap { height: auto; }
+    #map { height: 60vh; }
+    .mappanel { position: static; width: auto; max-height: none; overflow: visible; margin-top: 10px; box-shadow: none; }
   }
   @media (max-width: 640px) {
     input[type=text] { width: 100%; }
@@ -293,6 +297,7 @@ function setView(v) {
   $("strataSeg").hidden = v !== "map";
   $("out").hidden = v === "map";
   $("mapWrap").hidden = v !== "map";
+  document.body.classList.toggle("wide", v === "map");
   if (v === "map") ensureMap();
   render();
 }
@@ -605,6 +610,12 @@ function drawSectors(card) {
     (missing.length ? `<br>No sector shape for ${esc(missing.map(n => `${n} ${SECTORS[n] || ""}`.trim()).join(", "))}.` : "") + `</div>`;
 }
 
+/** Width the floating detail panel covers on the map's right edge (0 when it sits below the map). */
+function panelInset() {
+  const p = $("mapPanel");
+  return p && getComputedStyle(p).position === "absolute" ? p.offsetWidth + 10 : 0;
+}
+
 function drawBoundaries() {
   if (!map) return;
   mapLayers.bdry.clearLayers();
@@ -725,7 +736,7 @@ function drawSelected(card) {
     const near = p => zb && L.latLngBounds(zb).pad(0.6).contains(p);
     const pts = [...[...groups.values()].map(g => g.ll), ...(ahead.length ? ahead : full).filter(p => inZdc(p))];
     if (pos && near(pos)) pts.push(pos);
-    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 8 });
+    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 40], paddingBottomRight: [panelInset() + 40, 40], maxZoom: 8 });
     else if (zb) map.fitBounds(zb, { padding: [10, 10] });
   }
 }
@@ -754,18 +765,11 @@ function renderMap(qStr) {
   }
   $("strataSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.strata === strata));
   const legend = drawSectors(sel);
+  panel.innerHTML = !feed ? `<p class="hint">Loading the VATSIM feed…</p>`
+    : sel ? `<button type="button" class="pick" data-back="1">× Close</button>` + renderCard(sel) + legend
+    : cards.length ? "" : `<p class="hint">No aircraft on routes with ZDC SOP restrictions match these filters.</p>`;
+  // After the panel is filled, so the fit can leave room for it.
   if (sel) drawSelected(sel);
-
-  if (!feed) { panel.innerHTML = `<p class="hint">Loading the VATSIM feed…</p>`; return; }
-  if (sel) {
-    panel.innerHTML = `<button type="button" class="pick" data-back="1">← All aircraft</button>` + renderCard(sel) + legend;
-    return;
-  }
-  panel.innerHTML = cards.length
-    ? `<p class="hint">Click an aircraft on the map, or pick one here, to see its restrictions and crossing points.</p>` +
-      cards.map(c => `<button type="button" class="pick" data-cs="${esc(c.f.callsign)}">${esc(c.f.callsign)} ` +
-        `<span class="meta">${esc(c.f.dep)}→${esc(c.f.arr)} · ${c.rows.length}</span><span class="tag ${c.st.key}">${esc(c.st.label)}</span></button>`).join("")
-    : `<p class="hint">No aircraft on routes with ZDC SOP restrictions match these filters.</p>`;
 }
 
 function render() {
