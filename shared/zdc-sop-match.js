@@ -251,6 +251,18 @@ export function restrictionFix(restr) {
   return m[1];
 }
 
+/**
+ * Fixes a restriction is crossed at, when it is a plain "FIX[/FIX] @|AOB|AT …"
+ * ("JAMIE/EWOOD @ 100" → JAMIE, EWOOD). Empty for boundary, abeam and offset
+ * restrictions, which do not need the route to pass the fix.
+ */
+export function crossingFixes(restr) {
+  const s = String(restr || "").toUpperCase().replace(/^[JP]:\s*/, "");
+  const m = s.match(/^([A-Z]{3,5}(?:\/[A-Z]{3,5})*)\s+(?:@|AOB\b|AT\b)/);
+  if (!m || /^(BDRY|AOB|DSDG|ABEAM|OVER)$/.test(m[1])) return [];
+  return m[1].split("/");
+}
+
 /** Hide rows handed between two sectors one controller owns in this plan. */
 export function rowVisibleInConfig(row, configKey) {
   const cfg = CONFIGS[configKey];
@@ -390,7 +402,16 @@ export function matchFlight(flight, ctx = {}) {
       order = best.idx;
       c.star = best;
     }
-    const fix = restrictionFix(row[4]);
+    let fix = restrictionFix(row[4]);
+    // A restriction crossed at fixes this route never passes (TERKS @ 140 on
+    // the OUTLA STAR's other transition) is not this aircraft's. Needs the
+    // expanded route, since a STAR's fixes are not in the filed string.
+    const xf = crossingFixes(row[4]);
+    if (xf.length && ctx.extraFixes && ctx.extraFixes.length) {
+      const onRoute = xf.filter(x => fp.pos(x) !== Infinity);
+      if (!onRoute.length) continue;
+      fix = onRoute[0];
+    }
     // Order by where the restriction applies: its crossing fix when the route
     // names it, the end of the route for descend-via, else its routing.
     if (fix && fp.pos(fix) !== Infinity) order = fp.pos(fix);
@@ -410,6 +431,39 @@ export function matchFlight(flight, ctx = {}) {
   out.forEach(m => { delete m.star; });
 
   out.sort((a, b) => (a.order - b.order) || (a.quality === b.quality ? 0 : a.quality === "full" ? -1 : 1) || a.index - b.index);
+  return orderBySectorChain(out);
+}
+
+/**
+ * Group rows by giving sector in the order the aircraft meets them: a sector
+ * that hands the aircraft to another sector on this list comes before it
+ * (59 → 54 → ORF). Unlinked sectors keep route order; a loop falls back to it.
+ */
+export function orderBySectorChain(rows) {
+  const norm = s => (/^\d$/.test(s) ? "0" + s : s);
+  const groups = new Map();
+  rows.forEach((m, i) => {
+    const g = norm(m.row[0]);
+    if (!groups.has(g)) groups.set(g, { first: i, rows: [] });
+    groups.get(g).rows.push(m);
+  });
+  if (groups.size < 2) return rows;
+  const indeg = new Map([...groups.keys()].map(g => [g, 0]));
+  const next = new Map([...groups.keys()].map(g => [g, new Set()]));
+  for (const m of rows) {
+    const g = norm(m.row[0]), r = norm(m.row[5]);
+    if (r !== g && groups.has(r) && !next.get(g).has(r)) { next.get(g).add(r); indeg.set(r, indeg.get(r) + 1); }
+  }
+  const out = [];
+  const left = new Set(groups.keys());
+  while (left.size) {
+    let pick = null;
+    for (const g of left) if (indeg.get(g) === 0 && (!pick || groups.get(g).first < groups.get(pick).first)) pick = g;
+    if (!pick) for (const g of left) if (!pick || groups.get(g).first < groups.get(pick).first) pick = g;
+    left.delete(pick);
+    for (const r of next.get(pick)) indeg.set(r, indeg.get(r) - 1);
+    out.push(...groups.get(pick).rows);
+  }
   return out;
 }
 

@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { ROWS, SECTORS } from "../shared/zdc-sop-data.js";
 import {
   parseFor, destMatches, parseRouting, flightRoutePoints, engineClass, cruiseFeet,
-  restrictionFix, rowVisibleInConfig, ownerOf, matchFlight, descendViaFor, primaryAirports, satellitePrimaries,
+  restrictionFix, crossingFixes, rowVisibleInConfig, ownerOf, matchFlight, descendViaFor, primaryAirports, satellitePrimaries,
 } from "../shared/zdc-sop-match.js";
 
 let passed = 0;
@@ -181,6 +181,24 @@ t("a filed transition fix beats sibling routings matched only by route expansion
   const expanded = ["KBOS", "SSOXS", "RIFLE", "ZIZZI", "ZJAAY", "KALDA", "RADDS", "WAALK", "BRIGS", "IROKT", "JIIMS", "KPHL"];
   const m = matchFlight(f, { ...ctx, extraFixes: expanded });
   assert.deepEqual(m.map(x => x.row[3]), ["BRIGS JIIMS#"]);
+});
+
+t("sectors in the order the aircraft meets them; off-route crossing fixes dropped", () => {
+  const f = { dep: "KBOS", arr: "KORF", route: "SSOXS7 SSOXS Q167 TBONN OUTLA1", type: "E75L", altitude: "36000" };
+  const expanded = ["KBOS", "SSOXS", "BUZRD", "NESTT", "GRONC", "ALBOW", "ORCHA", "HOFFI", "RIFLE", "SPDEY", "EMJAY", "TOPRR",
+    "YAZUU", "ZIZZI", "TBONN", "CAANO", "PAJET", "ZJAAY", "KALDA", "ARICE", "EWOOD", "OUTLA", "MEEKA", "KORF"];
+  const m = matchFlight(f, { ...ctx, extraFixes: expanded });
+  assert.deepEqual(m.map(x => `${x.row[0]} ${x.row[4]}`), ["59 BDRY AOB 240", "54 JAMIE/EWOOD @ 100"]);
+  assert.equal(m[1].fix, "EWOOD");
+});
+
+t("crossing fixes", () => {
+  assert.deepEqual(crossingFixes("JAMIE/EWOOD @ 100"), ["JAMIE", "EWOOD"]);
+  assert.deepEqual(crossingFixes("TERKS @ 140"), ["TERKS"]);
+  assert.deepEqual(crossingFixes("BDRY (JUDGG) @ 130"), []);
+  assert.deepEqual(crossingFixes("5 S GARED @ 130"), []);
+  assert.deepEqual(crossingFixes("ABEAM RDU AOB 240"), []);
+  assert.deepEqual(crossingFixes("D/V"), []);
 });
 
 t("descend-via bottoms by STAR and transition", () => {
