@@ -46,6 +46,13 @@
   .note p { margin: 0; }
   footer { margin-top: 40px; font-family: var(--mono); font-size: 11px; color: #5c6b78; }
   footer a { color: var(--muted); }
+  .ver { display: inline-block; vertical-align: middle; margin-left: 12px; font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--amber); color: var(--amber); background: #1a1408; }
+  .dl .meta { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.04em; }
+  .changes { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 14px 18px; margin: 0 0 12px; }
+  .changes h3 { margin: 0 0 6px; font-family: var(--mono); font-size: 14px; letter-spacing: 0.06em; color: var(--text); }
+  .changes h3 .when { color: var(--muted); font-weight: normal; margin-left: 8px; }
+  .changes h3 .tag { font-size: 11px; color: var(--bg); background: var(--amber); border-radius: 4px; padding: 1px 6px; margin-left: 8px; vertical-align: 2px; }
+  .changes ul { margin: 0; }
   @media (max-width: 560px) { .dl { flex-direction: column; align-items: flex-start; } }
 </style>
 </head>
@@ -53,7 +60,7 @@
 <div id="vatflowAppNav"></div>
 <main class="page">
   <p class="eyebrow">MSFS 2024 add-on · test build 0.1.1 · 1 Nov 2026</p>
-  <h1>VATFLOW Tower Cab</h1>
+  <h1>VATFLOW Tower Cab <span class="ver">v0.1.1</span></h1>
   <p>A tower cab you load like an aircraft at any airport. It moves itself up onto the sim's control tower and gives you a
   real tower-cab view of live VATSIM traffic, with working controller screens on the consoles: tower and ground radar,
   departure sequence, IDS, IDST releases, VATSMART, ramp maps, flight strip bays and runway / taxiway closures.</p>
@@ -62,7 +69,7 @@
   <h2>Downloads</h2>
   <div class="downloads">
     <a class="dl main" href="downloads/tower-cab/VATFLOW-Tower-Cab.zip" download>
-      <div class="txt"><b>VATFLOW Tower Cab</b><span>The add-on. Unzip and drag the <code>vatflow-towercab</code> folder into your MSFS 2024 Community folder.</span></div>
+      <div class="txt"><b>VATFLOW Tower Cab</b><span>The add-on. Unzip and drag the <code>vatflow-towercab</code> folder into your MSFS 2024 Community folder.<span class="meta">Version 0.1.1 · 1 Nov 2026 · 56 MB · <a href="#changelog" style="color:inherit">what changed</a></span></span></div>
       <span class="btn">DOWNLOAD</span>
     </a>
     <a class="dl" href="downloads/tower-cab/VATFLOW-Tower-Cab-Manual.pdf" target="_blank" rel="noopener">
@@ -102,12 +109,24 @@
   </ol>
   <div class="note"><p>Set your VATSIM CID on TOWER SETUP to issue IDST releases. It stays in the sim's storage on your PC only.</p></div>
 
-  <h2>What's new in this build</h2>
-  <ul>
+  <h2 id="changelog">Changelog</h2>
+  <p>Which version you have: the <code>package_version</code> in <code>Community\vatflow-towercab\manifest.json</code>, or the first line of its <code>READ ME - install.txt</code>.</p>
+  <div class="changes">
+    <h3>0.1.1<span class="when">1 Nov 2026</span><span class="tag">LATEST</span></h3>
+    <ul>
+      <li><b>Fixed: the cab's position wasn't kept after restarting MSFS.</b> The TOWER SETUP move buttons now save the spot for that airport as soon as the cab gets there, so the next flight goes straight back to it. Your existing saved spots carry over.</li>
+      <li>TOWER SETUP says <b>COULD NOT SAVE</b> if the sim's storage doesn't keep a saved spot.</li>
+    </ul>
+  </div>
+  <div class="changes">
+    <h3>0.1.0<span class="when">27 Oct 2026</span></h3>
+    <p style="margin:0 0 4px">First public test build.</p>
+    <ul>
     <li><b>DEP SEQ, DEP TIMER and IDS</b> screens, runway safety alerts on the ground radar, final approach spacing on the tower radar, and picking an aircraft on one screen highlights it on all.</li>
     <li><b>Runway and taxiway closures</b>: close them on a map; with the helper running, barricades with flashing lamps, lighted X's, work vehicles and site props appear in the sim.</li>
     <li><b>Halloween</b>: a glowing jack-o'-lantern by the coffee maker (click it to blow the candle out). TOWER SETUP &gt; HALLOWEEN switches the decorations off.</li>
-  </ul>
+    </ul>
+  </div>
   <div class="grid">
     <figure><img src="downloads/tower-cab/closures.jpg" alt="Closure objects"><figcaption>Closure objects: porta potty, dirt and rock piles, lighted X, trucks, barricades.</figcaption></figure>
     <figure><img src="downloads/tower-cab/halloween.jpg" alt="Halloween decorations"><figcaption>Halloween on the back console.</figcaption></figure>
