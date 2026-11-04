@@ -241,13 +241,25 @@
   .plsec:last-child { border-bottom: none; }
   .plh { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); margin-bottom: 6px; display: flex; gap: 8px; align-items: baseline; }
   .plh span { margin-left: auto; letter-spacing: 0.02em; }
-  .strm { display: grid; grid-template-columns: 16px minmax(0, 1fr) 50px 22px; gap: 6px; align-items: center; font-size: 11px; padding: 2px 0; }
+  .strm { display: grid; grid-template-columns: 16px minmax(0, 1fr) 44px 40px 22px; gap: 5px; align-items: center; font-size: 11px; padding: 2px 0; }
+  .strmh { display: grid; grid-template-columns: 16px minmax(0, 1fr) 44px 40px 22px; gap: 5px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; color: var(--dim); padding-bottom: 2px; }
+  .strm input.mit { border-color: #3a3150; }
+  .strm input.mit:not(:placeholder-shown) { color: #c792ea; border-color: #c792ea; }
+  .strm .cap { grid-column: 2 / -1; font-family: var(--mono); font-size: 10px; color: #c792ea; margin: -1px 0 3px; }
+  .strm .cap.bad { color: var(--red); }
+  .aar3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+  .aar3 .plk .v small { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .aar3 .plk .s { font-family: var(--mono); font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .aarbar { position: relative; height: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; margin: 2px 0 8px; overflow: hidden; }
+  .aarbar i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--green); }
+  .aarbar b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--amber); }
+  .aarbar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #fff; }
   .strm.off .nm, .strm.off select { opacity: 0.45; }
   .strm .nm { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; }
   .strm .nm b { flex: none; }
   .strm .nm select { flex: 1; font-size: 11px; padding: 3px 4px; }
   .strm .nm .why { color: var(--red); font-size: 10px; }
-  .strm input[type=number] { width: 50px; font-size: 11px; padding: 3px 5px; }
+  .strm input[type=number] { width: 100%; font-size: 11px; padding: 3px 5px; }
   .strm .x { padding: 1px 5px; font-size: 11px; }
   .strm input[type=checkbox] { margin: 0; }
   .pladd { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 6px; margin-top: 8px; }
@@ -263,7 +275,8 @@
   .pladv .bad { color: var(--red); }
   #plChart svg { display: block; width: 100%; height: auto; cursor: pointer; }
   #plChart text { font-family: var(--mono); font-size: 9px; fill: var(--muted); }
-  #plGates td, #plGates th { padding: 2px 4px; font-size: 11px; text-align: right; }
+  #plGates td, #plGates th { padding: 2px 3px; font-size: 10.5px; text-align: right; }
+  #plGates td:first-child { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #plGates td:first-child, #plGates th:first-child { text-align: left; }
   #plGates th { color: var(--dim); font-weight: 400; font-size: 9.5px; letter-spacing: 0.08em; }
   #planMap { position: absolute; inset: 0; background: #0b1016; }
@@ -443,15 +456,16 @@
             </div>
           </form>
           <div class="plsec">
-            <div class="plh">ROUTES <span class="muted">weight = share of arrivals</span></div>
+            <div class="plh">ROUTES <span class="muted">MIT at the gate fix · weight = share of arrivals</span></div>
+            <div class="strmh"><span></span><span>ENTRY FIX · STAR</span><span>MIT</span><span>WT</span><span></span></div>
             <div id="plStreams"></div>
             <div class="pladd">
-              <input id="plDep" placeholder="FROM" maxlength="4" spellcheck="false" title="Origin airport (ICAO)">
-              <input id="plRoute" placeholder="ROUTE, e.g. DCT OMN BAIRN4" spellcheck="false" title="Route string as filed, ending in the STAR">
+              <input id="plDep" placeholder="FROM" maxlength="4" spellcheck="false" title="Origin airport (ICAO). Leave blank to start at the STAR's entry fix, e.g. HVQ GIBBZ6">
+              <input id="plRoute" placeholder="HVQ GIBBZ6 = 20 MIT" spellcheck="false" title="Route as filed ending in the STAR, or just ENTRYFIX STAR with FROM blank. Add = 20 MIT to set miles in trail.">
               <button type="button" id="plAdd">ADD</button>
             </div>
           </div>
-          <div class="plsec"><div class="plkpis" id="plKpis"></div><div class="pladv" id="plAdvice"></div></div>
+          <div class="plsec"><div class="aar3" id="plAar3"></div><div class="aarbar" id="plAarBar" title="green: real-time landing rate · amber: planned AAR · white: max reached"></div><div class="plkpis" id="plKpis"></div><div class="pladv" id="plAdvice"></div></div>
           <div class="plsec"><div class="plh">LANDINGS / 15 MIN <span class="muted">outline wanted · fill landed · line holding</span></div><div id="plChart"></div></div>
           <div class="plsec"><div class="plh">BY ROUTE</div><table id="plGates"></table></div>
         </div>
@@ -500,7 +514,7 @@ import { getAirport, loadAirports, fpFields } from "./shared/fca-metering.js";
 import { getAccessApiBase } from "./shared/vatflow-access-api.js";
 import { normPrograms, wakeFromFp, NO_GATE, gateKey } from "./shared/mit-monitor.js";
 import { pathModel, drawnPath, demandHours, makeFlights, runSim, flightAt, simNow, simStats, aarForDelay, assignStacks, gateColors,
-  destPoint as simDest, bearing as simBrg, gcNm as simNm, SIM_ENTRY_NM } from "./shared/vatsmart-sim.js";
+  destPoint as simDest, bearing as simBrg, gcNm as simNm, SIM_ENTRY_NM, mitRate, landedRate } from "./shared/vatsmart-sim.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
@@ -1829,11 +1843,11 @@ function planStreams(plan) {
     for (const x of byGate[g]) { const k = x.fix + " " + x.star; if (!seen.has(k)) { seen.add(k); opts.push({ ...x, key: k }); } }
     opts.sort((a, b) => off(simBrg(st.aptLL[0], st.aptLL[1], a.ll[0], a.ll[1]), brg[g]) - off(simBrg(st.aptLL[0], st.aptLL[1], b.ll[0], b.ll[1]), brg[g]) || a.key.localeCompare(b.key));
     const o = plan.gates[g] || {}, pick = opts.find(x => x.key === o.opt) || opts[0];
-    out.push({ id: "G:" + g, kind: "gate", gate: g, fix: pick.fix, star: pick.star, ll: pick.ll, opts, weight: o.weight ?? 1, on: o.on !== false });
+    out.push({ id: "G:" + g, kind: "gate", gate: g, fix: pick.fix, star: pick.star, ll: pick.ll, opts, weight: o.weight ?? 1, mit: +o.mit || 0, on: o.on !== false });
   }
   for (const r of plan.routes) {
     const star = (r.route.split(/\s+/).reverse().find(t => /^[A-Z]{3,5}\d[A-Z]?$/.test(t)) || "");
-    out.push({ id: "R:" + r.id, kind: "route", rid: r.id, gate: star ? gateKey(star) : "DCT", star, dep: r.dep, route: r.route, src: r.src, weight: r.weight ?? 1, on: r.on !== false });
+    out.push({ id: "R:" + r.id, kind: "route", rid: r.id, gate: star ? gateKey(star) : "DCT", star, dep: r.dep || "", route: r.route, src: r.src, weight: r.weight ?? 1, mit: +r.mit || 0, on: r.on !== false });
   }
   return out;
 }
@@ -1841,10 +1855,17 @@ function planStreams(plan) {
 /* a stream's path from the route engine, ending on the final of the arrival runway nearest the STAR's last fix */
 function streamPath(s, rwyEnds) {
   let anchors;
-  if (s.kind === "gate") {
+  /* a route with no origin starts at a STAR entry fix ("HVQ GIBBZ6"): flown in from straight out beyond the fix */
+  if (s.kind === "route" && !s.dep) {
+    const fix = s.route.split(" ")[0];
+    const o = st.stars.find(x => x.fix === fix && x.star === s.star) || st.stars.find(x => x.fix === fix);
+    if (!o) return { why: `${fix} isn't a STAR entry fix here: add FROM` };
+    s.fix = fix; s.ll = o.ll;
+  }
+  if (s.kind === "gate" || !s.dep) {
     const b = simBrg(st.aptLL[0], st.aptLL[1], s.ll[0], s.ll[1]), d = simNm(st.aptLL[0], st.aptLL[1], s.ll[0], s.ll[1]);
     const origin = simDest(st.aptLL, b, Math.max(d + 120, SIM_ENTRY_NM + 30));
-    anchors = buildRouteAnchors({ dep: "", arr: st.airport, route: `${s.fix} ${s.star}` }, { origin }).anchors;
+    anchors = buildRouteAnchors({ dep: "", arr: st.airport, route: s.kind === "gate" ? `${s.fix} ${s.star}` : s.route }, { origin }).anchors;
   } else {
     if (!getAirport(s.dep)) return { why: "unknown origin " + s.dep };
     const r = buildRouteAnchors({ dep: s.dep, arr: st.airport, route: s.route });
@@ -1860,7 +1881,7 @@ function streamPath(s, rwyEnds) {
   });
   if (path.length < 2) return { why: "route didn't resolve" };
   let gi = -1;
-  if (s.kind === "gate") { const i = anchors.findIndex(a => a.name === s.fix && a.ll); gi = i >= 0 ? at[i] : -1; }
+  if (s.kind === "gate" || !s.dep) { const i = anchors.findIndex(a => a.name === s.fix && a.ll); gi = i >= 0 ? at[i] : -1; }
   else { const g = gateFixFor(anchors, s.gate); gi = g ? at[g.index] : -1; }
   if (rwyEnds.length && path.length >= 2) {
     const last = path.length >= 3 ? path[path.length - 2] : path[0];
@@ -1892,7 +1913,7 @@ function planGeometry() {
     try { r = streamPath(s, ends); } catch (e) { console.warn("plan route:", e); r = { why: "route didn't resolve" }; }
     const m = r.path ? pathModel(r.path, r.gi) : null;
     if (m) pl.models[s.id] = m; else pl.why[s.id] = r.why || "route didn't resolve";
-    pl.meta[s.id] = { rwy: s.rwy, unresolved: s.unresolved };
+    pl.meta[s.id] = { rwy: s.rwy, unresolved: s.unresolved, fix: s.fix };
   }
 }
 
@@ -1937,14 +1958,17 @@ function renderPlan(sit) {
   const known = sit && sit.mon ? sit.mon.colors : {};
   pl.colors = gateColors(pl.streams.map(s => s.gate), known);
   const flights = planFlights(plan, sit);
-  const simKey = [pl.geoKey, plan.aar, plan.mode, flights.map(f => f.callsign + f.stream + f.U).join(",")].join("#");
+  const mit = {};
+  for (const x of pl.streams) if (x.on && x.mit > 0) mit[x.id] = x.mit;
+  const simKey = [pl.geoKey, plan.aar, plan.mode, JSON.stringify(mit), flights.map(f => f.callsign + f.stream + f.U).join(",")].join("#");
   if (simKey !== pl.simKey) {
     pl.simKey = simKey;
     const keepT = pl.sim ? pl.t : null;
     pl.flights = flights;
-    pl.sim = assignStacks(runSim({ flights, models: pl.models, aar: plan.aar, mode: plan.mode }));
+    pl.sim = assignStacks(runSim({ flights, models: pl.models, aar: plan.aar, mode: plan.mode, mit }));
     pl.stats = simStats(pl.sim, plan.shape === "live" ? undefined : plan.startMs);
-    pl.need = flights.length ? aarForDelay({ flights, models: pl.models, maxDelayMin: 10 }) : null;
+    pl.need = flights.length ? aarForDelay({ flights, models: pl.models, maxDelayMin: 10, mit }) : null;
+    pl.mit = mit;
     pl.t = keepT != null && keepT >= pl.sim.start && keepT <= pl.sim.end ? keepT : pl.sim.start;
     if (pl.sel >= 0 && !pl.sim.flights[pl.sel]) pl.sel = -1;
     for (const m of pl.markers.values()) pl.dyn.removeLayer(m);
@@ -2024,10 +2048,22 @@ $("plEvtRoutes").addEventListener("click", () => {
 $("plReseed").addEventListener("click", () => { const plan = planFor(); plan.seed = (plan.seed || 1) + 1; planSave(); });
 $("plReset").addEventListener("click", () => { prefs.plan[st.airport] = planDefaults(); pl.formFor = ""; planSave(); });
 $("plAdd").addEventListener("click", () => {
-  const dep = $("plDep").value.toUpperCase().trim(), route = $("plRoute").value.toUpperCase().trim().replace(/\s+/g, " ");
-  if (!/^[A-Z0-9]{3,4}$/.test(dep) || !route) { $("plDep").focus(); return; }
+  const dep = $("plDep").value.toUpperCase().trim();
+  let route = $("plRoute").value.toUpperCase().trim().replace(/\s+/g, " "), mit = 0;
+  const mm = route.match(/\s*[=:]?\s*(\d{1,3})\s*MIT$/);        /* "HVQ GIBBZ6 = 20MIT" */
+  if (mm) { mit = +mm[1]; route = route.slice(0, mm.index).trim(); }
+  if ((dep && !/^[A-Z0-9]{3,4}$/.test(dep)) || !route) { (route ? $("plDep") : $("plRoute")).focus(); return; }
   const plan = planFor();
-  plan.routes.push({ id: Date.now().toString(36), dep: dep.length === 3 ? "K" + dep : dep, route, src: "hand", weight: 1, on: true });
+  /* "HVQ GIBBZ6 = 20 MIT" with no origin sets that gate's row (fix, STAR, MIT) rather than adding a second stream
+     for the same gate, unless the row already has its own MIT on another fix */
+  const gs = !dep && pl.streams.find(x => x.kind === "gate" && x.opts.some(o => o.key === route));
+  if (gs && (!gs.mit || (gs.fix + " " + gs.star) === route)) {
+    plan.gates[gs.gate] = { ...(plan.gates[gs.gate] || {}), opt: route, on: true, ...(mm ? { mit } : {}) };
+    $("plRoute").value = "";
+    planSave();
+    return;
+  }
+  plan.routes.push({ id: Date.now().toString(36), dep: dep.length === 3 ? "K" + dep : dep, route, src: "hand", weight: 1, mit, on: true });
   $("plRoute").value = "";
   planSave();
 });
@@ -2041,6 +2077,7 @@ $("plStreams").addEventListener("change", e => {
   };
   if (e.target.type === "checkbox") set({ on: e.target.checked });
   else if (e.target.tagName === "SELECT") set({ opt: e.target.value });
+  else if (e.target.dataset.k === "mit") set({ mit: Math.max(0, Math.min(99, Math.round(+e.target.value) || 0)) });
   else if (e.target.type === "number") set({ weight: Math.max(0, Math.min(99, +e.target.value || 0)) });
   planSave();
 });
@@ -2055,13 +2092,19 @@ function renderPlanStreams(plan) {
     const col = pl.colors[s.gate] || "#6b7a89", why = pl.why[s.id];
     const name = s.kind === "gate"
       ? `<b style="color:${col}">${esc(s.gate)}</b><select title="Entry fix and STAR this stream flies">${s.opts.map(o => `<option value="${esc(o.key)}"${o.fix === s.fix && o.star === s.star ? " selected" : ""}>${esc(o.key)}</option>`).join("")}</select>`
-      : `<b style="color:${col}">${esc(s.dep)}</b><span title="${esc(s.route)}${s.unresolved ? " · not found: " + esc(s.unresolved.join(" ")) : ""}">${esc(s.route)}</span>`;
-    const n = by[s.id] ? by[s.id].n : 0;
+      : `<b style="color:${col}">${esc(s.dep || s.gate)}</b><span title="${esc(s.route)}${s.unresolved ? " · not found: " + esc(s.unresolved.join(" ")) : ""}">${esc(s.route)}</span>`;
+    const n = by[s.id] ? by[s.id].n : 0, m = pl.models[s.id];
+    let cap = "";
+    if (s.on && s.mit > 0 && m) {
+      const r = Math.floor(mitRate(m, s.mit)), want = by[s.id] ? by[s.id].peakHr : 0;
+      cap = `<div class="cap${want > r || (by[s.id] && by[s.id].maxMit >= 10) ? " bad" : ""}">${s.mit} MIT at ${esc(s.fix || s.gate)} ≈ ${r}/hr max${want ? ` · ${want} want it in the busiest hour` : ""}${by[s.id] && by[s.id].maxMit >= 1 ? ` · backs up to ${Math.round(by[s.id].maxMit)} min` : ""}</div>`;
+    }
     return `<div class="strm${s.on ? "" : " off"}" data-sid="${esc(s.id)}" title="${s.on ? n + " arrivals" : "off"}${s.rwy ? " · lands " + esc(s.rwy) : ""}">
       <input type="checkbox"${s.on ? " checked" : ""} aria-label="use this stream">
       <span class="nm">${name}${why ? `<span class="why">${esc(why)}</span>` : ""}</span>
+      <input type="number" class="mit" data-k="mit" min="0" max="99" step="5" value="${s.mit > 0 ? esc(s.mit) : ""}" placeholder="—" title="Miles in trail at the gate fix (${esc(s.fix || s.gate)}) for this route; blank for none">
       <input type="number" min="0" max="99" step="1" value="${esc(s.weight)}" title="Weight: share of the arrivals">
-      ${s.kind === "route" ? `<button type="button" class="x" data-del="${esc(s.id)}" title="Remove">✕</button>` : "<span></span>"}</div>`;
+      ${s.kind === "route" ? `<button type="button" class="x" data-del="${esc(s.id)}" title="Remove">✕</button>` : "<span></span>"}${cap}</div>`;
   }).join("");
   const el = $("plStreams");
   if (el.dataset.html !== html && !el.contains(document.activeElement)) { el.innerHTML = html || `<div class="plwait">No STARs for ${esc(st.airport)} in the nav data: add a route below.</div>`; el.dataset.html = html; }
@@ -2076,7 +2119,8 @@ function renderPlanSide(plan) {
     ["ARRIVALS", s.total, ""], ["PEAK RATE", peakDemand + "/hr", peakDemand > plan.aar ? "amber" : "green"],
     ["MAX DELAY", fmtM(s.maxDelay), sev(s.maxDelay, 10, 25)], ["AVG DELAY", fmtM(s.avgDelay), sev(s.avgDelay, 5, 15)],
     [plan.mode === "ground" ? "EDCTs" : "HELD", plan.mode === "ground" ? s.edcts : s.held, (plan.mode === "ground" ? s.edcts : s.held) ? "amber" : "green"],
-    ["PEAK STACK", s.peakHold, sev(s.peakHold, 6, 15)], ["LAST LANDS", fmtZ(s.lastLand), ""], ["QUEUE CLEAR", s.clearT ? fmtZ(s.clearT) : "—", ""],
+    ["PEAK STACK", s.peakHold, sev(s.peakHold, 6, 15)], ["MIT DELAYED", s.mitDelayed, s.mitDelayed ? "amber" : "green"],
+    ["QUEUE CLEAR", s.clearT ? fmtZ(s.clearT) : "—", ""],
   ].map(([k, v, c]) => `<div class="plk ${c}"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("");
   let adv;
   const off = pl.streams.filter(x => x.on && pl.why[x.id]).length;
@@ -2088,7 +2132,8 @@ function renderPlanSide(plan) {
       (plan.mode === "ground"
         ? `<b>${s.edcts}</b> departures need an EDCT, up to <b>${Math.round(s.maxDelay)} min</b>; nobody holds.`
         : `<b>${s.held}</b> hold, up to <b>${Math.round(s.maxHold)} min</b> (the first ${3} min of each delay goes to speed control); the stack peaks at <b>${s.peakHold}</b> around <b>${fmtZ(s.peakHoldT)}</b> and clears by <b>${s.clearT ? fmtZ(s.clearT) : "—"}</b>.`) +
-      (pl.need > plan.aar ? ` Keeping every delay to 10 min takes an AAR of <b>${pl.need}</b>.` : "") +
+      (s.mitDelayed ? ` MIT holds back <b>${s.mitDelayed}</b> arrivals, up to <b>${Math.round(s.maxMit)} min</b>, slowed before the gate fix (and taken upstream past ${SIM_ENTRY_NM} nm when that's not enough).` : "") +
+      (pl.need > plan.aar ? ` Keeping every delay to 10 min takes an AAR of <b>${pl.need}</b>.` : pl.need == null && Object.keys(pl.mit || {}).length ? ` <span class="bad">The MIT on its own delays some arrivals over 10 min: no AAR fixes that, ease the MIT or spread the demand.</span>` : "") +
       (plan.mode === "air" && s.maxHold > 20 ? ` <span class="bad">Holds over 20 min: meter with ground delays (DELAY TAKEN → Ground) or MIT at the gates.</span>` : "");
   }
   if (off) adv += ` <span class="bad">${off} route${off > 1 ? "s" : ""} couldn't be drawn and ${off > 1 ? "are" : "is"} left out.</span>`;
@@ -2098,9 +2143,9 @@ function renderPlanSide(plan) {
   renderPlanChart(plan);
   const rows = pl.streams.filter(x => x.on && s.byStream[x.id]).map(x => {
     const b = s.byStream[x.id];
-    return `<tr><td><span class="sw" style="background:${pl.colors[x.gate] || "#6b7a89"}"></span>${esc(x.kind === "gate" ? x.gate + " " + x.star : x.dep + " " + (x.star || ""))}${x.rwy ? " → " + esc(x.rwy) : ""}</td><td>${b.n}</td><td>${Math.round(b.avgDelay)}</td><td>${Math.round(b.maxHold)}</td></tr>`;
+    return `<tr><td><span class="sw" style="background:${pl.colors[x.gate] || "#6b7a89"}"></span>${esc(x.kind === "gate" ? x.gate + " " + x.star : (x.dep || x.fix || "") + " " + (x.star || ""))}${x.rwy ? " → " + esc(x.rwy) : ""}</td><td>${b.n}</td><td>${x.mit > 0 ? x.mit : "—"}</td><td>${Math.round(b.avgDelay)}</td><td>${Math.round(b.maxMit)}</td><td>${Math.round(b.maxHold)}</td></tr>`;
   });
-  $("plGates").innerHTML = rows.length ? `<tr><th>ROUTE</th><th>ARR</th><th>AVG DLY</th><th>MAX HOLD</th></tr>` + rows.join("") : "";
+  $("plGates").innerHTML = rows.length ? `<tr><th>ROUTE</th><th title="Arrivals">ARR</th><th title="Miles in trail at the gate fix">MIT</th><th title="Average delay, min">AVG</th><th title="Longest delay from the MIT, min">MIT↑</th><th title="Longest hold at the gate fix, min">HOLD</th></tr>` + rows.join("") : "";
   const sc = $("plScrub");
   sc.min = sim.start; sc.max = Math.max(sim.start + MIN_MS, sim.end + 2 * MIN_MS); sc.step = 15000;
   $("planLegend").innerHTML = `<span><span style="color:#fff">▲</span> simulated arrival (click for its delay)</span><span><span class="ln" style="border-color:#8a97a3"></span>route flown (from ${SIM_ENTRY_NM} nm out)</span>
@@ -2117,7 +2162,7 @@ function renderPlanChart(plan) {
   let g = "";
   slots.forEach((x, i) => {
     const X = pL + i * bw;
-    g += `<rect x="${X + 1}" y="${y(x.landed)}" width="${bw - 2}" height="${y(0) - y(x.landed)}" fill="${x.landed > cap + 0.01 ? "#e07070" : "#57d98a"}" opacity=".75"/>`;
+    g += `<rect x="${X + 1}" y="${y(x.landed)}" width="${bw - 2}" height="${y(0) - y(x.landed)}" fill="${x.landed > Math.ceil(cap) ? "#e07070" : "#57d98a"}" opacity=".75"/>`;
     g += `<rect x="${X + 1}" y="${y(x.planned)}" width="${bw - 2}" height="${y(0) - y(x.planned)}" fill="none" stroke="#d4dde6" stroke-opacity=".7" stroke-width="1"/>`;
     if (i % 4 === 0) g += `<text x="${X + 1}" y="${H - 4}">${fmtZ(x.t).replace("Z", "")}</text>`;
   });
@@ -2156,7 +2201,7 @@ function drawPlanStatic() {
     L.marker(fix, { interactive: false, icon: L.divIcon({ className: "", iconSize: [12, 12], iconAnchor: [6, 6],
       html: `<svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 6L6 12L0 6Z" fill="none" stroke="${col}" stroke-width="2"/></svg>` }) }).addTo(pl.stat);
     L.marker(fix, { interactive: false, icon: L.divIcon({ className: "", iconSize: [120, 14], iconAnchor: [-9, 18],
-      html: `<span style="font:700 10px var(--mono);color:${col};text-shadow:0 0 3px #000,0 0 2px #000;white-space:nowrap">${esc(s.kind === "gate" ? s.fix : s.gate)}</span>` }) }).addTo(pl.stat);
+      html: `<span style="font:700 10px var(--mono);color:${col};text-shadow:0 0 3px #000,0 0 2px #000;white-space:nowrap">${esc(s.fix || s.gate)}${s.mit > 0 ? ` <span style="color:#c792ea">${s.mit} MIT</span>` : ""}</span>` }) }).addTo(pl.stat);
   }
   if (st.ends.length) for (const e of st.ends) {
     const id = normRwy(e[0]);
@@ -2172,7 +2217,7 @@ function simIcon(color, phase, sel) {
     html: `<div style="position:relative;width:17px;height:17px">${ring}${halo}<div class="rot" style="width:17px;height:17px"><svg viewBox="0 0 24 24" width="17" height="17" style="display:block;filter:drop-shadow(0 0 2px #000)"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${color}" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round"/></svg></div></div>` });
 }
 function simTag(f, p) {
-  return `<b>${esc(f.callsign)}</b><br>${String(Math.round(p.alt / 100)).padStart(3, "0")} ${p.gs}${p.phase === "hold" ? ' <span style="color:#ffd166">HOLD</span>' : f.edctMin >= 1 ? ` <span style="color:#c792ea">EDCT+${Math.round(f.edctMin)}</span>` : ""}`;
+  return `<b>${esc(f.callsign)}</b><br>${String(Math.round(p.alt / 100)).padStart(3, "0")} ${p.gs}${p.phase === "hold" ? ' <span style="color:#ffd166">HOLD</span>' : p.mit ? ' <span style="color:#c792ea">MIT</span>' : f.edctMin >= 1 ? ` <span style="color:#c792ea">EDCT+${Math.round(f.edctMin)}</span>` : ""}`;
 }
 
 function drawPlanFrame(force) {
@@ -2224,12 +2269,27 @@ function drawPlanFrame(force) {
     renderPlanInfo(t);
   }
   $("plClock").textContent = fmtZ(t);
-  $("plNow").innerHTML = `<b>${now.air}</b> airborne · <span class="h"><b>${now.hold}</b> holding</span> · <b>${now.landed}</b>/${sim.flights.length} landed`;
+  $("plNow").innerHTML = `<b>${now.air}</b> airborne · <span class="h"><b>${now.hold}</b> holding</span> · <b>${now.landed}</b>/${sim.flights.length} landed · AAR <b>${landedRate(sim, t)}</b> now / ${sim.aar} plan / ${pl.stats ? pl.stats.maxRate : "—"} max`;
+  renderPlanAar(t);
   const sc = $("plScrub");
   if (document.activeElement !== sc || !pl.playing) sc.value = t;
   $("plPlay").textContent = pl.playing ? "❚❚" : "▶";
   const cur = document.getElementById("plCursor"), svg = cur && cur.ownerSVGElement;
   if (cur) { const x = +svg.dataset.pl + (t - +svg.dataset.t0) / (15 * MIN_MS) * +svg.dataset.bw; cur.setAttribute("x1", x); cur.setAttribute("x2", x); }
+}
+
+/* AAR: real-time (landings in the last 60 sim minutes), planned (the AAR set), max (best 60 minutes in the run) */
+function renderPlanAar(t) {
+  const sim = pl.sim, s = pl.stats;
+  if (!sim || !s || !sim.flights.length) { $("plAar3").innerHTML = ""; $("plAarBar").innerHTML = ""; return; }
+  const rt = landedRate(sim, t), plan = sim.aar, mx = s.maxRate;
+  const full = t - sim.flights.reduce((a, f) => Math.min(a, f.landT), Infinity) >= 3600000;
+  const html = `<div class="plk ${rt >= plan ? "green" : rt >= plan * 0.8 ? "amber" : ""}" title="Landings in the 60 minutes up to the sim clock"><div class="k">AAR REAL-TIME</div><div class="v">${rt}<small>/hr</small></div><div class="s">${full ? "last 60 min" : "first hour, still filling"}</div></div>
+    <div class="plk amber" title="The AAR this plan lands against"><div class="k">AAR PLANNED</div><div class="v">${plan}<small>/hr</small></div><div class="s">1 every ${(60 / plan).toFixed(1)} min</div></div>
+    <div class="plk ${mx >= plan ? "green" : "red"}" title="The best 60 minutes of landings in the whole run"><div class="k">AAR MAX</div><div class="v">${mx}<small>/hr</small></div><div class="s">${mx ? "at " + fmtZ(s.maxRateT) : "—"}${mx < plan ? " · demand/MIT short" : ""}</div></div>`;
+  if ($("plAar3").dataset.h !== html) { $("plAar3").innerHTML = html; $("plAar3").dataset.h = html; }
+  const top = Math.max(plan, mx, rt, 1) * 1.1, pc = v => (v / top * 100).toFixed(1) + "%";
+  $("plAarBar").innerHTML = `<i style="width:${pc(rt)}"></i><b style="left:${pc(plan)}"></b><u style="left:${pc(mx)}"></u>`;
 }
 
 function renderPlanInfo(t) {
@@ -2241,7 +2301,7 @@ function renderPlanInfo(t) {
   $("plInfo").hidden = false;
   $("plInfo").innerHTML = `<div class="hd"><b>${esc(f.callsign)}</b><span class="muted">${esc(s ? (s.kind === "gate" ? s.fix + " " + s.star : s.dep + " " + s.route) : "")}${s && s.rwy ? " → " + esc(s.rwy) : ""}</span><button type="button" data-unsel="1">✕</button></div>
     <div>${where}</div>
-    <div>wanted to land <b>${fmtZ(f.U)}</b> · lands <b>${fmtZ(f.landT)}</b>${f.delayMin >= 1 ? ` · delay <b>${Math.round(f.delayMin)} min</b> (${[f.speedMin >= 0.5 && Math.round(f.speedMin) + " speed", f.holdMin >= 0.5 && Math.round(f.holdMin) + " holding", f.edctMin >= 0.5 && Math.round(f.edctMin) + " on the ground"].filter(Boolean).join(", ")})` : " · on time"}</div>`;
+    <div>wanted to land <b>${fmtZ(f.U)}</b> · lands <b>${fmtZ(f.landT)}</b>${f.delayMin >= 1 ? ` · delay <b>${Math.round(f.delayMin)} min</b> (${[f.stretchMin >= 0.5 && Math.round(f.stretchMin) + " slowed for MIT", f.upstreamMin >= 0.5 && Math.round(f.upstreamMin) + " MIT upstream", f.speedMin >= 0.5 && Math.round(f.speedMin) + " speed", f.holdMin >= 0.5 && Math.round(f.holdMin) + " holding", f.edctMin >= 0.5 && Math.round(f.edctMin) + " on the ground"].filter(Boolean).join(", ")})` : " · on time"}</div>`;
 }
 $("plInfo").addEventListener("click", e => { if (e.target.closest("[data-unsel]")) { pl.sel = -1; drawPlanFrame(true); } });
 

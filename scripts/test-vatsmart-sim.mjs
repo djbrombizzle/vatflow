@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import {
   pathModel, sAtMin, pointAtS, flightAt, demandHours, makeFlights, runSim, simNow, simStats, aarForDelay,
-  assignStacks, drawnPath, gcNm, destPoint, SIM_ENTRY_NM, SPEED_ABSORB_MIN,
+  assignStacks, drawnPath, gcNm, destPoint, SIM_ENTRY_NM, SPEED_ABSORB_MIN, mitMinutes, mitRate, landedRate, MIT_STRETCH,
 } from "../shared/vatsmart-sim.js";
 
 let passed = 0;
@@ -141,6 +141,59 @@ t("runSim drops flights on a stream with no path", () => {
   const s = runSim({ flights: [{ id: 0, callsign: "A", stream: "Z", U: T0 }], models, aar: 40 });
   assert.equal(s.flights.length, 0);
   assert.equal(s.dropped.length, 1);
+});
+
+t("mitMinutes / mitRate: miles in trail at the gate fix's speed", () => {
+  /* the north gate fix is 60 nm out: 300 kt there, so 20 MIT = 4 min = 15/hr */
+  assert.ok(Math.abs(mitMinutes(models.N, 20) - 4) < 1e-9);
+  assert.ok(Math.abs(mitRate(models.N, 20) - 15) < 1e-9);
+  assert.equal(mitMinutes(models.N, 0), 0);
+  assert.equal(mitRate(models.N, 0), Infinity);
+});
+
+t("runSim: MIT spaces a stream at its gate; the other stream fills the gaps", () => {
+  /* 6 on N and 6 on W all wanting the same minute; AAR 60 (1 min), N on 20 MIT (4 min) */
+  const flights = Array.from({ length: 12 }, (_, i) => ({ id: i, callsign: "A" + i, stream: i < 6 ? "N" : "W", U: T0 }));
+  const s = runSim({ flights, models, aar: 60, mit: { N: 20 } });
+  const n = s.flights.filter(f => f.stream === "N").map(f => f.landT).sort((a, b) => a - b);
+  for (let i = 1; i < n.length; i++) assert.ok(n[i] - n[i - 1] >= 4 * MIN - 1, "N spaced 4 min");
+  const all = s.flights.map(f => f.landT).sort((a, b) => a - b);
+  for (let i = 1; i < all.length; i++) assert.ok(all[i] - all[i - 1] >= MIN - 1, "runway 1 min");
+  /* W isn't stuck behind N's MIT: all of W is down in the first 7 minutes */
+  assert.ok(Math.max(...s.flights.filter(f => f.stream === "W").map(f => f.landT)) <= T0 + 7 * MIN);
+  assert.equal(Math.max(...n), T0 + 20 * MIN);
+  /* MIT delay goes before the gate (stretch, then upstream), not into the gate hold */
+  const lastN = s.flights.find(f => f.landT === T0 + 20 * MIN);
+  /* with no MIT it would have landed at minute 5 (N first, a minute apart), so 15 of its 20 are MIT */
+  assert.ok(Math.abs(lastN.mitMin - 15) < 1e-9, String(lastN.mitMin));
+  assert.ok(Math.abs(lastN.stretchMin - Math.min(lastN.mitMin, models.N.gateMin * MIT_STRETCH)) < 1e-9);
+  assert.ok(Math.abs(lastN.stretchMin + lastN.upstreamMin - lastN.mitMin) < 1e-9);
+  assert.ok(Math.abs(lastN.mitMin + lastN.rwyMin - lastN.delayMin) < 1e-9);
+  const p = flightAt(lastN, models.N, lastN.entryT + MIN);
+  assert.equal(p.mit, true);
+  assert.ok(p.gs < 440);
+  /* lands exactly at A whatever the split */
+  assert.ok(flightAt(lastN, models.N, lastN.landT - 2000).remNm < 1);
+  const st = simStats(s, T0);
+  assert.ok(st.mitDelayed >= 4);
+  assert.ok(Math.abs(st.byStream.N.maxMit - 15) < 1e-9);
+  /* plenty of room under the MIT: no MIT delay is reported even with a runway queue */
+  const roomy = runSim({ flights, models, aar: 20, mit: { N: 5 } });
+  assert.ok(roomy.flights.every(f => f.mitMin < 1e-9));          // 5 MIT = 1 min, the runway is 3
+  assert.equal(st.byStream.N.peakHr, 6);
+  /* in ground mode the MIT delay is an EDCT too */
+  const g = runSim({ flights, models, aar: 60, mit: { N: 20 }, mode: "ground" });
+  assert.ok(g.flights.every(f => f.holdMin === 0 && f.stretchMin === 0 && Math.abs(f.edctMin - f.delayMin) < 1e-9));
+});
+
+t("landedRate and the peak achieved rate", () => {
+  const flights = Array.from({ length: 30 }, (_, i) => ({ id: i, callsign: "A" + i, stream: "N", U: T0 }));
+  const s = runSim({ flights, models, aar: 20 });       // one every 3 min
+  assert.equal(landedRate(s, T0 + 30 * MIN), 11);       // 0, 3, ... 30
+  assert.equal(landedRate(s, T0 + 87 * MIN), 20);       // a full hour at the AAR
+  const st = simStats(s, T0);
+  assert.equal(st.maxRate, 20);
+  assert.ok(st.maxRateT >= T0 + 57 * MIN);
 });
 
 console.log(`\n${passed} passed`);
