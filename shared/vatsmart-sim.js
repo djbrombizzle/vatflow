@@ -199,58 +199,116 @@ export function makeFlights({ hours, streams, seed = 1 }) {
 
 /* ---------------- the run ---------------- */
 
+/** MIT (nm) at a stream's gate fix as minutes between aircraft, at the sim's speed there. */
+export function mitMinutes(m, nm) {
+  return m && +nm > 0 ? +nm / speedAt(m.gateRemNm) * 60 : 0;
+}
+/** Most arrivals per hour a stream can deliver with `nm` miles in trail at its gate fix (Infinity with none). */
+export function mitRate(m, nm) {
+  const g = mitMinutes(m, nm);
+  return g > 0 ? 60 / g : Infinity;
+}
+/** Share of the en-route leg (entry to gate fix) that can be stretched by speed and vectors for MIT. */
+export const MIT_STRETCH = 0.5;
+
 /**
- * Land `flights` ({ id, callsign, stream, U }) on one runway queue at `aar`/hr, first come
- * first served by U. models: { [stream id]: pathModel }. mode "air" holds at the gate fix,
- * "ground" gives each delayed flight an EDCT instead. Flights on a stream with no model
+ * Land `flights` ({ id, callsign, stream, U }) at `aar`/hr. models: { [stream id]: pathModel }.
+ * mit: { [stream id]: nm } in trail at that stream's gate fix. Each landing goes to whichever
+ * stream's next arrival can land first (no earlier than its U, its stream's MIT behind the one
+ * ahead on that stream, and 60/AAR behind the last landing). Delay from the MIT is taken before
+ * the gate fix: the en-route leg stretched by up to MIT_STRETCH, the rest upstream of the
+ * sim's entry point. Delay from the runway is speed control then holding at the gate fix.
+ * mode "ground" puts all of it on the ground as an EDCT. Flights on a stream with no model
  * are dropped (listed in `dropped`).
  */
-export function runSim({ flights, models, aar, mode = "air", absorbMin = SPEED_ABSORB_MIN }) {
+export function runSim({ flights, models, aar, mode = "air", absorbMin = SPEED_ABSORB_MIN, mit = {} }) {
   const gap = HOUR / Math.max(1, +aar || 1);
-  const out = [], dropped = [];
-  let last = -Infinity;
-  for (const f of [...(flights || [])].sort((a, b) => a.U - b.U)) {
-    const m = models && models[f.stream];
-    if (!m) { dropped.push(f); continue; }
-    const A = Math.max(f.U, last + gap);
-    last = A;
-    const delayMin = (A - f.U) / MIN;
-    let speedMin = 0, holdMin = 0, edctMin = 0;
-    if (mode === "ground") edctMin = delayMin;
-    else { speedMin = Math.min(delayMin, absorbMin); holdMin = delayMin - speedMin; }
-    const entryT = f.U - m.flyMin * MIN + edctMin * MIN;
-    const gateT = entryT + m.gateMin * MIN;
-    out.push({ ...f, A, landT: A, delayMin, speedMin, holdMin, edctMin, entryT, gateT, holdEnd: gateT + holdMin * MIN });
+  const queues = new Map(), dropped = [], out = [];
+  for (const f of [...(flights || [])].sort((a, b) => a.U - b.U || a.id - b.id)) {
+    if (!models || !models[f.stream]) { dropped.push(f); continue; }
+    if (!queues.has(f.stream)) queues.set(f.stream, []);
+    queues.get(f.stream).push(f);
   }
+  const spacing = new Map([...queues.keys()].map(k => [k, mitMinutes(models[k], mit && mit[k]) * MIN]));
+  const landed = sequence(queues, gap, spacing);
+  /* MIT delay = how much later each flight lands than it would with no MIT anywhere */
+  const anyMit = [...spacing.values()].some(v => v > 0);
+  const free = anyMit ? sequence(queues, gap, new Map()) : landed;
+  for (const [f, A] of landed) {
+    const m = models[f.stream];
+    const delayMin = (A - f.U) / MIN;
+    const mitMin = Math.max(0, Math.min(delayMin, (A - free.get(f)) / MIN));
+    const rwyMin = delayMin - mitMin;
+    let speedMin = 0, holdMin = 0, edctMin = 0, stretchMin = 0, upstreamMin = 0;
+    if (mode === "ground") edctMin = delayMin;
+    else {
+      speedMin = Math.min(rwyMin, absorbMin); holdMin = rwyMin - speedMin;
+      stretchMin = Math.min(mitMin, m.gateMin * MIT_STRETCH); upstreamMin = mitMin - stretchMin;
+    }
+    const entryT = f.U - m.flyMin * MIN + (edctMin + upstreamMin) * MIN;
+    const gateT = entryT + (m.gateMin + stretchMin) * MIN;
+    out.push({ ...f, A, landT: A, delayMin, mitMin, rwyMin, speedMin, holdMin, edctMin, stretchMin, upstreamMin, entryT, gateT, holdEnd: gateT + holdMin * MIN });
+  }
+  out.sort((a, b) => a.id - b.id);
   const start = out.length ? Math.min(...out.map(f => f.entryT)) : 0;
   const end = out.length ? Math.max(...out.map(f => f.landT)) : 0;
   return { flights: out, dropped, aar: +aar, mode, gapMin: gap / MIN, start, end };
 }
 
+/* Landing times (Map flight → ms): each slot to whichever stream's next arrival can land
+   first, no earlier than its U, its stream's spacing behind the last on that stream, and
+   `gap` behind the last landing. */
+function sequence(queues, gap, spacing) {
+  const head = new Map([...queues.keys()].map(k => [k, 0])), lastS = new Map(), out = new Map();
+  let lastR = -Infinity, left = [...queues.values()].reduce((a, q) => a + q.length, 0);
+  while (left-- > 0) {
+    let best = null;
+    for (const [sid, q] of queues) {
+      const i = head.get(sid);
+      if (i >= q.length) continue;
+      const f = q[i], sp = spacing.get(sid) || 0;
+      const e = Math.max(f.U, sp > 0 && lastS.has(sid) ? lastS.get(sid) + sp : -Infinity, lastR + gap);
+      if (!best || e < best.e || (e === best.e && (f.U < best.f.U || (f.U === best.f.U && f.id < best.f.id)))) best = { sid, f, e };
+    }
+    head.set(best.sid, head.get(best.sid) + 1);
+    lastR = best.e; lastS.set(best.sid, best.e);
+    out.set(best.f, best.e);
+  }
+  return out;
+}
+
 /**
  * Where flight `f` (from runSim) is at time t: null before it enters or after it lands,
- * else { phase: "enroute" | "hold" | "inbound", ll, hdg, alt, gs, remNm }.
+ * else { phase: "enroute" | "hold" | "inbound", ll, hdg, alt, gs, remNm, mit }.
+ * mit: it's being slowed for its stream's MIT.
  */
 export function flightAt(f, m, t) {
   if (!m || t < f.entryT || t >= f.landT) return null;
-  const e = (t - f.entryT) / MIN;
-  if (e < m.gateMin) {
-    const s = sAtMin(m, e), p = pointAtS(m, s), rem = m.total - s;
-    return { phase: "enroute", ll: p.ll, hdg: p.hdg, alt: altAt(rem), gs: speedAt(rem), remNm: rem };
+  const e = (t - f.entryT) / MIN, stretch = f.stretchMin || 0, leg = m.gateMin + stretch;
+  if (e < leg) {
+    const s = sAtMin(m, leg > 0 ? e / leg * m.gateMin : 0), p = pointAtS(m, s), rem = m.total - s;
+    return { phase: "enroute", ll: p.ll, hdg: p.hdg, alt: altAt(rem), gs: Math.round(speedAt(rem) * (leg > 0 ? m.gateMin / leg : 1)), remNm: rem, mit: stretch > 0.5 };
   }
-  if (e < m.gateMin + f.holdMin) {
+  if (e < leg + f.holdMin) {
     /* a circle that passes through the gate fix, on the right of the inbound course */
     const fix = pointAtS(m, m.gateS), lap = HOLD_LAP_MIN, r = 210 * lap / 60 / (2 * Math.PI);
     const c = destPoint(fix.ll, (fix.hdg + 90) % 360, r);
-    const ang = ((e - m.gateMin) / lap * 360 + (f.id * 47) % 360) % 360;
+    const ang = ((e - leg) / lap * 360 + (f.id * 47) % 360) % 360;
     const pos = destPoint(c, (fix.hdg + 270 + ang) % 360, r);
     const alt = Math.max(altAt(m.gateRemNm), 6000) + (f.stackLevel || 0) * 1000;
-    return { phase: "hold", ll: pos, hdg: (fix.hdg + ang + 360) % 360, alt, gs: 210, remNm: m.gateRemNm };
+    return { phase: "hold", ll: pos, hdg: (fix.hdg + ang + 360) % 360, alt, gs: 210, remNm: m.gateRemNm, mit: false };
   }
   const post = m.flyMin - m.gateMin, took = post + f.speedMin;
-  const prog = took > 0 ? (e - m.gateMin - f.holdMin) / took : 1;
+  const prog = took > 0 ? (e - leg - f.holdMin) / took : 1;
   const s = sAtMin(m, m.gateMin + prog * post), p = pointAtS(m, s), rem = m.total - s;
-  return { phase: "inbound", ll: p.ll, hdg: p.hdg, alt: altAt(rem), gs: Math.round(speedAt(rem) * (took > 0 ? post / took : 1)), remNm: rem };
+  return { phase: "inbound", ll: p.ll, hdg: p.hdg, alt: altAt(rem), gs: Math.round(speedAt(rem) * (took > 0 ? post / took : 1)), remNm: rem, mit: false };
+}
+
+/** Landings in the 60 minutes up to t: the rate the runway is actually achieving then. */
+export function landedRate(sim, t) {
+  let n = 0;
+  for (const f of sim.flights) if (f.landT <= t && f.landT > t - HOUR) n++;
+  return n;
 }
 
 /** Counts at time t: in the air, holding (also per stream), landed, still to come. */
@@ -284,8 +342,10 @@ export function simStats(sim, startMs) {
     if (a >= 0 && a < n) slots[a].planned++;
     if (b >= 0 && b < n) slots[b].landed++;
   }
-  let peakHold = 0, peakHoldT = 0, clearT = 0;
+  let peakHold = 0, peakHoldT = 0, clearT = 0, maxRate = 0, maxRateT = 0;
   for (let t = sim.start; t <= sim.end; t += MIN) {
+    const r = landedRate(sim, t);
+    if (r > maxRate) { maxRate = r; maxRateT = t; }
     let h = 0;
     for (const f of fl) if (t >= f.gateT && t < f.holdEnd) h++;
     const k = idx(t);
@@ -296,10 +356,20 @@ export function simStats(sim, startMs) {
   const delays = fl.map(f => f.delayMin);
   const byStream = {};
   for (const f of fl) {
-    const b = byStream[f.stream] = byStream[f.stream] || { n: 0, maxHold: 0, delaySum: 0, maxDelay: 0 };
+    const b = byStream[f.stream] = byStream[f.stream] || { n: 0, maxHold: 0, delaySum: 0, maxDelay: 0, maxMit: 0, mitSum: 0, peakHr: 0 };
     b.n++; b.delaySum += f.delayMin; b.maxHold = Math.max(b.maxHold, f.holdMin); b.maxDelay = Math.max(b.maxDelay, f.delayMin);
+    b.maxMit = Math.max(b.maxMit, f.mitMin || 0); b.mitSum += f.mitMin || 0;
   }
   for (const k in byStream) byStream[k].avgDelay = byStream[k].delaySum / byStream[k].n;
+  /* each stream's busiest 60 minutes of wanted landings (by U) */
+  const wanted = {};
+  for (const f of fl) (wanted[f.stream] = wanted[f.stream] || []).push(f.U);
+  for (const [k, list] of Object.entries(wanted)) {
+    list.sort((a, b) => a - b);
+    let j = 0, best = 0;
+    for (let i = 0; i < list.length; i++) { while (list[i] - list[j] >= HOUR) j++; best = Math.max(best, i - j + 1); }
+    byStream[k].peakHr = best;
+  }
   const total = fl.length;
   return {
     slots, total,
@@ -310,7 +380,9 @@ export function simStats(sim, startMs) {
     avgDelay: total ? delays.reduce((a, b) => a + b, 0) / total : 0,
     totalDelay: delays.reduce((a, b) => a + b, 0),
     maxHold: total ? Math.max(...fl.map(f => f.holdMin)) : 0,
-    peakHold, peakHoldT, clearT, byStream,
+    mitDelayed: fl.filter(f => (f.mitMin || 0) >= 1).length,
+    maxMit: total ? Math.max(...fl.map(f => f.mitMin || 0)) : 0,
+    peakHold, peakHoldT, clearT, byStream, maxRate, maxRateT,
     firstLand: total ? fl[0].landT : 0, lastLand: total ? Math.max(...fl.map(f => f.landT)) : 0,
   };
 }
@@ -319,8 +391,8 @@ export function simStats(sim, startMs) {
  * Lowest AAR (1-200) that keeps every delay at or under maxDelayMin for these flights,
  * or null if even 200 doesn't. Delay only grows as the AAR falls, so a binary search works.
  */
-export function aarForDelay({ flights, models, maxDelayMin }) {
-  const worst = aar => { const s = runSim({ flights, models, aar }); return s.flights.length ? Math.max(...s.flights.map(f => f.delayMin)) : 0; };
+export function aarForDelay({ flights, models, maxDelayMin, mit = {} }) {
+  const worst = aar => { const s = runSim({ flights, models, aar, mit }); return s.flights.length ? Math.max(...s.flights.map(f => f.delayMin)) : 0; };
   if (worst(200) > maxDelayMin) return null;
   let lo = 1, hi = 200;
   while (lo < hi) { const mid = (lo + hi) >> 1; if (worst(mid) <= maxDelayMin) hi = mid; else lo = mid + 1; }
