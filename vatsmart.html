@@ -228,6 +228,57 @@
   .cfgsum b { color: var(--text); }
   .cfgsum .tight { font-weight: 700; }
 
+  /* PLAN tab: event simulation */
+  .planview .side { overflow: hidden; }
+  .plscroll { overflow-y: auto; flex: 1; min-height: 0; }
+  .plform { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .plform label { display: flex; flex-direction: column; gap: 3px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; color: var(--dim); min-width: 0; }
+  .plform input, .plform select, .strm select, .simbar select { width: 100%; font-family: var(--mono); font-size: 12px; color: var(--text); background: var(--panel2); border: 1px solid #2a3644; border-radius: 6px; padding: 5px 6px; min-width: 0; }
+  .plform .w2 { grid-column: span 2; } .plform .w3 { grid-column: 1 / -1; }
+  .plform .btns { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+  .plform .btns button { font-size: 11px; padding: 5px 8px; }
+  .plsec { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .plsec:last-child { border-bottom: none; }
+  .plh { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--dim); margin-bottom: 6px; display: flex; gap: 8px; align-items: baseline; }
+  .plh span { margin-left: auto; letter-spacing: 0.02em; }
+  .strm { display: grid; grid-template-columns: 16px minmax(0, 1fr) 50px 22px; gap: 6px; align-items: center; font-size: 11px; padding: 2px 0; }
+  .strm.off .nm, .strm.off select { opacity: 0.45; }
+  .strm .nm { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .strm .nm b { flex: none; }
+  .strm .nm select { flex: 1; font-size: 11px; padding: 3px 4px; }
+  .strm .nm .why { color: var(--red); font-size: 10px; }
+  .strm input[type=number] { width: 50px; font-size: 11px; padding: 3px 5px; }
+  .strm .x { padding: 1px 5px; font-size: 11px; }
+  .strm input[type=checkbox] { margin: 0; }
+  .pladd { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 6px; margin-top: 8px; }
+  .pladd input { font-size: 11px; padding: 5px 6px; text-transform: uppercase; min-width: 0; }
+  .pladd button { font-size: 11px; padding: 4px 8px; }
+  .plkpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .plk { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; min-width: 0; }
+  .plk .k { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; }
+  .plk .v { font-family: var(--mono); font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plk.amber .v { color: var(--amber); } .plk.red .v { color: var(--red); } .plk.green .v { color: var(--green); }
+  .pladv { font-size: 12px; line-height: 1.55; margin-top: 8px; color: var(--muted); }
+  .pladv b { color: var(--text); }
+  .pladv .bad { color: var(--red); }
+  #plChart svg { display: block; width: 100%; height: auto; cursor: pointer; }
+  #plChart text { font-family: var(--mono); font-size: 9px; fill: var(--muted); }
+  #plGates td, #plGates th { padding: 2px 4px; font-size: 11px; text-align: right; }
+  #plGates td:first-child, #plGates th:first-child { text-align: left; }
+  #plGates th { color: var(--dim); font-weight: 400; font-size: 9.5px; letter-spacing: 0.08em; }
+  #planMap { position: absolute; inset: 0; background: #0b1016; }
+  .simbar { position: absolute; left: 10px; right: 10px; bottom: 22px; z-index: 600; display: flex; gap: 8px; align-items: center; background: #0e1319f2; border: 1px solid #2a3644; border-radius: 8px; padding: 6px 10px; flex-wrap: wrap; }
+  .simbar button { padding: 4px 10px; font-size: 13px; }
+  .simbar select { width: auto; font-size: 11px; padding: 4px 5px; }
+  .simbar input[type=range] { flex: 1; min-width: 120px; accent-color: var(--amber); }
+  .simbar .clk { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--amber); min-width: 58px; }
+  .simbar .now { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .simbar .now b { color: var(--text); }
+  .simbar .now .h { color: var(--amber); }
+  #plInfo { bottom: 74px; }
+  .holdtag { font: 700 10px var(--mono); color: #ffd166; text-shadow: 0 0 3px #000, 0 0 2px #000; white-space: nowrap; }
+  .plwait { padding: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
   @media (max-width: 900px) {
     .mapview { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(420px, 1fr); height: auto; }
     .side { max-height: 320px; }
@@ -277,6 +328,7 @@
   <div class="tabs" id="tabs" hidden>
     <button type="button" class="tab" data-tab="overview" aria-selected="true">OVERVIEW</button>
     <button type="button" class="tab" data-tab="map" aria-selected="false">MAP</button>
+    <button type="button" class="tab" data-tab="plan" aria-selected="false" title="Plan an event: set an AAR, the demand and the routes, and watch it fly">PLAN</button>
     <span class="sp"></span>
     <button type="button" id="cfgBtn" title="Runway configuration and gate closures for this field (this page only)">FIELD CONFIG</button>
   </div>
@@ -370,6 +422,57 @@
     </div>
   </div>
 
+  <div id="planView" hidden>
+    <div class="mapview planview">
+      <aside class="side">
+        <h2>EVENT SIM <span class="r muted">what-if · nothing is sent</span></h2>
+        <div class="plscroll">
+          <form class="plform" id="plForm" autocomplete="off">
+            <label>AAR /HR<input id="plAar" type="number" min="1" max="200" title="Arrival rate to land against: the runway takes one every 60/AAR minutes"></label>
+            <label>PEAK DEMAND /HR<input id="plPeak" type="number" min="1" max="300" title="Arrivals per hour wanting to land in the busiest hour"></label>
+            <label>HOURS<input id="plHours" type="number" min="1" max="8" title="How long the bank of arrivals lasts"></label>
+            <label class="w2">DATE (UTC)<input id="plDate" type="date"></label>
+            <label>START Z<input id="plStart" maxlength="4" placeholder="2300" spellcheck="false" title="First landing hour, HHMM Zulu"></label>
+            <label class="w3">DELAY TAKEN<select id="plMode" title="Where the delay goes when demand is over the AAR"><option value="air">Airborne: speed control, then hold at the gate fix</option><option value="ground">Ground: EDCTs at the origin</option></select></label>
+            <label class="w3">DEMAND SHAPE<select id="plShape"></select></label>
+            <label class="w3">VATSIM EVENT<select id="plEvent"></select></label>
+            <div class="btns">
+              <button type="button" id="plEvtRoutes" title="Add the event's published routes as streams (turns the per-gate streams off)">USE EVENT ROUTES</button>
+              <button type="button" id="plReseed" title="Same demand, a new random spread of arrivals over the hours and routes">RESHUFFLE TRAFFIC</button>
+              <button type="button" id="plReset" title="Back to this field's defaults">RESET</button>
+            </div>
+          </form>
+          <div class="plsec">
+            <div class="plh">ROUTES <span class="muted">weight = share of arrivals</span></div>
+            <div id="plStreams"></div>
+            <div class="pladd">
+              <input id="plDep" placeholder="FROM" maxlength="4" spellcheck="false" title="Origin airport (ICAO)">
+              <input id="plRoute" placeholder="ROUTE, e.g. DCT OMN BAIRN4" spellcheck="false" title="Route string as filed, ending in the STAR">
+              <button type="button" id="plAdd">ADD</button>
+            </div>
+          </div>
+          <div class="plsec"><div class="plkpis" id="plKpis"></div><div class="pladv" id="plAdvice"></div></div>
+          <div class="plsec"><div class="plh">LANDINGS / 15 MIN <span class="muted">outline wanted · fill landed · line holding</span></div><div id="plChart"></div></div>
+          <div class="plsec"><div class="plh">BY ROUTE</div><table id="plGates"></table></div>
+        </div>
+      </aside>
+      <div class="mapbox">
+        <div id="planMap"></div>
+        <div class="maplegend" id="planLegend"></div>
+        <div class="acinfo" id="plInfo" hidden></div>
+        <div class="simbar">
+          <button type="button" id="plPlay" title="Play / pause (space)">▶</button>
+          <button type="button" id="plBack" title="Back to the start">⏮</button>
+          <select id="plSpeed" title="Simulated minutes per second"><option value="1">1 min/s</option><option value="2">2 min/s</option><option value="5" selected>5 min/s</option><option value="10">10 min/s</option><option value="20">20 min/s</option></select>
+          <span class="clk" id="plClock">—</span>
+          <input type="range" id="plScrub" min="0" max="1" step="1" value="0" title="Drag to any time">
+          <span class="now" id="plNow"></span>
+          <label class="now"><input type="checkbox" id="plLabels"> TAGS</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <aside class="drawer" id="cfg" hidden>
     <h2>FIELD CONFIG <span class="muted" id="cfgApt"></span><button type="button" id="cfgClose">CLOSE</button></h2>
     <div class="bd" id="cfgBody"></div>
@@ -383,7 +486,7 @@
     ETAs over each gate fix come from the FCA Builder's engine (filed route through the STAR, climb profile, filed TAS
     corrected for winds aloft; ground flights leave in about 3 minutes or at a filed departure time within 6 hours),
     and landing is the rest of the route at 190 kt plus 1.5 minutes (calibrated on StatSim KMCO arrivals: downwind, base and final add track miles). Landings and holding are counted from the live feed while this page is open. Merge points expand each filed route back from its gate fix and compare the merged flow with the gate's share of the rate. Weather from api.weather.gov (US only).
-    The MAP tab draws suggested reroutes dashed (a CDR from the origin, or direct to the new STAR's entry fix). Runways and closed gates set under FIELD CONFIG stay in this browser and only change VATSMART's advice; the ATIS option reads the field's ATIS from the VATSIM feed, or the FAA D-ATIS (as on the D-ATIS page) when no VATSIM ATIS is online.
+    The PLAN tab is a what-if: it flies a planned bank of arrivals down the routes you set (ground speed 440 kt beyond 100 nm, 300 to 40 nm, 220 to 12 nm, 150 on final), lands them first come first served at the AAR and holds the rest at the gate fix after up to 3 minutes of speed control. The MAP tab draws suggested reroutes dashed (a CDR from the origin, or direct to the new STAR's entry fix). Runways and closed gates set under FIELD CONFIG stay in this browser and only change VATSMART's advice; the ATIS option reads the field's ATIS from the VATSIM feed, or the FAA D-ATIS (as on the D-ATIS page) when no VATSIM ATIS is online.
   </p>
 </main>
 
@@ -395,7 +498,9 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import { getAirport, loadAirports, fpFields } from "./shared/fca-metering.js";
 import { getAccessApiBase } from "./shared/vatflow-access-api.js";
-import { normPrograms, wakeFromFp, NO_GATE } from "./shared/mit-monitor.js";
+import { normPrograms, wakeFromFp, NO_GATE, gateKey } from "./shared/mit-monitor.js";
+import { pathModel, drawnPath, demandHours, makeFlights, runSim, flightAt, simNow, simStats, aarForDelay, assignStacks, gateColors,
+  destPoint as simDest, bearing as simBrg, gcNm as simNm, SIM_ENTRY_NM } from "./shared/vatsmart-sim.js";
 import { gridWindow } from "./shared/event-planner.js";
 import { flightCategory as metarCategory } from "./shared/erids-data.js";
 import { VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
@@ -761,7 +866,9 @@ async function fetchEvents() {
       const set = new Set();
       for (const a of raw.airports || []) if (a && a.icao) set.add(String(a.icao).toUpperCase());
       for (const r of raw.routes || []) if (r && r.arrival) set.add(String(r.arrival).toUpperCase());
-      return { name: raw.name || "Event", startMs, endMs, airports: [...set], link: raw.link || "" };
+      const routes = (raw.routes || []).filter(r => r && r.arrival && r.route)
+        .map(r => ({ dep: String(r.departure || "").toUpperCase(), arr: String(r.arrival).toUpperCase(), route: String(r.route).toUpperCase() }));
+      return { id: raw.id != null ? String(raw.id) : raw.name, name: raw.name || "Event", startMs, endMs, airports: [...set], link: raw.link || "", routes };
     }).filter(Boolean);
   } catch (e) { console.warn("VATSIM events:", e); }
   render();
@@ -853,16 +960,17 @@ function renderPills() {
 function render() {
   renderPills(); renderPfBtn();
   $("osBanner").hidden = true;
-  if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true; $("tabs").hidden = true; return; }
+  if (!st.airport) { $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true; $("planView").hidden = true; $("tabs").hidden = true; return; }
   if (!st.aptLL) st.aptLL = getAirport(st.airport);
   if (!st.aptLL) {
-    $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true;
+    $("empty").hidden = false; $("app").hidden = true; $("mapView").hidden = true; $("planView").hidden = true;
     $("empty").innerHTML = st.airportsReady ? `Unknown airport <b>${esc(st.airport)}</b>.` : `Loading the airport database…`;
     return;
   }
   $("empty").hidden = true; $("tabs").hidden = false;
-  $("app").hidden = tab !== "overview"; $("mapView").hidden = tab !== "map";
-  document.body.classList.toggle("maptab", tab === "map");
+  $("app").hidden = tab !== "overview"; $("mapView").hidden = tab !== "map"; $("planView").hidden = tab !== "plan";
+  document.body.classList.toggle("maptab", tab !== "overview");
+  if (tab !== "plan") planPause();
   const now = Date.now();
   const prog = normPrograms(st.hub.rates)[st.airport] || null;
   const wx = st.wxProps && st.wxFor === st.airport ? gridWindow(st.wxProps, now, now + HORIZON_MIN * 60000) : null;
@@ -882,6 +990,7 @@ function render() {
   renderTabs(); renderCfgSummary(sit);
   if (st.cfgOpen) renderCfg(sit);
   if (tab === "map") { renderBigMap(sit); renderAttn(sit); renderAcInfo(sit); return; }
+  if (tab === "plan") { renderPlan(sit); return; }
   $("aar").placeholder = prog ? String(prog.aar) : "/hr";
   $("aar").title = prog
     ? "Program AAR " + prog.aar + ". Type a rate to plan against it on this page only (the program doesn't change); clear it to go back."
@@ -1283,13 +1392,14 @@ function renderEvent(s) {
 
 /* ---------------- tabs ---------------- */
 
-let tab = location.hash === "#map" ? "map" : location.hash === "#overview" ? "overview" : prefs.tab === "map" ? "map" : "overview";
+const TABS = ["overview", "map", "plan"];
+let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : TABS.includes(prefs.tab) ? prefs.tab : "overview";
 function setTab(t) {
-  tab = t === "map" ? "map" : "overview";
+  tab = TABS.includes(t) ? t : "overview";
   prefs.tab = tab; savePrefs();
   history.replaceState(null, "", location.pathname + location.search + "#" + tab);
   render();
-  if (tab === "map") sizeMapView();
+  if (tab !== "overview") sizeMapView();
 }
 function renderTabs() {
   for (const b of document.querySelectorAll("#tabs .tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
@@ -1297,13 +1407,15 @@ function renderTabs() {
 $("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) setTab(b.dataset.tab); });
 /* the map fills the window below the header */
 function sizeMapView() {
-  const el = document.querySelector(".mapview");
-  if (!el || $("mapView").hidden || innerWidth <= 900) { if (el) el.style.height = ""; return; }
+  const box = tab === "plan" ? $("planView") : $("mapView");
+  const el = box.querySelector(".mapview");
+  if (!el || box.hidden || innerWidth <= 900) { if (el) el.style.height = ""; if (pl.map) pl.map.invalidateSize(); return; }
   el.style.height = Math.max(480, innerHeight - el.getBoundingClientRect().top - 10) + "px";
   if (bigMap) bigMap.invalidateSize();
+  if (pl.map) pl.map.invalidateSize();
 }
 addEventListener("resize", sizeMapView);
-addEventListener("hashchange", () => { const t = location.hash.slice(1); if ((t === "map" || t === "overview") && t !== tab) setTab(t); });
+addEventListener("hashchange", () => { const t = location.hash.slice(1); if (TABS.includes(t) && t !== tab) setTab(t); });
 
 /* ---------------- field config drawer ---------------- */
 
@@ -1669,6 +1781,496 @@ function renderAcInfo(s) {
     ${prop.map(x => `<div class="rte new">PROPOSED ${x.move.kind === "cdr" ? `CDR ${esc(x.move.code)}${x.move.coordReq ? " (coord req)" : ""}: ${esc(x.move.route)}` : `DCT ${esc(x.move.fix)} ${esc(x.move.star)}`} → ${esc(x.move.to)}${x.move.extraNm ? ` · +${x.move.extraNm} nm` : ""}${x.path.length < 2 ? " (route not drawn: nav data still loading or a fix isn't in navdata)" : ""}</div>`).join("")}
     ${list.length ? `<ul>${list.map(x => `<li><span style="color:${SEV_COL[x.sev]}">${esc(SHORT[x.kind])}</span> ${esc(x.text)}</li>`).join("")}</ul>` : `<div class="muted" style="margin-top:4px">Nothing to fix on this one.</div>`}`;
 }
+
+/* ---------------- PLAN tab: event simulation ---------------- */
+/* An AAR, a demand curve and the routes each stream flies; shared/vatsmart-sim.js flies it.
+   Kept per field in this browser; never sent anywhere. */
+
+const HOUR_MS = 3600000, MIN_MS = 60000;
+const pl = {
+  map: null, stat: null, dyn: null, fitted: "", geoKey: "", simKey: "", streams: [], models: {}, colors: {}, why: {},
+  flights: [], sim: null, stats: null, need: null, t: 0, playing: false, raf: 0, lastTs: 0, lastDraw: 0, lastSide: 0,
+  markers: new Map(), holdTags: new Map(), sel: -1, formFor: "", meta: {},
+};
+const clampN = (v, lo, hi, d) => { v = Math.round(+v); return isFinite(v) && v >= lo ? Math.min(hi, v) : d; };
+function pastHere() {
+  return ((st.past && st.past.airports && st.past.airports[st.airport]) || []).filter(e => e && e.peakArr >= 8 && Array.isArray(e.arrByHour))
+    .sort((a, b) => b.peakArr - a.peakArr);
+}
+function eventsHere() {
+  const now = Date.now();
+  return st.events.filter(e => e.endMs > now && (e.airports.includes(st.airport) || e.routes.some(r => r.arr === st.airport)))
+    .sort((a, b) => a.startMs - b.startMs);
+}
+function planDefaults() {
+  const prog = normPrograms(st.hub.rates)[st.airport] || null;
+  const aar = localAar() || (prog && prog.aar) || 40;
+  const ev = eventsHere()[0], past = pastHere();
+  const startMs = ev ? Math.floor(ev.startMs / HOUR_MS) * HOUR_MS : Math.ceil(Date.now() / HOUR_MS) * HOUR_MS;
+  const hours = ev ? clampN((ev.endMs - ev.startMs) / HOUR_MS, 1, 8, 3) : 3;
+  const peak = past.length ? Math.max(aar + 5, Math.round(past[0].peakArr * 1.15)) : Math.round(aar * 1.25);
+  return { aar, peak, hours, startMs, shape: "event", mode: "air", seed: 1, event: ev ? ev.id : "", gates: {}, routes: [] };
+}
+function planFor() {
+  prefs.plan = prefs.plan || {};
+  if (!prefs.plan[st.airport]) prefs.plan[st.airport] = planDefaults();
+  return prefs.plan[st.airport];
+}
+function planSave() { savePrefs(); renderPlan(st.sit); }
+
+/* the streams: one per STAR gate (its entry fix and STAR picked from the field's STARs), plus routes added by hand or from the event */
+function planStreams(plan) {
+  const byGate = {};
+  for (const x of st.stars) (byGate[x.gate] = byGate[x.gate] || []).push(x);
+  const brg = gateBearings(st.stars, st.aptLL), out = [];
+  const off = (a, b) => Math.abs(((a - b) + 540) % 360 - 180);
+  for (const g of Object.keys(byGate).sort()) {
+    const seen = new Set(), opts = [];
+    for (const x of byGate[g]) { const k = x.fix + " " + x.star; if (!seen.has(k)) { seen.add(k); opts.push({ ...x, key: k }); } }
+    opts.sort((a, b) => off(simBrg(st.aptLL[0], st.aptLL[1], a.ll[0], a.ll[1]), brg[g]) - off(simBrg(st.aptLL[0], st.aptLL[1], b.ll[0], b.ll[1]), brg[g]) || a.key.localeCompare(b.key));
+    const o = plan.gates[g] || {}, pick = opts.find(x => x.key === o.opt) || opts[0];
+    out.push({ id: "G:" + g, kind: "gate", gate: g, fix: pick.fix, star: pick.star, ll: pick.ll, opts, weight: o.weight ?? 1, on: o.on !== false });
+  }
+  for (const r of plan.routes) {
+    const star = (r.route.split(/\s+/).reverse().find(t => /^[A-Z]{3,5}\d[A-Z]?$/.test(t)) || "");
+    out.push({ id: "R:" + r.id, kind: "route", rid: r.id, gate: star ? gateKey(star) : "DCT", star, dep: r.dep, route: r.route, src: r.src, weight: r.weight ?? 1, on: r.on !== false });
+  }
+  return out;
+}
+
+/* a stream's path from the route engine, ending on the final of the arrival runway nearest the STAR's last fix */
+function streamPath(s, rwyEnds) {
+  let anchors;
+  if (s.kind === "gate") {
+    const b = simBrg(st.aptLL[0], st.aptLL[1], s.ll[0], s.ll[1]), d = simNm(st.aptLL[0], st.aptLL[1], s.ll[0], s.ll[1]);
+    const origin = simDest(st.aptLL, b, Math.max(d + 120, SIM_ENTRY_NM + 30));
+    anchors = buildRouteAnchors({ dep: "", arr: st.airport, route: `${s.fix} ${s.star}` }, { origin }).anchors;
+  } else {
+    if (!getAirport(s.dep)) return { why: "unknown origin " + s.dep };
+    const r = buildRouteAnchors({ dep: s.dep, arr: st.airport, route: s.route });
+    anchors = r.anchors;
+    if (r.unresolved && r.unresolved.length) s.unresolved = r.unresolved;
+  }
+  const path = [], at = [];
+  anchors.forEach((a, i) => {
+    if (!a.ll) return;
+    const prev = path[path.length - 1];
+    if (!prev || prev[0] !== a.ll[0] || prev[1] !== a.ll[1]) path.push(a.ll.slice());
+    at[i] = path.length - 1;
+  });
+  if (path.length < 2) return { why: "route didn't resolve" };
+  let gi = -1;
+  if (s.kind === "gate") { const i = anchors.findIndex(a => a.name === s.fix && a.ll); gi = i >= 0 ? at[i] : -1; }
+  else { const g = gateFixFor(anchors, s.gate); gi = g ? at[g.index] : -1; }
+  if (rwyEnds.length && path.length >= 2) {
+    const last = path.length >= 3 ? path[path.length - 2] : path[0];
+    let best = null;
+    for (const e of rwyEnds) {
+      const thr = [e[1], e[2]], faf = simDest(thr, (e[3] + 180) % 360, 10);
+      const d = simNm(last[0], last[1], faf[0], faf[1]);
+      if (!best || d < best.d) best = { d, thr, faf, id: normRwy(e[0]) };
+    }
+    path.splice(path.length - 1, 1, best.faf, best.thr);
+    s.rwy = best.id;
+    if (gi >= path.length - 2) gi = -1;
+  }
+  return { path, gi };
+}
+
+function planGeometry() {
+  const rc = runwayConfig();
+  const ends = st.ends.filter(e => rc.arr.includes(normRwy(e[0])));
+  const key = [st.airport, st.stars.length, ends.map(e => e[0]).join(","), isNavReady(),
+    pl.streams.map(s => [s.id, s.fix, s.star, s.dep, s.route].join(" ")).join("|")].join("#");
+  if (key === pl.geoKey) {
+    for (const s of pl.streams) { const o = pl.meta[s.id]; if (o) Object.assign(s, o); }
+    return;
+  }
+  pl.geoKey = key; pl.models = {}; pl.why = {}; pl.meta = {};
+  for (const s of pl.streams) {
+    let r;
+    try { r = streamPath(s, ends); } catch (e) { console.warn("plan route:", e); r = { why: "route didn't resolve" }; }
+    const m = r.path ? pathModel(r.path, r.gi) : null;
+    if (m) pl.models[s.id] = m; else pl.why[s.id] = r.why || "route didn't resolve";
+    pl.meta[s.id] = { rwy: s.rwy, unresolved: s.unresolved };
+  }
+}
+
+/* the arrivals: planned demand, or the live inbounds (by their FCA-engine landing time) on their gate's stream */
+function planFlights(plan, sit) {
+  const on = pl.streams.filter(s => s.on && pl.models[s.id]);
+  if (plan.shape === "live") {
+    if (!sit) return [];
+    const now = Date.now(), out = [];
+    for (const f of sit.flights) {
+      if (f.status === "ARRIVED" || !f.eta || f.eta < now || f.eta > now + 6 * HOUR_MS) continue;
+      const s = on.find(x => x.gate === f.gate && x.kind === "gate") || on.find(x => x.gate === f.gate);
+      if (s) out.push({ callsign: f.callsign, stream: s.id, U: f.eta });
+    }
+    return out.sort((a, b) => a.U - b.U).map((f, i) => ({ ...f, id: i }));
+  }
+  const pid = plan.shape.startsWith("past:") ? plan.shape.slice(5) : "";
+  const past = pid ? pastHere().find(e => String(e.id) === pid) : null;
+  const hours = demandHours({ startMs: plan.startMs, hours: plan.hours, peak: plan.peak, shape: past ? "past" : plan.shape, pastArrByHour: past && past.arrByHour });
+  return makeFlights({ hours, streams: on, seed: plan.seed });
+}
+
+function renderPlan(sit) {
+  if (!window.L) return;
+  if (!pl.map) {
+    pl.map = L.map("planMap", { zoomControl: true, minZoom: 3, maxZoom: 13, attributionControl: true });
+    if (window.addVatflowBasemap) window.addVatflowBasemap(pl.map);
+    pl.stat = L.layerGroup().addTo(pl.map);
+    pl.dyn = L.layerGroup().addTo(pl.map);
+    pl.map.on("click", () => { if (pl.sel >= 0) { pl.sel = -1; drawPlanFrame(true); } });
+    sizeMapView();
+  }
+  if (pl.fitted !== st.airport) { pl.map.setView(st.aptLL, 7); pl.fitted = st.airport; pl.sel = -1; setTimeout(sizeMapView, 0); }
+  const plan = planFor();
+  if (pl.formFor !== planFormKey()) fillPlanForm(plan);
+  pl.streams = planStreams(plan);
+  if (!isNavReady() || st.starsFor !== st.airport) {
+    $("plStreams").innerHTML = `<div class="plwait">Loading nav data and STARs…</div>`;
+    return;
+  }
+  planGeometry();
+  const known = sit && sit.mon ? sit.mon.colors : {};
+  pl.colors = gateColors(pl.streams.map(s => s.gate), known);
+  const flights = planFlights(plan, sit);
+  const simKey = [pl.geoKey, plan.aar, plan.mode, flights.map(f => f.callsign + f.stream + f.U).join(",")].join("#");
+  if (simKey !== pl.simKey) {
+    pl.simKey = simKey;
+    const keepT = pl.sim ? pl.t : null;
+    pl.flights = flights;
+    pl.sim = assignStacks(runSim({ flights, models: pl.models, aar: plan.aar, mode: plan.mode }));
+    pl.stats = simStats(pl.sim, plan.shape === "live" ? undefined : plan.startMs);
+    pl.need = flights.length ? aarForDelay({ flights, models: pl.models, maxDelayMin: 10 }) : null;
+    pl.t = keepT != null && keepT >= pl.sim.start && keepT <= pl.sim.end ? keepT : pl.sim.start;
+    if (pl.sel >= 0 && !pl.sim.flights[pl.sel]) pl.sel = -1;
+    for (const m of pl.markers.values()) pl.dyn.removeLayer(m);
+    pl.markers.clear();
+    for (const m of pl.holdTags.values()) pl.dyn.removeLayer(m);
+    pl.holdTags.clear();
+    drawPlanStatic();
+    renderPlanSide(plan);
+  }
+  renderPlanStreams(plan);
+  drawPlanFrame(true);
+}
+
+const planFormKey = () => [st.airport, eventsHere().map(e => e.id).join(","), pastHere().length].join("|");
+function fillPlanForm(plan) {
+  pl.formFor = planFormKey();
+  $("plAar").value = plan.aar; $("plPeak").value = plan.peak; $("plHours").value = plan.hours; $("plMode").value = plan.mode;
+  const d = new Date(plan.startMs);
+  $("plDate").value = d.toISOString().slice(0, 10);
+  $("plStart").value = String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0");
+  const past = pastHere().slice(0, 12);
+  const shapes = [["event", "Event ramp (60% · 95% · peak · ease off)"], ["flat", "Flat: the peak every hour"],
+    ...past.map(e => ["past:" + e.id, `Like ${e.name.slice(0, 40)} (${new Date(e.startMs).toISOString().slice(0, 10)}, peak ${e.peakArr} landed)`]),
+    ["live", "Live: today's inbounds by their ETA (next 6 h)"]];
+  if (!shapes.some(x => x[0] === plan.shape)) plan.shape = "event";
+  $("plShape").innerHTML = shapes.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+  $("plShape").value = plan.shape;
+  const evs = eventsHere();
+  $("plEvent").innerHTML = `<option value="">— none —</option>` + evs.map(e => `<option value="${esc(e.id)}">${esc(fmtDay(e.startMs))} ${esc(e.name.slice(0, 46))}${e.routes.some(r => r.arr === st.airport) ? " · routes" : ""}</option>`).join("");
+  $("plEvent").value = evs.some(e => e.id === plan.event) ? plan.event : "";
+  syncPlanInputs(plan);
+}
+const fmtDay = ms => new Date(ms).toISOString().slice(5, 10).replace("-", "/") + " " + fmtZ(ms);
+function syncPlanInputs(plan) {
+  const live = plan.shape === "live";
+  for (const id of ["plPeak", "plHours", "plDate", "plStart"]) $(id).disabled = live;
+  const ev = st.events.find(e => e.id === plan.event);
+  $("plEvtRoutes").disabled = !(ev && ev.routes.some(r => r.arr === st.airport));
+}
+function readPlanForm() {
+  const plan = planFor();
+  plan.aar = clampN($("plAar").value, 1, 200, plan.aar);
+  plan.peak = clampN($("plPeak").value, 1, 300, plan.peak);
+  plan.hours = clampN($("plHours").value, 1, 8, plan.hours);
+  plan.mode = $("plMode").value === "ground" ? "ground" : "air";
+  plan.shape = $("plShape").value || "event";
+  const hhmm = $("plStart").value.replace(/\D/g, "").padStart(4, "0").slice(-4), day = Date.parse($("plDate").value + "T00:00:00Z");
+  if (isFinite(day) && +hhmm.slice(0, 2) < 24 && +hhmm.slice(2) < 60) plan.startMs = day + (+hhmm.slice(0, 2)) * HOUR_MS + (+hhmm.slice(2)) * MIN_MS;
+  syncPlanInputs(plan);
+  planSave();
+}
+$("plForm").addEventListener("change", e => {
+  if (e.target.id === "plEvent") {
+    const plan = planFor(), ev = st.events.find(x => x.id === e.target.value);
+    plan.event = ev ? ev.id : "";
+    if (ev) {
+      plan.startMs = Math.floor(ev.startMs / HOUR_MS) * HOUR_MS;
+      plan.hours = clampN((ev.endMs - ev.startMs) / HOUR_MS, 1, 8, plan.hours);
+      fillPlanForm(plan);
+    }
+    syncPlanInputs(plan);
+    planSave();
+    return;
+  }
+  readPlanForm();
+});
+$("plForm").addEventListener("submit", e => { e.preventDefault(); readPlanForm(); });
+$("plEvtRoutes").addEventListener("click", () => {
+  const plan = planFor(), ev = st.events.find(x => x.id === plan.event);
+  if (!ev) return;
+  const rs = ev.routes.filter(r => r.arr === st.airport && r.dep);
+  if (!rs.length) return;
+  plan.routes = plan.routes.filter(r => r.src !== "event").concat(rs.map((r, i) => ({ id: "e" + i + Date.now().toString(36), dep: r.dep, route: r.route, src: "event", weight: 1, on: true })));
+  for (const s of pl.streams) if (s.kind === "gate") plan.gates[s.gate] = { ...(plan.gates[s.gate] || {}), on: false };
+  planSave();
+});
+$("plReseed").addEventListener("click", () => { const plan = planFor(); plan.seed = (plan.seed || 1) + 1; planSave(); });
+$("plReset").addEventListener("click", () => { prefs.plan[st.airport] = planDefaults(); pl.formFor = ""; planSave(); });
+$("plAdd").addEventListener("click", () => {
+  const dep = $("plDep").value.toUpperCase().trim(), route = $("plRoute").value.toUpperCase().trim().replace(/\s+/g, " ");
+  if (!/^[A-Z0-9]{3,4}$/.test(dep) || !route) { $("plDep").focus(); return; }
+  const plan = planFor();
+  plan.routes.push({ id: Date.now().toString(36), dep: dep.length === 3 ? "K" + dep : dep, route, src: "hand", weight: 1, on: true });
+  $("plRoute").value = "";
+  planSave();
+});
+$("plRoute").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("plAdd").click(); } });
+$("plStreams").addEventListener("change", e => {
+  const row = e.target.closest("[data-sid]"); if (!row) return;
+  const plan = planFor(), s = pl.streams.find(x => x.id === row.dataset.sid); if (!s) return;
+  const set = o => {
+    if (s.kind === "gate") plan.gates[s.gate] = { ...(plan.gates[s.gate] || {}), ...o };
+    else { const r = plan.routes.find(x => x.id === s.rid); if (r) Object.assign(r, o); }
+  };
+  if (e.target.type === "checkbox") set({ on: e.target.checked });
+  else if (e.target.tagName === "SELECT") set({ opt: e.target.value });
+  else if (e.target.type === "number") set({ weight: Math.max(0, Math.min(99, +e.target.value || 0)) });
+  planSave();
+});
+$("plStreams").addEventListener("click", e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  const plan = planFor(); plan.routes = plan.routes.filter(r => "R:" + r.id !== b.dataset.del); planSave();
+});
+
+function renderPlanStreams(plan) {
+  const by = (pl.stats && pl.stats.byStream) || {};
+  const html = pl.streams.map(s => {
+    const col = pl.colors[s.gate] || "#6b7a89", why = pl.why[s.id];
+    const name = s.kind === "gate"
+      ? `<b style="color:${col}">${esc(s.gate)}</b><select title="Entry fix and STAR this stream flies">${s.opts.map(o => `<option value="${esc(o.key)}"${o.fix === s.fix && o.star === s.star ? " selected" : ""}>${esc(o.key)}</option>`).join("")}</select>`
+      : `<b style="color:${col}">${esc(s.dep)}</b><span title="${esc(s.route)}${s.unresolved ? " · not found: " + esc(s.unresolved.join(" ")) : ""}">${esc(s.route)}</span>`;
+    const n = by[s.id] ? by[s.id].n : 0;
+    return `<div class="strm${s.on ? "" : " off"}" data-sid="${esc(s.id)}" title="${s.on ? n + " arrivals" : "off"}${s.rwy ? " · lands " + esc(s.rwy) : ""}">
+      <input type="checkbox"${s.on ? " checked" : ""} aria-label="use this stream">
+      <span class="nm">${name}${why ? `<span class="why">${esc(why)}</span>` : ""}</span>
+      <input type="number" min="0" max="99" step="1" value="${esc(s.weight)}" title="Weight: share of the arrivals">
+      ${s.kind === "route" ? `<button type="button" class="x" data-del="${esc(s.id)}" title="Remove">✕</button>` : "<span></span>"}</div>`;
+  }).join("");
+  const el = $("plStreams");
+  if (el.dataset.html !== html && !el.contains(document.activeElement)) { el.innerHTML = html || `<div class="plwait">No STARs for ${esc(st.airport)} in the nav data: add a route below.</div>`; el.dataset.html = html; }
+}
+
+function renderPlanSide(plan) {
+  const s = pl.stats, sim = pl.sim;
+  const fmtM = m => m >= 1 ? Math.round(m) + "m" : "0";
+  const sev = (v, a, b) => v >= b ? "red" : v >= a ? "amber" : "green";
+  const peakDemand = s ? Math.max(0, ...s.slots.map(x => x.planned)) * 4 : 0;
+  $("plKpis").innerHTML = !sim.flights.length ? "" : [
+    ["ARRIVALS", s.total, ""], ["PEAK RATE", peakDemand + "/hr", peakDemand > plan.aar ? "amber" : "green"],
+    ["MAX DELAY", fmtM(s.maxDelay), sev(s.maxDelay, 10, 25)], ["AVG DELAY", fmtM(s.avgDelay), sev(s.avgDelay, 5, 15)],
+    [plan.mode === "ground" ? "EDCTs" : "HELD", plan.mode === "ground" ? s.edcts : s.held, (plan.mode === "ground" ? s.edcts : s.held) ? "amber" : "green"],
+    ["PEAK STACK", s.peakHold, sev(s.peakHold, 6, 15)], ["LAST LANDS", fmtZ(s.lastLand), ""], ["QUEUE CLEAR", s.clearT ? fmtZ(s.clearT) : "—", ""],
+  ].map(([k, v, c]) => `<div class="plk ${c}"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("");
+  let adv;
+  const off = pl.streams.filter(x => x.on && pl.why[x.id]).length;
+  if (!pl.streams.some(x => x.on && pl.models[x.id])) adv = `Turn on at least one route with a path to fly.`;
+  else if (!sim.flights.length) adv = plan.shape === "live" ? `No live inbounds with an ETA in the next 6 hours on these gates.` : `No arrivals: raise the peak demand.`;
+  else if (s.maxDelay < 1) adv = `Demand stays under <b>${plan.aar}/hr</b>: every arrival lands when it wants to.`;
+  else {
+    adv = `At <b>${plan.aar}/hr</b> the runway takes one every <b>${(60 / plan.aar).toFixed(1)} min</b>. ` +
+      (plan.mode === "ground"
+        ? `<b>${s.edcts}</b> departures need an EDCT, up to <b>${Math.round(s.maxDelay)} min</b>; nobody holds.`
+        : `<b>${s.held}</b> hold, up to <b>${Math.round(s.maxHold)} min</b> (the first ${3} min of each delay goes to speed control); the stack peaks at <b>${s.peakHold}</b> around <b>${fmtZ(s.peakHoldT)}</b> and clears by <b>${s.clearT ? fmtZ(s.clearT) : "—"}</b>.`) +
+      (pl.need > plan.aar ? ` Keeping every delay to 10 min takes an AAR of <b>${pl.need}</b>.` : "") +
+      (plan.mode === "air" && s.maxHold > 20 ? ` <span class="bad">Holds over 20 min: meter with ground delays (DELAY TAKEN → Ground) or MIT at the gates.</span>` : "");
+  }
+  if (off) adv += ` <span class="bad">${off} route${off > 1 ? "s" : ""} couldn't be drawn and ${off > 1 ? "are" : "is"} left out.</span>`;
+  if (!runwayConfig().arr.length) adv += ` <span class="muted">Set arrival runways under FIELD CONFIG to fly the finals.</span>`;
+  if (sim.dropped.length) adv += ` <span class="muted">${sim.dropped.length} live arrivals have no stream for their gate.</span>`;
+  $("plAdvice").innerHTML = adv;
+  renderPlanChart(plan);
+  const rows = pl.streams.filter(x => x.on && s.byStream[x.id]).map(x => {
+    const b = s.byStream[x.id];
+    return `<tr><td><span class="sw" style="background:${pl.colors[x.gate] || "#6b7a89"}"></span>${esc(x.kind === "gate" ? x.gate + " " + x.star : x.dep + " " + (x.star || ""))}${x.rwy ? " → " + esc(x.rwy) : ""}</td><td>${b.n}</td><td>${Math.round(b.avgDelay)}</td><td>${Math.round(b.maxHold)}</td></tr>`;
+  });
+  $("plGates").innerHTML = rows.length ? `<tr><th>ROUTE</th><th>ARR</th><th>AVG DLY</th><th>MAX HOLD</th></tr>` + rows.join("") : "";
+  const sc = $("plScrub");
+  sc.min = sim.start; sc.max = Math.max(sim.start + MIN_MS, sim.end + 2 * MIN_MS); sc.step = 15000;
+  $("planLegend").innerHTML = `<span><span style="color:#fff">▲</span> simulated arrival (click for its delay)</span><span><span class="ln" style="border-color:#8a97a3"></span>route flown (from ${SIM_ENTRY_NM} nm out)</span>
+    <span><span style="color:#ffd166">◌</span> holding at the gate fix</span><span><span style="color:#57d98a">━</span> arrival runway · final</span>`;
+}
+
+function renderPlanChart(plan) {
+  const s = pl.stats, W = 320, H = 120, pL = 20, pR = 4, pT = 8, pB = 16;
+  if (!s || !s.total) { $("plChart").innerHTML = ""; return; }
+  const slots = s.slots.filter(x => x.planned || x.landed || x.hold || (x.t >= s.firstLand - 15 * MIN_MS && x.t <= s.lastLand));
+  const t0 = slots[0].t, n = slots.length, bw = (W - pL - pR) / n, cap = plan.aar / 4;
+  const ymax = Math.max(cap, ...slots.map(x => Math.max(x.planned, x.landed, x.hold))) * 1.1 || 1;
+  const y = v => pT + (H - pT - pB) * (1 - v / ymax);
+  let g = "";
+  slots.forEach((x, i) => {
+    const X = pL + i * bw;
+    g += `<rect x="${X + 1}" y="${y(x.landed)}" width="${bw - 2}" height="${y(0) - y(x.landed)}" fill="${x.landed > cap + 0.01 ? "#e07070" : "#57d98a"}" opacity=".75"/>`;
+    g += `<rect x="${X + 1}" y="${y(x.planned)}" width="${bw - 2}" height="${y(0) - y(x.planned)}" fill="none" stroke="#d4dde6" stroke-opacity=".7" stroke-width="1"/>`;
+    if (i % 4 === 0) g += `<text x="${X + 1}" y="${H - 4}">${fmtZ(x.t).replace("Z", "")}</text>`;
+  });
+  const holdPts = slots.map((x, i) => `${pL + (i + 0.5) * bw},${y(x.hold)}`).join(" ");
+  g += `<polyline points="${holdPts}" fill="none" stroke="#ffd166" stroke-width="1.5"/>`;
+  g += `<line x1="${pL}" x2="${W - pR}" y1="${y(cap)}" y2="${y(cap)}" stroke="#e8a838" stroke-dasharray="4 3"/><text x="${W - pR - 2}" y="${y(cap) - 2}" text-anchor="end" style="fill:#e8a838">AAR ${plan.aar}</text>`;
+  for (const v of [0, Math.round(ymax / 2), Math.floor(ymax)]) g += `<text x="${pL - 3}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
+  g += `<line id="plCursor" x1="0" x2="0" y1="${pT}" y2="${H - pB}" stroke="#fff" stroke-width="1"/>`;
+  $("plChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" data-t0="${t0}" data-n="${n}" data-pl="${pL}" data-bw="${bw}">${g}</svg>`;
+}
+$("plChart").addEventListener("click", e => {
+  const svg = e.target.closest("svg"); if (!svg || !pl.sim) return;
+  const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * 320;
+  const t = +svg.dataset.t0 + (vx - +svg.dataset.pl) / +svg.dataset.bw * 15 * MIN_MS;
+  pl.t = Math.max(pl.sim.start, Math.min(pl.sim.end + 2 * MIN_MS, t)); drawPlanFrame(true);
+});
+
+function drawPlanStatic() {
+  pl.stat.clearLayers();
+  const ll = st.aptLL, rc = runwayConfig();
+  for (const nm of [50, 100, 150, 250]) L.circle(ll, { radius: nm * 1852, color: "#2a3644", weight: 1, fill: false, dashArray: "3 5", interactive: false }).addTo(pl.stat);
+  if (st.ends.length) for (const pair of runwayPairs(st.ends)) {
+    if (pair.length < 2) continue;
+    const [a, b] = pair, arr = rc.arr.includes(normRwy(a[0])) || rc.arr.includes(normRwy(b[0]));
+    L.polyline([[a[1], a[2]], [b[1], b[2]]], { color: arr ? "#57d98a" : "#6b7a89", weight: 4, opacity: 0.9, interactive: false }).addTo(pl.stat);
+  }
+  L.circleMarker(ll, { radius: 5, color: "#e8a838", weight: 2, fillColor: "#e8a838", fillOpacity: 0.4 }).bindTooltip(st.airport, { className: "ac", direction: "right" }).addTo(pl.stat);
+  for (const s of pl.streams) {
+    const m = pl.models[s.id];
+    if (!s.on || !m) continue;
+    const col = pl.colors[s.gate] || "#8a97a3", b = pl.stats.byStream[s.id];
+    L.polyline(drawnPath(m), { color: col, weight: 2, opacity: 0.45 })
+      .bindTooltip(`${esc(s.kind === "gate" ? s.fix + " " + s.star : s.dep + " " + s.route)}${s.rwy ? " → RWY " + esc(s.rwy) : ""} · ${b ? b.n : 0} arrivals${b && b.maxHold >= 1 ? " · max hold " + Math.round(b.maxHold) + " min" : ""}`, { className: "ac", sticky: true })
+      .addTo(pl.stat);
+    const fix = m.pts[Math.max(0, m.cum.findIndex(c => c >= m.gateS - 0.01))] || m.pts[0];
+    L.marker(fix, { interactive: false, icon: L.divIcon({ className: "", iconSize: [12, 12], iconAnchor: [6, 6],
+      html: `<svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 0L12 6L6 12L0 6Z" fill="none" stroke="${col}" stroke-width="2"/></svg>` }) }).addTo(pl.stat);
+    L.marker(fix, { interactive: false, icon: L.divIcon({ className: "", iconSize: [120, 14], iconAnchor: [-9, 18],
+      html: `<span style="font:700 10px var(--mono);color:${col};text-shadow:0 0 3px #000,0 0 2px #000;white-space:nowrap">${esc(s.kind === "gate" ? s.fix : s.gate)}</span>` }) }).addTo(pl.stat);
+  }
+  if (st.ends.length) for (const e of st.ends) {
+    const id = normRwy(e[0]);
+    if (!rc.arr.includes(id)) continue;
+    L.polyline([[e[1], e[2]], simDest([e[1], e[2]], (e[3] + 180) % 360, 10)], { color: "#57d98a", weight: 1.5, dashArray: "6 6", opacity: 0.8, interactive: false }).addTo(pl.stat);
+  }
+}
+
+function simIcon(color, phase, sel) {
+  const ring = phase === "hold" ? `<div style="position:absolute;inset:-6px;border:2px dashed #ffd166;border-radius:50%"></div>` : "";
+  const halo = sel ? `<div style="position:absolute;inset:-9px;border:2px solid #fff;border-radius:50%"></div>` : "";
+  return L.divIcon({ className: "", iconSize: [17, 17], iconAnchor: [8.5, 8.5],
+    html: `<div style="position:relative;width:17px;height:17px">${ring}${halo}<div class="rot" style="width:17px;height:17px"><svg viewBox="0 0 24 24" width="17" height="17" style="display:block;filter:drop-shadow(0 0 2px #000)"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${color}" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round"/></svg></div></div>` });
+}
+function simTag(f, p) {
+  return `<b>${esc(f.callsign)}</b><br>${String(Math.round(p.alt / 100)).padStart(3, "0")} ${p.gs}${p.phase === "hold" ? ' <span style="color:#ffd166">HOLD</span>' : f.edctMin >= 1 ? ` <span style="color:#c792ea">EDCT+${Math.round(f.edctMin)}</span>` : ""}`;
+}
+
+function drawPlanFrame(force) {
+  const sim = pl.sim;
+  if (!sim || !pl.map) return;
+  const t = pl.t, labels = $("plLabels").checked, slow = force || performance.now() - pl.lastSide > 400;
+  const seen = new Set();
+  for (const f of sim.flights) {
+    const sMeta = pl.streams.find(x => x.id === f.stream);
+    const p = flightAt(f, pl.models[f.stream], t);
+    if (!p) continue;
+    seen.add(f.id);
+    const col = (sMeta && pl.colors[sMeta.gate]) || "#8a97a3", isSel = f.id === pl.sel;
+    let m = pl.markers.get(f.id);
+    const look = p.phase + (isSel ? "*" : "");
+    if (!m) {
+      m = L.marker(p.ll, { icon: simIcon(col, p.phase, isSel), keyboard: false, zIndexOffset: isSel ? 1000 : 0 });
+      m.on("click", ev => { L.DomEvent.stopPropagation(ev); pl.sel = f.id; drawPlanFrame(true); });
+      m._look = look; m._lab = null;
+      m.addTo(pl.dyn);
+      pl.markers.set(f.id, m);
+    } else {
+      m.setLatLng(p.ll);
+      if (m._look !== look) { m.setIcon(simIcon(col, p.phase, isSel)); m._look = look; m.setZIndexOffset(isSel ? 1000 : 0); m._lab = null; }
+    }
+    const rot = m.getElement() && m.getElement().querySelector(".rot");
+    if (rot) rot.style.transform = `rotate(${Math.round(p.hdg)}deg)`;
+    if (slow) {
+      const perm = labels || isSel, txt = simTag(f, p);
+      if (m._lab !== perm) { m.unbindTooltip(); m.bindTooltip(txt, perm ? { className: "blk", permanent: true, direction: "right", offset: [10, 0] } : { className: "ac", direction: "right" }); m._lab = perm; m._txt = txt; }
+      else if (m._txt !== txt) { m.setTooltipContent(txt); m._txt = txt; }
+    }
+  }
+  for (const [id, m] of pl.markers) if (!seen.has(id)) { pl.dyn.removeLayer(m); pl.markers.delete(id); }
+  const now = simNow(sim, t);
+  if (slow) {
+    pl.lastSide = performance.now();
+    for (const s of pl.streams) {
+      const m = pl.models[s.id], n = now.holdBy[s.id] || 0;
+      let tag = pl.holdTags.get(s.id);
+      if (!m || !n) { if (tag) { pl.dyn.removeLayer(tag); pl.holdTags.delete(s.id); } continue; }
+      const html = `<div class="holdtag">HOLD ${n}</div>`;
+      if (!tag) {
+        const fix = m.pts[Math.max(0, m.cum.findIndex(c => c >= m.gateS - 0.01))] || m.pts[0];
+        tag = L.marker(fix, { interactive: false, icon: L.divIcon({ className: "", iconSize: [60, 14], iconAnchor: [-9, -6], html }) }).addTo(pl.dyn);
+        tag._html = html; pl.holdTags.set(s.id, tag);
+      } else if (tag._html !== html) { tag.setIcon(L.divIcon({ className: "", iconSize: [60, 14], iconAnchor: [-9, -6], html })); tag._html = html; }
+    }
+    renderPlanInfo(t);
+  }
+  $("plClock").textContent = fmtZ(t);
+  $("plNow").innerHTML = `<b>${now.air}</b> airborne · <span class="h"><b>${now.hold}</b> holding</span> · <b>${now.landed}</b>/${sim.flights.length} landed`;
+  const sc = $("plScrub");
+  if (document.activeElement !== sc || !pl.playing) sc.value = t;
+  $("plPlay").textContent = pl.playing ? "❚❚" : "▶";
+  const cur = document.getElementById("plCursor"), svg = cur && cur.ownerSVGElement;
+  if (cur) { const x = +svg.dataset.pl + (t - +svg.dataset.t0) / (15 * MIN_MS) * +svg.dataset.bw; cur.setAttribute("x1", x); cur.setAttribute("x2", x); }
+}
+
+function renderPlanInfo(t) {
+  const f = pl.sel >= 0 ? pl.sim.flights[pl.sel] : null;
+  if (!f) { $("plInfo").hidden = true; return; }
+  const s = pl.streams.find(x => x.id === f.stream), p = flightAt(f, pl.models[f.stream], t);
+  const where = !p ? (t >= f.landT ? "landed " + fmtZ(f.landT) : "not yet in the sim (enters " + fmtZ(f.entryT) + ")")
+    : `${p.phase === "hold" ? "holding at " + esc(s && s.kind === "gate" ? s.fix : s ? s.gate : "") : p.phase === "enroute" ? "en route" : "inbound"} · ${String(Math.round(p.alt / 100)).padStart(3, "0")} · ${p.gs} kt · ${Math.round(p.remNm)} nm to go`;
+  $("plInfo").hidden = false;
+  $("plInfo").innerHTML = `<div class="hd"><b>${esc(f.callsign)}</b><span class="muted">${esc(s ? (s.kind === "gate" ? s.fix + " " + s.star : s.dep + " " + s.route) : "")}${s && s.rwy ? " → " + esc(s.rwy) : ""}</span><button type="button" data-unsel="1">✕</button></div>
+    <div>${where}</div>
+    <div>wanted to land <b>${fmtZ(f.U)}</b> · lands <b>${fmtZ(f.landT)}</b>${f.delayMin >= 1 ? ` · delay <b>${Math.round(f.delayMin)} min</b> (${[f.speedMin >= 0.5 && Math.round(f.speedMin) + " speed", f.holdMin >= 0.5 && Math.round(f.holdMin) + " holding", f.edctMin >= 0.5 && Math.round(f.edctMin) + " on the ground"].filter(Boolean).join(", ")})` : " · on time"}</div>`;
+}
+$("plInfo").addEventListener("click", e => { if (e.target.closest("[data-unsel]")) { pl.sel = -1; drawPlanFrame(true); } });
+
+function planLoop(ts) {
+  pl.raf = 0;
+  if (tab !== "plan" || !pl.sim || !pl.playing) return;
+  const dt = pl.lastTs ? Math.min(250, ts - pl.lastTs) : 0;
+  pl.lastTs = ts;
+  pl.t += dt / 1000 * (+$("plSpeed").value || 5) * MIN_MS;
+  const stop = pl.sim.end + 2 * MIN_MS;
+  if (pl.t >= stop) { pl.t = stop; pl.playing = false; }
+  if (ts - pl.lastDraw > 33 || !pl.playing) { pl.lastDraw = ts; drawPlanFrame(!pl.playing); }
+  if (pl.playing) pl.raf = requestAnimationFrame(planLoop);
+}
+function planPlay() {
+  if (!pl.sim || !pl.sim.flights.length) return;
+  if (pl.t >= pl.sim.end + 2 * MIN_MS - 1000) pl.t = pl.sim.start;
+  pl.playing = true; pl.lastTs = 0;
+  if (!pl.raf) pl.raf = requestAnimationFrame(planLoop);
+}
+function planPause() { pl.playing = false; if (pl.raf) { cancelAnimationFrame(pl.raf); pl.raf = 0; } if (pl.sim) drawPlanFrame(true); }
+$("plPlay").addEventListener("click", () => pl.playing ? planPause() : planPlay());
+$("plBack").addEventListener("click", () => { if (!pl.sim) return; pl.t = pl.sim.start; drawPlanFrame(true); });
+$("plScrub").addEventListener("input", e => { if (!pl.sim) return; pl.t = +e.target.value; drawPlanFrame(true); });
+$("plLabels").addEventListener("change", () => drawPlanFrame(true));
+addEventListener("keydown", e => {
+  if (tab !== "plan" || e.code !== "Space" || /INPUT|SELECT|TEXTAREA|BUTTON/.test((document.activeElement || {}).tagName || "")) return;
+  e.preventDefault(); pl.playing ? planPause() : planPlay();
+});
 
 /* ---------------- start ---------------- */
 
