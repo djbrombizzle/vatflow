@@ -3,7 +3,7 @@
  "version": 1,
  "name": "Washington Dulles",
  "subtitle": "Stand assignment and push control for the Dulles midfield concourses, E concourse and the R ramp",
- "source": "Dulles midfield terminal ramp chart (user-supplied). x,y are chart pixels (1792x1125), north up. The chart is evenly gridded (~125.8 px per 0.1' lon, ~161 px per 0.1' lat, ~1.15 m/px both ways) and RWY 1C/19C lands within ~10 m of published, so stand lat/lon come from the grid. Gate points are ~12 px past the jet-bridge tip; regional stem gates (A1A-A6E) sit at their labels. Checked against VATSIM Radar's gate positions (rms ~20 m); the R ramp rows were moved south to match it (R22-R28 by 43 m, R3-R19 by 26 m), as the chart's R labels sit north of the stands. Z6-Z14 at the Main Terminal from a 10-9 crop (user-supplied, same chart): Z14 / Z12 past their jet bridges, Z10-Z6 at their labels; they push onto Taxilane A.",
+ "source": "Dulles midfield terminal ramp chart (user-supplied). x,y are chart pixels (1792x1125), north up. The chart is evenly gridded (~125.8 px per 0.1' lon, ~161 px per 0.1' lat, ~1.15 m/px both ways) and RWY 1C/19C lands within ~10 m of published, so stand lat/lon come from the grid. Gate points are ~12 px past the jet-bridge tip; regional stem gates (A1A-A6E) sit at their labels. Checked against VATSIM Radar's gate positions (rms ~20 m); the R ramp rows were moved south to match it (R22-R28 by 43 m, R3-R19 by 26 m), as the chart's R labels sit north of the stands. Z6-Z14 at the Main Terminal from a 10-9 crop (user-supplied, same chart): Z14 / Z12 past their jet bridges, Z10-Z6 at their labels; they push onto Taxilane A. Connectors A1, A2, A4, A5 between Taxilanes A and B from the same crop.",
  "telexStation": "KIAD",
  "field": {
   "lat": 38.9445,
@@ -279,6 +279,74 @@
     ],
     [
      1540,
+     180
+    ]
+   ],
+   "freq": "119.120"
+  },
+  {
+   "id": "XA1",
+   "label": "A1",
+   "name": "TAXILANE A1",
+   "chart": "IAD",
+   "pts": [
+    [
+     518,
+     93
+    ],
+    [
+     518,
+     180
+    ]
+   ],
+   "freq": "119.120"
+  },
+  {
+   "id": "XA2",
+   "label": "A2",
+   "name": "TAXILANE A2",
+   "chart": "IAD",
+   "pts": [
+    [
+     736,
+     93
+    ],
+    [
+     736,
+     180
+    ]
+   ],
+   "freq": "119.120"
+  },
+  {
+   "id": "XA4",
+   "label": "A4",
+   "name": "TAXILANE A4",
+   "chart": "IAD",
+   "pts": [
+    [
+     1196,
+     93
+    ],
+    [
+     1196,
+     180
+    ]
+   ],
+   "freq": "119.120"
+  },
+  {
+   "id": "XA5",
+   "label": "A5",
+   "name": "TAXILANE A5",
+   "chart": "IAD",
+   "pts": [
+    [
+     1415,
+     93
+    ],
+    [
+     1415,
      180
     ]
    ],
