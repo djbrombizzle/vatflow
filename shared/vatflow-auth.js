@@ -200,13 +200,17 @@ export async function refreshSession() {
     const res = await fetch(`${getAccessApiBase()}/auth/session`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    if (!res.ok) {
+    // Only a 401 means the sign-in is gone (expired, revoked). A 5xx or a
+    // redeploy is temporary: keep the token and the locally decoded session.
+    if (res.status === 401) {
       setStoredToken("");
       _session = null;
       emitAuthChange();
       return null;
     }
+    if (!res.ok) return _session;
     const data = await res.json();
+    if (data.ok && data.token) setStoredToken(data.token);  // sliding renewal
     if (!data.ok) {
       setStoredToken("");
       _session = null;
@@ -300,10 +304,16 @@ export async function requestGdprDelete() {
   return data;
 }
 
+// Pages like vUSAlink stay open for hours: re-check (and renew) the sign-in now and then.
+const SESSION_RECHECK_MS = 6 * 3600 * 1000;
+
 export async function initVatflowAuth() {
   if (!_ready) {
     _ready = true;
     await refreshSession();
+    if (typeof window !== "undefined") {
+      setInterval(() => { if (getStoredToken()) refreshSession(); }, SESSION_RECHECK_MS);
+    }
   }
   return _session;
 }
