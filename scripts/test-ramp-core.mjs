@@ -288,7 +288,7 @@ console.log(`test-ramp-core: ${passed} passed`);
       A.demo.fleet.every(f => !f.assigned || A.standById.has(f.assigned)), `${a.icao} views and demo fleet stands exist`);
   }
   const I = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KIAD.json", import.meta.url))));
-  assert(I.stands.length === 163, "KIAD 163 stands");
+  assert(I.stands.length === 169, "KIAD 169 stands");
   // RWY 1C/19C centreline drawn at x~85; published -77.45955.
   near(I.proj.IAD.toLatLon(85, 500).lon, -77.45955, 0.0002, "KIAD 1C lon");
   near(I.standById.get("B41").noseHdg, 180, 1, "A/B north gates nose south, away from taxilane B");
