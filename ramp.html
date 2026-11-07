@@ -121,7 +121,8 @@
   .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .search { margin-left: auto; padding: 4px 8px; width: 170px; max-width: 100%; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 12px; }
   table { width: 100%; border-collapse: collapse; }
-  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10.5px; font-weight: 650; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  thead { position: sticky; top: 0; z-index: 2; }
+  th { background: var(--panel); text-align: left; font-size: 10.5px; font-weight: 650; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); }
   td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12.5px; }
   tbody tr { cursor: pointer; }
   tbody tr.far { cursor: default; opacity: .8; }
@@ -173,6 +174,14 @@
   .flash { padding: 0 12px; font-size: 12px; min-height: 16px; }
   .flash.err { color: #ff9b9b; }
   .flash.ok { color: #9fe8bd; }
+
+  /* sort and filter (shared/table-tools.js) */
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover, th.sorted { color: var(--text); }
+  .sortInd { color: var(--accent); }
+  .filterRow th { padding: 3px 4px 5px; text-transform: none; letter-spacing: 0; }
+  .filterRow input { width: 100%; min-width: 34px; padding: 2px 5px; border-radius: 4px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 11px; font-weight: 500; }
+  .btn.on { border-color: var(--accent); color: var(--accent); }
 
   /* queue */
   .q td, .q th { padding: 5px 5px; }
@@ -288,10 +297,11 @@
           <h2>Flights</h2>
           <div class="tabs" id="fTabs"></div>
           <input class="search" id="search" placeholder="Search callsign, type, stand…" autocomplete="off">
+          <button class="btn" id="fFilter" type="button">Filter</button>
         </div>
         <div class="bd">
           <table>
-            <thead><tr><th>Callsign</th><th>Type</th><th>Route</th><th>Ramp / Stand</th><th>Status</th><th>ETA / Call</th><th title="Filed proposed departure time, and minutes to it (+ once past)">P-Time</th></tr></thead>
+            <thead><tr><th data-col="cs">Callsign</th><th data-col="type">Type</th><th data-col="route">Route</th><th data-col="stand">Ramp / Stand</th><th data-col="state">Status</th><th data-col="eta">ETA / Call</th><th data-col="ptime" title="Filed proposed departure time, and minutes to it (+ once past)">P-Time</th></tr></thead>
             <tbody id="flights"></tbody>
           </table>
           <div class="empty" id="flightsEmpty" hidden>No traffic on the selected ramps right now.</div>
@@ -308,10 +318,11 @@
           <h2>Push queue</h2>
           <span class="muted" style="font-size:11.5px" id="qNote">Call order</span>
           <button class="btn" id="resort" style="margin-left:auto" hidden>Back to call order</button>
+          <button class="btn" id="qFilter" type="button">Filter</button>
         </div>
         <div class="bd">
           <table class="q">
-            <thead><tr><th>#</th><th>Callsign / stand</th><th>Call</th><th>Status</th><th>Hold</th><th></th></tr></thead>
+            <thead><tr><th data-col="pos">#</th><th data-col="cs">Callsign / stand</th><th data-col="call">Call</th><th data-col="status">Status</th><th data-col="hold">Hold</th><th></th></tr></thead>
             <tbody id="queue"></tbody>
           </table>
           <div class="empty" id="queueEmpty" hidden>No push requests.</div>
@@ -329,9 +340,14 @@ import {
   composeStandTelex, composePushTelex, standLabel, TELEX_MAX,
 } from "./shared/ramp-core.js";
 import { createDemoStore } from "./shared/ramp-demo.js";
+import { tableTools } from "./shared/table-tools.js";
 import { createLiveStore } from "./shared/ramp-live.js";
 
 mountVatflowNav(document.getElementById("vatflowAppNav"), "ramp");
+
+// Click a column header to sort; Filter shows a box per column (shared/table-tools.js).
+const flightsTable = tableTools(document.getElementById("flights").closest("table"), { id: "ramp.flights", onChange: () => scheduleRender(), button: document.getElementById("fFilter") });
+const queueTable = tableTools(document.getElementById("queue").closest("table"), { id: "ramp.queue", onChange: () => scheduleRender(), button: document.getElementById("qFilter") });
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -888,8 +904,9 @@ function renderFlights() {
   const tabFn = TABS.find(t => t[0] === ui.tab)[2];
   const hit = r => [r.callsign, r.type, r.stand, r.dep, r.arr, r.atStand].some(v => String(v || "").includes(q));
   // A search looks through every flight at the field, whatever ramp or tab is selected.
-  const list = (q ? rows.filter(hit) : vrows.filter(tabFn))
-    .sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.callsign.localeCompare(b.callsign));
+  const list = flightsTable.apply((q ? rows.filter(hit) : vrows.filter(tabFn))
+    .sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.callsign.localeCompare(b.callsign)),
+  FLIGHT_COLS);
   $("flights").innerHTML = list.map(r => {
     const e = r.entry;
     let ramp = esc(rampLabel(r));
@@ -908,8 +925,7 @@ function renderFlights() {
     if (cf && cf.inbound === r.callsign) {
       ramp += `<span class="badge bad blink" style="${blinkDelay()}" title="${esc(cf.occupant)} is parked on ${esc(lbl(r.stand))}">OCCUPIED · ${esc(cf.occupant)}</span>`;
     }
-    const eta = r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
-      : e?.callTime ? zulu(e.callTime) : "–";
+    const eta = etaText(r);
     return `<tr data-cs="${esc(r.callsign)}" class="${r.callsign === ui.selected ? "sel" : ""}">
       <td class="cs">${esc(r.callsign)}${acarsDot(r.callsign)}</td><td>${esc(r.type)}</td>
       <td>${esc(r.dep || "?")}→${esc(r.arr || "?")}</td><td>${ramp}</td>
@@ -917,7 +933,25 @@ function renderFlights() {
       <td class="mono">${esc(eta)}</td><td class="mono pt">${ptimeCell(r)}</td></tr>`;
   }).join("") + (q ? farInbounds(q) : "");
   $("flightsEmpty").hidden = list.length > 0 || !!q;
+  $("flightsEmpty").textContent = flightsTable.active() && !list.length ? "No flights match the filters." : "No traffic on the selected ramps right now.";
 }
+
+/** ETA (inbounds) or the time of the push call. */
+function etaText(r) {
+  return r.state === STATES.INBOUND ? (r.etaMin != null ? `${r.etaMin} min` : `${Math.round(r.distNm)} nm`)
+    : r.entry?.callTime ? zulu(r.entry.callTime) : "–";
+}
+
+/* Columns for sorting and filtering the flights table: sort value, and the text filters match. */
+const FLIGHT_COLS = {
+  cs: r => r.callsign,
+  type: r => r.type,
+  route: r => `${r.dep || "?"}→${r.arr || "?"}`,
+  stand: { sort: r => lbl(r.atStand || r.stand), text: r => `${rampLabel(r)} ${lbl(r.atStand || r.stand)}` },
+  state: { sort: r => STATE_ORDER.indexOf(r.state), text: r => r.state },
+  eta: { sort: r => (r.state === STATES.INBOUND ? (r.etaMin ?? (r.distNm != null ? r.distNm * 1e3 : null)) : r.entry?.callTime ? r.entry.callTime / 6e4 : null), text: etaText },
+  ptime: { sort: r => (showPtime(r) ? r.ptime : null), text: r => (showPtime(r) ? zulu(r.ptime) : "") },
+};
 
 /**
  * Search only: flights filed to arrive here that are too far out to track yet
@@ -1139,11 +1173,19 @@ function renderQueue(state) {
   // Only an approved push that has since taxied away drops out; a pending
   // request or hold always shows, whatever the state detection says.
   const gone = q => q.status === "APPROVED" && live.get(q.callsign)?.state === STATES.TAXI_OUT;
-  const view = queueView(state, now).filter(q => !gone(q) && inQueueSel(q));
+  const qLabel = q => (q.status === "SPACING" ? `WAIT ${Math.floor(q.wait / 60)}:${String(q.wait % 60).padStart(2, "0")}` : q.status);
+  const all = queueView(state, now).filter(q => !gone(q) && inQueueSel(q));
+  const view = queueTable.apply(all, {
+    pos: q => q.pos,
+    cs: { sort: q => q.callsign, text: q => `${q.callsign} ${lbl(q.stand || live.get(q.callsign)?.atStand)} ${live.get(q.callsign)?.type || ""}` },
+    call: { sort: q => q.callTime, text: q => zulu(q.callTime) },
+    status: { sort: q => qLabel(q), text: q => qLabel(q) },
+    hold: { sort: q => (state.flights[q.callsign].push === PUSH.HELD ? 0 : 1), text: q => (state.flights[q.callsign].push === PUSH.HELD ? "HELD" : "") },
+  });
   const dis = store.me.canWrite ? "" : "disabled";
   $("queue").innerHTML = view.map(q => {
     const r = live.get(q.callsign);
-    const label = q.status === "SPACING" ? `WAIT ${Math.floor(q.wait / 60)}:${String(q.wait % 60).padStart(2, "0")}` : q.status;
+    const label = qLabel(q);
     const color = { READY: "var(--occupied)", HELD: "var(--pushheld)", APPROVED: "var(--pushappr)", SPACING: "var(--pushreq)", WAIT: "#6f8196" }[q.status];
     const held = state.flights[q.callsign].push === PUSH.HELD;
     return `<tr data-cs="${esc(q.callsign)}" class="${q.callsign === ui.selected ? "sel" : ""}">
@@ -1154,16 +1196,17 @@ function renderQueue(state) {
       <td><input type="checkbox" class="holdSw" data-hold="${esc(q.callsign)}" ${held ? "checked" : ""} ${dis} title="Hold keeps its place in line"></td>
       <td><div class="acts">
         ${q.status !== "APPROVED" ? `<button data-appr="${esc(q.callsign)}" ${dis} title="Approve push">✓</button>` : ""}
-        <button data-move="-1" data-mcs="${esc(q.callsign)}" ${dis} title="Move up">▲</button>
-        <button data-move="1" data-mcs="${esc(q.callsign)}" ${dis} title="Move down">▼</button>
+        ${queueTable.state.sort ? "" : `<button data-move="-1" data-mcs="${esc(q.callsign)}" ${dis} title="Move up">▲</button>
+        <button data-move="1" data-mcs="${esc(q.callsign)}" ${dis} title="Move down">▼</button>`}
         <button data-cancel="${esc(q.callsign)}" ${dis} title="Remove from queue">✕</button>
       </div></td></tr>`;
   }).join("");
   $("queueEmpty").hidden = view.length > 0;
+  $("queueEmpty").textContent = all.length ? "No push requests match the filters." : "No push requests.";
   const moved = view.some(q => q.moved);
   $("resort").hidden = !moved;
   $("resort").disabled = !store.me.canWrite;
-  $("qNote").textContent = state.settings.holdAll ? "ALL PUSHES HELD" : moved ? "Order changed by hand" : state.settings.spacingSec ? `Call order · ${state.settings.spacingSec}s spacing` : "Call order";
+  $("qNote").textContent = state.settings.holdAll ? "ALL PUSHES HELD" : queueTable.state.sort ? "Sorted by column (# is the call order)" : moved ? "Order changed by hand" : state.settings.spacingSec ? `Call order · ${state.settings.spacingSec}s spacing` : "Call order";
 }
 
 /* ---------------- actions ---------------- */
