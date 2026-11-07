@@ -33,6 +33,7 @@
   h2 { margin: 0; padding: 4px 8px; font-size: 1em; letter-spacing: .08em; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); }
   h2 span { float: right; }
   table { width: 100%; border-collapse: collapse; }
+  thead { position: sticky; top: 0; z-index: 1; background: var(--bg); }
   th { text-align: left; font-weight: normal; color: var(--muted); padding: 2px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   td { padding: 2px 8px; border-bottom: 1px solid #161f2b; white-space: nowrap; }
   td.gate { font-weight: bold; font-size: 1.1em; }
@@ -40,6 +41,12 @@
   .src { font-size: .8em; color: var(--muted); }
   .muted { color: var(--muted); }
   .empty { padding: 8px; color: var(--muted); }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover, th.sorted { color: var(--text); }
+  .filterRow th { padding: 1px 4px 3px; }
+  .filterRow input { width: 100%; min-width: 3em; font: inherit; font-size: .85em; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
+  h2 button { float: right; margin-left: 8px; font: inherit; font-size: .85em; background: var(--bg); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; cursor: pointer; }
+  h2 button.on { color: var(--text); border-color: var(--muted); }
   footer { padding: 6px 8px; color: var(--muted); font-size: .8em; border-top: 1px solid var(--line); }
 </style>
 </head>
@@ -52,16 +59,16 @@
 </header>
 <main>
   <section>
-    <h2>INBOUND <span id="inCount"></span></h2>
+    <h2>INBOUND <button id="inFilter" type="button">Filter</button><span id="inCount"></span></h2>
     <table>
-      <thead><tr><th>CALLSIGN</th><th>TYPE</th><th>FROM</th><th>ETA</th><th>GATE</th><th></th></tr></thead>
+      <thead><tr><th data-col="cs">CALLSIGN</th><th data-col="type">TYPE</th><th data-col="from">FROM</th><th data-col="eta">ETA</th><th data-col="gate">GATE</th><th data-col="src"></th></tr></thead>
       <tbody id="inBody"></tbody>
     </table>
   </section>
   <section>
-    <h2>OUTBOUND <span id="outCount"></span></h2>
+    <h2>OUTBOUND <button id="outFilter" type="button">Filter</button><span id="outCount"></span></h2>
     <table>
-      <thead><tr><th>CALLSIGN</th><th>TYPE</th><th>TO</th><th>GATE</th><th>STATUS</th><th>P-TIME</th></tr></thead>
+      <thead><tr><th data-col="cs">CALLSIGN</th><th data-col="type">TYPE</th><th data-col="to">TO</th><th data-col="gate">GATE</th><th data-col="state">STATUS</th><th data-col="ptime">P-TIME</th></tr></thead>
       <tbody id="outBody"></tbody>
     </table>
   </section>
@@ -77,6 +84,7 @@ import {
   STATES, indexLayout, deriveFlights, autoAssignStands, standLabel, operatorFor, distNm, ptimeCountdown, INBOUND_MAX_NM,
 } from "./shared/ramp-core.js";
 import { createLiveStore } from "./shared/ramp-live.js";
+import { tableTools } from "./shared/table-tools.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -88,6 +96,10 @@ let store = null;
 let unsub = null;
 const memory = new Map();
 const autoMemo = new Map();
+
+// Click a column header to sort; Filter shows a box per column (shared/table-tools.js).
+const inTable = tableTools($("inBody").closest("table"), { id: "gates.in", onChange: () => schedule(), button: $("inFilter") });
+const outTable = tableTools($("outBody").closest("table"), { id: "gates.out", onChange: () => schedule(), button: $("outFilter") });
 
 const fmtEta = m => m == null ? "–" : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : `${m}m`;
 const lbl = id => standLabel(L, id);
@@ -128,26 +140,37 @@ function render() {
   rows.push(...farRows(pilots, new Set(rows.map(r => r.callsign))));
   autoAssignStands(L, rows, autoMemo, store.getRealGates ? store.getRealGates() : {});
 
-  const inb = rows.filter(r => r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)
+  const etaOf = r => (r.state === STATES.TAXI_IN ? "TAXI" : r.etaMin != null ? fmtEta(r.etaMin) : `${Math.round(r.distNm)}nm`);
+  const inAll = rows.filter(r => r.state === STATES.INBOUND || r.state === STATES.TAXI_IN)
     .sort((a, b) => (a.state === STATES.TAXI_IN ? 0 : 1) - (b.state === STATES.TAXI_IN ? 0 : 1)
       || (a.etaMin ?? 1e9) - (b.etaMin ?? 1e9) || a.distNm - b.distNm);
+  const inb = inTable.apply(inAll, {
+    cs: r => r.callsign, type: r => r.type, from: r => r.dep || "?",
+    eta: { sort: r => (r.state === STATES.TAXI_IN ? -1 : r.etaMin ?? 1e4 + r.distNm), text: etaOf },
+    gate: r => inboundGate(r).gate, src: r => inboundGate(r).src,
+  });
   $("inBody").innerHTML = inb.map(r => {
     const g = inboundGate(r);
-    const eta = r.state === STATES.TAXI_IN ? "TAXI" : r.etaMin != null ? fmtEta(r.etaMin) : `${Math.round(r.distNm)}nm`;
+    const eta = etaOf(r);
     return `<tr><td>${esc(r.callsign)}</td><td>${esc(r.type)}</td><td>${esc(r.dep || "?")}</td><td>${esc(eta)}</td>`
       + `<td class="gate ${g.cls}">${esc(g.gate || "—")}</td><td class="src">${esc(g.src)}</td></tr>`;
-  }).join("") || `<tr><td colspan="6" class="empty">No inbound traffic.</td></tr>`;
-  $("inCount").textContent = inb.length;
+  }).join("") || `<tr><td colspan="6" class="empty">${inAll.length ? "No inbounds match the filters." : "No inbound traffic."}</td></tr>`;
+  $("inCount").textContent = inb.length === inAll.length ? inb.length : `${inb.length}/${inAll.length}`;
 
-  const outb = rows.filter(r => r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN && r.dep === L.icao)
+  const outAll = rows.filter(r => r.state !== STATES.INBOUND && r.state !== STATES.TAXI_IN && r.dep === L.icao)
     .sort((a, b) => (a.ptime ?? 1e15) - (b.ptime ?? 1e15) || a.callsign.localeCompare(b.callsign));
+  const outb = outTable.apply(outAll, {
+    cs: r => r.callsign, type: r => r.type, to: r => r.arr || "?",
+    gate: r => { const g = r.atStand || r.stand; return g ? lbl(g) : ""; }, state: r => r.state,
+    ptime: { sort: r => r.ptime, text: r => (r.ptime != null ? ptimeCountdown(r.ptime, now) : "") },
+  });
   $("outBody").innerHTML = outb.map(r => {
     const gate = r.atStand || r.stand;
     const pt = r.ptime != null ? ptimeCountdown(r.ptime, now) : "";
     return `<tr><td>${esc(r.callsign)}</td><td>${esc(r.type)}</td><td>${esc(r.arr || "?")}</td>`
       + `<td class="gate">${esc(gate ? lbl(gate) : "—")}</td><td class="muted">${esc(r.state)}</td><td>${esc(pt)}</td></tr>`;
-  }).join("") || `<tr><td colspan="6" class="empty">No departures on the ground.</td></tr>`;
-  $("outCount").textContent = outb.length;
+  }).join("") || `<tr><td colspan="6" class="empty">${outAll.length ? "No departures match the filters." : "No departures on the ground."}</td></tr>`;
+  $("outCount").textContent = outb.length === outAll.length ? outb.length : `${outb.length}/${outAll.length}`;
 
   const st = store.status || {};
   $("status").textContent = st.ok ? `${L.icao} ${L.name || ""} · live` : `${L.icao} · ${st.text || "connecting…"}`;
