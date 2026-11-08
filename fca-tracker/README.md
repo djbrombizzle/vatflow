@@ -4,7 +4,7 @@
 
 Unattended poller that watches FCAs with **Record crossings** enabled, freezes each matching aircraft’s first profile ETA, and writes the interpolated actual line-crossing to Supabase.
 
-The VATFLOW site (FCA Accuracy) only *reads* completed rows. **Nothing is recorded unless this poller is running somewhere.**
+The FCA Accuracy page has been removed from the site; completed rows remain in Supabase. **Nothing is recorded unless this poller is running somewhere.**
 
 ## What it stores
 
@@ -70,4 +70,4 @@ Disable the GitHub workflow if you do this, so two pollers do not write the same
 - **`air`** — the aircraft was already flying, so the error is essentially the transit/wind model.
 - **`gnd`** — frozen before wheels-up, so the error also contains however long the pilot actually sat on the ground. A filed departure time is only trusted up to `MAX_GROUND_OFF_SEC` (6 h) ahead, because a bare HHMM snaps to the nearest ±12 h and a stale filed time would otherwise anchor the freeze most of a day out.
 
-FCA Accuracy can filter on this.
+Useful for filtering when analysing the archive.
