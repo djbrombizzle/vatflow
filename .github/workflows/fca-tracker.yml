@@ -10,10 +10,11 @@
 # then holds the concurrency group and the next trigger is queued or dropped.
 name: FCA crossing tracker
 
+# DISABLED: the hourly schedule is turned off. To re-enable, restore:
+#   schedule:
+#     - cron: "2 * * * *"
+# and set the FCA_TRACKER_ENABLED repo variable / env to 1.
 on:
-  schedule:
-    # Every hour, a few minutes past so the previous run has exited.
-    - cron: "2 * * * *"
   workflow_dispatch:
     inputs:
       run_seconds:
@@ -54,6 +55,7 @@ jobs:
           VATFLOW_SITE_BASE: https://vatflow.io/
           RUN_SECONDS: ${{ github.event.inputs.run_seconds || '2700' }}
           POLL_MS: ${{ github.event.inputs.poll_ms || '20000' }}
+          FCA_TRACKER_ENABLED: ${{ vars.FCA_TRACKER_ENABLED || '0' }}
         run: |
           set -euo pipefail
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then

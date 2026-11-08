@@ -1,5 +1,7 @@
 # FCA crossing tracker
 
+> **Currently disabled.** The hourly GitHub schedule is off and the poller exits immediately unless `FCA_TRACKER_ENABLED=1` (this also stops any Railway deploy of `fca-tracker/Dockerfile`). To re-enable, restore the `schedule:` block in the workflow and set `FCA_TRACKER_ENABLED=1` (repo variable for Actions, service variable on Railway).
+
 Unattended poller that watches FCAs with **Record crossings** enabled, freezes each matching aircraft’s first profile ETA, and writes the interpolated actual line-crossing to Supabase.
 
 The VATFLOW site (FCA Accuracy) only *reads* completed rows. **Nothing is recorded unless this poller is running somewhere.**
@@ -47,6 +49,7 @@ Logs a `FREEZE` line per new track, `CROSS` with the delta, and `LOST` for fligh
 | `POLL_MS` | no | Default 20000 |
 | `RUN_SECONDS` | no | Exit after N seconds (0 = forever). The hourly job sets 2700. |
 | `DRY_RUN` | no | `1` = log only, never write |
+| `FCA_TRACKER_ENABLED` | yes | Must be `1` to run; anything else exits immediately |
 
 Do not put the service-role key in the static site or any client bundle.
 

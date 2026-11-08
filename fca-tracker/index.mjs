@@ -11,6 +11,7 @@
  *   POLL_MS                      default: 20000
  *   DRY_RUN                      1 = log only, never write (uses SUPABASE_ANON_KEY to read)
  *   SUPABASE_ANON_KEY            read key for DRY_RUN
+ *   FCA_TRACKER_ENABLED          must be 1 to run; otherwise exits immediately (kill switch)
  */
 import { loadAirports, getAirport } from "../shared/fca-metering.js";
 import { loadNavData } from "../shared/route-engine.js";
@@ -247,6 +248,10 @@ async function poll() {
 }
 
 async function main() {
+  if (process.env.FCA_TRACKER_ENABLED !== "1") {
+    console.log("[fca-tracker] disabled (set FCA_TRACKER_ENABLED=1 to run). Exiting.");
+    process.exit(0);
+  }
   if (!SERVICE_KEY && !DRY_RUN) {
     console.error("SUPABASE_SERVICE_ROLE_KEY is required (or set DRY_RUN=1 to log without writing)");
     process.exit(1);
