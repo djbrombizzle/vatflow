@@ -22,6 +22,20 @@
     .muted { color: #5c6b78; font-size: 12px; line-height: 1.5; }
     .artcc-grid { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0 10px; max-height: 120px; overflow: auto; }
     .artcc-grid label { font-size: 11px; font-family: ui-monospace, monospace; display: flex; gap: 4px; align-items: center; }
+    h3 { margin: 14px 0 4px; font-size: 12px; color: #8a97a3; text-transform: uppercase; letter-spacing: .04em; }
+    .cu-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 8px 0 12px; }
+    .cu-tile { background: #0c131d; border: 1px solid #223042; border-radius: 6px; padding: 10px; }
+    .cu-val { font-size: 24px; font-weight: 700; color: #e8eef4; font-variant-numeric: tabular-nums; }
+    .cu-lbl { font-size: 12px; color: #d4dde6; margin-top: 2px; }
+    .cu-sub { font-size: 11px; color: #8a97a3; margin-top: 2px; }
+    .cu-chart { display: block; background: #0c131d; border: 1px solid #223042; border-radius: 6px; }
+    .cu-bar-c { fill: #e8a838; background: #e8a838; }
+    .cu-bar-p { fill: #5b9bd5; background: #5b9bd5; }
+    .cu-legend { font-size: 11px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+    .cu-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-left: 6px; }
+    .cu-axis { display: flex; justify-content: space-between; font-size: 10px; color: #5c6b78; margin-top: 2px; }
+    .cu-range button.active { border-color: #e8a838; color: #e8a838; }
+    .table-wrap { overflow-x: auto; }
     .chip { display: inline-block; padding: 1px 6px; border-radius: 4px; background: #1a2433; color: #e8a838; font-family: ui-monospace, monospace; font-size: 11px; margin-right: 4px; }
   </style>
 </head>
@@ -36,6 +50,15 @@
         Global admins can also appoint <b>staff</b> who whitelist TMU and contributors for their own ARTCC without further admin help.
       </p>
       <div id="authStatus" class="status">Checking sign-in…</div>
+    </div>
+    <div class="card" id="cpdlcStatsCard" style="display:none">
+      <h2>vUSAlink CPDLC usage</h2>
+      <p class="muted">
+        Controllers who opened vUSAlink and signed in to CPDLC, against pilots whose KUSA logon was accepted.
+        Only visible to you; the hub checks your sign-in.
+      </p>
+      <div class="row cu-range" id="cuRange"></div>
+      <div id="cuBody" class="table-wrap"><p class="muted">Loading…</p></div>
     </div>
     <div class="card" id="whitelistCard" style="display:none">
       <h2 id="formTitle">Add access</h2>
@@ -88,6 +111,7 @@
       initVatflowAuth, isAdmin, isArtccStaff, isSignedIn, login,
       getStoredToken, getArtccs, getSession,
     } from "./shared/vatflow-auth.js";
+    import { RANGES, canViewCpdlcStats, fetchCpdlcStats, renderCpdlcStats } from "./shared/cpdlc-usage.js";
 
     mountVatflowNav(document.getElementById("vatflowAppNav"), "admin");
     const authStatus = document.getElementById("authStatus");
@@ -241,8 +265,44 @@
       }
     });
 
+    const cuCard = document.getElementById("cpdlcStatsCard");
+    const cuRange = document.getElementById("cuRange");
+    const cuBody = document.getElementById("cuBody");
+    let cuDays = 90;
+    try { cuDays = Number(localStorage.getItem("vatflow.cpdlcStatsDays") ?? 90); } catch (_) {}
+    if (!RANGES.some(r => r.days === cuDays)) cuDays = 90;
+
+    function renderCuRange() {
+      cuRange.innerHTML = RANGES.map(r =>
+        `<button type="button" data-cu-days="${r.days}" class="${r.days === cuDays ? "active" : ""}">${r.label}</button>`
+      ).join("") + '<button type="button" data-cu-days="refresh" title="Reload">↻</button>';
+    }
+
+    async function loadCpdlcStats() {
+      renderCuRange();
+      cuBody.innerHTML = '<p class="muted">Loading…</p>';
+      try {
+        cuBody.innerHTML = renderCpdlcStats(await fetchCpdlcStats(getStoredToken(), cuDays));
+      } catch (e) {
+        cuBody.innerHTML = renderCpdlcStats({ ok: false, error: "could not reach the vUSAlink hub" });
+      }
+    }
+
+    cuRange.addEventListener("click", e => {
+      const v = e.target.getAttribute && e.target.getAttribute("data-cu-days");
+      if (!v) return;
+      if (v !== "refresh") {
+        cuDays = Number(v);
+        try { localStorage.setItem("vatflow.cpdlcStatsDays", String(cuDays)); } catch (_) {}
+      }
+      loadCpdlcStats();
+    });
+
     async function refreshAdminUi() {
       await initVatflowAuth();
+      const showStats = canViewCpdlcStats(getSession());
+      cuCard.style.display = showStats ? "" : "none";
+      if (showStats) loadCpdlcStats();
       if (!isSignedIn()) {
         authStatus.innerHTML = 'Sign in with VATSIM to manage access. <button type="button" id="adminSignIn">Sign in</button>';
         document.getElementById("adminSignIn")?.addEventListener("click", () => login());
