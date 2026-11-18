@@ -10,6 +10,10 @@
  *   QS /<spd> <FLID> /U         maintain speed (knots)
  *
  * Optional modifiers (any order): /PD /IMM /EXP /TFC /RES /WX /OK
+ *
+ * Without /U (requireU: false) the same commands parse with uplink: false.
+ * The EDST uses that for a plain QZ <alt> <FLID>: it amends the assigned
+ * altitude locally and sends nothing.
  */
 const REASON_TEXT = {
   IMM: "IMMEDIATELY",
@@ -142,7 +146,7 @@ export function parseMcaCommand(raw, opts = {}) {
       ok: true,
       verb,
       flid,
-      uplink: true,
+      uplink,
       mods,
       payload: { type: "alt", fl, pd: mods.has("PD") },
     };
@@ -155,7 +159,7 @@ export function parseMcaCommand(raw, opts = {}) {
       ok: true,
       verb,
       flid,
-      uplink: true,
+      uplink,
       mods,
       payload: { type: "direct", fix: fixes[0], pd: mods.has("PD") },
     };
@@ -171,7 +175,7 @@ export function parseMcaCommand(raw, opts = {}) {
         ok: true,
         verb,
         flid,
-        uplink: true,
+        uplink,
         mods,
         payload: { type: "spd", kt },
       };
@@ -182,7 +186,7 @@ export function parseMcaCommand(raw, opts = {}) {
         ok: true,
         verb,
         flid,
-        uplink: true,
+        uplink,
         mods,
         payload: { type: "hdg", mode: "PH" },
       };
@@ -202,7 +206,7 @@ export function parseMcaCommand(raw, opts = {}) {
       ok: true,
       verb,
       flid,
-      uplink: true,
+      uplink,
       mods,
       payload: { type: "hdg", mode, hdg },
     };

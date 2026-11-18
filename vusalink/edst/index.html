@@ -2777,6 +2777,9 @@ function clearVerifyToken(){if(VERIFY&&VERIFY.token){VERIFY={};LS.set('vedst_ver
 let minCounter=LS.get('vedst_min',1);
 let manual=LS.get('vedst_manual',[]);
 let assigned=LS.get('vedst_assigned',{});
+// cs -> FL amended with a plain QZ (no /U) and not yet uplinked. The altitude
+// menu opens with it pre-selected so UPLINK is one click. Cleared when used.
+const altAmended={};
 let sqPending=LS.get('vedst_sq_pending',{});   // cs -> pending CPDLC squawk code
 let liveFlights=demoLive();
 let facilities=[];                       // nearby online facilities (handoff targets)
@@ -3686,7 +3689,7 @@ let queueActiveCs='';
 function applyUplinkEffects(cs,min,effects){
   if(!effects||min==null)return;
   if(effects.type==='alt'){
-    if(effects.alt!=null){assigned[cs]=effects.alt;persist();}
+    if(effects.alt!=null){assigned[cs]=effects.alt;delete altAmended[cs];persist();}
     altMin[cs]=min;altPending.add(cs);
   }else if(effects.type==='route'){
     rtMin[cs]=min;routePending.add(cs);
@@ -4159,11 +4162,12 @@ function mapLive(f){
     cruise:f.cruise||f.filedAlt||'',
     route:full,_routeRaw:f.route||'',routeFixes:f.routeFixes||null,cat:f.category,dep:f.dep,arr:f.arr,source:'live',onFreq:false};
 }
+// CRC's embedded browser is unreliable with long timers. LIST force-polls
+// VATSIM every 4s (menus/typing cannot skip) so voice freq stays current.
+// Everyone else refreshes at the VATSIM data feed's own ~15s cadence.
+function vatsimRefreshMs(){return listMode()?4000:15000;}
 function scheduleVatsim(){if(vatsimTimer)clearInterval(vatsimTimer);
-  // CRC's embedded browser is unreliable with long timers. LIST force-polls
-  // VATSIM every 4s (menus/typing cannot skip) so voice freq stays current.
-  const ms=listMode()?4000:monitorMode()?20000:30000;
-  vatsimTimer=setInterval(()=>refreshVatsim(!!listMode()),ms);}
+  vatsimTimer=setInterval(()=>refreshVatsim(!!listMode()),vatsimRefreshMs());}
 
 //============================================================ board
 const rows=document.getElementById('rows');
@@ -5008,6 +5012,11 @@ function openAltMenu(idx,x,y){
     if(fl===curAlt)ai.classList.add('cur');
     ai.onclick=()=>stageAlt(fl);
     L.appendChild(ai);
+  }
+  // Amended with a plain QZ (EDST MCA, CRC alias or vUSALink App): pre-select it.
+  if(altAmended[a.cs]!=null){
+    if(assigned[a.cs]===altAmended[a.cs])stageAlt(altAmended[a.cs]);
+    delete altAmended[a.cs];
   }
   placePop(altmenu,x,y);
   const cur=L.querySelector('.ai.cur');if(cur)cur.scrollIntoView({block:'center'});
@@ -9000,16 +9009,35 @@ async function mcaEnsureMod(){
   mcaMod=await import('../../shared/edst-mca-commands.js');
   return mcaMod;
 }
-async function mcaExecute(rawOverride){
+// Commands that arrive from outside the page (a host such as vUSALink App
+// watching CRC's MCA) must name the aircraft: never fall back to the selected
+// row. Commands the EDST doesn't handle are ignored silently, so ordinary CRC
+// work doesn't fill the MCA with rejects.
+const MCA_HOST_VERBS=new Set(['QZ','QQ','QU','QS']);
+async function mcaExecute(rawOverride,opts){
+  opts=opts||{};
+  const external=opts.source==='crc'||opts.source==='host';
   const raw=(rawOverride!=null?String(rawOverride):(mcaInput&&mcaInput.value||'')).trim();
+  if(external){
+    const verb=raw.toUpperCase().split(/\s+/)[0]||'';
+    if(!MCA_HOST_VERBS.has(verb))return {ok:false,action:'ignored',error:'IGNORED'};
+  }
   if(!raw){mcaSetFeedback(['NULL CMD'],'err');return {ok:false,error:'NULL CMD'};}
+  const mod=await mcaEnsureMod();
+  const parsed=mod.parseMcaCommand(raw,{selectedCs:external?null:selectedCs,requireU:false});
+  if(external&&!parsed.ok&&parsed.error==='NO FLID'){
+    return {ok:false,action:'ignored',error:'IGNORED'};   // finished by clicking a target in CRC
+  }
   mcaLastCmd=raw;
   if(mcaInput&&rawOverride!=null)mcaInput.value=raw;
-  const mod=await mcaEnsureMod();
-  const parsed=mod.parseMcaCommand(raw,{selectedCs:selectedCs});
   if(!parsed.ok){
     mcaSetFeedback(mod.formatMcaReject(parsed.error, parsed.flid||''),'err');
     return {ok:false,error:parsed.error,flid:parsed.flid};
+  }
+  if(!parsed.uplink){
+    if(parsed.verb==='QZ'&&parsed.payload&&parsed.payload.type==='alt')return mcaAmendAltitude(mod,parsed);
+    mcaSetFeedback(mod.formatMcaReject('REQUIRE /U', parsed.flid),'err');
+    return {ok:false,error:'REQUIRE /U',flid:parsed.flid};
   }
   if(!canControl()){
     mcaSetFeedback(mod.formatMcaReject('NOT AUTH', parsed.flid),'err');
@@ -9039,7 +9067,24 @@ async function mcaExecute(rawOverride){
   mcaSetFeedback(mod.formatMcaAccept(parsed,entry),'ok');
   if(mcaInput)mcaInput.value='';
   renderBoard();
-  return {ok:true,flid:parsed.flid,entry};
+  return {ok:true,action:'uplink',flid:parsed.flid,entry};
+}
+// Plain QZ <alt> <FLID>: amend the assigned altitude here only. Nothing is
+// sent; the altitude menu opens with it selected, ready to UPLINK.
+function mcaAmendAltitude(mod,parsed){
+  const ac=mcaFindAircraft(parsed.flid);
+  if(!ac){
+    mcaSetFeedback(mod.formatMcaReject('NO TRACK', parsed.flid),'err');
+    return {ok:false,error:'NO TRACK',flid:parsed.flid};
+  }
+  const fl=parsed.payload.fl;
+  assigned[ac.cs]=fl;
+  altAmended[ac.cs]=fl;
+  persist();
+  mcaSetFeedback(['AMEND','ALT '+pad3(fl)+' '+ac.cs,'UPLINK FROM ALT MENU'],'ok');
+  if(mcaInput)mcaInput.value='';
+  renderBoard();
+  return {ok:true,action:'amend',flid:ac.cs,fl};
 }
 function mcaRestorePos(){
   if(!mcaEl)return;
@@ -9292,6 +9337,22 @@ document.querySelectorAll('[data-auth-chip]').forEach(chip=>{
 });
 window.addEventListener('vatflow-auth-changed',updateAuthChip);
 
+//============================================================ Host API
+// Stable entry points for programs that embed this page, such as the
+// vUSALink App desktop shell (github.com/djbrombizzle/vUSALink-App), which
+// passes on commands typed into CRC. Everything else on this page is
+// internal and free to change; keep these names and result shapes stable,
+// and bump version if they ever have to change.
+//   command(text, {source})  -> Promise<{ok, action:'uplink'|'amend'|'ignored', flid?, error?}>
+//                               source 'crc'/'host': FLID must be typed; non-EDST commands are ignored
+//   status()                 -> {signedIn, canControl, testMode, listMode, refreshMs}
+window.vUSALinkEDST=Object.freeze({
+  version:1,
+  command:(text,opts)=>mcaExecute(String(text||''),Object.assign({source:'host'},opts||{})),
+  status:()=>({signedIn:oauthSignedIn(),canControl:canControl(),testMode:testMode(),
+    listMode:listMode(),refreshMs:vatsimRefreshMs()})
+});
+
 //============================================================ CRC URL intent
 // Reads ?cmd= and ?acid= placed by a CRC .openurl Alias and executes the
 // CPDLC uplink automatically — no button press required on the browser tab.
@@ -9388,7 +9449,7 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
     }
     mcaExecute(rawCmd).then(res=>{
       if(res&&res.ok){
-        setIntentStatus('CPDLC sent \u2014 '+(res.flid||acidInCmd||rawCmd),'ok');
+        setIntentStatus((res.action==='amend'?'Amended \u2014 ':'CPDLC sent \u2014 ')+(res.flid||acidInCmd||rawCmd),'ok');
         setTimeout(()=>setIntentStatus('',''),4000);
         return;
       }
