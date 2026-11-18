@@ -45,6 +45,13 @@ assert(/AT PILOTS DISCRETION/.test(he.msg) && /DUE TO TRAFFIC/.test(he.msg), "PD
 const i = parseMcaCommand("ZZ 1 AAL123 /U");
 assert(!i.ok && i.error === "ILL CMD", "unknown verb");
 
+// uplink reflects whether /U was typed (plain QZ = local amendment in the EDST)
+assert(a.uplink === true, "uplink true with /U");
+const j = parseMcaCommand("QZ 240 DAL123", { requireU: false });
+assert(j.ok && j.uplink === false && j.payload.fl === 240 && j.flid === "DAL123", "plain QZ parses with uplink false");
+const k = parseMcaCommand("QZ 240", { requireU: false, selectedCs: null });
+assert(!k.ok && k.error === "NO FLID", "no FLID without selection");
+
 if (failed) {
   console.error(`\n${failed} failed`);
   process.exit(1);

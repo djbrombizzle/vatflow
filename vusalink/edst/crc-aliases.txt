@@ -30,7 +30,8 @@
 ; Select an aircraft on the ERAM scope first, then type the alias + params.
 ; Example: select AAL123, type  .QZ 340  → sends CLIMB TO AND MAINTAIN FL340
 ;
-; All commands require /U (uplink) — it is embedded in every alias below.
+; Every alias below sends an uplink (/U is built in), except .QZA, which only
+; amends the EDST assigned altitude so you can UPLINK it from the altitude menu.
 ;
 ; =============================================================================
 
@@ -46,6 +47,12 @@
 ;   .QZ 240         → DESCEND TO AND MAINTAIN FL240
 ;   .QZ 8000        → CLIMB AND MAINTAIN 8,000ft  (altitudes below FL180 use feet)
 .QZ .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U)
+
+; QZA — Amend assigned altitude only (nothing is sent to the pilot)
+; Usage: .QZA <altitude>
+; The EDST shows the new assigned altitude, and its altitude menu opens with it
+; selected, so UPLINK is one click when you're ready.
+.QZA .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft)
 
 ; QZ with EXPEDITE modifier
 ; Usage: .QZE <altitude>
