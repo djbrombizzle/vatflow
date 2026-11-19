@@ -89,6 +89,9 @@ a{color:inherit}
 #edstbar .etb-btn.gi-unread{background:#fff;color:#000;border-color:#fff;font-weight:bold}
 #edstbar .etb-stat{cursor:default}
 #edstbar .etb-stat.on{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
+/* vUSALink-Lite link: teal while connected, grey after it drops; hidden until it first connects */
+.etb-stat.link-stat.hidden{display:none!important}
+#edstbar .etb-stat.link-stat.on,#crcbar .etb-stat.link-stat.on{background:var(--teal);color:var(--teal-ink);border-color:var(--teal)}
 #edstbar .etb-spacer{flex:1;min-width:8px}
 #edstbar .etb-time{display:flex;align-items:baseline;gap:5px;padding:0 10px;color:#f2f2f2}
 #edstbar .etb-time b{font-weight:normal;font-size:19px;letter-spacing:1px}
@@ -1727,7 +1730,8 @@ html.list-mode #cpdlcListWin{
     <span class="etb-stat" id="statOutage">OUTAGE<br>56</span>
     <span class="etb-time"><b id="edstClock">----</b><i id="edstSec">--</i></span>
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
-    <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
+    <span class="etb-stat link-stat hidden" id="statLink" title="vUSALink-Lite">LINK</span>
+  <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
     <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
     <span class="etb-btn" id="btnCpdlcListMain" title="Open on-frequency CPDLC list in a new window (view only — drag over CRC; use PowerToys Always On Top)">LIST</span>
     <span class="etb-btn" id="btnCrcModeMain" title="Toggle CRC browser mode (hides nav, forces CPDLC on-freq filter)">CRC</span>
@@ -1753,6 +1757,7 @@ html.list-mode #cpdlcListWin{
   <span class="etb-spacer"></span>
   <span class="etb-btn" id="crcAuthChip" data-auth-chip="crc" title="Sign in with VATSIM">SIGN IN</span>
   <span class="etb-time"><b id="crcClock">----</b><i id="crcSec">--</i></span>
+  <span class="etb-stat link-stat hidden" id="crcStatLink" title="vUSALink-Lite">LINK</span>
   <span class="etb-stat on" id="crcStatSat">SAT<br>COMM</span>
   <span class="etb-stat" id="crcBtnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
   <span class="etb-btn" id="btnCpdlcList" title="Open on-frequency CPDLC list in a new window (view only — drag over CRC; use PowerToys Always On Top)">LIST</span>
@@ -9572,6 +9577,56 @@ window.vUSALinkEDST=Object.freeze({
   status:()=>({signedIn:oauthSignedIn(),canControl:canControl(),testMode:testMode(),
     listMode:listMode(),refreshMs:vatsimRefreshMs(),mySectors:[...mySectors]})
 });
+
+//============================================================ vUSALink-Lite link
+// vUSALink-Lite (a small tray program from github.com/djbrombizzle/vUSALink-App) passes commands typed in CRC
+// (QZ/QQ/QU/QS /U, plain QZ, UC, handoffs) and CRC CIDs to this page over a local WebSocket. It listens on
+// localhost only and only accepts vatflow pages. Everything goes through the host API above, exactly as for
+// vUSALink App. In a CRC browser tab (WebView2), or with ?link / vedst_link set, keep trying to connect;
+// in a plain browser try once, so pages without Lite stay quiet.
+(function liteLink(){
+  const URL_='ws://localhost:47613/link';
+  const keepTrying=!!(window.chrome&&window.chrome.webview)||!!LS.get('vedst_link',false)
+    ||new URLSearchParams(location.search).has('link');
+  let ws=null,delay=3000,everConnected=false;
+  function chips(on){
+    ['statLink','crcStatLink'].forEach(id=>{
+      const e=document.getElementById(id);if(!e)return;
+      e.classList.toggle('hidden',!on&&!everConnected);
+      e.classList.toggle('on',!!on);
+      e.title=on?'vUSALink-Lite connected — commands typed in CRC come here'
+                :'vUSALink-Lite not connected — is it running in the tray?';
+    });
+  }
+  function send(o){try{if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}catch(_){}}
+  function retry(){
+    if(!keepTrying&&!everConnected)return;
+    setTimeout(connect,delay);delay=Math.min(delay*2,30000);
+  }
+  function connect(){
+    try{ws=new WebSocket(URL_);}catch(_){retry();return;}
+    ws.onopen=()=>{
+      everConnected=true;delay=3000;chips(true);
+      send({t:'hello',page:'edst',api:window.vUSALinkEDST.version,list:!!listMode()});
+    };
+    ws.onmessage=async e=>{
+      let m;try{m=JSON.parse(e.data);}catch(_){return;}
+      if(m.t==='cmd'){
+        let r;
+        try{r=await window.vUSALinkEDST.command(String(m.text||''),{source:'crc'});}
+        catch(_){r={ok:false,error:'SEND FAIL'};}
+        r=r||{};
+        send({t:'result',id:m.id,ok:!!r.ok,action:r.action||'',error:r.error||'',flid:r.flid||'',
+          sector:r.sector||'',facility:r.facility||'',freq:r.freq||''});
+      }else if(m.t==='cids'){
+        window.vUSALinkEDST.setCids(m.map||{});
+      }
+    };
+    ws.onerror=()=>{};
+    ws.onclose=()=>{ws=null;chips(false);retry();};
+  }
+  connect();
+})();
 
 //============================================================ CRC URL intent
 // Reads ?cmd= and ?acid= placed by a CRC .openurl Alias and executes the

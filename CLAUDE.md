@@ -51,6 +51,14 @@ free to change.
 - Traffic refresh is `vatsimRefreshMs()` (15 s; LIST windows 4 s). The app no longer
   overrides it, so the page owns the rate.
 
+**vUSALink-Lite link** (`liteLink()` near the host API): vUSALink-Lite is a tray program (same repo as
+the app) for controllers who keep the EDST in a CRC browser tab. The page connects to
+`ws://localhost:47613/link`: it keeps retrying in a WebView2 host (CRC tab) or with `?link` / `vedst_link`,
+and tries once in a plain browser. It sends `{t:'hello', page:'edst', api, list}` and handles
+`{t:'cmd', id, text}` → `vUSALinkEDST.command(text, {source:'crc'})` → `{t:'result', id, ok, action, error,
+flid, sector, facility, freq}`, plus `{t:'cids', map}` → `setCids(map)`. The `LINK` chips (`statLink`,
+`crcStatLink`) show the connection. Keep these message shapes stable with the host API.
+
 If one of these has to change, change it here and in the app together (the app checks
 `version` on every page load). Older pages without the API trigger the app's legacy fallback.
 
