@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>vUSALink Link test</title>
+<style>
+  :root{--bg:#000;--fg:#d2d2cd;--dim:#8a9088;--line:#333;--green:#39d24b;--red:#e0483b;--amber:#e0913f}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 Consolas,"Lucida Console",monospace;padding:16px}
+  h1{font-size:18px;margin:0 0 4px;color:#2e9c9c}
+  p{margin:0 0 14px;color:var(--dim);max-width:70ch}
+  .row{display:flex;gap:12px;align-items:baseline;border-top:1px solid var(--line);padding:10px 0;flex-wrap:wrap}
+  .k{min-width:22ch}
+  .v{font-weight:bold;font-size:18px}
+  .ok{color:var(--green)} .bad{color:var(--red)} .wait{color:var(--amber)}
+  pre{white-space:pre-wrap;color:var(--dim);margin:12px 0 0;max-height:40vh;overflow:auto;border-top:1px solid var(--line);padding-top:10px}
+  button{background:#000;color:var(--fg);border:1px solid #555;font:inherit;padding:4px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+<h1>vUSALink Link: connection test</h1>
+<p>Checks whether this page can reach a vUSALink helper running on this PC (localhost:47613). It's for a one-off
+test of a CRC tab and sends nothing anywhere else.</p>
+<div class="row"><span class="k">WebSocket localhost</span><span class="v wait" id="ws1">testing…</span></div>
+<div class="row"><span class="k">WebSocket 127.0.0.1</span><span class="v wait" id="ws2">testing…</span></div>
+<div class="row"><span class="k">HTTP ping (fetch)</span><span class="v wait" id="ping">testing…</span></div>
+<div class="row"><span class="k">Messages from helper</span><span class="v wait" id="msgs">0</span></div>
+<div class="row"><span class="k">Browser</span><span id="ua"></span></div>
+<div class="row"><button id="again">Test again</button></div>
+<pre id="log"></pre>
+<script>
+const logEl=document.getElementById('log');
+function log(s){logEl.textContent=new Date().toISOString().slice(11,23)+' '+s+'\n'+logEl.textContent;}
+function set(id,text,cls){const e=document.getElementById(id);e.textContent=text;e.className='v '+cls;}
+document.getElementById('ua').textContent=navigator.userAgent+(window.chrome&&window.chrome.webview?'  [WebView2 host]':'');
+let msgs=0;
+function tryWs(id,url){
+  set(id,'connecting…','wait');
+  let opened=false;
+  let ws;
+  try{ws=new WebSocket(url);}catch(e){set(id,'FAIL: '+e.message,'bad');log(url+' threw '+e.message);return;}
+  const timer=setTimeout(()=>{if(!opened){set(id,'FAIL: no answer in 5 s','bad');try{ws.close();}catch(_){}}},5000);
+  ws.onopen=()=>{opened=true;clearTimeout(timer);set(id,'PASS: connected','ok');log(url+' open');
+    ws.send(JSON.stringify({t:'page',url:location.href,ua:navigator.userAgent}));};
+  ws.onmessage=e=>{msgs++;set('msgs',String(msgs),'ok');log(url+' <- '+e.data);
+    try{const m=JSON.parse(e.data);if(m.t==='tick'&&m.n%5===0)ws.send(JSON.stringify({t:'ack',n:m.n}));}catch(_){}};
+  ws.onerror=()=>{log(url+' error');};
+  ws.onclose=e=>{clearTimeout(timer);log(url+' closed code='+e.code);
+    if(!opened)set(id,'FAIL: blocked or not running (code '+e.code+')','bad');else set(id,'closed (was connected)','wait');};
+}
+async function tryPing(){
+  set('ping','testing…','wait');
+  try{
+    const r=await fetch('http://localhost:47613/ping',{cache:'no-store'});
+    const j=await r.json();
+    set('ping','PASS: '+JSON.stringify(j),'ok');log('ping ok');
+  }catch(e){set('ping','FAIL: '+e.message,'bad');log('ping failed: '+e.message);}
+}
+function run(){msgs=0;set('msgs','0','wait');tryWs('ws1','ws://localhost:47613/link');tryWs('ws2','ws://127.0.0.1:47613/link');tryPing();}
+document.getElementById('again').onclick=run;
+run();
+</script>
+</body>
+</html>
