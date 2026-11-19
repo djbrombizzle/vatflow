@@ -14,6 +14,12 @@
  * Without /U (requireU: false) the same commands parse with uplink: false.
  * The EDST uses that for a plain QZ <alt> <FLID>: it amends the assigned
  * altitude locally and sends nothing.
+ *
+ * Crossing restriction uplinks (ERAM UC; the command itself is the uplink, no /U):
+ *   UC <position> A<alt> [/reason] <FLID>[/<FLID>…]    cross <position> at and maintain <alt>
+ *   UC <position> S<kt>  [/reason] <FLID>[/<FLID>…]    cross <position> at <kt>
+ *   UC <position> M.<nn> [/reason] <FLID>[/<FLID>…]    cross <position> at Mach .nn
+ * Position is a fix, navaid or FRD (e.g. VUH, AUS030015).
  */
 const REASON_TEXT = {
   IMM: "IMMEDIATELY",
@@ -105,6 +111,8 @@ export function parseMcaCommand(raw, opts = {}) {
   const verb = tokens[0];
   const rest = tokens.slice(1);
   const uplink = mods.has("U");
+
+  if (verb === "UC") return parseUcCommand(rest, mods, opts);
 
   // Collect FLID candidates from end / multi-FLID with /
   let flid = "";
@@ -216,6 +224,37 @@ export function parseMcaCommand(raw, opts = {}) {
 }
 
 /**
+ * ERAM UC (crossing restriction) — positional: UC <position> <restriction> <FLID>[/<FLID>…].
+ * Parsed by position, not by token shape: a fix such as KA03 would otherwise look like a callsign.
+ * Slash modifiers (/TFC, /WX …) were already removed into `mods`.
+ */
+function parseUcCommand(rest, mods, opts) {
+  const pos = rest[0] || "";
+  const restr = rest[1] || "";
+  if (!pos || !restr) return { ok: false, error: "FORMAT", verb: "UC" };
+  if (!/^[A-Z0-9]{2,12}$/.test(pos) || !/[A-Z]/.test(pos)) return { ok: false, error: "ILL FIX", verb: "UC" };
+  let payload, m;
+  if ((m = restr.match(/^A(\d{2,3})$/))) {
+    const fl = +m[1];
+    if (fl < 10 || fl > 600) return { ok: false, error: "ILL ALT", verb: "UC" };
+    payload = { type: "cross", fix: pos, fl };
+  } else if ((m = restr.match(/^S(\d{2,3})$/))) {
+    const kt = +m[1];
+    if (kt < 50 || kt > 500) return { ok: false, error: "ILL SPD", verb: "UC" };
+    payload = { type: "cross", fix: pos, kt };
+  } else if ((m = restr.match(/^M\.?(\d{2})$/))) {
+    payload = { type: "cross", fix: pos, mach: m[1] };
+  } else {
+    return { ok: false, error: "ILL CMD", verb: "UC" };
+  }
+  if (rest.length > 3) return { ok: false, error: "FORMAT", verb: "UC" };
+  let flids = rest[2] ? rest[2].split("/").filter(Boolean) : [];
+  if (!flids.length && opts.selectedCs) flids = [String(opts.selectedCs).toUpperCase()];
+  if (!flids.length) return { ok: false, error: "NO FLID", verb: "UC" };
+  return { ok: true, verb: "UC", flid: flids[0], flids, uplink: true, mods, payload };
+}
+
+/**
  * Build a sendUplinkEntry-compatible {label,msg,effects} from a parsed command.
  * @param {object} parsed — success result from parseMcaCommand
  * @param {{ alt?: number|null }} [ac] — aircraft for climb/descend verb
@@ -243,6 +282,23 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
     if (pd) msg += " AT PILOTS DISCRETION";
     msg += suf;
     return { label: "ALT", msg, effects: { type: "alt", alt: fl } };
+  }
+
+  if (p.type === "cross") {
+    // Altitude crossing: coded under the ACL altitude (effects alt); below FL180 in feet, and the
+    // page appends the destination altimeter (altimeterBelow180). Speed/Mach: coded under the speed.
+    if (p.fl != null) {
+      const A = p.fl < 180 ? (p.fl * 100).toLocaleString("en-US") + "ft" : "FL" + ("000" + p.fl).slice(-3);
+      return {
+        label: "CROSS", msg: `CROSS @${p.fix}@ AT AND MAINTAIN @${A}@` + suf,
+        effects: { type: "alt", alt: p.fl }, altimeterBelow180: p.fl < 180,
+      };
+    }
+    const S = p.mach ? "M." + p.mach : p.kt + "KT";
+    return {
+      label: "CROSS", msg: `CROSS @${p.fix}@ AT @${S}@` + suf,
+      effects: { type: "spd", spd: p.mach ? "M." + p.mach : p.kt },
+    };
   }
 
   if (p.type === "direct") {

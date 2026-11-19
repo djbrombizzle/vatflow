@@ -31,6 +31,12 @@ free to change.
     `altAmended[cs]`, sends nothing, and returns `action: 'amend'`. The altitude menu
     (`openAltMenu`) opens with that altitude pre-selected (one-shot).
   - QQ/QU/QS without `/U`: reject with `REQUIRE /U`.
+  - `UC <position> A<alt>|S<kt>|M.<nn> [/reason] <FLID>[/<FLID>…]` (ERAM crossing restriction; the command
+    itself is the uplink, no `/U`): parsed positionally by `parseUcCommand` in `shared/edst-mca-commands.js`.
+    An altitude crossing is coded under the ACL altitude (effects `alt`), and below FL180 the destination
+    altimeter is appended. A speed or Mach crossing is coded under the speed (effects `spd`). Several FLIDs
+    send one uplink each. vUSALink App clears UC lines from CRC's MCA (CRC has no UC) and only does that
+    for v2 pages.
   - ERAM handoff `<sector> <FLID>` (e.g. `11 AAL004`; sector is 1-2 digits, a letter, or a
     letter + 1-2 digits; parsed by `crcHandoffParse`): if the aircraft is on CPDLC, the row
     shows `▶|` + `(sector)` (`crcHandoffs`, `crcHandoffHtml`). Clicking it sends CPDLC

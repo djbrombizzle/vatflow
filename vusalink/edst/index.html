@@ -9205,7 +9205,7 @@ async function mcaEnsureMod(){
 // watching CRC's MCA) must name the aircraft: never fall back to the selected
 // row. Commands the EDST doesn't handle are ignored silently, so ordinary CRC
 // work doesn't fill the MCA with rejects.
-const MCA_HOST_VERBS=new Set(['QZ','QQ','QU','QS']);
+const MCA_HOST_VERBS=new Set(['QZ','QQ','QU','QS','UC']);
 async function mcaExecute(rawOverride,opts){
   opts=opts||{};
   const external=opts.source==='crc'||opts.source==='host';
@@ -9241,6 +9241,18 @@ async function mcaExecute(rawOverride,opts){
     mcaSetFeedback(mod.formatMcaReject('NOT AUTH', parsed.flid),'err');
     return {ok:false,error:'NOT AUTH',flid:parsed.flid};
   }
+  // UC to several aircraft ("… AAL002/UAL262/AWE121"): one uplink each, same checks as a single FLID.
+  if(parsed.flids&&parsed.flids.length>1){
+    const all=parsed.flids.join('/');
+    const toks=raw.toUpperCase().replace(/\s+/g,' ').split(' ');
+    const sent=[],failed=[];
+    for(const f of parsed.flids){
+      const r=await mcaExecute(toks.map(t=>t===all?f:t).join(' '),opts);
+      if(r&&r.ok)sent.push(f);else failed.push(f+' '+((r&&r.error)||'FAIL'));
+    }
+    mcaSetFeedback([sent.length?'ACCEPT':'REJECT',sent.length?('SENT '+sent.join('/')):'',failed.join(' · ')],sent.length?'ok':'err');
+    return {ok:sent.length>0,action:'uplink',flid:all,error:failed.join(', ')};
+  }
   const ac=mcaFindAircraft(parsed.flid);
   if(!ac){
     mcaSetFeedback(mod.formatMcaReject('NO TRACK', parsed.flid),'err');
@@ -9254,6 +9266,11 @@ async function mcaExecute(rawOverride,opts){
   if(!entry){
     mcaSetFeedback(mod.formatMcaReject('ILL CMD', parsed.flid),'err');
     return {ok:false,error:'ILL CMD',flid:parsed.flid};
+  }
+  // UC altitude below FL180: add the destination altimeter, as the X RES menu does.
+  if(entry.altimeterBelow180){
+    const dest=normalizeIcao(ac.arr);
+    entry.msg+=altimeterSuffix(dest,await fetchDestAltimeter(dest));
   }
   mcaSetFeedback(['SENDING…', entry.label, parsed.flid],'');
   const min=await sendUplinkEntry(parsed.flid,entry);

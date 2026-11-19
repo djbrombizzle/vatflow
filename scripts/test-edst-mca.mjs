@@ -52,6 +52,27 @@ assert(j.ok && j.uplink === false && j.payload.fl === 240 && j.flid === "DAL123"
 const k = parseMcaCommand("QZ 240", { requireU: false, selectedCs: null });
 assert(!k.ok && k.error === "NO FLID", "no FLID without selection");
 
+// UC crossing restrictions (examples from the ERAM CPDLC reference)
+const u1 = parseMcaCommand("UC VUH A100 AAL002");
+assert(u1.ok && u1.uplink && u1.payload.fix === "VUH" && u1.payload.fl === 100 && u1.flid === "AAL002", "UC fix altitude");
+const u1e = buildMcaUplinkEntry(u1);
+assert(u1e.msg === "CROSS @VUH@ AT AND MAINTAIN @10,000ft@" && u1e.effects.type === "alt" && u1e.effects.alt === 100 && u1e.altimeterBelow180, "UC altitude message (feet below FL180)");
+const u2 = parseMcaCommand("UC AUS030015 A60 N211PC");
+assert(u2.ok && u2.payload.fix === "AUS030015" && u2.payload.fl === 60 && u2.flid === "N211PC", "UC FRD position");
+const u3 = parseMcaCommand("UC FAY A240 /TFC AWE228");
+assert(u3.ok && buildMcaUplinkEntry(u3).msg === "CROSS @FAY@ AT AND MAINTAIN @FL240@, DUE TO TRAFFIC", "UC FL with reason");
+const u4 = parseMcaCommand("UC VUH S250 AAL002");
+const u4e = buildMcaUplinkEntry(u4);
+assert(u4.ok && u4e.msg === "CROSS @VUH@ AT @250KT@" && u4e.effects.type === "spd" && u4e.effects.spd === 250, "UC speed");
+const u5 = buildMcaUplinkEntry(parseMcaCommand("UC APRIL M.80 NASA242"));
+assert(u5.msg === "CROSS @APRIL@ AT @M.80@" && u5.effects.spd === "M.80", "UC Mach");
+const u6 = parseMcaCommand("UC STV A100 AAL002/UAL262/AWE121");
+assert(u6.ok && u6.flids.length === 3 && u6.flids[2] === "AWE121", "UC multiple FLIDs");
+const u7 = parseMcaCommand("UC KA03 A100 AAL002");
+assert(u7.ok && u7.payload.fix === "KA03" && u7.flid === "AAL002", "UC fix that looks like a callsign");
+assert(!parseMcaCommand("UC VUH A100").ok, "UC without FLID rejected");
+assert(parseMcaCommand("UC VUH X100 AAL002").error === "ILL CMD", "UC bad restriction");
+
 if (failed) {
   console.error(`\n${failed} failed`);
   process.exit(1);
