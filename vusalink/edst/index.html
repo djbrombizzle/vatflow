@@ -9607,7 +9607,8 @@ window.vUSALinkEDST=Object.freeze({
     try{ws=new WebSocket(URL_);}catch(_){retry();return;}
     ws.onopen=()=>{
       everConnected=true;delay=3000;chips(true);
-      send({t:'hello',page:'edst',api:window.vUSALinkEDST.version,list:!!listMode()});
+      send({t:'hello',page:'edst',api:window.vUSALinkEDST.version,list:!!listMode(),
+        active:document.visibilityState==='visible'&&document.hasFocus()});
     };
     ws.onmessage=async e=>{
       let m;try{m=JSON.parse(e.data);}catch(_){return;}
@@ -9625,6 +9626,11 @@ window.vUSALinkEDST=Object.freeze({
     ws.onerror=()=>{};
     ws.onclose=()=>{ws=null;chips(false);retry();};
   }
+  // With several EDST pages open, Lite sends CRC commands to the one used most recently.
+  const active=()=>{if(document.visibilityState==='visible')send({t:'active'});};
+  window.addEventListener('focus',active);
+  document.addEventListener('visibilitychange',active);
+  document.addEventListener('pointerdown',active,true);
   connect();
 })();
 
