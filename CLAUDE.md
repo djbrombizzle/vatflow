@@ -1,5 +1,14 @@
 # Notes for Claude
 
+## vusalink/edst/index.html: declare row state before start-up rendering
+
+The page draws the board during start-up (`renderBoard` runs from top-level code and `onOAuthReady`), so
+anything `renderRowEdst` and its helpers read must be declared with the board state near the top of the main
+script, not in a later section. A `const`/`let` declared further down throws "Cannot access … before
+initialization" on the first render and stops the whole script: no clock, dead buttons, no host API. This
+broke the live EDST for signed-in controllers with traffic (Nov 2026). Test new row features with a row
+present at load, for example a saved manual strip in `localStorage.vedst_manual`, not only in TEST MODE.
+
 ## vUSAlink EDST: host API used by vUSALink App
 
 `vusalink/edst/index.html` is also loaded by **vUSALink App**
