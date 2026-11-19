@@ -302,6 +302,10 @@ td.eh-bk{text-align:center;min-width:14px}
 .smbox.fidbox.on{background:#fff;border-color:#fff}
 .efid{white-space:nowrap;display:inline-flex;align-items:center;cursor:pointer}
 .efid .acid{color:#f0f0ec}
+/* CRC CID left of the callsign and, when another sector owns the track, "(sector)" after it.
+   Both come from vUSALink App (learned from CRC QF readouts); the CID slot stays blank to keep alignment. */
+.efid .ecid{display:inline-block;width:3ch;margin:0 1.2ch 0 .6ch;color:#b4b4ae;text-align:left}
+.efid .eown{margin-left:.6ch;color:#d2d2cd}
 .efid.conn .acid{color:#fff}
 .efid:hover .acid,.efid:active .acid{color:#fff;text-decoration:underline}
 .etyp{color:#d2d2cd}
@@ -2785,6 +2789,10 @@ let assigned=LS.get('vedst_assigned',{});
 // cs -> FL amended with a plain QZ (no /U) and not yet uplinked. The altitude
 // menu opens with it pre-selected so UPLINK is one click. Cleared when used.
 const altAmended={};
+// cs -> {cid, sector}: CRC CID and owning sector from CRC QF readouts, pushed by vUSALink App
+// (host API setCids). Empty in a plain browser.
+const crcCidByCs=new Map();
+let mySectors=new Set();                 // our ERAM sector(s), to show "(sector)" only for other owners
 let sqPending=LS.get('vedst_sq_pending',{});   // cs -> pending CPDLC squawk code
 let liveFlights=demoLive();
 let facilities=[];                       // nearby online facilities (handoff targets)
@@ -4342,7 +4350,11 @@ function renderRowEdst(a,idx){
   const connCue=conn?' conn':'';
   const fidTitle=conn?'on CPDLC \u00b7 handoff':'handoff';
   const brownFid=alerts.brownFid?' probe-brown':'';
-  const fid=`<span class="efid${connCue}" data-cs="${a.cs}" data-ho="${idx}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid${brownFid}">${a.cs}</span></span>`;
+  const cidE=crcCidByCs.get(a.cs);
+  const cidHtml=`<span class="ecid"${cidE?' title="CRC CID"':''}>${cidE?esc(cidE.cid):''}</span>`;
+  const owner=cidE?otherOwnerSector(a.cs,cidE.sector):'';
+  const ownHtml=owner?`<span class="eown" title="Track owned by sector ${esc(owner)} (from CRC QF)">(${esc(owner)})</span>`:'';
+  const fid=`<span class="efid${connCue}" data-cs="${a.cs}" data-ho="${idx}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span>${cidHtml}<span class="acid${brownFid}">${a.cs}</span>${ownHtml}</span>`;
   const crcHo=crcHandoffHtml(a.cs);
   const triRaw=msgTriHtml(a.cs);
   // The invisible ▲ placeholder only reserves width; drop it so ▶| sits right after the callsign.
@@ -6263,6 +6275,48 @@ function crcHandoffHtml(cs){
   return `<span class="crc-ho${e.fac?'':' nofreq'}" data-crcho="${cs}" title="${esc(tip)}">`
     +`<span class="tri">\u25b6</span><span class="bar"></span><span class="sec">(${esc(e.sector)})</span></span>`;
 }
+//============================================================ CRC CIDs / track owner (from vUSALink App)
+function normSector(s){s=String(s||'').toUpperCase().trim();return /^\d+$/.test(s)?String(parseInt(s,10)):s;}
+// Our own ERAM sector(s): every active position of our controller in the vNAS feed (a controller can
+// combine several sectors), falling back to the number in a "<prefix>_<NN>_CTR" callsign.
+async function refreshMySectors(){
+  const mine=(myPosition.callsign||'').toUpperCase();
+  const next=new Set();
+  if(mine){
+    const ctrls=await loadVnasFeed(false);
+    (ctrls||[]).forEach(c=>{
+      const cs=((c.vatsimData&&c.vatsimData.callsign)||'').toUpperCase();
+      if(cs!==mine)return;
+      (c.positions||[]).forEach(p=>{if(p&&p.isActive&&p.eramData&&p.eramData.sectorId!=null)next.add(normSector(p.eramData.sectorId));});
+    });
+    if(!next.size){const m=mine.match(/_(\d{1,2})_CTR$/);if(m)next.add(normSector(m[1]));}
+  }
+  const changed=next.size!==mySectors.size||[...next].some(s=>!mySectors.has(s));
+  mySectors=next;
+  if(changed)renderBoard();
+}
+// "(sector)" only for aircraft that are NOT ours: never when the aircraft is on our voice frequency,
+// never when the owning sector is one of ours.
+function otherOwnerSector(cs,sector){
+  const s=normSector(sector);
+  if(!s||mySectors.has(s))return '';
+  if(tunedToOurFreq(cs))return '';
+  return String(sector).toUpperCase();
+}
+// Host API: replace the CID table. map = {CALLSIGN: {cid, sector}} (or CALLSIGN: "cid").
+function setCrcCids(map){
+  crcCidByCs.clear();
+  Object.keys(map||{}).forEach(k=>{
+    const v=map[k];const cs=String(k).toUpperCase();
+    const cid=typeof v==='string'?v:(v&&v.cid);
+    if(cs&&cid)crcCidByCs.set(cs,{cid:String(cid).toUpperCase(),sector:(v&&v.sector)?String(v.sector):''});
+  });
+  refreshMySectors();
+  renderBoard();
+  return crcCidByCs.size;
+}
+setInterval(()=>{if(crcCidByCs.size)refreshMySectors();},60e3);
+
 async function crcHandoffClick(cs,anchor){
   const e=crcHandoffEntry(cs);
   if(!e)return;
@@ -9491,12 +9545,15 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 //                               source 'crc'/'host': FLID must be typed; non-EDST commands are ignored
 //                               v2: "<sector> <FLID>" (ERAM handoff) on a CPDLC aircraft -> action
 //                               'handoff' {sector, facility, freq}; row shows ▶| (sector), click = CONTACT
+//   setCids({CS:{cid,sector}}) -> v2: CRC CIDs (from CRC QF readouts) shown left of the callsign, and
+//                               "(sector)" after it when another sector owns the track. Replaces the table.
 //   status()                 -> {signedIn, canControl, testMode, listMode, refreshMs}
 window.vUSALinkEDST=Object.freeze({
   version:2,
   command:(text,opts)=>mcaExecute(String(text||''),Object.assign({source:'host'},opts||{})),
+  setCids:map=>setCrcCids(map),
   status:()=>({signedIn:oauthSignedIn(),canControl:canControl(),testMode:testMode(),
-    listMode:listMode(),refreshMs:vatsimRefreshMs()})
+    listMode:listMode(),refreshMs:vatsimRefreshMs(),mySectors:[...mySectors]})
 });
 
 //============================================================ CRC URL intent

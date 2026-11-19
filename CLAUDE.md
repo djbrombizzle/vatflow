@@ -16,7 +16,12 @@ free to change.
   - `command(text, {source})`: returns a Promise of
     `{ok, action: 'uplink' | 'amend' | 'handoff' | 'ignored', flid, error}`
     (`handoff` also carries `sector`, `facility`, `freq`).
-  - `status()`: returns `{signedIn, canControl, testMode, listMode, refreshMs}`.
+  - `setCids({CALLSIGN: {cid, sector}})` (v2): replaces the table of CRC CIDs that the app learns from CRC
+    QF readouts (`crcCidByCs`). The ACL shows the CID left of the callsign. It shows `(sector)` after the
+    callsign only when another sector owns the track: never when the aircraft is on our voice frequency
+    (`tunedToOurFreq`), and never for our own sector(s) (`mySectors`, from the vNAS feed or our `_NN_CTR`
+    callsign). See `otherOwnerSector`.
+  - `status()`: returns `{signedIn, canControl, testMode, listMode, refreshMs, mySectors}`.
 - Behaviour behind `command()` (implemented in `mcaExecute(text, opts)`):
   - `source: 'crc'` or `'host'`: the FLID must be typed. Never fall back to the selected row
     (that could uplink to the wrong aircraft). Verbs other than QZ/QQ/QU/QS, or a missing
