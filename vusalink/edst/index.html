@@ -2798,6 +2798,12 @@ const altAmended={};
 // (host API setCids). Empty in a plain browser.
 const crcCidByCs=new Map();
 let mySectors=new Set();                 // our ERAM sector(s), to show "(sector)" only for other owners
+// CRC handoff markers (see "CRC handoff → CPDLC CONTACT"). Declared here, not in that section, because
+// renderRowEdst reads them and rows can be drawn during start-up, before that section has run.
+const CRC_HO_TTL_MS=15*60e3;
+const VNAS_FEED_URL='https://live.env.vnas.vatsim.net/data-feed/controllers.json';
+const crcHandoffs=new Map();              // cs -> {sector, at, fac|null}
+let vnasFeed={at:0,controllers:[]},vnasFeedLoading=null;
 let sqPending=LS.get('vedst_sq_pending',{});   // cs -> pending CPDLC squawk code
 let liveFlights=demoLive();
 let facilities=[];                       // nearby online facilities (handoff targets)
@@ -6191,10 +6197,8 @@ async function sendHandover(cs,fac){
 // from vNAS's public controller feed (ERAM sectorId per position), falling back
 // to an online "<prefix>_<sector>_CTR" callsign. Unresolved: the click opens the
 // normal HANDOFF menu. Right-click dismisses. Not persisted.
-const CRC_HO_TTL_MS=15*60e3;
-const VNAS_FEED_URL='https://live.env.vnas.vatsim.net/data-feed/controllers.json';
-const crcHandoffs=new Map();              // cs -> {sector, at, fac|null}
-let vnasFeed={at:0,controllers:[]},vnasFeedLoading=null;
+// State for this section (crcHandoffs, CRC_HO_TTL_MS, vnasFeed) is declared with the board state near the
+// top of the script: rows are drawn during start-up, before this point runs.
 function crcHandoffParse(raw){
   const t=String(raw||'').toUpperCase().replace(/\s+/g,' ').trim().split(' ');
   if(t.length!==2)return null;
