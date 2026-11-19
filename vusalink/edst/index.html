@@ -324,6 +324,14 @@ td.eh-bk{text-align:center;min-width:14px}
 .msg-tri.dn.flash{color:var(--red);animation:msgtriflash 1s steps(2,start) infinite}
 @keyframes msgtriflash{50%{opacity:0}}
 .msg-tri:hover{filter:brightness(1.25)}
+/* CRC handoff initiated (via vUSALink App / MCA "<sector> <FLID>") on a CPDLC aircraft:
+   ▶ + orange bar = CONTACT not sent yet; (sector) = receiving sector. Click sends CONTACT. */
+.crc-ho{display:inline-flex;align-items:center;margin-left:3px;cursor:pointer;user-select:none;white-space:nowrap}
+.crc-ho .tri{color:#cfcfcf;line-height:1}
+.crc-ho .bar{display:inline-block;width:3px;height:.95em;background:var(--amber);margin-left:1px}
+.crc-ho .sec{color:#d2d2cd;margin-left:6px}
+.crc-ho.nofreq .tri{color:#8a9088}
+.crc-ho:hover .tri,.crc-ho:hover .sec{color:#fff}
 
 .alt-cell{color:#d2d2cd;cursor:pointer}
 .alt-cell:hover{color:#fff;text-decoration:underline}
@@ -4335,12 +4343,15 @@ function renderRowEdst(a,idx){
   const fidTitle=conn?'on CPDLC \u00b7 handoff':'handoff';
   const brownFid=alerts.brownFid?' probe-brown':'';
   const fid=`<span class="efid${connCue}" data-cs="${a.cs}" data-ho="${idx}" title="${fidTitle}"><span class="smbox fidbox${conn?' on':''}" title="${fidTitle}"></span><span class="acid${brownFid}">${a.cs}</span></span>`;
-  const tri=msgTriHtml(a.cs);
+  const crcHo=crcHandoffHtml(a.cs);
+  const triRaw=msgTriHtml(a.cs);
+  // The invisible ▲ placeholder only reserves width; drop it so ▶| sits right after the callsign.
+  const tri=crcHo&&!triRaw.includes('data-msg')?'':triRaw;
   const rMark=uplinkMarkClass(a.cs,routePending);
   const rRed=rMark.includes('ul-red')?` data-pend="route" data-cs="${a.cs}"`:'';
   const routeHtml=`<span class="${(rMark||'ul-val').trim()}"${rRed}>${esc(a.route||'')}</span>`;
   return `<td class="eh-bk">${bk}</td><td class="eh-al">${alerts.r}</td><td class="eh-al">${alerts.y}</td><td class="eh-al">${alerts.a}</td>`
-        +`<td><span class="fid-wrap">${fid}${tri}</span></td><td class="eh-pa"><span class="smbox"></span></td>`
+        +`<td><span class="fid-wrap">${fid}${tri}${crcHo}</span></td><td class="eh-pa"><span class="smbox"></span></td>`
         +`<td class="etyp">${a.type||''}</td>`
         +`<td class="alt-cell" data-alt="${idx}">${altCellHtml(a)}</td>`
         +`<td class="ecod sqk-cell" data-sqk="${idx}" title="squawk">${sqkCellHtml(a)}</td>`
@@ -6154,6 +6165,118 @@ async function sendHandover(cs,fac){
   const min=await sendCpdlc(cs,'NE',HANDOVER_MSG(fac.icao));
   if(min!=null){handoffPending.add(cs);
     logMsg('sys',cs,'CPDLC handover \u2192 '+fac.icao+' (next data authority)');renderBoard();}
+}
+
+//============================================================ CRC handoff \u2192 CPDLC CONTACT
+// An ERAM handoff "<sector> <FLID>" (typed in CRC and passed on by vUSALink App,
+// or typed in this MCA) on a CPDLC aircraft marks the row \u25b6| (sector). Clicking
+// it sends CONTACT for the receiving sector's controller. The sector is resolved
+// from vNAS's public controller feed (ERAM sectorId per position), falling back
+// to an online "<prefix>_<sector>_CTR" callsign. Unresolved: the click opens the
+// normal HANDOFF menu. Right-click dismisses. Not persisted.
+const CRC_HO_TTL_MS=15*60e3;
+const VNAS_FEED_URL='https://live.env.vnas.vatsim.net/data-feed/controllers.json';
+const crcHandoffs=new Map();              // cs -> {sector, at, fac|null}
+let vnasFeed={at:0,controllers:[]},vnasFeedLoading=null;
+function crcHandoffParse(raw){
+  const t=String(raw||'').toUpperCase().replace(/\s+/g,' ').trim().split(' ');
+  if(t.length!==2)return null;
+  const sector=t[0],flid=t[1];
+  if(!/^(\d{1,2}|[A-Z]\d{1,2}|[A-Z])$/.test(sector))return null;
+  if(!/^[A-Z][A-Z0-9]{1,7}$/.test(flid)||!/\d/.test(flid))return null;
+  return {sector,flid};
+}
+async function loadVnasFeed(force){
+  if(!force&&Date.now()-vnasFeed.at<30e3)return vnasFeed.controllers;
+  if(vnasFeedLoading)return vnasFeedLoading;
+  vnasFeedLoading=fetch(VNAS_FEED_URL,{cache:'no-store',credentials:'omit'})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{if(d&&Array.isArray(d.controllers))vnasFeed={at:Date.now(),controllers:d.controllers};return vnasFeed.controllers;})
+    .catch(()=>vnasFeed.controllers)
+    .finally(()=>{vnasFeedLoading=null;});
+  return vnasFeedLoading;
+}
+function mhzFromHz(hz){const n=+hz;return n>1e6?(n/1e6).toFixed(3):'';}
+// ERAM sector ("11", "06") \u2192 {name, freq, callsign, kind} for CONTACT, or null.
+async function resolveCrcSector(sector){
+  const mine=normArtccId(airspaceId());
+  const num=/^\d+$/.test(sector)?parseInt(sector,10):null;
+  if(num!=null){
+    const ctrls=await loadVnasFeed(false);
+    const hits=[];
+    (ctrls||[]).forEach(c=>{
+      if(mine&&normArtccId(c.artccId)!==mine)return;
+      (c.positions||[]).forEach(p=>{
+        const sid=p&&p.eramData&&p.eramData.sectorId;
+        if(sid==null||parseInt(sid,10)!==num)return;
+        hits.push({c,p});
+      });
+    });
+    hits.sort((a,b)=>(b.p.isActive-a.p.isActive)||(b.p.isPrimary-a.p.isPrimary));
+    const h=hits[0];
+    if(h&&mhzFromHz(h.p.frequency)){
+      return {name:String(h.p.radioName||h.p.positionName||'CENTER').toUpperCase(),
+        freq:mhzFromHz(h.p.frequency),
+        callsign:(h.c.vatsimData&&h.c.vatsimData.callsign)||h.p.defaultCallsign||'',
+        kind:'CTR',source:'vnas'};
+    }
+  }
+  // Fallback: an online "<prefix>_<sector>_CTR" from the hub's facility list.
+  const prefix=(myPosition.callsign||'').split('_')[0];
+  const want=new RegExp('_'+sector.replace(/^0+(?=\d)/,'0?')+'_CTR$','i');
+  const f=(facilities||[]).find(x=>want.test(x.callsign||'')&&(!prefix||String(x.callsign).toUpperCase().startsWith(prefix.toUpperCase()+'_')));
+  if(f&&f.freq)return {name:f.name||f.callsign,freq:f.freq,callsign:f.callsign,kind:f.kind||'CTR',source:'hub'};
+  return null;
+}
+// Called from mcaExecute for "<sector> <FLID>".
+async function crcHandoffStart(ho,external){
+  const ac=mcaFindAircraft(ho.flid);
+  if(!ac||!connected.has(ac.cs)){
+    // Ordinary handoff of a non-CPDLC aircraft: nothing for the EDST to do.
+    if(external)return {ok:false,action:'ignored',error:ac?'NO CPDLC':'NO TRACK',flid:ho.flid};
+    mcaSetFeedback(['REJECT',ac?'NO CPDLC':'NO TRACK',ho.flid],'err');
+    return {ok:false,error:ac?'NO CPDLC':'NO TRACK',flid:ho.flid};
+  }
+  const entry={sector:ho.sector,at:Date.now(),fac:null};
+  crcHandoffs.set(ac.cs,entry);
+  renderBoard();
+  entry.fac=await resolveCrcSector(ho.sector);
+  if(crcHandoffs.get(ac.cs)===entry)renderBoard();
+  if(!external)mcaSetFeedback(['HANDOFF '+ho.sector,ac.cs,entry.fac?('CLICK \u25b6 TO CONTACT '+entry.fac.freq):'CLICK \u25b6 TO PICK FREQUENCY'],'ok');
+  logMsg('sys',ac.cs,'CRC handoff to '+ho.sector+(entry.fac?(' \u2014 '+entry.fac.name+' '+entry.fac.freq):' \u2014 sector not found online'));
+  return {ok:true,action:'handoff',flid:ac.cs,sector:ho.sector,
+    facility:entry.fac?entry.fac.name:'',freq:entry.fac?entry.fac.freq:''};
+}
+function crcHandoffEntry(cs){
+  const e=crcHandoffs.get(cs);
+  if(!e)return null;
+  if(!connected.has(cs)||handoffPending.has(cs)||Date.now()-e.at>CRC_HO_TTL_MS){crcHandoffs.delete(cs);return null;}
+  return e;
+}
+function crcHandoffHtml(cs){
+  cs=(cs||'').toUpperCase();
+  const e=crcHandoffEntry(cs);
+  if(!e)return '';
+  const tip=e.fac
+    ?`CRC handoff to ${e.sector} \u2014 click to send CONTACT ${e.fac.name} ${e.fac.freq} \u00b7 right-click to dismiss`
+    :`CRC handoff to ${e.sector} \u2014 no controller found online for this sector; click to choose \u00b7 right-click to dismiss`;
+  return `<span class="crc-ho${e.fac?'':' nofreq'}" data-crcho="${cs}" title="${esc(tip)}">`
+    +`<span class="tri">\u25b6</span><span class="bar"></span><span class="sec">(${esc(e.sector)})</span></span>`;
+}
+async function crcHandoffClick(cs,anchor){
+  const e=crcHandoffEntry(cs);
+  if(!e)return;
+  if(!canControl()){comingSoon('Sign in / verify to hand off');return;}
+  if(!e.fac)e.fac=await resolveCrcSector(e.sector);   // a controller may have logged on since
+  if(!e.fac){
+    const idx=displayList().findIndex(x=>x.cs===cs);
+    const r=anchor.getBoundingClientRect();
+    if(idx>=0)openHandoff(idx,r.left,r.bottom+2);
+    return;
+  }
+  await sendHandoff(cs,e.fac,'CONTACT');
+  if(handoffPending.has(cs))crcHandoffs.delete(cs);
+  renderBoard();
 }
 
 //============================================================ SIG (SIGMETs for FIR)
@@ -8652,6 +8775,14 @@ document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
 });
 
 //============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / MSG / ALERT / row select)
+rows.addEventListener('contextmenu',e=>{
+  const crcHo=e.target.closest('[data-crcho]');
+  if(!crcHo)return;
+  e.preventDefault();e.stopImmediatePropagation();   // not the manual-strip menu below
+  crcHandoffs.delete(crcHo.dataset.crcho);
+  logMsg('sys',crcHo.dataset.crcho,'CRC handoff marker dismissed');
+  renderBoard();
+});
 rows.addEventListener('click',e=>{
   if(listMode())return;
   const pendAck=e.target.closest('.ul-red[data-pend]');
@@ -8664,6 +8795,12 @@ rows.addEventListener('click',e=>{
   if(alertBox){
     e.preventDefault();e.stopPropagation();
     selectAlertBox(alertBox.dataset.cs,alertBox.dataset.alert);
+    return;
+  }
+  const crcHo=e.target.closest('[data-crcho]');
+  if(crcHo){
+    e.preventDefault();e.stopPropagation();
+    crcHandoffClick(crcHo.dataset.crcho,crcHo);
     return;
   }
   const mtri=e.target.closest('[data-msg]');
@@ -9019,6 +9156,12 @@ async function mcaExecute(rawOverride,opts){
   opts=opts||{};
   const external=opts.source==='crc'||opts.source==='host';
   const raw=(rawOverride!=null?String(rawOverride):(mcaInput&&mcaInput.value||'')).trim();
+  // ERAM handoff "<sector> <FLID>": mark the CPDLC aircraft for a one-click CONTACT.
+  const ho=crcHandoffParse(raw);
+  if(ho){
+    if(!external){mcaLastCmd=raw;if(mcaInput)mcaInput.value='';}
+    return crcHandoffStart(ho,external);
+  }
   if(external){
     const verb=raw.toUpperCase().split(/\s+/)[0]||'';
     if(!MCA_HOST_VERBS.has(verb))return {ok:false,action:'ignored',error:'IGNORED'};
@@ -9344,11 +9487,13 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 // passes on commands typed into CRC. Everything else on this page is
 // internal and free to change; keep these names and result shapes stable,
 // and bump version if they ever have to change.
-//   command(text, {source})  -> Promise<{ok, action:'uplink'|'amend'|'ignored', flid?, error?}>
+//   command(text, {source})  -> Promise<{ok, action:'uplink'|'amend'|'handoff'|'ignored', flid?, error?}>
 //                               source 'crc'/'host': FLID must be typed; non-EDST commands are ignored
+//                               v2: "<sector> <FLID>" (ERAM handoff) on a CPDLC aircraft -> action
+//                               'handoff' {sector, facility, freq}; row shows ▶| (sector), click = CONTACT
 //   status()                 -> {signedIn, canControl, testMode, listMode, refreshMs}
 window.vUSALinkEDST=Object.freeze({
-  version:1,
+  version:2,
   command:(text,opts)=>mcaExecute(String(text||''),Object.assign({source:'host'},opts||{})),
   status:()=>({signedIn:oauthSignedIn(),canControl:canControl(),testMode:testMode(),
     listMode:listMode(),refreshMs:vatsimRefreshMs()})
