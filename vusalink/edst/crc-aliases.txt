@@ -143,9 +143,10 @@
 ; SPEED COMMANDS
 ; =============================================================================
 
-; QS — Maintain speed in knots
-; Usage: .QSSPD <knots>
+; QS — Maintain speed in knots, or Mach
+; Usage: .QSSPD <knots>   or   .QSSPD M.<nn>
 ; Example: .QSSPD 280  → MAINTAIN 280KT
+; Example: .QSSPD M.80 → MAINTAIN M.80   (M80 works too)
 .QSSPD .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS /$1 $aircraft /U)
 
 ; Speed with expedite

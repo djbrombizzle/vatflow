@@ -36,6 +36,23 @@ assert(f.ok && f.payload.hdg === 90, "QS heading");
 
 const g = parseMcaCommand("QS /280 AAL123 /U");
 assert(g.ok && g.payload.kt === 280, "QS speed");
+const ge = buildMcaUplinkEntry(g);
+assert(ge.msg === "MAINTAIN @280KT@" && ge.effects.spd === 280, "QS speed message");
+
+// QS Mach: /M.80, /M80 and M.80 all mean Mach .80
+for (const form of ["/M.80", "/M80", "M.80"]) {
+  const m = parseMcaCommand(`QS ${form} AAL123 /U`);
+  assert(m.ok && m.flid === "AAL123" && m.payload.type === "spd" && m.payload.mach === "80", `QS Mach ${form}`);
+  const me = m.ok && buildMcaUplinkEntry(m);
+  assert(me && me.msg === "MAINTAIN @M.80@" && me.effects.type === "spd" && me.effects.spd === "M.80", `QS Mach ${form} message`);
+}
+const gm = parseMcaCommand("QS /M.82 DAL123 /IMM /U");
+assert(gm.ok && buildMcaUplinkEntry(gm).msg === "MAINTAIN @M.82@, IMMEDIATELY", "QS Mach with reason");
+assert(parseMcaCommand("QS /M.8 AAL123 /U").error === "ILL SPD", "QS one-digit Mach rejected");
+assert(parseMcaCommand("QS /M.30 AAL123 /U").error === "ILL SPD", "QS Mach below .40 rejected");
+assert(parseMcaCommand("QS /M.80 AAL123").error === "REQUIRE /U", "QS Mach needs /U");
+assert(parseMcaCommand("QS /50 AAL123 /U").error === "ILL SPD", "QS knots out of range");
+assert(parseMcaCommand("QS /M800 AAL123 /U").error === "ILL SPD", "mistyped QS Mach is ILL SPD, not ILL HDG");
 
 const h = parseMcaCommand("QZ /PD 220 /U /TFC AAL123");
 assert(h.ok && h.mods.has("PD") && h.mods.has("TFC"), "mods any order");

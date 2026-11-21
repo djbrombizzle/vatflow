@@ -40,6 +40,9 @@ free to change.
     `altAmended[cs]`, sends nothing, and returns `action: 'amend'`. The altitude menu
     (`openAltMenu`) opens with that altitude pre-selected (one-shot).
   - QQ/QU/QS without `/U`: reject with `REQUIRE /U`.
+  - `QS /<kt>` uplinks `MAINTAIN <kt>KT`; `QS /M.<nn>`, `QS /M<nn>` or `QS M.<nn>` uplinks `MAINTAIN M.<nn>`
+    (coded under the speed as `M.<nn>`, like a UC Mach crossing). A bare `M80` is not accepted: it would parse
+    as a callsign.
   - `UC <position> A<alt>|S<kt>|M.<nn> [/reason] <FLID>[/<FLID>…]` (ERAM crossing restriction; the command
     itself is the uplink, no `/U`): parsed positionally by `parseUcCommand` in `shared/edst-mca-commands.js`.
     An altitude crossing is coded under the ACL altitude (effects `alt`), and below FL180 the destination
@@ -69,7 +72,8 @@ flid, sector, facility, freq}`, plus `{t:'cids', map}` → `setCids(map)`. The `
 `crcStatLink`) show the connection. Keep these message shapes stable with the host API.
 
 If one of these has to change, change it here and in the app together (the app checks
-`version` on every page load). Older pages without the API trigger the app's legacy fallback.
+`version` on every page load). Since v0.3.2 the app has no fallback for a page without the API: it passes
+nothing on and leaves CRC's line alone.
 
 Other users of `mcaExecute`: the EDST MCA itself, and the CRC `?cmd=` URL intent (aliases in
 `vusalink/edst/crc-aliases.txt`, including `.QZA` for the amend-only form).

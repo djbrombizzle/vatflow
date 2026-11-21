@@ -8,6 +8,7 @@
  *   QU <fix>… <FLID> /U         proceed direct (first fix)
  *   QS <hdg> <FLID> /U          fly heading
  *   QS /<spd> <FLID> /U         maintain speed (knots)
+ *   QS /M.<nn> <FLID> /U        maintain Mach (also /M<nn> or M.<nn>)
  *
  * Optional modifiers (any order): /PD /IMM /EXP /TFC /RES /WX /OK
  *
@@ -95,8 +96,8 @@ export function parseMcaCommand(raw, opts = {}) {
       const body = t.slice(1);
       if (body.includes("/")) {
         body.split("/").filter(Boolean).forEach(m => mods.add(m));
-      } else if (/^\d+$/.test(body)) {
-        // QS /280 speed form kept as token
+      } else if (/^\d+$/.test(body) || /^M\.?\d+$/.test(body)) {
+        // QS /280 speed and QS /M.80 or /M80 Mach forms kept as tokens
         tokens.push(t);
       } else {
         mods.add(body);
@@ -188,6 +189,22 @@ export function parseMcaCommand(raw, opts = {}) {
         payload: { type: "spd", kt },
       };
     }
+    // Mach: QS /M.80, QS /M80 or QS M.80. (A bare M80 would read as a callsign, so it needs the slash or dot.)
+    const machTok = body.find(t => /^\/M\.?\d+$/.test(t) || /^M\.\d+$/.test(t));
+    if (machTok) {
+      const mm = machTok.match(/(\d+)$/);
+      if (!mm || mm[1].length !== 2 || +mm[1] < 40) return { ok: false, error: "ILL SPD", flid, verb };
+      return {
+        ok: true,
+        verb,
+        flid,
+        uplink,
+        mods,
+        payload: { type: "spd", mach: mm[1] },
+      };
+    }
+    // Any other slash form here was meant as a speed: say so rather than "ILL HDG".
+    if (body.some(t => t.startsWith("/"))) return { ok: false, error: "ILL SPD", flid, verb };
     // Heading: QS 090, QS H090, QS LT 090, QS RT 090, QS PH
     if (body.some(t => t === "PH" || t === "PHDG")) {
       return {
@@ -324,10 +341,12 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
   }
 
   if (p.type === "spd") {
+    // Mach is coded under the speed as "M.80", the same as a UC Mach crossing.
+    const S = p.mach ? "M." + p.mach : p.kt + "KT";
     return {
       label: "SPD",
-      msg: `MAINTAIN @${p.kt}KT@` + suf,
-      effects: { type: "spd", spd: p.kt },
+      msg: `MAINTAIN @${S}@` + suf,
+      effects: { type: "spd", spd: p.mach ? "M." + p.mach : p.kt },
     };
   }
 

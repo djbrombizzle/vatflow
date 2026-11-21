@@ -265,7 +265,7 @@ export function applyCommandToAircraft(ac, parsed) {
 
   if (verb === "QS") {
     if (p.type === "spd") {
-      ac.assignedSpd = p.kt;
+      if (p.kt != null) ac.assignedSpd = p.kt;   // a Mach assignment (p.mach) leaves the knots speed alone
       ac.showHsf = true;
     } else if (p.type === "hdg") {
       if (p.mode === "PH") {
