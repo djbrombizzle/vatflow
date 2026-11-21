@@ -1883,7 +1883,7 @@ html.list-mode #cpdlcListWin{
     <span class="x" data-close="altmenu" title="Close">X</span>
   </div>
   <div class="edst-alt-actions">
-    <button type="button" class="edst-alt-btn amend" id="altAmend" title="Remove last queued item">AMEND</button>
+    <button type="button" class="edst-alt-btn amend" id="altAmend" title="Amend the selected altitude in the EDST and in CRC (QZ, or QQ with TEMP) without a CPDLC uplink. Nothing selected: remove the last queued item">AMEND</button>
     <label class="edst-alt-btn fp" id="altFpRow" title="Flight plan / selected altitude">FP
       <input id="altInput" autocomplete="off" inputmode="numeric" placeholder="FL">
     </label>
@@ -1904,6 +1904,7 @@ html.list-mode #cpdlcListWin{
     <button type="button" class="edst-alt-btn" id="altScratchpad" title="Add to uplink queue">SCRATCHPAD</button>
     <button type="button" class="edst-alt-btn" id="altXres" title="Crossing restriction">X RES</button>
     <button type="button" class="edst-alt-btn tgl" id="altLocalTalt" title="Include destination altimeter in clearance">LOCAL TALT</button>
+    <button type="button" class="edst-alt-btn tgl" id="altTemp" title="Temporary (interim) altitude: CRC gets QQ instead of QZ">TEMP</button>
   </div>
   <div class="edst-alt-altim hidden" id="altAltimRow">
     Altimeter <span id="altAltimIcao"></span>
@@ -1924,7 +1925,7 @@ html.list-mode #cpdlcListWin{
     <span class="x" data-close="sqkmenu" title="Close">X</span>
   </div>
   <div class="edst-sqk-actions">
-    <button type="button" class="edst-sqk-btn amend" id="sqkAmend" title="Remove last queued item">AMEND</button>
+    <button type="button" class="edst-sqk-btn amend" id="sqkAmend" title="Assign the code in CRC (QB) without a CPDLC uplink. Nothing entered: remove the last queued item">AMEND</button>
     <label class="edst-sqk-btn fp" id="sqkFpRow" title="4-digit octal squawk (digits 0–7)">CODE
       <input id="sqkInput" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="3456">
     </label>
@@ -1983,7 +1984,7 @@ html.list-mode #cpdlcListWin{
   <div class="rt-top">
     <button type="button" class="rt-btn stub" id="rtTrial" title="Coming soon">TRIAL PLAN</button>
     <button type="button" class="rt-btn" id="rtClnc" title="Departure clearance — aircraft on the ground" aria-expanded="false">CLEARANCE</button>
-    <button type="button" class="rt-btn amend" id="rtAmend" title="Remove last queued item">AMEND</button>
+    <button type="button" class="rt-btn amend" id="rtAmend" title="Amend in CRC without a CPDLC uplink: the selected fix as a direct (QU), or the edited route (AM RTE). Nothing selected: remove the last queued item">AMEND</button>
     <div class="rt-uplink-wrap">
       <button type="button" class="rt-btn disabled" id="rtUplink" title="Uplink route or direct">UPLINK</button>
       <button type="button" class="rt-chev" id="rtReasonChev" title="Clearance reason options" aria-expanded="false">&#9660;</button>
@@ -2165,6 +2166,7 @@ html.list-mode #cpdlcListWin{
     <button type="button" class="hm-mode" data-mode="NP" title="Fly heading">NP</button>
   </div>
   <div class="hm-uplink-bar disabled" id="hdgUplink" title="Uplink selected heading">UPLINK</div>
+  <div class="hm-uplink-bar disabled" id="hdgAmend" title="Amend the selected heading in the EDST and in CRC (QS) without a CPDLC uplink">AMEND</div>
   <div class="hm-list" id="hdgList"></div>
   <button type="button" class="hm-delete" id="hdgDelete" title="Close without uplinking">DELETE</button>
 </div>
@@ -2176,6 +2178,7 @@ html.list-mode #cpdlcListWin{
     <span class="x" data-close="spdmenu" title="Close">X</span>
   </div>
   <div class="sm-uplink-bar disabled" id="spdUplink" title="Uplink selected speed">UPLINK</div>
+  <div class="sm-uplink-bar disabled" id="spdAmend" title="Amend the selected speed in the EDST and in CRC (QS /knots) without a CPDLC uplink">AMEND</div>
   <div class="sm-row2">
     <button type="button" class="sm-btn" id="spdSpc" title="Add to uplink queue">SPC ▾</button>
     <button type="button" class="sm-btn" id="spdTfc" title="Show reason options">TFC ▾</button>
@@ -3736,16 +3739,46 @@ function applyUplinkEffects(cs,min,effects){
 // "QU LUNNI" + the callsign), so CRC's data block matches. Only after the uplink went out, only when the app
 // asked for it (setHost), and never for commands that came from CRC (opts.noEcho).
 let hostCrcEcho=false;
-function crcEcho(text){
-  if(!hostCrcEcho)return;
-  try{window.chrome.webview.postMessage(JSON.stringify({t:'crcEcho',text}));}catch(e){}
+// amend: true for an AMEND (the app types it even with its CRC ECHO toggle off; AMEND is an explicit "put this in CRC").
+function crcEcho(text,amend){
+  if(!hostCrcEcho)return false;
+  try{window.chrome.webview.postMessage(JSON.stringify({t:'crcEcho',text,amend:!!amend}));return true;}catch(e){return false;}
+}
+// entry.crc is the ERAM command without the FLID ("QU LUNNI" -> "QU LUNNI DAL123"), or has a {FLID} placeholder
+// where the FLID goes elsewhere ("AM {FLID} RTE ...").
+function crcLine(entry,cs){
+  if(!entry||!entry.crc)return null;
+  return entry.crc.includes('{FLID}')?entry.crc.replace('{FLID}',cs):entry.crc+' '+cs;
+}
+// ERAM route format for AM RTE: "." next to an airway or procedure, ".." between two fixes
+// ("KBOS SSOXS7 SSOXS Q167 ZIZZI KNUKK" -> "KBOS.SSOXS7.SSOXS.Q167.ZIZZI..KNUKK"). Already dotted: kept.
+function eramRoute(rt){
+  rt=String(rt||'').trim().toUpperCase();
+  if(!rt)return '';
+  if(rt.includes('.'))return rt.replace(/\s+/g,'');
+  const t=rt.split(/\s+/).map(x=>x.split('/')[0]).filter(x=>x&&x!=='DCT');
+  const path=x=>/^[A-Z]{1,2}\d{1,4}$/.test(x)||/^[A-Z]{3,6}\d[A-Z]?$/.test(x);
+  return t.map((x,i)=>i===0?x:((path(x)||path(t[i-1]))?'.':'..')+x).join('');
+}
+// AMEND: put a menu's selection in the EDST and in CRC without a CPDLC uplink, so it works for aircraft that
+// aren't on CPDLC too.
+function amendEntry(cs,entry){
+  if(!cs||!entry)return;
+  const e=entry.effects||{};
+  if(e.type==='alt'&&e.alt!=null){assigned[cs]=e.alt;persist();}
+  else if(e.type==='hdg'&&e.hdg!=null)hdgAssigned[cs]=e.hdg;
+  else if(e.type==='spd'&&e.spd!=null)spdAssigned[cs]=e.spd;
+  const line=crcLine(entry,cs);
+  if(line&&crcEcho(line,true))mcaSetFeedback(['AMEND',line,'\u2192 CRC'],'ok');
+  else mcaSetFeedback(['AMEND',cs,line?'EDST ONLY (NOT IN vUSALink App)':'EDST ONLY (NO CRC COMMAND FOR THIS)'],'ok');
+  renderBoard();
 }
 async function sendUplinkEntry(cs,entry,opts){
   if(!entry||!entry.msg)return null;
   const min=await sendCpdlc(cs,'WU',entry.msg);
   if(min!=null){
     applyUplinkEffects(cs,min,entry.effects);
-    if(entry.crc&&!(opts&&opts.noEcho))crcEcho(entry.crc+' '+cs);
+    if(entry.crc&&!(opts&&opts.noEcho))crcEcho(crcLine(entry,cs));
   }
   else if(lastSendError)flashStatus(lastSendError);
   return min;
@@ -4552,7 +4585,7 @@ function close(id){
 }
 function showUplink(id,on){
   const el=document.getElementById(id);if(!el)return;
-  if(id==='altUplink'||id==='sqkUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'||id==='rtUplink'){
+  if(id==='altUplink'||id==='sqkUplink'||id==='hdgUplink'||id==='spdUplink'||id==='holdUplink'||id==='holdUplinkEfc'||id==='rtUplink'||id==='hdgAmend'||id==='spdAmend'){
     el.classList.toggle('disabled',!on);el.style.opacity=on?'':'0.45';return;
   }
   el.classList.toggle('hidden',!on);
@@ -4989,7 +5022,9 @@ async function buildAltMessage(target,tgt,altimVal,apd,localTalt){
   msg+=altReasonSuffix();
   const label=apd?'ALT APD':(altReasons.size?'ALT REASON':'ALT');
   const blk=blockOn&&blockTo!=null&&blockTo!==tgt;
-  const crc='QZ '+(blk?pad3(Math.min(tgt,blockTo))+'B'+pad3(Math.max(tgt,blockTo)):pad3(tgt));
+  // TEMP: interim altitude, QQ in CRC (no block form). Otherwise the assigned altitude, QZ (block lo B hi).
+  const crc=altTemp?(blk?null:'QQ '+pad3(tgt))
+    :'QZ '+(blk?pad3(Math.min(tgt,blockTo))+'B'+pad3(Math.max(tgt,blockTo)):pad3(tgt));
   return {label,msg,effects:{type:'alt',alt:tgt},crc};
 }
 function setAltApd(on){
@@ -5039,7 +5074,7 @@ function resetAltReasons(){
 function openAltMenu(idx,x,y){
   const a=displayList()[idx];if(!a)return;
   altTarget=a;altSelected=null;altAltimManual=false;
-  setAltApd(false);setAltLocalTalt(false);resetAltReasons();
+  setAltApd(false);setAltLocalTalt(false);resetAltReasons();setAltTemp(false);
   const bon=document.getElementById('altBlockOn');if(bon)bon.checked=false;
   const bto=document.getElementById('altBlockTo');if(bto)bto.value='';
   document.getElementById('altTitle').textContent=a.cs;
@@ -5125,7 +5160,16 @@ document.getElementById('altScratchpad').onclick=async()=>{
   if(!entry||!queueAdd(altTarget.cs,entry))return;
   close('altmenu');
 };
-document.getElementById('altAmend').onclick=()=>{if(altTarget)queuePopLast(altTarget.cs);};
+let altTemp=false;
+function setAltTemp(on){altTemp=!!on;const b=document.getElementById('altTemp');if(b)b.classList.toggle('on',altTemp);}
+document.getElementById('altTemp').onclick=()=>setAltTemp(!altTemp);
+document.getElementById('altAmend').onclick=async()=>{
+  if(!altTarget)return;
+  if(altSelected==null){queuePopLast(altTarget.cs);return;}
+  const entry=await buildAltMessage(altTarget,altSelected,null,false,false);
+  const cs=altTarget.cs;close('altmenu');
+  amendEntry(cs,entry);
+};
 document.getElementById('altXres').onclick=()=>{
   if(!altTarget)return;
   const r=altmenu.getBoundingClientRect();
@@ -5137,7 +5181,7 @@ const sqkmenu=document.getElementById('sqkmenu');
 let sqkTarget=null,sqkSelected=null;
 function buildSquawkMessage(code){
   code=normSquawk(code);if(!code)return null;
-  return {label:'SQK '+code,msg:'SQUAWK @'+code+'@',effects:{type:'squawk',code}};
+  return {label:'SQK '+code,msg:'SQUAWK @'+code+'@',effects:{type:'squawk',code},crc:'QB '+code};
 }
 function syncSqkMeta(){
   const meta=document.getElementById('sqkMeta');if(!meta)return;
@@ -5188,7 +5232,12 @@ document.getElementById('sqkScratchpad').onclick=()=>{
   if(!entry||!queueAdd(sqkTarget.cs,entry))return;
   close('sqkmenu');
 };
-document.getElementById('sqkAmend').onclick=()=>{if(sqkTarget)queuePopLast(sqkTarget.cs);};
+document.getElementById('sqkAmend').onclick=()=>{
+  if(!sqkTarget)return;
+  if(!sqkSelected){queuePopLast(sqkTarget.cs);return;}
+  const cs=sqkTarget.cs,entry=buildSquawkMessage(sqkSelected);close('sqkmenu');
+  amendEntry(cs,entry);
+};
 
 //============================================================ X RES menu
 let xresTarget=null,xresFix=null,xresAlt=null,xresSpd=null,xresSpdBase=310;
@@ -5365,6 +5414,7 @@ function syncHdgModes(){
 function syncHdgUplink(){
   const ready=!!(hdgTarget&&hdgCmd);
   showUplink('hdgUplink',ready);
+  showUplink('hdgAmend',ready&&hdgMode!=='PH'&&hdgSelected!=null);
 }
 function hdgVerb(){
   if(hdgMode==='LT')return 'TURN LEFT HEADING';
@@ -5430,6 +5480,12 @@ document.querySelectorAll('#hdgmenu .hm-mode').forEach(btn=>{
     else{hdgCmd=null;syncHdgUplink();}
   };
 });
+document.getElementById('hdgAmend').onclick=()=>{
+  if(document.getElementById('hdgAmend').classList.contains('disabled'))return;
+  if(!hdgTarget||!hdgCmd)return;
+  const cs=hdgTarget.cs,entry=buildHdgMessage(hdgCmd);close('hdgmenu');
+  amendEntry(cs,entry);
+};
 document.getElementById('hdgUplink').onclick=async()=>{
   if(document.getElementById('hdgUplink').classList.contains('disabled'))return;
   if(!canControl()){comingSoon('Sign in / verify to uplink');return;}
@@ -5535,6 +5591,7 @@ function toggleSpdReason(key){
 }
 function syncSpdUplink(){
   showUplink('spdUplink',!!(spdTarget&&spdCmd));
+  showUplink('spdAmend',!!(spdTarget&&spdCmd&&spdSelected!=null));
 }
 function stageSpd(val){
   spdSelected=val;
@@ -5627,6 +5684,12 @@ document.getElementById('spdXres').onclick=()=>{
   if(!spdTarget)return;
   const r=spdmenu.getBoundingClientRect();
   openXresMenu(spdTarget,r.right+4,r.top);
+};
+document.getElementById('spdAmend').onclick=()=>{
+  if(document.getElementById('spdAmend').classList.contains('disabled'))return;
+  if(!spdTarget||!spdCmd)return;
+  const cs=spdTarget.cs,entry=buildSpdMessage(spdCmd);close('spdmenu');close('xresmenu');
+  amendEntry(cs,entry);
 };
 document.getElementById('spdUplink').onclick=async()=>{
   if(document.getElementById('spdUplink').classList.contains('disabled'))return;
@@ -5762,7 +5825,8 @@ function buildRouteUplinkMessage(target,route){
   let msg=dest?`CLEARED TO @${dest}@ VIA @${route}@`:`CLEARED ROUTE @${route}@`;
   if(rtApd)msg+=' AT PILOTS DISCRETION';
   msg+=rtReasonSuffix();
-  return {label:'ROUTE',msg,effects:{type:'route'}};
+  const er=eramRoute(route);
+  return {label:'ROUTE',msg,effects:{type:'route'},crc:er?'AM {FLID} RTE '+er:null};
 }
 function rtReasonSuffix(){
   const order=['IMM','EXP','TFC','RES','WX'];
@@ -5998,7 +6062,19 @@ document.querySelectorAll('#rtReasonPanel [data-reason]').forEach(btn=>{
     syncRtReasons();
   };
 });
-document.getElementById('rtAmend').onclick=()=>{if(rtTarget)queuePopLast(rtTarget.cs);};
+document.getElementById('rtAmend').onclick=()=>{
+  if(!rtTarget)return;
+  let entry=null;
+  if(fixSelected)entry={crc:'QU '+fixSelected,effects:{type:'route'}};
+  else{
+    const rt=(document.getElementById('rtEdit').value||'').trim().toUpperCase().replace(/\s+/g,' ');
+    const er=rt?eramRoute(rt):'';
+    if(er)entry={crc:'AM {FLID} RTE '+er,effects:{type:'route'}};
+  }
+  if(!entry){queuePopLast(rtTarget.cs);return;}
+  const cs=rtTarget.cs;close('routemenu');
+  amendEntry(cs,entry);
+};
 document.getElementById('rtUplink').onclick=async()=>{
   if(document.getElementById('rtUplink').classList.contains('disabled'))return;
   if(!canControl()){comingSoon('Sign in / verify to uplink');return;}

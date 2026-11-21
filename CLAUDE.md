@@ -26,12 +26,20 @@ free to change.
   - `setHost({crcEcho})` (v3): vUSALink App calls it after load. With `crcEcho: true`, `sendUplinkEntry` posts
     `{t:'crcEcho', text}` via `window.chrome.webview.postMessage` after a successful uplink whose entry has a
     `crc` field (the ERAM equivalent without the FLID, e.g. `QU LUNNI`; the page appends the callsign). The app
-    types it into CRC's MCA (its "CRC ECHO" toggle). Builders that set `crc`: `buildAltMessage` (`QZ`, block
-    `QZ lo B hi`), `buildHdgMessage` (`QS hhh`, not PH), `buildSpdMessage` (`QS /kt`, not Mach or a toggle),
-    `buildRouteDirectMessage` (`QU fix`, NOW/ABLE only), and `buildMcaUplinkEntry` in `shared/edst-mca-commands.js`
-    (QZ/QQ/QU/QS, not Mach, not UC). Commands from `command()` (`source` crc/host) pass `{noEcho:true}` so CRC's
-    own commands are never typed back into it. Only set `crc` where CRC has the same command: the app types it
-    for real, and CRC amends the flight plan on vNAS. Not posted in a CRC browser tab (no `setHost` call).
+    types it into CRC's MCA (its "CRC ECHO" toggle). Builders that set `crc` (formats from CRC's ERAM command
+    reference, docs.virtualnas.net/crc/eram): `buildAltMessage` (`QZ`, block `QZ lo B hi`; with the menu's TEMP
+    toggle `QQ`, no block), `buildSquawkMessage` (`QB code`), `buildHdgMessage` (`QS hhh`, not PH),
+    `buildSpdMessage` (`QS /kt`, not Mach or a toggle: CRC has no typed form for those),
+    `buildRouteDirectMessage` (`QU fix`, NOW/ABLE only), `buildRouteUplinkMessage` (`AM {FLID} RTE <route>`,
+    route converted by `eramRoute` to ERAM dots), and `buildMcaUplinkEntry` in `shared/edst-mca-commands.js`
+    (QZ/QQ/QU/QS, not Mach, not UC). `crc` has no FLID unless it contains a `{FLID}` placeholder (`crcLine`).
+    Commands from `command()` (`source` crc/host) pass `{noEcho:true}` so CRC's own commands are never typed back
+    into it. Only set `crc` where CRC has the same command: the app types it for real, and CRC amends the flight
+    plan on vNAS. Not posted in a CRC browser tab (no `setHost` call).
+  - AMEND buttons (ALT, CODE, HDG, SPD, route menus): `amendEntry` applies the selection to the EDST's own state
+    (assigned alt / heading / speed) with no CPDLC uplink, and posts `{t:'crcEcho', text, amend:true}`, which the
+    app types even with CRC ECHO off. Works for aircraft not on CPDLC. Nothing selected: AMEND keeps its old job
+    (remove the last queued uplink).
   - `command(text, {source})`: returns a Promise of
     `{ok, action: 'uplink' | 'amend' | 'handoff' | 'ignored', flid, error}`
     (`handoff` also carries `sector`, `facility`, `freq`).
