@@ -3732,10 +3732,21 @@ function applyUplinkEffects(cs,min,effects){
     spdMin[cs]=min;spdPending.add(cs);
   }
 }
-async function sendUplinkEntry(cs,entry){
+// CRC echo (host API v3): vUSALink App types the ERAM equivalent of an EDST uplink into CRC (entry.crc, e.g.
+// "QU LUNNI" + the callsign), so CRC's data block matches. Only after the uplink went out, only when the app
+// asked for it (setHost), and never for commands that came from CRC (opts.noEcho).
+let hostCrcEcho=false;
+function crcEcho(text){
+  if(!hostCrcEcho)return;
+  try{window.chrome.webview.postMessage(JSON.stringify({t:'crcEcho',text}));}catch(e){}
+}
+async function sendUplinkEntry(cs,entry,opts){
   if(!entry||!entry.msg)return null;
   const min=await sendCpdlc(cs,'WU',entry.msg);
-  if(min!=null)applyUplinkEffects(cs,min,entry.effects);
+  if(min!=null){
+    applyUplinkEffects(cs,min,entry.effects);
+    if(entry.crc&&!(opts&&opts.noEcho))crcEcho(entry.crc+' '+cs);
+  }
   else if(lastSendError)flashStatus(lastSendError);
   return min;
 }
@@ -4977,7 +4988,9 @@ async function buildAltMessage(target,tgt,altimVal,apd,localTalt){
   if(apd)msg+=' AT PILOTS DISCRETION';
   msg+=altReasonSuffix();
   const label=apd?'ALT APD':(altReasons.size?'ALT REASON':'ALT');
-  return {label,msg,effects:{type:'alt',alt:tgt}};
+  const blk=blockOn&&blockTo!=null&&blockTo!==tgt;
+  const crc='QZ '+(blk?pad3(Math.min(tgt,blockTo))+'B'+pad3(Math.max(tgt,blockTo)):pad3(tgt));
+  return {label,msg,effects:{type:'alt',alt:tgt},crc};
 }
 function setAltApd(on){
   altApd=!!on;
@@ -5340,7 +5353,9 @@ function buildHdgMessage(cmd){
   const effects={type:'hdg'};
   if(hdgMode==='PH')effects.hdg='PH';
   else if(hdgSelected!=null)effects.hdg=hdgSelected;
-  return {label:'HDG',msg:cmd,effects};
+  // CRC gets the assigned heading (turn direction and present heading aren't echoed).
+  const crc=hdgMode!=='PH'&&hdgSelected!=null?'QS '+pad3(hdgSelected):null;
+  return {label:'HDG',msg:cmd,effects,crc};
 }
 function syncHdgModes(){
   document.querySelectorAll('#hdgmenu .hm-mode').forEach(btn=>{
@@ -5470,7 +5485,9 @@ function buildSpdMessage(cmd){
   if(spdSelected!=null){
     effects.spd=spdUnit==='MACH'?spdMachLabel(spdSelected):spdSelected;
   }
-  return {label:'SPD',msg:cmd,effects};
+  // CRC gets an exact knots speed (Mach and "or greater/less" aren't echoed).
+  const crc=spdUnit!=='MACH'&&!spdToggle&&spdSelected!=null?'QS /'+spdSelected:null;
+  return {label:'SPD',msg:cmd,effects,crc};
 }
 function spdTail(){return spdToggle==='+'?' OR GREATER':spdToggle==='-'?' OR LESS':'';}
 function spdReasonSuffix(){
@@ -5729,7 +5746,9 @@ function buildRouteDirectMessage(fix){
   }else msg=`PROCEED DIRECT TO @${fix}@`;
   if(rtApd)msg+=' AT PILOTS DISCRETION';
   msg+=rtReasonSuffix();
-  return {label:'DIRECT',msg,effects:{type:'route'}};
+  // CRC gets the direct (not the conditional AT FIX / AT ALT forms).
+  const crc=rtDirectMode==='NOW'||rtDirectMode==='ABLE'?'QU '+fix:null;
+  return {label:'DIRECT',msg,effects:{type:'route'},crc};
 }
 function buildWxDevMessage(){
   const nm=parseInt((document.getElementById('rtWxNm')&&document.getElementById('rtWxNm').value)||'',10);
@@ -9282,7 +9301,7 @@ async function mcaExecute(rawOverride,opts){
     entry.msg+=altimeterSuffix(dest,await fetchDestAltimeter(dest));
   }
   mcaSetFeedback(['SENDING…', entry.label, parsed.flid],'');
-  const min=await sendUplinkEntry(parsed.flid,entry);
+  const min=await sendUplinkEntry(parsed.flid,entry,{noEcho:external});
   if(min==null){
     const why=(lastSendError||'SEND FAIL').toUpperCase();
     mcaSetFeedback(mod.formatMcaReject(why, parsed.flid),'err');
@@ -9575,9 +9594,10 @@ window.addEventListener('vatflow-auth-changed',updateAuthChip);
 //                               "(sector)" after it when another sector owns the track. Replaces the table.
 //   status()                 -> {signedIn, canControl, testMode, listMode, refreshMs}
 window.vUSALinkEDST=Object.freeze({
-  version:2,
+  version:3,
   command:(text,opts)=>mcaExecute(String(text||''),Object.assign({source:'host'},opts||{})),
   setCids:map=>setCrcCids(map),
+  setHost:o=>{hostCrcEcho=!!(o&&o.crcEcho);return true;},
   status:()=>({signedIn:oauthSignedIn(),canControl:canControl(),testMode:testMode(),
     listMode:listMode(),refreshMs:vatsimRefreshMs(),mySectors:[...mySectors]})
 });

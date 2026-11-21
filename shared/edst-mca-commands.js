@@ -298,7 +298,8 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
     }
     if (pd) msg += " AT PILOTS DISCRETION";
     msg += suf;
-    return { label: "ALT", msg, effects: { type: "alt", alt: fl } };
+    // crc: the ERAM command CRC gets when vUSALink App echoes EDST uplinks into CRC (the page adds the FLID).
+    return { label: "ALT", msg, effects: { type: "alt", alt: fl }, crc: `${parsed.verb === "QQ" ? "QQ" : "QZ"} ${("000" + fl).slice(-3)}` };
   }
 
   if (p.type === "cross") {
@@ -322,7 +323,7 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
     let msg = `PROCEED DIRECT TO @${p.fix}@`;
     if (pd) msg += " AT PILOTS DISCRETION";
     msg += suf;
-    return { label: "DIRECT", msg, effects: { type: "route" } };
+    return { label: "DIRECT", msg, effects: { type: "route" }, crc: `QU ${p.fix}` };
   }
 
   if (p.type === "hdg") {
@@ -337,6 +338,7 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
       label: "HDG",
       msg: `${verb} @${pad}@` + suf,
       effects: { type: "hdg", hdg: p.hdg },
+      crc: `QS ${pad}`,
     };
   }
 
@@ -347,6 +349,7 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
       label: "SPD",
       msg: `MAINTAIN @${S}@` + suf,
       effects: { type: "spd", spd: p.mach ? "M." + p.mach : p.kt },
+      crc: p.mach ? null : `QS /${p.kt}`,   // Mach isn't echoed into CRC
     };
   }
 

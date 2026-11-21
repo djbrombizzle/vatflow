@@ -20,8 +20,18 @@ free to change.
 **Keep stable**, or the app's CRC mirroring silently stops working:
 
 - `window.vUSALinkEDST`, defined in the "Host API" section near the end of the page script:
-  - `version`: currently `2`. Bump it if `command()` or `status()` change shape or meaning.
-    The app only sends ERAM handoff lines to pages that report version 2 or higher.
+  - `version`: currently `3`. Bump it if `command()` or `status()` change shape or meaning.
+    The app only sends ERAM handoff lines to pages that report version 2 or higher, and only turns on
+    CRC echo for version 3 or higher.
+  - `setHost({crcEcho})` (v3): vUSALink App calls it after load. With `crcEcho: true`, `sendUplinkEntry` posts
+    `{t:'crcEcho', text}` via `window.chrome.webview.postMessage` after a successful uplink whose entry has a
+    `crc` field (the ERAM equivalent without the FLID, e.g. `QU LUNNI`; the page appends the callsign). The app
+    types it into CRC's MCA (its "CRC ECHO" toggle). Builders that set `crc`: `buildAltMessage` (`QZ`, block
+    `QZ lo B hi`), `buildHdgMessage` (`QS hhh`, not PH), `buildSpdMessage` (`QS /kt`, not Mach or a toggle),
+    `buildRouteDirectMessage` (`QU fix`, NOW/ABLE only), and `buildMcaUplinkEntry` in `shared/edst-mca-commands.js`
+    (QZ/QQ/QU/QS, not Mach, not UC). Commands from `command()` (`source` crc/host) pass `{noEcho:true}` so CRC's
+    own commands are never typed back into it. Only set `crc` where CRC has the same command: the app types it
+    for real, and CRC amends the flight plan on vNAS. Not posted in a CRC browser tab (no `setHost` call).
   - `command(text, {source})`: returns a Promise of
     `{ok, action: 'uplink' | 'amend' | 'handoff' | 'ignored', flid, error}`
     (`handoff` also carries `sector`, `facility`, `freq`).

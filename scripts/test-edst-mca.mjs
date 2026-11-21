@@ -54,6 +54,17 @@ assert(parseMcaCommand("QS /M.80 AAL123").error === "REQUIRE /U", "QS Mach needs
 assert(parseMcaCommand("QS /50 AAL123 /U").error === "ILL SPD", "QS knots out of range");
 assert(parseMcaCommand("QS /M800 AAL123 /U").error === "ILL SPD", "mistyped QS Mach is ILL SPD, not ILL HDG");
 
+// crc: the ERAM command vUSALink App types into CRC to echo an EDST uplink (the page adds the FLID)
+const crcOf = t => (buildMcaUplinkEntry(parseMcaCommand(t)) || {}).crc;
+assert(crcOf("QZ 350 AAL123 /U") === "QZ 350", "echo QZ");
+assert(crcOf("QZ 80 AAL123 /U") === "QZ 080", "echo QZ below FL100 padded");
+assert(crcOf("QQ R110 AAL123 /U") === "QQ 110", "echo QQ");
+assert(crcOf("QU LUNNI AAL123 /U") === "QU LUNNI", "echo QU");
+assert(crcOf("QS 090 AAL123 /U") === "QS 090", "echo QS heading");
+assert(crcOf("QS /280 AAL123 /U") === "QS /280", "echo QS speed");
+assert(crcOf("QS /M.80 AAL123 /U") == null, "no echo for Mach");
+assert(crcOf("UC VUH A100 AAL002") == null, "no echo for UC (CRC has no UC)");
+
 const h = parseMcaCommand("QZ /PD 220 /U /TFC AAL123");
 assert(h.ok && h.mods.has("PD") && h.mods.has("TFC"), "mods any order");
 const he = buildMcaUplinkEntry(h, { alt: 300 });
