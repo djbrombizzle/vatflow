@@ -4819,6 +4819,9 @@ const _afSave=document.getElementById('afSave');if(_afSave)_afSave.onclick=()=>{
   ['afCs','afType','afAlt','afRoute'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('addform').classList.add('hidden');
 };
+['afCs','afType','afAlt','afRoute'].forEach(id=>{const el=document.getElementById(id);
+  if(el)el.addEventListener('keydown',e=>{if(e.key==='Enter'&&_afSave){e.preventDefault();_afSave.click();}
+    else if(e.key==='Escape'){document.getElementById('addform').classList.add('hidden');}});});
 function afv(id){const el=document.getElementById(id);return el?el.value.trim():'';}
 const _btnDelAc=document.getElementById('btnDelAc');
 if(_btnDelAc)_btnDelAc.onclick=()=>{
@@ -4893,6 +4896,11 @@ const _find=document.getElementById('find');if(_find)_find.addEventListener('key
   if(e.key!=='Enter')return;const q=e.target.value.trim().toUpperCase();if(!q)return;
   const row=[...rows.children].find(tr=>(tr.querySelector('.acid')?.textContent||'').includes(q));
   if(row){row.scrollIntoView({block:'center'});row.classList.add('find-hit');setTimeout(()=>row.classList.remove('find-hit'),1200);}
+  else if(/^[A-Z0-9]{2,10}$/.test(q)){
+    // ADD: not on the list -> open the add form with the callsign filled in (type, altitude, route next).
+    const f=document.getElementById('addform'),cs=document.getElementById('afCs'),ty=document.getElementById('afType');
+    if(f&&cs){f.classList.remove('hidden');cs.value=q;if(ty)ty.focus();}
+  }
   e.target.value='';
 });
 
