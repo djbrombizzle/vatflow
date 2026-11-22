@@ -2,7 +2,7 @@
 export const US_ARTCC = new Set([
   "ZAB", "ZAU", "ZBW", "ZDC", "ZDV", "ZFW", "ZHU", "ZID", "ZJX", "ZKC",
   "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL",
-  "ZAN", "ZHN", "ZUA", "ZAP",
+  "ZAN", "ZHN", "ZSU", "ZAP",
 ]);
 
 /**
@@ -12,7 +12,9 @@ export const US_ARTCC = new Set([
 export const ARTCC_ID_ALIASES = {
   PAZA: "ZAN",
   PHZH: "ZHN",
-  TJZS: "ZUA",
+  TJZS: "ZSU",   // San Juan CERAP (vNAS/FAA ZSU, callsigns SJU_*)
+  SJU: "ZSU",
+  ZUA: "ZSU",    // legacy: San Juan was stored as ZUA (which is really Guam)
   HCF: "ZHN",
   ANC: "ZAN",
 };
@@ -21,7 +23,7 @@ export const ARTCC_ID_ALIASES = {
 export const ARTCC_TO_VATSPY = {
   ZAN: "PAZA",
   ZHN: "PHZH",
-  ZUA: "TJZS",
+  ZSU: "TJZS",
 };
 
 /** Normalize hub/UI/VAT-Spy ids to the short FAA form (ZJX, ZAN, ZHN). */

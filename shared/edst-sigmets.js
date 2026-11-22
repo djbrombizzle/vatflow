@@ -61,9 +61,11 @@
   }
 
   function bareArtcc(id) {
-    return String(id || "")
+    var s = String(id || "")
       .toUpperCase()
       .replace(/^K(?=Z)/, "");
+    // Hub ids PAZA/PHZH/TJZS → the FAA ids boundaries are keyed by (ZAN/ZHN/ZSU).
+    return (ARTCC_ID_ALIASES && ARTCC_ID_ALIASES[s]) || s;
   }
 
   function firMatches(fir, artcc) {
@@ -415,7 +417,7 @@
   var ARTCC_ID_ALIASES = {
     PAZA: "ZAN",
     PHZH: "ZHN",
-    TJZS: "ZUA",
+    TJZS: "ZSU",
     HCF: "ZHN",
     ANC: "ZAN",
     HNL: "ZHN",
