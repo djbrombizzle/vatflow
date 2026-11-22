@@ -1533,7 +1533,7 @@ const OCEANIC_EXCLUDE=new Set(['KZAK','KZWY','ZAK','ZWY']);
 const MAP_WORLD={minLon:-205,maxLon:-60,minLat:15,maxLat:85,w:2400,h:1200,m:16};
 const MAP_HOME={minLon:-130,maxLon:-63,minLat:22,maxLat:52};
 /** VAT-Spy FIR / callsign-prefix → FAA short id (local HIGH data uses ZAN/ZHN). */
-const ARTCC_ID_ALIASES={PAZA:'ZAN',PHZH:'ZHN',TJZS:'ZUA',HCF:'ZHN',ANC:'ZAN',HNL:'ZHN'};
+const ARTCC_ID_ALIASES={PAZA:'ZAN',PHZH:'ZHN',TJZS:'ZSU',HCF:'ZHN',ANC:'ZAN',HNL:'ZHN'};
 /** Strip ICAO K prefix / alias VAT-Spy ids so hub PAZA matches local ZAN. */
 function normArtccId(id){
   let s=(id||'').toUpperCase().trim();

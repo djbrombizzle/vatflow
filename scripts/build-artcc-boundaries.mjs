@@ -29,7 +29,7 @@ const PERTI_SECTOR_URLS = {
 const US_ARTCC = new Set([
   "ZAB", "ZAU", "ZBW", "ZDC", "ZDV", "ZFW", "ZHU", "ZID", "ZJX", "ZKC",
   "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL",
-  "ZAN", "ZHN", "ZUA", "ZAP",
+  "ZAN", "ZHN", "ZSU", "ZAP",
 ]);
 
 const POINT_OF_BEGINNING = "POINT OF BEGINNING";
@@ -285,7 +285,7 @@ function parseArgs(argv) {
 const VATSPY_EXTRA_TO_FAA = {
   PAZA: "ZAN",
   PHZH: "ZHN",
-  TJZS: "ZUA",
+  TJZS: "ZSU",
 };
 const VATSPY_BOUNDARIES_URL =
   "https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/master/Boundaries.geojson";

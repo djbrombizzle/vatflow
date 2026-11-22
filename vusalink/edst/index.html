@@ -6142,8 +6142,12 @@ syncRtDirectModeUi();
 
 //============================================================ HANDOFF menu (Flight ID / callsign)
 const handoffpop=document.getElementById('handoffpop');
-/** Strip ICAO K prefix so hub KZNY matches local ZNY. */
-function normArtccId(id){return (id||'').toUpperCase().replace(/^K(?=Z)/,'');}
+/** Strip ICAO K prefix so hub KZNY matches local ZNY; VAT-Spy PAZA/PHZH/TJZS → vNAS/FAA ZAN/ZHN/ZSU.
+ *  Function-local map: this runs during start-up rendering (see CLAUDE.md). */
+function normArtccId(id){
+  const s=String(id||'').toUpperCase().trim().replace(/^K(?=Z)/,'');
+  return ({PAZA:'ZAN',PHZH:'ZHN',TJZS:'ZSU',SJU:'ZSU'})[s]||s;
+}
 function isHandoffCenter(f){
   const k=(f.kind||'').toUpperCase();
   return !k||k==='CTR'||k==='FSS';
@@ -8625,7 +8629,7 @@ function openConflictAckMenu(cs,type,x,y){
 }
 
 function gpdArtccId(){
-  const ARTCC_ID_ALIASES={PAZA:'ZAN',PHZH:'ZHN',TJZS:'ZUA',HCF:'ZHN',ANC:'ZAN',HNL:'ZHN'};
+  const ARTCC_ID_ALIASES={PAZA:'ZAN',PHZH:'ZHN',TJZS:'ZSU',HCF:'ZHN',ANC:'ZAN',HNL:'ZHN'};
   let id=(airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().trim();
   if(ARTCC_ID_ALIASES[id])return ARTCC_ID_ALIASES[id];
   id=id.replace(/^K(?=Z)/,'');
@@ -8716,7 +8720,7 @@ makeEdstDraggable(gpdmenu,()=>{if(gpdMapApi)gpdMapApi.invalidateSize();});
 const depmenu=document.getElementById('depmenu');
 let depMod=null,depReady=null,depItems=[],depFetchTimer=null,depBusy=false,depLastErr=null;
 function depArtccId(){
-  return (airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().replace(/^K(?=Z)/,'');
+  return normArtccId(airspaceId()||monitorArtcc()||hubArtcc||'');
 }
 function padDepCount(n){
   n=Math.max(0,Math.min(99,+n||0));

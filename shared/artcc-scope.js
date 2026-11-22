@@ -19,7 +19,7 @@ let loading = null;
 const ARTCC_ID_ALIASES = {
   PAZA: "ZAN",
   PHZH: "ZHN",
-  TJZS: "ZUA",
+  TJZS: "ZSU",
   HCF: "ZHN",
   ANC: "ZAN",
 };
