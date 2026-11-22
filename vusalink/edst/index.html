@@ -1063,7 +1063,6 @@ td.eh-bk{text-align:center;min-width:14px}
   font:inherit;font-size:11px;cursor:pointer;display:inline-block;
 }
 #handoffpop .hobtn:hover,#handoffpop .hobtn:active{background:#3a3a3a}
-#handoffpop .hobtn.handover{color:#9fe6e0;border-color:#2f6b73}
 #handoffpop .hobtn.contact{color:var(--amber);border-color:#5a4a22}
 #handoffpop .hobtn.monitor{color:var(--teal);border-color:#2f6b73}
 .rt-direct-opts{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #222}
@@ -1711,7 +1710,7 @@ html.list-mode #cpdlcListWin{
   <div class="etb-row" id="etbMain">
     <span class="etb-arrow" id="btnMoreArrow" title="Show more menu" role="button" tabindex="0" aria-controls="etbMoreRow" aria-expanded="false">&#8595;</span>
     <span class="etb-btn" id="btnMore" title="Show more menu" role="button" tabindex="0" aria-controls="etbMoreRow" aria-expanded="false">MORE</span>
-    <span class="etb-btn active" id="tabAcl">ACL&nbsp;08</span>
+    <span class="etb-btn active" id="tabAcl" title="Aircraft List (closes the Departure List)">ACL&nbsp;00</span>
     <span class="etb-btn" id="tabDep" title="Departure List">DEP&nbsp;00</span>
     <span class="etb-btn" id="btnGpd" title="Graphical Plan Display">GPD</span>
     <span class="etb-btn" data-stub="PLANS">PLANS</span>
@@ -1726,12 +1725,12 @@ html.list-mode #cpdlcListWin{
     <span class="etb-btn" id="btnCpdlcAll" title="Full datalink log — all uplink and downlink messages">CPDLC<br>ALL</span>
     <span class="etb-btn" data-stub="KEEP ALL">KEEP<br>ALL</span>
     <span class="etb-spacer"></span>
-    <span class="etb-stat" id="statStatus">STATUS</span>
-    <span class="etb-stat" id="statOutage">OUTAGE<br>56</span>
+    <span class="etb-stat" data-stub="STATUS">STATUS</span>
+    <span class="etb-stat" data-stub="OUTAGE">OUTAGE</span>
     <span class="etb-time"><b id="edstClock">----</b><i id="edstSec">--</i></span>
     <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
     <span class="etb-stat link-stat hidden" id="statLink" title="vUSALink-Lite">LINK</span>
-  <span class="etb-stat on" id="statSat">SAT<br>COMM</span>
+  <span class="etb-stat" id="statSat" title="CPDLC: lit while the KUSA hub connection is up">SAT<br>COMM</span>
     <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
     <span class="etb-btn" id="btnCpdlcListMain" title="Open on-frequency CPDLC list in a new window (view only — drag over CRC; use PowerToys Always On Top)">LIST</span>
     <span class="etb-btn" id="btnCrcModeMain" title="Toggle CRC browser mode (hides nav, forces CPDLC on-freq filter)">CRC</span>
@@ -1758,7 +1757,7 @@ html.list-mode #cpdlcListWin{
   <span class="etb-btn" id="crcAuthChip" data-auth-chip="crc" title="Sign in with VATSIM">SIGN IN</span>
   <span class="etb-time"><b id="crcClock">----</b><i id="crcSec">--</i></span>
   <span class="etb-stat link-stat hidden" id="crcStatLink" title="vUSALink-Lite">LINK</span>
-  <span class="etb-stat on" id="crcStatSat">SAT<br>COMM</span>
+  <span class="etb-stat" id="crcStatSat">SAT<br>COMM</span>
   <span class="etb-stat" id="crcBtnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
   <span class="etb-btn" id="btnCpdlcList" title="Open on-frequency CPDLC list in a new window (view only — drag over CRC; use PowerToys Always On Top)">LIST</span>
   <span class="etb-btn active" id="btnCrcMode" title="Exit CRC mode">CRC</span>
@@ -1801,7 +1800,7 @@ html.list-mode #cpdlcListWin{
       </label>
       <label class="opt" data-acl-filter="ground">
         <input type="radio" name="aclFilter" value="ground">
-        <span class="lab"><b>SHOW GROUND A/C</b><span>On the ground (below 60 kt) &mdash; for CPDLC to aircraft at the gate or taxiing</span></span>
+        <span class="lab"><b>SHOW GROUND A/C</b><span>On the ground (below 50 kt) &mdash; for CPDLC to aircraft at the gate or taxiing</span></span>
       </label>
       <div class="gnd-field" id="aclGroundDepRow">
         <label for="aclGroundDep">DEP APT</label>
@@ -2553,7 +2552,7 @@ html.list-mode #cpdlcListWin{
   window.openCpdlcListWindow=openCpdlcListWindow;
 
   // List mode wins over CRC: a view-only overlay must not load command chrome.
-  // Activate CRC chrome only from ?crc=1 (CRC aliases / compact tab).
+  // Activate CRC chrome only from ?crc=1 (the compact CRC tab layout).
   // Do not restore from localStorage on the classic EDST URL — that made
   // /vusalink/edst/ open in CRC mode after any prior CRC session.
   if(_listParam){
@@ -3042,7 +3041,7 @@ let sortState={key:null,dir:1};
 function gsOf(a){const m=(a.hs||'').match(/(\d+)/);return m?+m[1]:0;}
 // Ground filter: anything slower than this is treated as "on the ground" so the
 // controller can raise it on CPDLC at the gate or while taxiing.
-const GROUND_SPEED_KT=60;
+const GROUND_SPEED_KT=50;   // same as the KUSA hub (GROUND_GS): under 50 kt = on the ground
 /** Ground speed in kt from the live feed (a.gs), falling back to the "/450" display string. */
 function groundSpeedKt(a){
   if(!a)return null;
@@ -3665,7 +3664,8 @@ function applyVerify(v,showBar){
       document.getElementById('verifyCode').textContent=verifyCode||'VUSA-----';
       if(stateEl)stateEl.textContent='not verified yet \u2014 add the code, then wait a moment\u2026';
     }
-    if(showBar)bar.classList.remove('hidden');
+    // Show how to verify whenever the hub says this position isn't verified (hidden in the CRC layout by CSS).
+    if(showBar!==false)bar.classList.remove('hidden');
     else bar.classList.add('hidden');
   }
   renderBoard();
@@ -3720,6 +3720,7 @@ function applyUplinkEffects(cs,min,effects){
     altMin[cs]=min;altPending.add(cs);
   }else if(effects.type==='route'){
     rtMin[cs]=min;routePending.add(cs);
+    if(effects.resumeNav)delete hdgAssigned[cs];
   }else if(effects.type==='squawk'){
     if(effects.code){sqPending[cs]=effects.code;sqPendingSet.add(cs);persist();}
     sqMin[cs]=min;
@@ -3732,6 +3733,7 @@ function applyUplinkEffects(cs,min,effects){
     hdgMin[cs]=min;hdgPending.add(cs);
   }else if(effects.type==='spd'){
     if(effects.spd!=null)spdAssigned[cs]=effects.spd;
+    else if(effects.resumeSpd)delete spdAssigned[cs];
     spdMin[cs]=min;spdPending.add(cs);
   }
 }
@@ -3768,6 +3770,8 @@ function amendEntry(cs,entry){
   if(e.type==='alt'&&e.alt!=null){assigned[cs]=e.alt;persist();}
   else if(e.type==='hdg'&&e.hdg!=null)hdgAssigned[cs]=e.hdg;
   else if(e.type==='spd'&&e.spd!=null)spdAssigned[cs]=e.spd;
+  else if(e.type==='spd'&&e.resumeSpd)delete spdAssigned[cs];
+  else if(e.type==='route'&&e.resumeNav)delete hdgAssigned[cs];
   const line=crcLine(entry,cs);
   if(line&&crcEcho(line,true))mcaSetFeedback(['AMEND',line,'\u2192 CRC'],'ok');
   else mcaSetFeedback(['AMEND',cs,line?'EDST ONLY (NOT IN vUSALink App)':'EDST ONLY (NO CRC COMMAND FOR THIS)'],'ok');
@@ -3982,8 +3986,8 @@ function clearPendingOnAck(cs,mrn){
   }
   if(altMin[cs]!=null&&minMatches(altMin[cs],mrn)){altPending.delete(cs);delete altMin[cs];matched=true;}
   if(rtMin[cs]!=null&&minMatches(rtMin[cs],mrn)){routePending.delete(cs);delete rtMin[cs];matched=true;}
-  if(hdgMin[cs]!=null&&minMatches(hdgMin[cs],mrn)){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];matched=true;}
-  if(spdMin[cs]!=null&&minMatches(spdMin[cs],mrn)){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];matched=true;}
+  if(hdgMin[cs]!=null&&minMatches(hdgMin[cs],mrn)){hdgPending.delete(cs);delete hdgMin[cs];matched=true;}
+  if(spdMin[cs]!=null&&minMatches(spdMin[cs],mrn)){spdPending.delete(cs);delete spdMin[cs];matched=true;}
   if(sqMin[cs]!=null&&minMatches(sqMin[cs],mrn)){
     delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();matched=true;
   }
@@ -3991,8 +3995,8 @@ function clearPendingOnAck(cs,mrn){
     if(handoffPending.has(cs))ackHandoff(cs);
     if(altPending.has(cs)){altPending.delete(cs);delete altMin[cs];}
     if(routePending.has(cs)){routePending.delete(cs);delete rtMin[cs];}
-    if(hdgPending.has(cs)){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];}
-    if(spdPending.has(cs)){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];}
+    if(hdgPending.has(cs)){hdgPending.delete(cs);delete hdgMin[cs];}
+    if(spdPending.has(cs)){spdPending.delete(cs);delete spdMin[cs];}
     if(sqPendingSet.has(cs)){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
   }
 }
@@ -4063,9 +4067,7 @@ function handlePeerUplink(m){
   // Hub timed out the pilot's request (no uplink in 3-5 min): it is answered, stop the M flash.
   if(/REVERT TO VOICE/.test(msg)){msgAlert.delete(cs);stopMsgRepeat(cs);if(typeof syncMsgWaitButton==='function')syncMsgWaitButton();renderBoard();return;}
   if(wilcoExpectsReply(d.ra))trackWilcoAwait(cs,min);
-  if(/HANDOVER/.test(msg)){
-    handoffPending.add(cs);
-  }else if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC|MONITOR ADVISORY|\bMONITOR\b/.test(msg)){
+  if(/CONTACT|FREQ CHANGE APPROVED|NO FURTHER ATC|MONITOR ADVISORY|\bMONITOR\b/.test(msg)){
     handoffMin[cs]=min;handoffPending.add(cs);
   }else if(/CROSS|PROCEED DIRECT|CLEARED|HOLD AT|EXPECT FURTHER|CLEARED TO DEVIATE/.test(msg)){
     rtMin[cs]=min;routePending.add(cs);
@@ -4274,8 +4276,8 @@ function ackColumnPending(cs,col){
   cs=(cs||'').toUpperCase();
   if(col==='alt'){altPending.delete(cs);delete altMin[cs];}
   else if(col==='route'){routePending.delete(cs);delete rtMin[cs];}
-  else if(col==='hdg'){hdgPending.delete(cs);delete hdgMin[cs];delete hdgAssigned[cs];}
-  else if(col==='spd'){spdPending.delete(cs);delete spdMin[cs];delete spdAssigned[cs];}
+  else if(col==='hdg'){hdgPending.delete(cs);delete hdgMin[cs];}
+  else if(col==='spd'){spdPending.delete(cs);delete spdMin[cs];}
   else if(col==='sqk'){delete sqPending[cs];sqPendingSet.delete(cs);delete sqMin[cs];persist();}
   if(!hasUplinkPending(cs)){clearWilcoAwait(cs);ackWilcoUi(cs);}
   renderBoard();
@@ -4321,7 +4323,7 @@ function hsCellHtml(a,idx){
   const hRed=hMark.includes('ul-red')?` data-pend="hdg" data-cs="${a.cs}"`:'';
   const sRed=sMark.includes('ul-red')?` data-pend="spd" data-cs="${a.cs}"`:'';
   let hHtml;
-  if(hAsg!=null&&hdgPending.has(a.cs)){
+  if(hAsg!=null){
     const label=hAsg==='PH'?'PH':('H'+pad3(hAsg));
     const dim=(liveH!=null&&hAsg!=='PH'&&liveH!==hAsg)?`<span style="color:var(--fg-dim)">H${pad3(liveH)}</span> `:'';
     hHtml=dim+`<span class="hdg-cell${hMark}" data-hdg="${idx}"${hRed} title="heading">${label}</span>`;
@@ -4329,7 +4331,7 @@ function hsCellHtml(a,idx){
     hHtml=`<span class="hdg-cell" data-hdg="${idx}" title="heading">${liveH!=null?('H'+pad3(liveH)):'---'}</span>`;
   }
   let sHtml;
-  if(sAsg!=null&&spdPending.has(a.cs)){
+  if(sAsg!=null){
     const dim=(liveS!=null&&liveS!==sAsg)?`<span style="color:var(--fg-dim)">${liveS}</span> `:'';
     sHtml=dim+`<span class="spd-cell spd${sMark}" data-spd="${idx}"${sRed} title="speed">${sAsg}</span>`;
   }else{
@@ -4502,6 +4504,8 @@ function renderBoard(){
   publishListSnap();
   scheduleConflictProbe();
   const list=displayList();
+  const aclTab=document.getElementById('tabAcl');
+  if(aclTab)aclTab.innerHTML='ACL&nbsp;'+String(Math.min(list.length,99)).padStart(2,'0');
   const onListConnected=new Set(list.filter(a=>connected.has(a.cs)).map(a=>a.cs));
   if(pollPrimed&&!suppressSounds&&!isMuted()){
     if(listSoundPrimed){
@@ -4784,7 +4788,8 @@ function logMsg(kind,who,text){
   recordHist(csFromWho(who),kind,text);
 }
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
-function setHoppie(ok,t){document.getElementById('connDot').className='dot '+(ok?'on':'err');document.getElementById('statusText').textContent=t||'';}
+function setHoppie(ok,t){document.getElementById('connDot').className='dot '+(ok?'on':'err');document.getElementById('statusText').textContent=t||'';
+  ['statSat','crcStatSat'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',!!ok);});}
 function setVat(s,t){document.getElementById('vatDot').className='dot '+(s==='on'?'on':s==='busy'?'busy':s==='err'?'err':'');document.getElementById('vatText').textContent=t||'';}
 
 //============================================================ boot
@@ -5030,9 +5035,9 @@ async function buildAltMessage(target,tgt,altimVal,apd,localTalt){
   msg+=altReasonSuffix();
   const label=apd?'ALT APD':(altReasons.size?'ALT REASON':'ALT');
   const blk=blockOn&&blockTo!=null&&blockTo!==tgt;
-  // TEMP: interim altitude, QQ in CRC (no block form). Otherwise the assigned altitude, QZ (block lo B hi).
-  const crc=altTemp?(blk?null:'QQ '+pad3(tgt))
-    :'QZ '+(blk?pad3(Math.min(tgt,blockTo))+'B'+pad3(Math.max(tgt,blockTo)):pad3(tgt));
+  // TEMP: interim altitude, QQ in CRC. Otherwise the assigned altitude, QZ. A block altitude isn't echoed to CRC
+  // (the CPDLC block uplink still goes out).
+  const crc=blk?null:(altTemp?'QQ ':'QZ ')+pad3(tgt);
   return {label,msg,effects:{type:'alt',alt:tgt},crc};
 }
 function setAltApd(on){
@@ -5104,7 +5109,7 @@ function openAltMenu(idx,x,y){
     ai.onclick=()=>stageAlt(fl);
     L.appendChild(ai);
   }
-  // Amended with a plain QZ (EDST MCA, CRC alias or vUSALink App): pre-select it.
+  // Amended with a plain QZ (EDST MCA, or CRC via vUSALink App / Lite): pre-select it.
   if(altAmended[a.cs]!=null){
     if(assigned[a.cs]===altAmended[a.cs])stageAlt(altAmended[a.cs]);
     delete altAmended[a.cs];
@@ -5547,8 +5552,8 @@ function buildSpdMessage(cmd){
   if(!cmd)return null;
   const effects={type:'spd'};
   if(spdSelected!=null){
-    effects.spd=spdUnit==='MACH'?spdMachLabel(spdSelected):spdSelected;
-  }
+    effects.spd=spdUnit==='MACH'?'M.'+('00'+(spdSelected|0)).slice(-2):spdSelected;
+  }else if(/^RESUME NORMAL SPEED/.test(cmd))effects.resumeSpd=true;
   // CRC gets an exact knots speed (Mach and "or greater/less" aren't echoed).
   const crc=spdUnit!=='MACH'&&!spdToggle&&spdSelected!=null?'QS /'+spdSelected:null;
   return {label:'SPD',msg:cmd,effects,crc};
@@ -5819,7 +5824,7 @@ function buildRouteDirectMessage(fix){
   msg+=rtReasonSuffix();
   // CRC gets the direct (not the conditional AT FIX / AT ALT forms).
   const crc=rtDirectMode==='NOW'||rtDirectMode==='ABLE'?'QU '+fix:null;
-  return {label:'DIRECT',msg,effects:{type:'route'},crc};
+  return {label:'DIRECT',msg,effects:{type:'route',resumeNav:true},crc};
 }
 function buildWxDevMessage(){
   const nm=parseInt((document.getElementById('rtWxNm')&&document.getElementById('rtWxNm').value)||'',10);
@@ -5834,7 +5839,7 @@ function buildRouteUplinkMessage(target,route){
   if(rtApd)msg+=' AT PILOTS DISCRETION';
   msg+=rtReasonSuffix();
   const er=eramRoute(route);
-  return {label:'ROUTE',msg,effects:{type:'route'},crc:er?'AM {FLID} RTE '+er:null};
+  return {label:'ROUTE',msg,effects:{type:'route',resumeNav:true},crc:er?'AM {FLID} RTE '+er:null};
 }
 function rtReasonSuffix(){
   const order=['IMM','EXP','TFC','RES','WX'];
@@ -6073,11 +6078,11 @@ document.querySelectorAll('#rtReasonPanel [data-reason]').forEach(btn=>{
 document.getElementById('rtAmend').onclick=()=>{
   if(!rtTarget)return;
   let entry=null;
-  if(fixSelected)entry={crc:'QU '+fixSelected,effects:{type:'route'}};
+  if(fixSelected)entry={crc:'QU '+fixSelected,effects:{type:'route',resumeNav:true}};
   else{
     const rt=(document.getElementById('rtEdit').value||'').trim().toUpperCase().replace(/\s+/g,' ');
     const er=rt?eramRoute(rt):'';
-    if(er)entry={crc:'AM {FLID} RTE '+er,effects:{type:'route'}};
+    if(er)entry={crc:'AM {FLID} RTE '+er,effects:{type:'route',resumeNav:true}};
   }
   if(!entry){queuePopLast(rtTarget.cs);return;}
   const cs=rtTarget.cs;close('routemenu');
@@ -6174,27 +6179,24 @@ function artccHandoffGroups(ctrs){
     String(a.label||a.callsign||'').localeCompare(String(b.label||b.callsign||''))));
   return out;
 }
-function appendHandoffContactRow(L,a,f,kindClass,withHandover){
+function appendHandoffContactRow(L,a,f,kindClass){
   const div=document.createElement('div');div.className='ho';
   const hoLabel=f.label||f.callsign||f.icao||'';
   const dist=f.dist?(' \u00b7 '+f.dist+'nm'):'';
-  const handoverBtn=(withHandover&&f.kind==='CTR'&&f.icao)?`<span class="hobtn handover">HANDOVER</span>`:'';
   const monitorBtn=isHandoffCenter(f)?`<span class="hobtn monitor" title="UM120 MONITOR">MONITOR</span>`:'';
   div.innerHTML=`<span class="left"><span class="${kindClass}">${hoLabel}</span>`
     +`<span class="meta"> ${f.freq||''}${dist}</span></span>`
-    +`<span class="acts"><span class="hobtn contact">CONTACT</span>${monitorBtn}${handoverBtn}</span>`;
+    +`<span class="acts"><span class="hobtn contact">CONTACT</span>${monitorBtn}</span>`;
   div.querySelector('.contact').onclick=()=>sendHandoff(a.cs,f,'CONTACT');
   const mb=div.querySelector('.monitor');
   if(mb)mb.onclick=()=>sendHandoff(a.cs,f,'MONITOR');
-  const hb=div.querySelector('.handover');
-  if(hb)hb.onclick=()=>sendHandover(a.cs,f);
   L.appendChild(div);
 }
-function appendHandoffCenterGroups(L,a,ctrs,withHandover){
+function appendHandoffCenterGroups(L,a,ctrs){
   artccHandoffGroups(ctrs).forEach(g=>{
     const hdr=document.createElement('div');hdr.className='ho-group';hdr.textContent=g.title;
     L.appendChild(hdr);
-    g.items.forEach(f=>appendHandoffContactRow(L,a,f,'ctr',withHandover));
+    g.items.forEach(f=>appendHandoffContactRow(L,a,f,'ctr'));
   });
 }
 function appendHandoffApproaches(L,a,aps){
@@ -6203,7 +6205,7 @@ function appendHandoffApproaches(L,a,aps){
   h.textContent='Approach / departure online (voice handoff):';L.appendChild(h);
   aps.slice().sort((x,y)=>
     String(x.label||x.callsign||'').localeCompare(String(y.label||y.callsign||'')))
-    .forEach(f=>appendHandoffContactRow(L,a,f,'app',false));
+    .forEach(f=>appendHandoffContactRow(L,a,f,'app'));
 }
 function handoffFacilityBuckets(list){
   // Drop TWR/GND/DEL; order targets as internal CTR → external CTR → APP/DEP.
@@ -6236,15 +6238,10 @@ function openHandoff(idx,x,y){
   uni.onclick=()=>sendUnicom(a.cs);
   L.appendChild(uni);
   const {internal,external,approaches}=handoffFacilityBuckets(facilities);
-  if(hubMode()){
-    appendHandoffCenterGroups(L,a,internal,false);
-    appendHandoffCenterGroups(L,a,external,false);
-    appendHandoffApproaches(L,a,approaches);
-    placePop(handoffpop,x,y);return;
-  }
+  // No CPDLC HANDOVER (next data authority): inside the US the KUSA hub moves the connection between centers itself.
   if(!facilities.length){const e=document.createElement('div');e.className='empty';e.textContent='No nearby ATC facilities online (within 200 nm).';L.appendChild(e);}
-  appendHandoffCenterGroups(L,a,internal,true);
-  appendHandoffCenterGroups(L,a,external,true);
+  appendHandoffCenterGroups(L,a,internal);
+  appendHandoffCenterGroups(L,a,external);
   appendHandoffApproaches(L,a,approaches);
   placePop(handoffpop,x,y);
 }
@@ -6281,18 +6278,6 @@ async function sendHandoff(cs,fac,mode){
     renderBoard();
   }
 }
-// HANDOVER = CPDLC next-data-authority transfer. A capable aircraft logs off us
-// and logs on to the named ICAO; no WILCO is expected, so we clear H when the
-// aircraft sends LOGOFF (see handleIncoming). Edit HANDOVER_MSG if a client
-// needs a different wording.
-const HANDOVER_MSG=icao=>`HANDOVER @${icao}@`;
-async function sendHandover(cs,fac){
-  close('handoffpop');
-  const min=await sendCpdlc(cs,'NE',HANDOVER_MSG(fac.icao));
-  if(min!=null){handoffPending.add(cs);
-    logMsg('sys',cs,'CPDLC handover \u2192 '+fac.icao+' (next data authority)');renderBoard();}
-}
-
 //============================================================ CRC handoff \u2192 CPDLC CONTACT
 // An ERAM handoff "<sector> <FLID>" (typed in CRC and passed on by vUSALink App,
 // or typed in this MCA) on a CPDLC aircraft marks the row \u25b6| (sector). Clicking
@@ -8919,6 +8904,8 @@ function openDepMenu(){
   refreshDepList(true);
   scheduleDepRefresh();
 }
+// ACL: the Aircraft List is always shown; clicking ACL brings it back by closing the Departure List.
+(function(){const b=document.getElementById('tabAcl');if(b)b.addEventListener('click',()=>{if(depmenu&&!depmenu.classList.contains('hidden'))close('depmenu');});})();
 function toggleDepMenu(){
   if(!depmenu)return;
   if(depmenu.classList.contains('hidden'))openDepMenu();
@@ -9742,119 +9729,6 @@ window.vUSALinkEDST=Object.freeze({
   connect();
 })();
 
-//============================================================ CRC URL intent
-// Reads ?cmd= and ?acid= placed by a CRC .openurl Alias and executes the
-// CPDLC uplink automatically — no button press required on the browser tab.
-//
-// CRC Alias examples (place in MyAliases.txt or upload via vNAS Data Admin):
-//   .QZ .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QZ $1 $aircraft /U)
-//   .QU .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QU $1 $aircraft /U)
-//   .QS .openurl https://vatflow.net/vusalink/edst/?crc=1&cmd=$urlescape(QS $1 $aircraft /U)
-//
-// Full alias reference: /vusalink/edst/crc-aliases.txt
-(function applyUrlIntent(){
-  if(listMode())return;
-  const p=new URLSearchParams(location.search);
-  const rawCmd=(p.get('cmd')||'').trim();
-  const rawAcid=(p.get('acid')||'').toUpperCase().trim();
-  if(!rawCmd&&!rawAcid)return;
-
-  // Strip intent params from URL immediately so a manual reload doesn't re-fire.
-  // Keep crc=1 and any other params intact.
-  (function stripIntentParams(){
-    const u=new URL(location.href);
-    u.searchParams.delete('cmd');
-    u.searchParams.delete('acid');
-    history.replaceState(null,'',u);
-  })();
-
-  // Show a brief status toast in the crcbar / statusStrip while we wait.
-  function setIntentStatus(msg,cls){
-    const el=document.getElementById('statusText');
-    if(el){el.textContent=msg;el.style.color=cls==='err'?'var(--red)':cls==='ok'?'var(--green)':'var(--fg-dim)';}
-  }
-
-  // Attempt after sign-in, vNAS verify, and hub CPDLC state are ready.
-  // Retries every 500 ms for up to 20 seconds (first poll + vNAS lag).
-  let attempts=0;
-  const MAX=40; // 40 × 500 ms = 20 s
-  const cmdUpper=rawCmd.toUpperCase();
-  const acidInCmd=rawAcid||
-    (()=>{const toks=cmdUpper.split(/\s+/);
-          return toks.find(t=>/^[A-Z][A-Z0-9]{1,7}$/.test(t)&&/\d/.test(t)&&!t.startsWith('/'))||'';})();
-
-  function retry(msg){
-    if(attempts<MAX){
-      if(msg)setIntentStatus(msg,'');
-      setTimeout(attempt,500);
-    }else{
-      setIntentStatus((msg||'TIMEOUT')+' \u2014 timed out','err');
-      setTimeout(()=>setIntentStatus('',''),8000);
-    }
-  }
-
-  function attempt(){
-    attempts++;
-
-    // If an acid-only param was given (no cmd), just select the row.
-    if(!rawCmd&&rawAcid){
-      const a=(typeof displayList==='function'?displayList():[]).find(x=>x.cs===rawAcid)
-        || liveFlights.find(x=>x.cs===rawAcid);
-      if(a){
-        selectedCs=rawAcid; renderBoard();
-        setIntentStatus('Selected '+rawAcid,'ok');
-        setTimeout(()=>setIntentStatus('',''),3000);
-      }else{
-        retry('Waiting for '+rawAcid+'\u2026');
-      }
-      return;
-    }
-
-    if(!hubMode()&&!configured()){
-      retry('Waiting for sign-in\u2026');
-      return;
-    }
-    if(hubMode()&&!verifyOK){
-      retry(verifyMethod==='vnas'?'Waiting for vNAS verify\u2026':'Waiting to verify position\u2026');
-      return;
-    }
-    if(!hubConnReady){
-      retry('Waiting for CPDLC session\u2026');
-      return;
-    }
-
-    const inList=acidInCmd?liveFlights.some(f=>f.cs===acidInCmd):liveFlights.length>0;
-    if(!inList){
-      retry('Waiting for '+(acidInCmd||'traffic')+'\u2026');
-      return;
-    }
-
-    if(acidInCmd)selectedCs=acidInCmd;
-    else if(rawAcid)selectedCs=rawAcid;
-
-    if(typeof mcaExecute!=='function'){
-      setIntentStatus('SEND FAIL','err');
-      return;
-    }
-    mcaExecute(rawCmd).then(res=>{
-      if(res&&res.ok){
-        setIntentStatus((res.action==='amend'?'Amended \u2014 ':'CPDLC sent \u2014 ')+(res.flid||acidInCmd||rawCmd),'ok');
-        setTimeout(()=>setIntentStatus('',''),4000);
-        return;
-      }
-      const why=(res&&res.error)||'SEND FAIL';
-      setIntentStatus(why+(res&&res.flid?' \u2014 '+res.flid:''),'err');
-      setTimeout(()=>setIntentStatus('',''),8000);
-    }).catch(err=>{
-      console.warn('applyUrlIntent mcaExecute error',err);
-      setIntentStatus('SEND FAIL','err');
-      setTimeout(()=>setIntentStatus('',''),5000);
-    });
-  }
-
-  // Kick off — small initial delay lets DOMContentLoaded + first render settle.
-  setTimeout(attempt,300);
-})();
 </script>
 <script type="module">
 import * as VatflowAuth from "../../shared/vatflow-auth.js";

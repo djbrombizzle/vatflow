@@ -27,8 +27,8 @@ free to change.
     `{t:'crcEcho', text}` via `window.chrome.webview.postMessage` after a successful uplink whose entry has a
     `crc` field (the ERAM equivalent without the FLID, e.g. `QU LUNNI`; the page appends the callsign). The app
     types it into CRC's MCA (its "CRC ECHO" toggle). Builders that set `crc` (formats from CRC's ERAM command
-    reference, docs.virtualnas.net/crc/eram): `buildAltMessage` (`QZ`, block `QZ lo B hi`; with the menu's TEMP
-    toggle `QQ`, no block), `buildSquawkMessage` (`QB code`), `buildHdgMessage` (`QS hhh`, not PH),
+    reference, docs.virtualnas.net/crc/eram): `buildAltMessage` (`QZ`; with the menu's TEMP toggle `QQ`; a block
+    altitude has no `crc`: block altitudes aren't echoed, and the MCA rejects `QZ lo B hi` with ILL ALT), `buildSquawkMessage` (`QB code`), `buildHdgMessage` (`QS hhh`, not PH),
     `buildSpdMessage` (`QS /kt`, not Mach or a toggle: CRC has no typed form for those),
     `buildRouteDirectMessage` (`QU fix`, NOW/ABLE only), `buildRouteUplinkMessage` (`AM {FLID} RTE <route>`,
     route converted by `eramRoute` to ERAM dots), and `buildMcaUplinkEntry` in `shared/edst-mca-commands.js`
@@ -93,5 +93,6 @@ If one of these has to change, change it here and in the app together (the app c
 `version` on every page load). Since v0.3.2 the app has no fallback for a page without the API: it passes
 nothing on and leaves CRC's line alone.
 
-Other users of `mcaExecute`: the EDST MCA itself, and the CRC `?cmd=` URL intent (aliases in
-`vusalink/edst/crc-aliases.txt`, including `.QZA` for the amend-only form).
+The other user of `mcaExecute` is the EDST MCA itself. The CRC `.openurl` aliases and the `?cmd=` / `?acid=` URL
+intent they used were removed in Nov 2026 (vUSALink App and Lite replace them); don't bring back a URL that sends
+CPDLC.

@@ -13,7 +13,7 @@
 import { fpFields, depMatchesArtcc } from "./fca-metering.js";
 
 /** At or above this ground speed the aircraft is rolling/airborne, not "on the ground". */
-export const GROUND_GS_KT = 60;
+export const GROUND_GS_KT = 50;   // same as the KUSA hub and the EDST (GROUND_SPEED_KT)
 
 function normArtcc(id) {
   return (id || "").toUpperCase().replace(/^K(?=Z)/, "");

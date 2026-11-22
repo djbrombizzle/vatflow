@@ -146,7 +146,7 @@ export function parseMcaCommand(raw, opts = {}) {
     let altTok = body[0] || "";
     if (/^[RLP]\d{2,3}$/.test(altTok)) altTok = altTok.slice(1);
     const alt = parseAltitudeToken(altTok);
-    if (!alt || alt.kind === "vfr") {
+    if (!alt || alt.kind === "vfr" || alt.kind === "block") {
       return { ok: false, error: "ILL ALT", flid, verb };
     }
     const fl = alt.fl;

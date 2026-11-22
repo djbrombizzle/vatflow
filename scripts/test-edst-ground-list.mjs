@@ -28,7 +28,7 @@ function assert(cond, msg) {
   else console.log("ok:", msg);
 }
 
-assert(GROUND_GS_KT === 60, "ground threshold is 60 kt");
+assert(GROUND_GS_KT === 50, "ground threshold is 50 kt");
 assert(parseApts("katl, kmco").join(",") === "KATL,KMCO", "airport box parsed");
 assert(aptMatches("KATL", ["ATL"]) === true, "3-letter entry matches the ICAO");
 assert(aptMatches("KATL", ["KMCO"]) === false, "other airport does not match");
