@@ -10,8 +10,9 @@ Build data/vzdc-sectors.geojson: vZDC's sector split, traced from the
 3. Each region gets the altitude bands read from its label (REGIONS below):
    "12 BRV 240A / 20 BKT 230B" = 12 owns FL240 and up, 20 owns 230 and below.
    Bands are hundreds of feet. ZNY/ZTL bands are another facility's.
-4. Output: per sector a LOW (owner of each area's bottom), HIGH (owner at FL350)
-   and ALL (any altitude) MultiPolygon, plus one REGION feature per area with its bands.
+4. Output: per sector an ALL MultiPolygon (every area it owns at any altitude),
+   plus one REGION feature per area with its bands; the map labels each area
+   from its bands, like the diagram.
 
 Needs numpy, scipy, opencv-python-headless. Usage: python3 scripts/build-vzdc-sectors.py
 To change a split, edit REGIONS (seed = a pixel inside the area on the diagram) and rerun.
@@ -149,11 +150,7 @@ def polys(mask):
         if len(c) >= 3:
             out.append([ll(np.vstack([c, c[:1]]))])
     return out
-views = {
-    "LOW": lambda ly: [min(ly, key=lambda l: l[1])],
-    "HIGH": lambda ly: [l for l in ly if l[1] <= 350 <= l[2]][:1],
-    "ALL": lambda ly: ly,
-}
+views = {"ALL": lambda ly: ly}
 feats = []
 secs = sorted({s for _, ly in seen.values() for s, _, _ in ly if s.isdigit()})
 for vname, pick in views.items():
