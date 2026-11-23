@@ -194,6 +194,7 @@ import { SIDS, SID_AIRPORTS, SID_SOURCE, departureSid } from "./shared/zdc-sid-d
 import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
 import {
   matchFlight, descendViaFor, primaryAirports, satellitePrimaries, rowVisibleInConfig, ownerOf, engineClass,
+  onlineFacilities,
 } from "./shared/zdc-sop-match.js";
 
 const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
@@ -325,6 +326,8 @@ async function poll() {
     const r = await fetch(VATSIM_URL, { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status);
     feed = await r.json();
+    const online = onlineFacilities(feed.controllers);
+    geoCtx.facilityOpen = fac => online.has(fac);
     feedAt = Date.now();
     feedErr = "";
   } catch (e) {

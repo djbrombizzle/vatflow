@@ -370,7 +370,10 @@ export const ROWS = [
   ["58", "ISP E", "", "SIE BRIGS Q439 SARDI T320 ORCHA", "BDRY AOB 230", "59"],
   ["58", "ISP N", "", "SIE BRIGS Q439 SARDI RICED KEYED", "BDRY AOB 230", "59"],
   ["58", "KBOS", "", "JAMIE CONFR Q133 JFK ROBUC#", "BDRY AOB 370", "ZNY"],
-  ["58", "KBOS", "", "Q419 JFK ROBUC# [ZNY CLSD]", "NEWES @ 270", "ZBW"],
+  // SOP: "Q419 JFK ROBUC# [ZNY CLSD]". Matt (Nov 2026): any BOS arrival on the
+  // ROBUC STAR crosses NEWES at FL270 and goes to ZBW, only when ZNY is offline
+  // and ZBW is online; with both offline, nothing.
+  ["58", "KBOS", "", "ROBUC# [ZNY CLSD/ZBW OPEN]", "NEWES @ 270", "ZBW"],
   ["58", "KHPN", "", "(PCT) AGARD V44 SIE V139 RICED RICED#", "BDRY AOB 230", "59"],
   ["58", "KISP", "", "SIE BRIGS Q439 SARDI CCC", "BDRY AOB 230", "59"],
   ["58", "KRIC", "", "SBY V1 JAMIE", "BDRY AOB 260", "54"],

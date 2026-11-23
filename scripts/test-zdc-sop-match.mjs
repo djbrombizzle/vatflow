@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { ROWS, SECTORS } from "../shared/zdc-sop-data.js";
 import {
   parseFor, destMatches, parseRouting, flightRoutePoints, engineClass, cruiseFeet,
-  restrictionFix, crossingFixes, rowVisibleInConfig, ownerOf, matchFlight, descendViaFor, primaryAirports, satellitePrimaries,
+  restrictionFix, crossingFixes, onlineFacilities, rowVisibleInConfig, ownerOf, matchFlight, descendViaFor, primaryAirports, satellitePrimaries,
 } from "../shared/zdc-sop-match.js";
 
 let passed = 0;
@@ -151,7 +151,7 @@ t("route-free rows (ANY) match on destination; overflight rows need the full rou
 t("a shared STAR alone does not pull in a sibling routing", () => {
   const yyz = matchFlight({ dep: "KDCA", arr: "CYYZ", route: "HORTO4 JERES Q221 DLMAR DCT WOZEE LINNG3", type: "A319", altitude: "38000" }, ctx);
   assert.deepEqual(yyz.map(m => m.row[3]), ["WOZEE LINNG#"]);
-  const bos = matchFlight({ dep: "KMIA", arr: "KBOS", route: "FOLZZ3 GRUBR Y299 SEELO WAALT Q131 EARZZ JAMIE Q133 JFK ROBUC3", type: "B738", altitude: "27000" }, ctx);
+  const bos = matchFlight({ dep: "KMIA", arr: "KBOS", route: "FOLZZ3 GRUBR Y299 SEELO WAALT Q131 EARZZ JAMIE Q133 JFK ROBUC3", type: "B738", altitude: "27000" }, { ...ctx, facilityOpen: () => true });
   assert.deepEqual(bos.map(m => m.row[3]), ["JAMIE CONFR Q133 JFK ROBUC#"]);
   assert.equal(bos[0].quality, "partial", "CONFR not filed");
   const clt = matchFlight({ dep: "KDCA", arr: "KCLT", route: "SCRAM6 GLANC AIROW CHSLY9", type: "A20N", altitude: "30000" }, ctx);
@@ -199,6 +199,26 @@ t("crossing fixes", () => {
   assert.deepEqual(crossingFixes("5 S GARED @ 130"), []);
   assert.deepEqual(crossingFixes("ABEAM RDU AOB 240"), []);
   assert.deepEqual(crossingFixes("D/V"), []);
+});
+
+t("ROBUC NEWES @ 270 to ZBW only when ZNY is offline and ZBW online", () => {
+  const f = { dep: "KATL", arr: "KBOS", route: "PLMMR3 BURGG Q22 RBV Q419 JFK ROBUC3", type: "B739", altitude: "36000" };
+  const newes = st => matchFlight(f, { ...ctx, facilityOpen: st && (x => st.includes(x)) }).some(m => m.row[4] === "NEWES @ 270");
+  assert.equal(newes(["ZBW"]), true);
+  assert.equal(newes(["ZNY", "ZBW"]), false);
+  assert.equal(newes([]), false);
+  assert.equal(newes(["ZNY"]), false);
+  assert.equal(newes(null), true); // no staffing data (SOP reference): row stays
+  const viaQ133 = { ...f, route: "JAMIE CONFR Q133 JFK ROBUC3" };
+  assert.ok(matchFlight(viaQ133, { ...ctx, facilityOpen: x => x === "ZBW" }).some(m => m.row[4] === "NEWES @ 270"));
+});
+
+t("online facilities from VATSIM controllers", () => {
+  const on = onlineFacilities([
+    { callsign: "BOS_CTR", facility: 6 }, { callsign: "NY_CAM_APP", facility: 5 },
+    { callsign: "NY_OBS", facility: 0 }, { callsign: "DC_E_CTR", facility: 6 }, { callsign: "JFK_ATIS", facility: 4 },
+  ]);
+  assert.deepEqual([...on].sort(), ["N90", "ZBW", "ZDC"]);
 });
 
 t("descend-via bottoms by STAR and transition", () => {
