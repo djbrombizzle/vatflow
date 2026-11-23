@@ -105,6 +105,15 @@ export function resolveToken(name, ctx = {}) {
     if (apt) return { name: id, ll: apt.slice(), kind: "apt" };
   }
 
+  // A name that is both a navaid and a fix (RIFLE: a Colorado VOR and a fix
+  // off Long Island): with a reference point, take whichever is nearer.
+  if (ref && navaids[id] && fixes[id]) {
+    const nav = nearestCandidate(navaids[id], ref), fix = nearestCandidate(fixes[id], ref);
+    if (nav && fix && haversineNm(ref[0], ref[1], fix[0], fix[1]) < haversineNm(ref[0], ref[1], nav[0], nav[1])) {
+      return { name: id, ll: fix.slice(), kind: "fix" };
+    }
+  }
+
   if (navaids[id]) {
     const ll = nearestCandidate(navaids[id], ref);
     if (ll) return { name: id, ll: ll.slice(), kind: "nav" };
@@ -406,7 +415,11 @@ export function buildRouteAnchors(p, opts = {}) {
 
     if (isAirwayToken(tok)) {
       let toLL = null;
-      for (let j = i + 1; j < tokens.length; j++) {
+      // Exit fix named on the airway itself: use that waypoint.
+      const awyPts = airways[tok] && airways[tok].w;
+      const exitWp = awyPts && nextTok && awyPts.find(w => w[0] === nextTok);
+      if (exitWp) toLL = [exitWp[1], exitWp[2]];
+      else for (let j = i + 1; j < tokens.length; j++) {
         const nxt = resolveToken(tokens[j], { refLL, dep, arr });
         if (nxt) { toLL = nxt.ll; break; }
         if (isAirwayToken(tokens[j])) break;

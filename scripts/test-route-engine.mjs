@@ -158,4 +158,14 @@ const lastUs = intl.anchors.filter(a => a.kind !== "apt").slice(-1)[0];
 assert(lastUs && inNavCoverage(lastUs.ll[0], lastUs.ll[1]), "last enroute point should stay in nav coverage");
 console.log("international:", intlNames.join(" → "));
 
+// RIFLE is a Colorado VOR and a fix off Long Island: Q167 must stop at the
+// Long Island fix, then Q439 runs offshore to BRIGS (not down Q167 to KALDA).
+const mej = buildRouteAnchors({ dep: "KBOS", arr: "KJFK", route: "SSOXS7 SSOXS Q167 RIFLE Q439 BRIGS ENO" });
+const mejNames = mej.anchors.map(a => a.name);
+const rifle = mej.anchors.find(a => a.name === "RIFLE");
+assert(rifle && Math.abs(rifle.ll[1] + 72.58) < 0.1, "RIFLE should be the Long Island fix, not the Colorado VOR");
+assert(!mejNames.includes("KALDA") && !mejNames.includes("ZJAAY"), "Q167 should stop at RIFLE");
+assert(mejNames.join(" ").includes("RIFLE SARDI DUNEE SHERL PLUME MANTA DRIFT HARBO BRIGS ENO"), "Q439 RIFLE to BRIGS offshore");
+console.log("RIFLE/Q439:", mejNames.join(" → "));
+
 console.log("All route-engine tests passed.");
