@@ -169,7 +169,6 @@
         <button type="button" data-strata="off">No sectors</button>
         <button type="button" data-strata="low">Low</button>
         <button type="button" data-strata="high">High</button>
-        <button type="button" data-strata="uta">Ultra high</button>
       </span>
     </div>
     <div id="out"></div>
@@ -439,8 +438,8 @@ function inboundRules(f, ri, st) {
 
 /**
  * Does the route line pass through a ZDC sector? Uses the sector shapes drawn
- * on the map (any stratum) and needs ~6 nm of track inside, so clipping a
- * corner doesn't count. A sector with no shape (Dixon 09), shapes not loaded
+ * on the map (vZDC split, any altitude) and needs ~6 nm of track inside, so
+ * clipping a corner doesn't count. A sector with no shape, shapes not loaded
  * yet, or no expanded route: assume yes.
  */
 function routeCrossesSector(ri) {
@@ -716,27 +715,30 @@ function ensureMap() {
   loadSectors();
 }
 
-/* ZDC sector shapes: VATFLOW's FAA sector file (data/artcc-sectors-*.geojson).
-   vZDC sectors reuse the FAA numbers but consolidate, so a vZDC sector with no
-   FAA shape of its own (Dixon 09) is simply not drawn. */
-let strata = ["off", "low", "high", "uta"].includes(prefs.strata) ? prefs.strata : "high";
+/* ZDC sector shapes: vZDC's own split, traced from the SOP's 1-3-1 Washington
+   Center airspace diagram (data/vzdc-sectors.geojson, built by
+   scripts/build-vzdc-sectors.py). LOW is the sector owning the bottom of each
+   area, HIGH the one owning FL350, ALL every sector with any altitude there
+   (17 SWN 180-230 under 12 BRV, for example). REGION features carry each
+   area's altitude bands. */
+let strata = ["off", "low", "high"].includes(prefs.strata) ? prefs.strata : "high";
 let zdcSectors = null;
-const STRATA_ORDER = ["high", "low", "uta"];
+const STRATA_ORDER = ["high", "low", "all"];
 
 function loadSectors() {
   if (zdcSectors) return;
-  zdcSectors = { low: [], high: [], uta: [] };
-  Promise.all(STRATA_ORDER.map(n => fetch(`data/artcc-sectors-${n}.geojson`).then(r => (r.ok ? r.json() : null)).catch(() => null)))
-    .then(files => {
-      files.forEach((geo, i) => {
-        for (const ft of (geo && geo.features) || []) {
-          const pr = ft.properties || {};
-          if (pr.artcc !== "ZDC" || !ft.geometry) continue;
-          const polys = ft.geometry.type === "MultiPolygon" ? ft.geometry.coordinates : [ft.geometry.coordinates];
-          const rings = polys.map(poly => poly[0].map(([lon, lat]) => [lat, lon]));
-          zdcSectors[STRATA_ORDER[i]].push({ num: String(pr.sector || "").padStart(2, "0"), rings });
-        }
-      });
+  zdcSectors = { low: [], high: [], all: [], regions: [] };
+  fetch("data/vzdc-sectors.geojson").then(r => (r.ok ? r.json() : null)).catch(() => null)
+    .then(geo => {
+      for (const ft of (geo && geo.features) || []) {
+        const pr = ft.properties || {};
+        const st = String(pr.stratum || "").toLowerCase();
+        if (!ft.geometry || !(st in zdcSectors || st === "region")) continue;
+        const polys = ft.geometry.type === "MultiPolygon" ? ft.geometry.coordinates : [ft.geometry.coordinates];
+        const rings = polys.map(poly => poly[0].map(([lon, lat]) => [lat, lon]));
+        if (st === "region") zdcSectors.regions.push({ bands: pr.bands || [], rings });
+        else zdcSectors[st].push({ num: String(pr.sector || "").padStart(2, "0"), rings });
+      }
       render();
     });
 }
@@ -754,7 +756,9 @@ function sectorShape(num) {
 
 function sectorLabel(sec, cls) {
   const name = SECTORS[sec.num];
-  return L.marker(L.latLngBounds(sec.rings.flat()).getCenter(), {
+  const area = r => Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p[1] * q[0] - q[1] * p[0]; }, 0));
+  const main = sec.rings.reduce((b, r) => (area(r) > area(b) ? r : b), sec.rings[0]);
+  return L.marker(L.latLngBounds(main).getCenter(), {
     interactive: false,
     icon: L.divIcon({ className: "", iconSize: null, iconAnchor: [20, 8],
       html: `<div class="seclbl${cls ? " " + cls : ""}"><b>${esc(sec.num)}</b>${name ? `<br>${esc(name)}` : ""}</div>` }),
@@ -880,7 +884,7 @@ function inRingLL(p, ring) {
 /** Test for "inside ZDC sector num" over every stratum's shape, or null with no shape. */
 function sectorTest(num) {
   if (!zdcSectors) return null;
-  const rings = STRATA_ORDER.flatMap(st => zdcSectors[st].filter(x => x.num === num).flatMap(x => x.rings));
+  const rings = zdcSectors.all.filter(x => x.num === num).flatMap(x => x.rings);
   return rings.length ? p => rings.some(r => inRingLL(p, r)) : null;
 }
 
