@@ -122,7 +122,7 @@ export function satellitePrimaries(rows = ROWS) {
 export function parseRouting(routing) {
   let s = String(routing || "").trim();
   const notes = [];
-  let any = false, altBand = null, exceptVia = null;
+  let any = false, altBand = null, exceptVia = null, cond = null;
 
   s = s.replace(/\(([^)]*)\)/g, (_, inner) => {
     const t = inner.trim().toUpperCase();
@@ -137,6 +137,12 @@ export function parseRouting(routing) {
   s = s.replace(/\[([^\]]*)\]/g, (_, inner) => {
     const t = inner.trim().toUpperCase();
     if (ANY_RE.test(t)) { any = true; return " "; }
+    // Facility status: [ZNY CLSD], [ZNY CLSD/ZBW OPEN], [ZNY CLSD/N90 OPEN].
+    if (/^[A-Z0-9]{3} (CLSD|OPEN)(\s*\/\s*[A-Z0-9]{3} (CLSD|OPEN))*$/.test(t)) {
+      cond = t.split(/\s*\/\s*/).map(c => { const [fac, st] = c.split(" "); return { fac, open: st === "OPEN" }; });
+      notes.push(inner.trim());
+      return " ";
+    }
     const band = t.match(/^(\d{3})?(-|\+)(\d{3})?$/);
     if (band) {
       altBand = band[2] === "+" ? { min: +band[1] * 100, max: null }
@@ -164,7 +170,28 @@ export function parseRouting(routing) {
     return opts;
   })).filter(a => a.length);
 
-  return { alternatives, notes, any: any && !alternatives.length ? true : any, altBand, exceptVia };
+  return { alternatives, notes, any: any && !alternatives.length ? true : any, altBand, exceptVia, cond };
+}
+
+/* ---------------- facility staffing ---------------- */
+
+const CTR_PREFIX = { ZNY: ["NY", "NYC", "ZNY"], ZBW: ["BOS", "ZBW"], ZDC: ["DC", "WAS", "ZDC"] };
+const APP_PREFIX = { N90: ["N90", "NY", "NYC", "JFK", "LGA", "EWR"] };
+
+/**
+ * Facilities staffed in a VATSIM v3 controllers[] list: a Set of ZNY / ZBW /
+ * ZDC (any *_CTR) and N90 (NY-area APP/DEP). Observers and ATIS don't count.
+ */
+export function onlineFacilities(controllers) {
+  const on = new Set();
+  for (const c of controllers || []) {
+    const cs = String((c && c.callsign) || "").toUpperCase();
+    const m = cs.match(/^([A-Z0-9]+)(?:_[A-Z0-9]+)*_(APP|DEP|CTR)$/);
+    if (!m || (c.facility != null && c.facility < 2)) continue;
+    const table = m[2] === "CTR" ? CTR_PREFIX : APP_PREFIX;
+    for (const [fac, prefixes] of Object.entries(table)) if (prefixes.includes(m[1])) on.add(fac);
+  }
+  return on;
 }
 
 /* ---------------- flight side ---------------- */
@@ -339,6 +366,9 @@ export function matchFlight(flight, ctx = {}) {
   rows.forEach((row, index) => {
     if (ctx.config && !rowVisibleInConfig(row, ctx.config)) return;
     const { pf, rt } = parsedRow(row);
+    // Rows for when a neighbour is closed or open apply only when the live
+    // staffing agrees (ctx.facilityOpen); without staffing data they stay.
+    if (rt.cond && ctx.facilityOpen && !rt.cond.every(c => ctx.facilityOpen(c.fac) === c.open)) return;
     let how = "exact";
     if (!pf.overflight) {
       const dm = destMatches(pf, flight.arr, geo);
@@ -387,7 +417,8 @@ export function matchFlight(flight, ctx = {}) {
         // only on fixes picked up by expanding its airways and STAR.
         let q = sc.matched === sc.total ? "full" : sc.filedHits > 0 && ratio >= 0.5 ? "partial" : null;
         const stars = alt.flat().filter(o => o.star).map(o => o.star);
-        const sibs = stars.length ? starAlts.filter(s => s.alt !== alt && s.stars.some(x => stars.includes(x))) : [];
+        // A sibling that is the STAR alone (ROBUC#) names no route to tell apart.
+        const sibs = stars.length ? starAlts.filter(s => s.alt !== alt && s.alt.length > 1 && s.stars.some(x => stars.includes(x))) : [];
         const distinct = sibs.length ? alt.filter(g => !sibs.every(s => hasAny(s.alt, names(g)))) : [];
         const filedDistinct = distinct.some(g => names(g).some(n => fp.filed.has(n) || fp.stars.has(n)));
         if (q === "partial" && distinct.length && !distinct.some(g => names(g).some(n => fp.points.has(n) || fp.stars.has(n)))) q = null;
