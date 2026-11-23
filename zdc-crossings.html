@@ -823,6 +823,41 @@ function zdcExitPoint(path) {
   return exit;
 }
 
+/** Path densified to ~2 nm steps, so boundary crossings land close to the line. */
+function densify(path) {
+  const out = [];
+  for (let i = 0; i < path.length; i++) {
+    out.push(path[i]);
+    const nx = path[i + 1];
+    if (!nx) break;
+    const n = Math.min(200, Math.ceil(Math.max(Math.abs(nx[0] - path[i][0]), Math.abs(nx[1] - path[i][1])) / 0.03));
+    for (let k = 1; k < n; k++) out.push([path[i][0] + (nx[0] - path[i][0]) * k / n, path[i][1] + (nx[1] - path[i][1]) * k / n]);
+  }
+  return out;
+}
+
+function inRingLL(p, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [yi, xi] = ring[i], [yj, xj] = ring[j];
+    if ((yi > p[0]) !== (yj > p[0]) && p[1] < ((xj - xi) * (p[0] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** Test for "inside ZDC sector num" over every stratum's shape, or null with no shape. */
+function sectorTest(num) {
+  if (!zdcSectors) return null;
+  const rings = STRATA_ORDER.flatMap(st => zdcSectors[st].filter(x => x.num === num).flatMap(x => x.rings));
+  return rings.length ? p => rings.some(r => inRingLL(p, r)) : null;
+}
+
+/** Index of the first point (from `start`) where the path goes from outside to inside `test`. */
+function entryIndex(path, test, start = 0) {
+  for (let i = Math.max(1, start); i < path.length; i++) if (!test(path[i - 1]) && test(path[i])) return i;
+  return -1;
+}
+
 function fixLatLon(name, card) {
   const a = card.ri && card.ri.all.find(x => x.name === name && x.ll);
   if (a) return a.ll;
@@ -842,11 +877,22 @@ function drawSelected(card) {
   // One label per crossing point, listing every restriction at it.
   const cfgKey = $("cfgSel").value;
   const groups = new Map();
-  const add = (key, llPair, kind, m) => {
+  const sopLine = m => ({ html: `${esc(m.row[4])} <span style="opacity:.7">${esc(ownerOf(m.row[0], cfgKey) || m.row[0])}→${esc(ownerOf(m.row[5], cfgKey) || m.row[5])}</span>`,
+    passed: m.passed, full: m.quality === "full" });
+  const add = (key, llPair, kind, m, head) => {
     if (!llPair) return;
-    if (!groups.has(key)) groups.set(key, { ll: llPair, kind, items: [] });
-    groups.get(key).items.push(m);
+    if (!groups.has(key)) groups.set(key, { ll: llPair, kind, head: head || key, items: [] });
+    groups.get(key).items.push(m.html ? m : sopLine(m));
   };
+  const track = densify(full.length ? full : allLL);
+  // Inbound LOA rules sit where the route enters ZDC from the giving ARTCC.
+  const zdcIn = entryIndex(track, p => inZdc(p));
+  if (zdcIn >= 0) {
+    for (const { item } of card.inbound || []) {
+      const short = String(item.restr || "see rule").split(";")[0].trim();
+      add("ZDCIN", track[zdcIn], "bdry", { html: `${esc(item.from)} ${esc(short)}`, passed: false, full: true }, "ZDC BDRY (in)");
+    }
+  }
   let exit;
   // Descend-via rows sit at the STAR's join-by fix (Ch 5 Sec 2) only when that
   // fix is on this route; a D/V handed to another facility outside ZDC (N90,
@@ -865,12 +911,21 @@ function drawSelected(card) {
       if (dvJoin && onRoute(dvJoin)) add(dvJoin, fixLatLon(dvJoin, card), "fix", m);
       else if (external(m.row[5])) atExit(m);
     } else if (external(m.row[5]) && /^(BDRY|AOB|AT|DSDG|FL)/.test(m.row[4])) atExit(m);
+    else if (/^BDRY/.test(m.row[4]) && /^\d{1,2}$/.test(m.row[5])) {
+      // Sector-to-sector boundary: where the route enters the receiving sector
+      // after the giving one (FAA sector shapes, so approximate).
+      const give = sectorTest(m.row[0].padStart(2, "0")), recv = m.row[5].padStart(2, "0"), recvTest = sectorTest(recv);
+      if (!recvTest) continue;
+      const from = give ? Math.max(0, entryIndex(track, give)) : 0;
+      const at = entryIndex(track, recvTest, from);
+      if (at >= 0) add(`SEC${recv}`, track[at], "sec", m, `SECTOR ${recv} BDRY`);
+    }
   }
   for (const [key, g] of groups) {
     const allPassed = g.items.every(m => m.passed);
-    const anyFull = g.items.some(m => m.quality === "full");
-    const lines = g.items.map(m => `${esc(m.row[4])} <span style="opacity:.7">${esc(ownerOf(m.row[0], cfgKey) || m.row[0])}→${esc(ownerOf(m.row[5], cfgKey) || m.row[5])}</span>`);
-    const head = key === "BDRY" ? "ZDC BDRY" : esc(key);
+    const anyFull = g.items.some(m => m.full);
+    const lines = g.items.map(m => m.html);
+    const head = key === "BDRY" ? "ZDC BDRY" : esc(g.head);
     L.circleMarker(g.ll, { radius: 4, color: "#0a0e14", weight: 1, fillColor: g.kind === "bdry" ? "#3fb7b0" : "#e8a838", fillOpacity: 1 }).addTo(mapLayers.fixes);
     L.marker(g.ll, {
       interactive: false,
