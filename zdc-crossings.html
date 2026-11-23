@@ -252,6 +252,7 @@ initVatflowAuth().then(gate, gate);
 
 function start() {
   started = true;
+  loadSectors();
   $("cfgSel").innerHTML = Object.entries(CONFIGS).map(([k, c]) => `<option value="${k}">${esc(c.label)}</option>`).join("");
   $("secSel").innerHTML = `<option value="">All sectors</option>` +
     Object.entries(SECTORS).map(([k, n]) => `<option value="${k}">${k} ${esc(n)}</option>`).join("");
@@ -436,6 +437,33 @@ function inboundRules(f, ri, st) {
   });
 }
 
+/**
+ * Does the route line pass through a ZDC sector? Uses the sector shapes drawn
+ * on the map (any stratum) and needs ~6 nm of track inside, so clipping a
+ * corner doesn't count. A sector with no shape (Dixon 09), shapes not loaded
+ * yet, or no expanded route: assume yes.
+ */
+function routeCrossesSector(ri) {
+  const pts = ri ? ri.all.filter(a => a.ll).map(a => a.ll) : [];
+  if (!zdcSectors || !zdcSectors.high.length || pts.length < 2) return () => true;
+  let track = null;
+  const memo = new Map();
+  return sec => {
+    const num = String(sec).padStart(2, "0");
+    if (memo.has(num)) return memo.get(num);
+    const test = sectorTest(num);
+    let ok = true;
+    if (test) {
+      track = track || densify(gcPath(pts));
+      let n = 0;
+      for (const p of track) if (test(p) && ++n >= 3) break;
+      ok = n >= 3;
+    }
+    memo.set(num, ok);
+    return ok;
+  };
+}
+
 function computeCards(qStr) {
   const cfgKey = $("cfgSel").value;
   const sec = $("secSel").value;
@@ -456,8 +484,12 @@ function computeCards(qStr) {
     }
     const aheadNames = ri ? new Set(ri.ahead.map(a => a.name)) : null;
     const allNames = ri ? new Set(ri.all.map(a => a.name)) : null;
+    const crosses = routeCrossesSector(ri);
     const rows = matches.filter(m => {
       if (!partialOk && m.quality !== "full") return false;
+      // A crossing fix on the route places the restriction already; otherwise
+      // the route line has to pass through the giving sector.
+      if (!(m.fix && allNames && allNames.has(m.fix)) && !crosses(m.row[0])) return false;
       if (!sectorFilterPass(m.row, cfgKey, sec)) return false;
       m.passed = !!(m.fix && aheadNames && allNames.has(m.fix) && !aheadNames.has(m.fix) && !f.prefile && f.gs >= 50);
       if (m.passed && !showPassed) return false;
