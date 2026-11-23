@@ -85,6 +85,9 @@
   .q.partial { color: var(--muted); }
   .dv { padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: var(--cyan); border-top: 1px solid var(--line); }
   .empty { color: var(--muted); font-size: 13px; padding: 24px 0; }
+  .sidh { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; font-weight: 500; }
+  h3.sidh { font-size: 12px; margin-top: 14px; }
+  b.sidalt { color: var(--amber); }
   .ref { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
   .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
 
@@ -147,6 +150,7 @@
         <button type="button" data-view="live" class="on">Live traffic</button>
         <button type="button" data-view="map">Map</button>
         <button type="button" data-view="ref">SOP tables</button>
+        <button type="button" data-view="sid">SIDs</button>
       </div>
       <select id="cfgSel" title="Sector configuration"></select>
       <select id="secSel" title="Show restrictions you give or receive"></select>
@@ -186,6 +190,7 @@ import { fetchArtccBoundaries, pointInArtcc, getArtccRings, getArtccBounds } fro
 import { gcLine } from "./shared/fca-metering.js";
 import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft, resolveToken } from "./shared/route-engine.js";
 import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { SIDS, SID_AIRPORTS, SID_SOURCE, departureSid } from "./shared/zdc-sid-data.js";
 import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
 import {
   matchFlight, descendViaFor, primaryAirports, satellitePrimaries, rowVisibleInConfig, ownerOf, engineClass,
@@ -200,7 +205,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const prefs = loadPrefs();
-let view = ["ref", "map"].includes(prefs.view) ? prefs.view : "live";
+let view = ["ref", "map", "sid"].includes(prefs.view) ? prefs.view : "live";
 let feed = null, feedAt = 0, feedErr = "";
 let started = false, timer = null;
 
@@ -293,7 +298,8 @@ function start() {
 function setView(v) {
   view = v;
   $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
-  $("liveOpts").hidden = v === "ref";
+  $("liveOpts").hidden = v === "ref" || v === "sid";
+  $("secSel").hidden = v === "sid";
   $("strataSeg").hidden = v !== "map";
   $("out").hidden = v === "map";
   $("mapWrap").hidden = v !== "map";
@@ -505,6 +511,79 @@ function renderRef(qStr) {
       `<td>${esc(r[1])}${r[2] ? ` <span class="note">${esc(r[2])}</span>` : ""}</td><td>${esc(r[3])}</td>` +
       `<td class="secname">${esc(SECTOR_REF[r[0]] || "")}</td></tr>`).join("") +
     `</tbody></table></div>`;
+}
+
+/* ---------------- SIDs view ---------------- */
+
+function nmBetween(a, b) {
+  const r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) ** 2;
+  return 3440 * 2 * Math.asin(Math.sqrt(h));
+}
+
+/** Pending IAD/DCA/BWI departures: on the ground at the field, or prefiled. */
+function pendingDepartures() {
+  if (!feed) return [];
+  const out = [];
+  const add = (p, prefile) => {
+    const fp = p.flight_plan;
+    const dep = fp && (fp.departure || "").toUpperCase();
+    if (!dep || !SID_AIRPORTS[dep]) return;
+    if (!prefile) {
+      if (p.groundspeed >= 50) return;
+      const at = ll(dep);
+      if (at && nmBetween(at, [p.latitude, p.longitude]) > 6) return;
+    }
+    const d = departureSid(dep, fp.route);
+    out.push({ callsign: p.callsign, dep, arr: (fp.arrival || "").toUpperCase(), type: fp.aircraft_short || fp.aircraft_faa || "",
+      altitude: fp.altitude, route: fp.route || "", prefile, d });
+  };
+  (feed.pilots || []).forEach(p => add(p, false));
+  (feed.prefiles || []).forEach(p => add(p, true));
+  const order = Object.keys(SID_AIRPORTS);
+  return out.sort((a, b) => (a.prefile - b.prefile) || (order.indexOf(a.dep) - order.indexOf(b.dep)) || a.callsign.localeCompare(b.callsign));
+}
+
+function sidChain(e, cfgKey) {
+  const steps = e.steps.map(s => `${esc(s.fac)} <span class="secname">${esc(s.alt)}</span>`);
+  const zdc = e.zdc ? `ZDC ${sectorCell(e.zdc.sec, cfgKey)}${e.zdc.alt ? ` <b class="sidalt">${esc(e.zdc.alt)}</b>` : ""}` : esc(e.note || "—");
+  return [...steps, zdc].join(` <span class="arrow">→</span> `);
+}
+
+function renderSids(qStr) {
+  const cfgKey = $("cfgSel").value;
+  const match = txt => !qStr || qStr.split(/\s+/).every(w => txt.toUpperCase().includes(w));
+  const deps = pendingDepartures().filter(x => match([x.callsign, x.dep, x.arr, x.type, x.route].join(" ")));
+  const age = feedAt ? Math.round((Date.now() - feedAt) / 1000) : null;
+  $("status").textContent = feedErr || (feed ? `${deps.length} pending departure${deps.length === 1 ? "" : "s"} · feed ${age}s ago` : "Loading VATSIM feed…");
+  $("status").classList.toggle("err", !!feedErr);
+
+  const depRows = deps.map(x => {
+    const d = x.d;
+    const sidTxt = d.sid ? `${esc(d.filed)}${d.trans ? ` <span class="secname">${esc(d.trans)}</span>` : ""}`
+      : `<span class="note">${d.filed ? `no IAD/DCA/BWI SID (${esc(d.filed)})` : "no route"}</span>`;
+    const entries = d.entries;
+    const init = entries.length ? [...new Set(entries.map(e => e.init))].join(" / ") : "";
+    const chain = entries.map(e => `${entries.length > 1 ? `<span class="secname">${esc(e.trans || "")}</span> ` : ""}${sidChain(e, cfgKey)}`).join("<br>");
+    return `<tr><td><b>${esc(x.callsign)}</b>${x.prefile ? ` <span class="tag pre">PREFILE</span>` : ""}</td>` +
+      `<td>${esc(x.dep.slice(1))} → ${esc(x.arr)}</td><td>${esc(x.type)}</td><td>${sidTxt}</td>` +
+      `<td class="restr">${esc(init)}</td><td>${chain}</td><td>${esc(String(x.altitude || ""))}</td></tr>`;
+  }).join("");
+  const live = `<h2 class="sidh">Pending departures</h2>` + (deps.length
+    ? `<div class="ref"><table><thead><tr><th>Callsign</th><th>Route</th><th>Type</th><th>SID</th><th>After takeoff</th><th>Climb-out → ZDC</th><th>Filed</th></tr></thead><tbody>${depRows}</tbody></table></div>`
+    : `<p class="empty">${feed ? "No IAD, DCA or BWI departures waiting right now." : "Loading the VATSIM feed…"}</p>`);
+
+  const refs = Object.entries(SIDS).map(([apt, list]) => {
+    const rows = list.filter(e => match([apt, e.sid, e.trans || "", e.init, ...e.steps.map(s => s.fac), e.zdc ? e.zdc.sec : ""].join(" ")));
+    if (!rows.length) return "";
+    return `<h3 class="sidh">${esc(apt.slice(1))} <span class="secname">${esc(SID_AIRPORTS[apt].name)} · ${esc(SID_AIRPORTS[apt].area)}</span></h3>` +
+      `<div class="ref"><table><thead><tr><th>SID</th><th>After takeoff</th><th>Climb-out → ZDC</th></tr></thead><tbody>` +
+      rows.map(e => `<tr><td><b>${esc(e.sid)}</b>${e.trans ? ` <span class="secname">${esc(e.trans)}</span>` : ""}</td>` +
+        `<td class="restr">${esc(e.init)}</td><td>${sidChain(e, cfgKey)}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+  }).join("");
+  $("out").innerHTML = live + `<h2 class="sidh">SID reference</h2>` + (refs || `<p class="empty">No SIDs match.</p>`) +
+    `<p class="foot">From the ${esc(SID_SOURCE)}. C/V = climb via SID. A blank ZDC altitude is blank in the source table.</p>`;
 }
 
 /* ---------------- map view ---------------- */
@@ -776,6 +855,7 @@ function render() {
   if (!started) return;
   const qStr = $("q").value.trim().toUpperCase();
   if (view === "ref") renderRef(qStr);
+  else if (view === "sid") renderSids(qStr);
   else if (view === "map") renderMap(qStr);
   else renderLive(qStr);
 }
