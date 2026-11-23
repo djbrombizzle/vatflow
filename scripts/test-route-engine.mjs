@@ -31,6 +31,8 @@ const AIRPORTS = {
   KTPA: [27.9755, -82.5332],
   KBOS: [42.3656, -71.0096],
   KTYS: [35.811, -83.994],
+  EDDF: [50.0333, 8.5706],
+  KPHL: [39.8719, -75.2411],
 };
 
 bindAirports(
@@ -167,5 +169,15 @@ assert(rifle && Math.abs(rifle.ll[1] + 72.58) < 0.1, "RIFLE should be the Long I
 assert(!mejNames.includes("KALDA") && !mejNames.includes("ZJAAY"), "Q167 should stop at RIFLE");
 assert(mejNames.join(" ").includes("RIFLE SARDI DUNEE SHERL PLUME MANTA DRIFT HARBO BRIGS ENO"), "Q439 RIFLE to BRIGS offshore");
 console.log("RIFLE/Q439:", mejNames.join(" → "));
+
+// Inbound from Europe (BAS92 EDDF→KPHL): the European part must not resolve
+// to US names (Q60 → Virginia, CON → Concord NH); the route starts at ACADN.
+const bas = buildRouteAnchors({ dep: "EDDF", arr: "KPHL", route: "OBOKA2E OBOKA Z29 TORNU DCT VICOT DCT GALSO Q63 ERING L179 UGBET Q60 OKSAW DCT TEWXI DCT LIPGO/N0477F340 DCT INKUR DCT CON DCT RESNO/M084F340 NATC NICSO/N0486F360 DCT ACADN DCT TUSKY DCT RIFLE Q439 BRIGS JIIMS4" });
+const basNames = bas.anchors.map(a => a.name);
+assert(basNames[0] === "EDDF" && basNames[1] === "ACADN", "inbound route should go EDDF then ACADN: " + basNames.join(" "));
+assert(!basNames.includes("CON") && !basNames.includes("HURTS"), "no US look-alikes from the European part");
+assert(basNames.join(" ").includes("RIFLE SARDI") && basNames.includes("BRIGS") && basNames.slice(-1)[0] === "KPHL", "US tail kept");
+assert(bas.unresolved.length === 0 && bas.oceanicSkipped.includes("NICSO"), "foreign part is skipped, not unresolved");
+console.log("inbound EDDF→KPHL:", basNames.join(" → "));
 
 console.log("All route-engine tests passed.");

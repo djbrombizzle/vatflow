@@ -382,6 +382,31 @@ export function buildRouteAnchorsForAircraft(p, opts = {}) {
 /**
  * @returns {{ anchors: Array, unresolved: string[], expandedRoute: string }}
  */
+/**
+ * For a flight from outside nav coverage: the index of the first route token
+ * of the tail that chains back from the destination inside coverage (each
+ * point within 900 nm of the next, airways passing near it), and where that
+ * first token sits. Tokens before it are the foreign part of the route.
+ */
+function inboundTailStart(tokens, destination, dep, arr) {
+  let ref = destination, start = tokens.length, first = null;
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const tok = cleanToken(tokens[i]);
+    if (isAirwayToken(tok)) {
+      const w = airways[tok] && airways[tok].w;
+      if (!w || !w.length) break;
+      const k = nearestWpIndex(w, ref);
+      if (haversineNm(ref[0], ref[1], w[k][1], w[k][2]) > 250) break;
+      start = i;
+      continue;
+    }
+    const r = resolveToken(tok, { refLL: ref, dep, arr });
+    if (!r || !inNavCoverage(r.ll[0], r.ll[1]) || haversineNm(ref[0], ref[1], r.ll[0], r.ll[1]) > 900) break;
+    ref = r.ll; first = r.ll; start = i;
+  }
+  return { start, ref: start < tokens.length ? first : null };
+}
+
 export function buildRouteAnchors(p, opts = {}) {
   const dep = (p.dep || "").toUpperCase();
   const arr = (p.arr || "").toUpperCase();
@@ -399,7 +424,20 @@ export function buildRouteAnchors(p, opts = {}) {
 
   if (origin) anchors.push({ name: dep || "DEP", ll: origin.slice(), kind: "apt" });
 
-  for (let i = 0; i < tokens.length; i++) {
+  // Inbound from overseas (EDDF→KPHL): the route's foreign part is outside our
+  // nav data, and a foreign name can match a US one (CON, Connaught → Concord
+  // NH; Q60 over Europe → the Virginia Q60). Walk back from the destination
+  // and keep only the tail that chains inside coverage.
+  let startIdx = 0, inboundTrimmed = false;
+  if (!intl && origin && destination && !inNavCoverage(origin[0], origin[1])) {
+    const cut = inboundTailStart(tokens, destination, dep, arr);
+    startIdx = cut.start;
+    if (cut.ref) refLL = cut.ref;
+    for (let i = 0; i < startIdx; i++) oceanicSkipped.push(cleanToken(tokens[i]));
+    inboundTrimmed = startIdx > 0;
+  }
+
+  for (let i = startIdx; i < tokens.length; i++) {
     if (intlTruncated) {
       oceanicSkipped.push(cleanToken(tokens[i]));
       continue;
@@ -512,7 +550,7 @@ export function buildRouteAnchors(p, opts = {}) {
     anchors,
     unresolved,
     oceanicSkipped,
-    truncatedInternational: intlTruncated,
+    truncatedInternational: intlTruncated || inboundTrimmed,
     expandedRoute: routeStr,
   };
 }
