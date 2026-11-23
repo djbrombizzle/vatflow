@@ -159,6 +159,8 @@
   .xlink { color: var(--cyan); text-decoration: none; }
   .xlink:hover { text-decoration: underline; }
   .aptlbl { font-family: var(--mono); font-size: 11px; font-weight: 700; color: #c3ccd5; white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .shelflbl { font-family: var(--mono); font-size: 10px; line-height: 1.15; font-weight: 600; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 2px #000; transform: translate(-50%, -50%); }
+  .shelflbl.on { color: var(--amber) !important; font-size: 11px; }
   .aptlbl.sat { font-weight: 400; color: #8a97a3; font-size: 10px; }
 </style>
 </head>
@@ -188,6 +190,15 @@
       <label class="chk"><input type="checkbox" id="optDep" checked> Departures</label>
       <label class="chk"><input type="checkbox" id="optArr" checked> Arrivals</label>
       <label class="chk"><input type="checkbox" id="optPrefile"> Include prefiles</label>
+      <select id="secSel" title="Sector shelves from the SOP airspace overviews" hidden>
+        <option value="">Sectors: selected area</option>
+        <option value="all">Sectors: all areas</option>
+        <option value="CHP">Sectors: CHP</option>
+        <option value="SHD">Sectors: SHD</option>
+        <option value="MTV">Sectors: MTV</option>
+        <option value="JRV">Sectors: JRV</option>
+        <option value="off">No sectors</option>
+      </select>
     </div>
     <div id="out"></div>
     <div id="mapWrap" class="mapwrap" hidden>
@@ -236,7 +247,7 @@ function loadPrefs() {
   try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) { return {}; }
 }
 function savePrefs() {
-  const p = { view, area: $("areaSel").value, dep: $("optDep").checked, arr: $("optArr").checked, prefile: $("optPrefile").checked };
+  const p = { view, area: $("areaSel").value, sectors: $("secSel").value, dep: $("optDep").checked, arr: $("optArr").checked, prefile: $("optPrefile").checked };
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
 }
 
@@ -253,17 +264,19 @@ function start() {
   if (prefs.dep === false) $("optDep").checked = false;
   if (prefs.arr === false) $("optArr").checked = false;
   if (prefs.prefile) $("optPrefile").checked = true;
+  if (prefs.sectors && [...$("secSel").options].some(o => o.value === prefs.sectors)) $("secSel").value = prefs.sectors;
   $("viewSeg").addEventListener("click", e => {
     const b = e.target.closest("button[data-view]");
     if (b) { setView(b.dataset.view); savePrefs(); }
   });
-  ["areaSel", "optDep", "optArr", "optPrefile"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  ["areaSel", "optDep", "optArr", "optPrefile", "secSel"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
   $("q").addEventListener("input", () => render());
   $("mapPanel").addEventListener("click", e => {
     if (e.target.closest("button[data-back]")) { selected = ""; render(); }
   });
   $("foot").textContent = `Source: ${PCT_SOURCE}. Amber "verify" items are marked that way on the original. ` +
-    `Departures show within ${DEP_RANGE_NM} nm of the field and below FL230, arrivals within ${ARR_RANGE_NM} nm. Reference only; the SOP and LOAs govern.`;
+    `Departures show within ${DEP_RANGE_NM} nm of the field and below FL230, arrivals within ${ARR_RANGE_NM} nm. Map sectors (ceiling over floor) are traced from the SOP airspace overviews ` +
+    `(CHP red, SHD green, MTV blue, JRV yellow) and fitted to the PCT outline, so their lines are approximate. Reference only; the SOP and LOAs govern.`;
   setView(view);
   Promise.all([loadAirports().catch(() => null), loadNavData().catch(() => null)])
     .then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); drawAirports(); render(); });
@@ -278,6 +291,7 @@ function setView(v) {
   $("liveOpts").hidden = v === "ref";
   $("out").hidden = v === "map";
   $("mapWrap").hidden = v !== "map";
+  $("secSel").hidden = v !== "map";
   document.body.classList.toggle("wide", v === "map");
   if (v === "map") ensureMap();
   render();
@@ -492,10 +506,115 @@ function ensureMap() {
   map = L.map("map", { zoomControl: false, minZoom: 5, maxZoom: 12 });
   L.control.zoom({ position: "bottomright" }).addTo(map);
   if (window.addVatflowBasemap) window.addVatflowBasemap(map);
-  mapLayers = { apts: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map), fixes: L.layerGroup().addTo(map), traffic: L.layerGroup().addTo(map) };
+  mapLayers = { shelves: L.layerGroup().addTo(map), apts: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map), fixes: L.layerGroup().addTo(map), traffic: L.layerGroup().addTo(map) };
   map.setView([38.95, -77.1], 8);
   map.on("click", () => { if (selected) { selected = ""; render(); } });
+  map.on("zoomend", () => drawShelves());
   drawAirports();
+  loadShelves();
+}
+
+/* ---------------- sector shelves (SOP airspace overviews) ---------------- */
+
+const SHELF_COLORS = { CHP: "#e0948b", SHD: "#86cf72", MTV: "#9aa6f0", JRV: "#d6cf5a" };
+let shelves = null, shelvesLoading = false, mapCards = [];
+
+function loadShelves() {
+  if (shelves || shelvesLoading) return;
+  shelvesLoading = true;
+  fetch("data/pct-sectors.geojson").then(r => r.json()).then(g => {
+    const ringArea = r => Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p[1] * q[0] - q[1] * p[0]; }, 0));
+    shelves = g.features.map(f => {
+      const rings = f.geometry.coordinates.map(poly => poly[0].map(([x, y]) => [y, x]));
+      const main = rings.reduce((b, r) => (ringArea(r) > ringArea(b) ? r : b), rings[0]);
+      const m = /^(\d{3})\/(\d{3}|SFC)$/.exec(f.properties.label || "");
+      return { area: f.properties.area, lines: f.properties.lines, rings, main, size: ringArea(main),
+        band: m ? { top: +m[1] * 100, floor: m[2] === "SFC" ? 0 : +m[2] * 100 } : null };
+    }).sort((a, b) => b.size - a.size);
+    drawShelves();
+  }).catch(() => { shelvesLoading = false; });
+}
+
+function shelfAreas() {
+  const v = $("secSel").value;
+  if (v === "off") return [];
+  if (v === "all") return Object.keys(SHELF_COLORS);
+  if (v) return [v];
+  const a = $("areaSel").value;
+  return a ? [a] : Object.keys(SHELF_COLORS);
+}
+
+function inRingLL(p, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [yi, xi] = ring[i], [yj, xj] = ring[j];
+    if ((yi > p[0]) !== (yj > p[0]) && p[1] < (xj - xi) * (p[0] - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** The shelf the selected aircraft is in (position inside it, altitude inside its band). */
+function shelfOf(f, list) {
+  if (!f || f.lat == null || f.prefile || f.alt == null) return null;
+  return list.find(s => s.band && f.alt <= s.band.top + 50 && f.alt >= s.band.floor - 50 &&
+    s.rings.some(r => inRingLL([f.lat, f.lon], r))) || null;
+}
+
+function drawShelves() {
+  if (!map) return;
+  mapLayers.shelves.clearLayers();
+  if (!shelves) return;
+  const areas = shelfAreas();
+  const list = shelves.filter(s => areas.includes(s.area));
+  const selCard = selected ? mapCards.find(c => c.f.callsign === selected) : null;
+  const hit = shelfOf(selCard && selCard.f, list);
+  const placed = [], vb = map.getBounds().pad(-0.03);
+  const order = hit ? [hit, ...list.filter(s => s !== hit)] : list;
+  for (const s of order) {
+    const color = SHELF_COLORS[s.area], on = s === hit;
+    s.rings.forEach(r => L.polygon(r, { color: on ? "#e8a838" : color, weight: on ? 2 : 1, opacity: on ? 0.95 : 0.55,
+      fill: on, fillColor: "#e8a838", fillOpacity: 0.12, interactive: false }).addTo(mapLayers.shelves));
+    if (!s.lines.length) continue;
+    // Label only where it fits inside the shelf and clears the labels already placed.
+    // Search the part of the shelf that is on screen, so big shelves stay labelled when zoomed in.
+    const sb = L.latLngBounds(s.main);
+    if (!vb.intersects(sb)) continue;
+    const vis = L.latLngBounds([Math.max(sb.getSouth(), vb.getSouth()), Math.max(sb.getWest(), vb.getWest())],
+      [Math.min(sb.getNorth(), vb.getNorth()), Math.min(sb.getEast(), vb.getEast())]);
+    const at = areaCenter(s.main, vis), c = map.latLngToContainerPoint(at);
+    if (!inRingLL([at.lat, at.lng], s.main)) continue;
+    const hw = Math.max(...s.lines.map(l => l.length)) * 3.2 + 2, hh = s.lines.length * 6 + 1;
+    const box = { x0: c.x - hw, x1: c.x + hw, y0: c.y - hh, y1: c.y + hh };
+    const ix = hw * 0.8, iy = hh * 0.8;
+    const probes = [[c.x - ix, c.y - iy], [c.x + ix, c.y - iy], [c.x - ix, c.y + iy], [c.x + ix, c.y + iy]];
+    if (!on && !probes.every(([x, y]) => { const q = map.containerPointToLatLng([x, y]); return inRingLL([q.lat, q.lng], s.main); })) continue;
+    if (!on && placed.some(o => o.x0 < box.x1 && box.x0 < o.x1 && o.y0 < box.y1 && box.y0 < o.y1)) continue;
+    placed.push(box);
+    L.marker(at, { interactive: false, icon: L.divIcon({ className: "", iconSize: [0, 0],
+      html: `<div class="shelflbl${on ? " on" : ""}" style="color:${color}">${s.lines.map(esc).join("<br>")}</div>` }) }).addTo(mapLayers.shelves);
+  }
+}
+
+/** A label point well inside the ring: the grid point farthest from its edges (on screen). */
+function areaCenter(ring, bounds) {
+  const px = ring.map(p => map.latLngToContainerPoint(p));
+  const segDist = (x, y, a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+    const t = L2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L2)) : 0;
+    return Math.hypot(x - a.x - t * dx, y - a.y - t * dy);
+  };
+  let best = bounds.getCenter(), bd = -1;
+  const N = 20;
+  for (let i = 1; i < N; i++) for (let k = 1; k < N; k++) {
+    const lat = bounds.getSouth() + (bounds.getNorth() - bounds.getSouth()) * i / N;
+    const lng = bounds.getWest() + (bounds.getEast() - bounds.getWest()) * k / N;
+    if (!inRingLL([lat, lng], ring)) continue;
+    const c = map.latLngToContainerPoint([lat, lng]);
+    let d = Infinity;
+    for (let a = 0, b = px.length - 1; a < px.length; b = a++) d = Math.min(d, segDist(c.x, c.y, px[a], px[b]));
+    if (d > bd) { bd = d; best = L.latLng(lat, lng); }
+  }
+  return best;
 }
 
 function drawAirports() {
@@ -533,6 +652,7 @@ function gcPath(lls) {
 function renderMap(cards) {
   ensureMap();
   if (!map) return;
+  mapCards = cards;
   mapLayers.traffic.clearLayers();
   mapLayers.route.clearLayers();
   mapLayers.fixes.clearLayers();
@@ -552,6 +672,7 @@ function renderMap(cards) {
       `<div class="legend"><i style="background:#6aa8ff"></i>departure · <i style="background:#ff7d7d"></i>arrival</div>`
     : cards.length ? "" : `<p class="hint">No PCT departures or arrivals match these filters right now.</p>`;
   if (sel) drawSelected(sel);
+  drawShelves();
 }
 
 function fixLatLon(name, card) {
