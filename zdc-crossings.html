@@ -88,6 +88,9 @@
   .sidh { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; font-weight: 500; }
   h3.sidh { font-size: 12px; margin-top: 14px; }
   b.sidalt { color: var(--amber); }
+  .inbh { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cyan, #3fb7b0); padding: 10px 10px 0; }
+  .tag.off { color: var(--amber); }
+  table.inb td.restr { color: #3fb7b0; }
   .ref { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
   .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
 
@@ -190,6 +193,8 @@ import { fetchArtccBoundaries, pointInArtcc, getArtccRings, getArtccBounds } fro
 import { gcLine } from "./shared/fca-metering.js";
 import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft, resolveToken } from "./shared/route-engine.js";
 import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { REF_DOCS, REF_ITEMS } from "./shared/zdc-reference-data.js";
+import { matchReference, artccId } from "./shared/zdc-reference-match.js";
 import { SIDS, SID_AIRPORTS, SID_SOURCE, departureSid } from "./shared/zdc-sid-data.js";
 import { ROWS, SECTORS, SECTOR_REF, CONFIGS, FACILITY_NAMES, SOP_ID, SOP_DATE } from "./shared/zdc-sop-data.js";
 import {
@@ -207,7 +212,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 
 const prefs = loadPrefs();
 let view = ["ref", "map", "sid"].includes(prefs.view) ? prefs.view : "live";
-let feed = null, feedAt = 0, feedErr = "";
+let feed = null, feedAt = 0, feedErr = "", onlineSet = new Set();
 let started = false, timer = null;
 
 const ll = id => getAirport(id);
@@ -326,8 +331,8 @@ async function poll() {
     const r = await fetch(VATSIM_URL, { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status);
     feed = await r.json();
-    const online = onlineFacilities(feed.controllers);
-    geoCtx.facilityOpen = fac => online.has(fac);
+    onlineSet = onlineFacilities(feed.controllers);
+    geoCtx.facilityOpen = fac => onlineSet.has(fac);
     feedAt = Date.now();
     feedErr = "";
   } catch (e) {
@@ -388,6 +393,49 @@ function sectorFilterPass(row, cfgKey, sec) {
   return ownerOf(row[0], cfgKey) === sec || ownerOf(row[5], cfgKey) === sec;
 }
 
+/* LOA rules a neighbour applies before handing traffic to ZDC (ZNY → ZDC,
+   ZID → ZDC, CLT → ZDC …): the altitude and crossing to expect on check-in,
+   or to issue yourself when that neighbour is offline. */
+const INBOUND_ITEMS = REF_ITEMS.filter(it => it.live && artccId(it.to) === "ZDC" && it.from && String(it.from).toUpperCase() !== "ZDC");
+const REF_DOC = Object.fromEntries(REF_DOCS.map(d => [d.id, d]));
+
+/** LOA inbound rules for a flight not yet in ZDC whose route crosses the giving ARTCC and ZDC. */
+function inboundRules(f, ri, st) {
+  if (st.key === "in") return [];
+  const opts = {};
+  if (ri) {
+    opts.extraFixes = ri.all.map(a => a.name);
+    const pts = (st.key === "inb" ? ri.ahead : ri.all).filter(a => a.ll);
+    opts.viaArtcc = id => {
+      let unknown = false;
+      for (const a of pts) {
+        const r = pointInArtcc(id, a.ll[0], a.ll[1]);
+        if (r === true) return true;
+        if (r == null) unknown = true;
+      }
+      return unknown ? null : false;
+    };
+  }
+  // Where the route first enters an ARTCC (index into ri.all), for direction.
+  const firstIn = id => ri ? ri.all.findIndex(a => a.ll && pointInArtcc(id, a.ll[0], a.ll[1]) === true) : -1;
+  const zdcAt = firstIn("ZDC");
+  return matchReference(f, INBOUND_ITEMS, opts).filter(({ item }) => {
+    const t = `${item.title} ${item.restr || ""}`;
+    if (/\bZDC (offline|closed)\b/i.test(t)) return false;
+    // "ZNY offline: …" rules apply only while ZNY is offline, and only when the
+    // giving facility is there to issue them (ZNY and ZBW both offline: nothing).
+    const m = t.match(/\b(Z[A-Z]{2}|N90) (offline|closed)\b/i);
+    if (m && (onlineSet.has(m[1].toUpperCase()) || !onlineSet.has(String(item.from).toUpperCase()))) return false;
+    // Inbound only: drop when the route reaches ZDC before the giving ARTCC.
+    const from = artccId(item.from);
+    if (from && zdcAt >= 0) {
+      const at = firstIn(from);
+      if (at > zdcAt) return false;   // outbound through ZDC first; unknown (-1) stays
+    }
+    return true;
+  });
+}
+
 function computeCards(qStr) {
   const cfgKey = $("cfgSel").value;
   const sec = $("secSel").value;
@@ -398,7 +446,7 @@ function computeCards(qStr) {
   for (const f of flights) {
     // Cheap first pass on the filed route alone; expand the route only for candidates.
     const first = matchFlight(f, { ...geoCtx, config: cfgKey });
-    if (!first.length) continue;
+    if (!first.length && !matchReference(f, INBOUND_ITEMS).length) continue;
     const ri = routeInfo(f);
     const matches = ri ? matchFlight(f, { ...geoCtx, config: cfgKey, extraFixes: ri.all.map(a => a.name) }) : first;
     const st = flightStatus(f, ri);
@@ -415,11 +463,13 @@ function computeCards(qStr) {
       if (m.passed && !showPassed) return false;
       return true;
     });
-    if (!rows.length) continue;
+    const inbound = inboundRules(f, ri, st);
+    if (!rows.length && !inbound.length) continue;
     const dv = descendViaFor(f);
-    const hay = [f.callsign, f.dep, f.arr, f.route, f.type, ...rows.map(m => m.row.join(" "))].join(" ").toUpperCase();
+    const hay = [f.callsign, f.dep, f.arr, f.route, f.type, ...rows.map(m => m.row.join(" ")),
+      ...inbound.map(m => [m.item.from, m.item.restr, m.item.title].join(" "))].join(" ").toUpperCase();
     if (qStr && !qStr.split(/\s+/).every(w => hay.includes(w))) continue;
-    cards.push({ f, st, rows, dv, ri });
+    cards.push({ f, st, rows, dv, ri, inbound });
   }
 
   const rank = { in: 0, inb: 1, gnd: 2, pre: 3, out: 4 };
@@ -456,7 +506,30 @@ function sectorCell(id, cfgKey) {
   return `${esc(s)}${name ? ` <span class="secname">${esc(name)}</span>` : ""}`;
 }
 
-function renderCard({ f, st, rows, dv }) {
+/** Staffing chip for a facility whose status we can read from the feed, else "". */
+function facilityChip(fac) {
+  const id = String(fac || "").toUpperCase();
+  if (!/^(Z[A-Z]{2}|N90)$/.test(id)) return "";
+  return onlineSet.has(id) ? `<span class="tag in">${esc(id)} ONLINE</span>`
+    : `<span class="tag off">${esc(id)} OFFLINE · issue it yourself</span>`;
+}
+
+function inboundHtml(inbound) {
+  if (!inbound || !inbound.length) return "";
+  const body = inbound.map(({ item, typeUnknown }) => {
+    const doc = REF_DOC[item.doc];
+    const notes = [item.title];
+    if (typeUnknown) notes.push("aircraft type not classified");
+    return `<tr><td class="hand">${esc(item.from)} <span class="arrow">→</span> ${esc(item.to)} ${facilityChip(item.from)}</td>` +
+      `<td class="restr">${esc(item.restr || "see rule")}</td>` +
+      `<td>${esc(notes.join(" · "))}<div class="note">${esc(item.text || "")}</div></td>` +
+      `<td><span class="secname">${esc(doc ? doc.title : item.doc)} ${esc(item.ref || "")}</span></td></tr>`;
+  }).join("");
+  return `<div class="inbh">Inbound from outside ZDC · what the LOA says they hand you</div>` +
+    `<table class="inb"><thead><tr><th>From → to</th><th>Expect</th><th>Rule</th><th>Source</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderCard({ f, st, rows, dv, inbound }) {
   const cfgKey = $("cfgSel").value;
   const cls = engineClass(f.type);
   const cruise = f.altitude ? String(f.altitude) : "";
@@ -494,8 +567,8 @@ function renderCard({ f, st, rows, dv }) {
     `<span class="meta">filed ${esc(cruise)}${now ? ` · now ${esc(now)}` : ""}</span>` +
     `<span class="tag ${st.key}">${esc(st.label)}</span></div>` +
     `<div class="route">${routeHtml}</div>` +
-    `<table><thead><tr><th>Sector → to</th><th>Restriction</th><th>For / routing</th><th>Match</th></tr></thead><tbody>${body}</tbody></table>` +
-    dvHtml + `</div>`;
+    (rows.length ? `<table><thead><tr><th>Sector → to</th><th>Restriction</th><th>For / routing</th><th>Match</th></tr></thead><tbody>${body}</tbody></table>` : "") +
+    inboundHtml(inbound) + dvHtml + `</div>`;
 }
 
 /* ---------------- reference view ---------------- */
@@ -840,7 +913,7 @@ function renderMap(qStr) {
     const isSel = c === sel;
     const color = isSel ? "#e8a838" : STATUS_COLOR[c.st.key] || "#8a97a3";
     L.marker([c.f.lat, c.f.lon], { icon: planeIcon(color, c.f.hdg, isSel), zIndexOffset: isSel ? 1000 : 0, keyboard: false })
-      .bindTooltip(`<b>${esc(c.f.callsign)}</b> ${esc(c.f.dep)}→${esc(c.f.arr)} · ${c.rows.length} restriction${c.rows.length === 1 ? "" : "s"}`,
+      .bindTooltip(`<b>${esc(c.f.callsign)}</b> ${esc(c.f.dep)}→${esc(c.f.arr)} · ${c.rows.length} restriction${c.rows.length === 1 ? "" : "s"}${c.inbound.length ? ` · ${c.inbound.length} inbound` : ""}`,
         { className: "cstip", direction: "top", offset: [0, -8] })
       .on("click", e => { L.DomEvent.stopPropagation(e); selected = c.f.callsign; render(); })
       .addTo(mapLayers.traffic);

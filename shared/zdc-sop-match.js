@@ -175,12 +175,15 @@ export function parseRouting(routing) {
 
 /* ---------------- facility staffing ---------------- */
 
-const CTR_PREFIX = { ZNY: ["NY", "NYC", "ZNY"], ZBW: ["BOS", "ZBW"], ZDC: ["DC", "WAS", "ZDC"] };
+const CTR_PREFIX = {
+  ZNY: ["NY", "NYC", "ZNY"], ZBW: ["BOS", "ZBW"], ZDC: ["DC", "WAS", "ZDC"], ZID: ["IND", "ZID"],
+  ZTL: ["ATL", "ZTL"], ZJX: ["JAX", "ZJX"], ZOB: ["CLE", "ZOB"],
+};
 const APP_PREFIX = { N90: ["N90", "NY", "NYC", "JFK", "LGA", "EWR"] };
 
 /**
- * Facilities staffed in a VATSIM v3 controllers[] list: a Set of ZNY / ZBW /
- * ZDC (any *_CTR) and N90 (NY-area APP/DEP). Observers and ATIS don't count.
+ * Facilities staffed in a VATSIM v3 controllers[] list: a Set of ARTCCs
+ * (ZNY, ZBW, ZDC, ZID, ZTL, ZJX, ZOB; any *_CTR) and N90 (NY-area APP/DEP). Observers and ATIS don't count.
  */
 export function onlineFacilities(controllers) {
   const on = new Set();
