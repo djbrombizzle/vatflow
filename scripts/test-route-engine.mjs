@@ -17,6 +17,7 @@ import {
   buildRouteSegments,
   isInternationalRoute,
   inNavCoverage,
+  procedureRunwayTransition,
 } from "../shared/route-engine.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,8 @@ const AIRPORTS = {
   KTYS: [35.811, -83.994],
   EDDF: [50.0333, 8.5706],
   KPHL: [39.8719, -75.2411],
+  KDCA: [38.8521, -77.0377],
+  KBWI: [39.1754, -76.6683],
 };
 
 bindAirports(
@@ -179,5 +182,20 @@ assert(!basNames.includes("CON") && !basNames.includes("HURTS"), "no US look-ali
 assert(basNames.join(" ").includes("RIFLE SARDI") && basNames.includes("BRIGS") && basNames.slice(-1)[0] === "KPHL", "US tail kept");
 assert(bas.unresolved.length === 0 && bas.oceanicSkipped.includes("NICSO"), "foreign part is skipped, not unresolved");
 console.log("inbound EDDF→KPHL:", basNames.join(" → "));
+
+// Runway-dependent procedures follow the runway in use when the caller knows it.
+const doctr = r => buildRouteAnchors({ dep: "KDCA", arr: "KBOS", route: "DOCTR5 AGARD J209 SBY" }, { depRunways: r }).anchors.map(a => a.name);
+assert(!doctr([]).includes("REVGE"), "no runway: DOCTR5 has no common legs, so no runway leg is drawn");
+assert(doctr(["01"]).join(" ").includes("REVGE BEBLE COVTO ALEEX DOGUE RIISE DOCTR"), "DCA 01: north-flow DOCTR5 leg: " + doctr(["01"]).join(" "));
+assert(doctr(["19"]).join(" ").includes("FIMBI MOTBE GDYUP HMBGR DOCTR"), "DCA 19: south-flow DOCTR5 leg: " + doctr(["19"]).join(" "));
+const ravnn = r => buildRouteAnchors({ dep: "KATL", arr: "KBWI", route: "THHMP RAVNN9" }, { arrRunways: r }).anchors.map(a => a.name);
+assert(ravnn(["33L"]).join(" ").includes("CAPKO RAVNN SEEED KOOLZ"), "BWI 33L: RAVNN9 ends on the 33L leg: " + ravnn(["33L"]).join(" "));
+assert(ravnn(["10"]).join(" ").includes("RAVNN SEEED NAVEY ANCRR"), "BWI 10: RAVNN9 ends on the 10 leg");
+assert(ravnn([]).slice(-2).join(" ") === "RAVNN KBWI", "no runway: RAVNN9 ends at RAVNN as before");
+const fakeProc = { transitions: { RW01B: [], RW19L: [], RW04: [] } };
+assert(procedureRunwayTransition(fakeProc, ["01R"]) === "RW01B", "01R uses the both-parallels RW01B");
+assert(procedureRunwayTransition(fakeProc, ["19L", "01C"]) === "RW19L", "first runway with a transition wins");
+assert(procedureRunwayTransition(fakeProc, ["4"]) === "RW04" && procedureRunwayTransition(fakeProc, ["28"]) === null, "bare number and no match");
+console.log("runway legs: DCA 19", doctr(["19"]).join(" → "), "| BWI 33L", ravnn(["33L"]).join(" → "));
 
 console.log("All route-engine tests passed.");

@@ -161,6 +161,9 @@
   .aptlbl { font-family: var(--mono); font-size: 11px; font-weight: 700; color: #c3ccd5; white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; }
   .shelflbl { font-family: var(--mono); font-size: 10px; line-height: 1.15; font-weight: 600; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 2px #000; transform: translate(-50%, -50%); }
   .shelflbl.on { color: var(--amber) !important; font-size: 11px; }
+  .rwyline { font-family: var(--mono); font-size: 11px; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+  .rwyline b { color: var(--text); }
+  .rwyline .muted { opacity: 0.75; }
   .aptlbl.sat { font-weight: 400; color: #8a97a3; font-size: 10px; }
 </style>
 </head>
@@ -200,6 +203,7 @@
         <option value="off">No sectors</option>
       </select>
     </div>
+    <div class="rwyline" id="rwyLine"></div>
     <div id="out"></div>
     <div id="mapWrap" class="mapwrap" hidden>
       <div id="map"></div>
@@ -219,6 +223,10 @@ import { initVatflowAuth } from "./shared/vatflow-auth.js";
 import { getAirport, hasAirport, loadAirports, gcLine } from "./shared/fca-metering.js";
 import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft, resolveToken } from "./shared/route-engine.js";
 import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { fetchDatis } from "./shared/datis-fetch.js";
+import { atisInfo } from "./shared/datis-parse.js";
+import { runwaysFromAtis } from "./shared/atis-runways.js";
+import { loadRunwayEnds } from "./shared/taxi-runways.js";
 import { engineClass } from "./shared/zdc-sop-match.js";
 import {
   PCT_SOURCE, AREAS, PRIMARY, PROCS, SATELLITES, DEPARTURES, TABLES, SHORT_HAUL, GATES,
@@ -279,10 +287,11 @@ function start() {
     `(CHP red, SHD green, MTV blue, JRV yellow) and fitted to the PCT outline, so their lines are approximate. Reference only; the SOP and LOAs govern.`;
   setView(view);
   Promise.all([loadAirports().catch(() => null), loadNavData().catch(() => null)])
-    .then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); drawAirports(); render(); });
+    .then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); drawAirports(); render(); refreshRunways(); });
   bindAirports(getAirport, hasAirport);
   poll();
   setInterval(poll, VATSIM_FEED_MS);
+  setInterval(refreshRunways, RWY_REFRESH_MS);
 }
 
 function setView(v) {
@@ -312,20 +321,73 @@ async function poll() {
   if (!isUserTyping()) render();
 }
 
+/* ---------------- runways in use (FAA D-ATIS, VATSIM ATIS as fallback) ---------------- */
+
+const RWY_APTS = Object.keys(PRIMARY);
+const RWY_REFRESH_MS = 5 * 60000;
+/** ICAO -> { arr: ["01C", …], dep: […], label: "FAA D-ATIS I" } */
+const rwyInUse = {};
+
+function readRunways(entries, known) {
+  const arr = new Set(), dep = new Set();
+  for (const e of entries) {
+    const r = runwaysFromAtis(e.text, known);
+    if (e.kind !== "dep") r.arr.forEach(x => arr.add(x));
+    if (e.kind !== "arr") r.dep.forEach(x => dep.add(x));
+  }
+  return { arr: [...arr].sort(), dep: [...dep].sort() };
+}
+
+async function refreshRunways() {
+  let changed = false;
+  await Promise.all(RWY_APTS.map(async apt => {
+    const known = (await loadRunwayEnds(apt).catch(() => [])).map(e => e.id);
+    if (!known.length) return;
+    let got = null;
+    try {
+      const list = await fetchDatis(apt);
+      const entries = list.map(d => ({ text: d.datis, kind: d.type === "arr" ? "arr" : d.type === "dep" ? "dep" : "both", code: atisInfo(d.datis).letter || "" }));
+      const r = readRunways(entries, known);
+      const code = [...new Set(entries.map(e => e.code).filter(Boolean))].join("/");
+      if (r.arr.length || r.dep.length) got = { ...r, label: `FAA D-ATIS${code ? " " + code : ""}` };
+    } catch (_) { /* no D-ATIS reachable: try the VATSIM ATIS below */ }
+    if (!got && feed) {
+      const st = (feed.atis || []).filter(a => (a.callsign || "").startsWith(apt + "_") && /_ATIS$/.test(a.callsign));
+      const entries = st.map(a => ({ text: [].concat(a.text_atis || []).join(" "), kind: /_D_ATIS$/.test(a.callsign) ? "dep" : /_A_ATIS$/.test(a.callsign) ? "arr" : "both" }));
+      const r = readRunways(entries, known);
+      if (r.arr.length || r.dep.length) got = { ...r, label: `VATSIM ATIS${st[0] && st[0].atis_code ? " " + st[0].atis_code : ""}` };
+    }
+    const prev = rwyInUse[apt];
+    if (JSON.stringify(prev || null) !== JSON.stringify(got)) { changed = true; if (got) rwyInUse[apt] = got; else delete rwyInUse[apt]; }
+  }));
+  if (changed) { routeCache.clear(); render(); }
+}
+
+function runwayLine() {
+  const parts = RWY_APTS.filter(a => rwyInUse[a]).map(a => {
+    const r = rwyInUse[a], same = r.arr.join() === r.dep.join();
+    return `<b>${esc(a.replace(/^K/, ""))}</b> ${same ? esc(r.arr.join(" ")) : `arr ${esc(r.arr.join(" ") || "–")} · dep ${esc(r.dep.join(" ") || "–")}`} <span class="muted">(${esc(r.label)})</span>`;
+  });
+  return parts.length ? `Runways: ${parts.join(" · ")}` : "Runways: waiting for D-ATIS (procedures drawn without runway legs)";
+}
+
 const routeCache = new Map();
 function routeInfo(f) {
   if (!isNavReady()) return null;
-  const key = `${f.callsign}|${f.dep}|${f.arr}|${f.route}`;
+  const opts = { depRunways: (rwyInUse[f.dep] || {}).dep, arrRunways: (rwyInUse[f.arr] || {}).arr };
+  const key = `${f.callsign}|${f.dep}|${f.arr}|${f.route}|${opts.depRunways}|${opts.arrRunways}`;
   let base = routeCache.get(key);
   if (!base) {
-    try { base = buildRouteAnchors({ dep: f.dep, arr: f.arr, route: f.route }); } catch (_) { base = { anchors: [] }; }
+    try { base = buildRouteAnchors({ dep: f.dep, arr: f.arr, route: f.route }, opts); } catch (_) { base = { anchors: [] }; }
     routeCache.set(key, base);
   }
   let ahead = base.anchors;
   if (f.lat != null && !f.prefile && f.gs > 50) {
-    try { ahead = buildRouteAnchorsForAircraft({ dep: f.dep, arr: f.arr, route: f.route, lat: f.lat, lon: f.lon, hdg: f.hdg }).anchors; } catch (_) {}
+    try { ahead = buildRouteAnchorsForAircraft({ dep: f.dep, arr: f.arr, route: f.route, lat: f.lat, lon: f.lon, hdg: f.hdg }, opts).anchors; } catch (_) {}
   }
-  return { all: base.anchors, ahead };
+  const rw = base.anchors.find(a => a.rwy && (a.kind === "sid" || a.kind === "star"));
+  const src = rw && rwyInUse[rw.kind === "sid" ? f.dep : f.arr];
+  return { all: base.anchors, ahead, rwy: rw ? { key: rw.rwy, via: rw.via, label: src ? src.label : "" } : null };
 }
 
 /** PCT departures (on the ground, prefiled, or climbing out) and arrivals inbound, with their PDF matches. */
@@ -418,6 +480,8 @@ function renderCard(c) {
   const cls = clsLabel(c.cls);
   let body = "";
   if (c.m) body += procHtml(c.m.proc, c.m.filed, c.m.tokens);
+  const rw = c.ri && c.ri.rwy;
+  if (rw) body += `<div class="kv">Route drawn via the <b>${esc(rw.via)}</b> runway ${esc(rw.key.replace(/^RW/, ""))} transition${rw.label ? ` (${esc(rw.label)})` : ""}</div>`;
   else if (PRIMARY[c.apt]) {
     if (c.role === "dep") {
       const d = DEPARTURES[c.apt];
@@ -491,6 +555,7 @@ function render() {
   const cards = computeCards();
   $("status").textContent = feedErr || (feed ? `${cards.length} aircraft · feed ${age}s ago` : "Loading VATSIM feed…");
   $("status").classList.toggle("err", !!feedErr);
+  $("rwyLine").innerHTML = runwayLine();
   if (view === "map") renderMap(cards);
   else renderLive(cards);
 }

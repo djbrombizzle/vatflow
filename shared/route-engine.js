@@ -175,13 +175,49 @@ function mergeProcedureLegs(transLegs, commonLegs) {
   return out.concat(commonLegs.slice(start));
 }
 
+/**
+ * The runway transition (CIFP "RW01L", "RW01B" for all 01 parallels, "RW01" at a single-runway
+ * end) of a procedure for the first runway in `runways` ("01L", "19C", "33") it publishes one for.
+ */
+export function procedureRunwayTransition(proc, runways) {
+  const tr = proc && proc.transitions;
+  if (!tr || !runways || !runways.length) return null;
+  for (const raw of runways) {
+    const m = /^0?(\d{1,2})([LRC]?)$/.exec(String(raw || "").toUpperCase().replace(/^RW/, ""));
+    if (!m) continue;
+    const num = m[1].padStart(2, "0"), side = m[2];
+    for (const k of side ? [`RW${num}${side}`, `RW${num}B`] : [`RW${num}`, `RW${num}B`]) {
+      if (tr[k]) return k;
+    }
+  }
+  return null;
+}
+
+function joinLegs(...parts) {
+  const out = [];
+  for (const legs of parts) {
+    for (const leg of legs || []) {
+      if (out.length && out[out.length - 1][0] === leg[0]) continue;
+      out.push(leg);
+    }
+  }
+  return out;
+}
+
 function expandProcedure(proc, ctx = {}) {
   if (!proc) return [];
   const kind = proc.type === "STAR" ? "star" : "sid";
   let legs = [];
   const trName = ctx.transition ? cleanToken(ctx.transition) : null;
-  if (trName && proc.transitions && proc.transitions[trName]) {
-    legs = mergeProcedureLegs(proc.transitions[trName], proc.common || []);
+  const rwKey = procedureRunwayTransition(proc, ctx.runways);
+  const rwLegs = rwKey ? proc.transitions[rwKey] : null;
+  const enroute = trName && proc.transitions && proc.transitions[trName] ? proc.transitions[trName] : null;
+  if (rwLegs) {
+    // Runway in use known: SID = runway leg, common, enroute transition; STAR = the reverse order.
+    legs = kind === "sid" ? joinLegs(rwLegs, proc.common, enroute) : joinLegs(enroute, proc.common, rwLegs);
+    if (legs.length < 2) return [];
+  } else if (enroute) {
+    legs = mergeProcedureLegs(enroute, proc.common || []);
   } else if (proc.common?.length >= 2) {
     legs = proc.common;
   } else if (proc.w?.length >= 2) {
@@ -193,6 +229,7 @@ function expandProcedure(proc, ctx = {}) {
     name: leg[0] || "",
     ll: [leg[1], leg[2]],
     kind,
+    ...(rwKey ? { rwy: rwKey } : {}),
   }));
 }
 
@@ -493,7 +530,8 @@ export function buildRouteAnchors(p, opts = {}) {
       }
       const prevTok = i > 0 ? cleanToken(tokens[i - 1]) : "";
       const transition = proc.transitions?.[prevTok] ? prevTok : null;
-      const legs = expandProcedure(proc, { transition, refLL });
+      const runways = proc.type === "STAR" ? opts.arrRunways : opts.depRunways;
+      const legs = expandProcedure(proc, { transition, refLL, runways });
       for (const pt of legs) {
         if (intl && !inNavCoverage(pt.ll[0], pt.ll[1])) {
           intlTruncated = true;
