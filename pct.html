@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>PCT Reference — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  :root {
+    --bg: #080b10;
+    --panel: #0e1319;
+    --panel2: #121922;
+    --text: #d4dde6;
+    --muted: #8a97a3;
+    --dim: #5c6b78;
+    --amber: #e8a838;
+    --cyan: #3fb7b0;
+    --green: #57d98a;
+    --red: #e07070;
+    --line: #1e2834;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--ui); }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  main { max-width: 1100px; margin: 0 auto; padding: calc(var(--vatflow-nav-h) + 20px) 16px 40px; }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.14em; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 16px; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  select, input[type=text], button {
+    font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid #2a3644; border-radius: 6px; padding: 7px 10px;
+  }
+  input[type=text] { width: 220px; text-transform: uppercase; }
+  button { cursor: pointer; }
+  button:hover, select:hover { border-color: var(--amber); }
+  button.on { border-color: var(--amber); color: var(--amber); }
+  label.chk { font-family: var(--mono); font-size: 12px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .status { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
+  .status.err { color: var(--red); }
+
+
+  .ac { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .ac-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); }
+  .cs { font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 600; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; }
+  .tag.in { color: var(--green); }
+  .tag.inb { color: var(--cyan); }
+  .tag.gnd { color: var(--muted); }
+  .tag.pre { color: var(--dim); }
+  .route { font-family: var(--mono); font-size: 11px; color: var(--dim); padding: 6px 14px 0; overflow-wrap: anywhere; }
+  .route mark { background: none; color: var(--amber); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: var(--dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .ac table { margin-top: 6px; }
+  td.restr { color: var(--amber); font-weight: 600; white-space: nowrap; }
+  td.hand { white-space: nowrap; }
+  td.hand .arrow { color: var(--dim); }
+  .secname { color: var(--dim); font-size: 10px; }
+  td.secname { white-space: nowrap; }
+  tr.passed td { opacity: 0.45; }
+  tr.partial td.restr::after { content: " ?"; color: var(--dim); }
+  .note { color: var(--muted); font-size: 11px; }
+  .q { font-size: 10px; letter-spacing: 0.06em; }
+  .q.full { color: var(--green); }
+  .q.partial { color: var(--muted); }
+  .dv { padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: var(--cyan); border-top: 1px solid var(--line); }
+  .empty { color: var(--muted); font-size: 13px; padding: 24px 0; }
+  .sidh { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; font-weight: 500; }
+  h3.sidh { font-size: 12px; margin-top: 14px; }
+  b.sidalt { color: var(--amber); }
+  .inbh { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cyan, #3fb7b0); padding: 10px 10px 0; }
+  .tag.off { color: var(--amber); }
+  table.inb td.restr { color: #3fb7b0; }
+  .ref { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+  .foot { color: var(--dim); font-size: 11px; line-height: 1.6; margin-top: 18px; }
+
+  body.wide main { max-width: none; }
+  .mapwrap { position: relative; height: calc(100vh - var(--vatflow-nav-h) - 170px); min-height: 420px; }
+  #map { height: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0a0e14; }
+  #map .leaflet-container, #map.leaflet-container { background: #0a0e14; font-family: var(--mono); }
+  .mappanel { position: absolute; top: 10px; right: 10px; z-index: 800; width: 400px; max-height: calc(100% - 20px); overflow-y: auto;
+    background: rgba(13, 17, 23, 0.94); border: 1px solid var(--line); border-radius: 8px; padding: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+  .mappanel:empty { display: none; }
+  .mappanel .ac { margin-bottom: 0; }
+  .mappanel thead { display: none; }
+  .mappanel tr { display: block; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .mappanel tr:last-child { border-bottom: none; }
+  .mappanel td { display: block; border: none; padding: 1px 12px; white-space: normal; }
+  .mappanel td.restr { font-size: 13px; }
+  .mappanel .hint { color: var(--muted); font-size: 13px; line-height: 1.5; padding: 12px 4px; }
+  .mappanel .pick { display: block; width: 100%; text-align: left; margin-bottom: 4px; font-size: 12px; }
+  .mappanel .pick .tag { margin-left: 6px; }
+  .fixlbl { font-family: var(--mono); font-size: 10px; line-height: 1.25; color: #0a0e14; background: var(--amber); border-radius: 3px; padding: 1px 4px; white-space: nowrap; box-shadow: 0 0 4px #000; }
+  .fixlbl.partial { background: #b9c3cc; }
+  .fixlbl.passed { opacity: 0.5; }
+  .fixlbl.bdry { background: var(--cyan); }
+  .cslbl { font-family: var(--mono); font-size: 10px; color: var(--text); white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  #strataSeg button { font-size: 11px; padding: 4px 8px; }
+  .seclbl { font-family: var(--mono); font-size: 10px; color: #8a97a3; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .seclbl b { color: #c3ccd5; font-size: 11px; }
+  .seclbl.give { color: var(--amber); }
+  .seclbl.give b { color: var(--amber); }
+  .seclbl.recv, .seclbl.recv b { color: var(--cyan); }
+  .arealbl { font-family: var(--mono); font-size: 10px; line-height: 1.2; color: #8a97a3; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000, 0 0 3px #000; transform: translate(-50%, -50%); }
+  .arealbl .give { color: var(--amber); }
+  .arealbl .recv { color: var(--cyan); }
+  .legend { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 8px 4px 0; line-height: 1.5; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+  .artcc-label { font-family: var(--mono); font-size: 11px; color: #5c6b78; letter-spacing: 0.1em; }
+  .leaflet-tooltip.cstip { background: #0e1319; color: var(--text); border: 1px solid #2a3644; font-family: var(--mono); font-size: 11px; }
+  @media (max-width: 900px) {
+    .mapwrap { height: auto; }
+    #map { height: 60vh; }
+    .mappanel { position: static; width: auto; max-height: none; overflow: visible; margin-top: 10px; box-shadow: none; }
+  }
+  @media (max-width: 640px) {
+    input[type=text] { width: 100%; }
+    td.hand, td.restr { white-space: normal; }
+  }
+  .proc { border-top: 1px solid var(--line); padding: 8px 14px; font-family: var(--mono); font-size: 12px; }
+  .proc h4 { margin: 0 0 4px; font-size: 13px; letter-spacing: 0.04em; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .proc h4 .ptag { font-size: 10px; font-weight: 500; color: var(--muted); letter-spacing: 0.06em; }
+  .proc.sid h4 b { color: #6aa8ff; }
+  .proc.star h4 b { color: #ff7d7d; }
+  .proc .ln { color: var(--muted); line-height: 1.55; }
+  .proc .ln.hit { color: var(--amber); font-weight: 600; }
+  .proc .climb { color: var(--text); line-height: 1.55; }
+  .proc .climb b { color: var(--amber); }
+  .proc .pnote { color: #d8c07a; font-size: 11px; line-height: 1.5; }
+  .proc .verify { color: var(--amber); font-size: 10px; letter-spacing: 0.06em; }
+  .kv { border-top: 1px solid var(--line); padding: 6px 14px; font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .kv b { color: var(--text); font-weight: 600; }
+  .kv b.alt { color: var(--amber); }
+  .tag.dep { color: #6aa8ff; }
+  .tag.arr { color: #ff7d7d; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+  .grid .ac { margin: 0; }
+  .ac.refcard .proc { border-top: none; }
+  .tablebox { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+  .tablebox h5 { margin: 0; padding: 8px 10px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--panel2); }
+  .xlink { color: var(--cyan); text-decoration: none; }
+  .xlink:hover { text-decoration: underline; }
+  .aptlbl { font-family: var(--mono); font-size: 11px; font-weight: 700; color: #c3ccd5; white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .aptlbl.sat { font-weight: 400; color: #8a97a3; font-size: 10px; }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<main>
+  <h1>PCT REFERENCE</h1>
+  <p class="sub">Potomac TRACON quick reference (SHD · IAD, CHP · BWI, MTV · DCA) matched to live VATSIM traffic: the SID or STAR each aircraft filed, its climb and hand-off, crossing restrictions, gate and short-haul altitude. <a class="xlink" href="zdc-crossings.html">ZDC Crossings →</a></p>
+
+  <div id="app">
+    <div class="bar">
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="live" class="on">Live traffic</button>
+        <button type="button" data-view="map">Map</button>
+        <button type="button" data-view="ref">Reference</button>
+      </div>
+      <select id="areaSel" title="TRACON area">
+        <option value="">All areas</option>
+        <option value="SHD">SHD · IAD</option>
+        <option value="CHP">CHP · BWI</option>
+        <option value="MTV">MTV · DCA</option>
+      </select>
+      <input type="text" id="q" placeholder="Callsign, airport, fix…" autocomplete="off" spellcheck="false">
+      <span class="status" id="status">Loading…</span>
+    </div>
+    <div class="bar" id="liveOpts">
+      <label class="chk"><input type="checkbox" id="optDep" checked> Departures</label>
+      <label class="chk"><input type="checkbox" id="optArr" checked> Arrivals</label>
+      <label class="chk"><input type="checkbox" id="optPrefile"> Include prefiles</label>
+    </div>
+    <div id="out"></div>
+    <div id="mapWrap" class="mapwrap" hidden>
+      <div id="map"></div>
+      <aside id="mapPanel" class="mappanel"></aside>
+    </div>
+    <p class="foot" id="foot"></p>
+  </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="shared/vatflow-basemap.js"></script>
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth } from "./shared/vatflow-auth.js";
+import { getAirport, hasAirport, loadAirports, gcLine } from "./shared/fca-metering.js";
+import { bindAirports, loadNavData, isNavReady, buildRouteAnchors, buildRouteAnchorsForAircraft, resolveToken } from "./shared/route-engine.js";
+import { isUserTyping, VATSIM_FEED_MS } from "./shared/vatflow-refresh.js";
+import { engineClass } from "./shared/zdc-sop-match.js";
+import {
+  PCT_SOURCE, AREAS, PRIMARY, PROCS, SATELLITES, DEPARTURES, TABLES, SHORT_HAUL, GATES,
+  filedSid, filedStar, procLines, climbChain, shortHaul, departureGate,
+} from "./shared/pct-reference-data.js";
+
+/* Unlisted like ZDC Crossings: no nav or README link, noindex, open to anyone with the URL. */
+
+const VATSIM_URL = "https://data.vatsim.net/v3/vatsim-data.json";
+const PREFS_KEY = "vatflow.pctRef.prefs";
+const PCT_APTS = new Set([...Object.keys(PRIMARY), ...Object.keys(SATELLITES)]);
+const ARR_RANGE_NM = 250, DEP_RANGE_NM = 80;
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "zdc-crossings");
+initVatflowAuth().catch(() => {});
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ll = id => getAirport(id);
+
+const prefs = loadPrefs();
+let view = ["map", "ref"].includes(prefs.view) ? prefs.view : "live";
+let feed = null, feedAt = 0, feedErr = "";
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) { return {}; }
+}
+function savePrefs() {
+  const p = { view, area: $("areaSel").value, dep: $("optDep").checked, arr: $("optArr").checked, prefile: $("optPrefile").checked };
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+
+function nmBetween(a, b) {
+  const r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) ** 2;
+  return 3440 * 2 * Math.asin(Math.sqrt(h));
+}
+
+/* ---------------- setup ---------------- */
+
+function start() {
+  if (prefs.area && AREAS[prefs.area]) $("areaSel").value = prefs.area;
+  if (prefs.dep === false) $("optDep").checked = false;
+  if (prefs.arr === false) $("optArr").checked = false;
+  if (prefs.prefile) $("optPrefile").checked = true;
+  $("viewSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-view]");
+    if (b) { setView(b.dataset.view); savePrefs(); }
+  });
+  ["areaSel", "optDep", "optArr", "optPrefile"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  $("q").addEventListener("input", () => render());
+  $("mapPanel").addEventListener("click", e => {
+    if (e.target.closest("button[data-back]")) { selected = ""; render(); }
+  });
+  $("foot").textContent = `Source: ${PCT_SOURCE}. Amber "verify" items are marked that way on the original. ` +
+    `Departures show within ${DEP_RANGE_NM} nm of the field and below FL230, arrivals within ${ARR_RANGE_NM} nm. Reference only; the SOP and LOAs govern.`;
+  setView(view);
+  Promise.all([loadAirports().catch(() => null), loadNavData().catch(() => null)])
+    .then(() => { bindAirports(getAirport, hasAirport); routeCache.clear(); drawAirports(); render(); });
+  bindAirports(getAirport, hasAirport);
+  poll();
+  setInterval(poll, VATSIM_FEED_MS);
+}
+
+function setView(v) {
+  view = v;
+  $("viewSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  $("liveOpts").hidden = v === "ref";
+  $("out").hidden = v === "map";
+  $("mapWrap").hidden = v !== "map";
+  document.body.classList.toggle("wide", v === "map");
+  if (v === "map") ensureMap();
+  render();
+}
+
+/* ---------------- feed ---------------- */
+
+async function poll() {
+  try {
+    const r = await fetch(VATSIM_URL, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    feed = await r.json();
+    feedAt = Date.now();
+    feedErr = "";
+  } catch (e) {
+    feedErr = "VATSIM feed unavailable (" + (e.message || e) + ")";
+  }
+  if (!isUserTyping()) render();
+}
+
+const routeCache = new Map();
+function routeInfo(f) {
+  if (!isNavReady()) return null;
+  const key = `${f.callsign}|${f.dep}|${f.arr}|${f.route}`;
+  let base = routeCache.get(key);
+  if (!base) {
+    try { base = buildRouteAnchors({ dep: f.dep, arr: f.arr, route: f.route }); } catch (_) { base = { anchors: [] }; }
+    routeCache.set(key, base);
+  }
+  let ahead = base.anchors;
+  if (f.lat != null && !f.prefile && f.gs > 50) {
+    try { ahead = buildRouteAnchorsForAircraft({ dep: f.dep, arr: f.arr, route: f.route, lat: f.lat, lon: f.lon, hdg: f.hdg }).anchors; } catch (_) {}
+  }
+  return { all: base.anchors, ahead };
+}
+
+/** PCT departures (on the ground, prefiled, or climbing out) and arrivals inbound, with their PDF matches. */
+function computeCards() {
+  if (!feed) return [];
+  const area = $("areaSel").value, q = $("q").value.trim().toUpperCase();
+  const wantDep = $("optDep").checked, wantArr = $("optArr").checked;
+  const cards = [];
+  const add = (p, prefile) => {
+    const fp = p.flight_plan;
+    if (!fp || !fp.route) return;
+    const dep = (fp.departure || "").toUpperCase(), arr = (fp.arrival || "").toUpperCase();
+    const f = {
+      callsign: p.callsign, dep, arr, route: fp.route, type: fp.aircraft_short || fp.aircraft_faa || fp.aircraft || "",
+      cruise: fp.altitude, lat: prefile ? null : p.latitude, lon: prefile ? null : p.longitude,
+      alt: prefile ? null : p.altitude, gs: prefile ? 0 : p.groundspeed, hdg: prefile ? null : p.heading, prefile,
+    };
+    const pos = f.lat != null ? [f.lat, f.lon] : null;
+    let role = null, dist = null;
+    if (PCT_APTS.has(dep) && wantDep) {
+      const d = ll(dep);
+      dist = pos && d ? nmBetween(pos, d) : null;
+      if (prefile || (dist != null && dist <= DEP_RANGE_NM && (f.alt ?? 0) < 23000 && (f.gs < 50 || !ll(arr) || nmBetween(pos, ll(arr)) > dist))) role = "dep";
+    }
+    if (!role && PCT_APTS.has(arr) && wantArr && !prefile) {
+      const a = ll(arr);
+      dist = pos && a ? nmBetween(pos, a) : null;
+      if (dist != null && dist <= ARR_RANGE_NM && f.gs >= 50) role = "arr";
+    }
+    if (!role) return;
+    const apt = role === "dep" ? dep : arr;
+    const cardArea = PRIMARY[apt] || (SATELLITES[apt] && SATELLITES[apt].area) || "";
+    if (area && cardArea !== area) return;
+    const m = role === "dep" ? filedSid(dep, f.route) : filedStar(arr, f.route);
+    const card = {
+      f, role, apt, area: cardArea, dist, m,
+      cls: engineClass(f.type),
+      sh: role === "dep" ? shortHaul(dep, arr) : null,
+      gate: role === "dep" ? departureGate(dep, f.route) : null,
+      sat: SATELLITES[apt] || null,
+    };
+    card.ri = routeInfo(f);
+    if (q) {
+      const hay = [f.callsign, dep, arr, f.route, f.type, m && m.proc.name].join(" ").toUpperCase();
+      if (!hay.includes(q)) return;
+    }
+    cards.push(card);
+  };
+  (feed.pilots || []).forEach(p => add(p, false));
+  if ($("optPrefile").checked) (feed.prefiles || []).forEach(p => add(p, true));
+  const phase = c => (c.role === "arr" ? 0 : c.f.prefile ? 3 : c.f.gs >= 50 ? 1 : 2);
+  cards.sort((a, b) => phase(a) - phase(b) || (a.dist ?? 1e9) - (b.dist ?? 1e9) || a.f.callsign.localeCompare(b.f.callsign));
+  return cards;
+}
+
+/* ---------------- rendering ---------------- */
+
+function statusTag(c) {
+  const f = c.f;
+  if (f.prefile) return `<span class="tag pre">PREFILE</span>`;
+  if (c.role === "arr") return `<span class="tag arr">ARRIVAL ${Math.round(c.dist)} NM</span>`;
+  return f.gs < 50 ? `<span class="tag gnd">ON GROUND</span>` : `<span class="tag dep">DEPARTING</span>`;
+}
+
+function clsLabel(cls) { return cls === "jet" ? "jet" : cls === "turboprop" ? "turboprop" : cls === "piston" ? "piston" : ""; }
+
+function procHtml(proc, filed, tokens) {
+  const lines = procLines(proc, filed, tokens);
+  const chain = proc.type === "SID" ? climbChain(proc, tokens) : [];
+  return `<div class="proc ${proc.type === "SID" ? "sid" : "star"}">
+    <h4><b>${esc(proc.name)}</b><span class="ptag">${esc(proc.type)} · ${esc(proc.tag || "")}</span>${proc.verify ? `<span class="verify">VERIFY</span>` : ""}</h4>
+    ${lines.map(l => `<div class="ln${l.hit ? " hit" : ""}">${esc(l.text)}</div>`).join("")}
+    ${chain.map((s, i) => `<div class="climb">${i ? "then " : ""}${esc(s.by)} ↑ <b>${esc(s.alt)}</b> → ${esc(s.to)}</div>`).join("")}
+    ${!tokens.length && proc.then ? proc.then.map(s => `<div class="climb">then (${esc(s.trans.join("/"))}) ${esc(s.by)} ↑ <b>${esc(s.alt)}</b> → ${esc(s.to)}</div>`).join("") : ""}
+    ${(proc.notes || []).map(n => `<div class="pnote">${esc(n)}</div>`).join("")}
+  </div>`;
+}
+
+function routeHtml(route, m) {
+  let s = esc(route);
+  if (m) {
+    const marks = [m.filed, m.trans].filter(Boolean);
+    for (const t of marks) s = s.replace(new RegExp(`\\b${t}\\b`), `<mark>${t}</mark>`);
+  }
+  return s;
+}
+
+function renderCard(c) {
+  const f = c.f;
+  const cls = clsLabel(c.cls);
+  let body = "";
+  if (c.m) body += procHtml(c.m.proc, c.m.filed, c.m.tokens);
+  else if (PRIMARY[c.apt]) {
+    if (c.role === "dep") {
+      const d = DEPARTURES[c.apt];
+      body += `<div class="kv">No PDF SID filed out of ${esc(c.apt)}.${d && d.text ? ` <b>${esc(d.text[0])}</b>` : ""}</div>`;
+    } else body += `<div class="kv">No PDF STAR filed into ${esc(c.apt)}.</div>`;
+  }
+  if (c.sh) {
+    const isProp = c.cls === "turboprop" || c.cls === "piston";
+    const alt = isProp ? c.sh.prop : c.sh.jet;
+    body += `<div class="kv">Short-haul to ${esc(f.arr)}: <b class="alt">${esc(alt)}</b> (${isProp ? "TP / prop" : "turbojet"}; jet ${esc(c.sh.jet)} · prop ${esc(c.sh.prop)})</div>`;
+  }
+  if (c.gate) body += `<div class="kv">Gate <b>${esc(c.gate.gate.join("/"))}</b> · ${esc(c.gate.dir)}${c.gate.dep ? ` · departure <b>${esc(c.gate.dep)}</b>` : ""}${c.gate.low ? " · low altitude gate" : ""}</div>`;
+  if (c.sat) body += `<div class="kv"><b>${esc(c.apt)}</b> ${esc(c.sat.name)}<br>${c.sat.lines.map(esc).join("<br>")}</div>`;
+  return `<div class="ac">
+    <div class="ac-head">
+      <span class="cs">${esc(f.callsign)}</span>
+      <span class="meta"><b>${esc(f.dep)}</b> → <b>${esc(f.arr)}</b> · ${esc(f.type)}${cls ? ` · ${cls}` : ""}</span>
+      <span class="meta">${f.alt != null && !f.prefile ? `now ${Math.round(f.alt / 100)}` : ""}${f.cruise ? ` · filed ${esc(f.cruise)}` : ""}</span>
+      ${statusTag(c)}
+    </div>
+    <div class="route">${routeHtml(f.route, c.m)}</div>
+    ${body}
+  </div>`;
+}
+
+function renderLive(cards) {
+  if (!feed) { $("out").innerHTML = `<p class="empty">${esc(feedErr || "Loading the VATSIM feed…")}</p>`; return; }
+  $("out").innerHTML = cards.length ? cards.map(renderCard).join("")
+    : `<p class="empty">No PCT departures or arrivals match these filters right now.</p>`;
+}
+
+function renderRef() {
+  const area = $("areaSel").value, q = $("q").value.trim().toUpperCase();
+  const match = p => !q || [p.name, p.tag, ...p.apts, ...p.lines.map(l => (typeof l === "string" ? l : l.text)), ...(p.notes || [])].join(" ").toUpperCase().includes(q);
+  let out = "";
+  for (const [key, a] of Object.entries(AREAS)) {
+    if (area && area !== key) continue;
+    const procs = PROCS.filter(p => p.area === key && match(p));
+    const tables = TABLES.filter(t => t[3] === key && (!q || JSON.stringify(t).toUpperCase().includes(q)));
+    const apt = a.apt;
+    const sh = SHORT_HAUL[apt], gates = GATES[apt], dep = DEPARTURES[apt];
+    out += `<h2 class="sidh">${esc(a.label)} · ${esc(a.name)}</h2>`;
+    if (procs.length) {
+      out += `<div class="grid">` + procs.map(p => `<div class="ac refcard">${procHtml(p, "", [])}<div class="kv">${esc(p.apts.join(", "))}${p.fixes ? ` · map labels: ${esc(Object.keys(p.fixes).join(", "))}` : ""}</div></div>`).join("") + `</div>`;
+    }
+    if (!q) {
+      out += `<h3 class="sidh">${esc(apt)} departures</h3><div class="grid">`;
+      if (dep && dep.text) out += `<div class="tablebox"><h5>${esc(apt)} departures</h5><div class="kv" style="border:none">${dep.text.map(esc).join("<br>")}</div></div>`;
+      if (dep && dep.clearance) out += tableBox("Clearance delivery", ["Clearance", "Alt", "Clear via"], dep.clearance);
+      if (sh) out += tableBox("Short-haul altitudes", ["Destination", "Turbojet", "TP / prop"], sh.map(r => [r.dest.map(d => d.replace(/^K/, "")).join(" · "), r.jet, r.prop]));
+      if (gates) out += tableBox("Departure gates", ["Gate", "Dir", apt === "KIAD" ? "Departure" : ""], gates.map(g => [g.gate.join("/") + (g.low ? " (low)" : ""), g.dir, g.dep || ""]));
+      out += `</div>`;
+    }
+    if (tables.length) out += `<div class="grid" style="margin-top:10px">` + tables.map(t => tableBox(t[0], t[1], t[2])).join("") + `</div>`;
+    if (key === "SHD" && !q) {
+      out += `<h3 class="sidh">Satellites</h3><div class="grid">` + Object.entries(SATELLITES).map(([id, s]) =>
+        `<div class="tablebox"><h5>${esc(id)} · ${esc(s.name)}</h5><div class="kv" style="border:none">${s.lines.map(esc).join("<br>")}</div></div>`).join("") + `</div>`;
+    }
+  }
+  $("out").innerHTML = out || `<p class="empty">Nothing in the reference matches "${esc(q)}".</p>`;
+}
+
+function tableBox(title, heads, rows) {
+  return `<div class="tablebox"><h5>${esc(title)}</h5><table><thead><tr>${heads.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead>` +
+    `<tbody>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function render() {
+  const age = feedAt ? Math.round((Date.now() - feedAt) / 1000) : null;
+  if (view === "ref") { renderRef(); $("status").textContent = `${PROCS.length} procedures`; return; }
+  const cards = computeCards();
+  $("status").textContent = feedErr || (feed ? `${cards.length} aircraft · feed ${age}s ago` : "Loading VATSIM feed…");
+  $("status").classList.toggle("err", !!feedErr);
+  if (view === "map") renderMap(cards);
+  else renderLive(cards);
+}
+
+/* ---------------- map ---------------- */
+
+let map = null, mapLayers = null, selected = "", fittedSel = "";
+const COLORS = { dep: "#6aa8ff", arr: "#ff7d7d" };
+
+function ensureMap() {
+  if (map) { setTimeout(() => map.invalidateSize(), 0); return; }
+  if (typeof L === "undefined") return;
+  map = L.map("map", { zoomControl: false, minZoom: 5, maxZoom: 12 });
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  if (window.addVatflowBasemap) window.addVatflowBasemap(map);
+  mapLayers = { apts: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map), fixes: L.layerGroup().addTo(map), traffic: L.layerGroup().addTo(map) };
+  map.setView([38.95, -77.1], 8);
+  map.on("click", () => { if (selected) { selected = ""; render(); } });
+  drawAirports();
+}
+
+function drawAirports() {
+  if (!map) return;
+  mapLayers.apts.clearLayers();
+  for (const id of PCT_APTS) {
+    const p = ll(id);
+    if (!p) continue;
+    const primary = !!PRIMARY[id];
+    L.circleMarker(p, { radius: primary ? 4 : 3, color: "#0a0e14", weight: 1, fillColor: primary ? "#d4dde6" : "#8a97a3", fillOpacity: 1, interactive: false }).addTo(mapLayers.apts);
+    L.marker(p, { interactive: false, icon: L.divIcon({ className: "", iconSize: null, iconAnchor: [-6, 6],
+      html: `<div class="aptlbl${primary ? "" : " sat"}">${esc(id.replace(/^K/, ""))}${primary ? ` <span style="font-weight:400;color:#8a97a3">${esc(PRIMARY[id])}</span>` : ""}</div>` }) }).addTo(mapLayers.apts);
+  }
+}
+
+function planeIcon(color, hdg, big) {
+  const sz = big ? 18 : 12;
+  return L.divIcon({
+    className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+    html: `<div style="transform:rotate(${Number(hdg) || 0}deg);width:${sz}px;height:${sz}px">` +
+      `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${color}" stroke="#0a0e14" stroke-width="1.2"/></svg></div>`,
+  });
+}
+
+function gcPath(lls) {
+  let out = [];
+  for (let i = 0; i < lls.length - 1; i++) {
+    const seg = gcLine(lls[i], lls[i + 1]);
+    if (i > 0) seg.shift();
+    out = out.concat(seg);
+  }
+  return out;
+}
+
+function renderMap(cards) {
+  ensureMap();
+  if (!map) return;
+  mapLayers.traffic.clearLayers();
+  mapLayers.route.clearLayers();
+  mapLayers.fixes.clearLayers();
+  const sel = cards.find(c => c.f.callsign === selected) || null;
+  if (!sel) fittedSel = "";
+  for (const c of cards) {
+    if (c.f.lat == null || c.f.prefile) continue;
+    const isSel = c === sel;
+    L.marker([c.f.lat, c.f.lon], { icon: planeIcon(isSel ? "#e8a838" : COLORS[c.role], c.f.hdg, isSel), zIndexOffset: isSel ? 1000 : 0, keyboard: false })
+      .bindTooltip(`<b>${esc(c.f.callsign)}</b> ${esc(c.f.dep)}→${esc(c.f.arr)}${c.m ? ` · ${esc(c.m.filed)}` : ""}`, { className: "cstip", direction: "top", offset: [0, -8] })
+      .on("click", e => { L.DomEvent.stopPropagation(e); selected = c.f.callsign; render(); })
+      .addTo(mapLayers.traffic);
+  }
+  const panel = $("mapPanel");
+  panel.innerHTML = !feed ? `<p class="hint">Loading the VATSIM feed…</p>`
+    : sel ? `<button type="button" class="pick" data-back="1">× Close</button>` + renderCard(sel) +
+      `<div class="legend"><i style="background:#6aa8ff"></i>departure · <i style="background:#ff7d7d"></i>arrival</div>`
+    : cards.length ? "" : `<p class="hint">No PCT departures or arrivals match these filters right now.</p>`;
+  if (sel) drawSelected(sel);
+}
+
+function fixLatLon(name, card) {
+  const a = card.ri && card.ri.all.find(x => x.name === name && x.ll);
+  if (a) return a.ll;
+  const ref = ll(card.apt);
+  try { const r = resolveToken(name, { refLL: ref, dep: card.f.dep, arr: card.f.arr }); return r ? r.ll : null; } catch (_) { return null; }
+}
+
+function drawSelected(c) {
+  const { f, ri } = c;
+  const pos = f.lat != null && !f.prefile ? [f.lat, f.lon] : null;
+  const allLL = ri ? ri.all.filter(a => a.ll).map(a => a.ll) : [ll(f.dep), pos, ll(f.arr)].filter(Boolean);
+  const aheadLL = ri ? ri.ahead.filter(a => a.ll).map(a => a.ll) : [pos, ll(f.arr)].filter(Boolean);
+  const full = gcPath(allLL), ahead = gcPath(aheadLL);
+  if (full.length > 1) L.polyline(full, { color: "#8a97a3", weight: 1.5, opacity: 0.5, dashArray: "3 5", interactive: false }).addTo(mapLayers.route);
+  if (ahead.length > 1) L.polyline(ahead, { color: "#e8a838", weight: 2.5, opacity: 0.85, interactive: false }).addTo(mapLayers.route);
+
+  const labels = [];
+  const proc = c.m && c.m.proc;
+  // SID: the climb and hand-off chain at the departure field.
+  if (proc && proc.type === "SID") {
+    const chain = climbChain(proc, c.m.tokens);
+    labels.push({ ll: ll(c.apt), head: proc.name, lines: chain.map(s => `${esc(s.by)} ↑${esc(s.alt)} → ${esc(s.to)}`) });
+  }
+  // STAR (and any SID fix) restrictions at their fixes, when the fix is on this route.
+  if (proc && proc.fixes) {
+    for (const [fix, restr] of Object.entries(proc.fixes)) {
+      const on = ri && ri.all.some(a => a.name === fix && a.ll);
+      if (!on) continue;
+      labels.push({ ll: fixLatLon(fix, c), head: fix, lines: [esc(restr)] });
+    }
+  }
+  if (proc && proc.type === "STAR" && !labels.length) {
+    const first = ri && ri.all.find(a => a.via === c.m.filed || a.kind === "star");
+    const hit = procLines(proc, c.m.filed, c.m.tokens).filter(l => l.hit);
+    const lines = (hit.length ? hit : procLines(proc, c.m.filed, c.m.tokens).slice(0, 2)).map(l => esc(l.text));
+    if (first && first.ll) labels.push({ ll: first.ll, head: proc.name, lines });
+  }
+  if (c.sh) labels.push({ ll: ll(c.apt), head: "SHORT-HAUL", lines: [esc(`${f.arr} jet ${c.sh.jet} · prop ${c.sh.prop}`)], kind: "bdry" });
+  for (const g of labels) {
+    if (!g.ll) continue;
+    L.circleMarker(g.ll, { radius: 4, color: "#0a0e14", weight: 1, fillColor: g.kind === "bdry" ? "#3fb7b0" : "#e8a838", fillOpacity: 1 }).addTo(mapLayers.fixes);
+    L.marker(g.ll, { interactive: false, icon: L.divIcon({ className: "", iconSize: null, iconAnchor: g.kind === "bdry" ? [-8, -14] : [-8, 10],
+      html: `<div class="fixlbl${g.kind === "bdry" ? " bdry" : ""}"><b>${esc(g.head)}</b><br>${g.lines.join("<br>")}</div>` }) }).addTo(mapLayers.fixes);
+  }
+  if (fittedSel !== f.callsign) {
+    fittedSel = f.callsign;
+    const apt = ll(c.apt);
+    const near = p => apt && nmBetween(p, apt) < 120;
+    const pts = [...labels.map(g => g.ll).filter(Boolean), ...(ahead.length ? ahead : full).filter(near)];
+    if (pos) pts.push(pos);
+    if (apt) pts.push(apt);
+    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 40], paddingBottomRight: [panelInset() + 40, 40], maxZoom: 10 });
+  }
+}
+
+function panelInset() {
+  const p = $("mapPanel");
+  return p && getComputedStyle(p).position === "absolute" ? p.offsetWidth + 10 : 0;
+}
+
+start();
+</script>
+</body>
+</html>
