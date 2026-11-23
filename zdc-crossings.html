@@ -121,6 +121,9 @@
   .seclbl.give { color: var(--amber); }
   .seclbl.give b { color: var(--amber); }
   .seclbl.recv, .seclbl.recv b { color: var(--cyan); }
+  .arealbl { font-family: var(--mono); font-size: 10px; line-height: 1.2; color: #8a97a3; white-space: nowrap; text-align: center; text-shadow: 0 0 3px #000, 0 0 3px #000; transform: translate(-50%, -50%); }
+  .arealbl .give { color: var(--amber); }
+  .arealbl .recv { color: var(--cyan); }
   .legend { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 8px 4px 0; line-height: 1.5; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
   .artcc-label { font-family: var(--mono); font-size: 11px; color: #5c6b78; letter-spacing: 0.1em; }
@@ -167,8 +170,7 @@
       <label class="chk"><input type="checkbox" id="optPrefile"> Include prefiles</label>
       <span class="seg" id="strataSeg" title="ZDC sector boundaries on the map">
         <button type="button" data-strata="off">No sectors</button>
-        <button type="button" data-strata="low">Low</button>
-        <button type="button" data-strata="high">High</button>
+        <button type="button" data-strata="on">Sectors</button>
       </span>
     </div>
     <div id="out"></div>
@@ -444,7 +446,7 @@ function inboundRules(f, ri, st) {
  */
 function routeCrossesSector(ri) {
   const pts = ri ? ri.all.filter(a => a.ll).map(a => a.ll) : [];
-  if (!zdcSectors || !zdcSectors.high.length || pts.length < 2) return () => true;
+  if (!zdcSectors || !zdcSectors.all.length || pts.length < 2) return () => true;
   let track = null;
   const memo = new Map();
   return sec => {
@@ -697,6 +699,7 @@ function renderSids(qStr) {
 
 const NEIGHBOR_ARTCCS = ["ZNY", "ZOB", "ZID", "ZTL", "ZJX", "ZBW"];
 const STATUS_COLOR = { in: "#57d98a", inb: "#3fb7b0", gnd: "#8a97a3", pre: "#5c6b78", out: "#5c6b78" };
+let lastSelCard = null;
 let map = null, mapLayers = null, selected = "", fittedZdc = false, fittedSel = "";
 
 function ensureMap() {
@@ -711,23 +714,21 @@ function ensureMap() {
   };
   map.setView([38.3, -77.8], 6);
   map.on("click", () => { if (selected) { selected = ""; render(); } });
+  map.on("zoomend", () => drawSectors(lastSelCard));
   drawBoundaries();
   loadSectors();
 }
 
 /* ZDC sector shapes: vZDC's own split, traced from the SOP's 1-3-1 Washington
    Center airspace diagram (data/vzdc-sectors.geojson, built by
-   scripts/build-vzdc-sectors.py). LOW is the sector owning the bottom of each
-   area, HIGH the one owning FL350, ALL every sector with any altitude there
-   (17 SWN 180-230 under 12 BRV, for example). REGION features carry each
-   area's altitude bands. */
-let strata = ["off", "low", "high"].includes(prefs.strata) ? prefs.strata : "high";
+   scripts/build-vzdc-sectors.py). ALL is every area a sector owns at any
+   altitude; REGION features are the diagram's areas with their altitude bands. */
+let strata = prefs.strata === "off" ? "off" : "on";
 let zdcSectors = null;
-const STRATA_ORDER = ["high", "low", "all"];
 
 function loadSectors() {
   if (zdcSectors) return;
-  zdcSectors = { low: [], high: [], all: [], regions: [] };
+  zdcSectors = { all: [], regions: [] };
   fetch("data/vzdc-sectors.geojson").then(r => (r.ok ? r.json() : null)).catch(() => null)
     .then(geo => {
       for (const ft of (geo && geo.features) || []) {
@@ -743,15 +744,23 @@ function loadSectors() {
     });
 }
 
-/** Sector shapes for one number: the shown stratum first, else any stratum that has it. */
+/** Every area a sector owns at any altitude. */
 function sectorShape(num) {
-  if (!zdcSectors) return null;
-  const order = strata === "off" ? STRATA_ORDER : [strata, ...STRATA_ORDER.filter(x => x !== strata)];
-  for (const st of order) {
-    const hit = zdcSectors[st].find(x => x.num === num);
-    if (hit) return hit;
-  }
-  return null;
+  return zdcSectors ? zdcSectors.all.find(x => x.num === num) || null : null;
+}
+
+/* SOP diagram ids, for the area labels ("12 BRV 300A / 20 BKT 290B"). */
+const SECTOR_IDS = { "05": "LDN", "09": "DIW", "12": "BRV", "17": "SWN", "19": "OOD", "20": "BKT", "32": "GVE", "36": "RDU",
+  "37": "MAR", "51": "CAS", "52": "TEC", "54": "SBY", "58": "CYN", "59": "SIE" };
+
+/** "12 BRV 300A" / "20 BKT 290B" / "17 SWN 180-230" / "05 LDN ALL" lines for one area, top band first. */
+function bandLines(bands) {
+  const top = Math.max(...bands.map(b => b.ceiling));
+  return bands.slice().sort((a, b) => b.floor - a.floor).map(b => {
+    const who = /^\d+$/.test(b.sector) ? `${b.sector} ${SECTOR_IDS[b.sector] || ""}`.trim() : b.sector;
+    const alt = b.floor === 0 && b.ceiling === top ? "ALL" : b.ceiling === top ? `${b.floor}A` : b.floor === 0 ? `${b.ceiling}B` : `${b.floor}-${b.ceiling}`;
+    return { sector: b.sector, text: `${who} ${alt}` };
+  });
 }
 
 function sectorLabel(sec, cls) {
@@ -765,7 +774,12 @@ function sectorLabel(sec, cls) {
   });
 }
 
-/** Draw the chosen stratum, then fill the sectors the selected aircraft's restrictions name. */
+/**
+ * Sector layer: every vZDC area outlined and labelled like the SOP diagram
+ * ("12 BRV 300A / 20 BKT 290B"); a label shows once its area is big enough on
+ * screen. The selected aircraft's giving / receiving sectors are filled, and
+ * their lines in the labels coloured to match.
+ */
 function drawSectors(card) {
   mapLayers.sectors.clearLayers();
   if (!zdcSectors) return "";
@@ -781,24 +795,67 @@ function drawSectors(card) {
       }
     }
   }
-  if (strata !== "off") {
-    for (const sec of zdcSectors[strata]) {
-      if (role.has(sec.num)) continue;
-      sec.rings.forEach(r => L.polygon(r, { color: "#4a5d70", weight: 1, opacity: 0.7, fill: false, interactive: false }).addTo(mapLayers.sectors));
-      sectorLabel(sec).addTo(mapLayers.sectors);
-    }
-  }
   const missing = [];
   for (const [num, rl] of role) {
     const sec = sectorShape(num);
     if (!sec) { missing.push(num); continue; }
     const color = rl === "recv" ? "#3fb7b0" : "#e8a838";
     sec.rings.forEach(r => L.polygon(r, { color, weight: 2, opacity: 0.9, fill: true, fillColor: color, fillOpacity: 0.14, interactive: false }).addTo(mapLayers.sectors));
-    sectorLabel(sec, rl === "recv" ? "recv" : "give").addTo(mapLayers.sectors);
+    if (strata === "off") sectorLabel(sec, rl === "recv" ? "recv" : "give").addTo(mapLayers.sectors);
+  }
+  if (strata !== "off") {
+    const placed = [];
+    const ringArea = r => Math.abs(r.reduce((t, p, i) => { const q = r[(i + 1) % r.length]; return t + p[1] * q[0] - q[1] * p[0]; }, 0));
+    const regs = zdcSectors.regions.map(reg => {
+      const main = reg.rings.reduce((b, r) => (ringArea(r) > ringArea(b) ? r : b), reg.rings[0]);
+      return { reg, main, size: ringArea(main) };
+    }).sort((a, b) => b.size - a.size);
+    for (const { reg, main } of regs) {
+      reg.rings.forEach(r => L.polygon(r, { color: "#4a5d70", weight: 1, opacity: 0.7, fill: false, interactive: false }).addTo(mapLayers.sectors));
+      const bounds = L.latLngBounds(main);
+      const lines = bandLines(reg.bands).filter(l => /^\d+$/.test(l.sector) || reg.bands.length > 1);
+      // Show the label only where its box fits inside the area and clears the labels already placed.
+      const at = areaCenter(main, bounds), c = map.latLngToContainerPoint(at);
+      const hw = Math.max(...lines.map(l => l.text.length)) * 3.1 + 2, hh = lines.length * 6 + 2;
+      const box = { x0: c.x - hw, x1: c.x + hw, y0: c.y - hh, y1: c.y + hh };
+      const ix = hw * 0.8, iy = hh * 0.8;  // the text may run a little over the area's lines
+      const probes = [[c.x - ix, c.y - iy], [c.x + ix, c.y - iy], [c.x - ix, c.y + iy], [c.x + ix, c.y + iy], [c.x, c.y - iy], [c.x, c.y + iy], [c.x - ix, c.y], [c.x + ix, c.y]];
+      if (!probes.every(([x, y]) => { const q = map.containerPointToLatLng([x, y]); return inRingLL([q.lat, q.lng], main); })) continue;
+      if (placed.some(o => o.x0 < box.x1 && box.x0 < o.x1 && o.y0 < box.y1 && box.y0 < o.y1)) continue;
+      placed.push(box);
+      const html = lines.map(l => {
+        const rl = role.get(l.sector);
+        return `<div${rl ? ` class="${rl === "recv" ? "recv" : "give"}"` : ""}>${esc(l.text)}</div>`;
+      }).join("");
+      L.marker(at, { interactive: false, icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<div class="arealbl">${html}</div>` }) })
+        .addTo(mapLayers.sectors);
+    }
   }
   if (!role.size) return "";
   return `<div class="legend"><i style="background:#e8a838"></i>sector giving a restriction · <i style="background:#3fb7b0"></i>sector receiving it` +
     (missing.length ? `<br>No sector shape for ${esc(missing.map(n => `${n} ${SECTORS[n] || ""}`.trim()).join(", "))}.` : "") + `</div>`;
+}
+
+/** A label point well inside the ring: the grid point farthest from its edges (on screen). */
+function areaCenter(ring, bounds) {
+  const px = ring.map(p => map.latLngToContainerPoint(p));
+  const segDist = (x, y, a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+    const t = L2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L2)) : 0;
+    return Math.hypot(x - a.x - t * dx, y - a.y - t * dy);
+  };
+  let best = bounds.getCenter(), bd = -1;
+  const N = 24;
+  for (let i = 1; i < N; i++) for (let k = 1; k < N; k++) {
+    const lat = bounds.getSouth() + (bounds.getNorth() - bounds.getSouth()) * i / N;
+    const lng = bounds.getWest() + (bounds.getEast() - bounds.getWest()) * k / N;
+    if (!inRingLL([lat, lng], ring)) continue;
+    const c = map.latLngToContainerPoint([lat, lng]);
+    let d = Infinity;
+    for (let a = 0, b = px.length - 1; a < px.length; b = a++) d = Math.min(d, segDist(c.x, c.y, px[a], px[b]));
+    if (d > bd) { bd = d; best = L.latLng(lat, lng); }
+  }
+  return best;
 }
 
 /** Width the floating detail panel covers on the map's right edge (0 when it sits below the map). */
@@ -1010,6 +1067,7 @@ function renderMap(qStr) {
       .addTo(mapLayers.traffic);
   }
   $("strataSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.strata === strata));
+  lastSelCard = sel;
   const legend = drawSectors(sel);
   panel.innerHTML = !feed ? `<p class="hint">Loading the VATSIM feed…</p>`
     : sel ? `<button type="button" class="pick" data-back="1">× Close</button>` + renderCard(sel) + legend
