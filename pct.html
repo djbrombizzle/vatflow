@@ -631,11 +631,11 @@ function drawAirports() {
 }
 
 function planeIcon(color, hdg, big) {
-  const sz = big ? 18 : 12;
+  const sz = big ? 30 : 22;
   return L.divIcon({
     className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
     html: `<div style="transform:rotate(${Number(hdg) || 0}deg);width:${sz}px;height:${sz}px">` +
-      `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="${color}" stroke="#0a0e14" stroke-width="1.2"/></svg></div>`,
+      `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" style="display:block;filter:drop-shadow(0 0 2px #000)"><path d="M12 1.2c.9 0 1.5 1 1.5 2.2v5.4l8.3 4.9v2.3l-8.3-2.5v4.7l2.4 1.8v1.8L12 20.8l-3.9 1v-1.8l2.4-1.8v-4.7l-8.3 2.5v-2.3l8.3-4.9V3.4c0-1.2.6-2.2 1.5-2.2z" fill="${color}" stroke="#0a0e14" stroke-width="0.9" stroke-linejoin="round"/></svg></div>`,
   });
 }
 
