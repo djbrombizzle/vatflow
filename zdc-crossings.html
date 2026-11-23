@@ -51,8 +51,6 @@
   .status { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: auto; }
   .status.err { color: var(--red); }
 
-  .gate { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; max-width: 520px; }
-  .gate p { color: var(--muted); font-size: 13px; line-height: 1.5; }
 
   .ac { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
   .ac-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); }
@@ -145,12 +143,7 @@
   <h1>ZDC CROSSINGS</h1>
   <p class="sub" id="sub">ZDC SOP sector restrictions for each aircraft's filed route, from the live VATSIM feed.</p>
 
-  <div id="gate" class="gate" hidden>
-    <p id="gateMsg">Sign in with VATSIM to use this page.</p>
-    <button type="button" id="gateSignIn">Sign in with VATSIM</button>
-  </div>
-
-  <div id="app" hidden>
+  <div id="app">
     <div class="bar">
       <div class="seg" id="viewSeg">
         <button type="button" data-view="live" class="on">Live traffic</button>
@@ -188,7 +181,7 @@
 <script src="shared/vatflow-basemap.js"></script>
 <script type="module">
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
-import { initVatflowAuth, canEditArtcc, isSignedIn, login } from "./shared/vatflow-auth.js";
+import { initVatflowAuth } from "./shared/vatflow-auth.js";
 import { getAirport, hasAirport, loadAirports } from "./shared/fca-metering.js";
 import { fetchArtccBoundaries, pointInArtcc, getArtccRings, getArtccBounds } from "./shared/artcc-scope.js";
 import { gcLine } from "./shared/fca-metering.js";
@@ -230,24 +223,12 @@ function savePrefs() {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {}
 }
 
-/* ---------------- access gate ---------------- */
+/* ---------------- access ----------------
+   Unlisted, not whitelisted (Matt, Nov 2026): no link from VATFLOW's nav or
+   README and noindex, but open to anyone with the URL. No sign-in needed. */
 
-function gate() {
-  const ok = canEditArtcc("ZDC");
-  $("gate").hidden = ok;
-  $("app").hidden = !ok;
-  if (!ok) {
-    $("gateMsg").textContent = isSignedIn()
-      ? "This page is limited to VATFLOW users with ZDC access. Ask a VATFLOW admin to add ZDC to your whitelist entry."
-      : "Sign in with VATSIM to use this page. It is limited to VATFLOW users with ZDC access.";
-    $("gateSignIn").hidden = isSignedIn();
-    return;
-  }
-  if (!started) start();
-}
-$("gateSignIn").addEventListener("click", () => login());
-window.addEventListener("vatflow-auth-changed", gate);
-initVatflowAuth().then(gate, gate);
+initVatflowAuth().catch(() => {});
+queueMicrotask(() => { if (!started) start(); });
 
 /* ---------------- setup ---------------- */
 
