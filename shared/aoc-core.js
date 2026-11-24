@@ -231,6 +231,133 @@ export function makeAirportWatch(icao, callsigns = []) {
   };
 }
 
+/**
+ * Watch one ARTCC: flights departing or landing at an airport inside it, and
+ * overflights (inside it now, or a filed route that still crosses it). `area`
+ * is its high-stratum boundary and `low` its low one, from shared/aoc-artcc.js
+ * ({contains(lat, lon), bbox}). The two differ where one center owns the
+ * airspace above another's airports (ZDC above KPHL, which is ZNY): airports
+ * and aircraft below FL180 use `low` when there is one. With no `area` nothing
+ * matches but the callsigns added by hand. Station ZDCOPS, "ZDC OPS: ...".
+ */
+export function makeArtccWatch(id, area, callsigns = [], low = null) {
+  const code = normCode(id);
+  return {
+    kind: "artcc",
+    code,
+    artcc: code,
+    label: code,
+    area: area || null,
+    low: (area && low) || null,
+    known: !!area,
+    name: "",
+    telephony: "",
+    hubs: [],
+    family: new Map(),
+    remarks: [],
+    station: `${code}OPS`.slice(0, 8),
+    callsigns: new Set(callsigns.map(normCallsign).filter(Boolean)),
+    aptIn: new Map(),     // ICAO -> inside the ARTCC
+    thruCache: new Map(), // callsign -> {key, v}: overflight answers, per position and route
+  };
+}
+
+/** Sample spacing along a path when testing it against an ARTCC. */
+const THRU_STEP_NM = 15;
+/** Within this of a route's end airports a flight counts as low (below FL180). */
+const TERMINAL_NM = 60;
+
+/**
+ * Does a path ([[lat, lon]…]) enter an area? Each leg is sampled along its great
+ * circle. `contains(lat, lon)` defaults to the area's own test.
+ */
+export function pathEnters(area, pts, contains = (lat, lon) => area.contains(lat, lon)) {
+  if (!area || !pts || !pts.length) return false;
+  const [s, w, n, e] = area.bbox;
+  if (pts.length === 1) return contains(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    const a = { lat: pts[i - 1][0], lon: pts[i - 1][1] }, b = { lat: pts[i][0], lon: pts[i][1] };
+    // A great circle bulges poleward of its end points: pad the box test.
+    const pad = 3;
+    if (Math.max(a.lat, b.lat) < s - pad || Math.min(a.lat, b.lat) > n + pad ||
+        Math.max(a.lon, b.lon) < w - pad || Math.min(a.lon, b.lon) > e + pad) continue;
+    const k = Math.max(1, Math.ceil(distNm(a.lat, a.lon, b.lat, b.lon) / THRU_STEP_NM));
+    for (let j = 0; j <= k; j++) {
+      const p = gcPoint(a, b, j / k);
+      if (contains(p.lat, p.lon)) return true;
+    }
+  }
+  return false;
+}
+
+/** Below FL180 the ARTCC's low boundary (when it has one), above it the high one. */
+export const ARTCC_LOW_TOP_FT = 18000;
+export function inArtcc(W, lat, lon, altFt = 0) {
+  if (!W || !W.area) return false;
+  return ((+altFt || 0) < ARTCC_LOW_TOP_FT && W.low ? W.low : W.area).contains(lat, lon);
+}
+
+function artccHasAirport(W, A, icao) {
+  if (!icao || !W.area) return false;
+  if (W.aptIn.has(icao)) return W.aptIn.get(icao);
+  const a = A ? A(icao) : null;
+  if (!a) return false;   // not cached: the airport list may still be loading
+  const v = (W.low || W.area).contains(a.lat, a.lon);
+  W.aptIn.set(icao, v);
+  return v;
+}
+
+/**
+ * An overflight of the watched ARTCC: airborne inside it now, or the rest of
+ * its filed route (all of it, before takeoff) crosses it. Flights that have
+ * left it drop off the board.
+ */
+function overflies(W, cs, fp, { A, routeFor, pos } = {}) {
+  if (!W.area) return false;
+  const air = !!pos && (+pos.groundspeed || 0) >= AIRBORNE_GS;
+  const lat = pos ? +pos.latitude : null, lon = pos ? +pos.longitude : null;
+  if (air && inArtcc(W, lat, lon, pos.altitude)) return true;
+  const dep = String(fp.departure || "").toUpperCase(), arr = String(fp.arrival || "").toUpperCase();
+  // On the ground away from its departure airport: it has landed, the crossing is over.
+  if (pos && !air) {
+    const d = A && A(dep);
+    if (!d || distNm(lat, lon, d.lat, d.lon) > NEAR_APT_NM * 2) return false;
+  }
+  // Nowhere near it (the box round the airports and the aircraft, padded for routes
+  // that wander off the great circle): no need to expand the route.
+  const ends = [A && A(dep), A && A(arr), air ? { lat, lon } : null].filter(Boolean);
+  if (!ends.length) return false;
+  const [s, w, n, e] = W.area.bbox, PAD = 5;
+  if (Math.max(...ends.map(p => p.lat)) < s - PAD || Math.min(...ends.map(p => p.lat)) > n + PAD ||
+      Math.max(...ends.map(p => p.lon)) < w - PAD || Math.min(...ends.map(p => p.lon)) > e + PAD) return false;
+  const rt = routeFor && (dep || arr) ? routeFor(fp) : null;
+  const anchors = rt && rt.anchors && rt.anchors.length >= 2 ? rt.anchors : null;
+  const key = `${dep}|${arr}|${fp.route || ""}|${anchors ? "r" : "g"}|${air ? `${lat.toFixed(2)},${lon.toFixed(2)}` : "gnd"}`;
+  const hit = W.thruCache.get(cs);
+  if (hit && hit.key === key) return hit.v;
+  let path = anchors ? anchors.map(a => a.ll) : null;
+  if (!path) {
+    const a = A && A(dep), b = A && A(arr);
+    path = a && b ? [[a.lat, a.lon], [b.lat, b.lon]] : b && air ? [[b.lat, b.lon]] : null;
+  }
+  let v = false;
+  if (path) {
+    if (air) {
+      // What is left of it: from the aircraft to the next route point on.
+      const rm = path.length >= 2 ? routeMetrics(path.map(ll => ({ ll })), lat, lon, +pos.heading) : null;
+      path = [[lat, lon], ...path.slice(rm ? rm.idx : path.length - 1)];
+    }
+    // Climbing out of and descending into the airports at either end, a flight is in
+    // the low airspace: there the low boundary decides (KPHL-KBOS stays out of ZDC).
+    const term = [A && A(dep), A && A(arr)].filter(Boolean);
+    v = pathEnters(W.area, path, (la, lo) =>
+      inArtcc(W, la, lo, term.some(t => distNm(la, lo, t.lat, t.lon) < TERMINAL_NM) ? 0 : 99999));
+  }
+  if (W.thruCache.size > 6000) W.thruCache.clear();
+  W.thruCache.set(cs, { key, v });
+  return v;
+}
+
 function prefixMatch(cs, pfx) {
   return pfx && cs.length > pfx.length && cs.startsWith(pfx) && /^\d[A-Z0-9]*$/.test(cs.slice(pfx.length));
 }
@@ -238,12 +365,25 @@ function prefixMatch(cs, pfx) {
 /**
  * Does this flight belong to the watch? {via, carrier} or null.
  * via: "mainline" | "family" | "remarks" (a shared regional whose remarks name
- * the brand) | "watch" (a callsign added by hand).
+ * the brand) | "watch" (a callsign added by hand); on an airport or ARTCC
+ * board "dep" | "arr", and on an ARTCC board "thru" (an overflight).
+ * dir: "both" | "dep" | "arr", and for an ARTCC also "thru" (overflights only).
+ * An ARTCC board also needs geo: {A, routeFor, pos (the feed pilot, if connected)}.
  */
-export function matchFlight(W, callsign, remarks, { regionals = true, dir = "both", prevArr = "" } = {}, fp = null) {
+export function matchFlight(W, callsign, remarks, { regionals = true, dir = "both", prevArr = "", geo = null } = {}, fp = null) {
   const cs = normCallsign(callsign);
   if (!cs) return null;
   if (W.callsigns.has(cs)) return { via: "watch", carrier: "" };
+  if (W.kind === "artcc") {
+    const A = geo && geo.A;
+    const dep = String((fp && fp.departure) || "").toUpperCase(), arr = String((fp && fp.arrival) || "").toUpperCase();
+    const depIn = artccHasAirport(W, A, dep);
+    const arrIn = artccHasAirport(W, A, arr) || (!!prevArr && artccHasAirport(W, A, prevArr));
+    if (depIn && (dir === "both" || dir === "dep")) return { via: "dep", carrier: "" };
+    if (arrIn && (dir === "both" || dir === "arr")) return { via: "arr", carrier: "" };
+    if (depIn || arrIn || (dir !== "both" && dir !== "thru")) return null;
+    return overflies(W, cs, fp || {}, geo || {}) ? { via: "thru", carrier: "" } : null;
+  }
   if (W.kind === "airport") {
     // Every airline. An arrival that diverted away (prevArr) stays on the board.
     const dep = String((fp && fp.departure) || "").toUpperCase(), arr = String((fp && fp.arrival) || "").toUpperCase();
@@ -523,7 +663,7 @@ export function deriveFlights(ctx, feed, memory, now) {
   for (const p of feed.pilots || []) {
     const fp = p.flight_plan || {};
     const prevArr = (memory.get(normCallsign(p.callsign)) || {}).arrAtOff || "";
-    const match = matchFlight(W, p.callsign, fp.remarks, { regionals, dir, prevArr }, fp);
+    const match = matchFlight(W, p.callsign, fp.remarks, { regionals, dir, prevArr, geo: { A, routeFor: ctx.routeFor, pos: p } }, fp);
     if (!match) continue;
     const cs = normCallsign(p.callsign);
     seen.add(cs);
@@ -578,7 +718,7 @@ export function deriveFlights(ctx, feed, memory, now) {
     const fp = pf.flight_plan || {};
     const cs = normCallsign(pf.callsign);
     if (seen.has(cs) || rows.some(r => r.callsign === cs)) continue;
-    const match = matchFlight(W, cs, fp.remarks, { regionals, dir }, fp);
+    const match = matchFlight(W, cs, fp.remarks, { regionals, dir, geo: { A, routeFor: ctx.routeFor } }, fp);
     if (!match) continue;
     rows.push(buildRow(ctx, null, null, fp, match, PHASE.SCHED, now, false, cs));
   }

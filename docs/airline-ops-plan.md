@@ -324,3 +324,23 @@ On the page (`shared/aoc-tmi.js`):
 - **Demo:** a made-up board (a GDP at the busiest destination, a ground stop at the next, a rate program at the third) and matching advisories.
 
 Next (needs the API key on the hub): `/tmu/departures/{airport}` and `/tmu/flow/{icao}` for airport boards, with every departure's and arrival's EDCT, sequence and delay in one call each.
+
+## 16. ARTCC boards (every flight in, out of and through a center)
+
+The **Watch** switch has a third choice, **ARTCC**. An ARTCC board (`aoc.html?artcc=ZDC&dir=both`) shows every flight that departs from or lands at an airport inside the center, plus overflights. The **Arr / Dep / Over / All** toggle narrows it. Each row names the airline and says `out of KIAD`, `into KBWI` or `overflight`. An airborne flight inside the center also shows its current sector (`ZDC32`), and so does the selected flight's Route section.
+
+- **Airspace:** the same polygons as the rest of VATFLOW (`shared/aoc-artcc.js`):
+  - `data/artcc-boundaries-high.geojson` gives the lateral limits, as in FCA builder and the metering scope.
+  - `data/artcc-boundaries-low.geojson` is used for airports and for aircraft below FL180. The two differ where one center owns the airspace above another's airports: ZDC's high sectors sit over KPHL, which is a ZNY airport.
+- **Overflights:**
+  - An airborne flight counts if it is inside the center now.
+  - A flight that hasn't entered yet counts if the rest of its filed route crosses the center. The route is expanded by route-engine, or a great circle if it can't be expanded, and sampled every 15 nm.
+  - Within 60 nm of the end airports, the route is tested against the low boundary, so KPHL–KBOS is not a ZDC overflight.
+  - A flight that has left the center, or has landed elsewhere, drops off the board.
+  - Before departure, the whole route counts.
+- **Cost:** a box check skips flights nowhere near the center, and answers are cached per callsign, route and position. On the live feed (about 1,300 pilots), the first pass took 15–60 ms for US centers (231 ms for ZAN, which has more international routes). Each later render takes under 10 ms.
+- **Map:** the center's boundary, plus its sectors from `data/artcc-sectors-{low,high,uta}.geojson` (**Display → Sectors**: off / low / high / ultra high, default high). Labels show from zoom 6. The big airports inside the center are drawn as hubs and fill the **Airport** filter.
+- **Telex:** from `<ARTCC>OPS` (**ZDCOPS**, text `ZDC OPS: ...`).
+- **Dispatcher role:** grant the ARTCC id (`ZDC`) on Admin Access, or `*`.
+- **Hub:** `/hub/aoc/*` takes `artcc: "ZDC"`. The board is kept as `~ZDC`, apart from any airline or airport board.
+- **Demo:** many airlines, flying to and from the big airports inside the center, plus about a third across it.
