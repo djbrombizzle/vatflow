@@ -274,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF,KDTW", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN, KSDF and KDTW");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF,KDTW,KMEM", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN, KSDF, KDTW and KMEM");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -812,5 +812,23 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(D, [], operatorFor(D, cs, ""), cs).ramp === ramp, `KDTW ${cs} on ${ramp}`);
   assert(["DAL1", "AAL1"].every(cs => airlineStands(D, { callsign: cs, op: operatorFor(D, cs, "") }).every(id => !D.standById.get(id).ramp.startsWith("DTW-H"))),
     "KDTW hardstands are never proposed");
+}
+/* ---------- KMEM (FedEx World Hub) ---------- */
+{
+  const D = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KMEM.json", import.meta.url))));
+  assert(D.stands.length === 185 && D.stands.every(s => s.group === "FedEx"), "KMEM 185 FedEx stands");
+  assert(D.stands.every(s => !s.approx && s.noseHdg != null && s.pushTo && s.laneX != null), "every KMEM stand has coordinates, a heading and a push lane");
+  assert(new Set(D.stands.map(s => s.id)).size === D.stands.length, "KMEM stand ids are unique");
+  // International Sort: the 250s nose north into the building, the 200s south away from the shared taxilane.
+  // The 820s nose south, 800-805 west, 811-817 east.
+  assert(["250", "255", "262"].every(id => D.standById.get(id).noseHdg < 20 || D.standById.get(id).noseHdg > 340) &&
+    ["200", "205", "211"].every(id => Math.abs(D.standById.get(id).noseHdg - 180) < 20), "KMEM 200s and 250s headings");
+  assert(["820", "823", "826"].every(id => Math.abs(D.standById.get(id).noseHdg - 180) < 20), "KMEM 820s nose south");
+  assert(Math.abs(D.standById.get("801").noseHdg - 270) < 20 && Math.abs(D.standById.get("813").noseHdg - 90) < 20, "KMEM center column headings");
+  // Ramps run west to east: 900s/800s, 600s, 200s, 100s.
+  const lon = id => D.standById.get(id).lon;
+  assert(lon("955") < lon("652") && lon("652") < lon("205") && lon("205") < lon("122"), "KMEM ramps west to east");
+  assert(composeStandTelex(D, "205") === "KMEM FEDEX RAMP: PARK STAND 205.", "KMEM telex: " + composeStandTelex(D, "205"));
+  assert(suggestStand(D, [], operatorFor(D, "FDX123", ""), "FDX123").group === "FedEx", "KMEM suggests a FedEx stand for FDX");
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
