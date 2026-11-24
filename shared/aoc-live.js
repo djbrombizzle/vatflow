@@ -10,7 +10,7 @@
  * is read-only.
  *
  * Endpoints (vUSAlink-hub aoc.py; see docs/airline-ops-plan.md §5.4):
- *   POST /hub/aoc/state {op | airport, watch, ping, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
+ *   POST /hub/aoc/state {op | airport | artcc, watch, ping, cid?, vatflowToken?} -> {ok, state, me, station, dryRun, hoppie}
  *   POST /hub/aoc/op    {op, cid, vatflowToken, o: {op: "note"|"ack", ...}}
  *   POST /hub/aoc/telex {op, cid, vatflowToken, to, text, force?}
  *   POST /hub/aoc/tmi/board  {}         -> {ok, board, stale?}      VATUSA OIS public board (hub-cached)
@@ -83,8 +83,8 @@ export function createLiveStore(W) {
     const res = await fetch(rampHubBase() + path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // An airport board (every airline at one field) is keyed by `airport`, an airline's by `op`.
-      body: JSON.stringify({ ...(W.kind === "airport" ? { airport: W.airport } : { op: W.code }), watch: [...W.callsigns], ...authBody(), ...body }),
+      // An airport board (every airline at one field) is keyed by `airport`, an ARTCC board by `artcc`, an airline's by `op`.
+      body: JSON.stringify({ ...(W.kind === "airport" ? { airport: W.airport } : W.kind === "artcc" ? { artcc: W.artcc } : { op: W.code }), watch: [...W.callsigns], ...authBody(), ...body }),
     });
     let data = null;
     try {
@@ -130,7 +130,7 @@ export function createLiveStore(W) {
         reason: noEndpoints
           ? "Telex, notes and alert acknowledgements arrive with the hub's Dispatch Center update. The board and map work from the VATSIM feed."
           : e.hubReason
-            ? `The hub refused this board: "${e.hubReason}". ${W.kind === "airport" ? "Airport boards need the hub's airport-board update. " : ""}The board and map still work from the VATSIM feed.`
+            ? `The hub refused this board: "${e.hubReason}". ${W.kind === "airport" ? "Airport boards need the hub's airport-board update. " : W.kind === "artcc" ? "ARTCC boards need the hub's ARTCC-board update. " : ""}The board and map still work from the VATSIM feed.`
             : "Hub unreachable. The board and map still work from the VATSIM feed.",
       };
     }

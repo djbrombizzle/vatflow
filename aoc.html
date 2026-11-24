@@ -116,6 +116,10 @@
   .hubTip { background: transparent; border: 0; box-shadow: none; color: #9fb3c8; font: 700 10px "Cascadia Mono", Consolas, monospace;
     text-shadow: 0 0 3px #05080c, 0 0 3px #05080c; padding: 0; }
   .hubTip::before { display: none; }
+  .secTip { background: transparent; border: 0; box-shadow: none; color: #6f8aa6; font: 700 9.5px "Cascadia Mono", Consolas, monospace;
+    text-shadow: 0 0 3px #05080c, 0 0 3px #05080c; padding: 0; }
+  .secTip::before { display: none; }
+  .secLabelsOff .secTip { display: none; }
   .leaflet-control-zoom a { background: var(--panel); color: var(--text); border-color: var(--line-2); }
   .leaflet-control-attribution { background: rgba(7, 11, 17, .7) !important; color: var(--muted-2); }
   .leaflet-control-attribution a { color: var(--muted); }
@@ -257,17 +261,18 @@
   <div id="body">
     <aside id="rail">
       <h3>Watch</h3>
-      <div class="seg wide" id="kindSeg" role="group" aria-label="Watch an airline or an airport">
-        <button data-kind="op">Airline</button><button data-kind="apt">Airport</button>
+      <div class="seg wide" id="kindSeg" role="group" aria-label="Watch an airline, an airport or an ARTCC">
+        <button data-kind="op">Airline</button><button data-kind="apt">Airport</button><button data-kind="ctr">ARTCC</button>
       </div>
       <form class="opRow" id="opForm" autocomplete="off">
         <input id="opCode" list="opList" maxlength="4" placeholder="AAL" aria-label="Operator code" spellcheck="false">
         <button type="submit">Watch</button>
       </form>
       <datalist id="opList"></datalist>
+      <datalist id="artccList"></datalist>
       <div class="hint" id="opHint"></div>
       <div class="seg wide" id="dirSeg" role="group" aria-label="Arrivals, departures or both" style="margin-top:7px" hidden>
-        <button data-dir="arr">Arrivals</button><button data-dir="dep">Departures</button><button data-dir="both">Both</button>
+        <button data-dir="arr">Arrivals</button><button data-dir="dep">Departures</button><button data-dir="thru" hidden>Overflights</button><button data-dir="both">Both</button>
       </div>
       <div class="chips" id="opChips"></div>
 
@@ -289,6 +294,11 @@
       <label class="tgl">Aircraft on the ground <input type="checkbox" id="optGround" checked></label>
       <label class="tgl">Hubs <input type="checkbox" id="optHubs" checked></label>
       <label class="tgl">Flown track (selected) <input type="checkbox" id="optTrack" checked></label>
+      <div class="tgl" id="sectorRow" hidden>Sectors
+        <select class="sm" id="sectorSel" style="width:auto">
+          <option value="">off</option><option value="LOW">low</option><option value="HIGH">high</option><option value="UTA">ultra high</option>
+        </select>
+      </div>
       <div class="tgl">List text
         <select class="sm" id="listSize" style="width:auto">
           <option value="11.5px">small</option><option value="12.5px">normal</option><option value="14px">large</option><option value="15.5px">x-large</option>
@@ -355,9 +365,10 @@
 import { mountVatflowNav } from "./shared/vatflow-nav.js";
 import {
   PHASE, PHASE_GROUP, TEMPLATES, TELEX_MAX, airportIndex, allMessages, classifyDownlink, composeTelex, deriveFlights,
-  createRouteResolver, distNm, gcLine, loadMemory, makeAirportWatch, makeWatch, opsPrefix, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
+  createRouteResolver, distNm, gcLine, loadMemory, makeAirportWatch, makeArtccWatch, inArtcc, makeWatch, opsPrefix, normCallsign, normCode, pendingReply, primeMemory, replyTemplateFor, saveMemory, zulu,
 } from "./shared/aoc-core.js";
 import { createDemoStore, AIR_ACCEL } from "./shared/aoc-demo.js";
+import { artccAreas, artccSectors, normArtcc, sectorAt } from "./shared/aoc-artcc.js";
 import { createLiveStore } from "./shared/aoc-live.js";
 import { getNavMeta, isNavReady, loadNavData, preferredRoute } from "./shared/route-engine.js";
 import { fetchMetar as fetchMetarText } from "./shared/erids-data.js";
@@ -452,6 +463,33 @@ const TMI_BOARD_MS = 60000;
 let FUEL = null;
 /** Callsign prefix -> airline name (operators.json, with regional partners), for airport boards. */
 const AIRLINE_NAMES = new Map();
+/**
+ * ARTCC boards: the centers' lateral limits (data/artcc-boundaries-high.geojson,
+ * as FCA builder and the metering scope use) and their sector maps
+ * (data/artcc-sectors-*.geojson), loaded the first time an ARTCC is watched.
+ */
+const ARTCC = { areas: null, low: null, sectorGeo: {}, sectors: null, loading: null };
+function loadArtccData() {
+  if (ARTCC.areas) return Promise.resolve(ARTCC);
+  if (ARTCC.loading) return ARTCC.loading;
+  const get = f => fetch(f).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  ARTCC.loading = Promise.all([get("data/artcc-boundaries-high.geojson"), get("data/artcc-boundaries-low.geojson"),
+    ...["low", "high", "uta"].map(n => get(`data/artcc-sectors-${n}.geojson`))])
+    .then(([b, bl, lo, hi, uta]) => {
+      ARTCC.areas = b ? artccAreas(b) : new Map();
+      ARTCC.low = bl ? artccAreas(bl) : new Map();
+      ARTCC.sectorGeo = { LOW: lo, HIGH: hi, UTA: uta };
+      return ARTCC;
+    })
+    .finally(() => { ARTCC.loading = null; });
+  return ARTCC.loading;
+}
+/** Big airports, for an ARTCC board's airport filter and map dots (those inside it). */
+const ARTCC_HUB_CANDIDATES = ["KATL", "KDFW", "KORD", "KDEN", "KLAX", "KJFK", "KCLT", "KPHX", "KMIA", "KSEA", "KBOS", "KIAD", "KLAS",
+  "KMCO", "KSFO", "KIAH", "KMSP", "KDTW", "KPHL", "KSLC", "KBWI", "KSAN", "KTPA", "KAUS", "KBNA", "KRDU", "KSTL", "KMCI", "KPDX", "KCVG",
+  "KDCA", "KLGA", "KEWR", "KFLL", "KMDW", "KDAL", "KHOU", "KMSY", "KPIT", "KCLE", "KIND", "KCMH", "KSMF", "KSJC", "KOAK", "KSNA", "KBUR",
+  "KONT", "KABQ", "KTUS", "KELP", "KOKC", "KTUL", "KMEM", "KSDF", "KRIC", "KORF", "KJAX", "KRSW", "KPBI", "KBDL", "KPVD", "KBUF", "KALB",
+  "KMKE", "KOMA", "KICT", "KBOI", "KGEG", "PANC", "PAFA", "PHNL", "PHOG", "TJSJ", "KSAT", "KHPN", "KISP", "KSYR", "KCHS", "KSAV", "KMYR"];
 ui.kind = "op";
 ui.dir = "both";
 ui.fuelUnits = "LBS";
@@ -460,11 +498,15 @@ ui.fuelUnits = "LBS";
 const map = L.map("map", { zoomControl: true, worldCopyJump: true, minZoom: 2, attributionControl: true, preferCanvas: false })
   .setView([38, -96], 4);
 if (typeof addVatflowBasemap === "function") addVatflowBasemap(map, "VATSIM data");
+const artccLayer = L.layerGroup().addTo(map);
 const hubLayer = L.layerGroup().addTo(map);
 const selLayer = L.layerGroup().addTo(map);
 const acLayer = L.layerGroup().addTo(map);
 const markers = new Map();
-map.on("zoomend", () => scheduleRender());
+map.on("zoomend", () => { syncSectorLabels(); scheduleRender(); });
+function syncSectorLabels() {
+  map.getContainer().classList.toggle("secLabelsOff", map.getZoom() < 6);
+}
 
 function planeHtml(r, sel) {
   const bad = r.alertsOpen.some(a => a.level === "bad");
@@ -584,6 +626,22 @@ function renderSelLayer() {
   }
 }
 
+/** The watched ARTCC's boundary, and its sectors in the chosen stratum (Display → Sectors). */
+function renderArtcc() {
+  artccLayer.clearLayers();
+  if (!W || W.kind !== "artcc" || !W.area) return;
+  const ll = rings => rings.map(r => r.map(([lon, lat]) => [lat, lon]));
+  const st = $("sectorSel").value;
+  for (const sec of (st && ARTCC.sectors && ARTCC.sectors[st]) || []) {
+    L.polygon(ll(sec.rings), { color: "#3d5f80", weight: 1, opacity: .8, fill: false, interactive: false }).addTo(artccLayer);
+    const b = L.latLngBounds(ll(sec.rings).flat());
+    L.tooltip({ permanent: true, direction: "center", className: "secTip", interactive: false })
+      .setLatLng(b.getCenter()).setContent(esc(sec.label || sec.id)).addTo(artccLayer);
+  }
+  L.polygon(ll(W.area.rings), { color: "#6fa8dc", weight: 2, opacity: .9, fillColor: "#6fa8dc", fillOpacity: .04, interactive: false }).addTo(artccLayer);
+  syncSectorLabels();
+}
+
 function renderHubs() {
   hubLayer.clearLayers();
   if (!$("optHubs").checked) return;
@@ -596,6 +654,12 @@ function renderHubs() {
 }
 
 function fitView() {
+  if (W.kind === "artcc" && W.area) {
+    const [s, w, n, e] = W.area.bbox;
+    map.fitBounds([[s, w], [n, e]], { padding: [20, 20], maxZoom: 7 });
+    ui.fitted = true;
+    return;
+  }
   const pts = W.hubs.map(A).filter(Boolean).map(a => [a.lat, a.lon]);
   const flying = rows.filter(r => r.lat != null && r.phase !== PHASE.SCHED).map(r => [r.lat, r.lon]);
   const use = pts.length >= 2 ? pts : flying.length ? flying : null;
@@ -612,10 +676,18 @@ function scheduleRender() {
 }
 
 function render() {
+  if (!W || !store) return;   // an ARTCC board still loading its boundaries
   const state = store.getState();
   const now = Date.now();
-  rows = deriveFlights({ W, A, idx: IDX, routeFor, regionals: $("optRegionals").checked, dir: W.kind === "airport" ? ui.dir : "both" },
+  rows = deriveFlights({ W, A, idx: IDX, routeFor, regionals: $("optRegionals").checked, dir: boardDir() },
     store.getFeed(), memory, now);
+  // ARTCC board: the sector each airborne flight is in.
+  if (W.kind === "artcc") {
+    for (const r of rows) {
+      const air = r.connected && r.gs >= 50 && r.lat != null && inArtcc(W, r.lat, r.lon, r.alt);
+      r.sector = air ? sectorAt(ARTCC.sectors, r.lat, r.lon, r.alt)?.label || "" : "";
+    }
+  }
   // Alerts from the telex log, then split by acknowledged.
   for (const r of rows) {
     const e = state.flights[r.callsign];
@@ -640,7 +712,7 @@ function render() {
     store.setPing(on.map(r => r.callsign));
   }
   vrows = ui.hub ? rows.filter(r => r.dep === ui.hub || r.arr === ui.hub || r.callsign === ui.selected) : rows;
-  if (!ui.fitted && rows.length && W.hubs.length < 2) fitView();
+  if (!ui.fitted && rows.length && (W.hubs.length < 2 || W.kind === "artcc")) fitView();
   renderHeader();
   renderRail(state);
   renderMap();
@@ -732,6 +804,8 @@ function renderFlights() {
     const acars = h === true ? '<span class="acars on" title="ACARS on Hoppie"></span>' : h === false ? '<span class="acars off" title="Not on Hoppie"></span>' : "";
     const sub = W.kind === "airport"
       ? [airlineName(r.callsign), r.via === "dep" ? "outbound" : r.via === "arr" ? (r.arr === W.airport ? "inbound" : `was inbound, now ${r.arr}`) : "watched"].filter(Boolean).join(" · ")
+      : W.kind === "artcc"
+      ? [airlineName(r.callsign), { dep: `out of ${r.dep}`, arr: `into ${r.arr}`, thru: "overflight", watch: "watched" }[r.via] || "", r.sector].filter(Boolean).join(" · ")
       : r.carrier ? `${r.carrier}${r.via === "remarks" ? " (remarks)" : ""}` : r.via === "watch" ? "watched" : "";
     const unread = unreadFor(r.callsign, r.entry) ? '<span class="unread blink" title="Unread telex"></span>' : "";
     const alerts = r.alerts.map(a => {
@@ -761,7 +835,11 @@ function renderFlights() {
     empty.textContent = !rows.length
       ? store.mode === "live"
         ? W.kind === "airport"
-          ? `No flights ${{ arr: "arriving at", dep: "departing", both: "in or out of" }[ui.dir]} ${W.airport} on VATSIM right now. Try DEMO to see how the board works.`
+          ? `No flights ${{ arr: "arriving at", dep: "departing", both: "in or out of" }[boardDir()]} ${W.airport} on VATSIM right now. Try DEMO to see how the board works.`
+          : W.kind === "artcc"
+          ? W.area
+            ? `No flights ${{ arr: "landing in", dep: "departing", thru: "crossing", both: "in, out of or through" }[boardDir()]} ${W.artcc} on VATSIM right now. Try DEMO to see how the board works.`
+            : `No boundary for ${W.artcc}: VATFLOW has the US ARTCCs (ZDC, ZNY, ZAN…). Only callsigns added by hand are shown.`
           : `No ${W.code} flights on VATSIM right now${W.callsigns.size ? " (or watched callsigns)" : ""}. Try DEMO to see how the board works.`
         : "Starting the demo…"
       : "No flights match this filter.";
@@ -1044,7 +1122,7 @@ function renderSelected(state) {
   if (!ui.composer.dirty) ui.composer.text = defaultTelex(r, ui.composer.tpl, ui.composer.arg);
   // Rebuild only when something shown changes (keeps typing and focus).
   const sig = JSON.stringify([r.callsign, r.phase, r.dep, r.arr, r.altn, fmtT(r.eta), r.delay, r.out, r.off, r.on, r.in, Math.round(r.alt / 500),
-    Math.round(r.gs / 10), r.squawk, r.nextFix, !!r.routeAnchors, Math.round(r.xtNm || 0), navState, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
+    Math.round(r.gs / 10), r.squawk, r.nextFix, r.sector, !!r.routeAnchors, Math.round(r.xtNm || 0), navState, Math.round((r.distToGo || 0) / 5), r.alerts.map(a => a.key + (r.alertsOpen.includes(a) ? 1 : 0)),
     e.note, (e.msgs || []).length, sbRev, ui.fuelUnits, tmi.rev, hop, me.canWrite, me.reason, ui.flash, ui.composer.tpl, ui.composer.dirty ? "" : ui.composer.text, store.station]);
   if (sig === ui.selSig) return;
   ui.selSig = sig;
@@ -1124,6 +1202,7 @@ function routeSection(r) {
   const filed = String(r.route || "").trim();
   const used = String(r.routeText || "").trim();
   const bits = [];
+  if (r.sector) bits.push(`Sector <b>${esc(r.sector)}</b>`);
   if (r.nextFix) bits.push(`Next <b>${esc(r.nextFix)}</b>`);
   if (r.routeAnchors && r.distTotal != null) {
     const dep = A(r.dep), arr = A(r.arr);
@@ -1329,11 +1408,13 @@ $("hubSel").addEventListener("change", e => {
 function savePrefs() {
   LS.set("vatflow.aoc.prefs", JSON.stringify({
     labels: $("optLabels").checked, ground: $("optGround").checked, hubs: $("optHubs").checked,
-    track: $("optTrack").checked, regionals: $("optRegionals").checked,
+    track: $("optTrack").checked, regionals: $("optRegionals").checked, sectors: $("sectorSel").value,
   }));
 }
+$("sectorSel").addEventListener("change", () => { renderArtcc(); savePrefs(); });
 {
   const p = jsonLS("vatflow.aoc.prefs", {});
+  $("sectorSel").value = typeof p.sectors === "string" && ["", "LOW", "HIGH", "UTA"].includes(p.sectors) ? p.sectors : "HIGH";
   for (const [k, id] of [["labels", "optLabels"], ["ground", "optGround"], ["hubs", "optHubs"], ["track", "optTrack"], ["regionals", "optRegionals"]]) {
     if (typeof p[k] === "boolean") $(id).checked = p[k];
   }
@@ -1400,9 +1481,15 @@ function saveMemorySoon() {
   LS.set(`vatflow.aoc.mem.${wkey()}`, JSON.stringify(saveMemory(memory, Date.now())));
 }
 
-/** Storage key of the board: the airline code (AAL), or @ + airport (@KDFW). */
+/** Storage key of the board: the airline code (AAL), @ + airport (@KDFW), or ~ + ARTCC (~ZDC). */
 function wkey(w = W) {
-  return w.kind === "airport" ? "@" + w.airport : w.code;
+  return w.kind === "airport" ? "@" + w.airport : w.kind === "artcc" ? "~" + w.artcc : w.code;
+}
+
+/** Arrivals / departures / overflights / both, for an airport or ARTCC board ("both" for an airline). */
+function boardDir() {
+  if (!W || W.kind === "op" || !W.kind) return "both";
+  return W.kind === "airport" && ui.dir === "thru" ? "both" : ui.dir;
 }
 
 /* ---------------- mode and operator ---------------- */
@@ -1415,7 +1502,7 @@ function initialMode() {
 function setMode(mode) {
   if (store) { store.stop(); unsub && unsub(); }
   memory = mode === "live" ? loadMemory(jsonLS(`vatflow.aoc.mem.${wkey()}`, {}), Date.now()) : new Map();
-  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, W.kind === "airport" ? OPS : OPS[W.code] || null, A, {
+  store = mode === "live" ? createLiveStore(W) : createDemoStore(W, W.kind === "airport" || W.kind === "artcc" ? OPS : OPS[W.code] || null, A, {
     text: (dep, arr) => (isNavReady() ? preferredRoute(dep, arr) : ""),
     path: (dep, arr, route) => routeFor({ departure: dep, arrival: arr, route })?.anchors.map(a => a.ll) || null,
   });
@@ -1452,13 +1539,14 @@ function watchedCallsigns(code) {
 
 function setUrl() {
   const u = new URL(location.href);
+  for (const k of ["op", "apt", "artcc", "dir"]) u.searchParams.delete(k);
   if (W.kind === "airport") {
-    u.searchParams.delete("op");
     u.searchParams.set("apt", W.airport);
-    u.searchParams.set("dir", ui.dir);
+    u.searchParams.set("dir", boardDir());
+  } else if (W.kind === "artcc") {
+    u.searchParams.set("artcc", W.artcc);
+    u.searchParams.set("dir", boardDir());
   } else {
-    u.searchParams.delete("apt");
-    u.searchParams.delete("dir");
     u.searchParams.set("op", W.code);
   }
   if (W.callsigns.size) u.searchParams.set("watch", [...W.callsigns].join(","));
@@ -1469,22 +1557,38 @@ function setUrl() {
 
 function recentOps() {
   const r = jsonLS("vatflow.aoc.recent", []);
-  return Array.isArray(r) ? r.filter(c => /^@?[A-Z0-9]{2,4}$/.test(c)) : [];
+  return Array.isArray(r) ? r.filter(c => /^[@~]?[A-Z0-9]{2,4}$/.test(c)) : [];
 }
 
 /**
- * Load a board: an airline ("AAL", any 2-4 character code) or, with a leading
- * "@", an airport ("@KDFW": every airline in and out of it).
+ * Load a board: an airline ("AAL", any 2-4 character code); with a leading
+ * "@", an airport ("@KDFW": every airline in and out of it); with a leading
+ * "~", an ARTCC ("~ZDC": every flight in, out of and through its airspace).
+ * An ARTCC waits for the boundary and sector files the first time.
  */
 function loadOperator(key, callsigns) {
   const apt = String(key || "").startsWith("@");
-  const code = normCode(key).slice(0, 4);
+  const ctr = String(key || "").startsWith("~");
+  const code = ctr ? normArtcc(key).slice(0, 4) : normCode(key).slice(0, 4);
   if (!code) return;
-  const k = apt ? "@" + code : code;
-  W = apt ? makeAirportWatch(code, callsigns ?? watchedCallsigns(k)) : makeWatch(OPS, code, callsigns ?? watchedCallsigns(k));
-  ui.kind = apt ? "apt" : "op";
+  if (ctr && !ARTCC.areas) {
+    $("opHint").textContent = "Loading ARTCC boundaries…";
+    loadArtccData().then(() => loadOperator("~" + code, callsigns));
+    return;
+  }
+  const k = apt ? "@" + code : ctr ? "~" + code : code;
+  if (ctr) {
+    const area = ARTCC.areas.get(code) || null;
+    W = makeArtccWatch(code, area, callsigns ?? watchedCallsigns(k), ARTCC.low.get(code) || null);
+    W.hubs = area ? [...new Set([...ARTCC_HUB_CANDIDATES, ...Object.values(OPS).flatMap(o => o.hubs || [])])]
+      .filter(c => A(c) && (W.low || area).contains(A(c).lat, A(c).lon)).sort() : [];
+    ARTCC.sectors = Object.fromEntries(Object.entries(ARTCC.sectorGeo).map(([st, g]) => [st, artccSectors(g, code)]));
+  } else {
+    W = apt ? makeAirportWatch(code, callsigns ?? watchedCallsigns(k)) : makeWatch(OPS, code, callsigns ?? watchedCallsigns(k));
+  }
+  ui.kind = apt ? "apt" : ctr ? "ctr" : "op";
   LS.set("vatflow.aoc.op", k);
-  LS.set(apt ? "vatflow.aoc.lastApt" : "vatflow.aoc.lastOp", code);
+  LS.set(apt ? "vatflow.aoc.lastApt" : ctr ? "vatflow.aoc.lastArtcc" : "vatflow.aoc.lastOp", code);
   LS.set(`vatflow.aoc.watch.${k}`, JSON.stringify([...W.callsigns]));
   LS.set("vatflow.aoc.recent", JSON.stringify([k, ...recentOps().filter(c => c !== k)].slice(0, 8)));
   readAt = jsonLS(`vatflow.aoc.read.${k}`, {});
@@ -1494,13 +1598,17 @@ function loadOperator(key, callsigns) {
   $("ttlCode").textContent = code;
   $("ttlSub").textContent = apt
     ? `Every airline in and out of ${code} · telex ${W.station} ("${W.label} OPS")`
+    : ctr
+    ? `Every flight in, out of and through ${code} airspace · telex ${W.station} ("${W.label} OPS")`
     : W.known ? `${W.name} · ${W.telephony}` : "Custom operator: flights whose callsign starts with " + code;
   document.title = `${code} Dispatch Center — VATFLOW`;
   syncKindUi();
-  $("regRow").hidden = apt || !W.family.size;
+  $("regRow").hidden = apt || ctr || !W.family.size;
   $("hubSel").innerHTML = `<option value="">All</option>` + W.hubs.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join("");
   $("hubSel").parentElement.hidden = apt || !W.hubs.length;
+  $("hubSel").parentElement.firstChild.textContent = ctr ? "Airport " : "Hub ";
   $("filterHd").hidden = $("regRow").hidden && $("hubSel").parentElement.hidden;
+  $("sectorRow").hidden = !ctr;
   if (apt && A(code)) map.setView([A(code).lat, A(code).lon], 5);
   ui.hub = "";
   ui.search = "";
@@ -1508,25 +1616,34 @@ function loadOperator(key, callsigns) {
   ui.fitted = false;
   renderChips();
   renderHubs();
+  renderArtcc();
   fitView();
   setMode(store ? store.mode : initialMode());
 }
 
 function syncKindUi() {
-  const apt = ui.kind === "apt";
+  const apt = ui.kind === "apt", ctr = ui.kind === "ctr";
   document.querySelectorAll("#kindSeg button").forEach(b => b.classList.toggle("on", b.dataset.kind === ui.kind));
-  document.querySelectorAll("#dirSeg button").forEach(b => b.classList.toggle("on", b.dataset.dir === ui.dir));
-  $("dirSeg").hidden = !apt;
-  $("opCode").placeholder = apt ? "KDFW" : "AAL";
-  if (apt) $("opCode").removeAttribute("list");
+  document.querySelectorAll("#dirSeg button").forEach(b => b.classList.toggle("on", b.dataset.dir === boardDir()));
+  $("dirSeg").hidden = !apt && !ctr;
+  // Four buttons for an ARTCC: short labels, the long ones as tooltips.
+  const lab = ctr ? { arr: "Arr", dep: "Dep", thru: "Over", both: "All" } : { arr: "Arrivals", dep: "Departures", thru: "Overflights", both: "Both" };
+  const tip = { arr: "Arrivals: landing at an airport in it", dep: "Departures: from an airport in it", thru: "Overflights: through it without landing or departing in it", both: "All of them" };
+  $("dirSeg").querySelectorAll("button").forEach(b => { b.textContent = lab[b.dataset.dir]; b.title = ctr ? tip[b.dataset.dir] : ""; });
+  $("dirSeg").querySelector('[data-dir="thru"]').hidden = !ctr;
+  $("opCode").placeholder = apt ? "KDFW" : ctr ? "ZDC" : "AAL";
+  if (ctr) $("opCode").setAttribute("list", "artccList");
+  else if (apt) $("opCode").removeAttribute("list");
   else $("opCode").setAttribute("list", "opList");
   $("opHint").textContent = apt
     ? `Every airline to or from one airport: type its ICAO code (KDFW). Telex goes out as ${W && W.kind === "airport" ? W.station : "DFWOPS"}.`
+    : ctr
+    ? `Every flight in, out of and through one center: type the ARTCC (ZDC). Telex goes out as ${W && W.kind === "artcc" ? W.station : "ZDCOPS"}.`
     : "Any airline code works, including virtual airlines: type the callsign prefix (e.g. XYZ for XYZ123).";
 }
 
 function renderChips() {
-  $("opChips").innerHTML = recentOps().map(c => `<button data-op="${esc(c)}" class="${c === wkey() ? "on" : ""}" title="${c.startsWith("@") ? "Airport" : "Airline"}">${c.startsWith("@") ? "✈ " + esc(c.slice(1)) : esc(c)}</button>`).join("");
+  $("opChips").innerHTML = recentOps().map(c => `<button data-op="${esc(c)}" class="${c === wkey() ? "on" : ""}" title="${c.startsWith("@") ? "Airport" : c.startsWith("~") ? "ARTCC" : "Airline"}">${c.startsWith("@") ? "✈ " + esc(c.slice(1)) : c.startsWith("~") ? "◎ " + esc(c.slice(1)) : esc(c)}</button>`).join("");
   $("watchChips").innerHTML = [...W.callsigns].map(c => `<button data-rm="${esc(c)}" title="Stop watching ${esc(c)}">${esc(c)}<span class="x">×</span></button>`).join("") ||
     '<span class="hint">Single callsigns from any operator (a GA tail, a charter, a friend).</span>';
 }
@@ -1534,6 +1651,14 @@ function renderChips() {
 $("opForm").addEventListener("submit", e => {
   e.preventDefault();
   const code = normCode($("opCode").value);
+  if (ui.kind === "ctr") {
+    const id = normArtcc(code);
+    loadArtccData().then(() => {
+      if (!ARTCC.areas.has(id)) { $("opHint").textContent = `${id || "That"} is not an ARTCC VATFLOW has a boundary for: try ${[...ARTCC.areas.keys()].slice(0, 6).join(", ")}…`; return; }
+      if ("~" + id !== wkey()) loadOperator("~" + id);
+    });
+    return;
+  }
   if (ui.kind === "apt") {
     if (!A(code)) { $("opHint").textContent = `${code || "That"} is not an airport VATFLOW knows: type a 4-letter ICAO code, e.g. KDFW.`; return; }
     if ("@" + code !== wkey()) loadOperator("@" + code);
@@ -1549,8 +1674,9 @@ $("opChips").addEventListener("click", e => {
 $("kindSeg").addEventListener("click", e => {
   const b = e.target.closest("button[data-kind]");
   if (!b || b.dataset.kind === ui.kind) return;
-  // Switch to the last airline or airport used.
-  loadOperator(b.dataset.kind === "apt" ? "@" + LS.get("vatflow.aoc.lastApt", "KDFW") : LS.get("vatflow.aoc.lastOp", "AAL"));
+  // Switch to the last airline, airport or ARTCC used.
+  loadOperator(b.dataset.kind === "apt" ? "@" + LS.get("vatflow.aoc.lastApt", "KDFW")
+    : b.dataset.kind === "ctr" ? "~" + LS.get("vatflow.aoc.lastArtcc", "ZDC") : LS.get("vatflow.aoc.lastOp", "AAL"));
 });
 $("dirSeg").addEventListener("click", e => {
   const b = e.target.closest("button[data-dir]");
@@ -1608,12 +1734,17 @@ if (initialMode() === "demo") await Promise.race([navLoad, new Promise(r => setT
 {
   const q = new URLSearchParams(location.search);
   const dir = q.get("dir") || LS.get("vatflow.aoc.dir", "both");
-  ui.dir = ["arr", "dep", "both"].includes(dir) ? dir : "both";
+  ui.dir = ["arr", "dep", "thru", "both"].includes(dir) ? dir : "both";
   const apt = normCode(q.get("apt") || "");
-  const want = apt ? "@" + apt : (q.get("op") ? normCode(q.get("op")) : LS.get("vatflow.aoc.op", "") || "AAL");
+  const ctr = normArtcc(q.get("artcc") || "");
+  const want = apt ? "@" + apt : ctr ? "~" + ctr : (q.get("op") ? normCode(q.get("op")) : LS.get("vatflow.aoc.op", "") || "AAL");
   // Not if a board was already picked while the route data loaded.
   if (!W) loadOperator(want || "AAL");
 }
+// The ARTCC list for the ARTCC box (boundaries load in the background).
+loadArtccData().then(() => {
+  $("artccList").innerHTML = [...ARTCC.areas.keys()].sort().map(c => `<option value="${esc(c)}"></option>`).join("");
+});
 </script>
 </body>
 </html>

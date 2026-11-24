@@ -6,13 +6,15 @@
 import { readFileSync } from "node:fs";
 import {
   PHASE, TELEX_MAX, TEMPLATES, airportIndex, allMessages, applyOp, classifyDownlink, composeTelex, deriveFlights,
-  distNm, bearing, emptyState, makeAirportWatch, airportLabel, gcPoint, hhmmToMin, isHolding, loadMemory, makeWatch, matchFlight, movePoint, nearestAirport,
+  distNm, bearing, emptyState, makeAirportWatch, makeArtccWatch, inArtcc, pathEnters, airportLabel, gcPoint, hhmmToMin, isHolding, loadMemory, makeWatch, matchFlight, movePoint, nearestAirport,
   parseFiledAlt, pendingReply, primeMemory, saveMemory, stdMs, ARRIVED_DWELL_MS, LOST_MS, KEEP_ARRIVED_MS,
   createRouteResolver, routeMetrics, routeLength, distToSegmentNm,
 } from "../shared/aoc-core.js";
 import { seedNavData, preferredRoute } from "../shared/route-engine.js";
 import { demoOfpJson, fetchOfp, matchOfp, parseOfp, simbriefUrl } from "../shared/aoc-simbrief.js";
 import { equivalentType, estimateFuel, gcdAllowanceNm, tableFuelKg, KG_TO_LB } from "../shared/aoc-fuel.js";
+import { artccAreas, artccSectors, normArtcc, sectorAt, stratumFor } from "../shared/aoc-artcc.js";
+import { createDemoStore } from "../shared/aoc-demo.js";
 import { autoAdvisoryTargets, composeTmiTelex, demoAdvisory, demoBoard, restrictionsFor, tmiAlerts, tmiIndex, AUTO_ADVISORY_MAX } from "../shared/aoc-tmi.js";
 
 let passed = 0;
@@ -432,6 +434,83 @@ function opsPrefixOf(w) { return composeTelex("free", w, {}).trim(); }
   const u = rows.find(r => r.callsign === "UAL1");
   assert(u && u.alerts.some(a => a.key === "div-KOKC"), "diverted away from KDFW: still on the board, with the alert");
   assert(composeTelex("free", AW, u) === "DFW OPS: ", "telex prefix DFW OPS");
+}
+
+/* ---------- ARTCC watch (every flight in, out of and through a center) ---------- */
+{
+  const geo = p => JSON.parse(readFileSync(new URL(`../data/${p}.geojson`, import.meta.url)));
+  const areas = artccAreas(geo("artcc-boundaries-high"));
+  assert(areas.has("ZDC") && areas.has("ZAN") && !areas.has("ZMA-N"), "boundaries: centers in, map-only overlays out");
+  assert(normArtcc("kzdc") === "ZDC" && normArtcc("PAZA") === "ZAN" && normArtcc("ZDC") === "ZDC", "ARTCC ids");
+  const zdc = areas.get("ZDC"), zdcLow = artccAreas(geo("artcc-boundaries-low")).get("ZDC");
+  const inZdc = c => zdcLow.contains(A(c).lat, A(c).lon);
+  assert(inZdc("KIAD") && inZdc("KBWI") && inZdc("KDCA") && !inZdc("KJFK") && !inZdc("KATL") && !inZdc("KPHL"), "airports inside ZDC");
+  assert(zdc.contains(A("KPHL").lat, A("KPHL").lon), "ZDC owns the high airspace above KPHL");
+  const CW = makeArtccWatch("ZDC", zdc, ["n123ab"], zdcLow);
+  assert(CW.kind === "artcc" && CW.station === "ZDCOPS" && opsPrefixOf(CW) === "ZDC OPS:", "station and prefix");
+  const m = (cs, fp, o = {}) => matchFlight(CW, cs, "", { ...o, geo: { A, ...(o.geo || {}) } }, fp);
+  const out = { departure: "KIAD", arrival: "KATL" }, inn = { departure: "KATL", arrival: "KBWI" }, local = { departure: "KIAD", arrival: "KBWI" };
+  const over = { departure: "KBOS", arrival: "KATL" }, far = { departure: "KORD", arrival: "KDFW" };
+  assert(m("UAL1", out)?.via === "dep" && m("UAL2", inn)?.via === "arr" && m("UAL3", local)?.via === "dep", "out of and into ZDC");
+  assert(m("DAL1", over)?.via === "thru", "BOS-ATL crosses ZDC: overflight (filed, great circle)");
+  assert(!m("AAL1", far), "ORD-DFW: nowhere near");
+  assert(!m("AAL2", { departure: "KPHL", arrival: "KBOS" }), "KPHL-KBOS: ZNY's airport, climbing out under ZDC's high airspace is not an overflight");
+  assert(m("AAL3", { departure: "KPHL", arrival: "KATL" })?.via === "thru", "KPHL-KATL crosses ZDC");
+  const phlUp = movePoint(A("KPHL").lat, A("KPHL").lon, 45, 12);
+  assert(!m("AAL4", { departure: "KPHL", arrival: "KBOS" }, { geo: { pos: { latitude: phlUp.lat, longitude: phlUp.lon, groundspeed: 250, heading: 45, altitude: 6000 } } }),
+    "climbing out of KPHL toward KBOS: not in ZDC");
+  const phl = A("KPHL");
+  assert(inArtcc(CW, phl.lat, phl.lon, 30000) && !inArtcc(CW, phl.lat, phl.lon, 5000), "above KPHL: ZDC high, ZNY low");
+  assert(!m("UAL1", out, { dir: "arr" }) && m("UAL2", inn, { dir: "arr" }) && m("UAL3", local, { dir: "arr" })?.via === "arr", "arrivals only");
+  assert(!m("UAL2", inn, { dir: "dep" }) && m("UAL1", out, { dir: "dep" }), "departures only");
+  assert(!m("UAL1", out, { dir: "thru" }) && !m("UAL2", inn, { dir: "thru" }) && m("DAL1", over, { dir: "thru" }), "overflights only");
+  assert(!m("DAL1", over, { dir: "dep" }), "an overflight is not a departure");
+  assert(m("N123AB", far)?.via === "watch", "watched callsign");
+  // Airborne: inside now; still to cross it; already past it.
+  const jfk = A("KJFK"), mia = A("KMIA");
+  const iad = A("KIAD");
+  const ac = (lat, lon, hdg) => ({ latitude: lat, longitude: lon, groundspeed: 450, heading: hdg, altitude: 35000 });
+  const jfkMia = { departure: "KJFK", arrival: "KMIA" };
+  assert(m("JBU1", jfkMia, { geo: { pos: ac(iad.lat - 0.3, iad.lon + 0.5, 200) } })?.via === "thru", "inside ZDC now");
+  const nj = gcPoint(jfk, mia, 0.08);
+  assert(m("JBU2", jfkMia, { geo: { pos: ac(nj.lat, nj.lon, 200) } })?.via === "thru", "not there yet, route crosses it");
+  const fl = gcPoint(jfk, mia, 0.85);
+  assert(!m("JBU3", jfkMia, { geo: { pos: ac(fl.lat, fl.lon, 200) } }), "past it: off the board");
+  assert(m("JBU4", jfkMia, { geo: { pos: { ...ac(jfk.lat, jfk.lon, 200), groundspeed: 0, altitude: 13 } } })?.via === "thru", "at the gate: the whole route counts");
+  assert(!m("AAL9", { departure: "KCLT", arrival: "CYYZ" }, { geo: { pos: { latitude: 43.68, longitude: -79.62, groundspeed: 0, heading: 0, altitude: 500 } } }),
+    "landed at the far end: no longer an overflight");
+  assert(pathEnters(zdc, [[A("KBOS").lat, A("KBOS").lon], [A("KATL").lat, A("KATL").lon]]) && !pathEnters(zdc, [[A("KORD").lat, A("KORD").lon], [A("KDFW").lat, A("KDFW").lon]]), "pathEnters");
+  // Unknown boundary: only hand-added callsigns.
+  const none = makeArtccWatch("ZZZ", null, ["n1"]);
+  assert(!matchFlight(none, "UAL1", "", { geo: { A } }, out) && matchFlight(none, "N1", "", {}, out), "no boundary: watched callsigns only");
+  // Through deriveFlights.
+  const feed = { pilots: [
+    { callsign: "UAL1", latitude: iad.lat, longitude: iad.lon, altitude: 300, groundspeed: 0, heading: 0, transponder: "1200", flight_plan: out },
+    { callsign: "JBU1", latitude: iad.lat - 0.3, longitude: iad.lon + 0.5, altitude: 35000, groundspeed: 450, heading: 200, transponder: "1200", flight_plan: jfkMia },
+    { callsign: "JBU3", latitude: fl.lat, longitude: fl.lon, altitude: 35000, groundspeed: 450, heading: 200, transponder: "1200", flight_plan: jfkMia },
+    { callsign: "AAL1", latitude: 36, longitude: -97, altitude: 35000, groundspeed: 450, heading: 200, transponder: "1200", flight_plan: far },
+  ], prefiles: [{ callsign: "DAL1", flight_plan: over }] };
+  let rows = deriveFlights({ W: CW, A, idx }, feed, new Map(), T0);
+  assert(rows.map(r => r.callsign).sort().join() === "DAL1,JBU1,UAL1", "board: out of, through, and filed through ZDC");
+  assert(rows.find(r => r.callsign === "JBU1").via === "thru" && rows.find(r => r.callsign === "UAL1").via === "dep", "board via");
+  rows = deriveFlights({ W: CW, A, idx, dir: "thru" }, feed, new Map(), T0);
+  assert(rows.map(r => r.callsign).sort().join() === "DAL1,JBU1", "overflights toggle");
+  // Sectors.
+  const secs = Object.fromEntries(["low", "high", "uta"].map(n => [n.toUpperCase(), artccSectors(geo(`artcc-sectors-${n}`), "ZDC")]));
+  assert(secs.HIGH.length > 5 && secs.HIGH.every(x => x.id.startsWith("ZDC")), "ZDC high sectors");
+  assert(stratumFor(10000) === "LOW" && stratumFor(30000) === "HIGH" && stratumFor(37000) === "UTA", "strata");
+  const sh = sectorAt(secs, iad.lat - 0.3, iad.lon + 0.5, 30000);
+  assert(sh && sh.stratum === "HIGH" && sh.id.startsWith("ZDC"), "the high sector a flight is in");
+  assert(!sectorAt(secs, A("KORD").lat, A("KORD").lon, 30000), "outside ZDC: no sector");
+  // Demo: many airlines, in, out and across.
+  const DW = makeArtccWatch("ZDC", zdc);
+  DW.hubs = ["KIAD", "KDCA", "KBWI", "KRIC"];
+  const st = createDemoStore(DW, OPS, A);
+  st.start();
+  const dr = deriveFlights({ W: DW, A, idx }, st.getFeed(), new Map(), Date.now());
+  st.stop();
+  assert(dr.length >= 15 && new Set(dr.map(r => r.callsign.slice(0, 3))).size >= 3, "demo ARTCC board: several airlines");
+  assert(dr.some(r => r.via === "thru") && dr.some(r => r.via === "dep") && dr.some(r => r.via === "arr"), "demo: in, out and overflights");
 }
 
 /* ---------- VATUSA OIS TMIs ---------- */

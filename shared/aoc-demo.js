@@ -12,7 +12,7 @@
  * network for two minutes, and two are not on Hoppie. Simulated pilots send
  * requests and answer telex that ask for a reply. Nothing leaves the browser.
  */
-import { applyOp, bearing, distNm, emptyState, gcPoint, movePoint, zulu } from "./aoc-core.js";
+import { applyOp, bearing, distNm, emptyState, gcPoint, movePoint, pathEnters, zulu } from "./aoc-core.js";
 
 const TICK_MS = 1000;
 export const AIR_ACCEL = 8;
@@ -39,18 +39,23 @@ function minToHhmm(min) {
 /**
  * @param W watch (makeWatch)
  * @param info the operator's entry in operators.json, or null; for an airport
- *   watch (W.kind "airport"), the whole operators.json, to fly many airlines
+ *   or ARTCC watch (W.kind "airport" / "artcc"), the whole operators.json, to fly
+ *   many airlines. An ARTCC watch flies to and from W.hubs (airports inside
+ *   it), and some flights across it.
  * @param A icao -> {lat, lon} | null
  * @param routes optional {text(dep, arr) -> route string or "", path(dep, arr, route) -> [[lat, lon]…] or null}
  */
 export function createDemoStore(W, info, A, routes = null) {
   const code = W.code || "DMO";
   // Airport watch: every flight starts or ends at the field, flown by many airlines.
-  const airportMode = W.kind === "airport";
+  const artccMode = W.kind === "artcc";
+  const airportMode = W.kind === "airport" || artccMode;
   const carriers = airportMode ? Object.entries(info || {}).filter(([c, o]) => /^[A-Z]{3}$/.test(c) && o && o.fleet) : [];
-  const hubs = airportMode ? [W.airport].filter(A) : ((info && info.hubs) || []).filter(A);
+  const hubs = artccMode ? (W.hubs || []).filter(A) : airportMode ? [W.airport].filter(A) : ((info && info.hubs) || []).filter(A);
   const hubList = hubs.length ? hubs : US_AIRPORTS.filter(A).slice(0, 8);
   const pool = [...new Set([...hubList, ...US_AIRPORTS.filter(A)])];
+  // ARTCC: airports outside it, for overflights.
+  const outside = artccMode && W.area ? pool.filter(c => !(W.low || W.area).contains(A(c).lat, A(c).lon)) : [];
   const fleet = (!airportMode && info && info.fleet) || GENERIC_FLEET;
   const regionals = [...W.family].filter(([, f]) => !f.shared).map(([p]) => p);
   const sharedRegional = [...W.family].find(([, f]) => f.shared);
@@ -102,6 +107,16 @@ export function createDemoStore(W, info, A, routes = null) {
   }
 
   function pickRoute(reg) {
+    // ARTCC: about a third of the flights cross it without landing.
+    if (outside.length > 1 && Math.random() < 0.35) {
+      for (let k = 0; k < 80; k++) {
+        const dep = pick(outside), arr = pick(outside);
+        if (dep === arr) continue;
+        const d = distNm(A(dep).lat, A(dep).lon, A(arr).lat, A(arr).lon);
+        if (d < 300 || d > 2600) continue;
+        if (pathEnters(W.area, [[A(dep).lat, A(dep).lon], [A(arr).lat, A(arr).lon]])) return { dep, arr, dist: d };
+      }
+    }
     for (let k = 0; k < 40; k++) {
       const dep = Math.random() < 0.55 ? pick(hubList) : pick(pool);
       const arr = hubList.includes(dep) ? pick(pool) : pick(hubList);

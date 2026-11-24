@@ -120,8 +120,8 @@ Everything a TMU for those ARTCC(s) can do, **plus**:
 ### Dispatcher (Dispatch Center)
 
 - A separate list, not a whitelist role: it grants telex, notes and alert acknowledgements on the
-  **Airline Ops** page (`aoc.html`) for the operator codes listed (`AAL`, `DAL`, a virtual airline's
-  own code, or `*`), and nothing else. A dispatcher who is not also whitelisted stays **Basic** everywhere else.
+  **Airline Ops** page (`aoc.html`) for the codes listed (`AAL`, `DAL`, a virtual airline's
+  own code; an airport board's ICAO code, `KDFW`; an ARTCC board's id, `ZDC`; or `*`), and nothing else. A dispatcher who is not also whitelisted stays **Basic** everywhere else.
 - Only global admins grant or remove it (Admin Access → **Dispatch Center dispatchers**).
 - Session claims and `/auth/session` carry `dispatchOps`. vUSAlink-hub (`/hub/aoc/*`) checks
   `/auth/session` live (60 s cache), so a grant or revoke applies without signing in again.
