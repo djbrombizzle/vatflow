@@ -274,7 +274,7 @@ console.log(`test-ramp-core: ${passed} passed`);
 /* ---------- KIAD, and the airport index ---------- */
 {
   const index = JSON.parse(readFileSync(new URL("../data/ramp/index.json", import.meta.url)));
-  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF,KDTW,KMEM", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN, KSDF, KDTW and KMEM");
+  assert(index.airports.map(a => a.icao).join() === "KCVG,KIAD,KDCA,KRDU,KMCO,KIAH,KAUS,KDFW,KMIA,KFLL,KIND,KATL,KJAX,KDEN,KSDF,KDTW,KMEM,KJFK", "index lists KCVG, KIAD, KDCA, KRDU, KMCO, KIAH, KAUS, KDFW, KMIA, KFLL, KIND, KATL, KJAX, KDEN, KSDF, KDTW, KMEM and KJFK");
   for (const a of index.airports) {
     const A = indexLayout(JSON.parse(readFileSync(new URL(`../data/ramp/${a.icao}.json`, import.meta.url))));
     assert(A.icao === a.icao, `${a.icao} file matches the index`);
@@ -830,5 +830,22 @@ const C2 = () => indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KCVG.
   assert(lon("955") < lon("652") && lon("652") < lon("205") && lon("205") < lon("122"), "KMEM ramps west to east");
   assert(composeStandTelex(D, "205") === "KMEM FEDEX RAMP: PARK STAND 205.", "KMEM telex: " + composeStandTelex(D, "205"));
   assert(suggestStand(D, [], operatorFor(D, "FDX123", ""), "FDX123").group === "FedEx", "KMEM suggests a FedEx stand for FDX");
+}
+/* ---------- KJFK ---------- */
+{
+  const J = indexLayout(JSON.parse(readFileSync(new URL("../data/ramp/KJFK.json", import.meta.url))));
+  const n = r => J.stands.filter(s => s.ramp === r).length;
+  assert(J.stands.length === 204 && n("JFK-T1") === 11 && n("JFK-T4A") === 22 && n("JFK-T4BW") === 15 && n("JFK-T4BE") === 19 &&
+    n("JFK-T4S") === 18 && n("JFK-T4W") === 8 && n("JFK-T7") === 10 && n("JFK-ZULU") === 15, "KJFK 204 stands: T1, T4 A / B, T4 hardstands, T7, Zulu");
+  assert(J.stands.every(s => !s.approx && s.pushTo), "every KJFK stand has coordinates and a push lane");
+  // Terminal gates share numbers, so T1 / T7 / T8 / Building 23 carry a terminal prefix; T4 and T5 keep the chart's own.
+  assert(["T1-1", "T7-7W", "T8-47X", "B23-4", "A2B", "B55", "79A", "501", "601", "H7A", "RON-E"].every(id => J.standById.has(id)), "KJFK stand ids");
+  const t = id => composeStandTelex(J, id);
+  assert(t("B32").includes("CTC TERMINAL 4 RAMP 131.85") && t("B33").includes("CTC TERMINAL 4 RAMP 130.775") && t("A4").includes("130.775") && t("88").includes("131.85"),
+    "KJFK T4 131.85 west of the B concourse, 130.775 east: " + t("B32"));
+  assert(["A12", "A13"].includes(entrySpotFor(J, J.standById.get("B32")).id) && ["A8", "A10", "A11"].includes(entrySpotFor(J, J.standById.get("A4")).id), "KJFK T4 entry spots by side");
+  assert(t("T1-4").includes("130.275") && t("T7-3").includes("128.925") && t("T8-38").includes("129.2") && !t("512").includes("CTC"), "KJFK T1 / T7 / T8 freqs, none for T5");
+  const want = { DAL1: "JFK-T4", JBU1: "JFK-T5", AAL1: "JFK-T8", AFR1: "JFK-T1", UAL1: "JFK-T7" };
+  for (const [cs, ramp] of Object.entries(want)) assert(suggestStand(J, [], operatorFor(J, cs, ""), cs).ramp.startsWith(ramp), `KJFK ${cs} on ${ramp}`);
 }
 console.log(`test-ramp-core (with demo): ${passed} passed`);
