@@ -177,6 +177,8 @@ a{color:inherit}
 #statusStrip .dot.on{background:var(--green)}
 #statusStrip .dot.busy{background:var(--yellow)}
 #statusStrip .dot.err{background:var(--red)}
+.takeover{margin-left:8px;padding:0 6px;border:1px solid var(--amber,#e8a838);color:var(--amber,#e8a838);cursor:pointer}
+.takeover:hover{background:rgba(232,168,56,.2)}
 #statusStrip .sep{opacity:.4}
 #statusStrip .field{display:flex;align-items:center;gap:4px}
 #statusStrip .field input{background:#0a0a0a;border:1px solid #555;color:#eee;font:inherit;padding:1px 5px;width:56px}
@@ -3696,6 +3698,7 @@ function buildPacket(min,mrn,ra,msg){return `/data2/${min}/${mrn||''}/${ra}/${ms
 function parsePacket(pk){const p=pk.split('/');if(p[1]!=='data2')return null;
   return {min:p[2],mrn:p[3],ra:p[4],message:p.slice(5).join('/')};}
 function configured(){return settings.logon&&settings.station;}
+let hubTakeover=false;   // TAKE OVER clicked: the next hub call takes this CID from another EDST session
 let hubArtcc='';   // ARTCC the hub resolved from our VATSIM position (hub mode)
 function oauthSignedIn(){return !!(window.VatflowAuth&&window.VatflowAuth.isSignedIn());}
 function syncCidFromOAuth(){
@@ -3724,6 +3727,7 @@ async function api(path,extra){
     if(!ep)throw new Error('unknown hub path '+path);
     body={cid,token:settings.hubToken||'',sid:SID,verifyToken:verifyTokenFor(cid),
       vatflowToken:(window.VatflowAuth&&window.VatflowAuth.getStoredToken())||''};
+    if(hubTakeover){body.takeover=true;hubTakeover=false;}
     if(path==='/api/poll'){body.sinceGi=extra.sinceGi!=null?extra.sinceGi:giSince;}
     if(path==='/api/send'){body.to=extra.to||'';body.packet=extra.packet||'';}
     if(path==='/api/conn'){body.to=extra.to||'';body.action=extra.action||'';}
@@ -5048,9 +5052,17 @@ function logMsg(kind,who,text){
   recordHist(csFromWho(who),kind,text);
 }
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
-function setHoppie(ok,t){document.getElementById('connDot').className='dot '+(ok?'on':'err');document.getElementById('statusText').textContent=t||'';
+function setHoppie(ok,t){document.getElementById('connDot').className='dot '+(ok?'on':'err');document.getElementById('statusText').textContent=t||'';if(!ok)addTakeover(document.getElementById('statusText'),t);
   ['statSat','crcStatSat'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',!!ok);});}
-function setVat(s,t){document.getElementById('vatDot').className='dot '+(s==='on'?'on':s==='busy'?'busy':s==='err'?'err':'');document.getElementById('vatText').textContent=t||'';}
+function setVat(s,t){document.getElementById('vatDot').className='dot '+(s==='on'?'on':s==='busy'?'busy':s==='err'?'err':'');
+  const el=document.getElementById('vatText');el.textContent=t||'';if(s==='err')addTakeover(el,t);}
+// The hub gives a CID to one EDST session at a time (another browser, CRC tab or PC has it): offer to take it.
+function addTakeover(el,t){
+  if(!el||!/another session/i.test(t||'')||listMode())return;
+  const b=document.createElement('span');b.className='takeover';b.textContent='TAKE OVER';b.title='Use this EDST for your CID; the other session stops getting data';
+  b.onclick=(e)=>{e.stopPropagation();hubTakeover=true;setVat('busy','TAKING OVER ...');refreshVatsim(true);};
+  el.appendChild(b);
+}
 
 //============================================================ boot
 renderBoard();
