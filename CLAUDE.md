@@ -36,6 +36,15 @@ free to change.
     Commands from `command()` (`source` crc/host) pass `{noEcho:true}` so CRC's own commands are never typed back
     into it. Only set `crc` where CRC has the same command: the app types it for real, and CRC amends the flight
     plan on vNAS. Not posted in a CRC browser tab (no `setHost` call).
+  - Plans Display (PLANS; `shared/edst-plans.js`, tests `node scripts/test-edst-plans.mjs`): its amendments post
+    `{t:'crcEcho', text, amend:true}` once per line from `crcAmendLines`: `QZ`/`QQ`, `QU` (direct-to), and
+    `AM {FLID} RTE|SPD|TYP|BCN|RMK` (CRC's AM takes one field per command). The app types only A-Z, 0-9, space and
+    `. / + -` (`CrcType.VkFor`, `+` since v0.3.6); `planSendAmend` doesn't post lines with other characters.
+  - GPD (ERAM Graphic Plan Display): `shared/edst-gpd.js` (data block text, range, future time, block placement;
+    tests `node scripts/test-edst-gpd.mjs`) and `shared/edst-gpd-map.js` (Leaflet map + HTML/SVG aircraft overlay).
+    Its menus reuse the Plans Display popup (`#plansub`, `openPlanSub`); amendments go through `planSendAmend`, so
+    they echo to CRC the same way. GPD state is declared with the board state near the top (refreshGpdMap runs from
+    renderBoard during start-up). The GPD is a window: it is not in `menusOpen()` and doesn't close on outside clicks.
   - AMEND buttons (ALT, CODE, HDG, SPD, route menus): `amendEntry` applies the selection to the EDST's own state
     (assigned alt / heading / speed) with no CPDLC uplink, and posts `{t:'crcEcho', text, amend:true}`, which the
     app types even with CRC ECHO off. Works for aircraft not on CPDLC. Nothing selected: AMEND keeps its old job

@@ -58,6 +58,9 @@ assert(eb && eb.r >= 1, "UAL2 has red alert");
 assert(ea.y === 0, "no yellow when red");
 assert(routeAlertSeverity(ea) === "r", "route severity red");
 assert(ea.segments && ea.segments.some(s => s.sev === "r" && s.coords.length >= 2), "red conflict has segment");
+assert(ea.problems && ea.problems.length === 1 && ea.problems[0].cs === "UAL2" && ea.problems[0].sev === "r",
+  "problem line names the red partner");
+assert(eb.problems[0].cs === "AAL1" && eb.problems[0].tMin === ea.problems[0].tMin, "partner gets the same problem time");
 
 // 8 NM parallel same heading → yellow
 const c = { cs: "DAL3", lat: 30.0, lon: -81.0, alt: 350, gs: 450, hdg: 90, routeFixes: [] };
@@ -73,6 +76,7 @@ const d = {
 const map2 = probeConflicts([c, d], {});
 assert(map2.get("DAL3").y >= 1 && map2.get("DAL3").r === 0, "8 NM is yellow");
 assert(map2.get("JBU4").y >= 1, "partner also yellow");
+assert(map2.get("DAL3").problems.some(p => p.cs === "JBU4" && p.sev === "y" && p.tMin >= 0), "yellow problem with a time");
 
 // Head-on closing from ~15 NM → red; highlight only near the conflict, not full 40 NM DR path
 const h1 = { cs: "SWA1", lat: 35.0, lon: -100.0, alt: 340, gs: 480, hdg: 90, routeFixes: [] };

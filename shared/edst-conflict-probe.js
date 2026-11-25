@@ -317,6 +317,11 @@ function pairConflicts(sa, sb) {
   return { red: bestRed, yellow: bestYel, redTimes, yelTimes };
 }
 
+/** Earliest conflict time (minutes from now) in a list of hits. */
+function firstTime(hits) {
+  return hits.length ? Math.min(...hits.map((h) => h.t)) : 0;
+}
+
 /** Collapse discrete hit times into [tStart,tEnd] runs (gap ≤ 1 step). */
 function timeRuns(hits) {
   if (!hits.length) return [];
@@ -369,6 +374,9 @@ function ingestSua(geo) {
 
 export function isSuaReady() { return suaLoaded; }
 
+/** Loaded SAA polygons ({rings, floorFt, ceilFt, type, name}) for the GPD map. */
+export function getSuaPolys() { return suaPolys; }
+
 export function setSuaFeatures(geo) {
   return ingestSua(geo && geo.type === "FeatureCollection" ? geo : { features: geo || [] });
 }
@@ -403,6 +411,7 @@ function countSaaHits(samples) {
   let anyMuted = false;
   const seen = new Set();
   const times = [];
+  const hits = [];                 // first hit per SAA: {name, tMin, muted}
   for (const s of samples) {
     const altFt = flToFt(s.altFl);
     let hit = false;
@@ -415,18 +424,21 @@ function countSaaHits(samples) {
         if (!seen.has(i)) {
           seen.add(i);
           count++;
+          hits.push({ name: poly.name || "SAA", tMin: s.tMin, muted: !!s.projected });
           if (s.projected) anyMuted = true;
         }
       }
     }
     if (hit) times.push({ t: s.tMin, muted: !!s.projected });
   }
-  return { count, muted: anyMuted && count > 0, times };
+  return { count, muted: anyMuted && count > 0, times, hits };
 }
 
 /**
  * Probe a list of aircraft.
- * @returns {Map<string, {r,y,a,rMuted,yMuted,aMuted,status,partners,segments}>}
+ * @returns {Map<string, {r,y,a,rMuted,yMuted,aMuted,status,partners,problems,segments}>}
+ *   problems: [{cs (partner callsign, or SAA name), sev:'r'|'y'|'a', tMin (minutes to the conflict), muted}],
+ *   soonest first (Plans Display problem lines)
  *   segments: [{sev:'r'|'y'|'a', muted, coords:[[lat,lon],...]}]
  */
 export function probeConflicts(aircraft, ctx = {}) {
@@ -453,6 +465,7 @@ export function probeConflicts(aircraft, ctx = {}) {
       rMuted: false, yMuted: false, aMuted: false,
       status,
       partners: { r: [], y: [] },
+      problems: [],
       segments: [],
     });
 
@@ -473,6 +486,9 @@ export function probeConflicts(aircraft, ctx = {}) {
         const ea = out.get(ca), eb = out.get(cb);
         ea.r++; eb.r++;
         ea.partners.r.push(cb); eb.partners.r.push(ca);
+        const tr = firstTime(hit.redTimes);
+        ea.problems.push({ cs: cb, sev: "r", tMin: tr, muted: !!hit.red.muted });
+        eb.problems.push({ cs: ca, sev: "r", tMin: tr, muted: !!hit.red.muted });
         if (hit.red.muted) {
           if (ea.r === 1) ea.rMuted = true;
           if (eb.r === 1) eb.rMuted = true;
@@ -487,6 +503,9 @@ export function probeConflicts(aircraft, ctx = {}) {
         const ea = out.get(ca), eb = out.get(cb);
         ea.y++; eb.y++;
         ea.partners.y.push(cb); eb.partners.y.push(ca);
+        const ty = firstTime(hit.yelTimes);
+        ea.problems.push({ cs: cb, sev: "y", tMin: ty, muted: !!hit.yellow.muted });
+        eb.problems.push({ cs: ca, sev: "y", tMin: ty, muted: !!hit.yellow.muted });
         if (hit.yellow.muted) {
           if (ea.y === 1) ea.yMuted = true;
           if (eb.y === 1) eb.yMuted = true;
@@ -506,6 +525,8 @@ export function probeConflicts(aircraft, ctx = {}) {
     const e = out.get(cs);
     e.a = saa.count;
     e.aMuted = !!saa.muted;
+    for (const h of saa.hits || []) e.problems.push({ cs: h.name, sev: "a", tMin: h.tMin, muted: h.muted, saa: true });
+    e.problems.sort((x, y) => x.tMin - y.tMin);
     for (const run of timeRuns(saa.times)) {
       mergeSeg(e, "a", run.muted, segmentCoords(samples, run.tStart, run.tEnd));
     }

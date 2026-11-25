@@ -721,90 +721,69 @@ td.eh-bk{text-align:center;min-width:14px}
 #holdmenu .hold-foot-btn.on{background:#1a1a1a;color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
 #holdmenu .hold-foot-btn:disabled,#holdmenu .hold-foot-btn.disabled{opacity:.45;cursor:default;pointer-events:none}
 
-/* EDST GPD (Graphical Plan Display) */
+/* EDST GPD: Graphic Plan Display (ERAM TI 6110.101 ch. 5) */
 #gpdmenu.edst-pop{
-  position:absolute;z-index:80;width:min(920px,96vw);height:min(560px,72vh);
-  display:flex;flex-direction:column;
-  background:#0a0a0a;border:1px solid #cfcfcf;
-  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
-  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
+  position:absolute;z-index:80;width:min(1040px,96vw);height:min(660px,80vh);min-width:min(760px,96vw);min-height:320px;
+  display:flex;flex-direction:column;resize:both;overflow:hidden;
+  background:#000;border:2px solid #cfcfcf;color:#f0f0ec;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.85);
 }
+#gpdmenu.future{outline:5px solid #fff}
 #gpdmenu.hidden{display:none!important}
 #gpdmenu .edst-pop-hdr{
-  display:flex;justify-content:space-between;align-items:center;flex:0 0 auto;
-  background:#5a5a5a;color:#fff;padding:3px 6px;border-bottom:1px solid #cfcfcf;
-  touch-action:none;cursor:move;user-select:none;
+  flex:0 0 auto;display:flex;align-items:center;background:var(--teal);color:var(--teal-ink);padding:2px 8px;
+  border-bottom:1px solid #cfcfcf;touch-action:none;cursor:move;user-select:none;font-weight:bold;letter-spacing:.3px;
 }
-#gpdmenu .edst-pop-hdr .title{letter-spacing:.4px;font-weight:normal}
-#gpdmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px;color:#fff}
-#gpdmenu .edst-pop-hdr .x:hover{background:#333}
-#gpdMap{
-  flex:1 1 auto;min-height:0;background:#000;position:relative;
-}
+#gpdmenu .edst-pop-hdr .title{flex:1;text-align:center}
+#gpdmenu .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#gpdmenu .edst-pop-hdr .x:hover{background:rgba(0,0,0,.2)}
+#gpdmenu .gpd-bar{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;padding:3px 5px 0;border-bottom:1px solid #666}
+#gpdmenu .gpd-row{display:flex;flex-wrap:wrap;gap:3px;align-items:flex-end}
+#gpdmenu .gpd-row .et-btn{border:1px solid #cfcfcf;background:#000;color:#fff;font:inherit;font-size:12px;padding:1px 7px;cursor:pointer;white-space:nowrap}
+#gpdmenu .gpd-row .et-btn:hover:not(.disabled){background:#1a1a1a}
+#gpdmenu .gpd-row .et-btn.disabled{color:#5c5c5c;border-color:#4a4a4a;cursor:default}
+#gpdmenu .gpd-row .et-btn.on{background:#f0f0ec;color:#000}
+#gpdmenu .gpd-ft{margin-left:auto;display:flex;align-items:flex-end;gap:6px;padding-right:4px}
+#gpdmenu .gpd-ft .lbl{font-size:12px}
+#gpdmenu .gpd-ft-track{position:relative;width:180px;height:11px;border:1px solid #cfcfcf;margin-top:13px;cursor:pointer}
+#gpdmenu .gpd-ft-thumb{position:absolute;top:1px;left:0;width:14px;height:7px;background:#cfcfcf;cursor:grab}
+#gpdmenu .gpd-ft-thumb .v{position:absolute;top:-15px;left:50%;transform:translateX(-50%);color:#fff;font-size:11px}
+#gpdmenu .gpd-scale{height:22px;padding-left:2px}
+#gpdmenu .gpd-scale.hidden{display:none}
+#gpdMap{flex:1 1 auto;min-height:0;position:relative;background:#000}
+#gpdmenu .leaflet-container{background:#000;font:inherit;cursor:default}
+#gpdmenu.recenter .leaflet-container{cursor:crosshair}
+#gpdMap .gpd-points{position:absolute;left:0;top:0;z-index:450;pointer-events:none}
+#gpdMap .gpd-overlay{position:absolute;inset:0;z-index:650;pointer-events:none;overflow:hidden}
+#gpdMap .gpd-svg{position:absolute;left:0;top:0}
+#gpdMap .gpd-db{position:absolute;white-space:pre;line-height:13px;font-size:12px}
+#gpdMap .gpd-db .fld,#gpdMap .gpd-db .ai,#gpdMap .gpd-ldb,#gpdMap .gpd-tl{pointer-events:auto;cursor:pointer}
+#gpdMap .gpd-db .fld:hover,#gpdMap .gpd-ldb:hover,#gpdMap .gpd-tl:hover{outline:1px solid #777}
+#gpdMap .gpd-db .acid.sel{background:#f0f0ec;color:#000}
+#gpdMap .gpd-db .ai{display:inline-block;min-width:7px}
+#gpdMap .gpd-db .ai.r{color:#ff3b3b}
+#gpdMap .gpd-db .ai.y{color:#ffd400}
+#gpdMap .gpd-db .ai.a{color:#ff9a3c}
+#gpdMap .gpd-db .ai.muted{opacity:.55}
+#gpdMap .gpd-db .ai.ack{color:#f0f0ec}
+#gpdMap .gpd-db .ai.st{color:#c8913a}
+#gpdMap .gpd-db .ai.sel{background:#f0f0ec;color:#000}
+#gpdMap .gpd-ldb{position:absolute;font-size:11px}
+#gpdMap .gpd-adsb{position:absolute;color:#ff7f50;font-weight:bold;font-size:12px}
+#gpdMap .gpd-tl{position:absolute;font-size:11px;white-space:nowrap}
+#gpdMap .gpd-tl.sel{background:#f0f0ec;color:#000!important}
 #gpdmenu .gpd-foot{
-  flex:0 0 auto;display:flex;align-items:center;gap:12px;
-  padding:3px 8px;background:#1a1a1a;border-top:1px solid #555;color:#aaa;font-size:11px;
+  flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:2px 8px;border-top:1px solid #444;color:#8a9088;font-size:11px;
 }
 #gpdmenu .gpd-foot b{color:#d2d2cd;font-weight:normal}
-#gpdmenu .leaflet-container{background:#000;font:inherit}
-#gpdmenu .leaflet-control-zoom a{
-  background:#1a1a1a;color:#ddd;border-color:#555!important;
-}
-#gpdmenu .leaflet-control-zoom a:hover{background:#2a2a2a}
-#gpdmenu .leaflet-bar{border:1px solid #555!important;box-shadow:0 2px 8px rgba(0,0,0,.6)}
-#gpdmenu .leaflet-control-attribution{display:none!important}
-#gpdmenu .gpd-artcc-label span,#gpdmenu .gpd-apt-label span,#gpdmenu .gpd-fix-label span,#gpdmenu .gpd-tip{
-  color:#9fe6e0;font:11px 'EDST','EDSTv2',Consolas,monospace;
-  text-shadow:0 0 4px #000,0 0 4px #000;
-}
-#gpdmenu .gpd-tip{background:rgba(0,0,0,.85);border:1px solid #555;padding:3px 6px}
-#gpdmenu .gpd-tools{
-  flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:3px 6px;
-  background:#1a1a1a;border-bottom:1px solid #444;position:relative;z-index:5;
-}
-#gpdmenu .gpd-tools .et-btn{
-  border:1px solid #8a8a8a;color:#d6d6d6;background:#000;padding:2px 10px;
-  font:inherit;cursor:pointer;
-}
-#gpdmenu .gpd-tools .et-btn:hover{background:#1a1a1a}
-#gpdmenu .gpd-tools .et-btn.active{background:#7d7d7d;color:#0a0a0a;border-color:#9a9a9a}
-#gpdmenu .gpd-tools .et-btn.open{background:#3a3a3a;border-color:#aaa}
-/* Map Options: in-window pulldown under the GPD toolbar (not a separate edst-pop) */
-#gpdmapopts{
-  position:absolute;z-index:30;top:calc(100% + 1px);left:6px;width:220px;
-  background:#000;border:1px solid #cfcfcf;
-  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;
-  box-shadow:0 8px 24px rgba(0,0,0,.85);color:#f0f0ec;
-}
-#gpdmapopts.hidden{display:none!important}
-#gpdmapopts .gpd-opt-hdr{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:#5a5a5a;color:#fff;padding:2px 6px;border-bottom:1px solid #cfcfcf;
-  user-select:none;
-}
-#gpdmapopts .gpd-opt-hdr .title{letter-spacing:.4px}
-#gpdmapopts .gpd-opt-hdr .x{cursor:pointer;padding:0 4px}
-#gpdmapopts .gpd-opt-hdr .x:hover{background:#333}
-#gpdmapopts .gpd-opt-body{padding:8px 10px}
-#gpdmapopts .gpd-opt-label{
-  font-size:11px;letter-spacing:.06em;color:#aeb6af;margin-bottom:6px;
-}
-#gpdmapopts .gpd-opt-seg{display:flex;border:1px solid #8a8a8a}
-#gpdmapopts .gpd-opt-seg button{
-  flex:1;border:0;border-right:1px solid #8a8a8a;background:#2a2a2a;color:#ddd;
-  font:inherit;padding:6px 4px;cursor:pointer;
-}
-#gpdmapopts .gpd-opt-seg button:last-child{border-right:0}
-#gpdmapopts .gpd-opt-seg button:hover{background:#3a3a3a}
-#gpdmapopts .gpd-opt-seg button.on{background:#6b3a3a;color:#fff}
-#gpdmapopts .gpd-opt-hint{
-  margin-top:8px;font-size:10px;color:#8a9088;line-height:1.4;
-}
-#gpdmapopts .gpd-opt-toggles{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-#gpdmapopts .gpd-opt-toggles label{
-  display:flex;align-items:center;gap:8px;cursor:pointer;color:#d2d2cd;font-size:12px;
-}
-#gpdmapopts .gpd-opt-toggles input{accent-color:#9a9a9a}
+#gpdmenu .gpd-foot #gpdFootMode{color:#7fdcff}
+#edstbar #btnNonAdsb{cursor:pointer}
+#edstbar #btnNonAdsb.active{background:#ff7f50;color:#000;border-color:#ff7f50}
+#plansub .ps-check{display:block;padding:2px 10px;cursor:pointer;white-space:nowrap}
+#plansub .ps-cols{display:grid;grid-template-columns:1fr 1fr;max-height:320px}
+#plansub .ps-saa{max-height:300px}
+#plansub .ps-saa>div{white-space:pre}
+#plansub .ps-saa>div.hot{color:#ff9a3c}
 
 #edstbar .etb-btn.active-gpd{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
 
@@ -1215,6 +1194,87 @@ td.eh-bk{text-align:center;min-width:14px}
 #addform input{background:#0a0a0a;border:1px solid #555;color:#eee;font:inherit;padding:3px 6px}
 #addform input.route{flex:1;min-width:160px}
 #addform .tb-btn{border:1px solid #8a8a8a;background:#111;color:#ddd;font:inherit;padding:3px 10px;cursor:pointer}
+
+/* EDST PLANS DISPLAY (ERAM TI 6110.101 ch. 6) */
+#plansmenu.edst-pop{
+  position:absolute;z-index:68;width:min(980px,96vw);height:min(400px,58vh);min-width:min(700px,96vw);min-height:150px;
+  display:flex;flex-direction:column;resize:both;overflow:hidden;
+  background:#000;border:1px solid #cfcfcf;color:#f0f0ec;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.85);
+}
+#plansmenu.hidden,#plansub.hidden{display:none!important}
+#plansmenu .edst-pop-hdr,#plansub .edst-pop-hdr{
+  display:flex;align-items:center;background:var(--teal);color:var(--teal-ink);padding:3px 8px;
+  border-bottom:1px solid #cfcfcf;touch-action:none;cursor:move;user-select:none;font-weight:bold;letter-spacing:.3px;
+}
+#plansmenu .edst-pop-hdr .title,#plansub .edst-pop-hdr .title{flex:1;text-align:center}
+#plansmenu .edst-pop-hdr .x,#plansub .edst-pop-hdr .x{cursor:pointer;padding:0 4px}
+#plansmenu .edst-pop-hdr .x:hover,#plansub .edst-pop-hdr .x:hover{background:rgba(0,0,0,.2)}
+#plansmenu .pd-bar{display:flex;flex-wrap:wrap;gap:4px;padding:4px 6px;border-bottom:1px solid #666}
+#plansmenu .pd-bar .et-btn{border:1px solid #cfcfcf;background:#000;color:#fff;font:inherit;font-size:12px;padding:2px 9px;cursor:pointer}
+#plansmenu .pd-bar .et-btn:hover:not(.disabled){background:#1a1a1a}
+#plansmenu .pd-bar .et-btn.disabled{color:#5c5c5c;border-color:#4a4a4a;cursor:default}
+#plansmenu .pd-list{flex:1 1 auto;overflow:auto;padding:2px 0}
+#plansmenu .pd-empty{padding:22px 16px;color:#777;text-align:center}
+#plansmenu .pd-row{
+  display:grid;grid-template-columns:var(--pd-adsb,0px) minmax(200px,max-content) 1fr auto;column-gap:10px;
+  padding:5px 10px 7px;border-bottom:1px solid #1c1c1c;
+}
+#plansmenu .pd-adsb{color:#ff7f50;font-weight:bold}
+#plansmenu .pd-id{white-space:nowrap}
+#plansmenu .pd-id .pid{cursor:pointer;padding:0 2px}
+#plansmenu .pd-id.r .pid{color:#ff3b3b}
+#plansmenu .pd-id.y .pid{color:#ffd400}
+#plansmenu .pd-id .pid.sel{background:#f0f0ec;color:#000}
+#plansmenu .pd-own{color:#9a9a9a}
+#plansmenu .pd-body{min-width:0;overflow-wrap:anywhere}
+#plansmenu .pd-dim{color:#8a9088}
+#plansmenu .pd-brown{color:#c8913a}
+#plansmenu .pd-icao{color:#9fe6e0}
+#plansmenu .pd-accept{color:#f0f0ec}
+#plansmenu .pd-reject{color:#ff6b6b}
+#plansmenu .pd-prob{display:flex;gap:28px;align-items:center;cursor:pointer;margin-top:1px}
+#plansmenu .pd-prob .c{min-width:9ch;padding:0 2px}
+#plansmenu .pd-prob .c.sel{background:#f0f0ec;color:#000}
+#plansmenu .pd-prob.r{color:#ff3b3b}
+#plansmenu .pd-prob.y{color:#ffd400}
+#plansmenu .pd-prob.a{color:#ff9a3c}
+#plansmenu .pd-prob.muted{opacity:.6}
+#plansmenu .pd-prob.ack{color:#f0f0ec;opacity:1}
+#plansmenu .pd-new{border:1px solid #ffd400;color:#ffd400;padding:0 7px;margin-right:-18px}
+#plansmenu .pd-side{display:flex;align-items:flex-start}
+#plansmenu .pd-timer{border:1px solid #cfcfcf;padding:3px 12px;color:#f0f0ec}
+#edstbar .etb-btn.active-plans{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
+#plansub.edst-pop{
+  position:absolute;z-index:96;min-width:200px;max-width:min(560px,96vw);
+  background:#000;border:1px solid #cfcfcf;color:#f0f0ec;
+  font-family:'EDST','EDSTv2',Consolas,monospace;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.85);
+}
+#plansub .ps-id{text-align:center;padding:3px 8px;border-bottom:1px solid #444}
+#plansub .ps-item{padding:3px 14px;cursor:pointer}
+#plansub .ps-item:hover:not(.disabled){background:#2a2a2a}
+#plansub .ps-item.disabled{color:#5c5c5c;cursor:default}
+#plansub .ps-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 8px}
+#plansub .ps-foot{justify-content:space-between;border-top:1px solid #333}
+#plansub .ps-btn{border:1px solid #cfcfcf;background:#000;color:#fff;font:inherit;font-size:12px;padding:2px 10px;cursor:pointer}
+#plansub .ps-btn:hover:not(.disabled){background:#1a1a1a}
+#plansub .ps-btn.on{background:#f0f0ec;color:#000}
+#plansub .ps-btn.disabled{color:#5c5c5c;border-color:#4a4a4a;cursor:default}
+#plansub input,#plansub textarea{background:#000;border:1px solid #888;color:#fff;font:inherit;padding:2px 5px}
+#plansub input[readonly]{color:#9a9a9a;border-color:#444}
+#plansub .ps-route{display:block;width:calc(100% - 16px);margin:0 8px 4px;min-width:420px;resize:vertical}
+#plansub .ps-list{max-height:220px;overflow:auto;border-top:1px solid #333}
+#plansub .ps-list>div{padding:1px 14px;cursor:pointer}
+#plansub .ps-list>div:hover{background:#2a2a2a}
+#plansub .ps-list>div.cur{background:#f0f0ec;color:#000}
+#plansub .ps-fixes{display:flex;flex-wrap:wrap;max-height:120px}
+#plansub .ps-fixes>div{padding:1px 8px}
+#plansub .ps-grid{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;padding:6px 8px;align-items:center}
+#plansub .ps-grid textarea{min-width:420px;resize:vertical}
+#plansub .ps-msg{padding:6px 10px;max-width:520px;overflow-wrap:anywhere}
+#plansub .ps-hint{color:#8a9088;font-size:12px;padding:2px 10px 4px}
+#plansub .ps-sect{color:#8a9088;font-size:12px;padding:4px 8px 2px}
+#plansub .ps-err{color:#ff6b6b}
 
 /* CPDLC HIST (datalink log popup) */
 #cpdlchist.edst-pop{
@@ -1713,7 +1773,7 @@ html.list-mode #cpdlcListWin{
     <span class="etb-btn active" id="tabAcl" title="Aircraft List (closes the Departure List)">ACL&nbsp;00</span>
     <span class="etb-btn" id="tabDep" title="Departure List">DEP&nbsp;00</span>
     <span class="etb-btn" id="btnGpd" title="Graphical Plan Display">GPD</span>
-    <span class="etb-btn" data-stub="PLANS">PLANS</span>
+    <span class="etb-btn" id="btnPlans" title="Plans Display: flight plans, trial plans and amendments">PLANS</span>
     <span class="etb-btn" id="btnWx" title="Weather report — METARs">WX<br>REPORT</span>
     <span class="etb-btn sig" id="btnSig" title="SIGMETs for controlling FIR">SIG</span>
     <span class="etb-btn not" id="btnNot" title="NOTAMs for controlling ARTCC">NOT</span>
@@ -1728,7 +1788,7 @@ html.list-mode #cpdlcListWin{
     <span class="etb-stat" data-stub="STATUS">STATUS</span>
     <span class="etb-stat" data-stub="OUTAGE">OUTAGE</span>
     <span class="etb-time"><b id="edstClock">----</b><i id="edstSec">--</i></span>
-    <span class="etb-stat" data-stub="NON-ADSB">NON-<br>ADSB</span>
+    <span class="etb-stat" id="btnNonAdsb" title="Non-ADS-B indicator on the GPD">NON-<br>ADSB</span>
     <span class="etb-stat link-stat hidden" id="statLink" title="vUSALink-Lite">LINK</span>
   <span class="etb-stat" id="statSat" title="CPDLC: lit while the KUSA hub connection is up">SAT<br>COMM</span>
     <span class="etb-stat" id="btnMsgWait" title="Unread CPDLC messages — click to open">MSG<br>WAIT</span>
@@ -1777,7 +1837,7 @@ html.list-mode #cpdlcListWin{
 </div>
 
 <div id="edstTools">
-  <button type="button" class="et-btn" data-stub="Plan Options">Plan Options...</button>
+  <button type="button" class="et-btn" id="btnPlanOptions" title="Plan Options for the selected aircraft (Plans Display)">Plan Options...</button>
   <button type="button" class="et-btn disabled" id="btnHold" title="Select an aircraft row first">Hold...</button>
   <button type="button" class="et-btn disabled" id="btnShow" title="Select an alert box first">Show</button>
   <button type="button" class="et-btn disabled" id="btnShowAll" title="Select an alert box first">Show ALL</button>
@@ -2067,7 +2127,7 @@ html.list-mode #cpdlcListWin{
     <button type="button" class="rt-tool stub" id="rtAprAll" title="Coming soon">ALL</button>
   </div>
   <div class="rt-foot">
-    <button type="button" class="rt-tool stub" title="Coming soon">PREVIOUS ROUTE</button>
+    <button type="button" class="rt-tool" id="rtPrevRoute" title="Post the previous route to the Plans Display">PREVIOUS ROUTE</button>
     <button type="button" class="rt-tool stub" title="Coming soon">TFM REROUTE MENU</button>
   </div>
 </div>
@@ -2263,43 +2323,44 @@ html.list-mode #cpdlcListWin{
   </div>
 </div>
 
-<!-- EDST GPD (Graphical Plan Display) -->
-<div id="gpdmenu" class="edst-pop hidden">
+<!-- EDST GPD: Graphic Plan Display (ERAM TI 6110.101 ch. 5; menus in #plansub) -->
+<div id="gpdmenu" class="edst-pop hidden" aria-label="Graphic Plan Display">
   <div class="edst-pop-hdr">
-    <span class="title" id="gpdTitle">GPD — GRAPHICAL PLAN DISPLAY</span>
+    <span class="title" id="gpdTitle">Graphic Plan Display - Current Time</span>
     <span class="x" data-close="gpdmenu" title="Close">X</span>
   </div>
-  <div class="gpd-tools">
-    <button type="button" class="et-btn" id="btnGpdMapOpts" title="Map Options" aria-haspopup="true" aria-expanded="false" aria-controls="gpdmapopts">Map Options...</button>
-    <!-- Map Options pulldown (inside GPD window) -->
-    <div id="gpdmapopts" class="hidden" role="menu" aria-label="Map Options">
-      <div class="gpd-opt-hdr">
-        <span class="title">MAP OPTIONS</span>
-        <span class="x" data-close="gpdmapopts" title="Close">X</span>
-      </div>
-      <div class="gpd-opt-body">
-        <div class="gpd-opt-label">SECTOR LINES</div>
-        <div class="gpd-opt-seg" id="gpdSectorSeg" role="group" aria-label="Sector lines">
-          <button type="button" data-gpd-sector="off" class="on">OFF</button>
-          <button type="button" data-gpd-sector="high">HIGH</button>
-          <button type="button" data-gpd-sector="low">LOW</button>
-        </div>
-        <div class="gpd-opt-hint">HIGH / LOW ERAM sector boundaries for the viewing ARTCC.</div>
-        <div class="gpd-opt-label" style="margin-top:10px">OVERLAYS</div>
-        <div class="gpd-opt-toggles">
-          <label><input type="checkbox" id="gpdShowRoutes" checked> Remaining routes</label>
-          <label><input type="checkbox" id="gpdShowAirports"> Airport labels (dep/arr)</label>
-          <label><input type="checkbox" id="gpdShowFixes"> Fix labels</label>
-        </div>
+  <div class="gpd-bar">
+    <div class="gpd-row">
+      <button type="button" class="et-btn" id="gpdPlanOpts">Plan Options...</button>
+      <button type="button" class="et-btn" id="gpdHold">Hold...</button>
+      <button type="button" class="et-btn" id="gpdShow">Show</button>
+      <button type="button" class="et-btn" id="gpdShowAll">Show All</button>
+      <button type="button" class="et-btn" id="gpdGraphic">Graphic...</button>
+      <button type="button" class="et-btn" id="gpdCleanUp">Clean Up</button>
+      <button type="button" class="et-btn" id="gpdSendAm">Send AM</button>
+      <button type="button" class="et-btn" id="gpdSendInt">Send INT</button>
+      <button type="button" class="et-btn" id="gpdTemplate">Template...</button>
+      <button type="button" class="et-btn" id="gpdExit">Exit</button>
+    </div>
+    <div class="gpd-row">
+      <button type="button" class="et-btn" id="gpdRecenter" title="Click, then click the new map center">Recenter</button>
+      <button type="button" class="et-btn" id="gpdRange" title="Range (NM across). Click for the list, or use the mouse wheel here or on the map">Range 250</button>
+      <button type="button" class="et-btn" id="gpdSuppress">Suppress</button>
+      <button type="button" class="et-btn" id="gpdMapOpts">Map Options...</button>
+      <button type="button" class="et-btn" id="gpdTools">Tools...</button>
+      <button type="button" class="et-btn" id="gpdSavedMap">Saved Map</button>
+      <div class="gpd-ft" title="Future Time (0-20 min): drag the slider, click the bar to step a minute, middle-click to jump">
+        <span class="lbl">Future Time</span>
+        <div class="gpd-ft-track" id="gpdFtTrack"><div class="gpd-ft-thumb" id="gpdFtThumb"><span class="v" id="gpdFtVal">0</span></div></div>
       </div>
     </div>
+    <div class="gpd-scale" id="gpdScale"></div>
   </div>
-  <div id="gpdMap" role="img" aria-label="Graphical plan display map"></div>
+  <div id="gpdMap" role="img" aria-label="Graphic Plan Display map"></div>
   <div class="gpd-foot">
     <span>ARTCC <b id="gpdArtcc">——</b></span>
-    <span>TRAFFIC <b id="gpdCount">0</b></span>
-    <span>SECTORS <b id="gpdSectorMode">OFF</b></span>
-    <span style="opacity:.65">Routes from hub fixes / FCA route engine</span>
+    <span>DATA BLOCKS <b id="gpdCount">0</b></span>
+    <span id="gpdFootMode"></span>
   </div>
 </div>
 
@@ -2350,6 +2411,33 @@ html.list-mode #cpdlcListWin{
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- EDST PLANS DISPLAY (ERAM TI 6110.101 ch. 6; menus in #plansub) -->
+<div id="plansmenu" class="edst-pop hidden" aria-label="Plans Display">
+  <div class="edst-pop-hdr">
+    <span class="title">Plans Display</span>
+    <span class="x" data-close="plansmenu" title="Close">X</span>
+  </div>
+  <div class="pd-bar">
+    <button type="button" class="et-btn" id="pdOptions">Plan Options...</button>
+    <button type="button" class="et-btn" id="pdShow">Show</button>
+    <button type="button" class="et-btn" id="pdShowAll">Show All</button>
+    <button type="button" class="et-btn" id="pdSendAm">Send AM</button>
+    <button type="button" class="et-btn" id="pdSendInt">Send INT</button>
+    <button type="button" class="et-btn" id="pdTools">Tools...</button>
+    <button type="button" class="et-btn" id="pdTemplate">Template...</button>
+    <button type="button" class="et-btn" id="pdIcao">ICAO</button>
+    <button type="button" class="et-btn" id="pdCleanUp">Clean Up</button>
+  </div>
+  <div class="pd-list" id="pdList"></div>
+</div>
+<div id="plansub" class="edst-pop hidden">
+  <div class="edst-pop-hdr">
+    <span class="title" id="psTitle">Plan Options</span>
+    <span class="x" data-close="plansub" title="Close">X</span>
+  </div>
+  <div id="psBody"></div>
 </div>
 
 <!-- EDST GI (General Information) -->
@@ -2854,6 +2942,29 @@ const frozenCs=new Set();                // brown F
 let alertSelection=null;                 // {cs, type:'r'|'y'|'a'}
 let alertShowFilter=null;                // {type, cs?} for GPD Show / Show ALL
 let conflictProbeTimer=null;let pollTimer=null,burstUntil=0,vatsimTimer=null;
+// Plans Display (see its section further down; declared here because renderBoard runs during start-up)
+let plans=[];                            // entries: {id, kind, cs, trial, created, expires, ...}
+let planSel=null;                        // {id} or {id, prob: partner, sev}
+let planSeq=1,plansMod=null,plansFps=new Map(),plansTick=null;
+const planTrialNo={};                    // cs -> last trial plan number
+const prevRoutes={};                     // cs -> {route, at, fix}: the route before the last change
+const planRouteSeen=new Map();           // cs -> route in the last VATSIM refresh
+const stopProbeAt={};                    // cs -> fix where the probe stops (Stop Probe at a fix)
+const planAckProb=new Set();             // "cs|partner": acknowledged problem (white)
+const planProbSeen=new Map();            // "planId|partner" -> first seen (NEW box)
+// GPD (see its section; declared here because renderBoard and selectAircraftRow refresh it during start-up)
+let gpdMapApi=null,gpdReady=null,gpdMod=null,gpdView=null,gpdFuture=0,gpdMode='',gpdGraphic=null,gpdAlertSel=null;
+let psNextAnchor=null;                   // element the next Plans/GPD menu opens under
+let gpdScope=null,gpdGuessArtcc='';      // no ARTCC known (signed out, no VIEW ARTCC): the one under the map center
+const gpdShown=new Set();                // Show All: aircraft whose route and alerts are on the GPD
+const interimAlt={};                     // cs -> interim altitude (QQ, TEMP, Send INT): GPD "290T242"
+const blockAlt={};                       // cs -> [lo, hi] block altitude: GPD "230B350"
+const GPD_DEFAULTS={suppress:false,saved:{},
+  features:{sectors:'off',adjacent:true,apch:true,saa:true,saaLabels:false,airports:false,airportLabels:false,
+    navaids:false,navaidLabels:false,waypoints:false,waypointLabels:false,airways:false,scale:true},
+  ac:{aclOnly:true,autoOffset:true,altLo:0,altHi:999,previewMin:0}};
+let gpdCfg=(()=>{const c=LS.get('vedst_gpd',{})||{};
+  return {...GPD_DEFAULTS,...c,features:{...GPD_DEFAULTS.features,...(c.features||{})},ac:{...GPD_DEFAULTS.ac,...(c.ac||{})},saved:{...(c.saved||{})}};})();
 let vatsimBusy=false, vatsimFeedReady=false;
 let myPosition={callsign:'',label:'',freqMhz:null};
 // Position callsign seen in the VATSIM controller feed — a backup for the hub's
@@ -3764,8 +3875,17 @@ function eramRoute(rt){
 }
 // AMEND: put a menu's selection in the EDST and in CRC without a CPDLC uplink, so it works for aircraft that
 // aren't on CPDLC too.
+// GPD line 2: an interim (QQ) or block altitude next to the assigned one.
+function noteAltKind(cs,entry){
+  const e=entry&&entry.effects;
+  if(!e||e.type!=='alt')return;
+  if(e.block){blockAlt[cs]=e.block;delete interimAlt[cs];}
+  else if(entry.crc&&/^QQ\b/.test(entry.crc)){interimAlt[cs]=e.alt;delete blockAlt[cs];}
+  else{delete interimAlt[cs];delete blockAlt[cs];}
+}
 function amendEntry(cs,entry){
   if(!cs||!entry)return;
+  noteAltKind(cs,entry);
   const e=entry.effects||{};
   if(e.type==='alt'&&e.alt!=null){assigned[cs]=e.alt;persist();}
   else if(e.type==='hdg'&&e.hdg!=null)hdgAssigned[cs]=e.hdg;
@@ -3782,6 +3902,7 @@ async function sendUplinkEntry(cs,entry,opts){
   const min=await sendCpdlc(cs,'WU',entry.msg);
   if(min!=null){
     applyUplinkEffects(cs,min,entry.effects);
+    noteAltKind(cs,entry);
     if(entry.crc&&!(opts&&opts.noEcho))crcEcho(crcLine(entry,cs));
   }
   else if(lastSendError)flashStatus(lastSendError);
@@ -4130,7 +4251,7 @@ function renderFeed(msgs,evtId){
   });
   if(evtId!=null)feedSince=evtId;
 }
-function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','cpdlcadv','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
+function menusOpen(){return ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','cpdlcadv','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop','plansub'].some(id=>{const m=document.getElementById(id);return m&&!m.classList.contains('hidden');});}
 async function refreshMonitor(force){
   const art=monitorArtcc();
   if(!art){liveFlights=[];connected.clear();renderBoard();
@@ -4188,7 +4309,7 @@ async function refreshVatsim(force){
       try{sessionStorage.removeItem('vedst_list_reloads');}catch(_){}
       clearListMetaRefresh();
     }
-    liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];
+    liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];notePlanRoutes();
     // Aircraft on the ground come in their own bucket: the hub keeps them out of
     // the enroute picture, and they carry the CPDLC state the VATSIM feed cannot.
     hubGroundRows=(d.ground||[]).map(mapLive);
@@ -4528,6 +4649,7 @@ function renderBoard(){
   });
   syncHoldButton();
   if(typeof refreshGpdMap==='function')refreshGpdMap();
+  if(plansIsOpen())renderPlans();
 }
 
 //============================================================ popups (deferred)
@@ -4541,6 +4663,7 @@ function placePop(el,x,y){
 }
 function close(id){
   const el=document.getElementById(id);if(el)el.classList.add('hidden');
+  if(id==='plansub'&&typeof gpdOnSubClose==='function')gpdOnSubClose();
   if(id==='volpop'&&typeof syncSoundUi==='function')syncSoundUi();
   if(id==='cpdlchist'){
     syncCpdlcLogButtons();
@@ -4553,19 +4676,9 @@ function close(id){
     const btn=document.getElementById('tabDep');
     if(btn)btn.classList.remove('active-dep');
   }
-  if(id==='gpdmapopts'){
-    // Prefer dedicated closer once defined; sync button open state
-    if(typeof closeGpdMapOptions==='function')closeGpdMapOptions();
-    else{
-      const mo=document.getElementById('btnGpdMapOpts');
-      if(mo){mo.classList.remove('open');mo.setAttribute('aria-expanded','false');}
-    }
-    return;
-  }
   if(id==='gpdmenu'){
     const btn=document.getElementById('btnGpd');
     if(btn)btn.classList.remove('active-gpd');
-    if(typeof closeGpdMapOptions==='function')closeGpdMapOptions();
   }
   if(id==='wxmenu'){
     const btn=document.getElementById('btnWx');
@@ -4611,7 +4724,7 @@ document.addEventListener('pointerdown',ev=>{
       if(b)b.setAttribute('aria-expanded','false');
     }
   }
-  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gpdmenu','gpdmapopts','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','cpdlcadv','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop'].forEach(id=>{
+  ['altmenu','sqkmenu','xresmenu','hdgmenu','spdmenu','holdmenu','gimenu','cpdlchist','sigmenu','routemenu','handoffpop','cpdlcadv','depmenu','wxmenu','altimmenu','windmenu','notmenu','msgpop','ackmenu','volpop','plansub'].forEach(id=>{
     const menu=document.getElementById(id);
     if(!menu||menu.classList.contains('hidden'))return;
     if(menu.contains(ev.target))return;
@@ -4625,26 +4738,18 @@ document.addEventListener('pointerdown',ev=>{
     if(id==='ackmenu'&&ev.target.closest('[data-alert]'))return;
     if(id==='xresmenu'&&(ev.target.closest('#altmenu')||ev.target.closest('#spdmenu')||ev.target.closest('#routemenu')))return;
     if(id==='holdmenu'&&ev.target.closest('#btnHold'))return;
-    if(id==='gpdmenu'&&ev.target.closest('#btnGpd'))return;
-    // Map Options is nested in GPD — close pulldown on outside click (incl. map area),
-    // but don't treat the toolbar button as outside.
-    if(id==='gpdmapopts'&&ev.target.closest('#btnGpdMapOpts'))return;
     if(id==='depmenu'&&ev.target.closest('#tabDep'))return;
     if(id==='wxmenu'&&ev.target.closest('#btnWx'))return;
     if(id==='altimmenu'&&ev.target.closest('#btnAltimSet'))return;
     if(id==='windmenu'&&ev.target.closest('#btnWind'))return;
     if(id==='notmenu'&&ev.target.closest('#btnNot'))return;
     if(id==='gimenu'&&ev.target.closest('#btnGi'))return;
+    if(id==='plansub'&&gpdGraphic&&ev.target.closest('#gpdMap'))return;   // picking graphic trial points
     if(id==='volpop'&&ev.target.closest('#btnSound'))return;
     if(id==='gimenu')giSelectedId=null;
     if(id==='cpdlchist'&&(ev.target.closest('#btnCpdlcHist')||ev.target.closest('#btnCpdlcMsgout')||ev.target.closest('#btnCpdlcAll')))return;
     if(id==='sigmenu'&&ev.target.closest('#btnSig, #crcBtnSig'))return;
-    if(id==='gpdmapopts'){closeGpdMapOptions();return;}
     close(id);
-    if(id==='gpdmenu'){
-      const btn=document.getElementById('btnGpd');
-      if(btn)btn.classList.remove('active-gpd');
-    }
     if(id==='depmenu'){
       const btn=document.getElementById('tabDep');
       if(btn)btn.classList.remove('active-dep');
@@ -5038,7 +5143,7 @@ async function buildAltMessage(target,tgt,altimVal,apd,localTalt){
   // TEMP: interim altitude, QQ in CRC. Otherwise the assigned altitude, QZ. A block altitude isn't echoed to CRC
   // (the CPDLC block uplink still goes out).
   const crc=blk?null:(altTemp?'QQ ':'QZ ')+pad3(tgt);
-  return {label,msg,effects:{type:'alt',alt:tgt},crc};
+  return {label,msg,effects:{type:'alt',alt:tgt,block:blk?[Math.min(tgt,blockTo),Math.max(tgt,blockTo)]:null},crc};
 }
 function setAltApd(on){
   altApd=!!on;
@@ -5907,6 +6012,8 @@ function openRouteMenu(idx,x,y){
     entries.filter(f=>f.kind&&f.kind!=='sid'&&f.kind!=='enroute'&&f.kind!=='star').forEach(f=>appendRtFixRow(F,f.name));
   }else entries.forEach(f=>appendRtFixRow(F,f.name));
   syncRtUplink();
+  const pv=document.getElementById('rtPrevRoute');
+  if(pv){pv.classList.toggle('stub',!prevRoutes[a.cs]);pv.title=prevRoutes[a.cs]?'Post the previous route to the Plans Display':'No previous route: the route has not changed since the EDST opened';}
   placePop(routemenu,x,y);
 }
 //============================================================ departure clearance (DCL)
@@ -8415,96 +8522,10 @@ document.getElementById('holdUplinkEfc').onclick=async()=>{
 buildHoldDirs();buildHoldLegs();syncHoldButton();
 makeEdstDraggable(holdmenu);
 
-//============================================================ GPD (Graphical Plan Display)
+//============================================================ GPD (Graphic Plan Display)
+// ERAM Graphic Plan Display (TI 6110.101 ch. 5). Map: shared/edst-gpd-map.js; text and geometry:
+// shared/edst-gpd.js (tests: node scripts/test-edst-gpd.mjs). Menus reuse the Plans Display popup (#plansub).
 const gpdmenu=document.getElementById('gpdmenu');
-let gpdMapApi=null,gpdReady=null,gpdFitOnce=false;
-let gpdSectorMode='off'; // 'off' | 'high' | 'low'
-let gpdShowRoutes=true;
-let gpdShowAirports=false;
-let gpdShowFixes=false;
-
-function syncGpdSectorUi(){
-  const label=document.getElementById('gpdSectorMode');
-  if(label)label.textContent=(gpdSectorMode||'off').toUpperCase();
-  document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
-    btn.classList.toggle('on',btn.dataset.gpdSector===gpdSectorMode);
-  });
-  const r=document.getElementById('gpdShowRoutes');
-  const a=document.getElementById('gpdShowAirports');
-  const f=document.getElementById('gpdShowFixes');
-  if(r)r.checked=!!gpdShowRoutes;
-  if(a)a.checked=!!gpdShowAirports;
-  if(f)f.checked=!!gpdShowFixes;
-  const mo=document.getElementById('btnGpdMapOpts');
-  const opts=document.getElementById('gpdmapopts');
-  const open=!!(opts&&!opts.classList.contains('hidden'));
-  if(mo){
-    // active = sector lines on OR any overlay beyond defaults; open = pulldown visible
-    const overlayOn=gpdSectorMode!=='off'||gpdShowAirports||gpdShowFixes||!gpdShowRoutes;
-    mo.classList.toggle('active',overlayOn);
-    mo.classList.toggle('open',open);
-    mo.setAttribute('aria-expanded',open?'true':'false');
-  }
-}
-function applyGpdOverlays(){
-  if(gpdMapApi&&gpdMapApi.setMapOverlays){
-    gpdMapApi.setMapOverlays({
-      showRoutes:gpdShowRoutes,
-      showAirports:gpdShowAirports,
-      showFixLabels:gpdShowFixes,
-    });
-  }else if(gpdMapApi)refreshGpdMap(false);
-}
-function setGpdSectorMode(mode){
-  const m=String(mode||'off').toLowerCase();
-  gpdSectorMode=(m==='high'||m==='low')?m:'off';
-  syncGpdSectorUi();
-  if(gpdMapApi&&gpdMapApi.setSectorMode)gpdMapApi.setSectorMode(gpdSectorMode);
-  else if(gpdMapApi)refreshGpdMap(false);
-}
-function closeGpdMapOptions(){
-  const menu=document.getElementById('gpdmapopts');
-  if(menu)menu.classList.add('hidden');
-  syncGpdSectorUi();
-}
-function openGpdMapOptions(){
-  const menu=document.getElementById('gpdmapopts');
-  const btn=document.getElementById('btnGpdMapOpts');
-  if(!menu||!btn)return;
-  if(!menu.classList.contains('hidden')){
-    closeGpdMapOptions();
-    return;
-  }
-  // Anchor under the Map Options button within the GPD toolbar
-  menu.style.left=Math.max(0,btn.offsetLeft)+'px';
-  menu.style.top=''; // CSS top: calc(100% + 1px) on tools bar
-  menu.classList.remove('hidden');
-  syncGpdSectorUi();
-}
-const _btnGpdMapOpts=document.getElementById('btnGpdMapOpts');
-if(_btnGpdMapOpts)_btnGpdMapOpts.addEventListener('click',e=>{
-  e.preventDefault();e.stopPropagation();
-  openGpdMapOptions();
-});
-document.querySelectorAll('#gpdSectorSeg [data-gpd-sector]').forEach(btn=>{
-  btn.addEventListener('click',e=>{
-    e.preventDefault();e.stopPropagation();
-    setGpdSectorMode(btn.dataset.gpdSector);
-  });
-});
-['gpdShowRoutes','gpdShowAirports','gpdShowFixes'].forEach(id=>{
-  const el=document.getElementById(id);
-  if(!el)return;
-  el.addEventListener('change',e=>{
-    e.stopPropagation();
-    if(id==='gpdShowRoutes')gpdShowRoutes=!!el.checked;
-    if(id==='gpdShowAirports')gpdShowAirports=!!el.checked;
-    if(id==='gpdShowFixes')gpdShowFixes=!!el.checked;
-    syncGpdSectorUi();
-    applyGpdOverlays();
-  });
-});
-syncGpdSectorUi();
 
 async function ensureConflictProbe(){
   if(conflictProbeMod)return conflictProbeMod;
@@ -8538,7 +8559,7 @@ function applyAlertShow(all){
   alertShowFilter=all
     ?{type:alertSelection.type}
     :{type:alertSelection.type,cs:alertSelection.cs};
-  openGpdMenu().then(()=>refreshGpdMap(true)).catch(()=>{});
+  openGpdMenu().then(()=>refreshGpdMap(false)).catch(()=>{});
 }
 function clearAlertShow(){
   alertShowFilter=null;
@@ -8597,6 +8618,7 @@ function scheduleConflictProbe(){
       if(acid)acid.classList.toggle('probe-brown',!!boxes.brownFid);
     });
     if(typeof refreshGpdMap==='function')refreshGpdMap(false);
+    if(plansIsOpen())renderPlans();
   },50);
 }
 function openConflictAckMenu(cs,type,x,y){
@@ -8633,24 +8655,73 @@ function gpdArtccId(){
   let id=(airspaceId()||monitorArtcc()||hubArtcc||'').toUpperCase().trim();
   if(ARTCC_ID_ALIASES[id])return ARTCC_ID_ALIASES[id];
   id=id.replace(/^K(?=Z)/,'');
-  return ARTCC_ID_ALIASES[id]||id;
+  id=ARTCC_ID_ALIASES[id]||id;
+  return id||gpdGuessArtcc;
 }
 function gpdSelectedCs(){
   return (typeof selectedCs!=='undefined'&&selectedCs)?String(selectedCs).toUpperCase():null;
+}
+function gpdIsOpen(){const m=document.getElementById('gpdmenu');return !!(m&&!m.classList.contains('hidden'));}
+function gpdSave(){LS.set('vedst_gpd',gpdCfg);}
+// Aircraft on the GPD (AC Display menu): the Aircraft List, or all traffic in the ARTCC; then the altitude
+// filter. Selected, shown and trial aircraft always stay.
+function gpdFlights(){
+  const list=(displayList()||[]).slice();
+  if(!gpdCfg.ac.aclOnly){
+    const seen=new Set(list.map(a=>a.cs));
+    (liveFlights||[]).forEach(a=>{if(a&&a.cs&&!seen.has(a.cs)){seen.add(a.cs);list.push(a);}});
+  }
+  const keep=new Set(gpdShown);
+  if(selectedCs)keep.add(selectedCs);
+  plans.forEach(p=>{if(p.kind==='trial')keep.add(p.cs);});
+  return list.filter(a=>keep.has(a.cs)||(gpdMod?gpdMod.inAltFilter(a.alt,gpdCfg.ac.altLo,gpdCfg.ac.altHi):true));
+}
+// A problem type is acknowledged (white) when every problem of that type has been acknowledged in the Plans
+// Display (right-click a problem) or the GPD.
+function gpdAcked(cs){
+  const e=conflictAlerts.get(cs);
+  const out={r:false,y:false,a:false};
+  if(!e||!e.problems)return out;
+  ['r','y','a'].forEach(sev=>{
+    const ps=e.problems.filter(p=>p.sev===sev);
+    out[sev]=ps.length>0&&ps.every(p=>planAckProb.has(cs+'|'+p.cs));
+  });
+  return out;
+}
+function gpdTrials(){
+  const out=[];
+  plans.forEach(p=>{
+    if(p.kind!=='trial'||p.gpdHidden||(p.trial&&p.trial.ptime))return;
+    const a=planAc(p.cs);if(!a)return;
+    const t=p.trial||{};
+    let sev='';
+    (p.problems||[]).forEach(pr=>{if(pr.muted)return;if(pr.sev==='r')sev='r';else if(pr.sev==='y'&&sev!=='r')sev='y';});
+    out.push({id:p.id,cs:p.cs,label:p.cs+'.T'+p.tn,route:t.route||a._routeRaw||a.route||'',fixes:t.fixes||null,sev});
+  });
+  return out;
+}
+function gpdSaaAlerts(){
+  const s=new Set();
+  conflictAlerts.forEach(e=>{(e.problems||[]).forEach(p=>{if(p.saa)s.add(p.cs);});});
+  return s;
+}
+function gpdPlanFor(cs){
+  const sel=planSelected();
+  if(sel&&sel.cs===cs&&sel.kind==='trial')return sel;
+  return plans.find(p=>p.kind==='current'&&p.cs===cs)||{id:0,kind:'current',cs,created:Date.now()};
 }
 function ensureGpdMap(){
   if(gpdMapApi)return Promise.resolve(gpdMapApi);
   if(gpdReady)return gpdReady;
   gpdReady=(async()=>{
+    gpdMod=await import('../../shared/edst-gpd.js');
+    gpdScope=await import('../../shared/artcc-scope.js');
     const mod=await import('../../shared/edst-gpd-map.js');
     await mod.prepareEdstGpdData('../../');
-    const el=document.getElementById('gpdMap');
-    gpdMapApi=mod.createEdstGpdMap(el,{
-      onSelect:(cs)=>{
-        if(typeof selectAircraftRow==='function')selectAircraftRow(cs);
-        else if(typeof selectedCs!=='undefined'){selectedCs=cs;}
-        refreshGpdMap(false);
-      }
+    gpdMapApi=mod.createEdstGpdMap(document.getElementById('gpdMap'),{
+      onField:gpdOnField,
+      onMapClick:gpdOnMapClick,
+      onView:gpdOnView,
     });
     return gpdMapApi;
   })().catch(err=>{
@@ -8662,59 +8733,441 @@ function ensureGpdMap(){
   return gpdReady;
 }
 function refreshGpdMap(refit){
-  // Use getElementById — avoid TDZ on later `const gpdmenu=...` during early renderBoard.
+  // DOM first: renderBoard calls this during start-up, before the GPD is ever opened.
   const menu=document.getElementById('gpdmenu');
   if(!menu||menu.classList.contains('hidden')||!gpdMapApi)return;
   const art=gpdArtccId();
-  document.getElementById('gpdArtcc').textContent=art||'——';
-  gpdMapApi.update(displayList()||[],{
+  if(gpdCfg.nonAdsb&&plansMod&&!plansFps.size)refreshPlanFps(false);
+  gpdMapApi.update({
     artccId:art,
+    flights:gpdFlights(),
     selectedCs:gpdSelectedCs(),
-    refit:!!refit,
     alertByCs:conflictAlerts,
-    alertShowFilter:alertShowFilter,
-    sectorMode:gpdSectorMode,showRoutes:gpdShowRoutes,showAirports:gpdShowAirports,showFixLabels:gpdShowFixes,
+    ackedFor:gpdAcked,
+    shownRoutes:gpdShown,
+    showFilter:alertShowFilter,
+    trials:gpdTrials(),
+    selTrialId:(planSelected()&&planSelected().kind==='trial')?planSelected().id:null,
+    selAlert:gpdAlertSel,
+    futureMin:gpdFuture,
+    suppress:gpdCfg.suppress,
+    nonAdsb:settings.nonAdsb&&plansMod?(cs=>plansMod.isNonAdsb(planFp(cs).icaoType)):null,
+    altInfo:cs=>({assigned:assigned[cs],interim:interimAlt[cs],block:blockAlt[cs]}),
+    graphic:gpdGraphic,
+    saaAlert:gpdSaaAlerts(),
+    features:gpdCfg.features,
+    ac:{autoOffset:gpdCfg.ac.autoOffset,previewMin:gpdCfg.ac.previewMin},
   });
-  const n=gpdMapApi.getTrafficCount?gpdMapApi.getTrafficCount():0;
-  document.getElementById('gpdCount').textContent=String(n);
-  syncGpdSectorUi();
-  document.getElementById('gpdTitle').textContent=art
-    ?('GPD — '+art+' GRAPHICAL PLAN DISPLAY')
-    :'GPD — GRAPHICAL PLAN DISPLAY';
+  if(refit){
+    const saved=gpdCfg.saved[art];
+    if(saved)gpdMapApi.setView(saved.center,saved.range);
+    else gpdMapApi.fitArtcc();
+  }
+  syncGpdBar();
 }
+// ---- menu bar state
+function setGpdBtn(id,on,tip,label){
+  const b=document.getElementById(id);if(!b)return;
+  b.classList.toggle('disabled',!on);
+  if(tip!=null)b.title=tip;
+  if(label!=null)b.textContent=label;
+}
+function syncGpdBar(){
+  const cs=gpdSelectedCs();
+  const a=cs?planAc(cs):null;
+  const p=planSelected();
+  const trial=!!(p&&p.kind==='trial'&&!(p.trial&&p.trial.ptime));
+  setGpdBtn('gpdPlanOpts',!!cs||trial,cs?'Plan Options for '+cs:'Select an aircraft (click its ACID) first');
+  setGpdBtn('gpdHold',!!a,'Hold Data Menu for the selected aircraft');
+  setGpdBtn('gpdShow',!!gpdAlertSel,gpdAlertSel?'Show '+gpdAlertSel.cs+' '+gpdAlertSel.type.toUpperCase()+' alert':'Select an alert indicator (line 0) first');
+  setGpdBtn('gpdShowAll',!!cs,cs?(gpdShown.has(cs)?'Remove ':'Show ')+cs+"'s route and alerts":'Select an aircraft first');
+  setGpdBtn('gpdGraphic',!!(a&&planAirborne(a)),'Graphic Menu: a route trial plan through points picked on the GPD');
+  setGpdBtn('gpdCleanUp',gpdShown.size>0||!!alertShowFilter||gpdTrials().length>0||!!gpdGraphic,'Remove route lines, trial plan routes and alerts from the GPD');
+  setGpdBtn('gpdSendAm',trial,trial?'Send '+planLabel(p)+' as an amendment':'Select a trial plan (its label on the GPD) first');
+  setGpdBtn('gpdSendInt',trial&&p.trial.alt!=null,'Send the trial altitude as an interim altitude (QQ)');
+  setGpdBtn('gpdTemplate',true,cs?'Amendment Template for '+cs:'Flight Plan Template');
+  setGpdBtn('gpdSuppress',true,gpdCfg.suppress?'Restore full data blocks':'Show only symbol and altitude for aircraft without a route display',gpdCfg.suppress?'Restore':'Suppress');
+  setGpdBtn('gpdSavedMap',!!gpdCfg.saved[gpdArtccId()],'Go to the saved range and map center (Tools > Save GPD Map)');
+  const rc=document.getElementById('gpdRecenter');if(rc)rc.classList.toggle('on',gpdMode==='recenter');
+  const gm=document.getElementById('gpdmenu');
+  if(gm)gm.classList.toggle('future',gpdFuture>0);
+  const t=document.getElementById('gpdTitle');if(t&&gpdMod)t.textContent=gpdMod.gpdTitle(gpdFuture);
+  const foot=document.getElementById('gpdFootMode');
+  if(foot)foot.textContent=gpdMode==='recenter'?'RECENTER: click the new map center (Esc cancels)'
+    :gpdGraphic?'GRAPHIC '+gpdGraphic.cs+': click points on the map, then a rejoin fix in the Graphic Menu ('+gpdGraphic.points.length+' point'+(gpdGraphic.points.length===1?'':'s')+')'
+    :(gpdGuessArtcc&&gpdArtccId()===gpdGuessArtcc?'No ARTCC from sign-in or VIEW ARTCC: showing '+gpdGuessArtcc+' (the center under the map). '+gpdHiddenNote()
+    :!gpdArtccId()?'No ARTCC: sign in, or type one in VIEW ARTCC, to draw center and sector boundaries. '+gpdHiddenNote()
+    :gpdHiddenNote());
+  const n=document.getElementById('gpdCount');if(n&&gpdMapApi)n.textContent=String(gpdMapApi.getTrafficCount());
+  const art=document.getElementById('gpdArtcc');if(art)art.textContent=gpdArtccId()||'——';
+}
+// Map features that are on but too dense to draw at this range (Map Features menu): say so in the footer.
+function gpdHiddenNote(){
+  const h=gpdMapApi&&gpdMapApi.hiddenFeatures?gpdMapApi.hiddenFeatures():[];
+  return h.length?'Zoom in to see '+h.map(x=>x.name+' (range '+x.maxRange+')').join(', '):'';
+}
+// Range button and range scale follow the map (wheel zoom, Recenter, Saved Map).
+function gpdOnView(v){
+  gpdView=v;
+  const b=document.getElementById('gpdRange');
+  if(b&&gpdMod)b.textContent='Range '+gpdMod.roundRange(v.rangeNm);
+  drawGpdScale();
+  // Signed out with no VIEW ARTCC: draw the center the map is over (boundary, sectors, neighbors).
+  if(!(airspaceId()||monitorArtcc()||hubArtcc)&&gpdScope&&v.center){
+    const g=String(gpdScope.artccForPoint(v.center[0]!=null?v.center[0]:v.center.lat,v.center[1]!=null?v.center[1]:v.center.lng)||'').replace(/^K(?=Z)/,'');
+    if(g&&g!==gpdGuessArtcc){gpdGuessArtcc=g;refreshGpdMap(false);return;}
+  }else gpdGuessArtcc='';
+  syncGpdBar();
+}
+function drawGpdScale(){
+  const el=document.getElementById('gpdScale');
+  if(!el||!gpdMod||!gpdView)return;
+  el.classList.toggle('hidden',!gpdCfg.features.scale);
+  const mapEl=document.getElementById('gpdMap');
+  const w=mapEl?mapEl.clientWidth:800;
+  const nm=gpdMod.scaleNm(gpdView.rangeNm);
+  const px=Math.max(20,Math.round(nm/gpdView.rangeNm*w));
+  let ticks='';
+  for(let i=0;i<=5;i++){const x=6+Math.round(px*i/5);ticks+=`<line x1="${x}" y1="${i%5?6:3}" x2="${x}" y2="10" stroke="#e6e6e6"/>`;}
+  el.innerHTML=`<svg width="${px+60}" height="22"><line x1="6" y1="10" x2="${6+px}" y2="10" stroke="#e6e6e6"/>${ticks}`
+    +`<text x="2" y="21" fill="#e6e6e6" font-size="11">0</text><text x="${px-4}" y="21" fill="#e6e6e6" font-size="11">${nm}</text></svg>`;
+}
+function gpdSetRange(nm){
+  if(!gpdMapApi)return;
+  gpdMapApi.setView(null,nm);
+}
+
+// ---- data block fields (5.3): ACID select / Show All; altitude, speed, destination menus; alerts; trial IDs
+function gpdOnField(cs,f,ev,extra){
+  const btn=ev.button;
+  const type=ev.type;
+  psNextAnchor=extra&&extra.el;
+  if(f==='acid'){
+    if(type==='auxclick'){gpdToggleShowAll(cs);return;}
+    if(type==='click'){selectAircraftRow(cs);refreshGpdMap(false);}
+  }else if(f==='alert'){
+    if(type==='contextmenu'){openConflictAckMenu(cs,extra.sev,ev.clientX,ev.clientY);return;}
+    if(type==='auxclick'){gpdAlertSel={cs,type:extra.sev};gpdShowAlert();return;}
+    gpdAlertSel=(gpdAlertSel&&gpdAlertSel.cs===cs&&gpdAlertSel.type===extra.sev)?null:{cs,type:extra.sev};
+    refreshGpdMap(false);
+  }else if(f==='alt'&&type==='click'){
+    if(!canControl()){comingSoon('Sign in / verify to amend');return;}
+    openPlanAltMenu(gpdPlanFor(cs));
+  }else if(f==='spd'&&type==='click'){
+    if(!canControl()){comingSoon('Sign in / verify to amend');return;}
+    openPlanSpdMenu(gpdPlanFor(cs));
+  }else if(f==='dest'){
+    if(!canControl()){comingSoon('Sign in / verify to amend');return;}
+    if(type==='contextmenu')openGraphicMenu(cs);
+    else if(type==='click')openPlanRouteMenu(gpdPlanFor(cs));
+  }else if(f==='trial'){
+    const p=planById(extra.trial);if(!p)return;
+    if(type==='contextmenu'){p.gpdHidden=true;if(planSel&&planSel.id===p.id)planSel=null;refreshGpdMap(false);return;}
+    if(type==='click'){planSel=(planSel&&planSel.id===p.id)?null:{id:p.id};if(plansIsOpen())renderPlans();refreshGpdMap(false);}
+  }
+  psNextAnchor=null;
+}
+function gpdOnMapClick(ll){
+  if(gpdMode==='recenter'){
+    gpdMode='';
+    gpdMapApi.setView([ll.lat,ll.lng],gpdView?gpdView.rangeNm:null);
+    syncGpdBar();
+    return;
+  }
+  if(gpdGraphic){
+    gpdGraphic.points.push([+ll.lat.toFixed(4),+ll.lng.toFixed(4)]);
+    refreshGpdMap(false);
+    const c=document.getElementById('psGraphicCount');
+    if(c)c.textContent='Points: '+gpdGraphic.points.length;
+  }
+}
+function gpdToggleShowAll(cs){
+  if(gpdShown.has(cs))gpdShown.delete(cs);else gpdShown.add(cs);
+  refreshGpdMap(false);
+}
+function gpdShowAlert(){
+  if(!gpdAlertSel)return;
+  const same=alertShowFilter&&alertShowFilter.cs===gpdAlertSel.cs&&alertShowFilter.type===gpdAlertSel.type;
+  if(same){clearAlertShow();refreshGpdMap(false);return;}
+  alertSelection={cs:gpdAlertSel.cs,type:gpdAlertSel.type};
+  syncShowAlertButtons();
+  alertShowFilter={type:gpdAlertSel.type,cs:gpdAlertSel.cs};
+  refreshGpdMap(false);
+}
+function gpdCleanUp(){
+  gpdShown.clear();
+  alertShowFilter=null;alertSelection=null;gpdAlertSel=null;
+  syncShowAlertButtons();
+  plans.forEach(p=>{if(p.kind==='trial')p.gpdHidden=true;});
+  if(gpdGraphic){gpdGraphic=null;close('plansub');}
+  refreshGpdMap(false);
+}
+function gpdOnSubClose(){
+  if(gpdGraphic){gpdGraphic=null;refreshGpdMap(false);}
+}
+
+// ---- Graphic Menu (5.2.2): pick points on the GPD, then the rejoin fix; makes a route trial plan.
+function openGraphicMenu(cs){
+  cs=cs||gpdSelectedCs();
+  const a=planAc(cs);
+  if(!planAirborne(a)){flashStatus('Graphic: the aircraft must be airborne');return;}
+  const p=gpdPlanFor(cs);
+  const fp=planFp(cs);
+  gpdGraphic={cs,points:[]};
+  refreshGpdMap(false);
+  openPlanSub('Graphic Menu',p,B=>{
+    psMsg(B,(fp.type||a.type||''),'ps-hint');
+    const r=psRow(B);
+    [['Include PAR','No adapted arrival routes on VATSIM'],['Append *','No adapted routes on VATSIM'],['Append ⊕','No equipment restricted routes on VATSIM']].forEach(([l,t])=>{
+      const b=psBtn(r,l,()=>{});b.classList.add('disabled');b.title=t;
+    });
+    psMsg(B,'Click points on the GPD, then the fix where the flight rejoins its route.','ps-hint');
+    const cnt=psMsg(B,'Points: 0');cnt.id='psGraphicCount';
+    const r2=psRow(B);
+    psBtn(r2,'Undo point',()=>{if(gpdGraphic&&gpdGraphic.points.length){gpdGraphic.points.pop();cnt.textContent='Points: '+gpdGraphic.points.length;refreshGpdMap(false);}});
+    const L=document.createElement('div');L.className='ps-list ps-cols';B.appendChild(L);
+    const ahead=routeFixEntries(a).filter(f=>f.name!==(fp.dep||a.dep));   // never the departure airport
+    ahead.slice(0,48).forEach(fx=>{
+      const d=document.createElement('div');d.textContent=fx.name;
+      d.onclick=()=>finish(fx.name);
+      L.appendChild(d);
+    });
+    if(!ahead.length)psMsg(L,'No fixes ahead on the route');
+    psExit(B);
+    function finish(fix){
+      if(!gpdGraphic||!gpdGraphic.points.length){flashStatus('Click at least one point on the GPD first');return;}
+      const pts=gpdGraphic.points.slice();
+      const route=gpdMod.graphicRoute(pts,fix,planRouteBase(p));
+      const i=ahead.findIndex(f=>f.name===fix);
+      const fixes=pts.map(pt=>({name:gpdMod.graphicFix(pt[0],pt[1]),lat:pt[0],lon:pt[1]}))
+        .concat((i>=0?ahead.slice(i):[]).filter(f=>f.lat!=null&&f.lon!=null));
+      gpdGraphic=null;
+      close('plansub');
+      postTrial(p,{route,fixes});
+      refreshGpdMap(false);
+    }
+  },document.getElementById('gpdGraphic'));
+}
+
+// ---- Range, Map Options, Tools
+function openGpdRangeMenu(){
+  openPlanSub('Range',null,B=>{
+    const r=psRow(B);
+    psBtn(r,'-',()=>gpdSetRange(gpdMod.stepRange(gpdView?gpdView.rangeNm:250,-1)));
+    psBtn(r,'+',()=>gpdSetRange(gpdMod.stepRange(gpdView?gpdView.rangeNm:250,1)));
+    const inp=document.createElement('input');inp.size=5;inp.maxLength=4;inp.placeholder='NM';r.appendChild(inp);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const v=parseInt(inp.value,10);if(v>=5&&v<=2000){gpdSetRange(v);close('plansub');}}});
+    const L=document.createElement('div');L.className='ps-list';B.appendChild(L);
+    gpdMod.RANGES.forEach(nm=>{const d=document.createElement('div');d.textContent=String(nm);d.onclick=()=>{gpdSetRange(nm);close('plansub');};L.appendChild(d);});
+    psMsg(B,'Mouse wheel over the map or the Range button also changes it.','ps-hint');
+    psExit(B);
+  },document.getElementById('gpdRange'));
+}
+function openGpdMapOptions(){
+  openPlanSub('Map Options Menu',null,B=>{
+    psItem(B,'Map Features...',()=>openGpdMapFeatures());
+    psItem(B,'AC Display Menu...',()=>openGpdAcDisplay());
+    psExit(B);
+  },document.getElementById('gpdMapOpts'));
+}
+function psCheck(B,label,on,fn,tip){
+  const d=document.createElement('label');d.className='ps-check';
+  const c=document.createElement('input');c.type='checkbox';c.checked=!!on;
+  c.addEventListener('change',()=>fn(c.checked));
+  d.appendChild(c);d.appendChild(document.createTextNode(' '+label));
+  if(tip)d.title=tip;
+  B.appendChild(d);return c;
+}
+function openGpdMapFeatures(){
+  const F=gpdCfg.features;
+  const set=(k,v)=>{F[k]=v;gpdSave();if(gpdMapApi)gpdMapApi.update({features:{...F}});drawGpdScale();syncGpdBar();};
+  openPlanSub('Map Features Menu',null,B=>{
+    psMsg(B,'SECTOR BOUNDARIES','ps-sect');
+    const r=psRow(B);
+    const bs=[['off','Off'],['high','High'],['low','Low']].map(([k,l])=>{
+      const b=psBtn(r,l,()=>{set('sectors',k);bs.forEach(x=>x.classList.toggle('on',x.dataset.k===k));});
+      b.dataset.k=k;b.classList.toggle('on',F.sectors===k);return b;
+    });
+    psMsg(B,'BOUNDARIES','ps-sect');
+    psCheck(B,'Adjacent centers',F.adjacent,v=>set('adjacent',v));
+    psCheck(B,'Approach control (dashed)',F.apch,v=>set('apch',v),'Where approach boundaries are on file (PCT)');
+    psCheck(B,'Special Activity Airspace',F.saa,v=>set('saa',v));
+    psCheck(B,'SAA labels',F.saaLabels,v=>set('saaLabels',v));
+    psMsg(B,'POINTS','ps-sect');
+    psMsg(B,'(n) = shown at range n and below. Zoomed out further, airports show only for the traffic on the GPD.','ps-hint');
+    psCheck(B,'Airports (400)',F.airports,v=>set('airports',v),'All airports at range 400 and below; above that, the departure and arrival airports of the traffic shown');
+    psCheck(B,'Airport labels',F.airportLabels,v=>set('airportLabels',v));
+    psCheck(B,'NAVAIDs (500)',F.navaids,v=>set('navaids',v),'Shown at range 500 and below');
+    psCheck(B,'NAVAID labels',F.navaidLabels,v=>set('navaidLabels',v));
+    psCheck(B,'Waypoints (200)',F.waypoints,v=>set('waypoints',v),'Shown at range 200 and below');
+    psCheck(B,'Waypoint labels',F.waypointLabels,v=>set('waypointLabels',v));
+    psCheck(B,'Airways (400)',F.airways,v=>set('airways',v),'Shown at range 400 and below');
+    psCheck(B,'Range scale',F.scale,v=>set('scale',v));
+    psExit(B);
+  });
+}
+function openGpdAcDisplay(){
+  const A=gpdCfg.ac;
+  const apply=()=>{gpdSave();refreshGpdMap(false);};
+  openPlanSub('AC Display Menu',null,B=>{
+    psCheck(B,'Aircraft List filter (only aircraft on the ACL)',A.aclOnly,v=>{A.aclOnly=v;apply();});
+    psCheck(B,'Automatic data block offsetting',A.autoOffset,v=>{A.autoOffset=v;apply();});
+    psMsg(B,'ALTITUDE FILTER LIMITS','ps-sect');
+    const r=psRow(B);
+    const lo=document.createElement('input');lo.size=4;lo.maxLength=3;lo.value=gpdMod.pad3(A.altLo);
+    const hi=document.createElement('input');hi.size=4;hi.maxLength=3;hi.value=gpdMod.pad3(A.altHi);
+    r.appendChild(lo);r.appendChild(document.createTextNode(' to '));r.appendChild(hi);
+    const go=()=>{const l=parseInt(lo.value,10),h=parseInt(hi.value,10);A.altLo=l>=0?l:0;A.altHi=h>0?h:999;apply();};
+    [lo,hi].forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')go();}));
+    psBtn(r,'Set',go);
+    psMsg(B,'ROUTE PREVIEW (MINUTES)','ps-sect');
+    const r2=psRow(B);
+    const bs=[0,2,5,10,20].map(m=>{
+      const b=psBtn(r2,m?String(m):'Off',()=>{A.previewMin=m;apply();bs.forEach(x=>x.classList.toggle('on',+x.dataset.m===m));});
+      b.dataset.m=m;b.classList.toggle('on',A.previewMin===m);return b;
+    });
+    psExit(B);
+  });
+}
+function openGpdTools(){
+  const art=gpdArtccId();
+  openPlanSub('Tools Menu',null,B=>{
+    psItem(B,'Airspace Status...',()=>openGpdAirspaceStatus());
+    psItem(B,'Airport Stream Filter Status...',null,false,'Not available on VATSIM');
+    psItem(B,'Options...',null,false,'Drop Track Delete, IAFDOF Manual, Non-RVSM Indicator: not available on VATSIM');
+    psItem(B,'Restrictions...',null,false,'No adapted restrictions on VATSIM');
+    psItem(B,'Save GPD Map',()=>{
+      if(!gpdView||!art)return;
+      gpdCfg.saved[art]={center:gpdView.center,range:Math.round(gpdView.rangeNm)};
+      gpdSave();close('plansub');syncGpdBar();flashStatus('GPD map saved for '+art);
+    },!!art);
+    if(gpdCfg.saved[art])psItem(B,'Saved Map',()=>{close('plansub');gpdGoSaved();});
+    psExit(B);
+  },document.getElementById('gpdTools'));
+}
+function openGpdAirspaceStatus(){
+  const list=gpdMapApi?gpdMapApi.saaNear():[];
+  const hot=gpdSaaAlerts();
+  openPlanSub('Airspace Status',null,B=>{
+    psMsg(B,'Special Activity Airspace in '+(gpdArtccId()||'the ARTCC')+'. Schedules and activation are not on VATSIM; the probe treats every SAA as active.','ps-hint');
+    const L=document.createElement('div');L.className='ps-list ps-saa';B.appendChild(L);
+    list.sort((x,y)=>(hot.has(y.name)?1:0)-(hot.has(x.name)?1:0)||String(x.name).localeCompare(String(y.name))).slice(0,300).forEach(p=>{
+      const d=document.createElement('div');
+      const lim=gpdMod.pad3((p.floorFt||0)/100)+'-'+gpdMod.pad3((p.ceilFt||0)/100);
+      d.textContent=(hot.has(p.name)?'▲ ':'  ')+String(p.name||'').replace(/,.*$/,'')+'  '+(p.type||'')+'  '+lim;
+      if(hot.has(p.name))d.className='hot';
+      d.title='Center the GPD here';
+      d.onclick=()=>{if(gpdMapApi)gpdMapApi.setView([p.lat,p.lon],gpdView?gpdView.rangeNm:150);};
+      L.appendChild(d);
+    });
+    if(!list.length)psMsg(L,'No SAA data loaded');
+    psExit(B);
+  });
+}
+function gpdGoSaved(){
+  const s=gpdCfg.saved[gpdArtccId()];
+  if(s&&gpdMapApi)gpdMapApi.setView(s.center,s.range);
+}
+
+// ---- Future Time bar (5.1.2): drag the slider, left-click steps a minute toward the cursor, middle-click jumps.
+function setGpdFuture(min){
+  gpdFuture=Math.max(0,Math.min(gpdMod?gpdMod.FUTURE_MAX_MIN:20,Math.round(min)));
+  const th=document.getElementById('gpdFtThumb');
+  const tr=document.getElementById('gpdFtTrack');
+  if(th&&tr){th.style.left=Math.round(gpdFuture/20*(tr.clientWidth-th.offsetWidth))+'px';}
+  const v=document.getElementById('gpdFtVal');if(v)v.textContent=String(gpdFuture);
+  refreshGpdMap(false);
+}
+(function wireGpdFuture(){
+  const tr=document.getElementById('gpdFtTrack');
+  const th=document.getElementById('gpdFtThumb');
+  if(!tr||!th)return;
+  const minAt=x=>{const r=tr.getBoundingClientRect();return (x-r.left-th.offsetWidth/2)/(r.width-th.offsetWidth)*20;};
+  th.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    th.setPointerCapture(e.pointerId);
+    const mv=ev=>setGpdFuture(minAt(ev.clientX));
+    const up=()=>{th.removeEventListener('pointermove',mv);th.removeEventListener('pointerup',up);};
+    th.addEventListener('pointermove',mv);th.addEventListener('pointerup',up);
+  });
+  tr.addEventListener('mousedown',e=>{
+    if(e.target===th)return;
+    if(e.button===1){e.preventDefault();setGpdFuture(minAt(e.clientX));}
+    else if(e.button===0){setGpdFuture(gpdFuture+(minAt(e.clientX)>gpdFuture?1:-1));}
+  });
+})();
+
 async function openGpdMenu(){
   const btn=document.getElementById('btnGpd');
-  const r=(btn||document.body).getBoundingClientRect();
-  if(!gpdmenu.classList.contains('hidden')){
-    placePop(gpdmenu,r.left,r.bottom+4);
+  if(gpdIsOpen()){
     if(gpdMapApi){gpdMapApi.invalidateSize();refreshGpdMap(false);}
     return;
   }
-  placePop(gpdmenu,r.left,Math.min(r.bottom+4,40));
+  const r=(btn||document.body).getBoundingClientRect();
+  placePop(gpdmenu,Math.max(4,Math.min(r.left,window.innerWidth-gpdmenu.offsetWidth-8)),r.bottom+4);
   if(btn)btn.classList.add('active-gpd');
   try{
     await ensureGpdMap();
     gpdMapApi.invalidateSize();
-    const needFit=!gpdFitOnce;
-    gpdFitOnce=true;
-    refreshGpdMap(needFit);
-    setTimeout(()=>{if(gpdMapApi)gpdMapApi.invalidateSize();},50);
+    // Exiting the GPD loses the range and center (5.2.5): it opens on the saved map, or the whole ARTCC.
+    refreshGpdMap(true);
+    setGpdFuture(gpdFuture);
+    setTimeout(()=>{if(gpdMapApi){gpdMapApi.invalidateSize();drawGpdScale();}},60);
   }catch(_){}
 }
 function closeGpdMenu(){
   close('gpdmenu');
   const btn=document.getElementById('btnGpd');
   if(btn)btn.classList.remove('active-gpd');
+  gpdMode='';
+  if(gpdGraphic){gpdGraphic=null;close('plansub');}
 }
 document.getElementById('btnGpd').addEventListener('click',e=>{
   e.preventDefault();e.stopPropagation();
-  openGpdMenu();
+  if(gpdIsOpen())closeGpdMenu();else openGpdMenu();
 });
-// Close via X uses data-close; also clear active class
 document.querySelectorAll('[data-close="gpdmenu"]').forEach(el=>{
-  el.addEventListener('click',()=>{const btn=document.getElementById('btnGpd');if(btn)btn.classList.remove('active-gpd');});
+  el.addEventListener('click',()=>closeGpdMenu());
 });
 makeEdstDraggable(gpdmenu,()=>{if(gpdMapApi)gpdMapApi.invalidateSize();});
+(function wireGpd(){
+  const on=(id,fn)=>{const b=document.getElementById(id);if(b)b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(b.classList.contains('disabled'))return;psNextAnchor=b;fn(b);psNextAnchor=null;});};
+  on('gpdPlanOpts',()=>{
+    const p=planSelected();
+    const cs=gpdSelectedCs();
+    const target=(p&&p.kind==='trial'&&(!cs||p.cs===cs))?p:(cs?gpdPlanFor(cs):null);
+    if(target)openPlanOptions(target,{gpd:true});
+  });
+  on('gpdHold',b=>{const a=planAc(gpdSelectedCs());const r=b.getBoundingClientRect();if(a)openHoldMenu(a,r.left,r.bottom+2);});
+  on('gpdShow',()=>gpdShowAlert());
+  on('gpdShowAll',()=>{const cs=gpdSelectedCs();if(cs)gpdToggleShowAll(cs);});
+  on('gpdGraphic',()=>openGraphicMenu(gpdSelectedCs()));
+  on('gpdCleanUp',()=>gpdCleanUp());
+  on('gpdSendAm',()=>{planSendFromTrial(false);refreshGpdMap(false);});
+  on('gpdSendInt',()=>{planSendFromTrial(true);refreshGpdMap(false);});
+  on('gpdTemplate',()=>{const cs=gpdSelectedCs();openPlanTemplate(cs?gpdPlanFor(cs):null);});
+  on('gpdExit',()=>closeGpdMenu());
+  on('gpdRecenter',()=>{gpdMode=gpdMode==='recenter'?'':'recenter';syncGpdBar();});
+  on('gpdRange',()=>openGpdRangeMenu());
+  on('gpdSuppress',()=>{gpdCfg.suppress=!gpdCfg.suppress;gpdSave();refreshGpdMap(false);});
+  on('gpdMapOpts',()=>openGpdMapOptions());
+  on('gpdTools',()=>openGpdTools());
+  on('gpdSavedMap',()=>gpdGoSaved());
+  const rb=document.getElementById('gpdRange');
+  if(rb)rb.addEventListener('wheel',e=>{e.preventDefault();if(gpdMod&&gpdView)gpdSetRange(gpdMod.stepRange(gpdView.rangeNm,e.deltaY>0?1:-1));},{passive:false});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&gpdMode==='recenter'){gpdMode='';syncGpdBar();}});
+  // The window resizes from its corner; keep the map and the scale in step.
+  if(window.ResizeObserver){
+    const mapEl=document.getElementById('gpdMap');
+    if(mapEl)new ResizeObserver(()=>{if(gpdMapApi&&gpdIsOpen()){gpdMapApi.invalidateSize();drawGpdScale();}}).observe(mapEl);
+  }
+  // NON-ADSB (toolbar): coral A beside aircraft whose equipment has no ADS-B (GPD, 5.1.3 l).
+  const na=document.getElementById('btnNonAdsb');
+  const syncNa=()=>{if(na){na.classList.toggle('active',!!settings.nonAdsb);na.title='Non-ADS-B indicator on the GPD: '+(settings.nonAdsb?'on':'off');}};
+  if(na)na.addEventListener('click',e=>{e.preventDefault();settings.nonAdsb=!settings.nonAdsb;persist();syncNa();if(settings.nonAdsb)refreshPlanFps(false);refreshGpdMap(false);});
+  syncNa();
+})();
 
 //============================================================ DEPARTURE LIST
 const depmenu=document.getElementById('depmenu');
@@ -8843,7 +9296,7 @@ function renderDepRows(items,filter){
       +`<td>${esc(r.type||'')}</td>`
       +`<td>${esc(r.alt||'')}</td>`
       +`<td>${esc(r.squawk||'')}</td>`
-      +`<td>${route}</td>`
+      +`<td class="dep-route" title="Middle-click: proposed plan in the Plans Display">${route}</td>`
       +`</tr>`;
   }).join('');
 }
@@ -8930,6 +9383,830 @@ document.querySelectorAll('[data-close="depmenu"]').forEach(el=>{
     if(btn)btn.classList.remove('active-dep');
   });
 });
+
+//============================================================ PLANS DISPLAY
+// ERAM Plans Display (RA-Position User Manual TI 6110.101, ch. 6). Text is built by shared/edst-plans.js
+// (tested: node scripts/test-edst-plans.mjs); the state is declared with the board state near the top.
+// Entries: current plan (middle-click an ACL route, or Plan Options... with a row selected), proposed plan
+// (middle-click a DEP list route), previous route (.PR), trial plans (.T1, .T2 ...) and amendment plans (.AM).
+// Amendments (Send AM, Send INT, the menus' Amend mode, the Amendment Template) put the change in the EDST and
+// have vUSALink App type it into CRC (crcEcho with amend): QZ / QQ for altitudes, one AM per other field.
+function pdEl(){return document.getElementById('plansmenu');}
+function psEl(){return document.getElementById('plansub');}
+function plansIsOpen(){const el=pdEl();return !!(el&&!el.classList.contains('hidden'));}
+import('../../shared/edst-plans.js').then(m=>{plansMod=m;if(plansIsOpen())renderPlans();})
+  .catch(e=>console.warn('Plans Display module failed',e));
+function planById(id){return plans.find(p=>p.id===id)||null;}
+function planSelected(){return planSel?planById(planSel.id):null;}
+// The aircraft behind a plan (ACL, live, ground or test rows).
+function planAc(cs){
+  cs=(cs||'').toUpperCase();
+  for(const L of [displayList(),board(),liveFlights,hubGroundRows]){
+    const a=(L||[]).find(x=>x&&(x.cs||'').toUpperCase()===cs);
+    if(a)return a;
+  }
+  return null;
+}
+function planDep(cs){return (depItems||[]).find(r=>r.cs===cs)||null;}
+// Flight plan fields: from the VATSIM feed when we have them, else what the row knows.
+function planFp(cs){
+  const f=plansFps.get(cs);if(f)return f;
+  const a=planAc(cs),d=planDep(cs),r=a||d||{};
+  return {cs,vatsimCid:r.cid||r.rawCid||'',type:r.type||'----',icaoType:'',tas:0,alt:String(r.cruise||(d&&d.alt)||''),
+    dep:(r.dep||'').toUpperCase(),arr:(r.arr||'').toUpperCase(),altn:'',
+    route:String(r._routeRaw||r.route||'').toUpperCase().replace(/\s+/g,' ').trim(),
+    rmk:'',deptime:(d&&d.deptime)||'',enroute:'',rules:'I',bcn:r.assignedSquawk||''};
+}
+function refreshPlanFps(force){
+  if(!plansMod||testMode())return;
+  plansMod.fetchFlightPlans(force).then(m=>{plansFps=m;if(plansIsOpen())renderPlans();})
+    .catch(e=>console.warn('Plans Display: VATSIM feed',e));
+}
+function planCidOf(cs){
+  const e=crcCidByCs.get(cs);
+  return plansMod?plansMod.planCid(e&&e.cid,planFp(cs).vatsimCid):((e&&e.cid)||'---');
+}
+function planAirborne(a){return !!(a&&a.lat!=null&&a.lon!=null&&!isOnGround(a));}
+function planPos(a){return planAirborne(a)&&plansMod?plansMod.latLonFix(a.lat,a.lon):'';}
+// Departure, route and destination without the airports twice (the ACL row's route already has them).
+function planFullRoute(fp){
+  const t=String(fp.route||'').trim().toUpperCase().split(/\s+/).filter(Boolean);
+  if(fp.dep&&t[0]===fp.dep)t.shift();
+  if(fp.arr&&t[t.length-1]===fp.arr)t.pop();
+  return [fp.dep].concat(t,[fp.arr]).filter(Boolean).join(' ');
+}
+// An airborne route line starts at the present position, so the departure airport is left off.
+function planRouteAfterDep(rt,dep){
+  const t=String(rt||'').trim().toUpperCase().split(/\s+/).filter(Boolean);
+  if(dep&&t[0]===dep)t.shift();
+  return t.join(' ');
+}
+// Assigned altitude, else the filed one, else (nothing filed) the present altitude; '' when none.
+function planAltText(cs){
+  if(assigned[cs]!=null)return plansMod.pad3(assigned[cs]);
+  const f=plansMod.fpAltText(planFp(cs).alt);if(f)return f;
+  const a=planAc(cs);
+  return a&&a.alt?plansMod.pad3(round10(a.alt)):'';
+}
+function planLabel(p){return planCidOf(p.cs)+' '+p.cs+(plansMod?plansMod.planSuffix(p):'');}
+
+// A route change seen in the VATSIM feed (a pilot refile, or a CRC amendment that reached VATSIM) keeps the old
+// route for Previous Route. Called after each traffic refresh.
+function notePlanRoutes(){
+  const now=Date.now();
+  (liveFlights||[]).forEach(a=>{
+    if(!a||!a.cs)return;
+    const r=String(a._routeRaw||'').trim().toUpperCase().replace(/\s+/g,' ');
+    const prev=planRouteSeen.get(a.cs);
+    if(prev&&r&&prev!==r&&!(prevRoutes[a.cs]&&prevRoutes[a.cs].route===prev&&now-prevRoutes[a.cs].at<600000))
+      prevRoutes[a.cs]={route:prev,at:now,fix:plansMod?plansMod.latLonFix(a.lat,a.lon):''};
+    if(r)planRouteSeen.set(a.cs,r);
+  });
+}
+
+function openPlans(){
+  const el=pdEl();if(!el)return;
+  if(!plansIsOpen()){
+    // Lower part of the screen, under the Aircraft List.
+    el.classList.remove('hidden');
+    const x=Math.max(8,(window.innerWidth-el.offsetWidth)/2);
+    placePop(el,x,Math.max(60,window.innerHeight-el.offsetHeight-24));
+    const b=document.getElementById('btnPlans');if(b)b.classList.add('active-plans');
+  }
+  if(!plansTick)plansTick=setInterval(plansTickFn,1000);
+  renderPlans();
+}
+function closePlans(){
+  close('plansub');close('plansmenu');
+  const b=document.getElementById('btnPlans');if(b)b.classList.remove('active-plans');
+  if(plansTick){clearInterval(plansTick);plansTick=null;}
+}
+// kind: current | proposed | prev | trial | am. Current, proposed and previous route replace that aircraft's
+// entry of the same kind; a new AM replaces the old one (6.3.5).
+function postPlan(kind,cs,extra){
+  if(!plansMod){flashStatus('Plans Display is still loading');return null;}
+  cs=(cs||'').toUpperCase();if(!cs)return null;
+  const now=Date.now();
+  if(kind!=='trial')plans=plans.filter(p=>!(p.kind===kind&&p.cs===cs));
+  const p=Object.assign({id:planSeq++,kind,cs,created:now},extra||{});
+  if(kind==='trial'){p.tn=(planTrialNo[cs]||0)+1;planTrialNo[cs]=p.tn;p.expires=now+plansMod.TRIAL_LIFE_MS;p.problems=[];}
+  plans.push(p);
+  planSel={id:p.id};
+  openPlans();
+  refreshPlanFps(false);
+  if(kind==='trial')probeTrialPlan(p);
+  return p;
+}
+function deletePlan(id){
+  plans=plans.filter(p=>p.id!==id);
+  if(planSel&&planSel.id===id)planSel=null;
+  close('plansub');
+  if(!plans.length)closePlans();else renderPlans();
+}
+function planCleanable(p){return p.kind!=='am'||p.accepted;}
+function cleanUpPlans(){
+  plans=plans.filter(p=>!planCleanable(p));
+  planSel=null;close('plansub');
+  if(!plans.length)closePlans();else renderPlans();
+}
+function plansTickFn(){
+  if(!plansIsOpen()||!plansMod){if(!plansIsOpen()&&plansTick){clearInterval(plansTick);plansTick=null;}return;}
+  const now=Date.now(),n=plans.length;
+  // Trial plans expire; accepted AM plans go away on their own (6.1.3).
+  plans=plans.filter(p=>!(p.kind==='trial'&&p.expires<=now)&&!(p.kind==='am'&&p.accepted&&now-p.created>plansMod.AM_KEEP_MS));
+  // Stop Probe at a fix starts once the aircraft has passed the fix.
+  Object.keys(stopProbeAt).forEach(cs=>{
+    const a=planAc(cs);
+    if(a&&planAirborne(a)&&!routeFixNames(a).includes(stopProbeAt[cs])){stopProbeCs.add(cs);delete stopProbeAt[cs];}
+  });
+  plans.forEach(p=>{if(p.kind==='trial'&&!(p.trial&&p.trial.ptime)&&now-(p.probedAt||0)>15000&&!p.probing)probeTrialPlan(p);});
+  if(plans.length!==n){
+    if(planSel&&!planById(planSel.id))planSel=null;
+    if(!plans.length){closePlans();return;}
+    renderPlans();return;
+  }
+  document.querySelectorAll('#pdList [data-timer]').forEach(el=>{
+    const p=planById(+el.dataset.timer);if(p)el.textContent=plansMod.countdown(p.expires,now);
+  });
+}
+
+// Trial plan probe: the same conflict probe as the ACL, with the trial's altitude / speed / route for this
+// aircraft against traffic within 200 NM.
+async function probeTrialPlan(p){
+  const t=p.trial||{};
+  p.probing=true;
+  try{
+    const a=planAc(p.cs);
+    p.problems=[];p.probeNote='';
+    if(t.ptime)return;
+    if(!a||!planAirborne(a)){p.probeNote='Aircraft not probed: No trajectory available';return;}
+    if(stopProbeCs.has(p.cs)){p.probeNote='Aircraft not probed: Flight has probe stopped';return;}
+    if(holdActiveCs.has(p.cs)){p.probeNote='Aircraft not probed: Flight is in Hold';return;}
+    const mod=await ensureConflictProbe();
+    const me=Object.assign({},a);
+    if(t.spd!=null&&!t.mach)me.gs=t.spd;
+    if(t.fixes&&t.fixes.length)me.routeFixes=t.fixes;      // graphic trial: its own points
+    else if(t.route){const fx=plansMod.trialFixes(a.routeFixes,t.route);if(fx.length)me.routeFixes=fx;}
+    const pool=[me],seen=new Set([me.cs]);
+    [].concat(displayList()||[],liveFlights||[]).forEach(o=>{
+      if(!o||!o.cs||seen.has(o.cs)||o.lat==null||o.lon==null)return;
+      seen.add(o.cs);
+      if(plansMod.distNm(a.lat,a.lon,o.lat,o.lon)<=200)pool.push(o);
+    });
+    const asg=Object.assign({},assigned);if(t.alt!=null)asg[me.cs]=t.alt;
+    const pend=new Set(altPending);pend.add(me.cs);      // a trial is coded as if cleared (not muted)
+    const map=mod.probeConflicts(pool,{assigned:asg,altPending:pend,stopProbe:stopProbeCs,holdActive:holdActiveCs,frozen:frozenCs});
+    const e=map.get(me.cs);
+    p.problems=(e&&e.problems)||[];
+    if(e&&e.status==='X')p.probeNote='Aircraft not probed: No trajectory available';
+  }catch(err){console.warn('Trial plan probe failed',err);p.probeNote='Aircraft not probed: probe failed';}
+  finally{
+    p.probing=false;p.probedAt=Date.now();
+    if(plansIsOpen())renderPlans();
+  }
+}
+
+function planProblems(p){
+  if(p.kind==='current'){const e=conflictAlerts.get(p.cs);return (e&&e.problems)||[];}
+  if(p.kind==='trial')return p.problems||[];
+  return [];
+}
+function planRender(p,now){
+  const M=plansMod,cs=p.cs,a=planAc(cs),fp=planFp(cs),cid=planCidOf(cs);
+  const out={nonAdsb:M.isNonAdsb(fp.icaoType),idCls:'',lines:[],timer:null};
+  const line=(t,cls)=>out.lines.push(`<div class="pd-line${cls?' '+cls:''}">${esc(t)}</div>`);
+  const pos=planPos(a);
+  const timE='E'+M.hhmm(p.kind==='trial'||p.kind==='am'?p.created:now);
+  if(p.kind==='current'||p.kind==='proposed'){
+    const prop=p.kind==='proposed'||!planAirborne(a);
+    const d=planDep(cs);
+    let fix,tim,ahead=[],eta='';
+    if(prop){
+      fix=fp.dep;
+      tim=fp.deptime?'P'+fp.deptime.padStart(4,'0'):(d?'P'+fmtDepTime(d):'');
+    }else{
+      fix=pos;tim=timE;
+      ahead=routeFixEntries(a);
+      eta=M.etaAlong(a.lat,a.lon,ahead.filter(f=>f.lat!=null),groundSpeedKt(a)||a.gs,now);
+    }
+    const asg=planAltText(cs)||null;
+    M.readoutLines(fp,{fix,tim,alt:asg,pos:prop?'':pos,aheadNames:ahead.map(f=>f.name),eta}).forEach(t=>line(t));
+    if(fp.rmk)line(fp.rmk,'pd-dim');
+    if(p.kind==='current'){
+      if(stopProbeCs.has(cs))line('Stop Probe at present position','pd-brown');
+      else if(stopProbeAt[cs])line('Stop Probe at '+stopProbeAt[cs],'pd-brown');
+      const e=conflictAlerts.get(cs);
+      if(e&&e.status==='H')line('Aircraft not probed: Flight is in Hold','pd-brown');
+      else if(e&&e.status==='X')line('Aircraft not probed: No trajectory available','pd-brown');
+      else if(!prop&&!e)line('Aircraft not probed: not on the Aircraft List','pd-dim');
+    }
+  }else if(p.kind==='prev'){
+    const pr=prevRoutes[cs];
+    line('Previous Route');
+    line(M.amLine(cid,{},{fix:(pr&&pr.fix)||pos,tim:'E'+M.hhmm(pr?pr.at:now)}));
+    line('RTE '+M.eramRoute(pr?pr.route:''));
+  }else if(p.kind==='trial'){
+    const t=p.trial||{};
+    line(M.amLine(cid,t,{fix:t.ptime?fp.dep:pos,tim:t.ptime?'':timE}));
+    if(t.route){
+      const fx=t.fixes&&t.fixes.length?t.fixes:M.trialFixes(a&&a.routeFixes,t.route);
+      const gs=(t.spd!=null&&!t.mach)?t.spd:(a?(groundSpeedKt(a)||a.gs):0);
+      const eta=a?M.etaAlong(a.lat,a.lon,fx,gs,p.created):'';
+      line('RTE '+M.readoutRoute({route:pos?planRouteAfterDep(t.route,fp.dep):t.route,pos,arr:M.routeDest(t.route)?'':fp.arr,eta}));
+    }
+    if(p.probeNote)line(p.probeNote,'pd-brown');
+    out.timer=p.expires;
+  }else if(p.kind==='am'){
+    const t=p.trial||{};
+    line(M.amLine(cid,t,{fix:pos,tim:timE}));
+    if(t.route)line('RTE '+M.readoutRoute({route:pos?planRouteAfterDep(t.route,fp.dep):t.route,pos,arr:M.routeDest(t.route)?'':fp.arr}));
+    if(t.type)line('TYP '+t.type);
+    if(t.bcn)line('BCN '+t.bcn);
+    if(t.rmk!=null)line('RMK '+(t.rmk||'(cleared)'));
+    (p.result||[]).forEach(r=>line(r.text,r.ok?'pd-accept':'pd-reject'));
+  }
+  if(p.icao&&(p.kind==='current'||p.kind==='proposed')){
+    const il=M.icaoLines(fp);
+    if(il.length)il.forEach(t=>line(t,'pd-icao'));
+  }
+  // Problem lines: partner, time to the conflict, Zulu time, its sector when CRC told us. NEW for a minute.
+  let worst='';
+  planProblems(p).forEach(pr=>{
+    const key=cs+'|'+pr.cs,acked=planAckProb.has(key);
+    if(!acked&&!pr.muted){if(pr.sev==='r')worst='r';else if(pr.sev==='y'&&worst!=='r')worst='y';}
+    const seenKey=p.id+'|'+pr.cs;
+    if(!planProbSeen.has(seenKey))planProbSeen.set(seenKey,now);
+    const isNew=now-planProbSeen.get(seenKey)<M.NEW_PROBLEM_MS;
+    const sector=(crcCidByCs.get(pr.cs)||{}).sector||'';
+    const rest=M.problemText(Object.assign({},pr,{sector}),now).slice(String(pr.cs).length+1);
+    const sel=planSel&&planSel.id===p.id&&planSel.prob===pr.cs?' sel':'';
+    out.lines.push(`<div class="pd-prob ${pr.sev}${pr.muted?' muted':''}${acked?' ack':''}" data-prob="${p.id}" data-pcs="${esc(pr.cs)}" data-sev="${pr.sev}" title="${pr.saa?'Airspace':'Aircraft'} problem. Click: select (Show). Middle-click: show on the GPD. Right-click: acknowledge">`
+      +`${isNew?'<span class="pd-new">NEW</span>':''}<span class="c${sel}">${esc(pr.cs)}</span><span class="t">${esc(rest)}</span></div>`);
+  });
+  out.idCls=worst;
+  return out;
+}
+function planRowHtml(p,r,adsb){
+  const cs=p.cs,e=crcCidByCs.get(cs),owner=e?otherOwnerSector(cs,e.sector):'';
+  const sel=planSel&&planSel.id===p.id&&!planSel.prob?' sel':'';
+  const tip={current:'Flight plan',proposed:'Proposed plan',prev:'Previous route',trial:'Trial plan',am:'Amendment'}[p.kind]
+    +'. Click: select. Right-click: delete. Middle-click: '+(p.kind==='proposed'?'trial departure now':'Show All on the GPD');
+  return `<div class="pd-row">`
+    +`<div class="pd-adsb" title="${r.nonAdsb?'Non-ADS-B (no B1/B2/U1/U2/V1/V2 in the ICAO equipment)':''}">${adsb&&r.nonAdsb?'A':''}</div>`
+    +`<div class="pd-id ${r.idCls}"><span class="pid${sel}" data-pid="${p.id}" title="${esc(tip)}">${esc(planLabel(p))}</span>`
+    +`${owner?` <span class="pd-own" title="Track owned by sector ${esc(owner)} (from CRC QF)">(${esc(owner)})</span>`:''}</div>`
+    +`<div class="pd-body">${r.lines.join('')}</div>`
+    +`<div class="pd-side">${r.timer?`<span class="pd-timer" data-timer="${p.id}" title="Trial plan expires">${plansMod.countdown(r.timer)}</span>`:''}</div>`
+    +`</div>`;
+}
+let gpdRefreshQueued=false;
+function renderPlans(){
+  // Trial plans are drawn on the GPD too.
+  if(!gpdRefreshQueued&&gpdIsOpen()){gpdRefreshQueued=true;queueMicrotask(()=>{gpdRefreshQueued=false;refreshGpdMap(false);});}
+  const L=document.getElementById('pdList');if(!L)return;
+  syncPlansBar();
+  if(!plansMod){L.innerHTML='<div class="pd-empty">Loading…</div>';return;}
+  if(!plans.length){
+    L.innerHTML='<div class="pd-empty">No plans. Middle-click a route in the Aircraft List or the Departure List to post its flight plan,'
+      +' or select an aircraft and click Plan Options...</div>';
+    return;
+  }
+  const now=Date.now();
+  const items=plansMod.sortPlans(plans).map(p=>({p,r:planRender(p,now)}));
+  const adsb=items.some(x=>x.r.nonAdsb);
+  pdEl().style.setProperty('--pd-adsb',adsb?'1.2ch':'0px');
+  L.innerHTML=items.map(({p,r})=>planRowHtml(p,r,adsb)).join('');
+}
+function setPdBtn(id,on,tip){
+  const b=document.getElementById(id);if(!b)return;
+  b.classList.toggle('disabled',!on);
+  if(tip!=null)b.title=tip;
+}
+function syncPlansBar(){
+  const p=planSelected(),prob=planSel&&planSel.prob;
+  const trial=!!(p&&p.kind==='trial'&&!(p.trial&&p.trial.ptime));
+  setPdBtn('pdOptions',!!p&&p.kind!=='am',p?'Plan Options for '+planLabel(p):'Select a plan first');
+  setPdBtn('pdShow',!!prob,prob?'Show '+p.cs+' / '+prob+' on the GPD':'Select a problem first');
+  setPdBtn('pdShowAll',!!p&&(p.kind==='current'||p.kind==='trial'),'Show the selected flight and its alerts on the GPD');
+  setPdBtn('pdSendAm',trial,trial?'Send the trial plan as an amendment (CRC: QZ / AM)':'Select a trial plan first');
+  setPdBtn('pdSendInt',trial&&p.trial.alt!=null,'Send the trial altitude as an interim altitude (CRC: QQ)');
+  setPdBtn('pdTools',false,'Restrictions: no adapted restrictions on VATSIM');
+  setPdBtn('pdTemplate',true,p?'Amendment Template for '+p.cs:'Flight Plan Template');
+  setPdBtn('pdIcao',!!p&&(p.kind==='current'||p.kind==='proposed')&&!p.icao&&!!planFp(p.cs).icaoType,'ICAO flight plan data for the selected plan');
+  setPdBtn('pdCleanUp',plans.some(planCleanable),'Remove trial, current, proposed, previous route and accepted AM plans');
+}
+
+// ---- sub-menus (one popup, rebuilt for each menu)
+function openPlanSub(title,p,build,anchor){
+  const el=psEl();if(!el)return;
+  if(psNextAnchor){anchor=psNextAnchor;psNextAnchor=null;}
+  if(anchor){const ar=anchor.getBoundingClientRect();if(!ar.width&&!ar.height)anchor=null;}   // in a hidden window
+  if(gpdGraphic&&title!=='Graphic Menu'){gpdGraphic=null;refreshGpdMap(false);}
+  document.getElementById('psTitle').textContent=title;
+  // A menu opened from another menu (Plan Options > Altitude...) takes its place.
+  const wasAt=!anchor&&!el.classList.contains('hidden')?{x:el.offsetLeft,y:el.offsetTop}:null;
+  const B=document.getElementById('psBody');B.innerHTML='';
+  if(p){const d=document.createElement('div');d.className='ps-id';d.textContent=planLabel(p);B.appendChild(d);}
+  build(B);
+  if(wasAt)placePop(el,wasAt.x,wasAt.y);
+  else{
+    if(anchor){const r=anchor.getBoundingClientRect();placePop(el,r.left,r.bottom+2);}
+    else{
+      const pr=plansIsOpen()?pdEl().getBoundingClientRect():null;
+      placePop(el,pr?pr.left:Math.max(8,window.innerWidth/2-150),pr?pr.top+40:Math.max(60,window.innerHeight/3));
+    }
+  }
+  const f=B.querySelector('input:not([readonly]),textarea');
+  if(f)setTimeout(()=>{f.focus();if(f.select)f.select();},30);
+}
+function psItem(B,label,fn,enabled,tip){
+  const d=document.createElement('div');
+  d.className='ps-item'+(enabled===false?' disabled':'');
+  d.textContent=label;if(tip)d.title=tip;
+  if(enabled!==false&&fn)d.onclick=fn;
+  B.appendChild(d);return d;
+}
+function psBtn(parent,label,fn,cls){
+  const b=document.createElement('button');b.type='button';
+  b.className='ps-btn'+(cls?' '+cls:'');b.textContent=label;b.onclick=fn;
+  parent.appendChild(b);return b;
+}
+function psRow(B,cls){const r=document.createElement('div');r.className='ps-row'+(cls?' '+cls:'');B.appendChild(r);return r;}
+function psMsg(B,text,cls){const m=document.createElement('div');m.className='ps-msg'+(cls?' '+cls:'');m.textContent=text;B.appendChild(m);return m;}
+function psExit(B,extra){
+  const f=psRow(B,'ps-foot');
+  if(extra)extra(f);
+  psBtn(f,'Exit',()=>close('plansub'));
+  return f;
+}
+// Trial Plan / Amend toggle (the menus start in Trial Plan, 6.3.5).
+function psModeRow(B,state,extra){
+  const r=psRow(B);
+  const bT=psBtn(r,'Trial Plan',()=>{state.mode='trial';sync();},'on');
+  const bA=psBtn(r,'Amend',()=>{state.mode='amend';sync();});
+  bT.title='Create a trial plan (probed for conflicts, nothing sent)';
+  bA.title='Amend the flight plan: the EDST, and CRC through vUSALink App';
+  if(extra)extra(r);
+  function sync(){bT.classList.toggle('on',state.mode==='trial');bA.classList.toggle('on',state.mode==='amend');if(state.onSync)state.onSync();}
+  return r;
+}
+// Two-button confirmation (Eligibility Menu, AM Change Destination Menu).
+function planConfirm(title,p,msg,yes,no,fn){
+  openPlanSub(title,p,B=>{
+    psMsg(B,msg);
+    const f=psRow(B,'ps-foot');
+    psBtn(f,yes,()=>{close('plansub');fn();});
+    psBtn(f,no,()=>close('plansub'));
+  });
+}
+
+function openPlanOptions(p,opts){
+  opts=opts||{};
+  if(!p||!plansMod)return;
+  const cs=p.cs,a=planAc(cs),air=planAirborne(a);
+  const stopped=stopProbeCs.has(cs)||!!stopProbeAt[cs];
+  const proposed=p.kind==='proposed'||!!(p.trial&&p.trial.ptime)||!air;
+  openPlanSub('Plan Options',p,B=>{
+    psItem(B,'Altitude...',()=>openPlanAltMenu(p));
+    psItem(B,'Speed...',()=>openPlanSpdMenu(p));
+    psItem(B,'Route...',()=>openPlanRouteMenu(p));
+    psItem(B,'Previous Route...',()=>openPrevRouteMenu(p),!!prevRoutes[cs],prevRoutes[cs]?'':'No previous route: the route has not changed since the EDST opened');
+    if(stopped)psItem(B,'Resume Probe',()=>{stopProbeCs.delete(cs);delete stopProbeAt[cs];close('plansub');renderBoard();});
+    else psItem(B,'Stop Probe...',()=>openStopProbeMenu(p),air&&!holdActiveCs.has(cs)&&!frozenCs.has(cs),air?'':'Not airborne');
+    psItem(B,'Trial Restrictions...',null,false,'No adapted restrictions on VATSIM');
+    psItem(B,'Trial Departure...',()=>openTrialDepMenu(p),proposed,proposed?'':'Already airborne');
+    psItem(B,'Resubmit',()=>{close('plansub');resubmitTrial(p);},p.kind==='trial','Re-probe the trial plan with a new number');
+    if(opts.gpd){
+      psItem(B,'Plans',()=>{close('plansub');postPlan('current',cs);},true,'Plans Display with the current plan');
+      const e=conflictAlerts.get(cs);
+      const hot=!!(e&&!e.status&&((e.r&&!e.rMuted)||(e.y&&!e.yMuted)));
+      psItem(B,'Delete',()=>{
+        close('plansub');
+        if(p.kind==='trial'){p.gpdHidden=true;if(planSel&&planSel.id===p.id)planSel=null;}
+        else{gpdShown.delete(cs);if(selectedCs===cs)selectAircraftRow(cs);}
+        refreshGpdMap(false);
+      },!hot,hot?'Not while it has red or yellow alerts':'Remove it from the GPD');
+    }else psItem(B,'Delete',()=>deletePlan(p.id));
+    psExit(B);
+  },document.getElementById('pdOptions'));
+}
+// A new trial plan from a flight plan or from an existing trial plan (keeps that trial's other changes, 6.3.7).
+function postTrial(p,change){
+  const t=Object.assign({},p.kind==='trial'?p.trial:{},change);
+  if(change.route&&!change.direct)delete t.direct;
+  if(change.route&&!change.fixes)delete t.fixes;
+  if(change.spd!=null&&!change.mach)delete t.mach;
+  return postPlan('trial',p.cs,{trial:t});
+}
+function resubmitTrial(p){
+  plans=plans.filter(x=>x.id!==p.id);
+  postPlan('trial',p.cs,{trial:Object.assign({},p.trial)});
+}
+function planAltBase(p){
+  const cs=p.cs,a=planAc(cs);
+  if(p.kind==='trial'&&p.trial&&p.trial.alt!=null)return p.trial.alt;
+  if(assigned[cs]!=null)return assigned[cs];
+  if(a&&planAirborne(a))return round10(a.alt||0);
+  return parseInt(plansMod.fpAltText(planFp(cs).alt),10)||0;
+}
+function openPlanAltMenu(p){
+  const st={mode:'trial',int:false};
+  const base=planAltBase(p);
+  openPlanSub('Altitude Menu',p,B=>{
+    let bI;
+    psModeRow(B,st,r=>{bI=psBtn(r,'INT',()=>{st.int=!st.int;bI.classList.toggle('on',st.int);});bI.title='Interim altitude (CRC: QQ)';});
+    const r2=psRow(B);
+    const inp=document.createElement('input');inp.maxLength=4;inp.size=6;inp.value=base?plansMod.pad3(base):'';
+    inp.title='Altitude 010-600, Enter to send. R prefix: reported altitude (ignored)';
+    r2.appendChild(inp);
+    const L=document.createElement('div');L.className='ps-list';B.appendChild(L);
+    for(let fl=600;fl>=10;fl-=10){
+      const d=document.createElement('div');d.textContent=plansMod.pad3(fl);
+      if(fl===round10(base))d.className='cur';
+      d.onclick=()=>go(fl);L.appendChild(d);
+    }
+    function go(fl){
+      if(!(fl>=10&&fl<=600)){flashStatus('Altitude must be 010 to 600');return;}
+      close('plansub');
+      if(st.mode==='trial')postTrial(p,{alt:fl,int:st.int});
+      else planSendAmend(p.cs,{alt:fl,int:st.int},null);
+    }
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();go(parseInt(inp.value.replace(/^R/i,''),10));}
+      else if(e.key==='Escape')close('plansub');
+    });
+    psExit(B);
+    setTimeout(()=>{const c=L.querySelector('.cur');if(c)c.scrollIntoView({block:'center'});},0);
+  });
+}
+// Speed: knots (TAS), +dd / -dd from the current value, or Mach .78 / M.78 / +.02 / -.02.
+function parsePlanSpeed(s,base){
+  s=String(s||'').trim().toUpperCase();
+  let m;
+  if((m=s.match(/^M?\.(\d{2})$/)))return {spd:+m[1],mach:true};
+  if((m=s.match(/^([+-])\.(\d{2})$/))){
+    if(!base.mach)return null;
+    return {spd:base.spd+(m[1]==='+'?1:-1)*(+m[2]),mach:true};
+  }
+  if((m=s.match(/^([+-])(\d{1,3})$/))){
+    if(base.mach||!base.spd)return null;
+    return {spd:base.spd+(m[1]==='+'?1:-1)*(+m[2])};
+  }
+  if(/^\d{2,3}$/.test(s))return {spd:+s};
+  return null;
+}
+function openPlanSpdMenu(p){
+  const cs=p.cs,fp=planFp(cs),a=planAc(cs);
+  const base=(p.kind==='trial'&&p.trial&&p.trial.spd!=null)?{spd:p.trial.spd,mach:!!p.trial.mach}:{spd:fp.tas||(a&&+a.gs)||0};
+  const st={mode:'trial'};
+  openPlanSub('Speed Menu',p,B=>{
+    psModeRow(B,st);
+    const r2=psRow(B);
+    const inp=document.createElement('input');inp.maxLength=4;inp.size=6;
+    inp.value=base.spd?(base.mach?'.'+base.spd:plansMod.pad3(base.spd)):'';
+    inp.title='Knots (TAS), +dd / -dd, or Mach .78 / +.02. Enter to send';
+    r2.appendChild(inp);
+    psMsg(B,'Knots, +dd / -dd, or Mach .78','ps-hint');
+    const L=document.createElement('div');L.className='ps-list';B.appendChild(L);
+    for(let k=600;k>=100;k-=10){
+      const d=document.createElement('div');d.textContent=plansMod.pad3(k);
+      if(!base.mach&&Math.abs(k-base.spd)<5)d.className='cur';
+      d.onclick=()=>go({spd:k});L.appendChild(d);
+    }
+    function go(v){
+      if(!v||!(v.mach?(v.spd>=40&&v.spd<=99):(v.spd>=40&&v.spd<=999))){flashStatus('Speed not understood');return;}
+      close('plansub');
+      if(st.mode==='trial')postTrial(p,v);
+      else planSendAmend(cs,v,null);
+    }
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();go(parsePlanSpeed(inp.value,base));}
+      else if(e.key==='Escape')close('plansub');
+    });
+    psExit(B);
+    setTimeout(()=>{const c=L.querySelector('.cur');if(c)c.scrollIntoView({block:'center'});},0);
+  });
+}
+function planRouteBase(p){
+  const cs=p.cs,a=planAc(cs),fp=planFp(cs);
+  if(p.kind==='trial'&&p.trial&&p.trial.route)return p.trial.route;
+  if(planAirborne(a))return plansMod.remainingRoute(fp.route,routeFixNames(a),fp.dep,fp.arr);
+  return planFullRoute(fp);
+}
+// Route amendment / trial with a destination change asks first (AM Change Destination Menu, 6.3.5).
+function planRouteGo(p,mode,route,extra){
+  route=String(route||'').trim().toUpperCase().replace(/\s+/g,' ');
+  if(!route)return;
+  const fp=planFp(p.cs),dest=plansMod.routeDest(route);
+  const doIt=()=>{
+    const ch=Object.assign({route},extra||{});
+    if(mode==='trial')postTrial(p,ch);else planSendAmend(p.cs,ch,null);
+  };
+  close('plansub');
+  if(dest&&fp.arr&&dest!==fp.arr)planConfirm('AM Change Destination Menu',p,'Are you sure you want to change the destination? ('+fp.arr+' to '+dest+')','YES','NO',doIt);
+  else doIt();
+}
+function openPlanRouteMenu(p){
+  const cs=p.cs,a=planAc(cs),fp=planFp(cs);
+  const base=planRouteBase(p);
+  const st={mode:'trial'};
+  openPlanSub('Route Menu',p,B=>{
+    psModeRow(B,st);
+    const ta=document.createElement('textarea');ta.rows=3;ta.className='ps-route';ta.value=base;ta.spellcheck=false;
+    ta.title='Edit the route, Enter to send (Shift+Enter: new line)';
+    B.appendChild(ta);
+    psMsg(B,'DIRECT-TO-FIX','ps-sect');
+    const L=document.createElement('div');L.className='ps-list ps-fixes';B.appendChild(L);
+    const fixes=(planAirborne(a)?routeFixNames(a):plansMod.routeTokens(fp.route).filter(x=>!/\d/.test(x)||x.length>5)).filter(x=>x!==fp.dep);
+    fixes.slice(0,40).forEach(fx=>{
+      const d=document.createElement('div');d.textContent=fx;
+      d.onclick=()=>planRouteGo(p,st.mode,plansMod.directRoute(base,fx,fp.dep,fp.arr),{direct:fx});
+      L.appendChild(d);
+    });
+    if(!fixes.length)psMsg(L,'No fixes on the route');
+    ta.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();planRouteGo(p,st.mode,ta.value);}
+      else if(e.key==='Escape')close('plansub');
+    });
+    psExit(B);
+  });
+}
+function openPrevRouteMenu(p){
+  const pr=prevRoutes[p.cs];if(!pr)return;
+  postPlan('prev',p.cs);
+  openPlanSub('Previous Route Menu',p,B=>{
+    psMsg(B,'RTE '+plansMod.eramRoute(pr.route),'ps-route-text');
+    psMsg(B,'Changed '+plansMod.hhmm(pr.at)+'Z','ps-hint');
+    psExit(B,f=>psBtn(f,'Apply Previous Route',()=>{close('plansub');planSendAmend(p.cs,{route:pr.route},null);}));
+  },document.getElementById('pdOptions'));
+}
+function openStopProbeMenu(p){
+  const a=planAc(p.cs);
+  openPlanSub('Stop Probe Menu',p,B=>{
+    psItem(B,'PRESENT POSITION',()=>{stopProbeCs.add(p.cs);delete stopProbeAt[p.cs];close('plansub');renderBoard();});
+    const L=document.createElement('div');L.className='ps-list';B.appendChild(L);
+    routeFixNames(a).slice(0,40).forEach(fx=>{
+      const d=document.createElement('div');d.textContent=fx;
+      d.onclick=()=>{stopProbeAt[p.cs]=fx;close('plansub');renderBoard();};
+      L.appendChild(d);
+    });
+    psExit(B);
+  });
+}
+// Trial Departure Menu (6.3.7): a trial plan at a new proposed time. P Time is the filed time (only if it is still
+// ahead); + / - move a minute; typed HHMM is taken as the next such time (more than 30 min ago is tomorrow).
+function openTrialDepMenu(p){
+  const fp=planFp(p.cs),now=Date.now();
+  const filed=(p.trial&&p.trial.ptime)||fp.deptime||'';
+  const filedMs=filed?plansMod.ptimeMs(filed.padStart(4,'0'),now):null;
+  let cur=filedMs&&filedMs>now?filedMs:now+60000;
+  cur=Math.ceil(cur/60000)*60000;
+  openPlanSub('Trial Departure Menu',p,B=>{
+    const r=psRow(B);
+    psBtn(r,'-',()=>{cur-=60000;inp.value=plansMod.hhmm(cur);});
+    const inp=document.createElement('input');inp.maxLength=4;inp.size=6;inp.value=plansMod.hhmm(cur);r.appendChild(inp);
+    psBtn(r,'+',()=>{cur+=60000;inp.value=plansMod.hhmm(cur);});
+    const r2=psRow(B);
+    const bP=psBtn(r2,'P Time',()=>{if(filedMs&&filedMs>Date.now())create(plansMod.hhmm(filedMs));});
+    if(!(filedMs&&filedMs>now)){bP.classList.add('disabled');bP.title='The proposed time is in the past';}
+    psBtn(r2,'Create TP',()=>create(inp.value));
+    function create(v){
+      const ms=plansMod.ptimeMs(v,Date.now());
+      if(ms==null||ms<=Date.now()){flashStatus('Time must be HHMM, later than now');return;}
+      close('plansub');
+      postTrial(p,{ptime:plansMod.hhmm(ms)});
+    }
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();create(inp.value);}
+      else if(e.key==='Escape')close('plansub');
+    });
+    psExit(B);
+  });
+}
+
+// Amendment: EDST state first (assigned altitude, previous route), then the CRC lines (vUSALink App types them,
+// one at a time), then an .AM plan with the result. A track another sector owns asks first (Eligibility Menu).
+function planSendAmend(cs,changes,fromPlan,override){
+  const e=crcCidByCs.get(cs),owner=e?otherOwnerSector(cs,e.sector):'';
+  if(owner&&!override){
+    planConfirm('Eligibility Menu',fromPlan||{cs,kind:'current'},'Track owned by sector '+owner+'.','Override and Send',"Don't Send and Exit",
+      ()=>planSendAmend(cs,changes,fromPlan,true));
+    return;
+  }
+  const ch=Object.assign({},changes);
+  delete ch.ptime;
+  // vUSALink App types letters, digits, space and . / + - only (CrcType.VkFor); other lines aren't sent.
+  const all=plansMod.crcAmendLines(ch).map(l=>l.replace('{FLID}',cs));
+  const lines=all.filter(l=>/^[A-Z0-9 .\/+\-]+$/.test(l));
+  const untypable=all.filter(l=>!lines.includes(l));
+  if(ch.alt!=null){assigned[cs]=ch.alt;persist();if(ch.int)interimAlt[cs]=ch.alt;else delete interimAlt[cs];delete blockAlt[cs];}
+  if(ch.route){
+    const fp=planFp(cs);
+    if(fp.route)prevRoutes[cs]={route:fp.route,at:Date.now(),fix:planPos(planAc(cs))};
+    delete hdgAssigned[cs];
+  }
+  let sent=0;
+  lines.forEach(l=>{if(crcEcho(l,true))sent++;});
+  const result=[];
+  const edstOnly=Object.keys(ch).every(k=>k==='alt'||k==='int'||ch[k]==null);   // the EDST can hold this itself
+  let accepted;
+  if(sent&&sent===lines.length){
+    // Everything typeable went to CRC; anything that couldn't be typed is listed below and keeps the plan up.
+    accepted=!untypable.length&&!ch.mach;
+    result.push({ok:true,text:accepted?'ACCEPT':'ACCEPT (PART)'});
+    lines.forEach(l=>result.push({ok:true,text:'→ CRC  '+l}));
+  }else if(edstOnly&&ch.alt!=null){
+    accepted=true;
+    result.push({ok:true,text:'ACCEPT (EDST ONLY: CRC is typed only when the EDST runs in vUSALink App)'});
+  }else if(hostCrcEcho&&!lines.length){
+    accepted=false;
+    result.push({ok:false,text:'NOT SENT'});
+  }else{
+    accepted=false;
+    result.push({ok:false,text:'NOT SENT: CRC is typed only when the EDST runs in vUSALink App'+(ch.alt!=null?' (altitude set in the EDST)':'')});
+  }
+  if(ch.mach)result.push({ok:false,text:'SPD M'+ch.spd+' not typed: CRC has no Mach form'});
+  untypable.forEach(l=>result.push({ok:false,text:'Not typed (characters vUSALink App cannot type): '+l}));
+  mcaSetFeedback(['AM '+cs,sent?'→ CRC ('+sent+' line'+(sent>1?'s':'')+')':'EDST ONLY'],accepted?'ok':'err');
+  if(fromPlan&&fromPlan.kind==='trial')plans=plans.filter(x=>x.id!==fromPlan.id);
+  postPlan('am',cs,{trial:ch,result,accepted});
+  renderBoard();
+}
+function planSendFromTrial(intAlt){
+  const p=planSelected();
+  if(!p||p.kind!=='trial'||(p.trial&&p.trial.ptime))return;
+  const t=Object.assign({},p.trial);
+  if(intAlt){if(t.alt==null)return;planSendAmend(p.cs,{alt:t.alt,int:true},p);}
+  else{t.int=false;planSendAmend(p.cs,t,p);}
+}
+
+// Flight Plan Template (nothing selected): makes an EDST flight strip; CRC has no command that creates an IFR
+// flight plan. Amendment Template (plan selected): sends the fields you changed (6.3.5).
+function openPlanTemplate(p){
+  const amend=!!p,cs=p?p.cs:'';
+  const fp=p?planFp(cs):null,a=p?planAc(cs):null;
+  const F=['AID','TYP','BCN','SPD','ALT','RTE','RMK'];
+  const vals=amend?{AID:cs,TYP:fp.type||'',BCN:fp.bcn||(a&&a.assignedSquawk)||'',SPD:fp.tas?plansMod.pad3(fp.tas):'',
+    ALT:planAltText(cs),RTE:planFullRoute(fp),RMK:fp.rmk||''}
+    :{AID:'',TYP:'',BCN:'',SPD:'',ALT:'',RTE:'',RMK:''};
+  openPlanSub(amend?'Amendment Template':'Flight Plan Template',p,B=>{
+    const g=document.createElement('div');g.className='ps-grid';B.appendChild(g);
+    const ins={};
+    F.forEach(k=>{
+      const l=document.createElement('label');l.textContent=k;g.appendChild(l);
+      const i=document.createElement(k==='RTE'?'textarea':'input');
+      if(k==='RTE')i.rows=2;
+      i.value=vals[k];i.spellcheck=false;
+      if(amend&&k==='AID')i.readOnly=true;
+      i.addEventListener('keydown',e=>{
+        if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}
+        else if(e.key==='Escape')close('plansub');
+      });
+      g.appendChild(i);ins[k]=i;
+    });
+    const note=psMsg(B,amend?'Only the fields you change are sent.':'Creates an EDST flight strip (CRC has no command that creates an IFR flight plan).','ps-hint');
+    psExit(B,f=>psBtn(f,'Send',send));
+    function v(k){return ins[k].value.trim().toUpperCase().replace(/\s+/g,' ');}
+    function send(){
+      if(!amend){
+        const ncs=v('AID');
+        if(!ncs||!v('RTE')){note.textContent='AID and RTE are required.';note.classList.add('ps-err');return;}
+        manual=manual.filter(x=>(x.cs||'').toUpperCase()!==ncs);
+        manual.unshift({cs:ncs,type:v('TYP')||'----',alt:parseInt(v('ALT'),10)||350,hs:'/',route:v('RTE'),_routeRaw:v('RTE'),source:'manual'});
+        persist();close('plansub');renderBoard();
+        postPlan('current',ncs);
+        flashStatus(ncs+' added to the Aircraft List (EDST only)');
+        return;
+      }
+      const ch={};
+      if(v('TYP')&&v('TYP')!==String(vals.TYP).toUpperCase())ch.type=v('TYP');
+      if(v('BCN')!==String(vals.BCN).toUpperCase()&&v('BCN')){
+        if(!/^[0-7]{4}$/.test(v('BCN'))){note.textContent='BCN must be 4 octal digits.';note.classList.add('ps-err');return;}
+        ch.bcn=v('BCN');
+      }
+      if(v('SPD')&&v('SPD')!==vals.SPD){const s=parseInt(v('SPD'),10);if(!(s>=40&&s<=999)){note.textContent='SPD not understood.';note.classList.add('ps-err');return;}ch.spd=s;}
+      if(v('ALT')&&v('ALT')!==vals.ALT){const al=parseInt(v('ALT'),10);if(!(al>=10&&al<=600)){note.textContent='ALT must be 010 to 600.';note.classList.add('ps-err');return;}ch.alt=al;}
+      if(v('RTE')&&v('RTE')!==String(vals.RTE).toUpperCase())ch.route=v('RTE');
+      if(v('RMK')!==String(vals.RMK).toUpperCase())ch.rmk=v('RMK');
+      if(!Object.keys(ch).length){close('plansub');return;}
+      const dest=ch.route?plansMod.routeDest(ch.route):'';
+      close('plansub');
+      if(dest&&fp.arr&&dest!==fp.arr)planConfirm('AM Change Destination Menu',p,'Are you sure you want to change the destination? ('+fp.arr+' to '+dest+')','YES','NO',()=>planSendAmend(cs,ch,null));
+      else planSendAmend(cs,ch,null);
+    }
+  },document.getElementById('pdTemplate'));
+}
+
+// Show: the selected problem on the GPD. Show All: the flight (selected on the ACL) on the GPD; again removes it.
+function planShowProblem(cs,sev){
+  alertSelection={cs,type:sev};
+  syncShowAlertButtons();
+  applyAlertShow(false);
+}
+function planShowAll(p){
+  if(p.kind==='trial'){p.gpdHidden=false;planSel={id:p.id};}
+  else if(gpdShown.has(p.cs)&&gpdIsOpen()){gpdShown.delete(p.cs);refreshGpdMap(false);return;}
+  else gpdShown.add(p.cs);
+  if(selectedCs!==p.cs&&displayList().some(x=>x.cs===p.cs))selectAircraftRow(p.cs);
+  openGpdMenu().then(()=>refreshGpdMap(false)).catch(()=>{});
+}
+
+(function wirePlans(){
+  const L=document.getElementById('pdList');
+  if(!L)return;
+  L.addEventListener('click',e=>{
+    const prob=e.target.closest('[data-prob]');
+    if(prob){
+      const id=+prob.dataset.prob,pcs=prob.dataset.pcs;
+      planSel=(planSel&&planSel.id===id&&planSel.prob===pcs)?null:{id,prob:pcs,sev:prob.dataset.sev};
+      renderPlans();return;
+    }
+    const pid=e.target.closest('[data-pid]');
+    if(pid){
+      const id=+pid.dataset.pid;
+      planSel=(planSel&&planSel.id===id&&!planSel.prob)?null:{id};
+      renderPlans();
+    }
+  });
+  // Right-click: delete a plan (implied delete) or acknowledge / un-acknowledge a problem (white).
+  L.addEventListener('contextmenu',e=>{
+    const prob=e.target.closest('[data-prob]');
+    if(prob){
+      e.preventDefault();
+      const p=planById(+prob.dataset.prob);if(!p)return;
+      const key=p.cs+'|'+prob.dataset.pcs;
+      if(planAckProb.has(key))planAckProb.delete(key);else planAckProb.add(key);
+      renderPlans();return;
+    }
+    const pid=e.target.closest('[data-pid]');
+    if(pid){e.preventDefault();deletePlan(+pid.dataset.pid);}
+  });
+  L.addEventListener('mousedown',e=>{if(e.button===1&&e.target.closest('[data-pid],[data-prob]'))e.preventDefault();});
+  // Middle-click (implied command): Show for a problem, Show All for a plan, a trial departure for a proposed plan.
+  L.addEventListener('auxclick',e=>{
+    if(e.button!==1)return;
+    const prob=e.target.closest('[data-prob]');
+    if(prob){e.preventDefault();const p=planById(+prob.dataset.prob);if(p)planShowProblem(p.cs,prob.dataset.sev);return;}
+    const pid=e.target.closest('[data-pid]');
+    if(!pid)return;
+    e.preventDefault();
+    const p=planById(+pid.dataset.pid);if(!p)return;
+    if(p.kind==='proposed')postTrial(p,{ptime:plansMod.hhmm(Date.now()+60000)});
+    else if(p.kind==='current'||p.kind==='trial')planShowAll(p);
+  });
+  const on=(id,fn)=>{const b=document.getElementById(id);if(b)b.addEventListener('click',e=>{e.preventDefault();if(b.classList.contains('disabled'))return;fn();});};
+  on('pdOptions',()=>openPlanOptions(planSelected()));
+  on('pdShow',()=>{const p=planSelected();if(p&&planSel.prob)planShowProblem(p.cs,planSel.sev);});
+  on('pdShowAll',()=>{const p=planSelected();if(p)planShowAll(p);});
+  on('pdSendAm',()=>planSendFromTrial(false));
+  on('pdSendInt',()=>planSendFromTrial(true));
+  on('pdTemplate',()=>{const p=planSelected();openPlanTemplate(p&&p.kind!=='am'?p:null);});
+  on('pdIcao',()=>{const p=planSelected();if(!p)return;p.icao=true;refreshPlanFps(false);renderPlans();});
+  on('pdCleanUp',cleanUpPlans);
+  document.querySelectorAll('[data-close="plansmenu"]').forEach(x=>x.addEventListener('click',closePlans));
+  const btn=document.getElementById('btnPlans');
+  if(btn)btn.addEventListener('click',e=>{e.preventDefault();if(plansIsOpen())closePlans();else openPlans();});
+  // ACL Plan Options...: the selected aircraft's flight plan, with the Plan Options Menu open.
+  const po=document.getElementById('btnPlanOptions');
+  if(po)po.addEventListener('click',e=>{
+    e.preventDefault();
+    const a=selectedAircraft();
+    if(!a){flashStatus('Select an aircraft row first');return;}
+    const p=postPlan('current',a.cs);
+    if(p)openPlanOptions(p);
+  });
+  // ACL: middle-click a route posts the current plan (6.1.3).
+  rows.addEventListener('mousedown',e=>{if(e.button===1&&e.target.closest('.route-cell'))e.preventDefault();});
+  rows.addEventListener('auxclick',e=>{
+    if(e.button!==1)return;
+    const rtc=e.target.closest('.route-cell');if(!rtc)return;
+    e.preventDefault();
+    const a=displayList()[+rtc.dataset.route];
+    if(a)postPlan('current',a.cs);
+  });
+  // DEP list: middle-click a route posts the proposed plan.
+  const dep=document.getElementById('depRows');
+  if(dep){
+    dep.addEventListener('mousedown',e=>{if(e.button===1&&e.target.closest('.dep-route'))e.preventDefault();});
+    dep.addEventListener('auxclick',e=>{
+      if(e.button!==1)return;
+      const td=e.target.closest('.dep-route');if(!td)return;
+      e.preventDefault();
+      const tr=td.closest('tr');
+      if(tr&&tr.dataset.cs)postPlan('proposed',tr.dataset.cs);
+    });
+  }
+  // Route Menu PREVIOUS ROUTE: posts the previous route plan.
+  const pv=document.getElementById('rtPrevRoute');
+  if(pv)pv.addEventListener('click',e=>{
+    e.preventDefault();
+    if(!rtTarget||!prevRoutes[rtTarget.cs]){flashStatus('No previous route for this flight');return;}
+    postPlan('prev',rtTarget.cs);
+    close('routemenu');
+  });
+  makeEdstDraggable(pdEl());
+  makeEdstDraggable(psEl());
+})();
 
 //============================================================ board clicks (ON FREQ / ALT / HDG / SPD / ROUTE / MSG / ALERT / row select)
 rows.addEventListener('contextmenu',e=>{

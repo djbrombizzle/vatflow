@@ -77,6 +77,10 @@ export function getAirport(icao) {
   if (u.length === 3) return AIRPORTS.get("K" + u) || null;
   return null;
 }
+/** Every loaded airport as [icao, [lat, lon]] (GPD airport symbols). */
+export function airportEntries() {
+  return AIRPORTS.entries();
+}
 export function hasAirport(icao) {
   return !!getAirport(icao);
 }
