@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPDLC Notices — VATFLOW</title>
+<link rel="stylesheet" href="shared/vatflow-nav.css">
+<style>
+  :root {
+    --bg: #050505;
+    --fg: #cfcfcf;
+    --fg-dim: #6b6b6b;
+    --green: #79d27a;
+    --amber: #e8a838;
+    --red: #e07070;
+    --line: #333;
+    --panel: #121212;
+    --paper: #f4f1e8;
+    --ink: #1b1b1b;
+    --vatflow-nav-h: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  }
+  #vatflowAppNav { position: fixed; top: 0; left: 0; right: 0; z-index: 700; }
+  #page { padding-top: var(--vatflow-nav-h); background: #0b0b0b; min-height: 100vh; }
+  .hdr { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 8px 16px; background: #161616; border-bottom: 1px solid #444; }
+  .hdr .title { color: #fff; letter-spacing: 0.4px; font-size: 14px; }
+  .hdr .sub { color: var(--fg-dim); font-size: 11px; }
+  .wrap { max-width: 680px; padding: 14px 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 12px; }
+  .card h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: 0.1em; color: var(--amber); font-weight: 600; text-transform: uppercase; }
+  p { font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
+  .dim { color: var(--fg-dim); }
+  .slip { background: var(--paper); color: var(--ink); padding: 10px 12px; font-size: 12.5px; line-height: 1.5; margin: 6px 0 4px; overflow-wrap: anywhere; }
+  .state { font-size: 13px; margin: 6px 0 10px; }
+  .state b.on { color: var(--green); }
+  .state b.off { color: var(--red); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  button.b { background: #1d1d1d; border: 1px solid #555; color: var(--fg); font-family: inherit; font-size: 11.5px; padding: 7px 12px; cursor: pointer; letter-spacing: 0.04em; }
+  button.b:hover { border-color: #888; }
+  button.b.primary { border-color: #7a5c1d; color: var(--amber); }
+  button.b:disabled { opacity: 0.5; cursor: default; }
+  .msgline { font-size: 11.5px; min-height: 16px; margin-top: 8px; }
+  .msgline.ok { color: var(--green); }
+  .msgline.err { color: var(--red); }
+  .hidden { display: none !important; }
+  a { color: var(--amber); }
+</style>
+</head>
+<body>
+<div id="vatflowAppNav"></div>
+<div id="page">
+  <div class="hdr">
+    <span class="title">KUSA CPDLC NOTICES</span>
+    <span class="sub">Opt out of the "CPDLC is now available" telex</span>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>What this is</h2>
+      <p>When a center controller opens <b>KUSA</b> CPDLC on vUSAlink, aircraft flying in that center's airspace
+        that are connected to VATSIM and to Hoppie ACARS get one free-text telex from KUSA:</p>
+      <div class="slip" id="sample">CPDLC IS NOW AVAILABLE LOGON TO KUSA IF YOU WISH TO OPT OUT PLEASE VISIT VATFLOW.IO</div>
+      <p class="dim">Aircraft already logged on to KUSA don't get it, and an aircraft gets it at most once an hour.
+        To use CPDLC, log on to <b>KUSA</b> from your aircraft's ATC / CPDLC page.</p>
+    </div>
+
+    <div class="card" id="signedOut">
+      <h2>Opt out</h2>
+      <p>Sign in with your VATSIM account. The notice is matched to the CID you fly under, so opting out
+        covers every callsign and aircraft you connect with.</p>
+      <div class="row"><button type="button" class="b primary" id="signInBtn">Sign in with VATSIM</button></div>
+    </div>
+
+    <div class="card hidden" id="signedIn">
+      <h2>Your setting</h2>
+      <p class="dim">Signed in as CID <b id="cid"></b>.</p>
+      <div class="state" id="state">Loading…</div>
+      <div class="row">
+        <button type="button" class="b primary hidden" id="optOutBtn">Opt out of KUSA notices</button>
+        <button type="button" class="b hidden" id="optInBtn">Receive KUSA notices again</button>
+      </div>
+      <div class="msgline" id="msg"></div>
+    </div>
+
+    <p class="dim">VATFLOW keeps only your CID and when you opted out, on the vUSAlink hub, and uses it only to
+      skip this notice. Opting back in deletes it. See the <a href="privacy.html">privacy policy</a>.</p>
+  </div>
+</div>
+
+<script type="module">
+import { mountVatflowNav } from "./shared/vatflow-nav.js";
+import { initVatflowAuth, getSession, getStoredToken, login } from "./shared/vatflow-auth.js";
+import { rampHubBase } from "./shared/ramp-live.js";
+
+mountVatflowNav(document.getElementById("vatflowAppNav"), "cpdlc-optout");
+
+const $ = id => document.getElementById(id);
+let busy = false;
+
+async function call(body) {
+  const s = getSession();
+  const res = await fetch(`${rampHubBase()}/hub/kusa-optout`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cid: s?.cid, vatflowToken: getStoredToken(), ...body }),
+  });
+  let data = null;
+  try { data = await res.json(); } catch (_) {}
+  if (!data) throw new Error(res.status === 404 ? "The hub does not have the opt-out update yet." : `Hub answered HTTP ${res.status}.`);
+  if (!data.ok) throw new Error(data.error || `Hub answered HTTP ${res.status}.`);
+  return data;
+}
+
+function render(d) {
+  if (d.text) $("sample").textContent = d.text;
+  $("state").innerHTML = d.optOut
+    ? `<b class="off">OPTED OUT</b> &mdash; you won't get the KUSA notice.`
+    : `<b class="on">RECEIVING</b> &mdash; you get the KUSA notice when a center opens CPDLC.`;
+  $("optOutBtn").classList.toggle("hidden", !!d.optOut);
+  $("optInBtn").classList.toggle("hidden", !d.optOut);
+}
+
+async function run(body, okText) {
+  if (busy) return;
+  busy = true;
+  $("optOutBtn").disabled = $("optInBtn").disabled = true;
+  $("msg").className = "msgline";
+  $("msg").textContent = body.action === "set" ? "Saving…" : "";
+  try {
+    const d = await call(body);
+    render(d);
+    $("msg").textContent = okText || "";
+    $("msg").className = "msgline ok";
+  } catch (e) {
+    $("msg").textContent = e.message;
+    $("msg").className = "msgline err";
+    if (body.action !== "set") $("state").textContent = "Couldn't load your setting.";
+  } finally {
+    busy = false;
+    $("optOutBtn").disabled = $("optInBtn").disabled = false;
+  }
+}
+
+$("signInBtn").addEventListener("click", () => login());
+$("optOutBtn").addEventListener("click", () => run({ action: "set", optOut: true }, "Saved. You're opted out."));
+$("optInBtn").addEventListener("click", () => run({ action: "set", optOut: false }, "Saved. You'll get the notice again."));
+
+let loaded = false;
+function show() {
+  const s = getSession();
+  $("signedOut").classList.toggle("hidden", !!s);
+  $("signedIn").classList.toggle("hidden", !s);
+  if (s) $("cid").textContent = s.cid;
+  if (s && !loaded) { loaded = true; run({ action: "get" }); }
+  if (!s) loaded = false;
+}
+
+window.addEventListener("vatflow-auth-changed", show);
+await initVatflowAuth();
+show();
+</script>
+</body>
+</html>
