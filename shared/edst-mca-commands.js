@@ -323,7 +323,7 @@ export function buildMcaUplinkEntry(parsed, ac = {}) {
     let msg = `PROCEED DIRECT TO @${p.fix}@`;
     if (pd) msg += " AT PILOTS DISCRETION";
     msg += suf;
-    return { label: "DIRECT", msg, effects: { type: "route" }, crc: `QU ${p.fix}` };
+    return { label: "DIRECT", msg, effects: { type: "route", direct: p.fix }, crc: `QU ${p.fix}` };
   }
 
   if (p.type === "hdg") {

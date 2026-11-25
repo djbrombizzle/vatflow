@@ -2955,6 +2955,7 @@ const planProbSeen=new Map();            // "planId|partner" -> first seen (NEW 
 // GPD (see its section; declared here because renderBoard and selectAircraftRow refresh it during start-up)
 let gpdMapApi=null,gpdReady=null,gpdMod=null,gpdView=null,gpdFuture=0,gpdMode='',gpdGraphic=null,gpdAlertSel=null;
 let psNextAnchor=null;                   // element the next Plans/GPD menu opens under
+let routeAmends=LS.get('vedst_rtamend',{})||{};   // cs -> amended route the EDST keeps (see noteRouteAmend)
 let gpdScope=null,gpdGuessArtcc='';      // no ARTCC known (signed out, no VIEW ARTCC): the one under the map center
 const gpdShown=new Set();                // Show All: aircraft whose route and alerts are on the GPD
 const interimAlt={};                     // cs -> interim altitude (QQ, TEMP, Send INT): GPD "290T242"
@@ -3875,6 +3876,74 @@ function eramRoute(rt){
 }
 // AMEND: put a menu's selection in the EDST and in CRC without a CPDLC uplink, so it works for aircraft that
 // aren't on CPDLC too.
+// Amended routes. A direct or reroute (Plans / GPD Send AM, Amend, the Amendment Template, the ACL route menu's
+// UPLINK and AMEND, QU from the MCA or CRC) changes CRC's flight plan, but the VATSIM data the EDST draws from
+// often doesn't change (a QU never does). So the EDST keeps the new route itself, like an assigned altitude, and
+// uses it for the ACL route, the GPD and the Plans Display, until the VATSIM flight plan changes (a pilot refile,
+// or vNAS passing the amendment on): then VATSIM's newer route wins. Kept for 6 hours at most.
+function routeKey(s){return String(s||'').trim().toUpperCase().replace(/\s+/g,' ');}
+function routeBodyOf(rt,dep,arr){
+  const t=routeKey(rt).split(' ').filter(Boolean);
+  if(dep&&t[0]===dep)t.shift();
+  if(arr&&t[t.length-1]===arr)t.pop();
+  return t.join(' ');
+}
+function saveRouteAmends(){LS.set('vedst_rtamend',routeAmends);}
+// effects: {type:'route', direct: 'FLG'} or {type:'route', newRoute: 'KJFK RBV Q430 ...'}
+function noteRouteAmend(cs,eff){
+  if(!cs||!eff||eff.type!=='route'||(!eff.direct&&!eff.newRoute))return;
+  cs=String(cs).toUpperCase();
+  const a=planAc(cs);
+  if(!a)return;
+  const dep=(a.dep||'').toUpperCase(),arr=(a.arr||'').toUpperCase();
+  const feed=a._feedRoute!=null?a._feedRoute:routeKey(a._routeRaw);
+  const cur=routeBodyOf(a._routeRaw||a.route,dep,arr);
+  let body,fixes=null,newArr=arr;
+  const oldFixes=a._origRouteFixes!==undefined?a._origRouteFixes:a.routeFixes;
+  if(eff.direct){
+    const fx=String(eff.direct).toUpperCase();
+    const t=cur.split(' ').filter(Boolean);
+    const i=t.indexOf(fx);
+    body=(i>=0?t.slice(i):[fx]).join(' ');
+    if(Array.isArray(a.routeFixes)){
+      const j=a.routeFixes.findIndex(f=>String(f.name||'').toUpperCase()===fx);
+      if(j>=0)fixes=a.routeFixes.slice(j);
+    }
+  }else{
+    const r=routeKey(eff.newRoute);
+    const last=r.split(' ').pop();
+    if(r.includes(' ')&&/^[KPCMT][A-Z]{3}$/.test(last)&&last!==arr)newArr=last;
+    body=routeBodyOf(r,dep,newArr);
+    if(Array.isArray(oldFixes)){
+      const byName=new Map(oldFixes.map(f=>[String(f.name||'').toUpperCase(),f]));
+      const m=body.split(' ').map(x=>byName.get(x)).filter(Boolean);
+      if(m.length>=2)fixes=m;
+    }
+  }
+  if(!body||body===cur)return;
+  // Previous Route: the route before this change (also for the ACL route menu).
+  prevRoutes[cs]={route:cur,at:Date.now(),fix:(plansMod&&a.lat!=null)?plansMod.latLonFix(a.lat,a.lon):''};
+  routeAmends[cs]={base:feed,body,arr:newArr,fixes,at:Date.now()};
+  saveRouteAmends();
+  [liveFlights,testFlights,manual,hubGroundRows].forEach(L=>(L||[]).forEach(x=>{if(x&&x.cs===cs)applyRouteAmend(x);}));
+  if(manual.some(x=>x.cs===cs))persist();
+}
+// Puts a kept route amendment on an aircraft row (called on every traffic refresh). Returns the row.
+function applyRouteAmend(a){
+  if(!a||!a.cs)return a;
+  if(a._feedRoute==null)a._feedRoute=routeKey(a._routeRaw);
+  const r=routeAmends[a.cs];
+  if(!r)return a;
+  if(Date.now()-r.at>6*3600000||r.base!==a._feedRoute){delete routeAmends[a.cs];saveRouteAmends();return a;}
+  if(a._origRouteFixes===undefined)a._origRouteFixes=a.routeFixes||null;
+  if(r.arr)a.arr=r.arr;
+  a._routeRaw=r.body;
+  a.route=[a.dep,r.body,a.arr].filter(Boolean).join(' ');
+  a.routeFixes=r.fixes;
+  a.routeAmended=true;
+  return a;
+}
+
 // GPD line 2: an interim (QQ) or block altitude next to the assigned one.
 function noteAltKind(cs,entry){
   const e=entry&&entry.effects;
@@ -3886,6 +3955,7 @@ function noteAltKind(cs,entry){
 function amendEntry(cs,entry){
   if(!cs||!entry)return;
   noteAltKind(cs,entry);
+  noteRouteAmend(cs,entry.effects);
   const e=entry.effects||{};
   if(e.type==='alt'&&e.alt!=null){assigned[cs]=e.alt;persist();}
   else if(e.type==='hdg'&&e.hdg!=null)hdgAssigned[cs]=e.hdg;
@@ -3903,6 +3973,7 @@ async function sendUplinkEntry(cs,entry,opts){
   if(min!=null){
     applyUplinkEffects(cs,min,entry.effects);
     noteAltKind(cs,entry);
+    noteRouteAmend(cs,entry.effects);
     if(entry.crc&&!(opts&&opts.noEcho))crcEcho(crcLine(entry,cs));
   }
   else if(lastSendError)flashStatus(lastSendError);
@@ -4273,7 +4344,7 @@ async function refreshMonitor(force){
     catch(_){throw new Error('hub returned non-JSON ('+res.status+')');}
     if(!d||typeof d!=='object')throw new Error('hub returned empty response');
     if(!d.ok){setVat('err',d.error||'view error');return;}
-    liveFlights=(d.flights||[]).map(mapLive);facilities=[];
+    liveFlights=(d.flights||[]).map(mapLive).map(applyRouteAmend);facilities=[];
     connected.clear();(d.connected||[]).forEach(c=>connected.add(c));logonReq.clear();
     renderFeed(d.messages,d.evtId);
     setVat('on',`VIEW ${art} \u00b7 ${connected.size} on KUSA \u00b7 ${liveFlights.length} a/c`);
@@ -4309,10 +4380,10 @@ async function refreshVatsim(force){
       try{sessionStorage.removeItem('vedst_list_reloads');}catch(_){}
       clearListMetaRefresh();
     }
-    liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];notePlanRoutes();
+    liveFlights=(d.flights||[]).map(mapLive);annotateFlights();facilities=d.facilities||[];notePlanRoutes();liveFlights.forEach(applyRouteAmend);
     // Aircraft on the ground come in their own bucket: the hub keeps them out of
     // the enroute picture, and they carry the CPDLC state the VATSIM feed cannot.
-    hubGroundRows=(d.ground||[]).map(mapLive);
+    hubGroundRows=(d.ground||[]).map(mapLive).map(applyRouteAmend);
     const roleNow=String((d.role||(d.verify&&d.verify.role)||'')).toLowerCase();
     if(roleNow&&roleNow!==hubRole){hubRole=roleNow;onPositionChanged();}
     vatsimFeedReady=true;
@@ -5929,7 +6000,7 @@ function buildRouteDirectMessage(fix){
   msg+=rtReasonSuffix();
   // CRC gets the direct (not the conditional AT FIX / AT ALT forms).
   const crc=rtDirectMode==='NOW'||rtDirectMode==='ABLE'?'QU '+fix:null;
-  return {label:'DIRECT',msg,effects:{type:'route',resumeNav:true},crc};
+  return {label:'DIRECT',msg,effects:{type:'route',resumeNav:true,direct:(rtDirectMode==='NOW'||rtDirectMode==='ABLE')?fix:null},crc};
 }
 function buildWxDevMessage(){
   const nm=parseInt((document.getElementById('rtWxNm')&&document.getElementById('rtWxNm').value)||'',10);
@@ -5944,7 +6015,7 @@ function buildRouteUplinkMessage(target,route){
   if(rtApd)msg+=' AT PILOTS DISCRETION';
   msg+=rtReasonSuffix();
   const er=eramRoute(route);
-  return {label:'ROUTE',msg,effects:{type:'route',resumeNav:true},crc:er?'AM {FLID} RTE '+er:null};
+  return {label:'ROUTE',msg,effects:{type:'route',resumeNav:true,newRoute:route},crc:er?'AM {FLID} RTE '+er:null};
 }
 function rtReasonSuffix(){
   const order=['IMM','EXP','TFC','RES','WX'];
@@ -6185,11 +6256,11 @@ document.querySelectorAll('#rtReasonPanel [data-reason]').forEach(btn=>{
 document.getElementById('rtAmend').onclick=()=>{
   if(!rtTarget)return;
   let entry=null;
-  if(fixSelected)entry={crc:'QU '+fixSelected,effects:{type:'route',resumeNav:true}};
+  if(fixSelected)entry={crc:'QU '+fixSelected,effects:{type:'route',resumeNav:true,direct:fixSelected}};
   else{
     const rt=(document.getElementById('rtEdit').value||'').trim().toUpperCase().replace(/\s+/g,' ');
     const er=rt?eramRoute(rt):'';
-    if(er)entry={crc:'AM {FLID} RTE '+er,effects:{type:'route',resumeNav:true}};
+    if(er)entry={crc:'AM {FLID} RTE '+er,effects:{type:'route',resumeNav:true,newRoute:rt}};
   }
   if(!entry){queuePopLast(rtTarget.cs);return;}
   const cs=rtTarget.cs;close('routemenu');
@@ -9410,7 +9481,11 @@ function planAc(cs){
 function planDep(cs){return (depItems||[]).find(r=>r.cs===cs)||null;}
 // Flight plan fields: from the VATSIM feed when we have them, else what the row knows.
 function planFp(cs){
-  const f=plansFps.get(cs);if(f)return f;
+  const f=plansFps.get(cs);
+  if(f){
+    const r=routeAmends[cs];
+    return r&&routeKey(f.route)===r.base?{...f,route:r.body,arr:r.arr||f.arr}:f;
+  }
   const a=planAc(cs),d=planDep(cs),r=a||d||{};
   return {cs,vatsimCid:r.cid||r.rawCid||'',type:r.type||'----',icaoType:'',tas:0,alt:String(r.cruise||(d&&d.alt)||''),
     dep:(r.dep||'').toUpperCase(),arr:(r.arr||'').toUpperCase(),altn:'',
@@ -9456,7 +9531,7 @@ function notePlanRoutes(){
   const now=Date.now();
   (liveFlights||[]).forEach(a=>{
     if(!a||!a.cs)return;
-    const r=String(a._routeRaw||'').trim().toUpperCase().replace(/\s+/g,' ');
+    const r=a._feedRoute!=null?a._feedRoute:String(a._routeRaw||'').trim().toUpperCase().replace(/\s+/g,' ');
     const prev=planRouteSeen.get(a.cs);
     if(prev&&r&&prev!==r&&!(prevRoutes[a.cs]&&prevRoutes[a.cs].route===prev&&now-prevRoutes[a.cs].at<600000))
       prevRoutes[a.cs]={route:prev,at:now,fix:plansMod?plansMod.latLonFix(a.lat,a.lon):''};
@@ -10004,6 +10079,7 @@ function planSendAmend(cs,changes,fromPlan,override){
     const fp=planFp(cs);
     if(fp.route)prevRoutes[cs]={route:fp.route,at:Date.now(),fix:planPos(planAc(cs))};
     delete hdgAssigned[cs];
+    noteRouteAmend(cs,ch.direct?{type:'route',direct:ch.direct}:{type:'route',newRoute:ch.route});
   }
   let sent=0;
   lines.forEach(l=>{if(crcEcho(l,true))sent++;});
