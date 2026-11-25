@@ -392,7 +392,7 @@ export function createEdstGpdMap(containerEl, opts = {}) {
     const g = pointCanvas.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
-    g.font = "11px EDST, EDSTv2, Consolas, monospace";
+    g.font = "11px ERAM, EDST, EDSTv2, Consolas, monospace";
     g.lineWidth = 1;
     const range = rangeNm() * 0.97;   // the Range button rounds: "400" may be 400.3
     const b = map.getBounds();

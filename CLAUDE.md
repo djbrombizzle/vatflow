@@ -45,6 +45,15 @@ free to change.
     Its menus reuse the Plans Display popup (`#plansub`, `openPlanSub`); amendments go through `planSendAmend`, so
     they echo to CRC the same way. GPD state is declared with the board state near the top (refreshGpdMap runs from
     renderBoard during start-up). The GPD is a window: it is not in `menusOpen()` and doesn't close on outside clicks.
+  - ACL Route field: `shared/edst-acl-route.js` (ERAM dotted route `aclRouteText`, `remarksOf`, `fifrCheck`; tests
+    `node scripts/test-edst-acl-route.mjs`), drawn by `aclRouteCoding` in the page. Remarks and the equipment suffix
+    come from the VATSIM feed (`plansFps`, refreshed with traffic). Page font: `ERAM` (ERAMv110, base64 @font-face),
+    falling back to `EDST` for missing glyphs.
+  - Route Menu (ACL route click; ERAM 3.2.1.2): modes Trial Plan / Amend / Amend + Uplink (`rtMode`, `rtGo`); Trial
+    and Amend go through `planRouteGo` (Plans Display), Amend + Uplink sends the CPDLC entry with `{noEcho:true}` and
+    then `planSendAmend`, so CRC gets the change once. APRs: `shared/edst-apr.js` (tests `node scripts/test-edst-apr.mjs`)
+    over `data/prd/to-<DEST>.json`, built by `node scripts/build-prd-data.mjs` from the FAA prefroutes_db.csv
+    (data/source; refresh every 56 days). `tfmReroutes` is the hook for VATFLOW TFM reroutes (empty for now).
   - AMEND buttons (ALT, CODE, HDG, SPD, route menus): `amendEntry` applies the selection to the EDST's own state
     (assigned alt / heading / speed) with no CPDLC uplink, and posts `{t:'crcEcho', text, amend:true}`, which the
     app types even with CRC ECHO off. Works for aircraft not on CPDLC. Nothing selected: AMEND keeps its old job

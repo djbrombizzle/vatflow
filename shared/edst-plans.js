@@ -149,7 +149,7 @@ export function latLonFix(lat, lon) {
 
 // Airway or procedure ("J4", "Q167", "CIVET8", "SSOXS7"): joined with "." in ERAM routes, fixes with "..".
 function isPath(x) {
-  return /^[A-Z]{1,2}\d{1,4}$/.test(x) || /^[A-Z]{3,6}\d[A-Z]?$/.test(x);
+  return /^[A-Z]{1,2}\d{1,4}$/.test(x) || /^[A-Z]{3,6}\d{1,2}[A-Z]?$/.test(x);
 }
 
 /** Route tokens, without DCT, speed/level groups ("N0450F350") and "/..." suffixes. */
