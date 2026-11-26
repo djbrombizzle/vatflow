@@ -11277,6 +11277,45 @@ window.vUSALinkEDST=Object.freeze({
   document.addEventListener('pointerdown',active,true);
   connect();
 })();
+//============================================================ ERAMv2 link
+// ERAMv2 (the ERAM scope from github.com/djbrombizzle/CRC-Companion) shows a held TOC after a handoff of a
+// CPDLC aircraft is taken; a middle-click on it asks this page to send the CONTACT uplink, through the same
+// signed-in path as clicking ▶ here. ERAMv2 listens on localhost only and accepts only vatflow pages.
+// Protocol: page → {t:'hello'}; ERAMv2 → {t:'contact', id, cs, name, freq}; page → {t:'result', id, ok, error}.
+(function eramv2Link(){
+  const URL_='ws://localhost:47614/eramv2';
+  const keepTrying=!!(window.chrome&&window.chrome.webview)||new URLSearchParams(location.search).has('eramv2');
+  if(!keepTrying)return;
+  let ws=null,delay=3000;
+  function send(o){try{if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}catch(_){}}
+  async function contact(m){
+    const cs=String(m.cs||'').toUpperCase().trim();
+    const name=String(m.name||'').toUpperCase().trim();
+    const freq=String(m.freq||'').trim();
+    if(!/^[A-Z][A-Z0-9]{1,7}$/.test(cs)||!/^1[1-3]\d\.\d{1,3}$/.test(freq))return {ok:false,error:'FORMAT'};
+    if(!connected.has(cs))return {ok:false,error:'NO CPDLC'};
+    if(!canControl())return {ok:false,error:'NOT AUTH'};
+    const rt=document.getElementById('hoRadarTerm');if(rt)rt.checked=false;   // plain CONTACT, no RADAR SERVICES TERMINATED
+    await sendHandoff(cs,{name:name||'CENTER',freq,callsign:'',kind:'CTR'},'CONTACT');
+    if(!handoffPending.has(cs))return {ok:false,error:(lastSendError||'SEND FAIL').toUpperCase()};
+    crcHandoffs.delete(cs);renderBoard();
+    return {ok:true};
+  }
+  function retry(){setTimeout(connect,delay);delay=Math.min(delay*2,30000);}
+  function connect(){
+    try{ws=new WebSocket(URL_);}catch(_){retry();return;}
+    ws.onopen=()=>{delay=3000;send({t:'hello',page:'edst',api:window.vUSALinkEDST&&window.vUSALinkEDST.version});};
+    ws.onmessage=async e=>{
+      let m;try{m=JSON.parse(e.data);}catch(_){return;}
+      if(m.t!=='contact')return;
+      let r;try{r=await contact(m);}catch(_){r={ok:false,error:'SEND FAIL'};}
+      send({t:'result',id:m.id,ok:!!r.ok,error:r.error||''});
+    };
+    ws.onerror=()=>{};
+    ws.onclose=()=>{ws=null;retry();};
+  }
+  connect();
+})();
 
 </script>
 <script type="module">
