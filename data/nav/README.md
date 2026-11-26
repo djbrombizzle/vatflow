@@ -5,10 +5,10 @@ Pre-processed US enroute navigation data for route expansion in FCA Builder and 
 ## Rebuild
 
 ```bash
-node scripts/build-nav-data.mjs --faa-cycle 2026-10-01
+node scripts/build-nav-data.mjs --faa-cycle 2026-11-26
 ```
 
-Current data: AIRAC 2610, effective 1 Oct 2026. Fixes, navaids and preferred
+Current data: AIRAC 2612, effective 26 Nov 2026. Fixes, navaids and preferred
 routes come from the FAA NASR CSV for the requested cycle; enroute airways and
 SID/STAR procedures come from the same-cycle FAA CIFP
 (`https://aeronav.faa.gov/Upload_313-d/cifp/CIFP_YYMMDD.zip`, parsed by
@@ -16,7 +16,7 @@ SID/STAR procedures come from the same-cycle FAA CIFP
 back to @squawk airways/procedures. Use `--cifp /path/to/FAACIFP18` to build
 from a local CIFP file.
 
-Next cycles: 2611 = 2026-10-29, 2612 = 2026-11-26.
+Next cycles: 2613 = 2026-12-24, 2701 = 2027-01-21 (NASR 56-day).
 
 Fallback (prior @squawk-only snapshot):
 
