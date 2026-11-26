@@ -1,12 +1,14 @@
 /**
  * EDST R/Y/A conflict probe — aircraft-to-aircraft and aircraft-to-SAA.
  *
- * R (red):    A–A ≤ 5 NM
- * Y (yellow): A–A 5–12 NM
- * A (orange): within 3 NM of Special Activity Airspace (SUA)
+ * R (red):    A–A within 5 NM and less than 1,000 ft apart
+ * Y (yellow): not used (only a 5 NM / 1,000 ft loss of separation is a conflict)
+ * A (orange): within 3 NM of an ACTIVE Special Activity Airspace (SAA). SAAs are
+ *             closed unless the controller activates them (ctx.activeSaa).
  *
- * Vertical separation uses assigned altitude when present, otherwise the
- * filed/cruise altitude (not present altitude).
+ * Altitude: each aircraft climbs or descends from its present altitude toward its
+ * assigned altitude (else filed/cruise) at CLIMB_FPM, so two aircraft that will be
+ * thousands of feet apart where their routes cross don't alert.
  *
  * Muted = conflict only appears when projecting an uncleared altitude change
  * (assigned alt ≠ present alt, and no altitude uplink pending WILCO).
@@ -17,10 +19,11 @@
  */
 
 const RED_NM = 5;
-const YELLOW_NM = 12;
+const YELLOW_NM = RED_NM;      // no yellow band: a conflict is 5 NM / 1,000 ft only
 const SAA_NM = 3;
-// Same flight level only — normal RVSM (1,000 ft) must not alert.
-const VERT_FT = 100;           // conflict only if |Δalt| < 100 ft (same FL)
+// Conflict only if |Δalt| < 1,000 ft: RVSM (1,000 ft) must not alert.
+const VERT_FT = 1000;
+const CLIMB_FPM = 2000;        // modeled climb / descent rate toward the probe altitude
 const SAMPLE_NM = 8;           // route sample spacing
 const LOOKAHEAD_NM = 120;      // max route look-ahead
 const TIME_STEP_MIN = 0.5;     // synchronized probe time step (minutes)
@@ -150,6 +153,13 @@ export function buildProbeSamples(ac, opts = {}) {
   const projected = uncleared && Math.abs(probeFl - curFl) >= 3;
   const gs = Math.max(120, +(ac.gs || 0) || 400); // kt
   const nmPerMin = gs / 60;
+  // Altitude at t minutes: from present toward the probe altitude at CLIMB_FPM (unknown present: level at probe).
+  const startFl = curFl > 0 ? curFl : probeFl;
+  const rate = CLIMB_FPM / 100;
+  const altAt = (t) => {
+    const d = probeFl - startFl;
+    return Math.abs(d) <= rate * t ? probeFl : startFl + Math.sign(d) * rate * t;
+  };
 
   const pts = [[lat, lon]];
   const fixes = ac.routeFixes || ac.route_fixes || [];
@@ -170,7 +180,7 @@ export function buildProbeSamples(ac, opts = {}) {
   const samples = [];
   let traveled = 0;
   let tMin = 0;
-  samples.push({ lat, lon, tMin: 0, altFl: probeFl, projected });
+  samples.push({ lat, lon, tMin: 0, altFl: altAt(0), projected });
 
   for (let i = 0; i < pts.length - 1; i++) {
     const [aLat, aLon] = pts[i];
@@ -184,15 +194,24 @@ export function buildProbeSamples(ac, opts = {}) {
       traveled += SAMPLE_NM;
       tMin = traveled / nmPerMin;
       const [sLat, sLon] = destPoint(aLat, aLon, brg, along);
-      samples.push({ lat: sLat, lon: sLon, tMin, altFl: probeFl, projected });
+      samples.push({ lat: sLat, lon: sLon, tMin, altFl: altAt(tMin), projected });
       if (traveled >= LOOKAHEAD_NM) break;
     }
     traveled += segNm - along;
     tMin = traveled / nmPerMin;
     if (traveled <= LOOKAHEAD_NM) {
-      samples.push({ lat: bLat, lon: bLon, tMin, altFl: probeFl, projected });
+      samples.push({ lat: bLat, lon: bLon, tMin, altFl: altAt(tMin), projected });
     }
     if (traveled >= LOOKAHEAD_NM) break;
+  }
+  // Insert the level-off point so interpolated altitudes are exact.
+  const tLevel = Math.abs(probeFl - startFl) / rate;
+  const k = samples.findIndex((x) => x.tMin > tLevel);
+  if (tLevel > 0 && k > 0) {
+    const a = samples[k - 1], b = samples[k], u = (tLevel - a.tMin) / (b.tMin - a.tMin);
+    samples.splice(k, 0, {
+      lat: a.lat + (b.lat - a.lat) * u, lon: a.lon + (b.lon - a.lon) * u, tMin: tLevel, altFl: probeFl, projected,
+    });
   }
   return samples;
 }
@@ -403,8 +422,8 @@ export async function loadSuaData(baseUrl = "") {
   return suaLoading;
 }
 
-function countSaaHits(samples) {
-  if (!suaLoaded || !samples.length) {
+function countSaaHits(samples, active) {
+  if (!suaLoaded || !samples.length || !active || !active.size) {
     return { count: 0, muted: false, times: [] };
   }
   let count = 0;
@@ -417,6 +436,7 @@ function countSaaHits(samples) {
     let hit = false;
     for (let i = 0; i < suaPolys.length; i++) {
       const poly = suaPolys[i];
+      if (!active.has(poly.name)) continue;            // closed SAA
       if (altFt < poly.floorFt - 100 || altFt > poly.ceilFt + 100) continue;
       const d = distToPolygonNm(s.lat, s.lon, poly.rings);
       if (d <= SAA_NM) {
@@ -447,6 +467,7 @@ export function probeConflicts(aircraft, ctx = {}) {
   const stopProbe = ctx.stopProbe || new Set();
   const holdActive = ctx.holdActive || new Set();
   const frozen = ctx.frozen || new Set();
+  const activeSaa = ctx.activeSaa || new Set();       // names of the SAAs the controller activated
 
   const list = (aircraft || []).filter(a => a && a.cs);
   const out = new Map();
@@ -521,7 +542,7 @@ export function probeConflicts(aircraft, ctx = {}) {
   }
 
   for (const [cs, samples] of samplesBy) {
-    const saa = countSaaHits(samples);
+    const saa = countSaaHits(samples, activeSaa);
     const e = out.get(cs);
     e.a = saa.count;
     e.aMuted = !!saa.muted;

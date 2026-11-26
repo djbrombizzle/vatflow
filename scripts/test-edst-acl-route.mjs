@@ -11,11 +11,13 @@ function eq(got, want, msg) {
 
 eq(shortApt("KRDU"), "RDU", "K airport drops the K");
 eq(shortApt("TNCC"), "TNCC", "non-US airport kept");
-eq(aclRouteText({ dep: "KRDU", body: "ROA EKN IHD NEST03", arr: "KPIT" }), "RDU..ROA..EKN..IHD.NEST03.PIT", "dotted route with short airports");
-eq(aclRouteText({ dep: "KIAD", body: "KIAD AML CSN J48 MOL KCLE", arr: "KCLE" }), "IAD..AML..CSN.J48.MOL..CLE", "airports in the body are not doubled");
-eq(aclRouteText({ dep: "KRIC", body: "GVE V38 EKN", arr: "KCLE", direct: true }), "RIC./.GVE.V38.EKN..CLE", "direct shows ./.");
-eq(aclRouteText({ dep: "KJFK", body: "N0450F350 DCT MERIT J60 PSB", arr: "" }), "JFK..MERIT.J60.PSB", "speed/level and DCT dropped");
-eq(aclRouteText({ dep: "KJFK", body: "", arr: "KBOS" }), "JFK..BOS", "empty body");
+eq(aclRouteText({ dep: "KRDU", body: "ROA EKN IHD NEST03", arr: "KPIT" }), "KRDU..ROA..EKN..IHD.NEST03.KPIT", "dotted route with ICAO airports");
+eq(aclRouteText({ dep: "KIAD", body: "KIAD AML CSN J48 MOL KCLE", arr: "KCLE" }), "KIAD..AML..CSN.J48.MOL..KCLE", "airports in the body are not doubled");
+eq(aclRouteText({ dep: "KLAS", body: "NIITZ4 SSKEE INW J86 FST DLF LRD", arr: "KLRD" }), "KLAS.NIITZ4.SSKEE..INW.J86.FST..DLF..KLRD", "3-letter arrival in the body is not doubled");
+eq(aclRouteText({ dep: "KHOU", body: "HOU SJT237043 ELP", arr: "KPHX" }), "KHOU..SJT237043..ELP..KPHX", "3-letter departure in the body is not doubled");
+eq(aclRouteText({ dep: "KRIC", body: "GVE V38 EKN", arr: "KCLE", direct: true }), "KRIC./.GVE.V38.EKN..KCLE", "direct shows ./.");
+eq(aclRouteText({ dep: "KJFK", body: "N0450F350 DCT MERIT J60 PSB", arr: "" }), "KJFK..MERIT.J60.PSB", "speed/level and DCT dropped");
+eq(aclRouteText({ dep: "KJFK", body: "", arr: "KBOS" }), "KJFK..KBOS", "empty body");
 
 eq(equipSuffix("B739/L"), "L", "suffix");
 eq(equipSuffix("H/B744/L"), "L", "wake prefix and suffix");

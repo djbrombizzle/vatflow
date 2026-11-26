@@ -788,6 +788,8 @@ td.eh-bk{text-align:center;min-width:14px}
 #plansub .ps-saa{max-height:300px}
 #plansub .ps-saa>div{white-space:pre}
 #plansub .ps-saa>div.hot{color:#ff9a3c}
+#plansub .ps-saa>div.act{color:#fff}
+#plansub .ps-saa>div{cursor:pointer}
 
 #edstbar .etb-btn.active-gpd{background:#2e5a5a;border-color:var(--teal);color:#9fe6e0}
 
@@ -2941,6 +2943,8 @@ const msgRepeatTimers={};                // cs -> interval id for unread message
 // R/Y/A conflict probe
 let conflictProbeMod=null;
 let conflictAlerts=new Map();            // cs -> probe entry
+// SAAs the controller activated (GPD Airspace Status). Closed by default: VATSIM has no SAA schedules.
+let saaActive=new Set(LS.get('vedst_saa_active',[])||[]);
 const stopProbeCs=new Set();             // brown S
 const holdActiveCs=new Set();            // brown H (after HOLD uplink)
 const frozenCs=new Set();                // brown F
@@ -4601,9 +4605,9 @@ function alertBoxHtml(cs){
   }
   const r=e?e.r:0, y=e?e.y:0, a=e?e.a:0;
   return {
-    r:one('r',r,e&&e.rMuted, r?`${r} A–A ≤5 NM`:'Red alert — A–A ≤5 NM'),
-    y:one('y',y,e&&e.yMuted, y?`${y} A–A 5–12 NM`:'Yellow alert — A–A 5–12 NM'),
-    a:one('a',a,e&&e.aMuted, a?`${a} airspace ≤3 NM`:'Airspace alert — SAA ≤3 NM'),
+    r:one('r',r,e&&e.rMuted, r?`${r} A–A ≤5 NM, <1,000 ft`:'Red alert — A–A ≤5 NM and <1,000 ft'),
+    y:one('y',y,e&&e.yMuted, y?`${y} A–A`:'Yellow alert (not used)'),
+    a:one('a',a,e&&e.aMuted, a?`${a} active SAA ≤3 NM`:'Airspace alert — active SAA ≤3 NM (GPD Tools > Airspace Status)'),
     brownFid:false,
   };
 }
@@ -8835,6 +8839,7 @@ async function runConflictProbe(){
       stopProbe:stopProbeCs,
       holdActive:holdActiveCs,
       frozen:frozenCs,
+      activeSaa:saaActive,
     });
     // Keep only display-list entries for board paint (plus status marks).
     const next=new Map();
@@ -9302,15 +9307,26 @@ function openGpdAirspaceStatus(){
   const list=gpdMapApi?gpdMapApi.saaNear():[];
   const hot=gpdSaaAlerts();
   openPlanSub('Airspace Status',null,B=>{
-    psMsg(B,'Special Activity Airspace in '+(gpdArtccId()||'the ARTCC')+'. Schedules and activation are not on VATSIM; the probe treats every SAA as active.','ps-hint');
+    psMsg(B,'Special Activity Airspace in '+(gpdArtccId()||'the ARTCC')+'. SAAs are closed (not probed) unless activated. Click: activate / close. Right-click: center the GPD.','ps-hint');
     const L=document.createElement('div');L.className='ps-list ps-saa';B.appendChild(L);
-    list.sort((x,y)=>(hot.has(y.name)?1:0)-(hot.has(x.name)?1:0)||String(x.name).localeCompare(String(y.name))).slice(0,300).forEach(p=>{
+    const rank=p=>(hot.has(p.name)?2:0)+(saaActive.has(p.name)?1:0);
+    list.sort((x,y)=>rank(y)-rank(x)||String(x.name).localeCompare(String(y.name))).slice(0,300).forEach(p=>{
       const d=document.createElement('div');
       const lim=gpdMod.pad3((p.floorFt||0)/100)+'-'+gpdMod.pad3((p.ceilFt||0)/100);
-      d.textContent=(hot.has(p.name)?'▲ ':'  ')+String(p.name||'').replace(/,.*$/,'')+'  '+(p.type||'')+'  '+lim;
-      if(hot.has(p.name))d.className='hot';
-      d.title='Center the GPD here';
-      d.onclick=()=>{if(gpdMapApi)gpdMapApi.setView([p.lat,p.lon],gpdView?gpdView.rangeNm:150);};
+      const draw=()=>{
+        const act=saaActive.has(p.name);
+        d.textContent=(hot.has(p.name)?'▲ ':'  ')+(act?'ACT ':'    ')+String(p.name||'').replace(/,.*$/,'')+'  '+(p.type||'')+'  '+lim;
+        d.className=hot.has(p.name)?'hot':(act?'act':'');
+      };
+      draw();
+      d.title='Click: activate / close this SAA. Right-click: center the GPD here';
+      d.onclick=()=>{
+        if(saaActive.has(p.name))saaActive.delete(p.name);else saaActive.add(p.name);
+        LS.set('vedst_saa_active',[...saaActive]);
+        draw();
+        runConflictProbe();
+      };
+      d.oncontextmenu=(e)=>{e.preventDefault();if(gpdMapApi)gpdMapApi.setView([p.lat,p.lon],gpdView?gpdView.rangeNm:150);};
       L.appendChild(d);
     });
     if(!list.length)psMsg(L,'No SAA data loaded');
@@ -9818,7 +9834,7 @@ async function probeTrialPlan(p){
     });
     const asg=Object.assign({},assigned);if(t.alt!=null)asg[me.cs]=t.alt;
     const pend=new Set(altPending);pend.add(me.cs);      // a trial is coded as if cleared (not muted)
-    const map=mod.probeConflicts(pool,{assigned:asg,altPending:pend,stopProbe:stopProbeCs,holdActive:holdActiveCs,frozen:frozenCs});
+    const map=mod.probeConflicts(pool,{assigned:asg,altPending:pend,stopProbe:stopProbeCs,holdActive:holdActiveCs,frozen:frozenCs,activeSaa:saaActive});
     const e=map.get(me.cs);
     p.problems=(e&&e.problems)||[];
     if(e&&e.status==='X')p.probeNote='Aircraft not probed: No trajectory available';

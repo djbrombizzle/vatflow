@@ -4,24 +4,24 @@
 
 import { eramRoute } from "./edst-plans.js";
 
-/** ERAM shows US airports by their 3-letter id: KRDU -> RDU. */
+/** 3-letter id of a US airport: KRDU -> RDU (FAA data keys, e.g. the preferred routes). The ACL shows the full ICAO id. */
 export function shortApt(id) {
   const s = String(id || "").trim().toUpperCase();
   return /^K[A-Z]{3}$/.test(s) ? s.slice(1) : s;
 }
 
 /**
- * The ACL route: "RDU..ROA..EKN..IHD.NEST03.PIT".
+ * The ACL route: "KRDU..ROA..EKN..IHD.NEST03.KPIT" (airports by their full ICAO id).
  * body: the route between the airports (spaces or dots). direct: the route was amended to start at the
  * aircraft's present position (a direct-to), shown ERAM style as "DEP./.FIX..".
  */
 export function aclRouteText({ dep, body, arr, direct } = {}) {
-  const d = shortApt(dep), a = shortApt(arr);
+  const d = String(dep || "").trim().toUpperCase(), a = String(arr || "").trim().toUpperCase();
   let b = String(body || "").trim().toUpperCase();
-  // The route may still carry the airports (manual strips, raw routes).
+  // The route may still carry the airports (manual strips, raw routes), in ICAO or 3-letter form.
   const t = b.split(/[\s.]+/).filter(Boolean);
-  if (dep && t[0] === String(dep).toUpperCase()) t.shift();
-  if (arr && t[t.length - 1] === String(arr).toUpperCase()) t.pop();
+  if (d && (t[0] === d || t[0] === shortApt(d))) t.shift();
+  if (a && (t[t.length - 1] === a || t[t.length - 1] === shortApt(a))) t.pop();
   b = t.join(" ");
   if (direct) {
     const rest = eramRoute([b, a].filter(Boolean).join(" "));

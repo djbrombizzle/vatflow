@@ -74,9 +74,8 @@ const d = {
   routeFixes: [],
 };
 const map2 = probeConflicts([c, d], {});
-assert(map2.get("DAL3").y >= 1 && map2.get("DAL3").r === 0, "8 NM is yellow");
-assert(map2.get("JBU4").y >= 1, "partner also yellow");
-assert(map2.get("DAL3").problems.some(p => p.cs === "JBU4" && p.sev === "y" && p.tMin >= 0), "yellow problem with a time");
+assert(map2.get("DAL3").y === 0 && map2.get("DAL3").r === 0 && !map2.get("DAL3").problems.length,
+  "8 NM apart is not a conflict (5 NM only)");
 
 // Head-on closing from ~15 NM → red; highlight only near the conflict, not full 40 NM DR path
 const h1 = { cs: "SWA1", lat: 35.0, lon: -100.0, alt: 340, gs: 480, hdg: 90, routeFixes: [] };
@@ -96,8 +95,8 @@ assert(hSeg && hSeg.coords.length >= 2, "head-on has red segment coords");
 const hSegNm = segLenNm(hSeg.coords);
 assert(hSegNm < 35, "conflict segment shorter than full dead-reckon path (" + hSegNm.toFixed(1) + " NM)");
 
-// Assigned/filed altitude for separation — present alt ignored
-// A currently FL200 but filed FL350; B at FL350 filed FL350; laterally ~3 NM → red
+// Climbing aircraft: thousands of feet apart where the routes meet → no conflict.
+// A at FL200 climbing to filed FL350, B level FL350, head-on 3 NM: they pass while A is near FL200.
 const f1 = {
   cs: "FFT1", lat: 33.0, lon: -97.0, alt: 200, cruise: "FL350",
   gs: 450, hdg: 90, routeFixes: [],
@@ -107,17 +106,25 @@ const f2 = {
   gs: 450, hdg: 270, routeFixes: [],
 };
 const mapF = probeConflicts([f1, f2], {});
-assert(mapF.get("FFT1").r >= 1, "filed cruise used for sep (not present FL200)");
+assert(mapF.get("FFT1").r === 0, "climbing FL200 vs level FL350 passing now = no conflict");
+// Same, but 60 NM apart: A reaches FL350 (7.5 min at 2,000 fpm) before they meet (~4 min)? no: meets at ~4 min near FL280.
+const f3 = { ...f2, cs: "FFT3", lon: -97.0 + dLonAt(33, 60) };
+assert(probeConflicts([f1, f3], {}).get("FFT1").r === 0, "still 7,000 ft apart where they meet = no conflict");
+// 140 NM apart (meet ~9.3 min): A is level at FL350 by then → conflict.
+const f4 = { ...f2, cs: "FFT4", lon: -97.0 + dLonAt(33, 140) };
+const f1b = { ...f1, routeFixes: [{ lat: 33.0, lon: -97.0 + dLonAt(33, 150) }] };
+const f4b = { ...f4, routeFixes: [{ lat: 33.0, lon: -97.0 - dLonAt(33, 10) }] };
+assert(probeConflicts([f1b, f4b], {}).get("FFT1").r >= 1, "level at the same FL where they meet = conflict");
 
 // Assigned altitudes 2000 ft apart → no conflict even if present alts match
 const v1 = { cs: "V1", lat: 34.0, lon: -98.0, alt: 350, gs: 400, hdg: 90, routeFixes: [] };
 const v2 = {
-  cs: "V2", lat: 34.0, lon: -98.0 + dLonAt(34, 3), alt: 350, gs: 400, hdg: 270, routeFixes: [],
+  cs: "V2", lat: 34.0, lon: -98.0 + dLonAt(34, 30), alt: 350, gs: 400, hdg: 270, routeFixes: [],
 };
 const mapV = probeConflicts([v1, v2], { assigned: { V1: 350, V2: 370 } });
 assert(mapV.get("V1").r === 0 && mapV.get("V1").y === 0, "assigned ΔFL20 = no A–A conflict");
 
-// RVSM 1,000 ft (adjacent FLs) must not alert — same altitude only
+// RVSM 1,000 ft (adjacent FLs) must not alert: a conflict is less than 1,000 ft
 const r1 = { cs: "R1", lat: 36.0, lon: -99.0, alt: 350, gs: 450, hdg: 90, routeFixes: [] };
 const r2 = {
   cs: "R2", lat: 36.0, lon: -99.0 + dLonAt(36, 3), alt: 360, gs: 450, hdg: 270, routeFixes: [],
@@ -132,7 +139,7 @@ const m1 = {
 const m2 = {
   cs: "ASA2",
   lat: 40.0,
-  lon: -110.0 + dLonAt(40, 4),
+  lon: -110.0 + dLonAt(40, 30),
   alt: 350,
   gs: 420,
   hdg: 270,
@@ -169,17 +176,19 @@ assert(probeConflicts([a], { frozen: new Set(["AAL1"]) }).get("AAL1").status ===
 
 const samples = buildProbeSamples({
   cs: "X", lat: 30, lon: -81, alt: 200, gs: 400, hdg: 90,
-  routeFixes: [{ lat: 30.5, lon: -80.5, name: "FIXA" }],
+  routeFixes: [{ lat: 31.5, lon: -79.5, name: "FIXA" }],
 }, { assignedFl: 350, altPending: false });
 assert(samples.length >= 2, "samples along route");
-assert(samples.every(s => s.altFl === 350), "all samples use assigned probe FL");
+assert(samples[0].altFl === 200 && samples[samples.length - 1].altFl === 350, "samples climb from present to assigned");
+assert(samples.every((s, i) => !i || s.altFl >= samples[i - 1].altFl), "altitude never drops in a climb");
+assert(samples.some(s => Math.abs(s.tMin - 7.5) < 1e-6 && s.altFl === 350), "level-off sample at 7.5 min (15,000 ft at 2,000 fpm)");
 assert(samples.every(s => s.projected), "uncleared assigned marks projected");
 
 const samplesCleared = buildProbeSamples({
   cs: "X", lat: 30, lon: -81, alt: 200, gs: 400, hdg: 90,
-  routeFixes: [{ lat: 30.5, lon: -80.5, name: "FIXA" }],
+  routeFixes: [{ lat: 31.5, lon: -79.5, name: "FIXA" }],
 }, { assignedFl: 350, altPending: true });
-assert(samplesCleared.every(s => s.altFl === 350), "cleared climb still probes at assigned");
+assert(samplesCleared[samplesCleared.length - 1].altFl === 350, "cleared climb still probes to assigned");
 assert(!samplesCleared.some(s => s.projected), "cleared climb samples not muted/projected");
 
 const coords = segmentCoords(samples, 1, 2, 1);
@@ -200,8 +209,9 @@ setSuaFeatures({
   }],
 });
 const suaAc = { cs: "N172SP", lat: 30.0, lon: -81.0, alt: 200, gs: 140, hdg: 90, routeFixes: [] };
-const mapS = probeConflicts([suaAc], {});
-assert(mapS.get("N172SP").a >= 1, "inside/near SUA → A alert");
+assert(probeConflicts([suaAc], {}).get("N172SP").a === 0, "SAA closed unless activated: no A alert");
+const mapS = probeConflicts([suaAc], { activeSaa: new Set(["TESTMOA"]) });
+assert(mapS.get("N172SP").a >= 1, "inside/near an active SAA → A alert");
 assert(
   (mapS.get("N172SP").segments || []).some(s => s.sev === "a"),
   "airspace conflict has segment",
