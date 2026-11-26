@@ -11281,8 +11281,9 @@ window.vUSALinkEDST=Object.freeze({
 // ERAMv2 (the ERAM scope from github.com/djbrombizzle/CRC-Companion) shows a held TOC after a handoff of a
 // CPDLC aircraft is taken; a middle-click on it asks this page to send the CONTACT uplink, through the same
 // signed-in path as clicking ▶ here. ERAMv2 listens on localhost only and accepts only vatflow pages.
-// Protocol: page → {t:'hello'}; ERAMv2 → {t:'contact', id, cs, name, freq} or {t:'cmd', id, text} (UC only,
-// from its X RES menu); page → {t:'result', id, ok, error}.
+// Protocol: page → {t:'hello'}; ERAMv2 → {t:'contact', id, cs, name, freq}, {t:'cmd', id, text} (UC, or
+// QZ / QU /U from its X RES and PID menus) or {t:'reply', id, cs, text} (STANDBY / UNABLE / ROGER to the pilot's
+// latest downlink); page → {t:'result', id, ok, error}.
 (function eramv2Link(){
   const URL_='ws://localhost:47614/eramv2';
   const keepTrying=!!(window.chrome&&window.chrome.webview)||new URLSearchParams(location.search).has('eramv2');
@@ -11302,6 +11303,20 @@ window.vUSALinkEDST=Object.freeze({
     crcHandoffs.delete(cs);renderBoard();
     return {ok:true};
   }
+  // A response to the pilot's latest downlink (ERAMv2's PID menu), as this page's MESSAGE pop-up sends it.
+  async function reply(m){
+    const cs=String(m.cs||'').toUpperCase().trim();
+    const text=String(m.text||'').toUpperCase().replace(/\s+/g,' ').trim();
+    if(!/^[A-Z][A-Z0-9]{1,7}$/.test(cs))return {ok:false,error:'FORMAT'};
+    if(!/^(STANDBY|UNABLE(, DUE TO (TRAFFIC|WEATHER|RESTRICTED AIRSPACE))?|ROGER|ROGER MAYDAY|ROGER PAN)$/.test(text))return {ok:false,error:'NOT ALLOWED'};
+    if(!connected.has(cs))return {ok:false,error:'NO CPDLC'};
+    if(!canControl())return {ok:false,error:'NOT AUTH'};
+    const mrn=lastPilotMsgMin[cs]||'';
+    const min=await sendCpdlc(cs,'NE',text,mrn);
+    if(min==null)return {ok:false,error:(lastSendError||'SEND FAIL').toUpperCase()};
+    logMsg('sys',cs,text+(mrn?' (ref MIN '+mrn+')':''));
+    return {ok:true};
+  }
   function retry(){setTimeout(connect,delay);delay=Math.min(delay*2,30000);}
   function connect(){
     try{ws=new WebSocket(URL_);}catch(_){retry();return;}
@@ -11311,11 +11326,13 @@ window.vUSALinkEDST=Object.freeze({
       let r;
       if(m.t==='contact'){try{r=await contact(m);}catch(_){r={ok:false,error:'SEND FAIL'};}}
       else if(m.t==='cmd'){
-        // Crossing restriction uplinks from ERAMv2's X RES menu: only UC, through the host API (same checks as typed).
+        // Uplinks from ERAMv2's X RES and PID menus, through the host API (same checks as typed): UC crossing
+        // restrictions, and QZ <alt> /U / QU <fix> /U approving a pilot request.
         const text=String(m.text||'').toUpperCase().replace(/\s+/g,' ').trim();
-        if(!/^UC /.test(text))r={ok:false,error:'NOT ALLOWED'};
+        if(!/^UC /.test(text)&&!/^(QZ \d{2,3}|QU [A-Z0-9]{2,12}) \/U [A-Z][A-Z0-9]{1,7}$/.test(text))r={ok:false,error:'NOT ALLOWED'};
         else{try{r=await window.vUSALinkEDST.command(text);}catch(_){r={ok:false,error:'SEND FAIL'};}}
       }
+      else if(m.t==='reply'){try{r=await reply(m);}catch(_){r={ok:false,error:'SEND FAIL'};}}
       else return;
       r=r||{};
       send({t:'result',id:m.id,ok:!!r.ok,error:r.error||''});
