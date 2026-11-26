@@ -11,7 +11,7 @@
  *
  * Usage:
  *   node scripts/build-nav-data.mjs
- *   node scripts/build-nav-data.mjs --faa-cycle 2026-10-01
+ *   node scripts/build-nav-data.mjs --faa-cycle 2026-11-26
  *   node scripts/build-nav-data.mjs --nasr-dir /path/to/CSV
  */
 
@@ -576,7 +576,7 @@ async function main() {
   const nasrIdx = process.argv.indexOf("--nasr-dir");
   const nasrDir = nasrIdx >= 0 ? process.argv[nasrIdx + 1] : null;
   const cycleIdx = process.argv.indexOf("--faa-cycle");
-  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-10-01";
+  const faaCycle = cycleIdx >= 0 ? process.argv[cycleIdx + 1] : "2026-11-26";
   const cifpIdx = process.argv.indexOf("--cifp");
   const cifpPath = cifpIdx >= 0 ? process.argv[cifpIdx + 1] : null;
   const data = nasrDir
