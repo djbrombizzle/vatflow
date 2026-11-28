@@ -272,7 +272,8 @@ function start() {
 
   $("foot").innerHTML =
     `Source: ${esc(SOP_ID)} (${esc(SOP_DATE)}), Chapter 4 sector procedures (given) and Chapter 5 descend-via bottom altitudes. ` +
-    `"+" and SATS destinations are matched to fields within 35 nm of the named airport. ` +
+    `"+" and SATS rows apply to fields within 35 nm of the named airport, and to any other field up to 150 nm away whose route ` +
+    `flies the row's routing (its fixes, airways and STAR, including fixes from the expanded airways, SIDs and STARs). ` +
     `A "?" marks a partial route match (the STAR or most of the routing matched, not every fix). ` +
     `Deconsolidated plans hide hand-offs between sectors the same controller owns. Reference only; the SOP governs.`;
 
@@ -562,6 +563,7 @@ function renderCard({ f, st, rows, dv, inbound }) {
     const r = m.row;
     const notes = [...m.notes];
     if (m.how === "satellite") notes.push(`${f.arr} as satellite of ${r[1]}`);
+    if (m.how === "route") notes.push(`${f.arr} by route (${r[3]})`);
     if (r[2]) notes.push(r[2]);
     if (m.typeUnknown) notes.push(`aircraft type ${f.type || "?"} not classified`);
     if (m.passed) notes.push("passed");

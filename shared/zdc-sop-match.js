@@ -8,6 +8,13 @@ import { AIRCRAFT_ENGINE } from "./mit-monitor.js";
 
 /** Airports within this distance of a "+"/SATS primary count as its satellites. */
 export const SAT_RADIUS_NM = 35;
+/**
+ * Beyond SAT_RADIUS_NM, a "+"/SATS row still applies to a field up to this far from the
+ * named airport when the flight's route follows the row's routing ("EWR SATS GVE JAIKE#"
+ * for a KMMU flight on the JAIKE STAR). The route, not a guess at which fields the TRACON
+ * calls satellites, decides; the distance only keeps an unrelated far-off field out.
+ */
+export const ROUTE_SAT_RADIUS_NM = 150;
 
 const AIRWAY_RE = /^[JQVTY]\d{1,4}$|^AR\d{1,3}$/;
 const STAR_REV_RE = /^([A-Z]{3,5})\d[A-Z]?$/;
@@ -94,6 +101,27 @@ export function destMatches(pf, dest, geo = {}) {
     return { how: "satellite" };
   }
   return null;
+}
+
+/**
+ * Can `dest` take a "+"/SATS/area row on its route alone? Not a field with its own rows,
+ * and within ROUTE_SAT_RADIUS_NM of a named airport (and on the named side of it).
+ */
+export function routeDestEligible(pf, dest, geo = {}) {
+  const d = icao(dest);
+  if (!d || !pf.plus || !geo.ll) return false;
+  if (pf.airports.includes(d)) return false;
+  if (geo.primaries && geo.primaries.has(d)) return false;
+  const dll = geo.ll(d);
+  if (!dll) return false;
+  return pf.airports.some(p => {
+    const pll = geo.ll(p);
+    if (!pll || haversineNm(pll, dll) > ROUTE_SAT_RADIUS_NM) return false;
+    if (pf.dir === "N" && !(dll[0] > pll[0])) return false;
+    if (pf.dir === "S" && !(dll[0] < pll[0])) return false;
+    if (pf.dir === "E" && !(dll[1] > pll[1])) return false;
+    return true;
+  });
 }
 
 /** Every airport named in the For column (destMatches' geo.primaries). */
@@ -320,9 +348,19 @@ function parsedRow(row) {
   return p;
 }
 
-function scoreAlternative(alt, fp) {
+function scoreAlternative(alt, fp, airwayByNeighbours = false) {
   let matched = 0, filedHits = 0, starReq = 0, starOk = 0, starConflict = false, firstIdx = Infinity;
-  for (const opts of alt) {
+  // For a row matched on its route alone, an airway in the routing ("PXT V16 ENO") counts
+  // as flown when the fixes either side of it are on the route, however the flight got
+  // between them. Exact-destination rows keep needing the airway itself (V44 rows are for
+  // aircraft filed on V44, not jets on the CAMRN STAR through the same fixes).
+  const onRoute = opts => opts.some(o => (o.star ? fp.stars.has(o.star) : fp.points.has(o.fix || o.airway)));
+  const viaNeighbours = i => {
+    const prev = alt[i - 1], next = alt[i + 1];
+    return !!(prev && next && !prev.some(o => o.star || o.airway) && !next.some(o => o.airway) && onRoute(prev) && onRoute(next));
+  };
+  for (let gi = 0; gi < alt.length; gi++) {
+    const opts = alt[gi];
     let hit = false;
     for (const o of opts) {
       if (o.star) {
@@ -341,6 +379,7 @@ function scoreAlternative(alt, fp) {
       }
       if (hit) break;
     }
+    if (!hit && airwayByNeighbours && opts.every(o => o.airway) && viaNeighbours(gi)) hit = true;
     const isStar = opts.some(o => o.star);
     if (isStar) { starReq++; if (hit) starOk++; }
     if (hit) matched++;
@@ -375,8 +414,11 @@ export function matchFlight(flight, ctx = {}) {
     let how = "exact";
     if (!pf.overflight) {
       const dm = destMatches(pf, flight.arr, geo);
-      if (!dm) return;
-      how = dm.how;
+      if (dm) how = dm.how;
+      // Not a satellite by distance: a "+"/SATS row can still apply when the route
+      // follows its routing (checked in pass 2).
+      else if (rt.alternatives.length && routeDestEligible(pf, flight.arr, geo)) how = "route";
+      else return;
     }
     const classes = restrictionClasses(row[4]) || pf.classes;
     let typeUnknown = false;
@@ -413,7 +455,7 @@ export function matchFlight(flight, ctx = {}) {
     } else {
       let best = null;
       for (const alt of rt.alternatives) {
-        const sc = scoreAlternative(alt, fp);
+        const sc = scoreAlternative(alt, fp, how === "route");
         if (sc.starConflict) continue;
         const ratio = sc.matched / sc.total;
         // A partial match needs at least one hit on the route as filed, not
@@ -432,6 +474,9 @@ export function matchFlight(flight, ctx = {}) {
       }
       if (!best) continue;
       if (pf.overflight && best.q !== "full") continue;
+      // Matched on its route alone: the whole routing has to be flown. Before the route
+      // is expanded (no extraFixes) a filed partial keeps it as a candidate.
+      if (how === "route" && best.q !== "full" && ctx.extraFixes && ctx.extraFixes.length) continue;
       quality = best.q;
       order = best.idx;
       c.star = best;

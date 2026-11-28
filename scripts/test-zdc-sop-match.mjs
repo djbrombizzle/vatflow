@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { ROWS, SECTORS } from "../shared/zdc-sop-data.js";
 import {
   parseFor, destMatches, parseRouting, flightRoutePoints, engineClass, cruiseFeet,
-  restrictionFix, crossingFixes, onlineFacilities, rowVisibleInConfig, ownerOf, matchFlight, descendViaFor, primaryAirports, satellitePrimaries,
+  restrictionFix, crossingFixes, routeDestEligible, onlineFacilities, rowVisibleInConfig, ownerOf, matchFlight, descendViaFor, primaryAirports, satellitePrimaries,
 } from "../shared/zdc-sop-match.js";
 
 let passed = 0;
@@ -19,6 +19,7 @@ const LL = {
   KEWR: [40.692, -74.169], KTEB: [40.850, -74.061], KLGA: [40.777, -73.873], KJFK: [40.640, -73.779],
   KBWI: [39.175, -76.668], KIAD: [38.944, -77.456], KRDU: [35.878, -78.787],
   KJYO: [39.078, -77.558], KHEF: [38.721, -77.515],
+  KDOV: [39.130, -75.466], KMIV: [39.368, -75.072], KSBY: [38.341, -75.510],
 };
 const ctx = { ll: id => LL[id] || null, primaries: primaryAirports(), satPrimaries: satellitePrimaries() };
 const rowsFor = (flight, extra = {}) => matchFlight(flight, { ...ctx, ...extra }).map(m => m.row);
@@ -156,6 +157,26 @@ t("a shared STAR alone does not pull in a sibling routing", () => {
   assert.equal(bos[0].quality, "partial", "CONFR not filed");
   const clt = matchFlight({ dep: "KDCA", arr: "KCLT", route: "SCRAM6 GLANC AIROW CHSLY9", type: "A20N", altitude: "30000" }, ctx);
   assert.deepEqual(clt.map(m => m.row[3]), ["AIROW CHSLY#"]);
+});
+
+t("+/SATS rows also match on the route string, not only on distance", () => {
+  // KILG is nearer PHL than DOV, so by distance it is a PHL satellite; on the ARLFT STAR it takes DOV+ rows.
+  const ilg = { dep: "KATL", arr: "KILG", route: "SMTHH THHMP MAULS ARLFT2", type: "CRJ9", altitude: "33000" };
+  const exp = ["KATL", "SMTHH", "THHMP", "MAULS", "ENO", "ARLFT", "KILG"];
+  const rows = matchFlight(ilg, { ...ctx, extraFixes: exp });
+  const dov = rows.filter(m => m.row[1] === "DOV+");
+  assert.ok(dov.some(m => m.row[3] === "MAULS ARLFT#" && m.row[4] === "AOB 210" && m.how === "route"), "sector 20 MAULS ARLFT# AOB 210");
+  // Without the routing, KILG is not a DOV satellite.
+  const direct = matchFlight({ ...ilg, route: "SMTHH THHMP DCT ENO" }, { ...ctx, extraFixes: ["KATL", "SMTHH", "THHMP", "ENO", "KILG"] });
+  assert.ok(!direct.some(m => m.row[1] === "DOV+" && m.row[3].includes("ARLFT")), "no ARLFT rows without the STAR");
+  // An airway in the routing is flown when the fixes either side of it are (PXT V16 ENO filed as PXT DCT ENO).
+  const pxt = matchFlight({ dep: "KRDU", arr: "KMIV", route: "TAQLE PXT DCT ENO", type: "BE58", altitude: "9000" },
+    { ...ctx, extraFixes: ["KRDU", "TAQLE", "PXT", "ENO", "KMIV"] });
+  assert.ok(pxt.some(m => m.row[1] === "DOV+" && m.row[3].includes("PXT V16 ENO")), "PXT V16 ENO via its end fixes");
+  // Fields with their own rows, or far from the named airport, never take another field's rows by route.
+  assert.equal(routeDestEligible(parseFor("DOV+"), "KPHL", ctx), false);
+  assert.equal(routeDestEligible(parseFor("DOV+"), "KRDU", ctx), false);
+  assert.equal(routeDestEligible(parseFor("PHL S SAT"), "KILG", ctx), true);
 });
 
 t("expanded route fixes complete a match but cannot start a partial one", () => {
