@@ -488,6 +488,7 @@ function renderCard({ f, st, rows }) {
     if (r[6]) notes.unshift(r[6]);
     if (r[7]) notes.push(r[7]);
     if (m.how === "satellite") notes.push(`${f.arr} as satellite of ${forLabel(r)}`);
+    if (m.how === "route") notes.push(`${f.arr} by route (${r[3]})`);
     if (m.typeUnknown) notes.push(`aircraft type ${f.type || "?"} not classified`);
     if (m.passed) notes.push("passed");
     return `<tr class="${m.quality}${m.passed ? " passed" : ""}">` +

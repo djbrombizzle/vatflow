@@ -717,6 +717,7 @@ function renderDetail({ f, m, st }, q) {
         const r = s.row;
         const notes = [...s.notes];
         if (s.how === "satellite") notes.push(`${f.arr} as satellite of ${r[1]}`);
+        if (s.how === "route") notes.push(`${f.arr} by route (${r[3]})`);
         if (r[2]) notes.push(r[2]);
         if (s.quality !== "full") notes.push("partial route match");
         return `<tr><td>${sectorCell(r[0], cfgKey)} → ${sectorCell(r[5], cfgKey)}</td><td class="restr">${esc(r[4])}</td>` +
